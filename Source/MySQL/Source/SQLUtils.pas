@@ -2870,7 +2870,10 @@ end;
 
 function SQLTrimStmt(const SQL: string; const Index, Length: Integer; const Version: Integer; var StartingCommentLength, EndingCommentLength: Integer): Integer;
 begin
-  Result := SQLTrimStmt(PChar(@SQL[Index]), Length, Version, StartingCommentLength, EndingCommentLength);
+  if ((Index < 1) or (System.Length(SQL) < Index)) then
+    Result := 0
+  else
+    Result := SQLTrimStmt(PChar(@SQL[Index]), Length, Version, StartingCommentLength, EndingCommentLength);
 end;
 
 function SQLTrimStmt(const SQL: PChar; const Length: Integer; const Version: Integer; out StartingCommentLength, EndingCommentLength: Integer): Integer; overload;

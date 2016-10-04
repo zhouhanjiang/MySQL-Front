@@ -2642,6 +2642,8 @@ begin
           NotFound := True
         else if (DBObject.Invalid or not DBObject.Update()) then
           AllowChange := False
+        else if ((URI.Param['view'] = 'ide') and (DBObject.Source = '')) then
+          AllowChange := False
         else if (URI.Param['objecttype'] = 'trigger') then
           if (URI.Param['object'] = Null) or not Assigned(Database.TriggerByName(URI.Param['object'])) then
             NotFound := True
@@ -4794,7 +4796,10 @@ begin
     SBuilderQuery.ActiveBorderColor := Color;
   end;
 
+  SSideBar.Width := GetSystemMetrics(SM_CXFIXEDFRAME);
+  SResult.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
   PResultHeader.Width := CloseButton.Bitmap.Width + 2 * GetSystemMetrics(SM_CXEDGE);
+  SLog.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
   PLogHeader.Width := CloseButton.Bitmap.Width + 2 * GetSystemMetrics(SM_CXEDGE);
 
   FormResize(nil);
@@ -5966,7 +5971,7 @@ begin
 
       if (DBGrid.Columns[I].Width < DBGrid.Canvas.TextWidth('ee' + DBGrid.Columns[I].Title.Caption)) then
         DBGrid.Columns[I].Width := DBGrid.Canvas.TextWidth('ee' + DBGrid.Columns[I].Title.Caption)
-      else if ((DBGrid.Columns[I].Width > Preferences.GridMaxColumnWidth) and not (DBGrid.Columns[I].Field.DataType in [ftSmallint, ftInteger, ftLargeint, ftWord, ftLongWord, ftFloat, ftDate, ftDateTime, ftTime, ftCurrency])) then
+      else if ((DBGrid.Columns[I].Width > Preferences.GridMaxColumnWidth)) then
         DBGrid.Columns[I].Width := Preferences.GridMaxColumnWidth;
 
       if (DBGrid.Columns[I].Field.IsIndexField) then
@@ -6476,9 +6481,8 @@ end;
 procedure TFSession.FNavigatorChanging(Sender: TObject; Node: TTreeNode;
   var AllowChange: Boolean);
 begin
-  AllowChange := AllowChange
-    and not Dragging(Sender)
-    and not (Assigned(Node) and (Node.ImageIndex in [iiKey, iiField, iiVirtualField, iiSystemViewField, iiViewField, iiForeignKey]));
+  AllowChange := AllowChange and Assigned(Node) and not Dragging(Sender);
+  AddressChanging(nil, NavigatorNodeToAddress(Node), AllowChange);
 
   if (AllowChange and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then
     try
@@ -7337,7 +7341,7 @@ begin
   MainAction('aDCreateKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
   MainAction('aDCreateField').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
   MainAction('aDCreateForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseTable]);
-  MainAction('aDCreateUser').Enabled := Assigned(Node) and (Node.ImageIndex = iiUsers);
+  MainAction('aDCreateUser').Enabled := Assigned(Node) and (Node.ImageIndex = iiUsers) and Assigned(Session.UserRights) and Session.UserRights.RCreateUser;
   MainAction('aDDeleteDatabase').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
   MainAction('aDDeleteTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
   MainAction('aDDeleteView').Enabled := Assigned(Node) and (Node.ImageIndex = iiView);
@@ -7351,9 +7355,9 @@ begin
   MainAction('aDEditServer').Enabled := Assigned(Node) and (Node.ImageIndex = iiServer);
   MainAction('aDEditDatabase').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
   MainAction('aDEditTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
-  MainAction('aDEditView').Enabled := Assigned(Node) and (Node.ImageIndex = iiView);
-  MainAction('aDEditRoutine').Enabled := Assigned(Node) and (Node.ImageIndex in [iiProcedure, iiFunction]);
-  MainAction('aDEditEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiEvent);
+  MainAction('aDEditView').Enabled := Assigned(Node) and (Node.ImageIndex = iiView) and (TSView(Node.Data).Source <> '');
+  MainAction('aDEditRoutine').Enabled := Assigned(Node) and (Node.ImageIndex in [iiProcedure, iiFunction]) and (TSRoutine(Node.Data).Source <> '');
+  MainAction('aDEditEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiEvent) and (TSEvent(Node.Data).Source <> '');
   MainAction('aDEditKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiKey);
   MainAction('aDEditField').Enabled := Assigned(Node) and (Node.ImageIndex in [iiField, iiVirtualField]);
   MainAction('aDEditForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiForeignKey);
@@ -7391,7 +7395,7 @@ begin
       iiVariable: miNProperties.Action := MainAction('aDEditVariable');
       else miNProperties.Action := nil;
     end;
-  miNProperties.Enabled := Assigned(miNProperties.Action);
+  miNProperties.Enabled := Assigned(miNProperties.Action) and (miNProperties.Action is TAction) and TAction(miNProperties.Action).Enabled;
   miNProperties.Caption := Preferences.LoadStr(97) + '...';
   miNProperties.ShortCut := ShortCut(VK_RETURN, [ssAlt]);
 
@@ -9358,14 +9362,14 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         Item.SubItems.Add('')
       else
         Item.SubItems.Add(SysUtils.DateToStr(TSDatabase(Data).Created, LocaleFormatSettings));
-      if (not Assigned(TSDatabase(Data).Charset) or (TSDatabase(Data).Charset = Session.Charset)) then
-        S := ''
+      if ((TSDatabase(Data).Charset <> '') and (TSDatabase(Data).Charset <> Session.Charset)) then
+        S := TSDatabase(Data).Charset
       else
-        S := TSDatabase(Data).Charset.Name;
-      if (Assigned(TSDatabase(Data).Collation) and (TSDatabase(Data).Collation <> Session.Collation)) then
+        S := '';
+      if ((TSDatabase(Data).Collation <> '') and (TSDatabase(Data).Collation <> Session.Collation)) then
       begin
         if (S <> '') then S := S + ', ';
-        S := S + TSDatabase(Data).Collation.Name;
+        S := S + TSDatabase(Data).Collation;
       end;
       if (TSDatabase(Data) is TSSystemDatabase) then
         Item.SubItems.Add('')
@@ -9412,12 +9416,12 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
       else
         Item.SubItems.Add(SysUtils.DateTimeToStr(TSBaseTable(Data).Updated, LocaleFormatSettings));
       S := '';
-      if ((TSTable(Data) is TSBaseTable) and Assigned(TSBaseTable(Data).Charset) and (TSBaseTable(Data).Charset <> TSBaseTable(Data).Database.Charset)) then
-        S := S + TSBaseTable(Data).Charset.Name;
-      if ((TSTable(Data) is TSBaseTable) and Assigned(TSBaseTable(Data).Collation) and (TSBaseTable(Data).Collation <> TSBaseTable(Data).Database.Collation)) then
+      if ((TSTable(Data) is TSBaseTable) and (TSBaseTable(Data).Charset <> '') and (TSBaseTable(Data).Charset <> TSBaseTable(Data).Database.Charset)) then
+        S := S + TSBaseTable(Data).Charset;
+      if ((TSTable(Data) is TSBaseTable) and (TSBaseTable(Data).Collation <> '') and (TSBaseTable(Data).Collation <> TSBaseTable(Data).Database.Collation)) then
       begin
         if (S <> '') then S := S + ', ';
-        S := S + TSBaseTable(Data).Collation.Name;
+        S := S + TSBaseTable(Data).Collation;
       end;
       Item.SubItems.Add(S);
       if (Data is TSBaseTable) then
@@ -9436,7 +9440,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         TSRoutine.TRoutineType.rtFunction: Item.SubItems.Add('Function');
       end;
       Item.SubItems.Add('');
-      if (not TSRoutine(Data).Valid) then
+      if (not TSRoutine(Data).Valid or (TSRoutine(Data).Source = '')) then
         Item.SubItems.Add('')
       else
         Item.SubItems.Add(SizeToStr(Length(TSRoutine(Data).Source)));
@@ -9444,10 +9448,10 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         Item.SubItems.Add('')
       else
         Item.SubItems.Add(SysUtils.DateTimeToStr(TSRoutine(Data).Modified, LocaleFormatSettings));
-      if (not Assigned(TSRoutine(Data).FunctionResult) or not Assigned(TSRoutine(Data).FunctionResult.Charset) or (TSRoutine(Data).FunctionResult.Charset = TSRoutine(Data).Database.Charset)) then
+      if (not Assigned(TSRoutine(Data).FunctionResult) or (TSRoutine(Data).FunctionResult.Charset = '') or (TSRoutine(Data).FunctionResult.Charset = TSRoutine(Data).Database.Charset)) then
         Item.SubItems.Add('')
       else
-        Item.SubItems.Add(TSRoutine(Data).FunctionResult.Charset.Name);
+        Item.SubItems.Add(TSRoutine(Data).FunctionResult.Charset);
       Item.SubItems.Add(TSRoutine(Data).Comment);
     end
     else if (Data is TSEvent) then
@@ -9457,7 +9461,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
       Item.Caption := TSEvent(Data).Caption;
       Item.SubItems.Add(Preferences.LoadStr(812));
       Item.SubItems.Add('');
-      if (not TSEvent(Data).Valid) then
+      if (not TSEvent(Data).Valid or (TSEvent(Data).Source = '')) then
         Item.SubItems.Add('')
       else
         Item.SubItems.Add(SizeToStr(Length(TSEvent(Data).Source)));
@@ -9515,12 +9519,12 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         S := '';
         if (TSBaseTableField(Data).FieldType in TextFieldTypes) then
         begin
-          if (not Assigned(TSBaseTableField(Data).Charset) and (TSBaseTableField(Data).Charset <> TSBaseTableField(Data).Table.Charset)) then
-            S := S + TSBaseTableField(Data).Charset.Name;
-          if (not Assigned(TSBaseTableField(Data).Collation) and (TSBaseTableField(Data).Collation <> TSBaseTableField(Data).Table.Collation)) then
+          if ((TSBaseTableField(Data).Charset <> '') and (TSBaseTableField(Data).Charset <> TSBaseTableField(Data).Table.Charset)) then
+            S := S + TSBaseTableField(Data).Charset;
+          if ((TSBaseTableField(Data).Collation <> '') and (TSBaseTableField(Data).Collation <> TSBaseTableField(Data).Table.Collation)) then
           begin
             if (S <> '') then S := S + ', ';
-            S := S + TSBaseTableField(Data).Collation.Name;
+            S := S + TSBaseTableField(Data).Collation;
           end;
         end;
         Item.SubItems.Add(S);
@@ -9595,7 +9599,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         else
           Item.SubItems.Add(TSViewField(Data).Default);
         if (TSViewField(Data).Charset <> TSViewField(Data).Table.Database.Charset) then
-          Item.SubItems.Add(TSViewField(Data).Charset.Name);
+          Item.SubItems.Add(TSViewField(Data).Charset);
       end;
     end
     else if (Data is TSProcesses) then
@@ -10067,7 +10071,6 @@ begin
             MainAction('aDCreateProcedure').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and Assigned(TSDatabase(Item.Data).Routines);
             MainAction('aDCreateFunction').Enabled := MainAction('aDCreateProcedure').Enabled;
             MainAction('aDCreateEvent').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and Assigned(TSDatabase(Item.Data).Events);
-            MainAction('aDCreateUser').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiUsers);
             MainAction('aDDeleteDatabase').Enabled := (ListView.SelCount >= 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aDEditServer').Enabled := (ListView.SelCount = 0);
             MainAction('aDEditDatabase').Enabled := (ListView.SelCount >= 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
@@ -10102,7 +10105,7 @@ begin
           begin
             Database := TSDatabase(FNavigator.Selected.Data);
 
-            aPOpenInNewWindow.Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiSystemView, iiView, iiProcedure, iiFunction]);
+            aPOpenInNewWindow.Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiSystemView, iiView, iiProcedure, iiFunction]) and (not (Item.ImageIndex in [iiProcedure, iiFunction, iiEvent]) or (TSDBObject(Item.Data).Source <> ''));
             aPOpenInNewTab.Enabled := aPOpenInNewWindow.Enabled;
             MainAction('aFImportSQL').Enabled := (ListView.SelCount = 0) and (SelectedImageIndex = iiDatabase);
             MainAction('aFImportText').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
@@ -10135,9 +10138,9 @@ begin
             MainAction('aDDeleteEvent').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiEvent);
             MainAction('aDEditDatabase').Enabled := (ListView.SelCount = 0) and (SelectedImageIndex = iiDatabase);
             MainAction('aDEditTable').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable);
-            MainAction('aDEditView').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiView);
-            MainAction('aDEditRoutine').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiProcedure, iiFunction]);
-            MainAction('aDEditEvent').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiEvent);
+            MainAction('aDEditView').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiView) and (TSView(Item.Data).Source <> '');
+            MainAction('aDEditRoutine').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiProcedure, iiFunction]) and (TSRoutine(Item.Data).Source <> '');
+            MainAction('aDEditEvent').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiEvent) and (TSEvent(Item.Data).Source <> '');
             MainAction('aDEmpty').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable);
             aDDelete.Enabled := (ListView.SelCount >= 1);
 
@@ -10157,14 +10160,14 @@ begin
                 MainAction('aDDeleteRoutine').Enabled := MainAction('aDDeleteRoutine').Enabled and (ListView.Items[I].ImageIndex in [iiProcedure, iiFunction]);
                 MainAction('aDDeleteEvent').Enabled := MainAction('aDDeleteEvent').Enabled and (ListView.Items[I].ImageIndex in [iiEvent]);
                 MainAction('aDEditTable').Enabled := MainAction('aDEditTable').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
-                MainAction('aDEditView').Enabled := MainAction('aDEditView').Enabled and (ListView.Items[I].ImageIndex in [iiView]);
-                MainAction('aDEditRoutine').Enabled := MainAction('aDEditRoutine').Enabled and (ListView.Items[I].ImageIndex in [iiProcedure, iiFunction]);
-                MainAction('aDEditEvent').Enabled := MainAction('aDEditEvent').Enabled and (ListView.Items[I].ImageIndex in [iiEvent]);
+                MainAction('aDEditView').Enabled := MainAction('aDEditView').Enabled and (ListView.Items[I].ImageIndex in [iiView]) and (TSView(ListView.Items[I].Data).Source <> '');
+                MainAction('aDEditRoutine').Enabled := MainAction('aDEditRoutine').Enabled and (ListView.Items[I].ImageIndex in [iiProcedure, iiFunction]) and (TSRoutine(ListView.Items[I].Data).Source <> '');
+                MainAction('aDEditEvent').Enabled := MainAction('aDEditEvent').Enabled and (ListView.Items[I].ImageIndex in [iiEvent]) and (TSEvent(ListView.Items[I].Data).Source <> '');
                 MainAction('aDEmpty').Enabled := MainAction('aDEmpty').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
                 aDDelete.Enabled := aDDelete.Enabled and not (ListView.Items[I].ImageIndex in [iiSystemView]);
               end;
 
-            mlOpen.Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiSystemView, iiView, iiProcedure, iiFunction, iiEvent]);
+            mlOpen.Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiSystemView, iiView, iiProcedure, iiFunction, iiEvent]) and (not (Item.ImageIndex in [iiProcedure, iiFunction, iiEvent]) or (TSDBObject(Item.Data).Source <> ''));
 
             if (SelectedImageIndex = iiSystemDatabase) then
               mlEProperties.Action := nil
@@ -10266,17 +10269,17 @@ begin
           begin
             MainAction('aDDeleteProcess').Enabled := (ListView.SelCount >= 1) and Selected and (TObject(Item.Data) is TSProcess) and (TSProcess(Item.Data).ThreadId <> Session.Connection.ThreadId);
             MainAction('aDEditProcess').Enabled := (ListView.SelCount = 1);
-            aDDelete.Enabled := (ListView.SelCount >= 1);
+            aDDelete.Enabled := MainAction('aDDeleteProcess').Enabled;
 
             mlEProperties.Action := MainAction('aDEditProcess');
           end;
         iiUsers:
           begin
             MainAction('aEPaste').Enabled := not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLUSERS);
-            MainAction('aDCreateUser').Enabled := (ListView.SelCount = 0);
-            MainAction('aDDeleteUser').Enabled := (ListView.SelCount >= 1);
+            MainAction('aDCreateUser').Enabled := (ListView.SelCount = 0) and Assigned(Session.UserRights) and Session.UserRights.RCreateUser;
+            MainAction('aDDeleteUser').Enabled := (ListView.SelCount >= 1) and Assigned(Session.UserRights) and Session.UserRights.RCreateUser;
             MainAction('aDEditUser').Enabled := (ListView.SelCount = 1);
-            aDDelete.Enabled := (ListView.SelCount >= 1);
+            aDDelete.Enabled := MainAction('aDDeleteUser').Enabled;
 
             mlEProperties.Action := MainAction('aDEditUser');
           end;

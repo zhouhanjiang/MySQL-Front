@@ -155,8 +155,8 @@ begin
         Item.SubItems.Add('<auto_increment>')
       else
         Item.SubItems.Add(ViewField.Default);
-      if (Assigned(ViewField.Charset) and (ViewField.Charset <> View.Database.Charset)) then
-        Item.SubItems.Add(ViewField.Charset.Name);
+      if ((ViewField.Charset <> '') and (ViewField.Charset <> View.Database.Charset)) then
+        Item.SubItems.Add(ViewField.Charset);
     end;
     Item.ImageIndex := iiViewField;
   end;

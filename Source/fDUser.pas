@@ -318,7 +318,7 @@ begin
   end
   else
   begin
-    Caption := Preferences.LoadStr(842, NewUser.Caption);
+    Caption := Preferences.LoadStr(842, User.Caption);
     HelpContext := 1059;
   end;
 

@@ -113,8 +113,8 @@ procedure TDDatabase.Built();
 begin
   FName.Text := Database.Name;
 
-  FCharset.ItemIndex := FCharset.Items.IndexOf(Database.Charset.Name); FCharsetChange(nil);
-  FCollation.ItemIndex := FCollation.Items.IndexOf(Database.Collation.Name); FCollationChange(nil);
+  FCharset.ItemIndex := FCharset.Items.IndexOf(Database.Charset); FCharsetChange(nil);
+  FCollation.ItemIndex := FCollation.Items.IndexOf(Database.Collation); FCollationChange(nil);
 
   FSource.Lines.Text := Database.Source + #13#10;
 
@@ -223,7 +223,7 @@ end;
 procedure TDDatabase.FCharsetExit(Sender: TObject);
 begin
   if ((FCharset.Text = '') and Assigned(Database)) then
-    FCharset.Text := Database.Charset.Name;
+    FCharset.Text := Database.Charset;
 end;
 
 procedure TDDatabase.FCollationChange(Sender: TObject);
@@ -257,13 +257,13 @@ begin
 
     NewDatabase.Name := Trim(FName.Text);
     if (not FCharset.Visible) then
-      NewDatabase.Charset := nil
+      NewDatabase.Charset := ''
     else
-      NewDatabase.Charset := Session.CharsetByName(FCharset.Text);
+      NewDatabase.Charset := FCharset.Text;
     if (not FCollation.Visible) then
-      NewDatabase.Collation := nil
+      NewDatabase.Collation := ''
     else
-      NewDatabase.Collation := Session.CollationByName(Trim(FCollation.Text));
+      NewDatabase.Collation := FCollation.Text;
 
     if (not Assigned(Database) or not Assigned(Session.DatabaseByName(Database.Name))) then
       CanClose := Session.AddDatabase(NewDatabase)
@@ -366,7 +366,7 @@ begin
       FName.Text := DatabaseName;
     end;
 
-    FCharset.ItemIndex := FCharset.Items.IndexOf(Session.Charset.Name); FCharsetChange(Sender);
+    FCharset.ItemIndex := FCharset.Items.IndexOf(Session.Charset); FCharsetChange(Sender);
 
     TSSource.TabVisible := False;
 

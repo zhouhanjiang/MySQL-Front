@@ -563,13 +563,13 @@ begin
 
   FName.Text := NewTable.Name;
 
-  if (Assigned(NewTable.Charset)) then
-    FCharset.ItemIndex := FCharset.Items.IndexOf(NewTable.Charset.Name)
+  if (NewTable.Charset <> '') then
+    FCharset.ItemIndex := FCharset.Items.IndexOf(NewTable.Charset)
   else
     FCharset.ItemIndex := -1;
   FCharsetChange(Self);
-  if (Assigned(NewTable.Collation)) then
-    FCollation.ItemIndex := FCollation.Items.IndexOf(NewTable.Collation.Name)
+  if (NewTable.Collation <> '') then
+    FCollation.ItemIndex := FCollation.Items.IndexOf(NewTable.Collation)
   else
     FCollation.ItemIndex := -1;
   FCollationChange(Self);
@@ -721,7 +721,7 @@ var
 begin
   Collation := Database.Session.CollationByName(FCollation.Text);
   if (Assigned(Collation)) then
-    NewTable.Collation := Database.Session.CollationByName(Collation.Name);
+    NewTable.Collation := Collation.Name;
 
   FBOkCheckEnabled(Sender);
 end;
@@ -729,7 +729,7 @@ end;
 procedure TDTable.FCharsetExit(Sender: TObject);
 begin
   if (FCharset.Text = '') then
-    FCharset.Text := NewTable.Charset.Name;
+    FCharset.Text := NewTable.Charset;
 end;
 
 procedure TDTable.FEngineChange(Sender: TObject);
@@ -914,8 +914,8 @@ begin
   if ((ModalResult = mrOk) and PageControl.Visible) then
   begin
     NewTable.Name := Trim(FName.Text);
-    NewTable.Charset := Database.Session.CharsetByName(Trim(FCharset.Text));
-    NewTable.Collation := Database.Session.CollationByName(Trim(FCollation.Text));
+    NewTable.Charset := FCharset.Text;
+    NewTable.Collation := FCollation.Text;
     if (not Assigned(Table) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewTable.Comment, Database.Session.Connection.ServerVersion))) then
       NewTable.Comment := Trim(FComment.Text);
 
@@ -1134,8 +1134,8 @@ begin
       FName.Text := TableName;
     end;
 
-    FCharset.ItemIndex := FCharset.Items.IndexOf(Database.Charset.Name); FCharsetChange(Sender);
-    FCollation.ItemIndex := FCollation.Items.IndexOf(Database.Collation.Name); FCollationChange(Sender);
+    FCharset.ItemIndex := FCharset.Items.IndexOf(Database.Charset); FCharsetChange(Sender);
+    FCollation.ItemIndex := FCollation.Items.IndexOf(Database.Collation); FCollationChange(Sender);
 
     FComment.Text := '';
 
@@ -1358,11 +1358,11 @@ begin
           if (NewTable.Fields[I].Charset = NewTable.Charset) then
             S := ''
           else
-            S := NewTable.Fields[I].Charset.Name;
+            S := NewTable.Fields[I].Charset;
           if (NewTable.Fields[I].Collation <> NewTable.Collation) then
           begin
             if (S <> '') then S := S + ', ';
-            S := S + NewTable.Fields[I].Collation.Name;
+            S := S + NewTable.Fields[I].Collation;
           end;
         end;
         ListItem.SubItems.Add(S);

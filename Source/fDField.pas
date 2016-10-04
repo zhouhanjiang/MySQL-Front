@@ -656,13 +656,13 @@ begin
       end;
 
       if (FCharset.Visible and FCharset.Enabled) then
-        NewField.Charset := Table.Session.CharsetByName(Trim(FCharset.Text))
+        NewField.Charset := FCharset.Text
       else
-        NewField.Charset := nil;
+        NewField.Charset := '';
       if (FCollation.Visible) then
-        NewField.Collation := Table.Session.CollationByName(Trim(FCollation.Text))
+        NewField.Collation := FCollation.Text
       else
-        NewField.Collation := nil;
+        NewField.Collation := '';
       if (not Assigned(Field) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewField.Comment, Table.Session.Connection.ServerVersion))) then
         NewField.Comment := Trim(FComment.Text);
 
@@ -818,8 +818,8 @@ begin
     FRDefaultNull.Checked := True;
     FDefault.Text := ''; FRDefaultClick(Sender);
 
-    FCharset.ItemIndex := FCharset.Items.IndexOf(Table.Charset.Name); FCharsetChange(Sender);
-    FCollation.ItemIndex := FCollation.Items.IndexOf(Table.Collation.Name);
+    FCharset.ItemIndex := FCharset.Items.IndexOf(Table.Charset); FCharsetChange(Sender);
+    FCollation.ItemIndex := FCollation.Items.IndexOf(Table.Collation);
 
     FExpression.Text := '1';
     FStoredStored.Checked := False;
@@ -859,17 +859,17 @@ begin
       if (FUDFormatSize.Position = Length(FFormatYear.Items.Strings[I])) then
         FFormatYear.ItemIndex := I;
 
-    if (Assigned(Field.Charset)) then
-      FCharset.ItemIndex := FCharset.Items.IndexOf(Field.Charset.Name)
-    else if (Assigned(Table.Charset)) then
-      FCharset.ItemIndex := FCharset.Items.IndexOf(Table.Charset.Name)
+    if (Field.Charset <> '') then
+      FCharset.ItemIndex := FCharset.Items.IndexOf(Field.Charset)
+    else if (Table.Charset <> '') then
+      FCharset.ItemIndex := FCharset.Items.IndexOf(Table.Charset)
     else
       FCharset.ItemIndex := -1;
     FCharsetChange(Sender);
-    if (Assigned(Field.Collation)) then
-      FCollation.ItemIndex := FCollation.Items.IndexOf(Field.Collation.Name)
-    else if (Assigned(Table.Collation)) then
-      FCollation.ItemIndex := FCollation.Items.IndexOf(Table.Collation.Name)
+    if (Field.Collation <> '') then
+      FCollation.ItemIndex := FCollation.Items.IndexOf(Field.Collation)
+    else if (Table.Collation <> '') then
+      FCollation.ItemIndex := FCollation.Items.IndexOf(Table.Collation)
     else
       FCollation.ItemIndex := -1;
 

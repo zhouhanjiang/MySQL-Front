@@ -62,17 +62,13 @@ object DUser: TDUser
     Top = 8
     Width = 321
     Height = 241
-    ActivePage = TSRights
+    ActivePage = TSBasics
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         195)
@@ -84,6 +80,9 @@ object DUser: TDUser
         Anchors = [akLeft, akTop, akRight]
         Caption = 'GBasics'
         TabOrder = 0
+        DesignSize = (
+          297
+          117)
         object FLUser: TLabel
           Left = 8
           Top = 23
@@ -121,8 +120,9 @@ object DUser: TDUser
         object FName: TEdit
           Left = 128
           Top = 20
-          Width = 81
+          Width = 157
           Height = 21
+          Anchors = [akLeft, akTop, akRight]
           MaxLength = 16
           TabOrder = 0
           Text = 'FName'
@@ -131,8 +131,9 @@ object DUser: TDUser
         object FHost: TEdit
           Left = 128
           Top = 52
-          Width = 145
+          Width = 157
           Height = 21
+          Anchors = [akLeft, akTop, akRight]
           TabOrder = 1
           Text = 'FHost'
           OnChange = FBOkCheckEnabled
@@ -143,10 +144,6 @@ object DUser: TDUser
     object TSRights: TTabSheet
       Caption = 'TSRights'
       OnShow = TSRightsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         195)
@@ -202,10 +199,6 @@ object DUser: TDUser
     end
     object TSLimits: TTabSheet
       Caption = 'TSLimits'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         195)
@@ -320,10 +313,6 @@ object DUser: TDUser
     object TSSQLLog: TTabSheet
       Caption = 'TSSQLLog'
       OnShow = TSSQLLogShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         195)
@@ -358,10 +347,6 @@ object DUser: TDUser
     object TSSlowSQLLog: TTabSheet
       Caption = 'TSSlowSQLLog'
       OnShow = TSSlowSQLLogShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         195)
@@ -395,10 +380,6 @@ object DUser: TDUser
     end
     object TSSource: TTabSheet
       Caption = 'TSSource'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         195)

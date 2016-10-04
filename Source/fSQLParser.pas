@@ -14,7 +14,6 @@ type
       TOffset = Integer;
       POffsetArray = ^TOffsetArray;
       TOffsetArray = array [0..$FFFF] of TOffset;
-      TIntegerArray = array of Integer;
 
   private
     type
@@ -1492,7 +1491,7 @@ type
         TItem = record
           case ItemType: (itText, itList) of
             itText: (
-              Text: array [0 .. 255] of Char;
+              Text: array [0 .. 256] of Char;
             );
             itList: (
               DatabaseName: array [0 .. 64] of Char;
@@ -1553,7 +1552,7 @@ type
         FLastTokenAll: TOffset;
         class function Create(const AParser: TSQLParser;
           const AFirstTokenAll, ALastTokenAll: TOffset;
-          const ChildCount: Integer; const Children: array of TOffset): TOffset; static;
+          const ChildCount: Integer; const Children: POffsetArray): TOffset; static;
         function GetFirstStmt(): PStmt; {$IFNDEF Debug} inline; {$ENDIF}
         function GetFirstTokenAll(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
         function GetLastStmt(): PStmt; {$IFNDEF Debug} inline; {$ENDIF}
@@ -1665,7 +1664,7 @@ type
         function GetLastToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
         function GetOffset(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
         function GetParentNode(): PNode; {$IFNDEF Debug} inline; {$ENDIF}
-        procedure AddChildren(const Children: POffsetArray; const Count: Integer);
+        procedure AddChildren(const Count: Integer; const Children: POffsetArray);
         property Offset: TOffset read GetOffset;
         property Parser: TSQLParser read Heritage.Heritage.FParser;
       public
@@ -1679,7 +1678,6 @@ type
       private
         Heritage: TRange;
         property FFirstToken: TOffset read Heritage.FFirstToken write Heritage.FFirstToken;
-        property FLastToken: TOffset read Heritage.FLastToken write Heritage.FLastToken;
       private
         Error: packed record
           Code: Byte;
@@ -1687,20 +1685,14 @@ type
           Pos: PChar;
           Token: TOffset;
         end;
-        FFirstTokenAll: TOffset;
-        FLastTokenAll: TOffset;
-        FStmtType: TStmtType; // Cache for speeding
         class function Create(const AParser: TSQLParser; const AStmtType: TStmtType): TOffset; static;
         function GetDelimiter(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
         function GetErrorMessage(): string; {$IFNDEF Debug} inline; {$ENDIF}
         function GetErrorToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
         function GetFirstToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
-        function GetFirstTokenAll(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
         function GetLastToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
-        function GetLastTokenAll(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
         function GetNextStmt(): PStmt;
-        function GetParentNode(): PNode; {$IFNDEF Debug} inline; {$ENDIF}
-        function GetText(): string;
+        function GetStmtType(): TStmtType; {$IFNDEF Debug} inline; {$ENDIF}
         property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       public
         property Delimiter: PToken read GetDelimiter;
@@ -1708,13 +1700,9 @@ type
         property ErrorMessage: string read GetErrorMessage;
         property ErrorToken: PToken read GetErrorToken;
         property FirstToken: PToken read GetFirstToken;
-        property FirstTokenAll: PToken read GetFirstTokenAll;
         property LastToken: PToken read GetLastToken;
-        property LastTokenAll: PToken read GetLastTokenAll;
         property NextStmt: PStmt read GetNextStmt;
-        property ParentNode: PNode read GetParentNode;
-        property StmtType: TStmtType read FStmtType;
-        property Text: string read GetText;
+        property StmtType: TStmtType read GetStmtType;
       end;
 
       { Normal nodes ----------------------------------------------------------}
@@ -2161,7 +2149,7 @@ type
         TBranch = packed record
         private type
           TNodes = packed record
-            Tag: TOffset;
+            BranchTag: TOffset;
             ConditionExpr: TOffset;
             ThenTag: TOffset;
             StmtList: TOffset;
@@ -3627,7 +3615,7 @@ type
         TBranch = packed record
         private type
           TNodes = packed record
-            Tag: TOffset;
+            BranchTag: TOffset;
             ConditionExpr: TOffset;
             ThenTag: TOffset;
             StmtList: TOffset;
@@ -3826,7 +3814,7 @@ type
         Nodes: TNodes;
         class function Create(const AParser: TSQLParser;
           const ANodes: TNodes; const ADelimiterType: TTokenType;
-          const AChildrenCount: Integer; const AChildren: array of TOffset): TOffset; static;
+          const AChildrenCount: Integer; const AChildren: POffsetArray): TOffset; static;
         function GetFirstChild(): PChild; {$IFNDEF Debug} inline; {$ENDIF}
       public
         property DelimiterType: TTokenType read FDelimiterType;
@@ -5648,13 +5636,13 @@ type
       TTag = packed record
       private type
         TNodes = packed record
-          KeywordToken1: TOffset;
-          KeywordToken2: TOffset;
-          KeywordToken3: TOffset;
-          KeywordToken4: TOffset;
-          KeywordToken5: TOffset;
-          KeywordToken6: TOffset;
-          KeywordToken7: TOffset;
+          Keyword1Token: TOffset;
+          Keyword2Token: TOffset;
+          Keyword3Token: TOffset;
+          Keyword4Token: TOffset;
+          Keyword5Token: TOffset;
+          Keyword6Token: TOffset;
+          Keyword7Token: TOffset;
         end;
       private
         Heritage: TRange;
@@ -5724,7 +5712,8 @@ type
       private
         Heritage: TStmt;
       private
-        class function Create(const AParser: TSQLParser; const ATokenCount: Integer; const ATokens: array of TOffset): TOffset; static;
+        class function Create(const AParser: TSQLParser;
+          const ATokenCount: Integer; const ATokens: POffsetArray): TOffset; static;
       public
         property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
@@ -6498,6 +6487,7 @@ type
     AllowedMySQLVersion: Integer;
     Commands: TFormatBuffer;
     CommentsWritten: Boolean;
+    CurrentToken: TOffset; // Cache for speeding
     DatatypeList: TWordList;
     Error: record
       Code: Byte;
@@ -6507,7 +6497,6 @@ type
     end;
     FAnsiQuotes: Boolean;
     FCompletionList: TCompletionList;
-    FCurrentToken: TOffset; // Cache for speeding
     FInPL_SQL: Integer;
     FirstError: record
       Code: Byte;
@@ -6520,7 +6509,6 @@ type
     FormatHandle: record
       DatabaseName: string;
     end;
-    FPreviousToken: TOffset;
     FRoot: TOffset;
     FunctionList: TWordList;
     InCreateFunctionStmt: Boolean;
@@ -6554,93 +6542,93 @@ type
     function EndOfStmt(const Token: PToken): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function EndOfStmt(const Token: TOffset): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     procedure EndPL_SQL(); {$IFNDEF Debug} inline; {$ENDIF}
-    procedure FormatAlterDatabaseStmt(const Nodes: TAlterDatabaseStmt.TNodes);
-    procedure FormatAlterEventStmt(const Nodes: TAlterEventStmt.TNodes);
-    procedure FormatAlterRoutineStmt(const Nodes: TAlterRoutineStmt.TNodes);
-    procedure FormatAlterTablespaceStmt(const Nodes: TAlterTablespaceStmt.TNodes);
-    procedure FormatAlterTableStmt(const Nodes: TAlterTableStmt.TNodes);
-    procedure FormatAlterViewStmt(const Nodes: TAlterViewStmt.TNodes);
-    procedure FormatBeginLabel(const Nodes: TBeginLabel.TNodes);
-    procedure FormatCallStmt(const Nodes: TCallStmt.TNodes);
-    procedure FormatCaseOp(const Nodes: TCaseOp.TNodes);
-    procedure FormatCaseStmt(const Nodes: TCaseStmt.TNodes);
-    procedure FormatCaseStmtBranch(const Nodes: TCaseStmt.TBranch.TNodes);
-    procedure FormatCastFunc(const Nodes: TCastFunc.TNodes);
-    procedure FormatCharFunc(const Nodes: TCharFunc.TNodes);
-    procedure FormatChangeMasterStmt(const Nodes: TChangeMasterStmt.TNodes);
-    procedure FormatCompoundStmt(const Nodes: TCompoundStmt.TNodes);
-    procedure FormatConvertFunc(const Nodes: TConvertFunc.TNodes);
-    procedure FormatCreateEventStmt(const Nodes: TCreateEventStmt.TNodes);
-    procedure FormatCreateIndexStmt(const Nodes: TCreateIndexStmt.TNodes);
-    procedure FormatCreateRoutineStmt(const Nodes: TCreateRoutineStmt.TNodes);
-    procedure FormatCreateServerStmt(const Nodes: TCreateServerStmt.TNodes);
-    procedure FormatCreateTablespaceStmt(const Nodes: TCreateTablespaceStmt.TNodes);
-    procedure FormatCreateTableStmt(const Nodes: TCreateTableStmt.TNodes);
-    procedure FormatCreateTableStmtField(const Nodes: TCreateTableStmt.TField.TNodes);
-    procedure FormatCreateTableStmtFieldDefaultFunc(const Nodes: TCreateTableStmt.TField.TDefaultFunc.TNodes);
-    procedure FormatCreateTableStmtKey(const Nodes: TCreateTableStmt.TKey.TNodes);
-    procedure FormatCreateTableStmtKeyColumn(const Nodes: TCreateTableStmt.TKeyColumn.TNodes);
-    procedure FormatCreateTableStmtPartition(const Nodes: TCreateTableStmt.TPartition.TNodes);
-    procedure FormatCreateTableStmtReference(const Nodes: TCreateTableStmt.TReference.TNodes);
-    procedure FormatCreateTriggerStmt(const Nodes: TCreateTriggerStmt.TNodes);
-    procedure FormatCreateUserStmt(const Nodes: TCreateUserStmt.TNodes);
-    procedure FormatCreateViewStmt(const Nodes: TCreateViewStmt.TNodes);
+    procedure FormatAlterDatabaseStmt(const Node: PAlterDatabaseStmt);
+    procedure FormatAlterEventStmt(const Node: PAlterEventStmt);
+    procedure FormatAlterRoutineStmt(const Node: PAlterRoutineStmt);
+    procedure FormatAlterTablespaceStmt(const Node: PAlterTablespaceStmt);
+    procedure FormatAlterTableStmt(const Node: PAlterTableStmt);
+    procedure FormatAlterViewStmt(const Node: PAlterViewStmt);
+    procedure FormatBeginLabel(const Node: PBeginLabel);
+    procedure FormatCallStmt(const Node: PCallStmt);
+    procedure FormatCaseOp(const Node: PCaseOp);
+    procedure FormatCaseStmt(const Node: PCaseStmt);
+    procedure FormatCaseStmtBranch(const Node: TCaseStmt.PBranch);
+    procedure FormatCastFunc(const Node: PCastFunc);
+    procedure FormatCharFunc(const Node: PCharFunc);
+    procedure FormatChangeMasterStmt(const Node: PChangeMasterStmt);
+    procedure FormatCompoundStmt(const Node: PCompoundStmt);
+    procedure FormatConvertFunc(const Node: PConvertFunc);
+    procedure FormatCreateEventStmt(const Node: PCreateEventStmt);
+    procedure FormatCreateIndexStmt(const Node: PCreateIndexStmt);
+    procedure FormatCreateRoutineStmt(const Node: PCreateRoutineStmt);
+    procedure FormatCreateServerStmt(const Node: PCreateServerStmt);
+    procedure FormatCreateTablespaceStmt(const Node: PCreateTablespaceStmt);
+    procedure FormatCreateTableStmt(const Node: PCreateTableStmt);
+    procedure FormatCreateTableStmtField(const Node: TCreateTableStmt.PField);
+    procedure FormatCreateTableStmtFieldDefaultFunc(const Node: TCreateTableStmt.TField.PDefaultFunc);
+    procedure FormatCreateTableStmtKey(const Node: TCreateTableStmt.PKey);
+    procedure FormatCreateTableStmtKeyColumn(const Node: TCreateTableStmt.PKeyColumn);
+    procedure FormatCreateTableStmtPartition(const Node: TCreateTableStmt.PPartition);
+    procedure FormatCreateTableStmtReference(const Node: TCreateTableStmt.PReference);
+    procedure FormatCreateTriggerStmt(const Node: PCreateTriggerStmt);
+    procedure FormatCreateUserStmt(const Node: PCreateUserStmt);
+    procedure FormatCreateViewStmt(const Node: PCreateViewStmt);
     procedure FormatComments(const Token: PToken; Start: Boolean = False);
-    procedure FormatDatatype(const Nodes: TDatatype.TNodes);
-    procedure FormatDateAddFunc(const Nodes: TDateAddFunc.TNodes);
-    procedure FormatDbIdent(const Nodes: TDbIdent.TNodes);
-    procedure FormatDeclareCursorStmt(const Nodes: TDeclareCursorStmt.TNodes);
-    procedure FormatDeclareHandlerStmt(const Nodes: TDeclareHandlerStmt.TNodes);
-    procedure FormatDeleteStmt(const Nodes: TDeleteStmt.TNodes);
-    procedure FormatDropTablespaceStmt(const Nodes: TDropTablespaceStmt.TNodes);
-    procedure FormatExistsFunc(const Nodes: TExistsFunc.TNodes);
-    procedure FormatExtractFunc(const Nodes: TExtractFunc.TNodes);
-    procedure FormatFunctionCall(const Nodes: TFunctionCall.TNodes);
-    procedure FormatGroupConcatFunc(const Nodes: TGroupConcatFunc.TNodes);
-    procedure FormatIfStmt(const Nodes: TIfStmt.TNodes);
-    procedure FormatIfStmtBranch(const Nodes: TIfStmt.TBranch.TNodes);
-    procedure FormatInsertStmt(const Nodes: TInsertStmt.TNodes);
-    procedure FormatList(const Nodes: TList.TNodes; const DelimiterType: TTokenType); overload; {$IFNDEF Debug} inline; {$ENDIF}
-    procedure FormatList(const Nodes: TList.TNodes; const Spacer: TSpacer); overload;
+    procedure FormatDatatype(const Node: PDatatype);
+    procedure FormatDateAddFunc(const Node: PDateAddFunc);
+    procedure FormatDbIdent(const Node: PDbIdent);
+    procedure FormatDeclareCursorStmt(const Node: PDeclareCursorStmt);
+    procedure FormatDeclareHandlerStmt(const Node: PDeclareHandlerStmt);
+    procedure FormatDeleteStmt(const Node: PDeleteStmt);
+    procedure FormatDropTablespaceStmt(const Node: PDropTablespaceStmt);
+    procedure FormatExistsFunc(const Node: PExistsFunc);
+    procedure FormatExtractFunc(const Node: PExtractFunc);
+    procedure FormatFunctionCall(const Node: PFunctionCall);
+    procedure FormatGroupConcatFunc(const Node: PGroupConcatFunc);
+    procedure FormatIfStmt(const Node: PIfStmt);
+    procedure FormatIfStmtBranch(const Node: TIfStmt.PBranch);
+    procedure FormatInsertStmt(const Node: PInsertStmt);
+    procedure FormatList(const Node: PList; const DelimiterType: TTokenType); overload; {$IFNDEF Debug} inline; {$ENDIF}
+    procedure FormatList(const Node: PList; const Spacer: TSpacer); overload;
     procedure FormatList(const Node: TOffset; const Spacer: TSpacer); overload; {$IFNDEF Debug} inline; {$ENDIF}
-    procedure FormatLoadDataStmt(const Nodes: TLoadDataStmt.TNodes);
-    procedure FormatLoadXMLStmt(const Nodes: TLoadXMLStmt.TNodes);
-    procedure FormatLockTablesStmtItem(const Nodes: TLockTablesStmt.TItem.TNodes);
-    procedure FormatLoopStmt(const Nodes: TLoopStmt.TNodes);
-    procedure FormatMatchFunc(const Nodes: TMatchFunc.TNodes);
-    procedure FormatPositionFunc(const Nodes: TPositionFunc.TNodes);
+    procedure FormatLoadDataStmt(const Node: PLoadDataStmt);
+    procedure FormatLoadXMLStmt(const Node: PLoadXMLStmt);
+    procedure FormatLockTablesStmtItem(const Node: TLockTablesStmt.PItem);
+    procedure FormatLoopStmt(const Node: PLoopStmt);
+    procedure FormatMatchFunc(const Node: PMatchFunc);
+    procedure FormatPositionFunc(const Node: PPositionFunc);
     procedure FormatNode(const Node: PNode; const Separator: TSeparatorType = stNone); overload;
-    procedure FormatNode(const Node: TOffset; const Separator: TSeparatorType = stNone); overload; {$IFNDEF Debug} inline; {$ENDIF}
-    procedure FormatRepeatStmt(const Nodes: TRepeatStmt.TNodes);
+    procedure FormatNode(const Node: TOffset; const Separator: TSeparatorType = stNone) overload; {$IFNDEF Debug} inline; {$ENDIF}
+    procedure FormatRepeatStmt(const Node: PRepeatStmt);
     procedure FormatRoot(const Node: PRoot);
-    procedure FormatSchedule(const Nodes: TSchedule.TNodes);
-    procedure FormatSecretIdent(const Nodes: TSecretIdent.TNodes);
-    procedure FormatSelectStmt(const Nodes: TSelectStmt.TNodes);
-    procedure FormatSelectStmtColumn(const Nodes: TSelectStmt.TColumn.TNodes);
-    procedure FormatSelectStmtTableFactor(const Nodes: TSelectStmt.TTableFactor.TNodes);
-    procedure FormatSelectStmtTableFactorOj(const Nodes: TSelectStmt.TTableFactorOj.TNodes);
-    procedure FormatSelectStmtTableJoin(const Nodes: TSelectStmt.TTableJoin.TNodes);
-    procedure FormatSetStmt(const Nodes: TSetStmt.TNodes);
-    procedure FormatShowBinlogEventsStmt(const Nodes: TShowBinlogEventsStmt.TNodes);
-    procedure FormatShowErrorsStmt(const Nodes: TShowErrorsStmt.TNodes);
-    procedure FormatShowRelaylogEventsStmt(const Nodes: TShowBinlogEventsStmt.TNodes);
-    procedure FormatShowWarningsStmt(const Nodes: TShowWarningsStmt.TNodes);
-    procedure FormatSubArea(const Nodes: TSubArea.TNodes);
-    procedure FormatSubAreaSelectStmt(const Nodes: TSubAreaSelectStmt.TNodes);
-    procedure FormatSubPartition(const Nodes: TSubPartition.TNodes);
-    procedure FormatSubquery(const Nodes: TSubquery.TNodes);
-    procedure FormatSubstringFunc(const Nodes: TSubstringFunc.TNodes);
+    procedure FormatSchedule(const Node: PSchedule);
+    procedure FormatSecretIdent(const Node: PSecretIdent);
+    procedure FormatSelectStmt(const Node: PSelectStmt);
+    procedure FormatSelectStmtColumn(const Node: TSelectStmt.PColumn);
+    procedure FormatSelectStmtTableFactor(const Node: TSelectStmt.PTableFactor);
+    procedure FormatSelectStmtTableFactorOj(const Node: TSelectStmt.PTableFactorOj);
+    procedure FormatSelectStmtTableJoin(const Node: TSelectStmt.PTableJoin);
+    procedure FormatSetStmt(const Node: PSetStmt);
+    procedure FormatShowBinlogEventsStmt(const Node: PShowBinlogEventsStmt);
+    procedure FormatShowErrorsStmt(const Node: PShowErrorsStmt);
+    procedure FormatShowRelaylogEventsStmt(const Node: PShowBinlogEventsStmt);
+    procedure FormatShowWarningsStmt(const Node: PShowWarningsStmt);
+    procedure FormatSubArea(const Node: PSubArea);
+    procedure FormatSubAreaSelectStmt(const Node: PSubAreaSelectStmt);
+    procedure FormatSubPartition(const Node: PSubPartition);
+    procedure FormatSubquery(const Node: PSubquery);
+    procedure FormatSubstringFunc(const Node: PSubstringFunc);
     procedure FormatToken(const Token: PToken);
-    procedure FormatTrimFunc(const Nodes: TTrimFunc.TNodes);
-    procedure FormatUnaryOp(const Nodes: TUnaryOp.TNodes);
+    procedure FormatTrimFunc(const Node: PTrimFunc);
+    procedure FormatUnaryOp(const Node: PUnaryOp);
     procedure FormatUnknownStmt(const Node: PUnknownStmt);
-    procedure FormatUpdateStmt(const Nodes: TUpdateStmt.TNodes);
-    procedure FormatUser(const Nodes: TUser.TNodes);
-    procedure FormatValue(const Nodes: TValue.TNodes);
-    procedure FormatVariableIdent(const Nodes: TVariable.TNodes);
-    procedure FormatWeightStringFunc(const Nodes: TWeightStringFunc.TNodes);
-    procedure FormatWhileStmt(const Nodes: TWhileStmt.TNodes);
-    procedure FormatXID(const Nodes: TXAStmt.TID.TNodes);
+    procedure FormatUpdateStmt(const Node: PUpdateStmt);
+    procedure FormatUser(const Node: PUser);
+    procedure FormatValue(const Node: PValue);
+    procedure FormatVariableIdent(const Node: PVariable);
+    procedure FormatWeightStringFunc(const Node: PWeightStringFunc);
+    procedure FormatWhileStmt(const Node: PWhileStmt);
+    procedure FormatXID(const Node: TXAStmt.PID);
     function GetDatatypes(): string;
     function GetErrorFound(): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
     function GetErrorMessage(): string;
@@ -6927,19 +6915,15 @@ type
     procedure SetFunctions(AFunctions: string);
     procedure SetKeywords(AKeywords: string);
     function TableNameCmp(const Name1, Name2: string): Integer;
-    property CurrentToken: TOffset read FCurrentToken;
     property ErrorFound: Boolean read GetErrorFound;
     property InPL_SQL: Boolean read GetInPL_SQL;
     property NextToken[Index: Integer]: TOffset read GetNextToken;
-    property PreviousToken: TOffset read FPreviousToken;
 
   protected
     function ChildPtr(const ANode: TOffset): PChild; {$IFNDEF Debug} inline; {$ENDIF}
     function CreateErrorMessage(const ErrorCode: Byte; const ErrorLine: Integer; const ErrorPos: PChar): string;
     function IsChild(const ANode: PNode): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function IsChild(const ANode: TOffset): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
-    function IsRange(const ANode: PNode): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
-    function IsRange(const ANode: TOffset): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function IsStmt(const ANode: PNode): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function IsStmt(const ANode: TOffset): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function IsToken(const ANode: PNode): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
@@ -6947,7 +6931,6 @@ type
     function NewNode(const ANodeType: TNodeType): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function NodePtr(const ANode: TOffset): PNode; {$IFNDEF Debug} inline; {$ENDIF}
     function NodeSize(const NodeType: TNodeType): Integer;
-    function StmtPtr(const Node: TOffset): PStmt; {$IFNDEF Debug} inline; {$ENDIF}
     function TokenPtr(const Token: TOffset): PToken; {$IFNDEF Debug} inline; {$ENDIF}
 
   public
@@ -8206,7 +8189,7 @@ end;
 
 { TSQLParser.TRange ***********************************************************}
 
-procedure TSQLParser.TRange.AddChildren(const Children: POffsetArray; const Count: Integer);
+procedure TSQLParser.TRange.AddChildren(const Count: Integer; const Children: POffsetArray);
 var
   Child: PChild;
   I: Integer;
@@ -8258,14 +8241,14 @@ end;
 
 function TSQLParser.TRange.GetParentNode(): PNode;
 begin
-  Result := PNode(Parser.NodePtr(FParentNode));
+  Result := Parser.NodePtr(FParentNode);
 end;
 
 { TSQLParser.TRoot ************************************************************}
 
 class function TSQLParser.TRoot.Create(const AParser: TSQLParser;
   const AFirstTokenAll, ALastTokenAll: TOffset;
-  const ChildCount: Integer; const Children: array of TOffset): TOffset;
+  const ChildCount: Integer; const Children: POffsetArray): TOffset;
 var
   I: Integer;
 begin
@@ -8280,13 +8263,13 @@ begin
 
     for I := 0 to ChildCount - 1 do
     begin
-      if (AParser.IsChild(Children[I])) then
-        AParser.ChildPtr(Children[I])^.FParentNode := Result;
-      if (AParser.IsStmt(Children[I])) then
+      if (AParser.IsChild(Children^[I])) then
+        AParser.ChildPtr(Children^[I])^.FParentNode := Result;
+      if (AParser.IsStmt(Children^[I])) then
       begin
         if (FFirstStmt = 0) then
-          FFirstStmt := Children[I];
-        FLastStmt := Children[I];
+          FFirstStmt := Children^[I];
+        FLastStmt := Children^[I];
       end;
     end;
   end;
@@ -8323,9 +8306,6 @@ begin
     Error.Code := PE_Success;
     Error.Line := 0;
     Error.Token := 0;
-    FStmtType := AStmtType;
-    FFirstTokenAll := 0;
-    FLastTokenAll := 0;
   end;
 end;
 
@@ -8333,14 +8313,11 @@ function TSQLParser.TStmt.GetDelimiter(): PToken;
 var
   Token: PToken;
 begin
-  Result := nil;
-  if (ParentNode^.NodeType = ntRoot) then
-  begin
-    Token := LastToken^.NextToken;
-
-    if (Assigned(Token) and (Token^.TokenType = ttSemicolon)) then
-      Result := Token;
-  end;
+  Token := LastToken^.NextToken;
+  if (not Assigned(Token) or (Token^.TokenType <> ttSemicolon)) then
+    Result := nil
+  else
+    Result := Token;
 end;
 
 function TSQLParser.TStmt.GetErrorMessage(): string;
@@ -8358,23 +8335,9 @@ begin
   Result := PToken(Parser.NodePtr(FFirstToken));
 end;
 
-function TSQLParser.TStmt.GetFirstTokenAll(): PToken;
-begin
-  Assert(FFirstTokenAll > 0);
-
-  Result := PToken(Parser.NodePtr(FFirstTokenAll));
-end;
-
 function TSQLParser.TStmt.GetLastToken(): PToken;
 begin
   Result := PRange(@Self)^.LastToken;
-end;
-
-function TSQLParser.TStmt.GetLastTokenAll(): PToken;
-begin
-  Assert(FLastTokenAll > 0);
-
-  Result := PToken(Parser.NodePtr(FLastTokenAll));
 end;
 
 function TSQLParser.TStmt.GetNextStmt(): PStmt;
@@ -8382,56 +8345,39 @@ var
   Token: PToken;
   Child: PChild;
 begin
-  if (Heritage.FParentNode <> Parser.FRoot) then
+  Token := Delimiter;
+
+  if (not Assigned(Token)) then
     Result := nil
   else
   begin
-    Token := LastTokenAll;
-    while (Assigned(Token) and (Token^.TokenType <> ttSemicolon)) do
-      Token := Token^.NextToken;
-    while (Assigned(Token) and (Token^.TokenType = ttSemicolon)) do
-      Token := Token^.NextToken;
+    Token := Token^.NextToken;
 
-    Child := PChild(Token);
-    while (Assigned(Child) and (Child^.FParentNode <> Parser.FRoot)) do
-      Child := PChild(Child^.ParentNode);
-
-    if (not Assigned(Child)) then
+    if (not Assigned(Token)) then
       Result := nil
     else
-      Result := PStmt(Child);
+    begin
+      Child := PChild(Token);
+
+      while (Assigned(Child) and (Child^.ParentNode <> Heritage.ParentNode) and Parser.IsChild(Child^.ParentNode)) do
+        Child := PChild(Child^.ParentNode);
+
+      if (not Assigned(Child) or not Parser.IsStmt(PNode(Child))) then
+        Result := nil
+      else
+        Result := PStmt(Child);
+    end;
   end;
 end;
 
-function TSQLParser.TStmt.GetText(): string;
+function TSQLParser.TStmt.GetStmtType(): TStmtType;
 var
-  Length: Integer;
-  StringBuffer: TStringBuffer;
-  Text: PChar;
-  Token: PToken;
+  I: Integer;
 begin
-  StringBuffer := TStringBuffer.Create(1024);
-
-  Token := FirstTokenAll;
-  while (Assigned(Token)) do
-  begin
-    Token^.GetText(Text, Length);
-    StringBuffer.Write(Text, Length);
-
-    if (Token = LastTokenAll) then
-      Token := nil
-    else
-      Token := Token^.NextTokenAll;
-  end;
-
-  Result := StringBuffer.Read();
-
-  StringBuffer.Free();
-end;
-
-function TSQLParser.TStmt.GetParentNode(): PNode;
-begin
-  Result := PNode(Heritage.ParentNode);
+  Result := TStmtType(0);
+  for I := 0 to Length(NodeTypeByStmtType) - 1 do
+    if (NodeTypeByStmtType[TStmtType(I)] = PNode(@Self)^.NodeType) then
+      Result := TStmtType(I);
 end;
 
 { TSQLParser.TAnalyzeTableStmt ************************************************}
@@ -8444,7 +8390,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8458,7 +8404,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8472,7 +8418,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8486,7 +8432,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8501,7 +8447,7 @@ begin
     Nodes := ANodes;
     FRoutineType := ARoutineType;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8515,7 +8461,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8529,7 +8475,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8543,7 +8489,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8557,7 +8503,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8571,7 +8517,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8585,7 +8531,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8599,7 +8545,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8613,7 +8559,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8627,7 +8573,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8641,7 +8587,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8655,7 +8601,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8677,7 +8623,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8693,7 +8639,7 @@ begin
     Nodes.Operand1 := AOperand1;
     Nodes.Operand2 := AOperand2;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8727,7 +8673,7 @@ begin
     Nodes.AndToken := AAndToken;
     Nodes.Max := AMax;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8741,7 +8687,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8755,7 +8701,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8769,7 +8715,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8783,7 +8729,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8797,7 +8743,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8811,7 +8757,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8825,7 +8771,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8839,7 +8785,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8853,7 +8799,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8867,7 +8813,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8881,7 +8827,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8895,7 +8841,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8909,7 +8855,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8923,7 +8869,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8937,7 +8883,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8951,7 +8897,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8965,7 +8911,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8979,7 +8925,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -8994,7 +8940,7 @@ begin
     Nodes := ANodes;
     FRoutineType := ARoutineType;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9008,7 +8954,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9022,7 +8968,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9036,7 +8982,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9050,7 +8996,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9064,7 +9010,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9078,7 +9024,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9092,7 +9038,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9106,7 +9052,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9120,7 +9066,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9134,7 +9080,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9148,7 +9094,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9162,7 +9108,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9176,7 +9122,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9190,7 +9136,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9204,7 +9150,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9218,7 +9164,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9235,7 +9181,7 @@ begin
 
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9283,7 +9229,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9297,7 +9243,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9311,7 +9257,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9325,7 +9271,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9339,7 +9285,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9353,7 +9299,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9367,7 +9313,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9381,7 +9327,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9395,7 +9341,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9409,7 +9355,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9424,7 +9370,7 @@ begin
     Nodes := ANodes;
     FRoutineType := ARoutineType;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9438,7 +9384,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9452,7 +9398,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9466,7 +9412,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9480,7 +9426,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9494,7 +9440,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9508,7 +9454,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9522,7 +9468,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9536,7 +9482,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9550,7 +9496,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9564,7 +9510,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9578,7 +9524,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9592,7 +9538,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9606,7 +9552,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9620,7 +9566,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9644,7 +9590,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9668,7 +9614,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9682,7 +9628,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9696,7 +9642,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9710,7 +9656,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9724,7 +9670,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9738,7 +9684,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9752,7 +9698,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9766,7 +9712,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9780,7 +9726,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9794,7 +9740,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9808,7 +9754,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9822,7 +9768,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9836,7 +9782,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9850,7 +9796,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9864,7 +9810,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9878,7 +9824,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9892,7 +9838,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9906,7 +9852,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9920,7 +9866,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9934,7 +9880,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -9942,9 +9888,7 @@ end;
 
 class function TSQLParser.TList.Create(const AParser: TSQLParser;
   const ANodes: TNodes; const ADelimiterType: TTokenType;
-  const AChildrenCount: Integer; const AChildren: array of TOffset): TOffset;
-var
-  I: Integer;
+  const AChildrenCount: Integer; const AChildren: POffsetArray): TOffset;
 begin
   Result := TRange.Create(AParser, ntList);
 
@@ -9952,7 +9896,7 @@ begin
   begin
     Nodes := ANodes;
     if (AChildrenCount > 0) then
-      Nodes.FirstChild := AChildren[0];
+      Nodes.FirstChild := AChildren^[0];
 
     FDelimiterType := ADelimiterType;
 
@@ -9963,9 +9907,8 @@ begin
     else
       FElementCount := (AChildrenCount - 1) div 2;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
-    for I := 0 to AChildrenCount - 1 do
-      Heritage.AddChildren(@AChildren[I], 1);
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
+    Heritage.AddChildren(AChildrenCount, AChildren);
   end;
 end;
 
@@ -9984,7 +9927,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10011,7 +9954,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10025,7 +9968,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10039,7 +9982,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10053,7 +9996,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10067,7 +10010,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10081,7 +10024,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10095,7 +10038,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10109,7 +10052,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10123,7 +10066,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10137,7 +10080,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10151,7 +10094,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10165,7 +10108,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10179,7 +10122,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10193,7 +10136,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10207,7 +10150,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10221,7 +10164,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10235,7 +10178,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10249,7 +10192,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10263,7 +10206,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10277,7 +10220,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10291,7 +10234,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10305,7 +10248,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10319,7 +10262,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10333,7 +10276,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10347,7 +10290,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10361,7 +10304,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10375,7 +10318,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10389,7 +10332,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10403,7 +10346,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10419,7 +10362,7 @@ begin
 
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10433,7 +10376,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10447,7 +10390,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10461,7 +10404,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10475,7 +10418,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10489,7 +10432,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10503,7 +10446,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10517,7 +10460,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10531,7 +10474,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10545,7 +10488,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10559,7 +10502,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10573,7 +10516,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10587,7 +10530,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10601,7 +10544,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10615,7 +10558,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10629,7 +10572,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10643,7 +10586,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10657,7 +10600,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10671,7 +10614,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10685,7 +10628,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10699,7 +10642,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10713,7 +10656,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10727,7 +10670,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10741,7 +10684,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10755,7 +10698,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10769,7 +10712,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10783,7 +10726,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10797,7 +10740,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10811,7 +10754,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10825,7 +10768,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10839,7 +10782,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10853,7 +10796,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10867,7 +10810,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10881,7 +10824,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10895,7 +10838,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10909,7 +10852,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10923,7 +10866,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10937,7 +10880,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10951,7 +10894,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10965,7 +10908,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10979,7 +10922,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -10993,7 +10936,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11007,7 +10950,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11021,7 +10964,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11035,7 +10978,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11049,7 +10992,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11063,7 +11006,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11077,7 +11020,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11091,7 +11034,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11105,7 +11048,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11119,7 +11062,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11133,7 +11076,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11147,7 +11090,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11161,7 +11104,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11175,7 +11118,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11189,7 +11132,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11203,7 +11146,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11217,7 +11160,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11241,7 +11184,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11255,7 +11198,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11272,7 +11215,7 @@ begin
     Nodes.Like := ALike;
     Nodes.Operand2 := AOperand2;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11286,7 +11229,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11300,7 +11243,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11314,7 +11257,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11328,7 +11271,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11342,7 +11285,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11356,7 +11299,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11370,7 +11313,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11384,7 +11327,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11398,7 +11341,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11413,22 +11356,20 @@ begin
     Nodes.Operator := AOperator;
     Nodes.Operand := AOperand;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
 { TSQLParser.TUnknownStmt *****************************************************}
 
-class function TSQLParser.TUnknownStmt.Create(const AParser: TSQLParser; const ATokenCount: Integer; const ATokens: array of TOffset): TOffset;
-var
-  I: Integer;
+class function TSQLParser.TUnknownStmt.Create(const AParser: TSQLParser;
+  const ATokenCount: Integer; const ATokens: POffsetArray): TOffset;
 begin
   Result := TStmt.Create(AParser, stUnknown);
 
   with PUnknownStmt(AParser.NodePtr(Result))^ do
   begin
-    for I := 0 to ATokenCount - 1 do
-      Heritage.Heritage.AddChildren(@ATokens[I], 1);
+    Heritage.Heritage.AddChildren(ATokenCount, ATokens);
   end;
 end;
 
@@ -11442,7 +11383,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11456,7 +11397,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11470,7 +11411,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11484,7 +11425,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11498,7 +11439,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11512,7 +11453,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11526,7 +11467,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11540,7 +11481,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11554,7 +11495,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11568,7 +11509,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11582,7 +11523,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11602,18 +11543,16 @@ begin
     if (AUsageType <> utUnknown) then
       TokenPtr(Result)^.FUsageType := AUsageType;
 
-    FPreviousToken := FCurrentToken;
-
     if (not (Error.Code in [PE_IncompleteStmt])) then
       CompletionList.Clear();
 
     Dec(TokenBuffer.Count);
     Move(TokenBuffer.Items[1], TokenBuffer.Items[0], TokenBuffer.Count * SizeOf(TokenBuffer.Items[0]));
 
-    FCurrentToken := GetParsedToken(0); // Cache for speeding
+    CurrentToken := GetParsedToken(0); // Cache for speeding
 
-    if (not ErrorFound and (FCurrentToken > 0) and (TokenBuffer.Items[0].Error.Code <> PE_Success)) then
-      SetError(TokenBuffer.Items[0].Error.Code, FCurrentToken);
+    if (not ErrorFound and (CurrentToken > 0) and (TokenBuffer.Items[0].Error.Code <> PE_Success)) then
+      SetError(TokenBuffer.Items[0].Error.Code, CurrentToken);
   end;
 end;
 
@@ -11764,588 +11703,592 @@ begin
     Dec(FInPL_SQL);
 end;
 
-procedure TSQLParser.FormatAlterDatabaseStmt(const Nodes: TAlterDatabaseStmt.TNodes);
+procedure TSQLParser.FormatAlterDatabaseStmt(const Node: PAlterDatabaseStmt);
 begin
-  FormatNode(Nodes.StmtTag);
-  FormatNode(Nodes.Ident, stSpaceBefore);
+  FormatNode(Node.Nodes.StmtTag);
+  FormatNode(Node.Nodes.Ident, stSpaceBefore);
 
-  if (Nodes.UpgradeDataDirectoryNameTag = 0) then
+  if (Node.Nodes.UpgradeDataDirectoryNameTag = 0) then
   begin
-    FormatNode(Nodes.CharsetValue, stSpaceBefore);
-    FormatNode(Nodes.CollateValue, stSpaceBefore);
+    FormatNode(Node.Nodes.CharsetValue, stSpaceBefore);
+    FormatNode(Node.Nodes.CollateValue, stSpaceBefore);
   end
   else
-    FormatNode(Nodes.UpgradeDataDirectoryNameTag, stSpaceBefore);
+    FormatNode(Node.Nodes.UpgradeDataDirectoryNameTag, stSpaceBefore);
 end;
 
-procedure TSQLParser.FormatAlterEventStmt(const Nodes: TAlterEventStmt.TNodes);
+procedure TSQLParser.FormatAlterEventStmt(const Node: PAlterEventStmt);
 begin
-  FormatNode(Nodes.AlterTag);
-  FormatNode(Nodes.DefinerValue, stSpaceBefore);
-  FormatNode(Nodes.EventTag, stSpaceBefore);
-  FormatNode(Nodes.EventIdent, stSpaceBefore);
+  FormatNode(Node.Nodes.AlterTag);
+  FormatNode(Node.Nodes.DefinerValue, stSpaceBefore);
+  FormatNode(Node.Nodes.EventTag, stSpaceBefore);
+  FormatNode(Node.Nodes.EventIdent, stSpaceBefore);
 
-  if (Nodes.OnSchedule.Tag > 0) then
+  if (Node.Nodes.OnSchedule.Tag > 0) then
   begin
-    Assert(Nodes.OnSchedule.Value > 0);
+    Assert(Node.Nodes.OnSchedule.Value > 0);
 
     Commands.IncreaseIndent();
-    FormatNode(Nodes.OnSchedule.Tag, stReturnBefore);
+    FormatNode(Node.Nodes.OnSchedule.Tag, stReturnBefore);
     Commands.IncreaseIndent();
-    FormatNode(Nodes.OnSchedule.Value, stReturnBefore);
+    FormatNode(Node.Nodes.OnSchedule.Value, stReturnBefore);
     Commands.DecreaseIndent();
     Commands.DecreaseIndent();
   end;
 
-  if (Nodes.OnCompletionTag > 0) then
+  if (Node.Nodes.OnCompletionTag > 0) then
   begin
     Commands.IncreaseIndent();
-    FormatNode(Nodes.OnCompletionTag, stReturnBefore);
+    FormatNode(Node.Nodes.OnCompletionTag, stReturnBefore);
     Commands.DecreaseIndent();
   end;
 
-  if (Nodes.RenameValue > 0) then
+  if (Node.Nodes.RenameValue > 0) then
   begin
     Commands.IncreaseIndent();
-    FormatNode(Nodes.RenameValue, stReturnBefore);
+    FormatNode(Node.Nodes.RenameValue, stReturnBefore);
     Commands.DecreaseIndent();
   end;
 
-  if (Nodes.EnableTag > 0) then
+  if (Node.Nodes.EnableTag > 0) then
   begin
     Commands.IncreaseIndent();
-    FormatNode(Nodes.EnableTag, stReturnBefore);
+    FormatNode(Node.Nodes.EnableTag, stReturnBefore);
     Commands.DecreaseIndent();
   end;
 
-  if (Nodes.CommentValue > 0) then
+  if (Node.Nodes.CommentValue > 0) then
   begin
     Commands.IncreaseIndent();
-    FormatNode(Nodes.CommentValue, stReturnBefore);
+    FormatNode(Node.Nodes.CommentValue, stReturnBefore);
     Commands.DecreaseIndent();
   end;
 
-  if (Nodes.DoTag > 0) then
+  if (Node.Nodes.DoTag > 0) then
   begin
-    Assert(Nodes.Body > 0);
+    Assert(Node.Nodes.Body > 0);
 
     Commands.IncreaseIndent();
-    FormatNode(Nodes.DoTag, stReturnBefore);
+    FormatNode(Node.Nodes.DoTag, stReturnBefore);
     Commands.IncreaseIndent();
-    FormatNode(Nodes.Body, stReturnBefore);
+    FormatNode(Node.Nodes.Body, stReturnBefore);
     Commands.DecreaseIndent();
     Commands.DecreaseIndent();
   end;
 end;
 
-procedure TSQLParser.FormatAlterRoutineStmt(const Nodes: TAlterRoutineStmt.TNodes);
+procedure TSQLParser.FormatAlterRoutineStmt(const Node: PAlterRoutineStmt);
 begin
-  FormatNode(Nodes.AlterTag);
-  FormatNode(Nodes.Ident, stSpaceBefore);
+  FormatNode(Node.Nodes.AlterTag);
+  FormatNode(Node.Nodes.Ident, stSpaceBefore);
   Commands.IncreaseIndent();
-  FormatNode(Nodes.CommentValue, stReturnBefore);
-  FormatNode(Nodes.LanguageTag, stReturnBefore);
-  FormatNode(Nodes.DeterministicTag, stReturnBefore);
-  FormatNode(Nodes.NatureOfDataTag, stReturnBefore);
-  FormatNode(Nodes.SQLSecurityTag, stReturnBefore);
+  FormatNode(Node.Nodes.CommentValue, stReturnBefore);
+  FormatNode(Node.Nodes.LanguageTag, stReturnBefore);
+  FormatNode(Node.Nodes.DeterministicTag, stReturnBefore);
+  FormatNode(Node.Nodes.NatureOfDataTag, stReturnBefore);
+  FormatNode(Node.Nodes.SQLSecurityTag, stReturnBefore);
   Commands.DecreaseIndent();
 end;
 
-procedure TSQLParser.FormatAlterTablespaceStmt(const Nodes: TAlterTablespaceStmt.TNodes);
+procedure TSQLParser.FormatAlterTablespaceStmt(const Node: PAlterTablespaceStmt);
 begin
-  FormatNode(Nodes.StmtTag);
-  FormatNode(Nodes.Ident, stSpaceBefore);
+  FormatNode(Node.Nodes.StmtTag);
+  FormatNode(Node.Nodes.Ident, stSpaceBefore);
   Commands.IncreaseIndent();
-  FormatNode(Nodes.AddDatafileValue, stReturnBefore);
-  FormatNode(Nodes.InitialSizeValue, stReturnBefore);
-  FormatNode(Nodes.EngineValue, stReturnBefore);
+  FormatNode(Node.Nodes.AddDatafileValue, stReturnBefore);
+  FormatNode(Node.Nodes.InitialSizeValue, stReturnBefore);
+  FormatNode(Node.Nodes.EngineValue, stReturnBefore);
   Commands.DecreaseIndent();
 end;
 
-procedure TSQLParser.FormatAlterTableStmt(const Nodes: TAlterTableStmt.TNodes);
+procedure TSQLParser.FormatAlterTableStmt(const Node: PAlterTableStmt);
 begin
-  FormatNode(Nodes.AlterTag);
-  FormatNode(Nodes.IgnoreTag, stSpaceBefore);
-  FormatNode(Nodes.TableTag, stSpaceBefore);
-  FormatNode(Nodes.Ident, stSpaceBefore);
-  if (Nodes.SpecificationList > 0) then
+  FormatNode(Node.Nodes.AlterTag);
+  FormatNode(Node.Nodes.IgnoreTag, stSpaceBefore);
+  FormatNode(Node.Nodes.TableTag, stSpaceBefore);
+  FormatNode(Node.Nodes.Ident, stSpaceBefore);
+  if (Node.Nodes.SpecificationList > 0) then
   begin
     Commands.IncreaseIndent();
     Commands.WriteReturn();
-    FormatList(Nodes.SpecificationList, sReturn);
+    FormatList(Node.Nodes.SpecificationList, sReturn);
     Commands.DecreaseIndent();
   end;
 end;
 
-procedure TSQLParser.FormatAlterViewStmt(const Nodes: TAlterViewStmt.TNodes);
+procedure TSQLParser.FormatAlterViewStmt(const Node: PAlterViewStmt);
 begin
-  FormatNode(Nodes.AlterTag);
+  FormatNode(Node.Nodes.AlterTag);
   Commands.IncreaseIndent();
-  FormatNode(Nodes.AlgorithmValue, stReturnBefore);
-  FormatNode(Nodes.DefinerValue, stReturnBefore);
-  FormatNode(Nodes.SQLSecurityTag, stReturnBefore);
-  FormatNode(Nodes.ViewTag, stReturnBefore);
-  FormatNode(Nodes.Ident, stSpaceBefore);
-  FormatNode(Nodes.Columns, stSpaceBefore);
+  FormatNode(Node.Nodes.AlgorithmValue, stReturnBefore);
+  FormatNode(Node.Nodes.DefinerValue, stReturnBefore);
+  FormatNode(Node.Nodes.SQLSecurityTag, stReturnBefore);
+  FormatNode(Node.Nodes.ViewTag, stReturnBefore);
+  FormatNode(Node.Nodes.Ident, stSpaceBefore);
+  FormatNode(Node.Nodes.Columns, stSpaceBefore);
   Commands.IncreaseIndent();
-  FormatNode(Nodes.AsTag, stReturnBefore);
+  FormatNode(Node.Nodes.AsTag, stReturnBefore);
   Commands.IncreaseIndent();
-  FormatNode(Nodes.SelectStmt, stReturnBefore);
+  FormatNode(Node.Nodes.SelectStmt, stReturnBefore);
   Commands.DecreaseIndent();
   Commands.DecreaseIndent();
-  FormatNode(Nodes.OptionTag, stReturnBefore);
+  FormatNode(Node.Nodes.OptionTag, stReturnBefore);
   Commands.DecreaseIndent();
 end;
 
-procedure TSQLParser.FormatBeginLabel(const Nodes: TBeginLabel.TNodes);
+procedure TSQLParser.FormatBeginLabel(const Node: PBeginLabel);
 begin
-  FormatNode(Nodes.BeginToken);
-  FormatNode(Nodes.ColonToken);
+  FormatNode(Node.Nodes.BeginToken);
+  FormatNode(Node.Nodes.ColonToken);
 end;
 
-procedure TSQLParser.FormatCallStmt(const Nodes: TCallStmt.TNodes);
+procedure TSQLParser.FormatCallStmt(const Node: PCallStmt);
 begin
-  FormatNode(Nodes.CallTag);
-  FormatNode(Nodes.Ident, stSpaceBefore);
-  FormatNode(Nodes.ParamList);
+  FormatNode(Node.Nodes.CallTag);
+  FormatNode(Node.Nodes.Ident, stSpaceBefore);
+  FormatNode(Node.Nodes.ParamList);
 end;
 
-procedure TSQLParser.FormatCaseOp(const Nodes: TCaseOp.TNodes);
+procedure TSQLParser.FormatCaseOp(const Node: PCaseOp);
 begin
-  FormatNode(Nodes.CaseTag);
-  FormatNode(Nodes.CompareExpr, stSpaceBefore);
+  FormatNode(Node.Nodes.CaseTag);
+  FormatNode(Node.Nodes.CompareExpr, stSpaceBefore);
   Commands.IncreaseIndent();
   Commands.WriteReturn();
-  FormatList(Nodes.BranchList, sReturn);
-  FormatNode(Nodes.ElseTag, stReturnBefore);
-  FormatNode(Nodes.ElseExpr, stSpaceBefore);
+  FormatList(Node.Nodes.BranchList, sReturn);
+  FormatNode(Node.Nodes.ElseTag, stReturnBefore);
+  FormatNode(Node.Nodes.ElseExpr, stSpaceBefore);
   Commands.DecreaseIndent();
-  FormatNode(Nodes.EndTag, stReturnBefore);
+  FormatNode(Node.Nodes.EndTag, stReturnBefore);
 end;
 
-procedure TSQLParser.FormatCaseStmt(const Nodes: TCaseStmt.TNodes);
+procedure TSQLParser.FormatCaseStmt(const Node: PCaseStmt);
 begin
-  FormatNode(Nodes.CaseTag);
-  FormatNode(Nodes.CompareExpr, stSpaceBefore);
+  FormatNode(Node.Nodes.CaseTag);
+  FormatNode(Node.Nodes.CompareExpr, stSpaceBefore);
   Commands.IncreaseIndent();
   Commands.WriteReturn();
-  FormatList(Nodes.BranchList, sReturn);
+  FormatList(Node.Nodes.BranchList, sReturn);
   Commands.DecreaseIndent();
-  FormatNode(Nodes.EndTag, stReturnBefore);
+  FormatNode(Node.Nodes.EndTag, stReturnBefore);
 end;
 
-procedure TSQLParser.FormatCaseStmtBranch(const Nodes: TCaseStmt.TBranch.TNodes);
+procedure TSQLParser.FormatCaseStmtBranch(const Node: TCaseStmt.PBranch);
 begin
-  Assert(NodePtr(Nodes.Tag)^.NodeType = ntTag);
+  Assert(NodePtr(Node.Nodes.BranchTag)^.NodeType = ntTag);
 
   Commands.IncreaseIndent();
-  FormatNode(Nodes.Tag);
-  if ((TokenPtr(PTag(NodePtr(Nodes.Tag))^.Nodes.KeywordToken1).KeywordIndex = kiWHEN)) then
+  FormatNode(Node.Nodes.BranchTag);
+  if ((TokenPtr(PTag(NodePtr(Node.Nodes.BranchTag))^.Nodes.Keyword1Token).KeywordIndex = kiWHEN)) then
   begin
-    FormatNode(Nodes.ConditionExpr, stSpaceBefore);
-    FormatNode(Nodes.ThenTag, stSpaceBefore);
+    FormatNode(Node.Nodes.ConditionExpr, stSpaceBefore);
+    FormatNode(Node.Nodes.ThenTag, stSpaceBefore);
   end;
   Commands.WriteReturn();
-  FormatList(Nodes.StmtList, sReturn);
+  FormatList(Node.Nodes.StmtList, sReturn);
   Commands.DecreaseIndent();
 end;
 
-procedure TSQLParser.FormatCastFunc(const Nodes: TCastFunc.TNodes);
+procedure TSQLParser.FormatCastFunc(const Node: PCastFunc);
 begin
-  FormatNode(Nodes.IdentToken);
-  FormatNode(Nodes.OpenBracket);
-  FormatNode(Nodes.Expr);
-  FormatNode(Nodes.AsTag, stSpaceBefore);
-  FormatNode(Nodes.Datatype, stSpaceBefore);
-  FormatNode(Nodes.CloseBracket);
+  FormatNode(Node.Nodes.IdentToken);
+  FormatNode(Node.Nodes.OpenBracket);
+  FormatNode(Node.Nodes.Expr);
+  FormatNode(Node.Nodes.AsTag, stSpaceBefore);
+  FormatNode(Node.Nodes.Datatype, stSpaceBefore);
+  FormatNode(Node.Nodes.CloseBracket);
 end;
 
-procedure TSQLParser.FormatCharFunc(const Nodes: TCharFunc.TNodes);
+procedure TSQLParser.FormatCharFunc(const Node: PCharFunc);
 begin
-  FormatNode(Nodes.IdentToken);
-  FormatNode(Nodes.OpenBracket, stSpaceBefore);
-  FormatNode(Nodes.ValueExpr, stSpaceBefore);
-  if (Nodes.UsingTag > 0) then
+  FormatNode(Node.Nodes.IdentToken);
+  FormatNode(Node.Nodes.OpenBracket, stSpaceBefore);
+  FormatNode(Node.Nodes.ValueExpr, stSpaceBefore);
+  if (Node.Nodes.UsingTag > 0) then
   begin
-    FormatNode(Nodes.UsingTag, stSpaceBefore);
-    FormatNode(Nodes.CharsetIdent, stSpaceBefore);
+    FormatNode(Node.Nodes.UsingTag, stSpaceBefore);
+    FormatNode(Node.Nodes.CharsetIdent, stSpaceBefore);
   end;
-  FormatNode(Nodes.CloseBracket, stSpaceBefore);
+  FormatNode(Node.Nodes.CloseBracket, stSpaceBefore);
 end;
 
-procedure TSQLParser.FormatChangeMasterStmt(const Nodes: TChangeMasterStmt.TNodes);
+procedure TSQLParser.FormatChangeMasterStmt(const Node: PChangeMasterStmt);
 begin
-  FormatNode(Nodes.StmtTag);
-  FormatNode(Nodes.ToTag, stSpaceBefore);
+  FormatNode(Node.Nodes.StmtTag);
+  FormatNode(Node.Nodes.ToTag, stSpaceBefore);
   Commands.IncreaseIndent();
   Commands.WriteReturn();
-  FormatList(Nodes.OptionList, sReturn);
-  FormatNode(Nodes.ChannelOptionValue, stReturnBefore);
+  FormatList(Node.Nodes.OptionList, sReturn);
+  FormatNode(Node.Nodes.ChannelOptionValue, stReturnBefore);
   Commands.DecreaseIndent();
 end;
 
-procedure TSQLParser.FormatCompoundStmt(const Nodes: TCompoundStmt.TNodes);
+procedure TSQLParser.FormatCompoundStmt(const Node: PCompoundStmt);
 begin
-  FormatNode(Nodes.BeginLabel, stSpaceAfter);
-  Commands.IncreaseIndent();
-  FormatNode(Nodes.BeginTag, stReturnAfter);
-  FormatList(Nodes.StmtList, sReturn);
-  Commands.DecreaseIndent();
-  FormatNode(Nodes.EndTag, stReturnBefore);
-  FormatNode(Nodes.EndLabel, stSpaceBefore);
-end;
-
-procedure TSQLParser.FormatConvertFunc(const Nodes: TConvertFunc.TNodes);
-begin
-  FormatNode(Nodes.IdentToken);
-  FormatNode(Nodes.OpenBracket);
-  FormatNode(Nodes.Expr);
-  if (Nodes.Comma > 0) then
+  FormatNode(Node.Nodes.BeginLabel, stSpaceAfter);
+  FormatNode(Node.Nodes.BeginTag);
+  if (Node.Nodes.StmtList > 0) then
   begin
-    FormatNode(Nodes.Comma);
-    FormatNode(Nodes.Datatype, stSpaceBefore);
-  end
-  else
-  begin
-    FormatNode(Nodes.UsingTag, stSpaceBefore);
-    FormatNode(Nodes.CharsetIdent, stSpaceBefore);
+    Commands.IncreaseIndent();
+    Commands.WriteReturn();
+    FormatList(Node.Nodes.StmtList, sReturn);
+    Commands.DecreaseIndent();
   end;
-  FormatNode(Nodes.CloseBracket);
+  FormatNode(Node.Nodes.EndTag, stReturnBefore);
+  FormatNode(Node.Nodes.EndLabel, stSpaceBefore);
 end;
 
-procedure TSQLParser.FormatCreateEventStmt(const Nodes: TCreateEventStmt.TNodes);
+procedure TSQLParser.FormatConvertFunc(const Node: PConvertFunc);
 begin
-  FormatNode(Nodes.CreateTag);
-  FormatNode(Nodes.DefinerNode, stSpaceBefore);
-  FormatNode(Nodes.EventTag, stSpaceBefore);
-  FormatNode(Nodes.IfNotExistsTag, stSpaceBefore);
-  FormatNode(Nodes.EventIdent, stSpaceBefore);
-  Commands.IncreaseIndent();
-  FormatNode(Nodes.OnScheduleValue, stReturnBefore);
-  FormatNode(Nodes.OnCompletitionTag, stReturnBefore);
-  FormatNode(Nodes.EnableTag, stReturnBefore);
-  FormatNode(Nodes.CommentValue, stReturnBefore);
-  FormatNode(Nodes.DoTag, stReturnBefore);
-  Commands.DecreaseIndent();
-  FormatNode(Nodes.Body, stReturnBefore);
-end;
-
-procedure TSQLParser.FormatCreateIndexStmt(const Nodes: TCreateIndexStmt.TNodes);
-begin
-  FormatNode(Nodes.CreateTag);
-  FormatNode(Nodes.IndexTag, stSpaceBefore);
-  FormatNode(Nodes.Ident, stSpaceBefore);
-  Commands.IncreaseIndent();
-  FormatNode(Nodes.IndexTypeValue, stReturnBefore);
-  FormatNode(Nodes.OnTag, stReturnBefore);
-  FormatNode(Nodes.TableIdent, stSpaceBefore);
-  FormatNode(Nodes.KeyColumnList, stSpaceBefore);
-  FormatNode(Nodes.AlgorithmLockValue, stReturnBefore);
-  FormatNode(Nodes.CommentValue, stReturnBefore);
-  FormatNode(Nodes.KeyBlockSizeValue, stReturnBefore);
-  FormatNode(Nodes.ParserValue, stReturnBefore);
-  Commands.DecreaseIndent();
-end;
-
-procedure TSQLParser.FormatCreateRoutineStmt(const Nodes: TCreateRoutineStmt.TNodes);
-begin
-  FormatNode(Nodes.CreateTag);
-  FormatNode(Nodes.DefinerNode, stSpaceBefore);
-  FormatNode(Nodes.RoutineTag, stSpaceBefore);
-  FormatNode(Nodes.Ident, stSpaceBefore);
-  if ((Nodes.ParameterList = 0)
-    or (NodePtr(Nodes.ParameterList)^.NodeType <> ntList)
-    or (PList(NodePtr(Nodes.ParameterList))^.ElementCount <= 3)) then
+  FormatNode(Node.Nodes.IdentToken);
+  FormatNode(Node.Nodes.OpenBracket);
+  FormatNode(Node.Nodes.Expr);
+  if (Node.Nodes.Comma > 0) then
   begin
-    FormatNode(Nodes.OpenBracket);
-    FormatNode(Nodes.ParameterList);
-    FormatNode(Nodes.CloseBracket);
+    FormatNode(Node.Nodes.Comma);
+    FormatNode(Node.Nodes.Datatype, stSpaceBefore);
   end
   else
   begin
-    FormatNode(Nodes.OpenBracket);
+    FormatNode(Node.Nodes.UsingTag, stSpaceBefore);
+    FormatNode(Node.Nodes.CharsetIdent, stSpaceBefore);
+  end;
+  FormatNode(Node.Nodes.CloseBracket);
+end;
+
+procedure TSQLParser.FormatCreateEventStmt(const Node: PCreateEventStmt);
+begin
+  FormatNode(Node.Nodes.CreateTag);
+  FormatNode(Node.Nodes.DefinerNode, stSpaceBefore);
+  FormatNode(Node.Nodes.EventTag, stSpaceBefore);
+  FormatNode(Node.Nodes.IfNotExistsTag, stSpaceBefore);
+  FormatNode(Node.Nodes.EventIdent, stSpaceBefore);
+  Commands.IncreaseIndent();
+  FormatNode(Node.Nodes.OnScheduleValue, stReturnBefore);
+  FormatNode(Node.Nodes.OnCompletitionTag, stReturnBefore);
+  FormatNode(Node.Nodes.EnableTag, stReturnBefore);
+  FormatNode(Node.Nodes.CommentValue, stReturnBefore);
+  FormatNode(Node.Nodes.DoTag, stReturnBefore);
+  Commands.DecreaseIndent();
+  FormatNode(Node.Nodes.Body, stReturnBefore);
+end;
+
+procedure TSQLParser.FormatCreateIndexStmt(const Node: PCreateIndexStmt);
+begin
+  FormatNode(Node.Nodes.CreateTag);
+  FormatNode(Node.Nodes.IndexTag, stSpaceBefore);
+  FormatNode(Node.Nodes.Ident, stSpaceBefore);
+  Commands.IncreaseIndent();
+  FormatNode(Node.Nodes.IndexTypeValue, stReturnBefore);
+  FormatNode(Node.Nodes.OnTag, stReturnBefore);
+  FormatNode(Node.Nodes.TableIdent, stSpaceBefore);
+  FormatNode(Node.Nodes.KeyColumnList, stSpaceBefore);
+  FormatNode(Node.Nodes.AlgorithmLockValue, stReturnBefore);
+  FormatNode(Node.Nodes.CommentValue, stReturnBefore);
+  FormatNode(Node.Nodes.KeyBlockSizeValue, stReturnBefore);
+  FormatNode(Node.Nodes.ParserValue, stReturnBefore);
+  Commands.DecreaseIndent();
+end;
+
+procedure TSQLParser.FormatCreateRoutineStmt(const Node: PCreateRoutineStmt);
+begin
+  FormatNode(Node.Nodes.CreateTag);
+  FormatNode(Node.Nodes.DefinerNode, stSpaceBefore);
+  FormatNode(Node.Nodes.RoutineTag, stSpaceBefore);
+  FormatNode(Node.Nodes.Ident, stSpaceBefore);
+  if ((Node.Nodes.ParameterList = 0)
+    or (NodePtr(Node.Nodes.ParameterList)^.NodeType <> ntList)
+    or (PList(NodePtr(Node.Nodes.ParameterList))^.ElementCount <= 3)) then
+  begin
+    FormatNode(Node.Nodes.OpenBracket);
+    FormatNode(Node.Nodes.ParameterList);
+    FormatNode(Node.Nodes.CloseBracket);
+  end
+  else
+  begin
+    FormatNode(Node.Nodes.OpenBracket);
     Commands.IncreaseIndent();
     Commands.WriteReturn();
-    FormatList(Nodes.ParameterList, sReturn);
+    FormatList(Node.Nodes.ParameterList, sReturn);
     Commands.DecreaseIndent();
-    FormatNode(Nodes.CloseBracket, stReturnBefore);
+    FormatNode(Node.Nodes.CloseBracket, stReturnBefore);
   end;
-  FormatNode(Nodes.Returns, stSpaceBefore);
+  FormatNode(Node.Nodes.Returns, stSpaceBefore);
   Commands.IncreaseIndent();
-  FormatNode(Nodes.CommentValue, stReturnBefore);
-  FormatNode(Nodes.LanguageTag, stReturnBefore);
-  FormatNode(Nodes.DeterministicTag, stReturnBefore);
-  FormatNode(Nodes.NatureOfDataTag, stReturnBefore);
-  FormatNode(Nodes.SQLSecurityTag, stReturnBefore);
+  FormatNode(Node.Nodes.CommentValue, stReturnBefore);
+  FormatNode(Node.Nodes.LanguageTag, stReturnBefore);
+  FormatNode(Node.Nodes.DeterministicTag, stReturnBefore);
+  FormatNode(Node.Nodes.NatureOfDataTag, stReturnBefore);
+  FormatNode(Node.Nodes.SQLSecurityTag, stReturnBefore);
   Commands.DecreaseIndent();
-  FormatNode(Nodes.Body, stReturnBefore);
+  FormatNode(Node.Nodes.Body, stReturnBefore);
 end;
 
-procedure TSQLParser.FormatCreateServerStmt(const Nodes: TCreateServerStmt.TNodes);
+procedure TSQLParser.FormatCreateServerStmt(const Node: PCreateServerStmt);
 begin
-  FormatNode(Nodes.StmtTag);
-  FormatNode(Nodes.Ident, stSpaceBefore);
+  FormatNode(Node.Nodes.StmtTag);
+  FormatNode(Node.Nodes.Ident, stSpaceBefore);
   Commands.IncreaseIndent();
-  FormatNode(Nodes.ForeignDataWrapperValue, stReturnBefore);
-  FormatNode(Nodes.Options.Tag, stReturnBefore);
-  FormatNode(Nodes.Options.List, stSpaceBefore);
-  Commands.DecreaseIndent();
-end;
-
-procedure TSQLParser.FormatCreateTablespaceStmt(const Nodes: TCreateTablespaceStmt.TNodes);
-begin
-  FormatNode(Nodes.StmtTag);
-  FormatNode(Nodes.Ident, stSpaceBefore);
-  Commands.IncreaseIndent();
-  FormatNode(Nodes.AddDatafileValue, stReturnBefore);
-  FormatNode(Nodes.FileBlockSizeValue, stReturnBefore);
-  FormatNode(Nodes.EngineValue, stReturnBefore);
+  FormatNode(Node.Nodes.ForeignDataWrapperValue, stReturnBefore);
+  FormatNode(Node.Nodes.Options.Tag, stReturnBefore);
+  FormatNode(Node.Nodes.Options.List, stSpaceBefore);
   Commands.DecreaseIndent();
 end;
 
-procedure TSQLParser.FormatCreateTableStmt(const Nodes: TCreateTableStmt.TNodes);
+procedure TSQLParser.FormatCreateTablespaceStmt(const Node: PCreateTablespaceStmt);
 begin
-  FormatNode(Nodes.CreateTag);
-  FormatNode(Nodes.TemporaryTag, stSpaceBefore);
-  FormatNode(Nodes.TableTag, stSpaceBefore);
-  FormatNode(Nodes.IfNotExistsTag, stSpaceBefore);
-  FormatNode(Nodes.TableIdent, stSpaceBefore);
-  FormatNode(Nodes.OpenBracket, stSpaceBefore);
-  if (Nodes.DefinitionList > 0) then
+  FormatNode(Node.Nodes.StmtTag);
+  FormatNode(Node.Nodes.Ident, stSpaceBefore);
+  Commands.IncreaseIndent();
+  FormatNode(Node.Nodes.AddDatafileValue, stReturnBefore);
+  FormatNode(Node.Nodes.FileBlockSizeValue, stReturnBefore);
+  FormatNode(Node.Nodes.EngineValue, stReturnBefore);
+  Commands.DecreaseIndent();
+end;
+
+procedure TSQLParser.FormatCreateTableStmt(const Node: PCreateTableStmt);
+begin
+  FormatNode(Node.Nodes.CreateTag);
+  FormatNode(Node.Nodes.TemporaryTag, stSpaceBefore);
+  FormatNode(Node.Nodes.TableTag, stSpaceBefore);
+  FormatNode(Node.Nodes.IfNotExistsTag, stSpaceBefore);
+  FormatNode(Node.Nodes.TableIdent, stSpaceBefore);
+  FormatNode(Node.Nodes.OpenBracket, stSpaceBefore);
+  if (Node.Nodes.DefinitionList > 0) then
   begin
     Commands.IncreaseIndent();
     Commands.WriteReturn();
-    FormatList(Nodes.DefinitionList, sReturn);
+    FormatList(Node.Nodes.DefinitionList, sReturn);
     Commands.DecreaseIndent();
     Commands.WriteReturn();
   end
-  else if (Nodes.LikeTag > 0) then
+  else if (Node.Nodes.LikeTag > 0) then
   begin
     Commands.IncreaseIndent();
-    FormatNode(Nodes.LikeTag, stReturnBefore);
-    FormatNode(Nodes.LikeTableIdent, stSpaceBefore);
+    FormatNode(Node.Nodes.LikeTag, stReturnBefore);
+    FormatNode(Node.Nodes.LikeTableIdent, stSpaceBefore);
     Commands.DecreaseIndent();
   end
-  else if (Nodes.SelectStmt1 > 0) then
+  else if (Node.Nodes.SelectStmt1 > 0) then
   begin
     Commands.IncreaseIndent();
     Commands.WriteReturn();
-    FormatNode(Nodes.SelectStmt1);
+    FormatNode(Node.Nodes.SelectStmt1);
     Commands.DecreaseIndent();
     Commands.WriteReturn();
   end;
-  FormatNode(Nodes.CloseBracket);
-  FormatNode(Nodes.TableOptionList, stSpaceBefore);
-  if (Nodes.PartitionOption.Tag > 0) then
+  FormatNode(Node.Nodes.CloseBracket);
+  FormatNode(Node.Nodes.TableOptionList, stSpaceBefore);
+  if (Node.Nodes.PartitionOption.Tag > 0) then
   begin
     Commands.IncreaseIndent();
-    FormatNode(Nodes.PartitionOption.Tag, stReturnBefore);
+    FormatNode(Node.Nodes.PartitionOption.Tag, stReturnBefore);
     Commands.IncreaseIndent();
-    FormatNode(Nodes.PartitionOption.KindTag, stReturnBefore);
-    FormatNode(Nodes.PartitionOption.Expr, stSpaceBefore);
-    FormatNode(Nodes.PartitionOption.AlgorithmValue, stSpaceBefore);
-    FormatNode(Nodes.PartitionOption.Columns.Tag, stSpaceBefore);
-    FormatNode(Nodes.PartitionOption.Columns.List, stSpaceBefore);
+    FormatNode(Node.Nodes.PartitionOption.KindTag, stReturnBefore);
+    FormatNode(Node.Nodes.PartitionOption.Expr, stSpaceBefore);
+    FormatNode(Node.Nodes.PartitionOption.AlgorithmValue, stSpaceBefore);
+    FormatNode(Node.Nodes.PartitionOption.Columns.Tag, stSpaceBefore);
+    FormatNode(Node.Nodes.PartitionOption.Columns.List, stSpaceBefore);
     Commands.DecreaseIndent();
-    FormatNode(Nodes.PartitionOption.Value);
-    if (Nodes.PartitionOption.SubPartition.Tag > 0) then
+    FormatNode(Node.Nodes.PartitionOption.Value);
+    if (Node.Nodes.PartitionOption.SubPartition.Tag > 0) then
     begin
-      FormatNode(Nodes.PartitionOption.SubPartition.Tag, stReturnBefore);
+      FormatNode(Node.Nodes.PartitionOption.SubPartition.Tag, stReturnBefore);
       Commands.IncreaseIndent();
-      FormatNode(Nodes.PartitionOption.SubPartition.KindTag, stReturnBefore);
-      FormatNode(Nodes.PartitionOption.SubPartition.Expr, stSpaceBefore);
-      FormatNode(Nodes.PartitionOption.SubPartition.AlgorithmValue, stSpaceBefore);
-      FormatNode(Nodes.PartitionOption.SubPartition.ColumnList, stSpaceBefore);
+      FormatNode(Node.Nodes.PartitionOption.SubPartition.KindTag, stReturnBefore);
+      FormatNode(Node.Nodes.PartitionOption.SubPartition.Expr, stSpaceBefore);
+      FormatNode(Node.Nodes.PartitionOption.SubPartition.AlgorithmValue, stSpaceBefore);
+      FormatNode(Node.Nodes.PartitionOption.SubPartition.ColumnList, stSpaceBefore);
       Commands.DecreaseIndent();
-      FormatNode(Nodes.PartitionOption.SubPartition.Value, stReturnBefore);
+      FormatNode(Node.Nodes.PartitionOption.SubPartition.Value, stReturnBefore);
     end;
     Commands.IncreaseIndent();
     Commands.WriteReturn();
-    FormatList(Nodes.PartitionDefinitionList, sReturn);
+    FormatList(Node.Nodes.PartitionDefinitionList, sReturn);
     Commands.DecreaseIndent();
     Commands.DecreaseIndent();
   end;
-  FormatNode(Nodes.IgnoreReplaceTag, stReturnBefore);
-  if (Nodes.SelectStmt2 > 0) then
+  FormatNode(Node.Nodes.IgnoreReplaceTag, stReturnBefore);
+  if (Node.Nodes.SelectStmt2 > 0) then
   begin
-    FormatNode(Nodes.AsTag);
+    FormatNode(Node.Nodes.AsTag);
     Commands.IncreaseIndent();
-    FormatNode(Nodes.SelectStmt2, stReturnBefore);
+    FormatNode(Node.Nodes.SelectStmt2, stReturnBefore);
     Commands.DecreaseIndent();
   end;
 end;
 
-procedure TSQLParser.FormatCreateTableStmtField(const Nodes: TCreateTableStmt.TField.TNodes);
+procedure TSQLParser.FormatCreateTableStmtField(const Node: TCreateTableStmt.PField);
 begin
-  FormatNode(Nodes.AddTag, stSpaceAfter);
-  FormatNode(Nodes.ColumnTag);
-  FormatNode(Nodes.OldNameIdent, stSpaceBefore);
-  FormatNode(Nodes.NameIdent, stSpaceBefore);
-  FormatNode(Nodes.Datatype, stSpaceBefore);
-  if (Nodes.Virtual.AsTag = 0) then
+  FormatNode(Node.Nodes.AddTag, stSpaceAfter);
+  FormatNode(Node.Nodes.ColumnTag);
+  FormatNode(Node.Nodes.OldNameIdent, stSpaceBefore);
+  FormatNode(Node.Nodes.NameIdent, stSpaceBefore);
+  FormatNode(Node.Nodes.Datatype, stSpaceBefore);
+  if (Node.Nodes.Virtual.AsTag = 0) then
   begin // Real field
-    FormatNode(Nodes.NullTag, stSpaceBefore);
-    FormatNode(Nodes.Real.DefaultValue, stSpaceBefore);
-    FormatNode(Nodes.Real.AutoIncrementTag, stSpaceBefore);
-    FormatNode(Nodes.KeyTag, stSpaceBefore);
-    FormatNode(Nodes.CommentValue, stSpaceBefore);
-    FormatNode(Nodes.Real.ColumnFormat, stSpaceBefore);
-    FormatNode(Nodes.Real.StorageTag, stSpaceBefore);
-    FormatNode(Nodes.Real.Reference, stSpaceBefore);
+    FormatNode(Node.Nodes.NullTag, stSpaceBefore);
+    FormatNode(Node.Nodes.Real.DefaultValue, stSpaceBefore);
+    FormatNode(Node.Nodes.Real.AutoIncrementTag, stSpaceBefore);
+    FormatNode(Node.Nodes.KeyTag, stSpaceBefore);
+    FormatNode(Node.Nodes.CommentValue, stSpaceBefore);
+    FormatNode(Node.Nodes.Real.ColumnFormat, stSpaceBefore);
+    FormatNode(Node.Nodes.Real.StorageTag, stSpaceBefore);
+    FormatNode(Node.Nodes.Real.Reference, stSpaceBefore);
   end
   else
   begin // Virtual field
-    FormatNode(Nodes.Virtual.GernatedAlwaysTag, stSpaceBefore);
-    FormatNode(Nodes.Virtual.AsTag, stSpaceBefore);
-    FormatNode(Nodes.Virtual.Expr, stSpaceBefore);
-    FormatNode(Nodes.Virtual.Virtual, stSpaceBefore);
-    FormatNode(Nodes.KeyTag, stSpaceBefore);
-    FormatNode(Nodes.CommentValue, stSpaceBefore);
-    FormatNode(Nodes.NullTag, stSpaceBefore);
+    FormatNode(Node.Nodes.Virtual.GernatedAlwaysTag, stSpaceBefore);
+    FormatNode(Node.Nodes.Virtual.AsTag, stSpaceBefore);
+    FormatNode(Node.Nodes.Virtual.Expr, stSpaceBefore);
+    FormatNode(Node.Nodes.Virtual.Virtual, stSpaceBefore);
+    FormatNode(Node.Nodes.KeyTag, stSpaceBefore);
+    FormatNode(Node.Nodes.CommentValue, stSpaceBefore);
+    FormatNode(Node.Nodes.NullTag, stSpaceBefore);
   end;
-  FormatNode(Nodes.Position, stSpaceBefore);
+  FormatNode(Node.Nodes.Position, stSpaceBefore);
 end;
 
-procedure TSQLParser.FormatCreateTableStmtFieldDefaultFunc(const Nodes: TCreateTableStmt.TField.TDefaultFunc.TNodes);
+procedure TSQLParser.FormatCreateTableStmtFieldDefaultFunc(const Node: TCreateTableStmt.TField.PDefaultFunc);
 begin
-  FormatNode(Nodes.IdentToken);
-  FormatNode(Nodes.OpenBracket);
-  FormatNode(Nodes.CloseBracket);
+  FormatNode(Node.Nodes.IdentToken);
+  FormatNode(Node.Nodes.OpenBracket);
+  FormatNode(Node.Nodes.CloseBracket);
 end;
 
-procedure TSQLParser.FormatCreateTableStmtKey(const Nodes: TCreateTableStmt.TKey.TNodes);
+procedure TSQLParser.FormatCreateTableStmtKey(const Node: TCreateTableStmt.PKey);
 begin
-  FormatNode(Nodes.AddTag, stSpaceAfter);
-  FormatNode(Nodes.ConstraintTag, stSpaceAfter);
-  FormatNode(Nodes.SymbolIdent, stSpaceAfter);
-  FormatNode(Nodes.KeyTag);
-  FormatNode(Nodes.KeyIdent, stSpaceBefore);
-  FormatNode(Nodes.IndexTypeTag, stSpaceBefore);
+  FormatNode(Node.Nodes.AddTag, stSpaceAfter);
+  FormatNode(Node.Nodes.ConstraintTag, stSpaceAfter);
+  FormatNode(Node.Nodes.SymbolIdent, stSpaceAfter);
+  FormatNode(Node.Nodes.KeyTag);
+  FormatNode(Node.Nodes.KeyIdent, stSpaceBefore);
+  FormatNode(Node.Nodes.IndexTypeTag, stSpaceBefore);
   Commands.WriteSpace();
-  FormatList(Nodes.KeyColumnList, sNone);
-  FormatNode(Nodes.KeyBlockSizeValue, stSpaceBefore);
-  FormatNode(Nodes.WithParserValue, stSpaceBefore);
-  FormatNode(Nodes.CommentValue, stSpaceBefore);
+  FormatList(Node.Nodes.KeyColumnList, sNone);
+  FormatNode(Node.Nodes.KeyBlockSizeValue, stSpaceBefore);
+  FormatNode(Node.Nodes.WithParserValue, stSpaceBefore);
+  FormatNode(Node.Nodes.CommentValue, stSpaceBefore);
 end;
 
-procedure TSQLParser.FormatCreateTableStmtKeyColumn(const Nodes: TCreateTableStmt.TKeyColumn.TNodes);
+procedure TSQLParser.FormatCreateTableStmtKeyColumn(const Node: TCreateTableStmt.PKeyColumn);
 begin
-  FormatNode(Nodes.IdentTag);
+  FormatNode(Node.Nodes.IdentTag);
 
-  if (Nodes.OpenBracket > 0) then
+  if (Node.Nodes.OpenBracket > 0) then
   begin
-    FormatNode(Nodes.OpenBracket);
-    FormatNode(Nodes.LengthToken);
-    FormatNode(Nodes.CloseBracket);
+    FormatNode(Node.Nodes.OpenBracket);
+    FormatNode(Node.Nodes.LengthToken);
+    FormatNode(Node.Nodes.CloseBracket);
   end;
 
-  FormatNode(Nodes.SortTag, stSpaceBefore);
+  FormatNode(Node.Nodes.SortTag, stSpaceBefore);
 end;
 
-procedure TSQLParser.FormatCreateTableStmtPartition(const Nodes: TCreateTableStmt.TPartition.TNodes);
+procedure TSQLParser.FormatCreateTableStmtPartition(const Node: TCreateTableStmt.PPartition);
 begin
-  FormatNode(Nodes.AddTag, stSpaceAfter);
-  FormatNode(Nodes.PartitionTag);
-  FormatNode(Nodes.NameIdent, stSpaceBefore);
+  FormatNode(Node.Nodes.AddTag, stSpaceAfter);
+  FormatNode(Node.Nodes.PartitionTag);
+  FormatNode(Node.Nodes.NameIdent, stSpaceBefore);
   Commands.IncreaseIndent();
-  FormatNode(Nodes.Values.Tag, stReturnBefore);
-  FormatNode(Nodes.Values.Value, stSpaceBefore);
-  FormatNode(Nodes.EngineValue, stReturnBefore);
-  FormatNode(Nodes.CommentValue, stReturnBefore);
-  FormatNode(Nodes.DataDirectoryValue, stReturnBefore);
-  FormatNode(Nodes.IndexDirectoryValue, stReturnBefore);
-  FormatNode(Nodes.MaxRowsValue, stReturnBefore);
-  FormatNode(Nodes.MinRowsValue, stReturnBefore);
-  FormatNode(Nodes.SubPartitionList, stReturnBefore);
+  FormatNode(Node.Nodes.Values.Tag, stReturnBefore);
+  FormatNode(Node.Nodes.Values.Value, stSpaceBefore);
+  FormatNode(Node.Nodes.EngineValue, stReturnBefore);
+  FormatNode(Node.Nodes.CommentValue, stReturnBefore);
+  FormatNode(Node.Nodes.DataDirectoryValue, stReturnBefore);
+  FormatNode(Node.Nodes.IndexDirectoryValue, stReturnBefore);
+  FormatNode(Node.Nodes.MaxRowsValue, stReturnBefore);
+  FormatNode(Node.Nodes.MinRowsValue, stReturnBefore);
+  FormatNode(Node.Nodes.SubPartitionList, stReturnBefore);
   Commands.DecreaseIndent();
 end;
 
-procedure TSQLParser.FormatCreateTableStmtReference(const Nodes: TCreateTableStmt.TReference.TNodes);
+procedure TSQLParser.FormatCreateTableStmtReference(const Node: TCreateTableStmt.PReference);
 begin
-  FormatNode(Nodes.Tag);
-  FormatNode(Nodes.ParentTableIdent, stSpaceBefore);
-  FormatNode(Nodes.FieldList, stSpaceBefore);
-  FormatNode(Nodes.MatchTag, stSpaceBefore);
-  FormatNode(Nodes.OnDeleteTag, stSpaceBefore);
-  FormatNode(Nodes.OnUpdateTag, stSpaceBefore);
+  FormatNode(Node.Nodes.Tag);
+  FormatNode(Node.Nodes.ParentTableIdent, stSpaceBefore);
+  FormatNode(Node.Nodes.FieldList, stSpaceBefore);
+  FormatNode(Node.Nodes.MatchTag, stSpaceBefore);
+  FormatNode(Node.Nodes.OnDeleteTag, stSpaceBefore);
+  FormatNode(Node.Nodes.OnUpdateTag, stSpaceBefore);
 end;
 
-procedure TSQLParser.FormatCreateTriggerStmt(const Nodes: TCreateTriggerStmt.TNodes);
+procedure TSQLParser.FormatCreateTriggerStmt(const Node: PCreateTriggerStmt);
 begin
-  FormatNode(Nodes.CreateTag);
+  FormatNode(Node.Nodes.CreateTag);
   Commands.IncreaseIndent();
-  FormatNode(Nodes.DefinerNode, stSpaceBefore);
-  FormatNode(Nodes.TriggerTag, stSpaceBefore);
-  FormatNode(Nodes.Ident, stSpaceBefore);
-  FormatNode(Nodes.TimeTag, stReturnBefore);
-  FormatNode(Nodes.EventTag, stSpaceBefore);
-  FormatNode(Nodes.OnTag, stSpaceBefore);
-  FormatNode(Nodes.TableIdent, stSpaceBefore);
-  FormatNode(Nodes.ForEachRowTag, stReturnBefore);
-  FormatNode(Nodes.OrderValue, stReturnBefore);
+  FormatNode(Node.Nodes.DefinerNode, stSpaceBefore);
+  FormatNode(Node.Nodes.TriggerTag, stSpaceBefore);
+  FormatNode(Node.Nodes.Ident, stSpaceBefore);
+  FormatNode(Node.Nodes.TimeTag, stReturnBefore);
+  FormatNode(Node.Nodes.EventTag, stSpaceBefore);
+  FormatNode(Node.Nodes.OnTag, stSpaceBefore);
+  FormatNode(Node.Nodes.TableIdent, stSpaceBefore);
+  FormatNode(Node.Nodes.ForEachRowTag, stReturnBefore);
+  FormatNode(Node.Nodes.OrderValue, stReturnBefore);
   Commands.DecreaseIndent();
-  FormatNode(Nodes.Body, stReturnBefore);
+  FormatNode(Node.Nodes.Body, stReturnBefore);
 end;
 
-procedure TSQLParser.FormatCreateUserStmt(const Nodes: TCreateUserStmt.TNodes);
+procedure TSQLParser.FormatCreateUserStmt(const Node: PCreateUserStmt);
 begin
-  FormatNode(Nodes.StmtTag);
-  FormatNode(Nodes.IfNotExistsTag, stSpaceBefore);
+  FormatNode(Node.Nodes.StmtTag);
+  FormatNode(Node.Nodes.IfNotExistsTag, stSpaceBefore);
   Commands.IncreaseIndent();
-  FormatNode(Nodes.UserSpecifications, stReturnBefore);
-  if (Nodes.WithTag > 0) then
+  FormatNode(Node.Nodes.UserSpecifications, stReturnBefore);
+  if (Node.Nodes.WithTag > 0) then
   begin
-    FormatNode(Nodes.WithTag, stReturnBefore);
-    FormatList(Nodes.MaxQueriesPerHour, sSpace);
-    FormatList(Nodes.MaxUpdatesPerHour, sSpace);
-    FormatList(Nodes.MaxConnectionsPerHour, sSpace);
-    FormatList(Nodes.MaxUserConnections, sSpace);
+    FormatNode(Node.Nodes.WithTag, stReturnBefore);
+    FormatList(Node.Nodes.MaxQueriesPerHour, sSpace);
+    FormatList(Node.Nodes.MaxUpdatesPerHour, sSpace);
+    FormatList(Node.Nodes.MaxConnectionsPerHour, sSpace);
+    FormatList(Node.Nodes.MaxUserConnections, sSpace);
   end;
-  FormatNode(Nodes.PasswordOption, stReturnBefore);
-  FormatNode(Nodes.AccountTag, stReturnBefore);
+  FormatNode(Node.Nodes.PasswordOption, stReturnBefore);
+  FormatNode(Node.Nodes.AccountTag, stReturnBefore);
   Commands.DecreaseIndent();
 end;
 
-procedure TSQLParser.FormatCreateViewStmt(const Nodes: TCreateViewStmt.TNodes);
+procedure TSQLParser.FormatCreateViewStmt(const Node: PCreateViewStmt);
 var
   MultiLines: Boolean;
 begin
   MultiLines :=
-    (Nodes.OrReplaceTag <> 0)
-    or (Nodes.AlgorithmValue <> 0)
-    or (Nodes.DefinerNode <> 0)
-    or (Nodes.SQLSecurityTag <> 0);
+    (Node.Nodes.OrReplaceTag <> 0)
+    or (Node.Nodes.AlgorithmValue <> 0)
+    or (Node.Nodes.DefinerNode <> 0)
+    or (Node.Nodes.SQLSecurityTag <> 0);
 
   if (not MultiLines) then
   begin
-    FormatNode(Nodes.CreateTag);
-    FormatNode(Nodes.ViewTag, stSpaceBefore);
-    FormatNode(Nodes.Ident, stSpaceBefore);
-    FormatNode(Nodes.FieldList, stSpaceBefore);
+    FormatNode(Node.Nodes.CreateTag);
+    FormatNode(Node.Nodes.ViewTag, stSpaceBefore);
+    FormatNode(Node.Nodes.Ident, stSpaceBefore);
+    FormatNode(Node.Nodes.FieldList, stSpaceBefore);
     Commands.IncreaseIndent();
-    FormatNode(Nodes.AsTag, stReturnBefore);
+    FormatNode(Node.Nodes.AsTag, stReturnBefore);
     Commands.IncreaseIndent();
-    FormatNode(Nodes.SelectStmt, stReturnBefore);
+    FormatNode(Node.Nodes.SelectStmt, stReturnBefore);
     Commands.DecreaseIndent();
-    FormatNode(Nodes.OptionTag, stReturnBefore);
+    FormatNode(Node.Nodes.OptionTag, stReturnBefore);
     Commands.DecreaseIndent();
   end
   else
   begin
-    FormatNode(Nodes.CreateTag);
+    FormatNode(Node.Nodes.CreateTag);
     Commands.IncreaseIndent();
-    FormatNode(Nodes.OrReplaceTag, stReturnBefore);
-    FormatNode(Nodes.AlgorithmValue, stReturnBefore);
-    FormatNode(Nodes.DefinerNode, stReturnBefore);
-    FormatNode(Nodes.SQLSecurityTag, stReturnBefore);
-    FormatNode(Nodes.ViewTag, stReturnBefore);
-    FormatNode(Nodes.Ident, stSpaceBefore);
-    FormatNode(Nodes.FieldList, stSpaceBefore);
-    FormatNode(Nodes.AsTag, stReturnBefore);
+    FormatNode(Node.Nodes.OrReplaceTag, stReturnBefore);
+    FormatNode(Node.Nodes.AlgorithmValue, stReturnBefore);
+    FormatNode(Node.Nodes.DefinerNode, stReturnBefore);
+    FormatNode(Node.Nodes.SQLSecurityTag, stReturnBefore);
+    FormatNode(Node.Nodes.ViewTag, stReturnBefore);
+    FormatNode(Node.Nodes.Ident, stSpaceBefore);
+    FormatNode(Node.Nodes.FieldList, stSpaceBefore);
+    FormatNode(Node.Nodes.AsTag, stReturnBefore);
     Commands.DecreaseIndent();
-    FormatNode(Nodes.SelectStmt, stReturnBefore);
+    FormatNode(Node.Nodes.SelectStmt, stReturnBefore);
     Commands.IncreaseIndent();
-    FormatNode(Nodes.OptionTag, stReturnBefore);
+    FormatNode(Node.Nodes.OptionTag, stReturnBefore);
     Commands.DecreaseIndent();
   end;
 end;
@@ -12398,11 +12341,6 @@ begin
             Commands.Write(Comment);
             Commands.Write(' */');
 
-//            if (not Start) then
-//              if (ReturnFound) then
-//                Spacer := sReturn
-//              else
-//                Spacer := sSpace;
             ReturnFound := False;
           end
           else
@@ -12451,306 +12389,307 @@ begin
   end;
 end;
 
-procedure TSQLParser.FormatDatatype(const Nodes: TDatatype.TNodes);
+procedure TSQLParser.FormatDatatype(const Node: PDatatype);
 begin
-  FormatNode(Nodes.NationalToken, stSpaceAfter);
+  FormatNode(Node.Nodes.NationalToken, stSpaceAfter);
 
-  FormatNode(Nodes.DatatypeToken);
-  if (Nodes.OpenBracket > 0) then
+  FormatNode(Node.Nodes.DatatypeToken);
+  if (Node.Nodes.OpenBracket > 0) then
   begin
-    FormatNode(Nodes.OpenBracket);
-    FormatNode(Nodes.LengthToken);
-    FormatNode(Nodes.CommaToken);
-    FormatNode(Nodes.DecimalsToken);
-    FormatNode(Nodes.CloseBracket);
+    FormatNode(Node.Nodes.OpenBracket);
+    FormatNode(Node.Nodes.LengthToken);
+    FormatNode(Node.Nodes.CommaToken);
+    FormatNode(Node.Nodes.DecimalsToken);
+    FormatNode(Node.Nodes.CloseBracket);
   end
-  else if (Nodes.ItemsList > 0) then
-    FormatList(Nodes.ItemsList, sNone);
+  else if (Node.Nodes.ItemsList > 0) then
+    FormatList(Node.Nodes.ItemsList, sNone);
 
-  FormatNode(Nodes.SignedToken, stSpaceBefore);
-  FormatNode(Nodes.ZerofillTag, stSpaceBefore);
-  FormatNode(Nodes.CharacterSetValue, stSpaceBefore);
-  FormatNode(Nodes.CollateValue, stSpaceBefore);
-  FormatNode(Nodes.BinaryToken, stSpaceBefore);
-  FormatNode(Nodes.ASCIIToken, stSpaceBefore);
-  FormatNode(Nodes.UnicodeToken, stSpaceBefore);
+  FormatNode(Node.Nodes.SignedToken, stSpaceBefore);
+  FormatNode(Node.Nodes.ZerofillTag, stSpaceBefore);
+  FormatNode(Node.Nodes.CharacterSetValue, stSpaceBefore);
+  FormatNode(Node.Nodes.CollateValue, stSpaceBefore);
+  FormatNode(Node.Nodes.BinaryToken, stSpaceBefore);
+  FormatNode(Node.Nodes.ASCIIToken, stSpaceBefore);
+  FormatNode(Node.Nodes.UnicodeToken, stSpaceBefore);
 end;
 
-procedure TSQLParser.FormatDateAddFunc(const Nodes: TDateAddFunc.TNodes);
+procedure TSQLParser.FormatDateAddFunc(const Node: PDateAddFunc);
 begin
-  FormatNode(Nodes.IdentToken);
-  FormatNode(Nodes.OpenBracket);
-  FormatNode(Nodes.Expr);
-  FormatNode(Nodes.CommaToken);
-  if (Nodes.IntervalValue > 0) then
-    FormatNode(Nodes.IntervalValue, stSpaceBefore)
+  FormatNode(Node.Nodes.IdentToken);
+  FormatNode(Node.Nodes.OpenBracket);
+  FormatNode(Node.Nodes.Expr);
+  FormatNode(Node.Nodes.CommaToken);
+  if (Node.Nodes.IntervalValue > 0) then
+    FormatNode(Node.Nodes.IntervalValue, stSpaceBefore)
   else
-    FormatNode(Nodes.Days, stSpaceBefore);
-  FormatNode(Nodes.CloseBracket);
+    FormatNode(Node.Nodes.Days, stSpaceBefore);
+  FormatNode(Node.Nodes.CloseBracket);
 end;
 
-procedure TSQLParser.FormatDbIdent(const Nodes: TDbIdent.TNodes);
+procedure TSQLParser.FormatDbIdent(const Node: PDbIdent);
 begin
-  if ((Nodes.DatabaseIdent > 0)
-    and (not IsToken(Nodes.DatabaseIdent) or (TableNameCmp(TokenPtr(Nodes.DatabaseIdent)^.AsString, FormatHandle.DatabaseName) <> 0))) then
+  if ((Node.Nodes.DatabaseIdent > 0)
+    and (not IsToken(Node.Nodes.DatabaseIdent) or (TableNameCmp(TokenPtr(Node.Nodes.DatabaseIdent)^.AsString, FormatHandle.DatabaseName) <> 0))) then
   begin
-    FormatNode(Nodes.DatabaseIdent);
-    FormatNode(Nodes.DatabaseDot);
+    FormatNode(Node.Nodes.DatabaseIdent);
+    FormatNode(Node.Nodes.DatabaseDot);
   end;
-  if (Nodes.TableIdent > 0) then
+  if (Node.Nodes.TableIdent > 0) then
   begin
-    FormatNode(Nodes.TableIdent);
-    FormatNode(Nodes.TableDot);
+    FormatNode(Node.Nodes.TableIdent);
+    FormatNode(Node.Nodes.TableDot);
   end;
-  FormatNode(Nodes.Ident);
+  FormatNode(Node.Nodes.Ident);
 end;
 
-procedure TSQLParser.FormatDeclareCursorStmt(const Nodes: TDeclareCursorStmt.TNodes);
+procedure TSQLParser.FormatDeclareCursorStmt(const Node: PDeclareCursorStmt);
 begin
-  FormatNode(Nodes.StmtTag);
-  FormatNode(Nodes.Ident, stSpaceBefore);
-  FormatNode(Nodes.CursorTag, stSpaceBefore);
+  FormatNode(Node.Nodes.StmtTag);
+  FormatNode(Node.Nodes.Ident, stSpaceBefore);
+  FormatNode(Node.Nodes.CursorTag, stSpaceBefore);
   Commands.IncreaseIndent();
-  FormatNode(Nodes.SelectStmt, stReturnBefore);
+  FormatNode(Node.Nodes.SelectStmt, stReturnBefore);
   Commands.DecreaseIndent();
 end;
 
-procedure TSQLParser.FormatDeclareHandlerStmt(const Nodes: TDeclareHandlerStmt.TNodes);
+procedure TSQLParser.FormatDeclareHandlerStmt(const Node: PDeclareHandlerStmt);
 begin
-  FormatNode(Nodes.StmtTag);
-  FormatNode(Nodes.ActionTag, stSpaceBefore);
-  FormatNode(Nodes.HandlerTag, stSpaceBefore);
+  FormatNode(Node.Nodes.StmtTag);
+  FormatNode(Node.Nodes.ActionTag, stSpaceBefore);
+  FormatNode(Node.Nodes.HandlerTag, stSpaceBefore);
   Commands.IncreaseIndent();
-  FormatNode(Nodes.ForTag, stSpaceBefore);
-  FormatNode(Nodes.ConditionsList, stSpaceBefore);
-  FormatNode(Nodes.Stmt, stReturnBefore);
+  FormatNode(Node.Nodes.ForTag, stSpaceBefore);
+  FormatNode(Node.Nodes.ConditionsList, stSpaceBefore);
+  FormatNode(Node.Nodes.Stmt, stReturnBefore);
   Commands.DecreaseIndent();
 end;
 
-procedure TSQLParser.FormatDeleteStmt(const Nodes: TDeleteStmt.TNodes);
+procedure TSQLParser.FormatDeleteStmt(const Node: PDeleteStmt);
 begin
-  FormatNode(Nodes.DeleteTag);
-  FormatNode(Nodes.LowPriorityTag, stSpaceBefore);
-  FormatNode(Nodes.QuickTag, stSpaceBefore);
-  FormatNode(Nodes.IgnoreTag, stSpaceBefore);
+  FormatNode(Node.Nodes.DeleteTag);
+  FormatNode(Node.Nodes.LowPriorityTag, stSpaceBefore);
+  FormatNode(Node.Nodes.QuickTag, stSpaceBefore);
+  FormatNode(Node.Nodes.IgnoreTag, stSpaceBefore);
 
-  if ((Nodes.From.Tag < Nodes.From.List)
-    and (Nodes.Partition.List = 0)
-    and (Nodes.Using.List = 0)
-    and (Nodes.OrderBy.Tag = 0)
-    and (Nodes.Limit.Tag = 0)) then
+  if ((Node.Nodes.From.Tag < Node.Nodes.From.List)
+    and (Node.Nodes.Partition.List = 0)
+    and (Node.Nodes.Using.List = 0)
+    and (Node.Nodes.OrderBy.Tag = 0)
+    and (Node.Nodes.Limit.Tag = 0)) then
   begin
-    FormatNode(Nodes.From.Tag, stSpaceBefore);
-    FormatNode(Nodes.From.List, stSpaceBefore);
-    FormatNode(Nodes.WhereValue, stSpaceBefore);
+    FormatNode(Node.Nodes.From.Tag, stSpaceBefore);
+    FormatNode(Node.Nodes.From.List, stSpaceBefore);
+    FormatNode(Node.Nodes.WhereValue, stSpaceBefore);
   end
-  else if (Nodes.From.Tag < Nodes.From.List) then
+  else if (Node.Nodes.From.Tag < Node.Nodes.From.List) then
   begin
     Commands.IncreaseIndent();
-    FormatNode(Nodes.From.Tag, stReturnBefore);
-    FormatNode(Nodes.From.List, stSpaceBefore);
-    FormatNode(Nodes.Partition.Tag, stReturnBefore);
-    FormatNode(Nodes.Partition.List, stSpaceBefore);
-    FormatNode(Nodes.Using.Tag, stReturnBefore);
-    FormatNode(Nodes.Using.List, stSpaceBefore);
-    FormatNode(Nodes.WhereValue, stReturnBefore);
-    FormatNode(Nodes.OrderBy.Tag, stReturnBefore);
-    FormatNode(Nodes.OrderBy.Expr, stSpaceBefore);
-    FormatNode(Nodes.Limit.Tag, stReturnBefore);
-    FormatNode(Nodes.Limit.Expr, stSpaceBefore);
+    FormatNode(Node.Nodes.From.Tag, stReturnBefore);
+    FormatNode(Node.Nodes.From.List, stSpaceBefore);
+    FormatNode(Node.Nodes.Partition.Tag, stReturnBefore);
+    FormatNode(Node.Nodes.Partition.List, stSpaceBefore);
+    FormatNode(Node.Nodes.Using.Tag, stReturnBefore);
+    FormatNode(Node.Nodes.Using.List, stSpaceBefore);
+    FormatNode(Node.Nodes.WhereValue, stReturnBefore);
+    FormatNode(Node.Nodes.OrderBy.Tag, stReturnBefore);
+    FormatNode(Node.Nodes.OrderBy.Expr, stSpaceBefore);
+    FormatNode(Node.Nodes.Limit.Tag, stReturnBefore);
+    FormatNode(Node.Nodes.Limit.Expr, stSpaceBefore);
     Commands.DecreaseIndent();
   end
   else
   begin
     Commands.IncreaseIndent();
-    FormatNode(Nodes.From.List, stReturnBefore);
+    FormatNode(Node.Nodes.From.List, stReturnBefore);
     Commands.IncreaseIndent();
     Commands.WriteReturn();
-    FormatNode(Nodes.From.Tag);
-    FormatNode(Nodes.TableReferenceList, stReturnBefore);
+    FormatNode(Node.Nodes.From.Tag);
+    FormatNode(Node.Nodes.TableReferenceList, stReturnBefore);
     Commands.DecreaseIndent();
-    FormatNode(Nodes.WhereValue, stReturnBefore);
+    FormatNode(Node.Nodes.WhereValue, stReturnBefore);
     Commands.DecreaseIndent();
   end;
 end;
 
-procedure TSQLParser.FormatDropTablespaceStmt(const Nodes: TDropTablespaceStmt.TNodes);
+procedure TSQLParser.FormatDropTablespaceStmt(const Node: PDropTablespaceStmt);
 begin
-  FormatNode(Nodes.StmtTag);
-  FormatNode(Nodes.Ident, stSpaceBefore);
+  FormatNode(Node.Nodes.StmtTag);
+  FormatNode(Node.Nodes.Ident, stSpaceBefore);
   Commands.IncreaseIndent();
-  FormatNode(Nodes.EngineValue, stReturnBefore);
+  FormatNode(Node.Nodes.EngineValue, stReturnBefore);
   Commands.DecreaseIndent();
 end;
 
-procedure TSQLParser.FormatExistsFunc(const Nodes: TExistsFunc.TNodes);
+procedure TSQLParser.FormatExistsFunc(const Node: PExistsFunc);
 begin
-  FormatNode(Nodes.IdentToken);
-  FormatNode(Nodes.OpenBracket);
-  FormatNode(Nodes.SubQuery);
-  FormatNode(Nodes.CloseBracket);
+  FormatNode(Node.Nodes.IdentToken);
+  FormatNode(Node.Nodes.OpenBracket);
+  FormatNode(Node.Nodes.SubQuery);
+  FormatNode(Node.Nodes.CloseBracket);
 end;
 
-procedure TSQLParser.FormatExtractFunc(const Nodes: TExtractFunc.TNodes);
+procedure TSQLParser.FormatExtractFunc(const Node: PExtractFunc);
 begin
-  FormatNode(Nodes.IdentToken);
-  FormatNode(Nodes.OpenBracket);
-  FormatNode(Nodes.UnitTag);
-  FormatNode(Nodes.FromTag, stSpaceBefore);
-  FormatNode(Nodes.DateExpr, stSpaceBefore);
-  FormatNode(Nodes.CloseBracket);
+  FormatNode(Node.Nodes.IdentToken);
+  FormatNode(Node.Nodes.OpenBracket);
+  FormatNode(Node.Nodes.UnitTag);
+  FormatNode(Node.Nodes.FromTag, stSpaceBefore);
+  FormatNode(Node.Nodes.DateExpr, stSpaceBefore);
+  FormatNode(Node.Nodes.CloseBracket);
 end;
 
-procedure TSQLParser.FormatFunctionCall(const Nodes: TFunctionCall.TNodes);
+procedure TSQLParser.FormatFunctionCall(const Node: PFunctionCall);
 begin
-  FormatNode(Nodes.Ident);
-  FormatNode(Nodes.ArgumentsList);
+  FormatNode(Node.Nodes.Ident);
+  FormatNode(Node.Nodes.ArgumentsList);
 end;
 
-procedure TSQLParser.FormatGroupConcatFunc(const Nodes: TGroupConcatFunc.TNodes);
+procedure TSQLParser.FormatGroupConcatFunc(const Node: PGroupConcatFunc);
 begin
-  FormatNode(Nodes.IdentToken);
-  FormatNode(Nodes.OpenBracket);
-  FormatNode(Nodes.DistinctTag, stSpaceAfter);
-  FormatNode(Nodes.ExprList);
+  FormatNode(Node.Nodes.IdentToken);
+  FormatNode(Node.Nodes.OpenBracket);
+  FormatNode(Node.Nodes.DistinctTag, stSpaceAfter);
+  FormatNode(Node.Nodes.ExprList);
   Commands.IncreaseIndent();
-  if (Nodes.OrderByTag > 0) then
+  if (Node.Nodes.OrderByTag > 0) then
   begin
-    FormatNode(Nodes.OrderByTag, stSpaceBefore);
-    FormatNode(Nodes.OrderByExprList, stSpaceBefore);
+    FormatNode(Node.Nodes.OrderByTag, stSpaceBefore);
+    FormatNode(Node.Nodes.OrderByExprList, stSpaceBefore);
   end;
-  FormatNode(Nodes.SeparatorValue, stSpaceBefore);
+  FormatNode(Node.Nodes.SeparatorValue, stSpaceBefore);
   Commands.DecreaseIndent();
-  FormatNode(Nodes.CloseBracket);
+  FormatNode(Node.Nodes.CloseBracket);
 end;
 
-procedure TSQLParser.FormatIfStmt(const Nodes: TIfStmt.TNodes);
+procedure TSQLParser.FormatIfStmt(const Node: PIfStmt);
 begin
-  FormatNode(Nodes.BranchList);
-  FormatNode(Nodes.EndTag, stReturnBefore);
+  FormatNode(Node.Nodes.BranchList);
+  FormatNode(Node.Nodes.EndTag, stReturnBefore);
 end;
 
-procedure TSQLParser.FormatIfStmtBranch(const Nodes: TIfStmt.TBranch.TNodes);
+procedure TSQLParser.FormatIfStmtBranch(const Node: TIfStmt.PBranch);
 begin
-  Assert(NodePtr(Nodes.Tag)^.NodeType = ntTag);
+  Assert(NodePtr(Node.Nodes.BranchTag)^.NodeType = ntTag);
 
-  if (TokenPtr(PTag(NodePtr(Nodes.Tag))^.Nodes.KeywordToken1)^.KeywordIndex = kiIF) then
+  if ((NodePtr(Node.Nodes.BranchTag)^.NodeType = ntTag)
+    and (TokenPtr(PTag(NodePtr(Node.Nodes.BranchTag))^.Nodes.Keyword1Token)^.KeywordIndex = kiIF)) then
   begin
-    FormatNode(Nodes.Tag);
-    FormatNode(Nodes.ConditionExpr, stSpaceBefore);
+    FormatNode(Node.Nodes.BranchTag);
+    FormatNode(Node.Nodes.ConditionExpr, stSpaceBefore);
     Commands.IncreaseIndent();
-    FormatNode(Nodes.ThenTag, stSpaceBefore);
-    FormatNode(Nodes.StmtList, stReturnBefore);
+    FormatNode(Node.Nodes.ThenTag, stSpaceBefore);
+    FormatNode(Node.Nodes.StmtList, stReturnBefore);
     Commands.DecreaseIndent();
   end
-  else if (TokenPtr(PTag(NodePtr(Nodes.Tag))^.Nodes.KeywordToken1)^.KeywordIndex = kiELSEIF) then
+  else if (TokenPtr(PTag(NodePtr(Node.Nodes.BranchTag))^.Nodes.Keyword1Token)^.KeywordIndex = kiELSEIF) then
   begin
     Commands.WriteReturn();
     Commands.IncreaseIndent();
-    FormatNode(Nodes.Tag);
-    FormatNode(Nodes.ConditionExpr, stSpaceBefore);
-    FormatNode(Nodes.ThenTag, stSpaceBefore);
-    FormatNode(Nodes.StmtList, stReturnBefore);
+    FormatNode(Node.Nodes.BranchTag);
+    FormatNode(Node.Nodes.ConditionExpr, stSpaceBefore);
+    FormatNode(Node.Nodes.ThenTag, stSpaceBefore);
+    FormatNode(Node.Nodes.StmtList, stReturnBefore);
     Commands.DecreaseIndent();
   end
-  else if (TokenPtr(PTag(NodePtr(Nodes.Tag))^.Nodes.KeywordToken1)^.KeywordIndex = kiELSE) then
+  else if (TokenPtr(PTag(NodePtr(Node.Nodes.BranchTag))^.Nodes.Keyword1Token)^.KeywordIndex = kiELSE) then
   begin
     Commands.WriteReturn();
     Commands.IncreaseIndent();
-    FormatNode(Nodes.Tag);
-    FormatNode(Nodes.StmtList, stReturnBefore);
+    FormatNode(Node.Nodes.BranchTag);
+    FormatNode(Node.Nodes.StmtList, stReturnBefore);
     Commands.DecreaseIndent();
   end;
 end;
 
-procedure TSQLParser.FormatInsertStmt(const Nodes: TInsertStmt.TNodes);
+procedure TSQLParser.FormatInsertStmt(const Node: PInsertStmt);
 begin
-  if ((Nodes.ColumnList = 0)
-    and (Nodes.Values.List > 0)
-    and (NodePtr(Nodes.Values.List)^.NodeType = ntList)
-    and (PList(NodePtr(Nodes.Values.List))^.ElementCount <= 1)) then
+  if ((Node.Nodes.ColumnList = 0)
+    and (Node.Nodes.Values.List > 0)
+    and (NodePtr(Node.Nodes.Values.List)^.NodeType = ntList)
+    and (PList(NodePtr(Node.Nodes.Values.List))^.ElementCount <= 1)) then
   begin
-    FormatNode(Nodes.InsertTag);
-    FormatNode(Nodes.PriorityTag, stSpaceBefore);
-    FormatNode(Nodes.IgnoreTag, stSpaceBefore);
-    FormatNode(Nodes.IntoTag, stSpaceBefore);
-    FormatNode(Nodes.TableIdent, stSpaceBefore);
-    FormatNode(Nodes.Partition.Tag, stSpaceBefore);
-    FormatNode(Nodes.Partition.List, stSpaceBefore);
-    FormatNode(Nodes.ColumnList, stSpaceBefore);
-    FormatNode(Nodes.Values.Tag, stSpaceBefore);
-    FormatNode(Nodes.Values.List, stSpaceBefore);
-    FormatNode(Nodes.Set_.Tag, stSpaceBefore);
-    FormatNode(Nodes.Set_.List, stSpaceBefore);
-    if (Nodes.SelectStmt > 0) then
+    FormatNode(Node.Nodes.InsertTag);
+    FormatNode(Node.Nodes.PriorityTag, stSpaceBefore);
+    FormatNode(Node.Nodes.IgnoreTag, stSpaceBefore);
+    FormatNode(Node.Nodes.IntoTag, stSpaceBefore);
+    FormatNode(Node.Nodes.TableIdent, stSpaceBefore);
+    FormatNode(Node.Nodes.Partition.Tag, stSpaceBefore);
+    FormatNode(Node.Nodes.Partition.List, stSpaceBefore);
+    FormatNode(Node.Nodes.ColumnList, stSpaceBefore);
+    FormatNode(Node.Nodes.Values.Tag, stSpaceBefore);
+    FormatNode(Node.Nodes.Values.List, stSpaceBefore);
+    FormatNode(Node.Nodes.Set_.Tag, stSpaceBefore);
+    FormatNode(Node.Nodes.Set_.List, stSpaceBefore);
+    if (Node.Nodes.SelectStmt > 0) then
     begin
       Commands.IncreaseIndent();
-      FormatNode(Nodes.SelectStmt, stReturnBefore);
+      FormatNode(Node.Nodes.SelectStmt, stReturnBefore);
       Commands.DecreaseIndent();
-      FormatNode(Nodes.OnDuplicateKeyUpdateTag, stReturnBefore);
+      FormatNode(Node.Nodes.OnDuplicateKeyUpdateTag, stReturnBefore);
     end
     else
-      FormatNode(Nodes.OnDuplicateKeyUpdateTag, stSpaceBefore);
-    FormatNode(Nodes.UpdateList, stSpaceBefore);
+      FormatNode(Node.Nodes.OnDuplicateKeyUpdateTag, stSpaceBefore);
+    FormatNode(Node.Nodes.UpdateList, stSpaceBefore);
   end
   else
   begin
-    FormatNode(Nodes.InsertTag);
-    FormatNode(Nodes.PriorityTag, stSpaceBefore);
-    FormatNode(Nodes.IgnoreTag, stSpaceBefore);
+    FormatNode(Node.Nodes.InsertTag);
+    FormatNode(Node.Nodes.PriorityTag, stSpaceBefore);
+    FormatNode(Node.Nodes.IgnoreTag, stSpaceBefore);
     Commands.IncreaseIndent();
-    FormatNode(Nodes.IntoTag, stReturnBefore);
-    FormatNode(Nodes.TableIdent, stSpaceBefore);
-    FormatNode(Nodes.Partition.Tag, stSpaceBefore);
-    FormatNode(Nodes.Partition.List, stSpaceBefore);
-    FormatNode(Nodes.ColumnList, stReturnBefore);
+    FormatNode(Node.Nodes.IntoTag, stReturnBefore);
+    FormatNode(Node.Nodes.TableIdent, stSpaceBefore);
+    FormatNode(Node.Nodes.Partition.Tag, stSpaceBefore);
+    FormatNode(Node.Nodes.Partition.List, stSpaceBefore);
+    FormatNode(Node.Nodes.ColumnList, stReturnBefore);
     Commands.DecreaseIndent();
-    if (Nodes.Values.Tag > 0) then
+    if (Node.Nodes.Values.Tag > 0) then
     begin
-      FormatNode(Nodes.Values.Tag, stReturnBefore);
+      FormatNode(Node.Nodes.Values.Tag, stReturnBefore);
       Commands.IncreaseIndent();
       Commands.WriteReturn();
-      FormatList(Nodes.Values.List, sReturn);
+      FormatList(Node.Nodes.Values.List, sReturn);
       Commands.DecreaseIndent();
     end;
-    if (Nodes.Set_.Tag > 0) then
+    if (Node.Nodes.Set_.Tag > 0) then
     begin
-      FormatNode(Nodes.Set_.Tag, stReturnBefore);
+      FormatNode(Node.Nodes.Set_.Tag, stReturnBefore);
       Commands.IncreaseIndent();
       Commands.WriteReturn();
-      FormatList(Nodes.Set_.List, sReturn);
+      FormatList(Node.Nodes.Set_.List, sReturn);
       Commands.DecreaseIndent();
     end;
-    if (Nodes.SelectStmt > 0) then
+    if (Node.Nodes.SelectStmt > 0) then
     begin
       Commands.IncreaseIndent();
-      FormatNode(Nodes.SelectStmt, stReturnBefore);
+      FormatNode(Node.Nodes.SelectStmt, stReturnBefore);
       Commands.DecreaseIndent();
-      FormatNode(Nodes.OnDuplicateKeyUpdateTag, stReturnBefore);
+      FormatNode(Node.Nodes.OnDuplicateKeyUpdateTag, stReturnBefore);
     end
     else
-      FormatNode(Nodes.OnDuplicateKeyUpdateTag, stSpaceBefore);
-    FormatNode(Nodes.UpdateList, stSpaceBefore);
+      FormatNode(Node.Nodes.OnDuplicateKeyUpdateTag, stSpaceBefore);
+    FormatNode(Node.Nodes.UpdateList, stSpaceBefore);
   end;
 end;
 
-procedure TSQLParser.FormatList(const Nodes: TList.TNodes; const DelimiterType: TTokenType);
+procedure TSQLParser.FormatList(const Node: PList; const DelimiterType: TTokenType);
 begin
   case (DelimiterType) of
-    ttComma: FormatList(Nodes, sSpace);
-    ttDot: FormatList(Nodes, sNone);
-    ttSemicolon: FormatList(Nodes, sReturn);
-    else FormatList(Nodes, sSpace);
+    ttComma: FormatList(Node, sSpace);
+    ttDot: FormatList(Node, sNone);
+    ttSemicolon: FormatList(Node, sReturn);
+    else FormatList(Node, sSpace);
   end;
 end;
 
-procedure TSQLParser.FormatList(const Nodes: TList.TNodes; const Spacer: TSpacer);
+procedure TSQLParser.FormatList(const Node: PList; const Spacer: TSpacer);
 var
   Child: PChild;
 begin
-  FormatNode(Nodes.OpenBracket);
+  FormatNode(Node.Nodes.OpenBracket);
 
-  Child := ChildPtr(Nodes.FirstChild);
+  Child := ChildPtr(Node.Nodes.FirstChild);
 
   while (Assigned(Child)) do
   begin
@@ -12769,7 +12708,7 @@ begin
       end;
   end;
 
-  FormatNode(Nodes.CloseBracket);
+  FormatNode(Node.Nodes.CloseBracket);
 end;
 
 procedure TSQLParser.FormatList(const Node: TOffset; const Spacer: TSpacer);
@@ -12778,125 +12717,125 @@ begin
   begin
     Assert(NodePtr(Node)^.NodeType = ntList);
 
-    FormatList(PList(NodePtr(Node))^.Nodes, Spacer);
+    FormatList(PList(NodePtr(Node)), Spacer);
   end;
 end;
 
-procedure TSQLParser.FormatLoadDataStmt(const Nodes: TLoadDataStmt.TNodes);
+procedure TSQLParser.FormatLoadDataStmt(const Node: PLoadDataStmt);
 begin
-  FormatNode(Nodes.StmtTag);
-  FormatNode(Nodes.PriorityTag, stSpaceBefore);
-  FormatNode(Nodes.InfileTag, stSpaceBefore);
-  FormatNode(Nodes.FilenameString, stSpaceBefore);
+  FormatNode(Node.Nodes.StmtTag);
+  FormatNode(Node.Nodes.PriorityTag, stSpaceBefore);
+  FormatNode(Node.Nodes.InfileTag, stSpaceBefore);
+  FormatNode(Node.Nodes.FilenameString, stSpaceBefore);
   Commands.IncreaseIndent();
-  FormatNode(Nodes.ReplaceIgnoreTag, stReturnBefore);
-  FormatNode(Nodes.IntoTableTag, stReturnBefore);
-  FormatNode(Nodes.Ident, stSpaceBefore);
-  FormatNode(Nodes.PartitionTag, stReturnBefore);
-  FormatNode(Nodes.PartitionList, stSpaceBefore);
-  FormatNode(Nodes.CharacterSetValue, stReturnBefore);
-  if (Nodes.ColumnsTag > 0) then
+  FormatNode(Node.Nodes.ReplaceIgnoreTag, stReturnBefore);
+  FormatNode(Node.Nodes.IntoTableTag, stReturnBefore);
+  FormatNode(Node.Nodes.Ident, stSpaceBefore);
+  FormatNode(Node.Nodes.PartitionTag, stReturnBefore);
+  FormatNode(Node.Nodes.PartitionList, stSpaceBefore);
+  FormatNode(Node.Nodes.CharacterSetValue, stReturnBefore);
+  if (Node.Nodes.ColumnsTag > 0) then
   begin
-    FormatNode(Nodes.ColumnsTag, stReturnBefore);
+    FormatNode(Node.Nodes.ColumnsTag, stReturnBefore);
     Commands.IncreaseIndent();
-    FormatNode(Nodes.ColumnsTerminatedByValue, stReturnBefore);
-    FormatNode(Nodes.EnclosedByValue, stReturnBefore);
-    FormatNode(Nodes.EscapedByValue, stReturnBefore);
+    FormatNode(Node.Nodes.ColumnsTerminatedByValue, stReturnBefore);
+    FormatNode(Node.Nodes.EnclosedByValue, stReturnBefore);
+    FormatNode(Node.Nodes.EscapedByValue, stReturnBefore);
     Commands.DecreaseIndent();
   end;
-  if (Nodes.LinesTag > 0) then
+  if (Node.Nodes.LinesTag > 0) then
   begin
-    FormatNode(Nodes.LinesTag, stReturnBefore);
+    FormatNode(Node.Nodes.LinesTag, stReturnBefore);
     Commands.IncreaseIndent();
-    FormatNode(Nodes.StartingByValue, stReturnBefore);
-    FormatNode(Nodes.LinesTerminatedByValue, stReturnBefore);
+    FormatNode(Node.Nodes.StartingByValue, stReturnBefore);
+    FormatNode(Node.Nodes.LinesTerminatedByValue, stReturnBefore);
     Commands.DecreaseIndent();
   end;
-  FormatNode(Nodes.Ignore.Tag, stReturnBefore);
-  FormatNode(Nodes.Ignore.NumberToken, stSpaceBefore);
-  FormatNode(Nodes.Ignore.LinesTag, stSpaceBefore);
-  FormatNode(Nodes.ColumnList, stReturnBefore);
-  FormatNode(Nodes.SetList, stReturnBefore);
+  FormatNode(Node.Nodes.Ignore.Tag, stReturnBefore);
+  FormatNode(Node.Nodes.Ignore.NumberToken, stSpaceBefore);
+  FormatNode(Node.Nodes.Ignore.LinesTag, stSpaceBefore);
+  FormatNode(Node.Nodes.ColumnList, stReturnBefore);
+  FormatNode(Node.Nodes.SetList, stReturnBefore);
   Commands.DecreaseIndent();
 end;
 
-procedure TSQLParser.FormatLoadXMLStmt(const Nodes: TLoadXMLStmt.TNodes);
+procedure TSQLParser.FormatLoadXMLStmt(const Node: PLoadXMLStmt);
 begin
-  FormatNode(Nodes.StmtTag);
-  FormatNode(Nodes.PriorityTag, stSpaceBefore);
-  FormatNode(Nodes.InfileTag, stSpaceBefore);
-  FormatNode(Nodes.FilenameString, stSpaceBefore);
+  FormatNode(Node.Nodes.StmtTag);
+  FormatNode(Node.Nodes.PriorityTag, stSpaceBefore);
+  FormatNode(Node.Nodes.InfileTag, stSpaceBefore);
+  FormatNode(Node.Nodes.FilenameString, stSpaceBefore);
   Commands.IncreaseIndent();
-  FormatNode(Nodes.ReplaceIgnoreTag, stReturnBefore);
-  FormatNode(Nodes.IntoTableValue, stReturnBefore);
-  FormatNode(Nodes.CharacterSetValue, stReturnBefore);
-  FormatNode(Nodes.RowsIdentifiedByValue, stReturnBefore);
-  FormatNode(Nodes.Ignore.Tag, stReturnBefore);
-  FormatNode(Nodes.Ignore.NumberToken, stSpaceBefore);
-  FormatNode(Nodes.Ignore.LinesTag, stSpaceBefore);
-  FormatNode(Nodes.FieldList, stReturnBefore);
-  FormatNode(Nodes.SetList, stReturnBefore);
+  FormatNode(Node.Nodes.ReplaceIgnoreTag, stReturnBefore);
+  FormatNode(Node.Nodes.IntoTableValue, stReturnBefore);
+  FormatNode(Node.Nodes.CharacterSetValue, stReturnBefore);
+  FormatNode(Node.Nodes.RowsIdentifiedByValue, stReturnBefore);
+  FormatNode(Node.Nodes.Ignore.Tag, stReturnBefore);
+  FormatNode(Node.Nodes.Ignore.NumberToken, stSpaceBefore);
+  FormatNode(Node.Nodes.Ignore.LinesTag, stSpaceBefore);
+  FormatNode(Node.Nodes.FieldList, stReturnBefore);
+  FormatNode(Node.Nodes.SetList, stReturnBefore);
   Commands.DecreaseIndent();
 end;
 
-procedure TSQLParser.FormatLockTablesStmtItem(const Nodes: TLockTablesStmt.TItem.TNodes);
+procedure TSQLParser.FormatLockTablesStmtItem(const Node: TLockTablesStmt.PItem);
 var
   Ident: TOffset;
   AliasIdent: TOffset;
 begin
-  Ident := Nodes.Ident;
+  Ident := Node.Nodes.Ident;
   if ((Ident > 0) and (NodePtr(Ident)^.NodeType = ntDbIdent)) then
     Ident := PDbIdent(NodePtr(Ident))^.Nodes.Ident;
-  AliasIdent := Nodes.AliasIdent;
+  AliasIdent := Node.Nodes.AliasIdent;
   if ((AliasIdent > 0) and (NodePtr(AliasIdent)^.NodeType = ntDbIdent)) then
     AliasIdent := PDbIdent(NodePtr(AliasIdent))^.Nodes.Ident;
 
-  FormatNode(Nodes.Ident);
-  if ((Nodes.AliasIdent > 0)
+  FormatNode(Node.Nodes.Ident);
+  if ((Node.Nodes.AliasIdent > 0)
     and (not IsToken(Ident) or not IsToken(AliasIdent) or (TokenPtr(Ident)^.AsString <> TokenPtr(AliasIdent)^.AsString))) then
   begin
-    if (Nodes.AsTag = 0) then
+    if (Node.Nodes.AsTag = 0) then
     begin
       Commands.Write(' ');
-      Commands.Write(KeywordList.Word[kiAS]);
+      Commands.Write(KeywordList[kiAS]);
     end
     else
-      FormatNode(Nodes.AsTag, stSpaceBefore);
-    FormatNode(Nodes.AliasIdent, stSpaceBefore);
+      FormatNode(Node.Nodes.AsTag, stSpaceBefore);
+    FormatNode(Node.Nodes.AliasIdent, stSpaceBefore);
   end;
-  FormatNode(Nodes.LockTypeTag, stSpaceBefore);
+  FormatNode(Node.Nodes.LockTypeTag, stSpaceBefore);
 end;
 
-procedure TSQLParser.FormatLoopStmt(const Nodes: TLoopStmt.TNodes);
+procedure TSQLParser.FormatLoopStmt(const Node: PLoopStmt);
 begin
-  FormatNode(Nodes.BeginLabel, stSpaceAfter);
+  FormatNode(Node.Nodes.BeginLabel, stSpaceAfter);
   Commands.IncreaseIndent();
-  FormatNode(Nodes.BeginTag);
-  FormatNode(Nodes.StmtList, stReturnBefore);
+  FormatNode(Node.Nodes.BeginTag);
+  FormatNode(Node.Nodes.StmtList, stReturnBefore);
   Commands.DecreaseIndent();
-  FormatNode(Nodes.EndTag, stReturnBefore);
-  FormatNode(Nodes.EndLabel, stSpaceBefore);
+  FormatNode(Node.Nodes.EndTag, stReturnBefore);
+  FormatNode(Node.Nodes.EndLabel, stSpaceBefore);
 end;
 
-procedure TSQLParser.FormatMatchFunc(const Nodes: TMatchFunc.TNodes);
+procedure TSQLParser.FormatMatchFunc(const Node: PMatchFunc);
 begin
-  FormatNode(Nodes.IdentToken);
-  FormatNode(Nodes.MatchList, stSpaceBefore);
-  FormatNode(Nodes.AgainstTag, stSpaceBefore);
-  FormatNode(Nodes.OpenBracket, stSpaceBefore);
-  FormatNode(Nodes.Expr);
-  FormatNode(Nodes.SearchModifierTag, stSpaceBefore);
-  FormatNode(Nodes.CloseBracket);
+  FormatNode(Node.Nodes.IdentToken);
+  FormatNode(Node.Nodes.MatchList, stSpaceBefore);
+  FormatNode(Node.Nodes.AgainstTag, stSpaceBefore);
+  FormatNode(Node.Nodes.OpenBracket, stSpaceBefore);
+  FormatNode(Node.Nodes.Expr);
+  FormatNode(Node.Nodes.SearchModifierTag, stSpaceBefore);
+  FormatNode(Node.Nodes.CloseBracket);
 end;
 
-procedure TSQLParser.FormatPositionFunc(const Nodes: TPositionFunc.TNodes);
+procedure TSQLParser.FormatPositionFunc(const Node: PPositionFunc);
 begin
-  FormatNode(Nodes.IdentToken);
-  FormatNode(Nodes.OpenBracket);
-  FormatNode(Nodes.SubStr);
-  FormatNode(Nodes.InTag, stSpaceBefore);
-  FormatNode(Nodes.Str, stSpaceBefore);
-  FormatNode(Nodes.CloseBracket);
+  FormatNode(Node.Nodes.IdentToken);
+  FormatNode(Node.Nodes.OpenBracket);
+  FormatNode(Node.Nodes.SubStr);
+  FormatNode(Node.Nodes.InTag, stSpaceBefore);
+  FormatNode(Node.Nodes.Str, stSpaceBefore);
+  FormatNode(Node.Nodes.CloseBracket);
 end;
 
 procedure TSQLParser.FormatNode(const Node: PNode; const Separator: TSeparatorType = stNone);
@@ -12935,85 +12874,85 @@ begin
       ntUnknownStmt: FormatUnknownStmt(PUnknownStmt(Node));
 
       ntAnalyzeTableStmt: DefaultFormatNode(@PAnalyzeTableStmt(Node)^.Nodes, SizeOf(TAnalyzeTableStmt.TNodes));
-      ntAlterDatabaseStmt: FormatAlterDatabaseStmt(PAlterDatabaseStmt(Node)^.Nodes);
-      ntAlterEventStmt: FormatAlterEventStmt(PAlterEventStmt(Node)^.Nodes);
+      ntAlterDatabaseStmt: FormatAlterDatabaseStmt(PAlterDatabaseStmt(Node));
+      ntAlterEventStmt: FormatAlterEventStmt(PAlterEventStmt(Node));
       ntAlterInstanceStmt: DefaultFormatNode(@PAlterInstanceStmt(Node)^.Nodes, SizeOf(TAlterInstanceStmt.TNodes));
-      ntAlterRoutineStmt: FormatAlterRoutineStmt(PAlterRoutineStmt(Node)^.Nodes);
+      ntAlterRoutineStmt: FormatAlterRoutineStmt(PAlterRoutineStmt(Node));
       ntAlterServerStmt: DefaultFormatNode(@PAlterServerStmt(Node)^.Nodes, SizeOf(TAlterServerStmt.TNodes));
-      ntAlterTablespaceStmt: FormatAlterTablespaceStmt(PAlterTablespaceStmt(Node)^.Nodes);
-      ntAlterTableStmt: FormatAlterTableStmt(PAlterTableStmt(Node)^.Nodes);
+      ntAlterTablespaceStmt: FormatAlterTablespaceStmt(PAlterTablespaceStmt(Node));
+      ntAlterTableStmt: FormatAlterTableStmt(PAlterTableStmt(Node));
       ntAlterTableStmtAlterColumn: DefaultFormatNode(@TAlterTableStmt.PAlterColumn(Node)^.Nodes, SizeOf(TAlterTableStmt.TAlterColumn.TNodes));
       ntAlterTableStmtConvertTo: DefaultFormatNode(@TAlterTableStmt.PConvertTo(Node)^.Nodes, SizeOf(TAlterTableStmt.TConvertTo.TNodes));
       ntAlterTableStmtDropObject: DefaultFormatNode(@TAlterTableStmt.PDropObject(Node)^.Nodes, SizeOf(TAlterTableStmt.TDropObject.TNodes));
       ntAlterTableStmtExchangePartition: DefaultFormatNode(@TAlterTableStmt.PExchangePartition(Node)^.Nodes, SizeOf(TAlterTableStmt.TExchangePartition.TNodes));
       ntAlterTableStmtOrderBy: DefaultFormatNode(@TAlterTableStmt.POrderBy(Node)^.Nodes, SizeOf(TAlterTableStmt.TOrderBy.TNodes));
       ntAlterTableStmtReorganizePartition: DefaultFormatNode(@TAlterTableStmt.PReorganizePartition(Node)^.Nodes, SizeOf(TAlterTableStmt.TReorganizePartition.TNodes));
-      ntAlterViewStmt: FormatAlterViewStmt(PAlterViewStmt(Node)^.Nodes);
-      ntBeginLabel: FormatBeginLabel(PBeginLabel(Node)^.Nodes);
+      ntAlterViewStmt: FormatAlterViewStmt(PAlterViewStmt(Node));
+      ntBeginLabel: FormatBeginLabel(PBeginLabel(Node));
       ntBeginStmt: DefaultFormatNode(@PBeginStmt(Node)^.Nodes, SizeOf(TBeginStmt.TNodes));
       ntBetweenOp: DefaultFormatNode(@PBetweenOp(Node)^.Nodes, SizeOf(TBetweenOp.TNodes));
       ntBinaryOp: DefaultFormatNode(@PBinaryOp(Node)^.Nodes, SizeOf(TBinaryOp.TNodes));
-      ntCallStmt: FormatCallStmt(PCallStmt(Node)^.Nodes);
-      ntCaseOp: FormatCaseOp(PCaseOp(Node)^.Nodes);
+      ntCallStmt: FormatCallStmt(PCallStmt(Node));
+      ntCaseOp: FormatCaseOp(PCaseOp(Node));
       ntCaseOpBranch: DefaultFormatNode(@TCaseOp.PBranch(Node)^.Nodes, SizeOf(TCaseOp.TBranch.TNodes));
-      ntCaseStmt: FormatCaseStmt(PCaseStmt(Node)^.Nodes);
-      ntCaseStmtBranch: FormatCaseStmtBranch(TCaseStmt.PBranch(Node)^.Nodes);
-      ntCastFunc: FormatCastFunc(PCastFunc(Node)^.Nodes);
-      ntChangeMasterStmt: FormatChangeMasterStmt(PChangeMasterStmt(Node)^.Nodes);
-      ntCharFunc: FormatCharFunc(PCharFunc(Node)^.Nodes);
+      ntCaseStmt: FormatCaseStmt(PCaseStmt(Node));
+      ntCaseStmtBranch: FormatCaseStmtBranch(TCaseStmt.PBranch(Node));
+      ntCastFunc: FormatCastFunc(PCastFunc(Node));
+      ntChangeMasterStmt: FormatChangeMasterStmt(PChangeMasterStmt(Node));
+      ntCharFunc: FormatCharFunc(PCharFunc(Node));
       ntCheckTableStmt: DefaultFormatNode(@PCheckTableStmt(Node)^.Nodes, SizeOf(TCheckTableStmt.TNodes));
       ntCheckTableStmtOption: DefaultFormatNode(@TCheckTableStmt.POption(Node)^.Nodes, SizeOf(TCheckTableStmt.TOption.TNodes));
       ntChecksumTableStmt: DefaultFormatNode(@PChecksumTableStmt(Node)^.Nodes, SizeOf(TChecksumTableStmt.TNodes));
       ntCloseStmt: DefaultFormatNode(@PCloseStmt(Node)^.Nodes, SizeOf(TCloseStmt.TNodes));
       ntCommitStmt: DefaultFormatNode(@PCommitStmt(Node)^.Nodes, SizeOf(TCommitStmt.TNodes));
-      ntCompoundStmt: FormatCompoundStmt(PCompoundStmt(Node)^.Nodes);
-      ntConvertFunc: FormatConvertFunc(PConvertFunc(Node)^.Nodes);
+      ntCompoundStmt: FormatCompoundStmt(PCompoundStmt(Node));
+      ntConvertFunc: FormatConvertFunc(PConvertFunc(Node));
       ntCreateDatabaseStmt: DefaultFormatNode(@PCreateDatabaseStmt(Node)^.Nodes, SizeOf(TCreateDatabaseStmt.TNodes));
-      ntCreateEventStmt: FormatCreateEventStmt(PCreateEventStmt(Node)^.Nodes);
-      ntCreateIndexStmt: FormatCreateIndexStmt(PCreateIndexStmt(Node)^.Nodes);
-      ntCreateRoutineStmt: FormatCreateRoutineStmt(PCreateRoutineStmt(Node)^.Nodes);
-      ntCreateServerStmt: FormatCreateServerStmt(PCreateServerStmt(Node)^.Nodes);
-      ntCreateTablespaceStmt: FormatCreateTablespaceStmt(PCreateTablespaceStmt(Node)^.Nodes);
-      ntCreateTableStmt: FormatCreateTableStmt(PCreateTableStmt(Node)^.Nodes);
-      ntCreateTableStmtField: FormatCreateTableStmtField(TCreateTableStmt.PField(Node)^.Nodes);
-      ntCreateTableStmtFieldDefaultFunc: FormatCreateTableStmtFieldDefaultFunc(TCreateTableStmt.TField.PDefaultFunc(Node)^.Nodes);
+      ntCreateEventStmt: FormatCreateEventStmt(PCreateEventStmt(Node));
+      ntCreateIndexStmt: FormatCreateIndexStmt(PCreateIndexStmt(Node));
+      ntCreateRoutineStmt: FormatCreateRoutineStmt(PCreateRoutineStmt(Node));
+      ntCreateServerStmt: FormatCreateServerStmt(PCreateServerStmt(Node));
+      ntCreateTablespaceStmt: FormatCreateTablespaceStmt(PCreateTablespaceStmt(Node));
+      ntCreateTableStmt: FormatCreateTableStmt(PCreateTableStmt(Node));
+      ntCreateTableStmtField: FormatCreateTableStmtField(TCreateTableStmt.PField(Node));
+      ntCreateTableStmtFieldDefaultFunc: FormatCreateTableStmtFieldDefaultFunc(TCreateTableStmt.TField.PDefaultFunc(Node));
       ntCreateTableStmtForeignKey: DefaultFormatNode(@TCreateTableStmt.PForeignKey(Node)^.Nodes, SizeOf(TCreateTableStmt.TForeignKey.TNodes));
-      ntCreateTableStmtKey: FormatCreateTableStmtKey(TCreateTableStmt.PKey(Node)^.Nodes);
-      ntCreateTableStmtKeyColumn: FormatCreateTableStmtKeyColumn(TCreateTableStmt.PKeyColumn(Node)^.Nodes);
-      ntCreateTableStmtPartition: FormatCreateTableStmtPartition(TCreateTableStmt.PPartition(Node)^.Nodes);
-      ntCreateTableStmtReference: FormatCreateTableStmtReference(TCreateTableStmt.PReference(Node)^.Nodes);
-      ntCreateTriggerStmt: FormatCreateTriggerStmt(PCreateTriggerStmt(Node)^.Nodes);
-      ntCreateUserStmt: FormatCreateUserStmt(PCreateUserStmt(Node)^.Nodes);
-      ntCreateViewStmt: FormatCreateViewStmt(PCreateViewStmt(Node)^.Nodes);
-      ntDatatype: FormatDatatype(PDatatype(Node)^.Nodes);
-      ntDateAddFunc: FormatDateAddFunc(PDateAddFunc(Node)^.Nodes);
-      ntDbIdent: FormatDbIdent(PDbIdent(Node)^.Nodes);
+      ntCreateTableStmtKey: FormatCreateTableStmtKey(TCreateTableStmt.PKey(Node));
+      ntCreateTableStmtKeyColumn: FormatCreateTableStmtKeyColumn(TCreateTableStmt.PKeyColumn(Node));
+      ntCreateTableStmtPartition: FormatCreateTableStmtPartition(TCreateTableStmt.PPartition(Node));
+      ntCreateTableStmtReference: FormatCreateTableStmtReference(TCreateTableStmt.PReference(Node));
+      ntCreateTriggerStmt: FormatCreateTriggerStmt(PCreateTriggerStmt(Node));
+      ntCreateUserStmt: FormatCreateUserStmt(PCreateUserStmt(Node));
+      ntCreateViewStmt: FormatCreateViewStmt(PCreateViewStmt(Node));
+      ntDatatype: FormatDatatype(PDatatype(Node));
+      ntDateAddFunc: FormatDateAddFunc(PDateAddFunc(Node));
+      ntDbIdent: FormatDbIdent(PDbIdent(Node));
       ntDeallocatePrepareStmt: DefaultFormatNode(@PDeallocatePrepareStmt(Node)^.Nodes, SizeOf(TDeallocatePrepareStmt.TNodes));
       ntDeclareStmt: DefaultFormatNode(@PDeclareStmt(Node)^.Nodes, SizeOf(TDeclareStmt.TNodes));
       ntDeclareConditionStmt: DefaultFormatNode(@PDeclareConditionStmt(Node)^.Nodes, SizeOf(TDeclareConditionStmt.TNodes));
-      ntDeclareCursorStmt: FormatDeclareCursorStmt(PDeclareCursorStmt(Node)^.Nodes);
-      ntDeclareHandlerStmt: FormatDeclareHandlerStmt(PDeclareHandlerStmt(Node)^.Nodes);
-      ntDeleteStmt: FormatDeleteStmt(PDeleteStmt(Node)^.Nodes);
+      ntDeclareCursorStmt: FormatDeclareCursorStmt(PDeclareCursorStmt(Node));
+      ntDeclareHandlerStmt: FormatDeclareHandlerStmt(PDeclareHandlerStmt(Node));
+      ntDeleteStmt: FormatDeleteStmt(PDeleteStmt(Node));
       ntDoStmt: DefaultFormatNode(@PDoStmt(Node)^.Nodes, SizeOf(TDoStmt.TNodes));
       ntDropDatabaseStmt: DefaultFormatNode(@PDropDatabaseStmt(Node)^.Nodes, SizeOf(TDropDatabaseStmt.TNodes));
       ntDropEventStmt: DefaultFormatNode(@PDropEventStmt(Node)^.Nodes, SizeOf(TDropEventStmt.TNodes));
       ntDropIndexStmt: DefaultFormatNode(@PDropIndexStmt(Node)^.Nodes, SizeOf(TDropIndexStmt.TNodes));
       ntDropRoutineStmt: DefaultFormatNode(@PDropRoutineStmt(Node)^.Nodes, SizeOf(TDropRoutineStmt.TNodes));
       ntDropServerStmt: DefaultFormatNode(@PDropServerStmt(Node)^.Nodes, SizeOf(TDropServerStmt.TNodes));
-      ntDropTablespaceStmt: FormatDropTablespaceStmt(PDropTablespaceStmt(Node)^.Nodes);
+      ntDropTablespaceStmt: FormatDropTablespaceStmt(PDropTablespaceStmt(Node));
       ntDropTableStmt: DefaultFormatNode(@PDropTableStmt(Node)^.Nodes, SizeOf(TDropTableStmt.TNodes));
       ntDropTriggerStmt: DefaultFormatNode(@PDropTriggerStmt(Node)^.Nodes, SizeOf(TDropTriggerStmt.TNodes));
       ntDropUserStmt: DefaultFormatNode(@PDropUserStmt(Node)^.Nodes, SizeOf(TDropUserStmt.TNodes));
       ntDropViewStmt: DefaultFormatNode(@PDropViewStmt(Node)^.Nodes, SizeOf(TDropViewStmt.TNodes));
       ntEndLabel: DefaultFormatNode(@PEndLabel(Node)^.Nodes, SizeOf(TEndLabel.TNodes));
       ntExecuteStmt: DefaultFormatNode(@PExecuteStmt(Node)^.Nodes, SizeOf(TExecuteStmt.TNodes));
-      ntExistsFunc: FormatExistsFunc(PExistsFunc(Node)^.Nodes);
+      ntExistsFunc: FormatExistsFunc(PExistsFunc(Node));
       ntExplainStmt: DefaultFormatNode(@PExplainStmt(Node)^.Nodes, SizeOf(TExplainStmt.TNodes));
-      ntExtractFunc: FormatExtractFunc(PExtractFunc(Node)^.Nodes);
+      ntExtractFunc: FormatExtractFunc(PExtractFunc(Node));
       ntFetchStmt: DefaultFormatNode(@PFetchStmt(Node)^.Nodes, SizeOf(TFetchStmt.TNodes));
       ntFlushStmt: DefaultFormatNode(@PFlushStmt(Node)^.Nodes, SizeOf(TFlushStmt.TNodes));
       ntFlushStmtOption: DefaultFormatNode(@TFlushStmt.POption(Node)^.Nodes, SizeOf(TFlushStmt.TOption.TNodes));
-      ntFunctionCall: FormatFunctionCall(PFunctionCall(Node)^.Nodes);
+      ntFunctionCall: FormatFunctionCall(PFunctionCall(Node));
       ntFunctionReturns: DefaultFormatNode(@PFunctionReturns(Node)^.Nodes, SizeOf(TFunctionReturns.TNodes));
       ntGetDiagnosticsStmt: DefaultFormatNode(@PGetDiagnosticsStmt(Node)^.Nodes, SizeOf(TGetDiagnosticsStmt.TNodes));
       ntGetDiagnosticsStmtStmtInfo: DefaultFormatNode(@TGetDiagnosticsStmt.PStmtInfo(Node)^.Nodes, SizeOf(TGetDiagnosticsStmt.TStmtInfo.TNodes));
@@ -13021,27 +12960,27 @@ begin
       ntGrantStmt: DefaultFormatNode(@PGrantStmt(Node)^.Nodes, SizeOf(TGrantStmt.TNodes));
       ntGrantStmtPrivileg: DefaultFormatNode(@TGrantStmt.PPrivileg(Node)^.Nodes, SizeOf(TGrantStmt.TPrivileg.TNodes));
       ntGrantStmtUserSpecification: DefaultFormatNode(@TGrantStmt.PUserSpecification(Node)^.Nodes, SizeOf(TGrantStmt.TUserSpecification.TNodes));
-      ntGroupConcatFunc: FormatGroupConcatFunc(PGroupConcatFunc(Node)^.Nodes);
+      ntGroupConcatFunc: FormatGroupConcatFunc(PGroupConcatFunc(Node));
       ntGroupConcatFuncExpr: DefaultFormatNode(@TGroupConcatFunc.PExpr(Node)^.Nodes, SizeOf(TGroupConcatFunc.TExpr.TNodes));
       ntHelpStmt: DefaultFormatNode(@PHelpStmt(Node)^.Nodes, SizeOf(THelpStmt.TNodes));
-      ntIfStmt: FormatIfStmt(PIfStmt(Node)^.Nodes);
-      ntIfStmtBranch: FormatIfStmtBranch(TIfStmt.PBranch(Node)^.Nodes);
+      ntIfStmt: FormatIfStmt(PIfStmt(Node));
+      ntIfStmtBranch: FormatIfStmtBranch(TIfStmt.PBranch(Node));
       ntInOp: DefaultFormatNode(@PInOp(Node)^.Nodes, SizeOf(TInOp.TNodes));
-      ntInsertStmt: FormatInsertStmt(PInsertStmt(Node)^.Nodes);
+      ntInsertStmt: FormatInsertStmt(PInsertStmt(Node));
       ntInsertStmtSetItem: DefaultFormatNode(@TInsertStmt.PSetItem(Node)^.Nodes, SizeOf(TInsertStmt.TSetItem.TNodes));
       ntIntervalOp: DefaultFormatNode(@PIntervalOp(Node)^.Nodes, SizeOf(TIntervalOp.TNodes));
       ntIterateStmt: DefaultFormatNode(@PIterateStmt(Node)^.Nodes, SizeOf(TIterateStmt.TNodes));
       ntKillStmt: DefaultFormatNode(@PKillStmt(Node)^.Nodes, SizeOf(TKillStmt.TNodes));
       ntLeaveStmt: DefaultFormatNode(@PLeaveStmt(Node)^.Nodes, SizeOf(TLeaveStmt.TNodes));
       ntLikeOp: DefaultFormatNode(@PLikeOp(Node)^.Nodes, SizeOf(TLikeOp.TNodes));
-      ntList: FormatList(PList(Node)^.Nodes, PList(Node)^.DelimiterType);
-      ntLoadDataStmt: FormatLoadDataStmt(PLoadDataStmt(Node)^.Nodes);
-      ntLoadXMLStmt: FormatLoadXMLStmt(PLoadXMLStmt(Node)^.Nodes);
+      ntList: FormatList(PList(Node), PList(Node)^.DelimiterType);
+      ntLoadDataStmt: FormatLoadDataStmt(PLoadDataStmt(Node));
+      ntLoadXMLStmt: FormatLoadXMLStmt(PLoadXMLStmt(Node));
       ntLockTablesStmt: DefaultFormatNode(@PLockTablesStmt(Node)^.Nodes, SizeOf(TLockTablesStmt.TNodes));
-      ntLockTablesStmtItem: FormatLockTablesStmtItem(TLockTablesStmt.PItem(Node)^.Nodes);
-      ntLoopStmt: FormatLoopStmt(PLoopStmt(Node)^.Nodes);
-      ntMatchFunc: FormatMatchFunc(PMatchFunc(Node)^.Nodes);
-      ntPositionFunc: FormatPositionFunc(PPositionFunc(Node)^.Nodes);
+      ntLockTablesStmtItem: FormatLockTablesStmtItem(TLockTablesStmt.PItem(Node));
+      ntLoopStmt: FormatLoopStmt(PLoopStmt(Node));
+      ntMatchFunc: FormatMatchFunc(PMatchFunc(Node));
+      ntPositionFunc: FormatPositionFunc(PPositionFunc(Node));
       ntPrepareStmt: DefaultFormatNode(@PPrepareStmt(Node)^.Nodes, SizeOf(TPrepareStmt.TNodes));
       ntPurgeStmt: DefaultFormatNode(@PPurgeStmt(Node)^.Nodes, SizeOf(TPurgeStmt.TNodes));
       ntOpenStmt: DefaultFormatNode(@POpenStmt(Node)^.Nodes, SizeOf(TOpenStmt.TNodes));
@@ -13051,7 +12990,7 @@ begin
       ntRenameStmtPair: DefaultFormatNode(@TRenameStmt.PPair(Node)^.Nodes, SizeOf(TRenameStmt.TPair.TNodes));
       ntReleaseStmt: DefaultFormatNode(@PReleaseStmt(Node)^.Nodes, SizeOf(TReleaseStmt.TNodes));
       ntRepairTableStmt: DefaultFormatNode(@PRepairTableStmt(Node)^.Nodes, SizeOf(TRepairTableStmt.TNodes));
-      ntRepeatStmt: FormatRepeatStmt(PRepeatStmt(Node)^.Nodes);
+      ntRepeatStmt: FormatRepeatStmt(PRepeatStmt(Node));
       ntResetStmt: DefaultFormatNode(@PResetStmt(Node)^.Nodes, SizeOf(TResetStmt.TNodes));
       ntResignalStmt: DefaultFormatNode(@PResignalStmt(Node)^.Nodes, SizeOf(TResignalStmt.TNodes));
       ntReturnStmt: DefaultFormatNode(@PReturnStmt(Node)^.Nodes, SizeOf(TReturnStmt.TNodes));
@@ -13059,26 +12998,26 @@ begin
       ntRollbackStmt: DefaultFormatNode(@PRollbackStmt(Node)^.Nodes, SizeOf(TRollbackStmt.TNodes));
       ntRoutineParam: DefaultFormatNode(@PRoutineParam(Node)^.Nodes, SizeOf(TRoutineParam.TNodes));
       ntSavepointStmt: DefaultFormatNode(@PSavepointStmt(Node)^.Nodes, SizeOf(TSavepointStmt.TNodes));
-      ntSchedule: FormatSchedule(PSchedule(Node)^.Nodes);
-      ntSecretIdent: FormatSecretIdent(PSecretIdent(Node)^.Nodes);
-      ntSelectStmt: FormatSelectStmt(PSelectStmt(Node)^.Nodes);
-      ntSelectStmtColumn: FormatSelectStmtColumn(TSelectStmt.PColumn(Node)^.Nodes);
+      ntSchedule: FormatSchedule(PSchedule(Node));
+      ntSecretIdent: FormatSecretIdent(PSecretIdent(Node));
+      ntSelectStmt: FormatSelectStmt(PSelectStmt(Node));
+      ntSelectStmtColumn: FormatSelectStmtColumn(TSelectStmt.PColumn(Node));
       ntSelectStmtGroup: DefaultFormatNode(@TSelectStmt.PGroup(Node)^.Nodes, SizeOf(TSelectStmt.TGroup.TNodes));
       ntSelectStmtOrder: DefaultFormatNode(@TSelectStmt.POrder(Node)^.Nodes, SizeOf(TSelectStmt.TOrder.TNodes));
-      ntSelectStmtTableFactor: FormatSelectStmtTableFactor(TSelectStmt.PTableFactor(Node)^.Nodes);
+      ntSelectStmtTableFactor: FormatSelectStmtTableFactor(TSelectStmt.PTableFactor(Node));
       ntSelectStmtTableFactorIndexHint: DefaultFormatNode(@TSelectStmt.TTableFactor.PIndexHint(Node)^.Nodes, SizeOf(TSelectStmt.TTableFactor.TIndexHint.TNodes));
-      ntSelectStmtTableFactorOj: FormatSelectStmtTableFactorOj(TSelectStmt.PTableFactorOj(Node)^.Nodes);
+      ntSelectStmtTableFactorOj: FormatSelectStmtTableFactorOj(TSelectStmt.PTableFactorOj(Node));
       ntSelectStmtTableFactorSelect: DefaultFormatNode(@TSelectStmt.PTableFactorSelect(Node)^.Nodes, SizeOf(TSelectStmt.TTableFactorSelect.TNodes));
-      ntSelectStmtTableJoin: FormatSelectStmtTableJoin(TSelectStmt.PTableJoin(Node)^.Nodes);
+      ntSelectStmtTableJoin: FormatSelectStmtTableJoin(TSelectStmt.PTableJoin(Node));
       ntSetNamesStmt: DefaultFormatNode(@PSetNamesStmt(Node)^.Nodes, SizeOf(TSetNamesStmt.TNodes));
       ntSetPasswordStmt: DefaultFormatNode(@PSetPasswordStmt(Node)^.Nodes, SizeOf(TSetPasswordStmt.TNodes));
-      ntSetStmt: FormatSetStmt(PSetStmt(Node)^.Nodes);
+      ntSetStmt: FormatSetStmt(PSetStmt(Node));
       ntSetStmtAssignment: DefaultFormatNode(@TSetStmt.PAssignment(Node)^.Nodes, SizeOf(TSetStmt.TAssignment.TNodes));
       ntSetTransactionStmt: DefaultFormatNode(@PSetTransactionStmt(Node)^.Nodes, SizeOf(TSetTransactionStmt.TNodes));
       ntSetTransactionStmtCharacteristic: DefaultFormatNode(@TSetTransactionStmt.PCharacteristic(Node)^.Nodes, SizeOf(TSetTransactionStmt.TCharacteristic.TNodes));
       ntShowAuthorsStmt: DefaultFormatNode(@PShowAuthorsStmt(Node)^.Nodes, SizeOf(TShowAuthorsStmt.TNodes));
       ntShowBinaryLogsStmt: DefaultFormatNode(@PShowBinaryLogsStmt(Node)^.Nodes, SizeOf(TShowBinaryLogsStmt.TNodes));
-      ntShowBinlogEventsStmt: FormatShowBinlogEventsStmt(PShowBinlogEventsStmt(Node)^.Nodes);
+      ntShowBinlogEventsStmt: FormatShowBinlogEventsStmt(PShowBinlogEventsStmt(Node));
       ntShowCharacterSetStmt: DefaultFormatNode(@PShowCharacterSetStmt(Node)^.Nodes, SizeOf(TShowCharacterSetStmt.TNodes));
       ntShowCollationStmt: DefaultFormatNode(@PShowCollationStmt(Node)^.Nodes, SizeOf(TShowCollationStmt.TNodes));
       ntShowColumnsStmt: DefaultFormatNode(@PShowColumnsStmt(Node)^.Nodes, SizeOf(TShowColumnsStmt.TNodes));
@@ -13096,7 +13035,7 @@ begin
       ntShowDatabasesStmt: DefaultFormatNode(@PShowDatabasesStmt(Node)^.Nodes, SizeOf(TShowDatabasesStmt.TNodes));
       ntShowEngineStmt: DefaultFormatNode(@PShowEngineStmt(Node)^.Nodes, SizeOf(TShowEngineStmt.TNodes));
       ntShowEnginesStmt: DefaultFormatNode(@PShowEnginesStmt(Node)^.Nodes, SizeOf(TShowEnginesStmt.TNodes));
-      ntShowErrorsStmt: FormatShowErrorsStmt(PShowErrorsStmt(Node)^.Nodes);
+      ntShowErrorsStmt: FormatShowErrorsStmt(PShowErrorsStmt(Node));
       ntShowEventsStmt: DefaultFormatNode(@PShowEventsStmt(Node)^.Nodes, SizeOf(TShowEventsStmt.TNodes));
       ntShowFunctionCodeStmt: DefaultFormatNode(@PShowFunctionCodeStmt(Node)^.Nodes, SizeOf(TShowFunctionCodeStmt.TNodes));
       ntShowFunctionStatusStmt: DefaultFormatNode(@PShowFunctionStatusStmt(Node)^.Nodes, SizeOf(TShowFunctionStatusStmt.TNodes));
@@ -13111,7 +13050,7 @@ begin
       ntShowProcessListStmt: DefaultFormatNode(@PShowProcessListStmt(Node)^.Nodes, SizeOf(TShowProcessListStmt.TNodes));
       ntShowProfileStmt: DefaultFormatNode(@PShowProfileStmt(Node)^.Nodes, SizeOf(TShowProfileStmt.TNodes));
       ntShowProfilesStmt: DefaultFormatNode(@PShowProfilesStmt(Node)^.Nodes, SizeOf(TShowProfilesStmt.TNodes));
-      ntShowRelaylogEventsStmt: FormatShowRelaylogEventsStmt(PShowBinlogEventsStmt(Node)^.Nodes);
+      ntShowRelaylogEventsStmt: FormatShowRelaylogEventsStmt(PShowBinlogEventsStmt(Node));
       ntShowSlaveHostsStmt: DefaultFormatNode(@PShowSlaveHostsStmt(Node)^.Nodes, SizeOf(TShowSlaveHostsStmt.TNodes));
       ntShowSlaveStatusStmt: DefaultFormatNode(@PShowSlaveStatusStmt(Node)^.Nodes, SizeOf(TShowSlaveStatusStmt.TNodes));
       ntShowStatusStmt: DefaultFormatNode(@PShowStatusStmt(Node)^.Nodes, SizeOf(TShowStatusStmt.TNodes));
@@ -13119,7 +13058,7 @@ begin
       ntShowTablesStmt: DefaultFormatNode(@PShowTablesStmt(Node)^.Nodes, SizeOf(TShowTablesStmt.TNodes));
       ntShowTriggersStmt: DefaultFormatNode(@PShowTriggersStmt(Node)^.Nodes, SizeOf(TShowTriggersStmt.TNodes));
       ntShowVariablesStmt: DefaultFormatNode(@PShowVariablesStmt(Node)^.Nodes, SizeOf(TShowVariablesStmt.TNodes));
-      ntShowWarningsStmt: FormatShowWarningsStmt(PShowWarningsStmt(Node)^.Nodes);
+      ntShowWarningsStmt: FormatShowWarningsStmt(PShowWarningsStmt(Node));
       ntShutdownStmt: DefaultFormatNode(@PShutdownStmt(Node)^.Nodes, SizeOf(TShutdownStmt.TNodes));
       ntSignalStmt: DefaultFormatNode(@PSignalStmt(Node)^.Nodes, SizeOf(TSignalStmt.TNodes));
       ntSignalStmtInformation: DefaultFormatNode(@TSignalStmt.PInformation(Node)^.Nodes, SizeOf(TSignalStmt.TInformation.TNodes));
@@ -13127,26 +13066,26 @@ begin
       ntStartSlaveStmt: DefaultFormatNode(@PStartSlaveStmt(Node)^.Nodes, SizeOf(TSignalStmt.TNodes));
       ntStartTransactionStmt: DefaultFormatNode(@PStartTransactionStmt(Node)^.Nodes, SizeOf(TStartTransactionStmt.TNodes));
       ntStopSlaveStmt: DefaultFormatNode(@PStopSlaveStmt(Node)^.Nodes, SizeOf(TSignalStmt.TNodes));
-      ntSubArea: FormatSubArea(PSubArea(Node)^.Nodes);
-      ntSubAreaSelectStmt: FormatSubAreaSelectStmt(PSubAreaSelectStmt(Node)^.Nodes);
-      ntSubPartition: FormatSubPartition(PSubPartition(Node)^.Nodes);
-      ntSubquery: FormatSubquery(PSubquery(Node)^.Nodes);
-      ntSubstringFunc: FormatSubstringFunc(PSubstringFunc(Node)^.Nodes);
+      ntSubArea: FormatSubArea(PSubArea(Node));
+      ntSubAreaSelectStmt: FormatSubAreaSelectStmt(PSubAreaSelectStmt(Node));
+      ntSubPartition: FormatSubPartition(PSubPartition(Node));
+      ntSubquery: FormatSubquery(PSubquery(Node));
+      ntSubstringFunc: FormatSubstringFunc(PSubstringFunc(Node));
       ntTag: DefaultFormatNode(@PTag(Node)^.Nodes, SizeOf(TTag.TNodes));
-      ntTrimFunc: FormatTrimFunc(PTrimFunc(Node)^.Nodes);
+      ntTrimFunc: FormatTrimFunc(PTrimFunc(Node));
       ntTruncateStmt: DefaultFormatNode(@PTruncateStmt(Node)^.Nodes, SizeOf(TTruncateStmt.TNodes));
-      ntUnaryOp: FormatUnaryOp(PUnaryOp(Node)^.Nodes);
+      ntUnaryOp: FormatUnaryOp(PUnaryOp(Node));
       ntUnlockTablesStmt: DefaultFormatNode(@PUnlockTablesStmt(Node)^.Nodes, SizeOf(TUnlockTablesStmt.TNodes));
-      ntUpdateStmt: FormatUpdateStmt(PUpdateStmt(Node)^.Nodes);
-      ntUser: FormatUser(PUser(Node)^.Nodes);
+      ntUpdateStmt: FormatUpdateStmt(PUpdateStmt(Node));
+      ntUser: FormatUser(PUser(Node));
       ntUseStmt: DefaultFormatNode(@PUseStmt(Node)^.Nodes, SizeOf(TUseStmt.TNodes));
-      ntValue: FormatValue(PValue(Node)^.Nodes);
-      ntVariableIdent: FormatVariableIdent(PVariable(Node)^.Nodes);
-      ntWeightStringFunc: FormatWeightStringFunc(PWeightStringFunc(Node)^.Nodes);
+      ntValue: FormatValue(PValue(Node));
+      ntVariableIdent: FormatVariableIdent(PVariable(Node));
+      ntWeightStringFunc: FormatWeightStringFunc(PWeightStringFunc(Node));
       ntWeightStringFuncLevel: DefaultFormatNode(@TWeightStringFunc.PLevel(Node)^.Nodes, SizeOf(TWeightStringFunc.TLevel.TNodes));
-      ntWhileStmt: FormatWhileStmt(PWhileStmt(Node)^.Nodes);
+      ntWhileStmt: FormatWhileStmt(PWhileStmt(Node));
       ntXAStmt: DefaultFormatNode(@PXAStmt(Node)^.Nodes, SizeOf(TXAStmt.TNodes));
-      ntXAStmtID: FormatXID(TXAStmt.PID(Node)^.Nodes);
+      ntXAStmtID: FormatXID(TXAStmt.PID(Node));
       else raise Exception.Create(SArgumentOutOfRange);
     end;
 
@@ -13163,17 +13102,17 @@ begin
   FormatNode(NodePtr(Node), Separator);
 end;
 
-procedure TSQLParser.FormatRepeatStmt(const Nodes: TRepeatStmt.TNodes);
+procedure TSQLParser.FormatRepeatStmt(const Node: PRepeatStmt);
 begin
-  FormatNode(Nodes.BeginLabel, stSpaceAfter);
-  FormatNode(Nodes.RepeatTag);
+  FormatNode(Node.Nodes.BeginLabel, stSpaceAfter);
+  FormatNode(Node.Nodes.RepeatTag);
   Commands.IncreaseIndent();
-  FormatNode(Nodes.StmtList, stReturnBefore);
+  FormatNode(Node.Nodes.StmtList, stReturnBefore);
   Commands.DecreaseIndent();
-  FormatNode(Nodes.UntilTag, stReturnBefore);
-  FormatNode(Nodes.SearchConditionExpr, stSpaceBefore);
-  FormatNode(Nodes.EndTag, stSpaceBefore);
-  FormatNode(Nodes.EndLabel, stSpaceBefore);
+  FormatNode(Node.Nodes.UntilTag, stReturnBefore);
+  FormatNode(Node.Nodes.SearchConditionExpr, stSpaceBefore);
+  FormatNode(Node.Nodes.EndTag, stSpaceBefore);
+  FormatNode(Node.Nodes.EndLabel, stSpaceBefore);
 end;
 
 procedure TSQLParser.FormatRoot(const Node: PRoot);
@@ -13192,25 +13131,25 @@ begin
   end;
 end;
 
-procedure TSQLParser.FormatSchedule(const Nodes: TSchedule.TNodes);
+procedure TSQLParser.FormatSchedule(const Node: PSchedule);
 begin
-  if (Nodes.AtValue > 0) then
-    FormatNode(Nodes.AtValue)
-  else if (Nodes.EveryValue > 0) then
+  if (Node.Nodes.AtValue > 0) then
+    FormatNode(Node.Nodes.AtValue)
+  else if (Node.Nodes.EveryValue > 0) then
   begin
-    FormatNode(Nodes.EveryValue);
+    FormatNode(Node.Nodes.EveryValue);
 
-    if (Nodes.StartsValue > 0) then
+    if (Node.Nodes.StartsValue > 0) then
     begin
       Commands.IncreaseIndent();
-      FormatNode(Nodes.StartsValue, stReturnBefore);
+      FormatNode(Node.Nodes.StartsValue, stReturnBefore);
       Commands.DecreaseIndent();
     end;
 
-    if (Nodes.EndsValue > 0) then
+    if (Node.Nodes.EndsValue > 0) then
     begin
       Commands.IncreaseIndent();
-      FormatNode(Nodes.EndsValue, stReturnBefore);
+      FormatNode(Node.Nodes.EndsValue, stReturnBefore);
       Commands.DecreaseIndent();
     end;
   end
@@ -13218,14 +13157,14 @@ begin
     raise Exception.Create(SArgumentOutOfRange);
 end;
 
-procedure TSQLParser.FormatSecretIdent(const Nodes: TSecretIdent.TNodes);
+procedure TSQLParser.FormatSecretIdent(const Node: PSecretIdent);
 begin
-  FormatNode(Nodes.OpenAngleBracket);
-  FormatNode(Nodes.ItemToken);
-  FormatNode(Nodes.CloseAngleBracket);
+  FormatNode(Node.Nodes.OpenAngleBracket);
+  FormatNode(Node.Nodes.ItemToken);
+  FormatNode(Node.Nodes.CloseAngleBracket);
 end;
 
-procedure TSQLParser.FormatSelectStmt(const Nodes: TSelectStmt.TNodes);
+procedure TSQLParser.FormatSelectStmt(const Node: PSelectStmt);
 var
   ItemPerLine: Boolean;
   Separator: TSeparatorType;
@@ -13234,7 +13173,7 @@ var
   procedure FormatInto(const Nodes: TSelectStmt.TIntoNodes);
   begin
     if (Nodes.Tag > 0) then
-      if (PTag(NodePtr(Nodes.Tag))^.Nodes.KeywordToken2 = kiOUTFILE) then
+      if (PTag(NodePtr(Nodes.Tag))^.Nodes.Keyword2Token = kiOUTFILE) then
       begin
         FormatNode(Nodes.Tag, Separator);
         Commands.IncreaseIndent();
@@ -13246,7 +13185,7 @@ var
         FormatNode(Nodes.LinesTerminatedByValue, stSpaceBefore);
         Commands.DecreaseIndent();
       end
-      else if (PTag(NodePtr(Nodes.Tag))^.Nodes.KeywordToken2 = kiDUMPFILE) then
+      else if (PTag(NodePtr(Nodes.Tag))^.Nodes.Keyword2Token = kiDUMPFILE) then
       begin
         FormatNode(Nodes.Tag, Separator);
         Commands.IncreaseIndent();
@@ -13272,21 +13211,21 @@ var
   end;
 
 begin
-  ItemPerLine := (Nodes.ColumnsList > 0)
-    and (NodePtr(Nodes.ColumnsList)^.NodeType = ntList)
-    and (PList(NodePtr(Nodes.ColumnsList))^.ElementCount >= 5);
+  ItemPerLine := (Node.Nodes.ColumnsList > 0)
+    and (NodePtr(Node.Nodes.ColumnsList)^.NodeType = ntList)
+    and (PList(NodePtr(Node.Nodes.ColumnsList))^.ElementCount >= 5);
 
-  if (((Nodes.ColumnsList = 0)
-      or (NodePtr(Nodes.ColumnsList)^.NodeType <> ntList)
-      or (PList(NodePtr(Nodes.ColumnsList))^.ElementCount = 1))
-    and ((Nodes.From.TableReferenceList = 0)
-      or (NodePtr(Nodes.From.TableReferenceList)^.NodeType <> ntList)
-      or (PList(NodePtr(Nodes.From.TableReferenceList))^.ElementCount = 1))
-    and ((Nodes.From.TableReferenceList = 0)
-      or (NodePtr(Nodes.From.TableReferenceList)^.NodeType <> ntList)
-      or (PList(NodePtr(Nodes.From.TableReferenceList))^.Nodes.FirstChild = 0)
-      or (NodePtr(PList(NodePtr(Nodes.From.TableReferenceList))^.Nodes.FirstChild)^.NodeType <> ntList)
-      or (PList(NodePtr(PList(NodePtr(Nodes.From.TableReferenceList))^.Nodes.FirstChild))^.ElementCount = 1))) then
+  if (((Node.Nodes.ColumnsList = 0)
+      or (NodePtr(Node.Nodes.ColumnsList)^.NodeType <> ntList)
+      or (PList(NodePtr(Node.Nodes.ColumnsList))^.ElementCount = 1))
+    and ((Node.Nodes.From.TableReferenceList = 0)
+      or (NodePtr(Node.Nodes.From.TableReferenceList)^.NodeType <> ntList)
+      or (PList(NodePtr(Node.Nodes.From.TableReferenceList))^.ElementCount = 1))
+    and ((Node.Nodes.From.TableReferenceList = 0)
+      or (NodePtr(Node.Nodes.From.TableReferenceList)^.NodeType <> ntList)
+      or (PList(NodePtr(Node.Nodes.From.TableReferenceList))^.Nodes.FirstChild = 0)
+      or (NodePtr(PList(NodePtr(Node.Nodes.From.TableReferenceList))^.Nodes.FirstChild)^.NodeType <> ntList)
+      or (PList(NodePtr(PList(NodePtr(Node.Nodes.From.TableReferenceList))^.Nodes.FirstChild))^.ElementCount = 1))) then
   begin
     Separator := stSpaceBefore;
     Spacer := sSpace;
@@ -13298,249 +13237,249 @@ begin
   end;
 
 
-  FormatNode(Nodes.SelectTag);
+  FormatNode(Node.Nodes.SelectTag);
   Commands.IncreaseIndent();
-  FormatNode(Nodes.DistinctTag, stSpaceBefore);
-  FormatNode(Nodes.HighPriorityTag, stSpaceBefore);
-  FormatNode(Nodes.MaxStatementTime, stSpaceBefore);
-  FormatNode(Nodes.StraightJoinTag, stSpaceBefore);
-  FormatNode(Nodes.SQLSmallResultTag, stSpaceBefore);
-  FormatNode(Nodes.SQLBigResultTag, stSpaceBefore);
-  FormatNode(Nodes.SQLBufferResultTag, stSpaceBefore);
-  FormatNode(Nodes.SQLNoCacheTag, stSpaceBefore);
-  FormatNode(Nodes.SQLCalcFoundRowsTag, stSpaceBefore);
+  FormatNode(Node.Nodes.DistinctTag, stSpaceBefore);
+  FormatNode(Node.Nodes.HighPriorityTag, stSpaceBefore);
+  FormatNode(Node.Nodes.MaxStatementTime, stSpaceBefore);
+  FormatNode(Node.Nodes.StraightJoinTag, stSpaceBefore);
+  FormatNode(Node.Nodes.SQLSmallResultTag, stSpaceBefore);
+  FormatNode(Node.Nodes.SQLBigResultTag, stSpaceBefore);
+  FormatNode(Node.Nodes.SQLBufferResultTag, stSpaceBefore);
+  FormatNode(Node.Nodes.SQLNoCacheTag, stSpaceBefore);
+  FormatNode(Node.Nodes.SQLCalcFoundRowsTag, stSpaceBefore);
   if (not ItemPerLine) then
-    FormatNode(Nodes.ColumnsList, Separator)
+    FormatNode(Node.Nodes.ColumnsList, Separator)
   else
   begin
     if (Separator = stSpaceBefore) then
       Commands.WriteSpace()
     else
       Commands.WriteReturn();
-    FormatList(Nodes.ColumnsList, Spacer);
+    FormatList(Node.Nodes.ColumnsList, Spacer);
   end;
   Commands.DecreaseIndent();
-  FormatInto(Nodes.Into1);
-  if (Nodes.From.Tag > 0) then
+  FormatInto(Node.Nodes.Into1);
+  if (Node.Nodes.From.Tag > 0) then
   begin
-    FormatNode(Nodes.From.Tag, Separator);
+    FormatNode(Node.Nodes.From.Tag, Separator);
     Commands.IncreaseIndent();
     if (Separator = stSpaceBefore) then
       Commands.WriteSpace()
     else
       Commands.WriteReturn();
-    FormatList(Nodes.From.TableReferenceList, Spacer);
+    FormatList(Node.Nodes.From.TableReferenceList, Spacer);
     Commands.DecreaseIndent();
   end;
-  if (Nodes.Partition.Tag > 0) then
+  if (Node.Nodes.Partition.Tag > 0) then
   begin
-    FormatNode(Nodes.Partition.Tag, Separator);
+    FormatNode(Node.Nodes.Partition.Tag, Separator);
     Commands.IncreaseIndent();
-    FormatNode(Nodes.Partition.Tag, Separator);
+    FormatNode(Node.Nodes.Partition.Tag, Separator);
     Commands.DecreaseIndent();
   end;
-  if (Nodes.Where.Tag > 0) then
+  if (Node.Nodes.Where.Tag > 0) then
   begin
-    FormatNode(Nodes.Where.Tag, Separator);
+    FormatNode(Node.Nodes.Where.Tag, Separator);
     Commands.IncreaseIndent();
-    FormatNode(Nodes.Where.Expr, Separator);
+    FormatNode(Node.Nodes.Where.Expr, Separator);
     Commands.DecreaseIndent();
   end;
-  if (Nodes.GroupBy.Tag > 0) then
+  if (Node.Nodes.GroupBy.Tag > 0) then
   begin
-    FormatNode(Nodes.GroupBy.Tag, Separator);
+    FormatNode(Node.Nodes.GroupBy.Tag, Separator);
     Commands.IncreaseIndent();
-    FormatNode(Nodes.GroupBy.List, Separator);
+    FormatNode(Node.Nodes.GroupBy.List, Separator);
     Commands.DecreaseIndent();
-    FormatNode(Nodes.GroupBy.WithRollupTag, stSpaceBefore);
+    FormatNode(Node.Nodes.GroupBy.WithRollupTag, stSpaceBefore);
   end;
-  if (Nodes.Having.Tag > 0) then
+  if (Node.Nodes.Having.Tag > 0) then
   begin
-    FormatNode(Nodes.Having.Tag, Separator);
+    FormatNode(Node.Nodes.Having.Tag, Separator);
     Commands.IncreaseIndent();
-    FormatNode(Nodes.Having.Expr, Separator);
+    FormatNode(Node.Nodes.Having.Expr, Separator);
     Commands.DecreaseIndent();
   end;
-  if (Nodes.OrderBy.Tag > 0) then
+  if (Node.Nodes.OrderBy.Tag > 0) then
   begin
-    FormatNode(Nodes.OrderBy.Tag, Separator);
+    FormatNode(Node.Nodes.OrderBy.Tag, Separator);
     Commands.IncreaseIndent();
-    FormatNode(Nodes.OrderBy.Expr, Separator);
+    FormatNode(Node.Nodes.OrderBy.Expr, Separator);
     Commands.DecreaseIndent();
   end;
-  if (Nodes.Limit.Tag > 0) then
+  if (Node.Nodes.Limit.Tag > 0) then
   begin
-    FormatNode(Nodes.Limit.Tag, Separator);
+    FormatNode(Node.Nodes.Limit.Tag, Separator);
     Commands.IncreaseIndent();
     if (Separator = stSpaceBefore) then
       Commands.WriteSpace()
     else
       Commands.WriteReturn();
-    if (Nodes.Limit.CommaToken > 0) then
+    if (Node.Nodes.Limit.CommaToken > 0) then
     begin
-      FormatNode(Nodes.Limit.OffsetToken);
-      FormatNode(Nodes.Limit.CommaToken);
+      FormatNode(Node.Nodes.Limit.OffsetToken);
+      FormatNode(Node.Nodes.Limit.CommaToken);
     end;
-    FormatNode(Nodes.Limit.RowCountToken);
+    FormatNode(Node.Nodes.Limit.RowCountToken);
     Commands.DecreaseIndent();
   end;
-  if (Nodes.Proc.Tag > 0) then
+  if (Node.Nodes.Proc.Tag > 0) then
   begin
-    FormatNode(Nodes.Proc.Tag, Separator);
+    FormatNode(Node.Nodes.Proc.Tag, Separator);
     Commands.IncreaseIndent();
-    FormatNode(Nodes.Proc.Ident, Separator);
-    FormatNode(Nodes.Proc.ParamList, stSpaceBefore);
+    FormatNode(Node.Nodes.Proc.Ident, Separator);
+    FormatNode(Node.Nodes.Proc.ParamList, stSpaceBefore);
     Commands.DecreaseIndent();
   end;
-  FormatInto(Nodes.Into2);
-  FormatNode(Nodes.ForUpdatesTag, Separator);
-  FormatNode(Nodes.LockInShareMode, Separator);
-  FormatNode(Nodes.Union.Tag, stReturnBefore);
-  FormatNode(Nodes.Union.SelectStmt, stReturnBefore);
+  FormatInto(Node.Nodes.Into2);
+  FormatNode(Node.Nodes.ForUpdatesTag, Separator);
+  FormatNode(Node.Nodes.LockInShareMode, Separator);
+  FormatNode(Node.Nodes.Union.Tag, stReturnBefore);
+  FormatNode(Node.Nodes.Union.SelectStmt, stReturnBefore);
 end;
 
-procedure TSQLParser.FormatSelectStmtColumn(const Nodes: TSelectStmt.TColumn.TNodes);
+procedure TSQLParser.FormatSelectStmtColumn(const Node: TSelectStmt.PColumn);
 var
   Expr: TOffset;
   AliasIdent: TOffset;
 begin
-  Expr := Nodes.Expr;
+  Expr := Node.Nodes.Expr;
   if ((Expr > 0) and (NodePtr(Expr)^.NodeType = ntDbIdent)) then
     Expr := PDbIdent(NodePtr(Expr))^.Nodes.Ident;
-  AliasIdent := Nodes.AliasIdent;
+  AliasIdent := Node.Nodes.AliasIdent;
   if ((AliasIdent > 0) and (NodePtr(AliasIdent)^.NodeType = ntDbIdent)) then
     AliasIdent := PDbIdent(NodePtr(AliasIdent))^.Nodes.Ident;
 
-  FormatNode(Nodes.Expr);
-  if ((Nodes.AliasIdent > 0)
+  FormatNode(Node.Nodes.Expr);
+  if ((Node.Nodes.AliasIdent > 0)
     and (not IsToken(Expr) or not IsToken(AliasIdent) or (TokenPtr(Expr)^.AsString <> TokenPtr(AliasIdent)^.AsString))) then
   begin
-    if (Nodes.AsTag = 0) then
+    if (Node.Nodes.AsTag = 0) then
     begin
       Commands.Write(' ');
-      Commands.Write(KeywordList.Word[kiAS]);
+      Commands.Write(KeywordList[kiAS]);
     end
     else
-      FormatNode(Nodes.AsTag, stSpaceBefore);
-    FormatNode(Nodes.AliasIdent, stSpaceBefore);
+      FormatNode(Node.Nodes.AsTag, stSpaceBefore);
+    FormatNode(Node.Nodes.AliasIdent, stSpaceBefore);
   end;
 end;
 
-procedure TSQLParser.FormatSelectStmtTableFactor(const Nodes: TSelectStmt.TTableFactor.TNodes);
+procedure TSQLParser.FormatSelectStmtTableFactor(const Node: TSelectStmt.PTableFactor);
 var
   Ident: TOffset;
   AliasIdent: TOffset;
 begin
-  Ident := Nodes.Ident;
+  Ident := Node.Nodes.Ident;
   if ((Ident > 0) and (NodePtr(Ident)^.NodeType = ntDbIdent)) then
     Ident := PDbIdent(NodePtr(Ident))^.Nodes.Ident;
-  AliasIdent := Nodes.AliasIdent;
+  AliasIdent := Node.Nodes.AliasIdent;
   if ((AliasIdent > 0) and (NodePtr(AliasIdent)^.NodeType = ntDbIdent)) then
     AliasIdent := PDbIdent(NodePtr(AliasIdent))^.Nodes.Ident;
 
-  FormatNode(Nodes.Ident);
-  FormatNode(Nodes.PartitionTag, stSpaceBefore);
-  FormatNode(Nodes.Partitions, stSpaceBefore);
-  if ((Nodes.AliasIdent > 0)
+  FormatNode(Node.Nodes.Ident);
+  FormatNode(Node.Nodes.PartitionTag, stSpaceBefore);
+  FormatNode(Node.Nodes.Partitions, stSpaceBefore);
+  if ((Node.Nodes.AliasIdent > 0)
     and (not IsToken(Ident) or not IsToken(AliasIdent) or (TokenPtr(Ident)^.AsString <> TokenPtr(AliasIdent)^.AsString))) then
   begin
-    if (Nodes.AsTag = 0) then
+    if (Node.Nodes.AsTag = 0) then
     begin
       Commands.Write(' ');
-      Commands.Write(KeywordList.Word[kiAS]);
+      Commands.Write(KeywordList[kiAS]);
     end
     else
-      FormatNode(Nodes.AsTag, stSpaceBefore);
-    FormatNode(Nodes.AliasIdent, stSpaceBefore);
+      FormatNode(Node.Nodes.AsTag, stSpaceBefore);
+    FormatNode(Node.Nodes.AliasIdent, stSpaceBefore);
   end;
-  FormatNode(Nodes.IndexHintList, stSpaceBefore);
-  FormatNode(Nodes.SelectStmt, stSpaceBefore);
+  FormatNode(Node.Nodes.IndexHintList, stSpaceBefore);
+  FormatNode(Node.Nodes.SelectStmt, stSpaceBefore);
 end;
 
-procedure TSQLParser.FormatSelectStmtTableFactorOj(const Nodes: TSelectStmt.TTableFactorOj.TNodes);
+procedure TSQLParser.FormatSelectStmtTableFactorOj(const Node: TSelectStmt.PTableFactorOj);
 begin
-  FormatNode(Nodes.OpenBracket);
-  FormatNode(Nodes.OjTag);
-  FormatNode(Nodes.TableReference, stSpaceBefore);
-  FormatNode(Nodes.CloseBracket);
+  FormatNode(Node.Nodes.OpenBracket);
+  FormatNode(Node.Nodes.OjTag);
+  FormatNode(Node.Nodes.TableReference, stSpaceBefore);
+  FormatNode(Node.Nodes.CloseBracket);
 end;
 
-procedure TSQLParser.FormatSelectStmtTableJoin(const Nodes: TSelectStmt.TTableJoin.TNodes);
+procedure TSQLParser.FormatSelectStmtTableJoin(const Node: TSelectStmt.PTableJoin);
 begin
   Commands.IncreaseIndent();
-  FormatNode(Nodes.JoinTag, stReturnBefore);
-  FormatNode(Nodes.RightTable, stSpaceBefore);
-  FormatNode(Nodes.OnTag, stSpaceBefore);
-  FormatNode(Nodes.Condition, stSpaceBefore);
+  FormatNode(Node.Nodes.JoinTag, stReturnBefore);
+  FormatNode(Node.Nodes.RightTable, stSpaceBefore);
+  FormatNode(Node.Nodes.OnTag, stSpaceBefore);
+  FormatNode(Node.Nodes.Condition, stSpaceBefore);
   Commands.DecreaseIndent();
 end;
 
-procedure TSQLParser.FormatSetStmt(const Nodes: TSetStmt.TNodes);
+procedure TSQLParser.FormatSetStmt(const Node: PSetStmt);
 var
   ItemPerLine: Boolean;
 begin
-  ItemPerLine := (Nodes.AssignmentList > 0)
-    and (NodePtr(Nodes.AssignmentList)^.NodeType = ntList)
-    and (PList(NodePtr(Nodes.AssignmentList))^.ElementCount > 1);
+  ItemPerLine := (Node.Nodes.AssignmentList > 0)
+    and (NodePtr(Node.Nodes.AssignmentList)^.NodeType = ntList)
+    and (PList(NodePtr(Node.Nodes.AssignmentList))^.ElementCount > 1);
 
-  FormatNode(Nodes.SetTag);
-  FormatNode(Nodes.ScopeTag, stSpaceBefore);
+  FormatNode(Node.Nodes.SetTag);
+  FormatNode(Node.Nodes.ScopeTag, stSpaceBefore);
 
   if (not ItemPerLine) then
   begin
-    FormatNode(Nodes.AssignmentList, stSpaceBefore);
+    FormatNode(Node.Nodes.AssignmentList, stSpaceBefore);
   end
   else
   begin
     Commands.IncreaseIndent();
     Commands.WriteReturn();
-    FormatList(Nodes.AssignmentList, sReturn);
+    FormatList(Node.Nodes.AssignmentList, sReturn);
     Commands.DecreaseIndent();
   end;
 end;
 
-procedure TSQLParser.FormatShowBinlogEventsStmt(const Nodes: TShowBinlogEventsStmt.TNodes);
+procedure TSQLParser.FormatShowBinlogEventsStmt(const Node: PShowBinlogEventsStmt);
 begin
-  FormatNode(Nodes.StmtTag);
-  FormatNode(Nodes.InValue, stSpaceBefore);
-  FormatNode(Nodes.FromValue, stSpaceBefore);
-  FormatNode(Nodes.Limit.Tag, stSpaceBefore);
+  FormatNode(Node.Nodes.StmtTag);
+  FormatNode(Node.Nodes.InValue, stSpaceBefore);
+  FormatNode(Node.Nodes.FromValue, stSpaceBefore);
+  FormatNode(Node.Nodes.Limit.Tag, stSpaceBefore);
   Commands.WriteSpace();
-  FormatNode(Nodes.Limit.OffsetToken);
-  FormatNode(Nodes.Limit.CommaToken);
-  FormatNode(Nodes.Limit.RowCountToken);
+  FormatNode(Node.Nodes.Limit.OffsetToken);
+  FormatNode(Node.Nodes.Limit.CommaToken);
+  FormatNode(Node.Nodes.Limit.RowCountToken);
 end;
 
-procedure TSQLParser.FormatShowErrorsStmt(const Nodes: TShowErrorsStmt.TNodes);
+procedure TSQLParser.FormatShowErrorsStmt(const Node: PShowErrorsStmt);
 begin
-  FormatNode(Nodes.StmtTag);
-  FormatNode(Nodes.Limit.Tag, stSpaceBefore);
+  FormatNode(Node.Nodes.StmtTag);
+  FormatNode(Node.Nodes.Limit.Tag, stSpaceBefore);
   Commands.WriteSpace();
-  FormatNode(Nodes.Limit.OffsetToken);
-  FormatNode(Nodes.Limit.CommaToken);
-  FormatNode(Nodes.Limit.RowCountToken);
+  FormatNode(Node.Nodes.Limit.OffsetToken);
+  FormatNode(Node.Nodes.Limit.CommaToken);
+  FormatNode(Node.Nodes.Limit.RowCountToken);
 end;
 
-procedure TSQLParser.FormatShowRelaylogEventsStmt(const Nodes: TShowBinlogEventsStmt.TNodes);
+procedure TSQLParser.FormatShowRelaylogEventsStmt(const Node: PShowBinlogEventsStmt);
 begin
-  FormatNode(Nodes.StmtTag);
-  FormatNode(Nodes.InValue, stSpaceBefore);
-  FormatNode(Nodes.FromValue, stSpaceBefore);
-  FormatNode(Nodes.Limit.Tag, stSpaceBefore);
+  FormatNode(Node.Nodes.StmtTag);
+  FormatNode(Node.Nodes.InValue, stSpaceBefore);
+  FormatNode(Node.Nodes.FromValue, stSpaceBefore);
+  FormatNode(Node.Nodes.Limit.Tag, stSpaceBefore);
   Commands.WriteSpace();
-  FormatNode(Nodes.Limit.OffsetToken);
-  FormatNode(Nodes.Limit.CommaToken);
-  FormatNode(Nodes.Limit.RowCountToken);
+  FormatNode(Node.Nodes.Limit.OffsetToken);
+  FormatNode(Node.Nodes.Limit.CommaToken);
+  FormatNode(Node.Nodes.Limit.RowCountToken);
 end;
 
-procedure TSQLParser.FormatShowWarningsStmt(const Nodes: TShowWarningsStmt.TNodes);
+procedure TSQLParser.FormatShowWarningsStmt(const Node: PShowWarningsStmt);
 begin
-  FormatNode(Nodes.StmtTag);
-  FormatNode(Nodes.Limit.Tag, stSpaceBefore);
+  FormatNode(Node.Nodes.StmtTag);
+  FormatNode(Node.Nodes.Limit.Tag, stSpaceBefore);
   Commands.WriteSpace();
-  FormatNode(Nodes.Limit.OffsetToken);
-  FormatNode(Nodes.Limit.CommaToken);
-  FormatNode(Nodes.Limit.RowCountToken);
+  FormatNode(Node.Nodes.Limit.OffsetToken);
+  FormatNode(Node.Nodes.Limit.CommaToken);
+  FormatNode(Node.Nodes.Limit.RowCountToken);
 end;
 
 function TSQLParser.FormatSQL(const DatabaseName: string = ''): string;
@@ -13560,59 +13499,59 @@ begin
   end;
 end;
 
-procedure TSQLParser.FormatSubArea(const Nodes: TSubArea.TNodes);
+procedure TSQLParser.FormatSubArea(const Node: PSubArea);
 begin
-  FormatNode(Nodes.OpenBracket);
-  FormatNode(Nodes.AreaNode);
-  FormatNode(Nodes.CloseBracket);
+  FormatNode(Node.Nodes.OpenBracket);
+  FormatNode(Node.Nodes.AreaNode);
+  FormatNode(Node.Nodes.CloseBracket);
 end;
 
-procedure TSQLParser.FormatSubAreaSelectStmt(const Nodes: TSubAreaSelectStmt.TNodes);
+procedure TSQLParser.FormatSubAreaSelectStmt(const Node: PSubAreaSelectStmt);
 begin
-  FormatNode(Nodes.SelectStmt1);
-  FormatNode(Nodes.UnionTag, stReturnBefore);
-  FormatNode(Nodes.SelectStmt2, stReturnBefore);
+  FormatNode(Node.Nodes.SelectStmt1);
+  FormatNode(Node.Nodes.UnionTag, stReturnBefore);
+  FormatNode(Node.Nodes.SelectStmt2, stReturnBefore);
 end;
 
-procedure TSQLParser.FormatSubPartition(const Nodes: TSubPartition.TNodes);
+procedure TSQLParser.FormatSubPartition(const Node: PSubPartition);
 begin
-  FormatNode(Nodes.SubPartitionTag);
-  FormatNode(Nodes.NameIdent, stSpaceBefore);
+  FormatNode(Node.Nodes.SubPartitionTag);
+  FormatNode(Node.Nodes.NameIdent, stSpaceBefore);
   Commands.IncreaseIndent();
-  FormatNode(Nodes.EngineValue, stReturnBefore);
-  FormatNode(Nodes.CommentValue, stReturnBefore);
-  FormatNode(Nodes.DataDirectoryValue, stReturnBefore);
-  FormatNode(Nodes.IndexDirectoryValue, stReturnBefore);
-  FormatNode(Nodes.MaxRowsValue, stReturnBefore);
-  FormatNode(Nodes.MinRowsValue, stReturnBefore);
-  FormatNode(Nodes.TablespaceValue, stReturnBefore);
+  FormatNode(Node.Nodes.EngineValue, stReturnBefore);
+  FormatNode(Node.Nodes.CommentValue, stReturnBefore);
+  FormatNode(Node.Nodes.DataDirectoryValue, stReturnBefore);
+  FormatNode(Node.Nodes.IndexDirectoryValue, stReturnBefore);
+  FormatNode(Node.Nodes.MaxRowsValue, stReturnBefore);
+  FormatNode(Node.Nodes.MinRowsValue, stReturnBefore);
+  FormatNode(Node.Nodes.TablespaceValue, stReturnBefore);
   Commands.DecreaseIndent();
 end;
 
-procedure TSQLParser.FormatSubquery(const Nodes: TSubquery.TNodes);
+procedure TSQLParser.FormatSubquery(const Node: PSubquery);
 begin
-  FormatNode(Nodes.IdentTag);
-  FormatNode(Nodes.OpenToken, stSpaceBefore);
-  FormatNode(Nodes.Subquery);
-  FormatNode(Nodes.CloseToken);
+  FormatNode(Node.Nodes.IdentTag);
+  FormatNode(Node.Nodes.OpenToken, stSpaceBefore);
+  FormatNode(Node.Nodes.Subquery);
+  FormatNode(Node.Nodes.CloseToken);
 end;
 
-procedure TSQLParser.FormatSubstringFunc(const Nodes: TSubstringFunc.TNodes);
+procedure TSQLParser.FormatSubstringFunc(const Node: PSubstringFunc);
 begin
-  FormatNode(Nodes.IdentToken);
-  FormatNode(Nodes.OpenBracket);
-  FormatNode(Nodes.Str);
-  if (not IsToken(Nodes.FromTag) or (TokenPtr(Nodes.FromTag)^.TokenType <> ttComma)) then
-    FormatNode(Nodes.FromTag, stSpaceBefore)
+  FormatNode(Node.Nodes.IdentToken);
+  FormatNode(Node.Nodes.OpenBracket);
+  FormatNode(Node.Nodes.Str);
+  if (not IsToken(Node.Nodes.FromTag) or (TokenPtr(Node.Nodes.FromTag)^.TokenType <> ttComma)) then
+    FormatNode(Node.Nodes.FromTag, stSpaceBefore)
   else
-    FormatNode(Nodes.FromTag);
-  FormatNode(Nodes.Pos);
-  if (not IsToken(Nodes.ForTag) or (TokenPtr(Nodes.FromTag)^.TokenType <> ttComma)) then
-    FormatNode(Nodes.ForTag, stSpaceBefore)
+    FormatNode(Node.Nodes.FromTag);
+  FormatNode(Node.Nodes.Pos);
+  if (not IsToken(Node.Nodes.ForTag) or (TokenPtr(Node.Nodes.FromTag)^.TokenType <> ttComma)) then
+    FormatNode(Node.Nodes.ForTag, stSpaceBefore)
   else
-    FormatNode(Nodes.ForTag);
-  FormatNode(Nodes.Len, stSpaceBefore);
-  FormatNode(Nodes.CloseBracket);
+    FormatNode(Node.Nodes.ForTag);
+  FormatNode(Node.Nodes.Len, stSpaceBefore);
+  FormatNode(Node.Nodes.CloseBracket);
 end;
 
 procedure TSQLParser.FormatToken(const Token: PToken);
@@ -13731,31 +13670,29 @@ begin
   FormatComments(Token^.NextTokenAll, False);
 end;
 
-procedure TSQLParser.FormatTrimFunc(const Nodes: TTrimFunc.TNodes);
+procedure TSQLParser.FormatTrimFunc(const Node: PTrimFunc);
 begin
-  FormatNode(Nodes.IdentToken);
-  FormatNode(Nodes.OpenBracket);
-  FormatNode(Nodes.DirectionTag, stSpaceAfter);
-  FormatNode(Nodes.RemoveStr, stSpaceAfter);
-  FormatNode(Nodes.FromTag, stSpaceAfter);
-  FormatNode(Nodes.Str);
-  FormatNode(Nodes.CloseBracket);
+  FormatNode(Node.Nodes.IdentToken);
+  FormatNode(Node.Nodes.OpenBracket);
+  FormatNode(Node.Nodes.DirectionTag, stSpaceAfter);
+  FormatNode(Node.Nodes.RemoveStr, stSpaceAfter);
+  FormatNode(Node.Nodes.FromTag, stSpaceAfter);
+  FormatNode(Node.Nodes.Str);
+  FormatNode(Node.Nodes.CloseBracket);
 end;
 
-procedure TSQLParser.FormatUnaryOp(const Nodes: TUnaryOp.TNodes);
+procedure TSQLParser.FormatUnaryOp(const Node: PUnaryOp);
 begin
-  FormatNode(Nodes.Operator);
-  if (IsToken(Nodes.Operator) and (TokenPtr(Nodes.Operator)^.KeywordIndex >= 0)) then
+  FormatNode(Node.Nodes.Operator);
+  if (IsToken(Node.Nodes.Operator) and (TokenPtr(Node.Nodes.Operator)^.KeywordIndex >= 0)) then
     Commands.WriteSpace();
-  FormatNode(Nodes.Operand);
+  FormatNode(Node.Nodes.Operand);
 end;
 
 procedure TSQLParser.FormatUnknownStmt(const Node: PUnknownStmt);
 var
   Token: PToken;
 begin
-  Assert(IsRange(PNode(Node)));
-
   Token := PRange(Node)^.FirstToken;
   while (Assigned(Token)) do
   begin
@@ -13768,20 +13705,23 @@ begin
   end;
 end;
 
-procedure TSQLParser.FormatUpdateStmt(const Nodes: TUpdateStmt.TNodes);
+procedure TSQLParser.FormatUpdateStmt(const Node: PUpdateStmt);
 var
   ItemPerLine: Boolean;
   Separator: TSeparatorType;
   Spacer: TSpacer;
 begin
-  if (((Nodes.TableReferenceList = 0)
-      or (NodePtr(Nodes.TableReferenceList)^.NodeType <> ntList)
-      or (PList(NodePtr(Nodes.TableReferenceList))^.ElementCount = 1))
-    and ((Nodes.TableReferenceList = 0)
-      or (NodePtr(Nodes.TableReferenceList)^.NodeType <> ntList)
-      or (PList(NodePtr(Nodes.TableReferenceList))^.Nodes.FirstChild = 0)
-      or (NodePtr(PList(NodePtr(Nodes.TableReferenceList))^.Nodes.FirstChild)^.NodeType <> ntList)
-      or (PList(NodePtr(PList(NodePtr(Nodes.TableReferenceList))^.Nodes.FirstChild))^.ElementCount = 1))) then
+  if (((Node.Nodes.TableReferenceList = 0)
+      or (NodePtr(Node.Nodes.TableReferenceList)^.NodeType <> ntList)
+      or (PList(NodePtr(Node.Nodes.TableReferenceList))^.ElementCount = 1))
+    and ((Node.Nodes.TableReferenceList = 0)
+      or (NodePtr(Node.Nodes.TableReferenceList)^.NodeType <> ntList)
+      or (PList(NodePtr(Node.Nodes.TableReferenceList))^.Nodes.FirstChild = 0)
+      or (NodePtr(PList(NodePtr(Node.Nodes.TableReferenceList))^.Nodes.FirstChild)^.NodeType <> ntList)
+      or (PList(NodePtr(PList(NodePtr(Node.Nodes.TableReferenceList))^.Nodes.FirstChild))^.ElementCount = 1))
+    and ((Node.Nodes.Set_.PairList = 0)
+      or (NodePtr(Node.Nodes.Set_.PairList)^.NodeType <> ntList)
+      or (PList(NodePtr(Node.Nodes.Set_.PairList))^.ElementCount = 1))) then
   begin
     ItemPerLine := False;
     Separator := stSpaceBefore;
@@ -13794,11 +13734,11 @@ begin
     Spacer := sReturn;
   end;
 
-  FormatNode(Nodes.UpdateTag);
-  FormatNode(Nodes.PriorityTag, stSpaceBefore);
+  FormatNode(Node.Nodes.UpdateTag);
+  FormatNode(Node.Nodes.PriorityTag, stSpaceBefore);
 
   if (not ItemPerLine) then
-    FormatNode(Nodes.TableReferenceList, Separator)
+    FormatNode(Node.Nodes.TableReferenceList, Separator)
   else
   begin
     Commands.IncreaseIndent();
@@ -13806,12 +13746,12 @@ begin
       Commands.WriteSpace()
     else
       Commands.WriteReturn();
-    FormatList(Nodes.TableReferenceList, Spacer);
+    FormatList(Node.Nodes.TableReferenceList, Spacer);
     Commands.DecreaseIndent();
   end;
-  FormatNode(Nodes.Set_.Tag, Separator);
+  FormatNode(Node.Nodes.Set_.Tag, Separator);
   if (not ItemPerLine) then
-    FormatNode(Nodes.Set_.PairList, Separator)
+    FormatNode(Node.Nodes.Set_.PairList, Separator)
   else
   begin
     Commands.IncreaseIndent();
@@ -13819,12 +13759,12 @@ begin
       Commands.WriteSpace()
     else
       Commands.WriteReturn();
-    FormatList(Nodes.Set_.PairList, Spacer);
+    FormatList(Node.Nodes.Set_.PairList, Spacer);
     Commands.DecreaseIndent();
   end;
-  FormatNode(Nodes.Where.Tag, Separator);
+  FormatNode(Node.Nodes.Where.Tag, Separator);
   if (not ItemPerLine) then
-    FormatNode(Nodes.Where.Expr, stSpaceBefore)
+    FormatNode(Node.Nodes.Where.Expr, stSpaceBefore)
   else
   begin
     Commands.IncreaseIndent();
@@ -13832,71 +13772,71 @@ begin
       Commands.WriteSpace()
     else
       Commands.WriteReturn();
-    FormatNode(Nodes.Where.Expr);
+    FormatNode(Node.Nodes.Where.Expr);
     Commands.DecreaseIndent();
   end;
-  FormatNode(Nodes.Limit.Tag, Separator);
-  FormatNode(Nodes.Limit.Expr, stSpaceBefore);
+  FormatNode(Node.Nodes.Limit.Tag, Separator);
+  FormatNode(Node.Nodes.Limit.Expr, stSpaceBefore);
 end;
 
-procedure TSQLParser.FormatUser(const Nodes: TUser.TNodes);
+procedure TSQLParser.FormatUser(const Node: PUser);
 begin
-  FormatNode(Nodes.NameToken);
-  FormatNode(Nodes.AtToken);
-  FormatNode(Nodes.HostToken);
+  FormatNode(Node.Nodes.NameToken);
+  FormatNode(Node.Nodes.AtToken);
+  FormatNode(Node.Nodes.HostToken);
 end;
 
-procedure TSQLParser.FormatValue(const Nodes: TValue.TNodes);
+procedure TSQLParser.FormatValue(const Node: PValue);
 begin
-  FormatNode(Nodes.IdentTag);
-  if (Nodes.AssignToken = 0) then
+  FormatNode(Node.Nodes.IdentTag);
+  if (Node.Nodes.AssignToken = 0) then
     Commands.WriteSpace()
   else
-    FormatNode(Nodes.AssignToken);
-  FormatNode(Nodes.Expr);
+    FormatNode(Node.Nodes.AssignToken);
+  FormatNode(Node.Nodes.Expr);
 end;
 
-procedure TSQLParser.FormatVariableIdent(const Nodes: TVariable.TNodes);
+procedure TSQLParser.FormatVariableIdent(const Node: PVariable);
 begin
-  FormatNode(Nodes.At1Token);
-  FormatNode(Nodes.At2Token);
-  FormatNode(Nodes.ScopeTag);
-  FormatNode(Nodes.ScopeDotToken);
-  FormatNode(Nodes.Ident);
+  FormatNode(Node.Nodes.At1Token);
+  FormatNode(Node.Nodes.At2Token);
+  FormatNode(Node.Nodes.ScopeTag);
+  FormatNode(Node.Nodes.ScopeDotToken);
+  FormatNode(Node.Nodes.Ident);
 end;
 
-procedure TSQLParser.FormatWeightStringFunc(const Nodes: TWeightStringFunc.TNodes);
+procedure TSQLParser.FormatWeightStringFunc(const Node: PWeightStringFunc);
 begin
-  FormatNode(Nodes.IdentToken);
-  FormatNode(Nodes.OpenBracket);
-  FormatNode(Nodes.Str);
-  FormatNode(Nodes.AsTag, stSpaceBefore);
-  FormatNode(Nodes.Datatype, stSpaceBefore);
-  FormatNode(Nodes.LevelTag, stSpaceBefore);
-  FormatNode(Nodes.LevelList, stSpaceBefore);
-  FormatNode(Nodes.CloseBracket);
+  FormatNode(Node.Nodes.IdentToken);
+  FormatNode(Node.Nodes.OpenBracket);
+  FormatNode(Node.Nodes.Str);
+  FormatNode(Node.Nodes.AsTag, stSpaceBefore);
+  FormatNode(Node.Nodes.Datatype, stSpaceBefore);
+  FormatNode(Node.Nodes.LevelTag, stSpaceBefore);
+  FormatNode(Node.Nodes.LevelList, stSpaceBefore);
+  FormatNode(Node.Nodes.CloseBracket);
 end;
 
-procedure TSQLParser.FormatWhileStmt(const Nodes: TWhileStmt.TNodes);
+procedure TSQLParser.FormatWhileStmt(const Node: PWhileStmt);
 begin
-  FormatNode(Nodes.BeginLabel, stSpaceAfter);
-  FormatNode(Nodes.WhileTag);
-  FormatNode(Nodes.SearchConditionExpr, stSpaceBefore);
+  FormatNode(Node.Nodes.BeginLabel, stSpaceAfter);
+  FormatNode(Node.Nodes.WhileTag);
+  FormatNode(Node.Nodes.SearchConditionExpr, stSpaceBefore);
   Commands.IncreaseIndent();
-  FormatNode(Nodes.DoTag, stSpaceBefore);
-  FormatNode(Nodes.StmtList, stReturnBefore);
+  FormatNode(Node.Nodes.DoTag, stSpaceBefore);
+  FormatNode(Node.Nodes.StmtList, stReturnBefore);
   Commands.DecreaseIndent();
-  FormatNode(Nodes.EndTag, stReturnBefore);
-  FormatNode(Nodes.EndLabel, stSpaceBefore);
+  FormatNode(Node.Nodes.EndTag, stReturnBefore);
+  FormatNode(Node.Nodes.EndLabel, stSpaceBefore);
 end;
 
-procedure TSQLParser.FormatXID(const Nodes: TXAStmt.TID.TNodes);
+procedure TSQLParser.FormatXID(const Node: TXAStmt.PID);
 begin
-  FormatNode(Nodes.GTrId);
-  FormatNode(Nodes.Comma1, stSpaceAfter);
-  FormatNode(Nodes.BQual);
-  FormatNode(Nodes.Comma2, stSpaceAfter);
-  FormatNode(Nodes.FormatId);
+  FormatNode(Node.Nodes.GTrId);
+  FormatNode(Node.Nodes.Comma1, stSpaceAfter);
+  FormatNode(Node.Nodes.BQual);
+  FormatNode(Node.Nodes.Comma2, stSpaceAfter);
+  FormatNode(Node.Nodes.FormatId);
 end;
 
 function TSQLParser.GetDatatypes(): string;
@@ -14033,16 +13973,6 @@ begin
   else if (EndOfStmt(NextToken[Index + 6]) or (TokenPtr(NextToken[Index + 6])^.KeywordIndex <> KeywordIndex7)) then
   else
     Result := True;
-end;
-
-function TSQLParser.IsRange(const ANode: PNode): Boolean;
-begin
-  Result := Assigned(ANode) and not (ANode^.NodeType in [ntRoot, ntToken]);
-end;
-
-function TSQLParser.IsRange(const ANode: TOffset): Boolean;
-begin
-  Result := IsRange(NodePtr(ANode));
 end;
 
 function TSQLParser.IsStmt(const ANode: PNode): Boolean;
@@ -15175,7 +15105,7 @@ begin
   end;
 
   FillChar(ListNodes, SizeOf(ListNodes), 0);
-  Nodes.SpecificationList := TList.Create(Self, ListNodes, ttComma, Specifications.Count, TIntegerArray(Specifications.List));
+  Nodes.SpecificationList := TList.Create(Self, ListNodes, ttComma, Specifications.Count, POffsetArray(Specifications.List));
   Result := TAlterTableStmt.Create(Self, Nodes);
 
   Specifications.Free();
@@ -15445,7 +15375,7 @@ begin
     until (ErrorFound or not IsTag(kiWHEN));
 
   FillChar(ListNodes, SizeOf(ListNodes), 0);
-  Nodes.BranchList := TList.Create(Self, ListNodes, ttUnknown, Length(Branches), Branches);
+  Nodes.BranchList := TList.Create(Self, ListNodes, ttUnknown, Length(Branches), @Branches);
   SetLength(Branches, 0);
 
   if (not ErrorFound) then
@@ -15512,7 +15442,7 @@ begin
     end;
 
   FillChar(ListNodes, SizeOf(ListNodes), 0);
-  Nodes.BranchList := TList.Create(Self, ListNodes, ttUnknown, Length(Branches), Branches);
+  Nodes.BranchList := TList.Create(Self, ListNodes, ttUnknown, Length(Branches), @Branches);
   SetLength(Branches, 0);
 
   if (not ErrorFound) then
@@ -15529,7 +15459,7 @@ begin
 
   if (IsTag(kiWHEN)) then
   begin
-    Nodes.Tag := ParseTag(kiWHEN);
+    Nodes.BranchTag := ParseTag(kiWHEN);
 
     if (not ErrorFound) then
       Nodes.ConditionExpr := ParseExpr();
@@ -15538,7 +15468,7 @@ begin
       Nodes.ThenTag := ParseTag(kiTHEN);
   end
   else if (IsTag(kiELSE)) then
-    Nodes.Tag := ParseTag(kiELSE);
+    Nodes.BranchTag := ParseTag(kiELSE);
 
   if (not IsTag(kiWHEN)
     and not IsTag(kiELSE)
@@ -15747,7 +15677,7 @@ begin
     end;
   end;
   FillChar(ListNodes, SizeOf(ListNodes), 0);
-  Nodes.OptionList := TList.Create(Self, ListNodes, ttComma, Options.Count, TIntegerArray(Options.List));
+  Nodes.OptionList := TList.Create(Self, ListNodes, ttComma, Options.Count, POffsetArray(Options.List));
   Options.Free();
 
   if (not ErrorFound and IsTag(kiFOR, kiCHANNEL)) then
@@ -16275,7 +16205,7 @@ begin
   if (not ErrorFound) then
     ListNodes.CloseBracket := ParseSymbol(ttCloseBracket);
 
-  Result := TList.Create(Self, ListNodes, ttComma, ChildrenIndex, Children);
+  Result := TList.Create(Self, ListNodes, ttComma, ChildrenIndex, @Children);
 end;
 
 function TSQLParser.ParseCreateStmt(): TOffset;
@@ -16766,7 +16696,7 @@ begin
     end;
 
     FillChar(ListNodes, SizeOf(ListNodes), 0);
-    Nodes.TableOptionList := TList.Create(Self, ListNodes, ttUnknown, Options.Count, TIntegerArray(Options.List));
+    Nodes.TableOptionList := TList.Create(Self, ListNodes, ttUnknown, Options.Count, POffsetArray(Options.List));
 
     Options.Free();
   end;
@@ -18733,6 +18663,7 @@ var
   CurrentOperatorType: TOperatorType;
   I: Integer;
   DbIdent: TOffset;
+  DynamicNodes: array of TOffset;
   InNodes: TInOp.TNodes;
   KeywordIndex: TWordList.TIndex;
   Length: Integer;
@@ -18740,31 +18671,31 @@ var
   Node: TOffset;
   NodeCount: Integer;
   Nodes: POffsetArray;
-  Nodes1: array [0 .. StackNodeCount - 1] of TOffset;
-  Nodes2: array of TOffset;
   NodesLength: Integer;
   OperatorPrecedence: Integer;
   OperatorType: TOperatorType;
   PreviousOperatorType: TOperatorType;
   RegExpNodes: TRegExpOp.TNodes;
   RemoveNodes: Integer;
+  StackNodes: array [0 .. StackNodeCount - 1] of TOffset;
   Text: PChar;
 begin
-  NodeCount := 0; Nodes := @Nodes1[0]; NodesLength := System.Length(Nodes1);
+  NodeCount := 0; Nodes := @StackNodes[0]; NodesLength := System.Length(StackNodes);
   PreviousOperatorType := otUnknown; CurrentOperatorType := otUnknown;
 
   repeat
-    Node := CurrentToken;
-
     if (NodeCount = NodesLength) then
     begin
       NodesLength := 10 * NodesLength;
-      SetLength(Nodes2, NodesLength);
+      SetLength(DynamicNodes, NodesLength);
       if (NodeCount = StackNodeCount) then
-        Move(Nodes1[0], Nodes2[0], SizeOf(Nodes1));
-      Nodes := @Nodes2[0];
-    end
-    else if (EndOfStmt(Node)) then
+        Move(StackNodes[0], DynamicNodes[0], SizeOf(StackNodes));
+      Nodes := @DynamicNodes[0];
+    end;
+
+    Node := CurrentToken;
+
+    if (EndOfStmt(Node)) then
     begin // Add operands
       if ((NodeCount >= 4)
         and IsToken(Nodes^[NodeCount - 4]) and (TokenPtr(Nodes[NodeCount - 4])^.TokenType in ttIdents)
@@ -19195,8 +19126,8 @@ begin
   else
     Result := Nodes^[0];
 
-  if (NodesLength > StackNodeCount) then
-    SetLength(Nodes2, 0);
+  if (System.Length(DynamicNodes) > 0) then
+    SetLength(DynamicNodes, 0);
 end;
 
 function TSQLParser.ParseExtractFunc(): TOffset;
@@ -19789,7 +19720,7 @@ function TSQLParser.ParseIfStmt(): TOffset;
 
     if (IsTag(kiIF)) then
     begin
-      Nodes.Tag := ParseTag(kiIF);
+      Nodes.BranchTag := ParseTag(kiIF);
 
       if (not ErrorFound) then
         Nodes.ConditionExpr := ParseExpr();
@@ -19799,7 +19730,7 @@ function TSQLParser.ParseIfStmt(): TOffset;
     end
     else if (IsTag(kiELSEIF)) then
     begin
-      Nodes.Tag := ParseTag(kiELSEIF);
+      Nodes.BranchTag := ParseTag(kiELSEIF);
 
       if (not ErrorFound) then
         Nodes.ConditionExpr := ParseExpr();
@@ -19808,7 +19739,7 @@ function TSQLParser.ParseIfStmt(): TOffset;
         Nodes.ThenTag := ParseTag(kiTHEN);
     end
     else if (IsTag(kiELSE)) then
-      Nodes.Tag := ParseTag(kiELSE)
+      Nodes.BranchTag := ParseTag(kiELSE)
     else
       SetError(PE_Unknown);
 
@@ -19853,7 +19784,7 @@ begin
     Nodes.EndTag := ParseTag(kiEND, kiIF);
 
   FillChar(ListNodes, SizeOf(ListNodes), 0);
-  Nodes.BranchList := TList.Create(Self, ListNodes, ttUnknown, Length(Branches), Branches);
+  Nodes.BranchList := TList.Create(Self, ListNodes, ttUnknown, Length(Branches), @Branches);
   SetLength(Branches, 0);
 
   Result := TIfStmt.Create(Self, Nodes);
@@ -20069,16 +20000,16 @@ end;
 
 function TSQLParser.ParseList(const Brackets: Boolean; const ParseElement: TParseFunction; const DelimiterType: TTokenType = ttComma): TOffset;
 var
-  ChildrenArray: array [0 .. 100 - 1] of TOffset;
-  ChildrenList: Classes.TList;
   DelimiterFound: Boolean;
+  DynamicList: Classes.TList;
   I: Integer;
   Index: Integer;
   Nodes: TList.TNodes;
+  StackChildren: array [0 .. 100 - 1] of TOffset;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  ChildrenList := nil;
+  DynamicList := nil;
 
   if (Brackets) then
     Nodes.OpenBracket := ParseSymbol(ttOpenBracket);
@@ -20087,34 +20018,34 @@ begin
   if (not ErrorFound and (not Brackets or not IsSymbol(ttCloseBracket))) then
   begin
     repeat
-      if (Index < Length(ChildrenArray)) then
-        ChildrenArray[Index] := ParseElement()
+      if (Index < Length(StackChildren)) then
+        StackChildren[Index] := ParseElement()
       else
       begin
-        if (Index = Length(ChildrenArray)) then
+        if (Index = Length(StackChildren)) then
         begin
-          ChildrenList := Classes.TList.Create();
-          for I := 0 to Length(ChildrenArray) - 1 do
-            ChildrenList.Add(Pointer(ChildrenArray[I]));
+          DynamicList := Classes.TList.Create();
+          for I := 0 to Length(StackChildren) - 1 do
+            DynamicList.Add(Pointer(StackChildren[I]));
         end;
-        ChildrenList.Add(Pointer(ParseElement()));
+        DynamicList.Add(Pointer(ParseElement()));
       end;
       Inc(Index);
 
       DelimiterFound := IsSymbol(DelimiterType);
       if (not ErrorFound and DelimiterFound) then
       begin
-        if (Index < Length(ChildrenArray)) then
-          ChildrenArray[Index] := ParseSymbol(DelimiterType)
+        if (Index < Length(StackChildren)) then
+          StackChildren[Index] := ParseSymbol(DelimiterType)
         else
         begin
-          if (Index = Length(ChildrenArray)) then
+          if (Index = Length(StackChildren)) then
           begin
-            ChildrenList := Classes.TList.Create();
-            for I := 0 to Length(ChildrenArray) - 1 do
-              ChildrenList.Add(Pointer(ChildrenArray[I]));
+            DynamicList := Classes.TList.Create();
+            for I := 0 to Length(StackChildren) - 1 do
+              DynamicList.Add(Pointer(StackChildren[I]));
           end;
-          ChildrenList.Add(Pointer(ParseSymbol(DelimiterType)));
+          DynamicList.Add(Pointer(ParseSymbol(DelimiterType)));
         end;
         Inc(Index);
       end;
@@ -20133,12 +20064,12 @@ begin
   if (not ErrorFound and Brackets) then
     Nodes.CloseBracket := ParseSymbol(ttCloseBracket);
 
-  if (not Assigned(ChildrenList)) then
-    Result := TList.Create(Self, Nodes, DelimiterType, Index, ChildrenArray)
+  if (not Assigned(DynamicList)) then
+    Result := TList.Create(Self, Nodes, DelimiterType, Index, @StackChildren)
   else
   begin
-    Result := TList.Create(Self, Nodes, DelimiterType, ChildrenList.Count, TIntegerArray(ChildrenList.List));
-    ChildrenList.Free();
+    Result := TList.Create(Self, Nodes, DelimiterType, DynamicList.Count, POffsetArray(DynamicList.List));
+    DynamicList.Free();
   end;
 end;
 
@@ -20941,8 +20872,7 @@ begin
     FirstTokenAll := 0
   else
     FirstTokenAll := Nodes.UsedSize;
-  FPreviousToken := 0;
-  FCurrentToken := GetParsedToken(0); // Cache for speeding
+  CurrentToken := GetParsedToken(0); // Cache for speeding
 
 
   Children := Classes.TList.Create();
@@ -20968,7 +20898,7 @@ begin
 
   Assert((OldCurrentToken = 0) or (CurrentToken <> OldCurrentToken));
 
-  Result := TRoot.Create(Self, FirstTokenAll, LastTokenAll, Children.Count, TIntegerArray(Children.List));
+  Result := TRoot.Create(Self, FirstTokenAll, LastTokenAll, Children.Count, POffsetArray(Children.List));
 
   Children.Free();
 end;
@@ -21433,7 +21363,7 @@ begin
       end;
 
       FillChar(ListNodes, SizeOf(ListNodes), 0);
-      Nodes.IndexHintList := TList.Create(Self, ListNodes, ttComma, IndexHints.Count, TIntegerArray(IndexHints.List));
+      Nodes.IndexHintList := TList.Create(Self, ListNodes, ttComma, IndexHints.Count, POffsetArray(IndexHints.List));
       IndexHints.Free();
     end;
 
@@ -21705,7 +21635,7 @@ begin
   if (ErrorFound) then
     Result := 0
   else
-    Result := TList.Create(Self, Nodes, ttUnknown, ChildrenCount, Children);
+    Result := TList.Create(Self, Nodes, ttUnknown, ChildrenCount, @Children);
 end;
 
 function TSQLParser.ParseSetNamesStmt(): TOffset;
@@ -22904,43 +22834,13 @@ end;
 function TSQLParser.ParseStmt(): TOffset;
 var
   Continue: Boolean;
-  FFirstTokenAll: TOffset;
-  FLastTokenAll: TOffset;
-  T: PToken;
+  Stmt: PStmt;
   Token: TOffset;
 begin
   {$IFDEF Debug}
   Continue := False;
   Result := 0;
   {$ENDIF}
-
-  if (PreviousToken = 0) then
-    FFirstTokenAll := 1
-  else
-  begin
-    T := TokenPtr(PreviousToken);
-    if (T^.TokenType = ttSemicolon) then
-    begin
-      repeat
-        FFirstTokenAll := T^.Offset;
-        T := T^.NextTokenAll;
-      until (not Assigned(T) or (T^.TokenType in [ttSpace, ttReturn]));
-      if (Assigned(T)) then
-        FFirstTokenAll := T^.Offset;
-    end
-    else
-    begin
-      repeat
-        T := T^.NextTokenAll;
-      until (not Assigned(T) or (T^.TokenType in [ttSpace, ttReturn]));
-      if (Assigned(T)) then
-        T := T^.NextTokenAll;
-      if (not Assigned(T) or not Assigned(T^.NextTokenAll)) then
-        FFirstTokenAll := 0
-      else
-        FFirstTokenAll := T^.NextTokenAll^.Offset;
-    end;
-  end;
 
   if (InPL_SQL
     and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType = ttIdent)
@@ -23271,6 +23171,8 @@ begin
 
   if (IsStmt(Result)) then
   begin
+    Stmt := PStmt(NodePtr(Result));
+
     if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex <> kiEND)) then
     begin
       if (not ErrorFound) then
@@ -23280,32 +23182,17 @@ begin
       while (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex <> kiEND)) do
       begin
         Token := ApplyCurrentToken();
-        StmtPtr(Result)^.Heritage.AddChildren(@Token, 1);
+        Stmt^.Heritage.AddChildren(1, @Token);
       end;
-    end;
-
-    Token := StmtPtr(Result)^.FLastToken;
-    FLastTokenAll := Token;
-    while ((Token > 0) and (TokenPtr(Token)^.TokenType <> ttSemicolon)) do
-    begin
-      T := TokenPtr(Token)^.NextTokenAll;
-      if (not Assigned(T)) then
-        Token := 0
-      else
-        Token := T^.Offset;
-      if ((Token > 0) and (TokenPtr(Token)^.TokenType <> ttSemicolon)) then
-        FLastTokenAll := Token;
     end;
 
     if (Error.Code > PE_Success) then
     begin
-      StmtPtr(Result)^.Error.Code := Error.Code;
-      StmtPtr(Result)^.Error.Line := Error.Line;
-      StmtPtr(Result)^.Error.Pos := Error.Pos;
-      StmtPtr(Result)^.Error.Token := Error.Token;
+      Stmt^.Error.Code := Error.Code;
+      Stmt^.Error.Line := Error.Line;
+      Stmt^.Error.Pos := Error.Pos;
+      Stmt^.Error.Token := Error.Token;
     end;
-    StmtPtr(Result)^.FFirstTokenAll := FFirstTokenAll;
-    StmtPtr(Result)^.FLastTokenAll := FLastTokenAll;
   end;
 end;
 
@@ -23478,7 +23365,7 @@ begin
   else
   begin
     TokenPtr(CurrentToken)^.FOperatorType := otUnknown;
-    Nodes.KeywordToken1 := ApplyCurrentToken();
+    Nodes.Keyword1Token := ApplyCurrentToken();
 
     if (KeywordIndex2 >= 0) then
     begin
@@ -23492,7 +23379,7 @@ begin
       else
       begin
         TokenPtr(CurrentToken)^.FOperatorType := otUnknown;
-        Nodes.KeywordToken2 := ApplyCurrentToken();
+        Nodes.Keyword2Token := ApplyCurrentToken();
 
         if (KeywordIndex3 >= 0) then
         begin
@@ -23506,7 +23393,7 @@ begin
           else
           begin
             TokenPtr(CurrentToken)^.FOperatorType := otUnknown;
-            Nodes.KeywordToken3 := ApplyCurrentToken();
+            Nodes.Keyword3Token := ApplyCurrentToken();
 
             if (KeywordIndex4 >= 0) then
             begin
@@ -23520,7 +23407,7 @@ begin
               else
               begin
                 TokenPtr(CurrentToken)^.FOperatorType := otUnknown;
-                Nodes.KeywordToken4 := ApplyCurrentToken();
+                Nodes.Keyword4Token := ApplyCurrentToken();
 
                 if (KeywordIndex5 >= 0) then
                 begin
@@ -23534,7 +23421,7 @@ begin
                   else
                   begin
                     TokenPtr(CurrentToken)^.FOperatorType := otUnknown;
-                    Nodes.KeywordToken5 := ApplyCurrentToken();
+                    Nodes.Keyword5Token := ApplyCurrentToken();
 
                     if (KeywordIndex6 >= 0) then
                     begin
@@ -23548,7 +23435,7 @@ begin
                       else
                       begin
                         TokenPtr(CurrentToken)^.FOperatorType := otUnknown;
-                        Nodes.KeywordToken6 := ApplyCurrentToken();
+                        Nodes.Keyword6Token := ApplyCurrentToken();
 
                         if (KeywordIndex7 >= 0) then
                         begin
@@ -23562,7 +23449,7 @@ begin
                           else
                           begin
                             TokenPtr(CurrentToken)^.FOperatorType := otUnknown;
-                            Nodes.KeywordToken7 := ApplyCurrentToken();
+                            Nodes.Keyword7Token := ApplyCurrentToken();
                           end;
                         end;
                       end;
@@ -24554,7 +24441,7 @@ begin
   while (not EndOfStmt(CurrentToken)) do
     Tokens.Add(Pointer(ApplyCurrentToken()));
 
-  Result := TUnknownStmt.Create(Self, Tokens.Count, TIntegerArray(Tokens.List));
+  Result := TUnknownStmt.Create(Self, Tokens.Count, POffsetArray(Tokens.List));
 
   Tokens.Free();
 end;
@@ -24583,8 +24470,8 @@ begin
   if (not ErrorFound) then
     if (IsTag(kiLOW_PRIORITY)) then
       Nodes.PriorityTag := ParseTag(kiLOW_PRIORITY)
-    else if (IsTag(kiCONCURRENT)) then
-      Nodes.PriorityTag := ParseTag(kiCONCURRENT);
+    else if (IsTag(kiIGNORE)) then
+      Nodes.PriorityTag := ParseTag(kiIGNORE);
 
   if (not ErrorFound) then
   begin
@@ -26165,16 +26052,6 @@ begin
     OperatorTypeByKeywordIndex[kiSOUNDS]   := otSounds;
     OperatorTypeByKeywordIndex[kiXOR]      := otXOR;
   end;
-end;
-
-function TSQLParser.StmtPtr(const Node: TOffset): PStmt;
-begin
-  Assert((Node = 0) or IsStmt(Node));
-
-  if (not IsStmt(Node)) then
-    Result := nil
-  else
-    Result := @Nodes.Mem[Node];
 end;
 
 function TSQLParser.TableNameCmp(const Name1, Name2: string): Integer;

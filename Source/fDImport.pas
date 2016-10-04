@@ -1114,12 +1114,12 @@ begin
     FEngine.ItemIndex := FEngine.Items.IndexOf(Session.Engines.DefaultEngine.Name);
 
   if (FCharset.ItemIndex < 0) then
-    if ((SObject is TSDatabase) and Assigned(TSDatabase(SObject).Charset)) then
-      FCharset.ItemIndex := FCharset.Items.IndexOf(TSDatabase(SObject).Charset.Name)
-    else if ((SObject is TSDBObject) and Assigned(TSDBObject(SObject).Database.Charset)) then
-      FCharset.ItemIndex := FCharset.Items.IndexOf(TSDBObject(SObject).Database.Charset.Name)
-    else if (Assigned(Session.Charset)) then
-      FCharset.ItemIndex := FCharset.Items.IndexOf(Session.Charset.Name)
+    if ((SObject is TSDatabase) and (TSDatabase(SObject).Charset <> '')) then
+      FCharset.ItemIndex := FCharset.Items.IndexOf(TSDatabase(SObject).Charset)
+    else if ((SObject is TSDBObject) and (TSDBObject(SObject).Database.Charset <> '')) then
+      FCharset.ItemIndex := FCharset.Items.IndexOf(TSDBObject(SObject).Database.Charset)
+    else if (Session.Charset <> '') then
+      FCharset.ItemIndex := FCharset.Items.IndexOf(Session.Charset)
     else
       FCharset.ItemIndex := -1;
   FCharsetChange(Sender);
