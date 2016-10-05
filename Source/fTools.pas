@@ -4399,7 +4399,7 @@ function TTExportFile.FileCreate(const Filename: TFileName; out Error: TTool.TEr
 begin
   Handle := CreateFile(PChar(Filename),
                        GENERIC_WRITE,
-                       FILE_SHARE_READ,
+                       0,
                        nil,
                        CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
   Result := Handle <> INVALID_HANDLE_VALUE;

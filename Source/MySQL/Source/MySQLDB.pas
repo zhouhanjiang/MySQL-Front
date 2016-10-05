@@ -297,6 +297,10 @@ type
     function GetInsertId(): my_ulonglong; virtual;
     function GetDataFileAllowed(): Boolean; virtual;
     function GetMaxAllowedPacket(): Integer; virtual;
+    function LibDecode(const Text: my_char; const Length: my_int = -1): string; virtual;
+    function LibEncode(const Value: string): RawByteString; virtual;
+    function LibPack(const Value: string): RawByteString; virtual;
+    function LibUnpack(const Data: my_char; const Length: my_int = -1): string; virtual;
     procedure local_infile_end(const local_infile: Plocal_infile); virtual;
     function local_infile_error(const local_infile: Plocal_infile; const error_msg: my_char; const error_msg_len: my_uint): my_int; virtual;
     function local_infile_init(out local_infile: Plocal_infile; const filename: my_char): my_int; virtual;
@@ -346,10 +350,6 @@ type
     function ExecuteSQL(const SQL: string; const OnResult: TResultEvent = nil): Boolean; overload; virtual;
     function FirstResult(out DataHandle: TDataResult; const SQL: string): Boolean; virtual;
     function InUse(): Boolean; virtual;
-    function LibDecode(const Text: my_char; const Length: my_int = -1): string; virtual;
-    function LibEncode(const Value: string): RawByteString; virtual;
-    function LibPack(const Value: string): RawByteString; virtual;
-    function LibUnpack(const Data: my_char; const Length: my_int = -1): string; virtual;
     function NextResult(const DataHandle: TDataResult): Boolean; virtual;
     procedure RollbackTransaction(); virtual;
     function SendSQL(const SQL: string; const Done: TEvent): Boolean; overload; virtual;
@@ -1254,6 +1254,7 @@ end;
 function AnsiCharToWideChar(const CodePage: UINT; const lpMultiByteStr: LPCSTR; const cchMultiByte: Integer; const lpWideCharStr: LPWSTR; const cchWideChar: Integer): Integer;
 var
   Index: Integer;
+  S: RawByteString;
 begin
   if (not Assigned(lpMultiByteStr) or (cchMultiByte = 0)) then
     Result := 0
@@ -1265,6 +1266,10 @@ begin
       Index := cchMultiByte - 1;
       while ((Index > 0) and (MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, lpMultiByteStr, Index, nil, 0) = 0)) do
         Dec(Index);
+      if (Index < 0) then
+        S := ''
+      else
+        SetString(S, lpMultiByteStr, Index);
       raise EOSError.CreateFmt(SOSError + ' near "%s" (CodePage: %d)', [GetLastError(), SysErrorMessage(GetLastError()), Copy(StrPas(lpMultiByteStr), 1 + Index, 20), CodePage]);
     end;
   end;

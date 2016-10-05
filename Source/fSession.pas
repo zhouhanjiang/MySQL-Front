@@ -2058,11 +2058,12 @@ procedure TSObject.SetSource(const AField: TField);
 var
   SQL: string;
 begin
-  if (AField.DataType in TextDataTypes) then
-    SQL := Trim(Session.Connection.LibDecode(my_char(AField.AsAnsiString)))
+  if (not (AField.DataSet is TMySQLQuery) or not (AField.DataType in TextDataTypes)) then
+    SQL := AField.AsString
   else
-    SQL := Trim(AField.AsString);
-  if ((SQL <> '') and (Copy(SQL, Length(SQL), 1) <> ';')) then
+    SQL := TMySQLQuery(AField.DataSet).GetAsString(AField);
+
+  if ((SQL <> '') and (SQL[Length(SQL)] <> ';')) then
     SQL := SQL + ';';
   SetSource(SQL);
 end;

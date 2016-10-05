@@ -4807,12 +4807,6 @@ begin
   PDataBrowserSpacer.Top := FFilter.Height;
   PDataBrowser.ClientHeight := FFilter.Height + PDataBrowserSpacer.Height;
 
-  SynCompletion.Font.Name := Preferences.SQLFontName;
-  SynCompletion.Font.Style := Preferences.SQLFontStyle;
-  SynCompletion.Font.Color := Preferences.SQLFontColor;
-  SynCompletion.Font.Size := Preferences.SQLFontSize;
-  SynCompletion.Font.Charset := Preferences.SQLFontCharset;
-
   FSQLEditorSynMemo.Font.Name := Preferences.SQLFontName;
   FSQLEditorSynMemo.Font.Style := Preferences.SQLFontStyle;
   FSQLEditorSynMemo.Font.Color := Preferences.SQLFontColor;
@@ -7341,7 +7335,7 @@ begin
   MainAction('aDCreateKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
   MainAction('aDCreateField').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
   MainAction('aDCreateForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseTable]);
-  MainAction('aDCreateUser').Enabled := Assigned(Node) and (Node.ImageIndex = iiUsers) and Assigned(Session.UserRights) and Session.UserRights.RCreateUser;
+  MainAction('aDCreateUser').Enabled := Assigned(Node) and (Node.ImageIndex = iiUsers);
   MainAction('aDDeleteDatabase').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
   MainAction('aDDeleteTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
   MainAction('aDDeleteView').Enabled := Assigned(Node) and (Node.ImageIndex = iiView);
@@ -10276,8 +10270,8 @@ begin
         iiUsers:
           begin
             MainAction('aEPaste').Enabled := not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLUSERS);
-            MainAction('aDCreateUser').Enabled := (ListView.SelCount = 0) and Assigned(Session.UserRights) and Session.UserRights.RCreateUser;
-            MainAction('aDDeleteUser').Enabled := (ListView.SelCount >= 1) and Assigned(Session.UserRights) and Session.UserRights.RCreateUser;
+            MainAction('aDCreateUser').Enabled := (ListView.SelCount = 0);
+            MainAction('aDDeleteUser').Enabled := (ListView.SelCount >= 1);
             MainAction('aDEditUser').Enabled := (ListView.SelCount = 1);
             aDDelete.Enabled := MainAction('aDDeleteUser').Enabled;
 
