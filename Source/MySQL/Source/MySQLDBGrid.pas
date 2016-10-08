@@ -365,7 +365,7 @@ begin
           if (Columns[J].Visible) then
           begin
             if (FirstContent) then FirstContent := False else Content := Content + #9;
-            Content := Content + CSVEscape(TMySQLDataSet(DataLink.DataSet).GetAsString(Columns[J].Field));
+            Content := Content + CSVEscape(Columns[J].Field.AsString);
           end;
         Content := Content + #13#10;
       end;
@@ -699,7 +699,7 @@ begin
         if (Columns[J].Visible) then
         begin
           if (FirstContent) then FirstContent := False else Result := Result + #9;
-          Result := Result + TMySQLDataSet(DataLink.DataSet).GetAsString(Columns[J].Field);
+          Result := Result + Columns[J].Field.AsString;
         end;
       Result := Result + #13#10;
     end;

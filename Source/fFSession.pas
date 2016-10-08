@@ -23,6 +23,7 @@ const
   UM_POST_BUILDER_QUERY_CHANGE = WM_USER + 502;
   UM_POST_MONITOR = WM_USER + 503;
   UM_WANTED_SYNCHRONIZE = WM_USER + 504;
+  UM_STATUS_BAR_REFRESH = WM_USER + 505;
 
 const
   sbMessage = 0;
@@ -1026,6 +1027,7 @@ type
     procedure UMPostBuilderQueryChange(var Message: TMessage); message UM_POST_BUILDER_QUERY_CHANGE;
     procedure UMPostMonitor(var Message: TMessage); message UM_POST_MONITOR;
     procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
+    procedure UMStausBarRefresh(var Message: TMessage); message UM_STATUS_BAR_REFRESH;
     procedure UMWantedSynchronize(var Message: TMessage); message UM_WANTED_SYNCHRONIZE;
     function UpdateAfterAddressChanged(): Boolean;
     function ViewToParam(const AView: TView): Variant;
@@ -1084,7 +1086,7 @@ uses
   ShLwApi,
   acQBLocalizer, acQBStrings,
   CommCtrl_Ext, StdActns_Ext,
-  MySQLConsts, SQLUtils, CSVUtils,
+  MySQLConsts, SQLUtils,
   fDField, fDKey, fDTable, fDTables, fDVariable, fDDatabase, fDForeignKey,
   fDUser, fDQuickFilter, fDSQLHelp, fDTransfer, fDSearch, fDServer, fDGoto,
   fURI, fDView, fDRoutine, fDTrigger, fDStatement, fDEvent, fDPaste, fDSegment,
@@ -4818,6 +4820,8 @@ begin
   else
     FSQLEditorSynMemo.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
 
+  SynCompletion.Font := FSQLEditorSynMemo.Font;
+
   FText.Font.Name := Preferences.GridFontName;
   FText.Font.Style := Preferences.GridFontStyle;
   FText.Font.Color := Preferences.GridFontColor;
@@ -5314,7 +5318,7 @@ begin
     MainAction('aDInsertRecord').Enabled := aDInsertRecord.Enabled and (DataSet.State in [dsBrowse, dsEdit]) and (DataSet.FieldCount > 0) and Assigned(ActiveDBGrid) and (ActiveDBGrid.SelectedRows.Count < 1) and not InputDataSet;
     MainAction('aDDeleteRecord').Enabled := aDDeleteRecord.Enabled and (DataSet.State in [dsBrowse, dsEdit]) and not DataSet.IsEmpty() and not InputDataSet;
 
-    StatusBarRefresh();
+    PostMessage(Handle, UM_STATUS_BAR_REFRESH, 0, 0);
   end;
 end;
 
@@ -5493,9 +5497,9 @@ begin
       if (not Preferences.GridMemoContent) then
         Text := '<MEMO>'
       else
-        Text := Copy(TMySQLQuery(Column.Field.DataSet).GetAsString(Column.Field), 1, 1000)
+        Text := Copy(Column.Field.AsString, 1, 1000)
     else
-      Text := TMySQLQuery(Column.Field.DataSet).GetAsString(Column.Field);
+      Text := Column.Field.AsString;
 
     TextRect := Rect;
     InflateRect(TextRect, -2, -2);
@@ -6475,8 +6479,10 @@ end;
 procedure TFSession.FNavigatorChanging(Sender: TObject; Node: TTreeNode;
   var AllowChange: Boolean);
 begin
-  AllowChange := AllowChange and Assigned(Node) and not Dragging(Sender);
-  AddressChanging(nil, NavigatorNodeToAddress(Node), AllowChange);
+  AllowChange := AllowChange
+    and not Dragging(Sender)
+    and not (Assigned(Node) and (Node.ImageIndex in [iiKey, iiField, iiVirtualField, iiSystemViewField, iiViewField, iiForeignKey]))
+    and not (Assigned(Node) and (Node.ImageIndex in [iiProcedure, iiFunction, iiEvent]) and (TSDBObject(Node.Data).Source = '') and ((Node.ImageIndex <> iiView) or (View <> vIDE)));
 
   if (AllowChange and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then
     try
@@ -10065,6 +10071,7 @@ begin
             MainAction('aDCreateProcedure').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and Assigned(TSDatabase(Item.Data).Routines);
             MainAction('aDCreateFunction').Enabled := MainAction('aDCreateProcedure').Enabled;
             MainAction('aDCreateEvent').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and Assigned(TSDatabase(Item.Data).Events);
+            MainAction('aDCreateUser').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiUsers);
             MainAction('aDDeleteDatabase').Enabled := (ListView.SelCount >= 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aDEditServer').Enabled := (ListView.SelCount = 0);
             MainAction('aDEditDatabase').Enabled := (ListView.SelCount >= 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
@@ -12989,7 +12996,6 @@ var
   ColumnName: string;
   Database: TSDatabase;
   DataSet: TMySQLQuery;
-  FunctionNames: TCSVStrings;
   I: Integer;
   Index: Integer;
   Item: TSQLParser.TCompletionList.PItem;
@@ -13146,13 +13152,6 @@ begin
                             SynCompletionListAdd(
                               Database.Routines[J].Name,
                               Session.Connection.EscapeIdentifier(Database.Routines[J].Name));
-
-                      // Database intern functions:
-                      CSVSplitValues(Session.SQLParser.Functions, ',', '"', FunctionNames);
-                      for J := 0 to Length(FunctionNames) - 1 do
-                        SynCompletionListAdd(
-                          FunctionNames[J],
-                          FunctionNames[J]);
                     end;
                   ditTrigger:
                     if (Assigned(Database) and Assigned(Database.Triggers)) then
@@ -13501,7 +13500,8 @@ begin
       SQLEditor := TSQLEditor(TabControl.Tag);
       Index := TabControl.IndexOfTabAt(X, Y);
 
-      TabControl.Hint := TSQLEditor.TResult(SQLEditor.Results[Index]^).DataSet.CommandText;
+      if (Index >= 0) then
+        TabControl.Hint := TSQLEditor.TResult(SQLEditor.Results[Index]^).DataSet.CommandText;
     end;
   end;
 end;
@@ -14273,6 +14273,11 @@ begin
   end
   else
     Address := Session.Account.Desktop.Address;
+end;
+
+procedure TFSession.UMStausBarRefresh(var Message: TMessage);
+begin
+  StatusBarRefresh();
 end;
 
 procedure TFSession.UMWantedSynchronize(var Message: TMessage);

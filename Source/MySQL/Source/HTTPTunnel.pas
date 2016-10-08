@@ -419,7 +419,7 @@ begin
                   ObjectName := ObjectName + URLComponents.lpszExtraInfo;
                 Seterror(CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE - CR_HTTPTUNNEL_UNKNOWN_ERROR], [ObjectName, string(RBS)])));
               end
-            else if ((StrToInt(Buffer) < RequiredMFVersion) or (StrToInt(Buffer) = 17)) then
+            else if ((StrToInt(StrPas(PChar(@Buffer))) < RequiredMFVersion) or (StrToInt(Buffer) = 17)) then
               Seterror(CR_HTTPTUNNEL_OLD, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_OLD - CR_HTTPTUNNEL_UNKNOWN_ERROR], [URL])))
             else
             begin

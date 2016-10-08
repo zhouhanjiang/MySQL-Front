@@ -168,7 +168,7 @@ object DField: TDField
       Anchors = [akLeft, akTop, akRight]
       ItemHeight = 13
       MultiSelect = True
-      TabOrder = 21
+      TabOrder = 20
       OnClick = FBOkCheckEnabled
     end
     object FDefault: TEdit
@@ -220,7 +220,7 @@ object DField: TDField
       Width = 189
       Height = 21
       Style = csDropDownList
-      TabOrder = 20
+      TabOrder = 19
       OnChange = FBOkCheckEnabled
     end
     object FRDefaultNull: TRadioButton
@@ -354,7 +354,7 @@ object DField: TDField
       Height = 21
       Anchors = [akLeft, akTop, akRight]
       MaxLength = 256
-      TabOrder = 19
+      TabOrder = 23
       Text = 'FComment'
       OnChange = FBOkCheckEnabled
     end
@@ -364,7 +364,7 @@ object DField: TDField
       Width = 113
       Height = 21
       Style = csDropDownList
-      TabOrder = 22
+      TabOrder = 21
       OnChange = FCharsetChange
     end
     object FCollation: TComboBox_Ext
@@ -374,7 +374,7 @@ object DField: TDField
       Height = 21
       Style = csDropDownList
       Anchors = [akLeft, akTop, akRight]
-      TabOrder = 23
+      TabOrder = 22
       OnChange = FBOkCheckEnabled
     end
     object FRDefault: TRadioButton

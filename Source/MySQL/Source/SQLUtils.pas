@@ -2163,7 +2163,7 @@ label
   Unquoted, UnquotedL, Unquoted1, Unquoted2, UnquotedTerminatorsL, UnquotedC, UnquotedLE,
   Compare,
   Found,
-  Finish;
+  Finish, Finish2, Finish3;
 const
   Terminators: PChar = #9#10#13#32'",.:;=`'; // Characters, terminating the value
 var
@@ -2297,20 +2297,25 @@ begin
         JNE Finish                       // No!
 
       Found:
-        MOV @Result,TRUE                 // Value found!
+        MOV @Result,True                 // Value found!
 
+      Finish:
         CMP TrimAfterValue,False
-        JE Finish
+        JE Finish2
 
         MOV EBX,Handle
         MOV EDX,[EBX + 8]                // MySQL Version
         CALL Trim                        // Step over emtpy characters
 
-      Finish:
+      Finish2:
+        CMP @Result,True                 // Value found?
+        JNE Finish3                      // No!
+
         MOV EBX,Handle
         MOV [EBX + 0],ESI                // Position in SQL
         MOV [EBX + 4],ECX                // Characters left in SQL
 
+      Finish3:
         POP EBX
         POP EDI
         POP ESI
@@ -2957,7 +2962,7 @@ end;
 
 function SQLUnescape(const Value: PChar; const ValueLen: Integer; const Unescaped: PChar; const UnescapedLen: Integer): Integer;
 label
-  Start, StartL, StartLE,
+  Start, StartLE,
   Quoted, QuotedL, QuotedLE,
   Error, Success, Finish;
 begin
@@ -2991,16 +2996,16 @@ begin
         JE Quoted                        // Yes!
         CMP AX,'`'                       // Start quotation in SQL?
         JE Quoted                        // Yes!
-      StartL:
         INC EBX                          // One character needed in Unescape
         CMP EDI,0                        // Store the string somewhere?
         JE StartLE                       // No!
         CMP EDX,0                        // One charcacter left in Unescaped?
         JE Error                         // No!
-        MOVSW                            // Copy character
+        STOSW                            // Store one character
         DEC EDX                          // One character filled to Unescaped
       StartLE:
-        LOOP StartL
+        ADD ESI,2                        // Once character handled
+        LOOP Start
         JMP Success
 
       Quoted:

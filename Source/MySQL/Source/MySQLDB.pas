@@ -462,7 +462,6 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy(); override;
     function CreateBlobStream(Field: TField; Mode: TBlobStreamMode): TStream; override;
-    function GetAsString(const Field: TField): string; virtual;
     function GetFieldData(Field: TField; Buffer: Pointer): Boolean; override;
     procedure Open(const DataHandle: TMySQLConnection.TDataResult); overload; virtual;
     function SQLFieldValue(const Field: TField; Data: PRecordBufferData = nil): string; overload; virtual;
@@ -659,36 +658,26 @@ type
     procedure SetAsString(const Value: string); override;
   end;
 
-  TLargeWordField = class(TLargeintField)
-  private
-    FMaxValue: UInt64;
-    FMinValue: UInt64;
-    procedure CheckRange(Value, Min, Max: UInt64);
+  TMySQLBlobField = class(TBlobField)
+  protected
+    function GetAsAnsiString(): AnsiString; override;
+    function GetAsString(): string; override;
+    function GetAsVariant(): Variant; override;
+    procedure GetText(var Text: string; DisplayText: Boolean); override;
+    procedure SetAsString(const Value: string); override;
+  end;
+
+  TMySQLByteField = class(TByteField)
   protected
     function GetAsString(): string; override;
     procedure GetText(var Text: string; DisplayText: Boolean); override;
-    procedure SetAsLargeInt(Value: Largeint); override;
-    procedure SetAsString(const Value: string); override;
-  published
-    property MinValue: UInt64 read FMinValue write FMinValue default 0;
-    property MaxValue: UInt64 read FMaxValue write FMaxValue default 0;
-  end;
-
-  TMySQLStringField = class(TStringField)
-  protected
-    procedure SetAsString(const Value: string); override;
-  end;
-
-  TMySQLWideStringField = class(TWideStringField)
-  protected
-    function GetAsDateTime(): TDateTime; override;
-    procedure SetAsDateTime(Value: TDateTime); override;
   end;
 
   TMySQLDateField = class(TDateField)
   private
     ZeroDateString: string;
   protected
+    function GetAsString(): string; override;
     procedure GetText(var Text: string; DisplayText: Boolean); override;
     procedure SetAsString(const Value: string); override;
     procedure SetDataSet(ADataSet: TDataSet); override;
@@ -698,9 +687,76 @@ type
   private
     ZeroDateString: string;
   protected
+    function GetAsString(): string; override;
     procedure GetText(var Text: string; DisplayText: Boolean); override;
     procedure SetAsString(const Value: string); override;
     procedure SetDataSet(ADataSet: TDataSet); override;
+  end;
+
+  TMySQLExtendedField = class(TExtendedField)
+  protected
+    function GetAsString(): string; override;
+    procedure GetText(var Text: string; DisplayText: Boolean); override;
+  end;
+
+  TMySQLFloatField = class(TFloatField)
+  protected
+    function GetAsString(): string; override;
+    procedure GetText(var Text: string; DisplayText: Boolean); override;
+  end;
+
+  TMySQLIntegerField = class(TIntegerField)
+  protected
+    function GetAsString(): string; override;
+    procedure GetText(var Text: string; DisplayText: Boolean); override;
+  end;
+
+  TMySQLLargeWordField = class(TLargeintField)
+  private
+    FMaxValue: UInt64;
+    FMinValue: UInt64;
+    procedure CheckRange(Value, Min, Max: UInt64);
+  protected
+    function GetAsLargeInt(): Largeint; override;
+    function GetAsString(): string; override;
+    procedure GetText(var Text: string; DisplayText: Boolean); override;
+    procedure SetAsLargeInt(Value: Largeint); override;
+    procedure SetAsString(const Value: string); override;
+  published
+    property MinValue: UInt64 read FMinValue write FMinValue default 0;
+    property MaxValue: UInt64 read FMaxValue write FMaxValue default 0;
+  end;
+
+  TMySQLLongWordField = class(TLongWordField)
+  protected
+    function GetAsString(): string; override;
+    procedure GetText(var Text: string; DisplayText: Boolean); override;
+  end;
+
+  TMySQLShortIntField = class(TShortIntField)
+  protected
+    function GetAsString(): string; override;
+    procedure GetText(var Text: string; DisplayText: Boolean); override;
+  end;
+
+  TMySQLSingleField = class(TSingleField)
+  protected
+    function GetAsString(): string; override;
+    procedure GetText(var Text: string; DisplayText: Boolean); override;
+  end;
+
+  TMySQLSmallIntField = class(TSmallIntField)
+  protected
+    function GetAsString(): string; override;
+    procedure GetText(var Text: string; DisplayText: Boolean); override;
+  end;
+
+  TMySQLStringField = class(TStringField)
+  protected
+    function GetAsAnsiString(): AnsiString; override;
+    function GetAsString(): string; override;
+    procedure GetText(var Text: string; DisplayText: Boolean); override;
+    procedure SetAsString(const Value: string); override;
   end;
 
   TMySQLTimeField = class(TIntegerField)
@@ -723,6 +779,7 @@ type
   protected
     SQLFormat: string;
     function GetAsSQLTimeStamp(): TSQLTimeStamp; override;
+    function GetAsString(): string; override;
     function GetAsVariant(): Variant; override;
     function GetDataSize(): Integer; override;
     function GetOldValue(): Variant;
@@ -735,16 +792,26 @@ type
     property Value: Variant read GetAsVariant write SetAsVariant;
   end;
 
-  TMySQLBlobField = class(TBlobField)
-  protected
-    function GetAsVariant(): Variant; override;
+  TMySQLWideMemoField = class(TWideMemoField)
+  public
+    function GetAsString(): string; override;
+    function GetAsVariant: Variant; override;
+    procedure GetText(var Text: string; DisplayText: Boolean); override;
     procedure SetAsString(const Value: string); override;
   end;
 
-  TMySQLWideMemoField = class(TWideMemoField)
-  public
-    function GetAsVariant: Variant; override;
-    procedure SetAsString(const Value: string); override;
+  TMySQLWideStringField = class(TWideStringField)
+  protected
+    function GetAsDateTime(): TDateTime; override;
+    function GetAsString(): string; override;
+    procedure GetText(var Text: string; DisplayText: Boolean); override;
+    procedure SetAsDateTime(Value: TDateTime); override;
+  end;
+
+  TMySQLWordField = class(TWordField)
+  protected
+    function GetAsString(): string; override;
+    procedure GetText(var Text: string; DisplayText: Boolean); override;
   end;
 
 const
@@ -3748,19 +3815,56 @@ begin
     SetAsLargeInt(L);
 end;
 
-{ TLargeWordField *************************************************************}
+{ TMySQLBlobField *************************************************************}
 
-procedure TLargeWordField.CheckRange(Value, Min, Max: UInt64);
+function TMySQLBlobField.GetAsAnsiString(): AnsiString;
 begin
-  if ((Value < Min) or (Value > Max)) then RangeError(Value, Min, Max);
+  SetLength(Result, TMySQLDataSet(DataSet).LibLengths^[FieldNo - 1]);
+  MoveMemory(@Result[1], TMySQLDataSet(DataSet).LibRow^[FieldNo - 1], TMySQLDataSet(DataSet).LibLengths^[FieldNo - 1]);
 end;
 
-function TLargeWordField.GetAsString(): string;
+function TMySQLBlobField.GetAsString(): string;
 begin
-  Result := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  GetText(Result, False);
 end;
 
-procedure TLargeWordField.GetText(var Text: string; DisplayText: Boolean);
+function TMySQLBlobField.GetAsVariant(): Variant;
+begin
+  if (IsNull) then
+    Result := Null
+  else
+    Result := GetAsString();
+end;
+
+procedure TMySQLBlobField.GetText(var Text: string; DisplayText: Boolean);
+begin
+  if (IsNull) then
+    Text := ''
+  else
+    Text := string(GetAsAnsiString);
+end;
+
+procedure TMySQLBlobField.SetAsString(const Value: string);
+begin
+  if (Length(Value) > 0) then
+    inherited SetAsString(Value)
+  else
+    with DataSet.CreateBlobStream(Self, bmWrite) do
+      try
+        Write(Value, 0);
+      finally
+        Free();
+      end;
+end;
+
+{ TMySQLByteField *************************************************************}
+
+function TMySQLByteField.GetAsString(): string;
+begin
+  GetText(Result, False);
+end;
+
+procedure TMySQLByteField.GetText(var Text: string; DisplayText: Boolean);
 begin
   if (IsNull) then
     Text := ''
@@ -3768,47 +3872,12 @@ begin
     Text := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
 end;
 
-procedure TLargeWordField.SetAsLargeInt(Value: Largeint);
-begin
-  if (FMinValue <> 0) or (FMaxValue <> 0) then
-    CheckRange(UInt64(Value), UInt64(FMinValue), UInt64(FMaxValue));
-  SetData(@Value);
-end;
-
-procedure TLargeWordField.SetAsString(const Value: string);
-begin
-  if (Value = '') then
-    Clear()
-  else
-    SetAsLargeint(StrToUInt64(Value));
-end;
-
-{ TMySQLStringField ***********************************************************}
-
-procedure TMySQLStringField.SetAsString(const Value: string);
-begin
-  if (not (DataSet is TMySQLDataSet)) then
-    DatabaseErrorFmt(SDataSetMissing, [DisplayName])
-  else if (Value <> AsString) then
-  begin
-    TMySQLDataSet(DataSet).SetFieldData(Self, PAnsiChar(RawByteString(Value)), Length(Value));
-    TMySQLDataSet(DataSet).DataEvent(deFieldChange, Longint(Self));
-  end;
-end;
-
-{ TMySQLWideStringField *******************************************************}
-
-function TMySQLWideStringField.GetAsDateTime(): TDateTime;
-begin
-  Result := MySQLDB.StrToDateTime(GetAsString(), TMySQLQuery(DataSet).Connection.FormatSettings);
-end;
-
-procedure TMySQLWideStringField.SetAsDateTime(Value: TDateTime);
-begin
-  SetAsString(MySQLDB.DateTimeToStr(Value, TMySQLQuery(DataSet).Connection.FormatSettings));
-end;
-
 { TMySQLDateField *************************************************************}
+
+function TMySQLDateField.GetAsString(): string;
+begin
+  GetText(Result, False);
+end;
 
 procedure TMySQLDateField.GetText(var Text: string; DisplayText: Boolean);
 begin
@@ -3842,6 +3911,11 @@ end;
 
 { TMySQLDateTimeField *********************************************************}
 
+function TMySQLDateTimeField.GetAsString(): string;
+begin
+  GetText(Result, False);
+end;
+
 procedure TMySQLDateTimeField.GetText(var Text: string; DisplayText: Boolean);
 begin
   if (IsNull) then
@@ -3870,6 +3944,187 @@ begin
   ZeroDateString := GetZeroDateString(TMySQLQuery(DataSet).Connection.FormatSettings);
 end;
 
+{ TMySQLExtendedField *************************************************************}
+
+function TMySQLExtendedField.GetAsString(): string;
+begin
+  GetText(Result, False);
+end;
+
+procedure TMySQLExtendedField.GetText(var Text: string; DisplayText: Boolean);
+begin
+  if (IsNull) then
+    Text := ''
+  else
+    Text := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+end;
+
+{ TMySQLFloatField *************************************************************}
+
+function TMySQLFloatField.GetAsString(): string;
+begin
+  GetText(Result, False);
+end;
+
+procedure TMySQLFloatField.GetText(var Text: string; DisplayText: Boolean);
+begin
+  if (IsNull) then
+    Text := ''
+  else
+    Text := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+end;
+
+{ TMySQLIntegerField *************************************************************}
+
+function TMySQLIntegerField.GetAsString(): string;
+begin
+  GetText(Result, False);
+end;
+
+procedure TMySQLIntegerField.GetText(var Text: string; DisplayText: Boolean);
+begin
+  if (IsNull) then
+    Text := ''
+  else
+    Text := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+end;
+
+{ TMySQLLargeWordField ********************************************************}
+
+procedure TMySQLLargeWordField.CheckRange(Value, Min, Max: UInt64);
+begin
+  if ((Value < Min) or (Value > Max)) then RangeError(Value, Min, Max);
+end;
+
+function TMySQLLargeWordField.GetAsLargeInt(): Largeint;
+begin
+  Result := StrToUInt64(AsString);
+end;
+
+function TMySQLLargeWordField.GetAsString(): string;
+begin
+  GetText(Result, False);
+end;
+
+procedure TMySQLLargeWordField.GetText(var Text: string; DisplayText: Boolean);
+begin
+  if (IsNull) then
+    Text := ''
+  else
+    Text := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+end;
+
+procedure TMySQLLargeWordField.SetAsLargeInt(Value: Largeint);
+begin
+  if (FMinValue <> 0) or (FMaxValue <> 0) then
+    CheckRange(UInt64(Value), UInt64(FMinValue), UInt64(FMaxValue));
+  SetData(@Value);
+end;
+
+procedure TMySQLLargeWordField.SetAsString(const Value: string);
+begin
+  if (Value = '') then
+    Clear()
+  else
+    SetAsLargeint(StrToUInt64(Value));
+end;
+
+{ TMySQLLongWordField *************************************************************}
+
+function TMySQLLongWordField.GetAsString(): string;
+begin
+  GetText(Result, False);
+end;
+
+procedure TMySQLLongWordField.GetText(var Text: string; DisplayText: Boolean);
+begin
+  if (IsNull) then
+    Text := ''
+  else
+    Text := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+end;
+
+{ TMySQLShortIntField *********************************************************}
+
+function TMySQLShortIntField.GetAsString(): string;
+begin
+  GetText(Result, False);
+end;
+
+procedure TMySQLShortIntField.GetText(var Text: string; DisplayText: Boolean);
+begin
+  if (IsNull) then
+    Text := ''
+  else
+    Text := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+end;
+
+{ TMySQLSingleField *************************************************************}
+
+function TMySQLSingleField.GetAsString(): string;
+begin
+  GetText(Result, False);
+end;
+
+procedure TMySQLSingleField.GetText(var Text: string; DisplayText: Boolean);
+begin
+  if (IsNull) then
+    Text := ''
+  else
+    Text := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+end;
+
+{ TMySQLSmallIntField *************************************************************}
+
+function TMySQLSmallIntField.GetAsString(): string;
+begin
+  GetText(Result, False);
+end;
+
+procedure TMySQLSmallIntField.GetText(var Text: string; DisplayText: Boolean);
+begin
+  if (IsNull) then
+    Text := ''
+  else
+    Text := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+end;
+
+{ TMySQLStringField ***********************************************************}
+
+function TMySQLStringField.GetAsAnsiString(): AnsiString;
+begin
+  SetLength(Result, TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  MoveMemory(@Result[1], TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+end;
+
+function TMySQLStringField.GetAsString(): string;
+begin
+  GetText(Result, False);
+end;
+
+procedure TMySQLStringField.GetText(var Text: string; DisplayText: Boolean);
+begin
+  Text := string(GetAsAnsiString());
+end;
+
+procedure TMySQLStringField.SetAsString(const Value: string);
+begin
+  if (Value <> AsString) then
+  begin
+    TMySQLDataSet(DataSet).SetFieldData(Self, PAnsiChar(RawByteString(Value)), Length(Value));
+    TMySQLDataSet(DataSet).DataEvent(deFieldChange, Longint(Self));
+  end;
+end;
+
+{ TMySQLTimeField *************************************************************}
+
+constructor TMySQLTimeField.Create(AOwner: TComponent);
+begin
+  inherited;
+
+  SetDataType(ftTime);
+end;
+
 function TMySQLTimeField.GetAsDateTime(): TDateTime;
 var
   Hour: Word;
@@ -3890,7 +4145,7 @@ end;
 
 function TMySQLTimeField.GetAsString(): string;
 begin
-  Result := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  GetText(Result, False);
 end;
 
 function TMySQLTimeField.GetAsVariant(): Variant;
@@ -3944,21 +4199,17 @@ begin
     ValidChars := ['-', '0'..'9', ':'];
 end;
 
-{ TMySQLTimeField *************************************************************}
-
-constructor TMySQLTimeField.Create(AOwner: TComponent);
-begin
-  inherited;
-
-  SetDataType(ftTime);
-end;
-
 { TMySQLTimeStampField ********************************************************}
 
 function TMySQLTimeStampField.GetAsSQLTimeStamp(): TSQLTimeStamp;
 begin
   if (not GetData(@Result)) then
     Result := NULLSQLTimeStamp;
+end;
+
+function TMySQLTimeStampField.GetAsString(): string;
+begin
+  GetText(Result, False);
 end;
 
 function TMySQLTimeStampField.GetAsVariant: Variant;
@@ -4038,30 +4289,12 @@ begin
     ValidChars := ['0'..'9', '-', ':', ' '];
 end;
 
-{ TMySQLBlobField *************************************************************}
-
-function TMySQLBlobField.GetAsVariant(): Variant;
-begin
-  if (IsNull) then
-    Result := Null
-  else
-    Result := GetAsString();
-end;
-
-procedure TMySQLBlobField.SetAsString(const Value: string);
-begin
-  if (Length(Value) > 0) then
-    inherited SetAsString(Value)
-  else
-    with DataSet.CreateBlobStream(Self, bmWrite) do
-      try
-        Write(Value, 0);
-      finally
-        Free();
-      end;
-end;
-
 { TMySQLWideMemoField *************************************************************}
+
+function TMySQLWideMemoField.GetAsString(): string;
+begin
+  GetText(Result, False);
+end;
 
 function TMySQLWideMemoField.GetAsVariant(): Variant;
 begin
@@ -4069,6 +4302,14 @@ begin
     Result := Null
   else
     Result := GetAsString();
+end;
+
+procedure TMySQLWideMemoField.GetText(var Text: string; DisplayText: Boolean);
+begin
+  if (IsNull) then
+    Text := ''
+  else
+    Text := TMySQLQuery(DataSet).Connection.LibDecode(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
 end;
 
 procedure TMySQLWideMemoField.SetAsString(const Value: string);
@@ -4084,12 +4325,52 @@ begin
       end;
 end;
 
+{ TMySQLWideStringField *******************************************************}
+
+function TMySQLWideStringField.GetAsDateTime(): TDateTime;
+begin
+  Result := MySQLDB.StrToDateTime(GetAsString(), TMySQLQuery(DataSet).Connection.FormatSettings);
+end;
+
+function TMySQLWideStringField.GetAsString(): string;
+begin
+  GetText(Result, False)
+end;
+
+procedure TMySQLWideStringField.GetText(var Text: string; DisplayText: Boolean);
+begin
+  if (IsNull) then
+    Text := ''
+  else
+    Text := TMySQLQuery(DataSet).Connection.LibDecode(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+end;
+
+procedure TMySQLWideStringField.SetAsDateTime(Value: TDateTime);
+begin
+  SetAsString(MySQLDB.DateTimeToStr(Value, TMySQLQuery(DataSet).Connection.FormatSettings));
+end;
+
+{ TMySQLWordField *************************************************************}
+
+function TMySQLWordField.GetAsString(): string;
+begin
+  GetText(Result, False);
+end;
+
+procedure TMySQLWordField.GetText(var Text: string; DisplayText: Boolean);
+begin
+  if (IsNull) then
+    Text := ''
+  else
+    Text := TMySQLQuery(DataSet).Connection.LibUnpack(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+end;
+
 { TMySQLQueryBlobStream *******************************************************}
 
 constructor TMySQLQueryBlobStream.Create(const AField: TBlobField);
 begin
   Assert(AField.DataSet is TMySQLQuery);
-  
+
 
   inherited Create();
 
@@ -4224,22 +4505,6 @@ begin
   Dispose(Buffer); Buffer := nil;
 end;
 
-function TMySQLQuery.GetAsString(const Field: TField): string;
-begin
-  if (not Assigned(LibRow^[Field.FieldNo - 1])) then
-    Result := ''
-  else if (BitField(Field)) then
-    Result := Field.AsString
-  else if (LibLengths^[Field.FieldNo - 1] = 0) then
-    Result := ''
-  else if (Field.DataType = ftBlob) then
-    Result := '<Blob>'
-  else if (Field.DataType in TextDataTypes) then
-    Result := Connection.LibDecode(LibRow^[Field.FieldNo - 1], LibLengths^[Field.FieldNo - 1])
-  else
-    Result := Connection.LibUnpack(LibRow^[Field.FieldNo - 1], LibLengths^[Field.FieldNo - 1]);
-end;
-
 function TMySQLQuery.GetCanModify(): Boolean;
 begin
   Result := False;
@@ -4277,7 +4542,7 @@ begin
           ftInteger: begin SetString(S, Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]); Longint(Buffer^) := StrToInt(S); end;
           ftLongWord: begin SetString(S, Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]); LongWord(Buffer^) := StrToInt64(S); end;
           ftLargeint:
-            if (not (Field is TLargeWordField)) then
+            if (not (Field is TMySQLLargeWordField)) then
               begin SetString(S, Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]); Largeint(Buffer^) := StrToInt64(S); end
             else
               begin SetString(S, Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]); UInt64(Buffer^) := StrToUInt64(S); end;
@@ -4486,32 +4751,32 @@ begin
               begin Field := TMySQLBitField.Create(Self); Field.Tag := ftBitField; end;
             MYSQL_TYPE_TINY:
               if (LibField.flags and UNSIGNED_FLAG = 0) then
-                Field := TShortIntField.Create(Self)
+                Field := TMySQLShortIntField.Create(Self)
               else
-                Field := TByteField.Create(Self);
+                Field := TMySQLByteField.Create(Self);
             MYSQL_TYPE_SHORT:
               if (LibField.flags and UNSIGNED_FLAG = 0) then
-                Field := TSmallIntField.Create(Self)
+                Field := TMySQLSmallIntField.Create(Self)
               else
-                Field := TWordField.Create(Self);
+                Field := TMySQLWordField.Create(Self);
             MYSQL_TYPE_INT24,
             MYSQL_TYPE_LONG:
               if (LibField.flags and UNSIGNED_FLAG = 0) then
-                Field := TIntegerField.Create(Self)
+                Field := TMySQLIntegerField.Create(Self)
               else
-                Field := TLongWordField.Create(Self);
+                Field := TMySQLLongWordField.Create(Self);
             MYSQL_TYPE_LONGLONG:
               if (LibField.flags and UNSIGNED_FLAG = 0) then
                 Field := TLargeintField.Create(Self)
               else
-                Field := TLargeWordField.Create(Self);
+                Field := TMySQLLargeWordField.Create(Self);
             MYSQL_TYPE_FLOAT:
-              Field := TSingleField.Create(Self);
+              Field := TMySQLSingleField.Create(Self);
             MYSQL_TYPE_DOUBLE:
-              Field := TFloatField.Create(Self);
+              Field := TMySQLFloatField.Create(Self);
             MYSQL_TYPE_DECIMAL,
             MYSQL_TYPE_NEWDECIMAL:
-              Field := TExtendedField.Create(Self);
+              Field := TMySQLExtendedField.Create(Self);
             MYSQL_TYPE_TIMESTAMP:
               if (Len in [2, 4, 6, 8, 10, 12, 14]) then
                 Field := TMySQLTimeStampField.Create(Self)
@@ -4534,13 +4799,13 @@ begin
                 begin Field := TMySQLWideStringField.Create(Self); Field.Size := Len; end;
             MYSQL_TYPE_YEAR:
               if (Len = 2) then
-                Field := TByteField.Create(Self)
+                Field := TMySQLByteField.Create(Self)
               else
-                Field := TWordField.Create(Self);
+                Field := TMySQLWordField.Create(Self);
             MYSQL_TYPE_ENUM,
             MYSQL_TYPE_SET:
               if (Binary) then
-                begin Field := TBytesField.Create(Self); if (Connection.ServerVersion < 40100) then Field.Size := Len + 1 else Field.Size := Len; end
+                begin Field := TMySQLStringField.Create(Self); if (Connection.ServerVersion < 40100) then Field.Size := Len + 1 else Field.Size := Len; end
               else
                 begin Field := TMySQLWideStringField.Create(Self); Field.Size := Len; end;
             MYSQL_TYPE_TINY_BLOB,
@@ -4593,7 +4858,7 @@ begin
               if (LibField.flags and UNSIGNED_FLAG = 0) then
                 begin TLargeintField(Field).MinValue := -$8000000000000000; TLargeintField(Field).MaxValue := $7FFFFFFFFFFFFFFF; end
               else
-                begin TLargeWordField(Field).MinValue := 0; TLargeWordField(Field).MaxValue := $FFFFFFFFFFFFFFFF; end;
+                begin TMySQLLargeWordField(Field).MinValue := 0; TMySQLLargeWordField(Field).MaxValue := $FFFFFFFFFFFFFFFF; end;
             MYSQL_TYPE_YEAR:
               if (Len = 2) then
                 begin TByteField(Field).MinValue := 0; TByteField(Field).MaxValue := 99; end
@@ -5911,7 +6176,7 @@ begin
       ftInteger: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Integer(Buffer^), Connection.FormatSettings));
       ftLongWord: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, LongWord(Buffer^), Connection.FormatSettings));
       ftLargeint:
-        if (not (Field is TLargeWordField) or (UInt64(Buffer^) and $80000000 = 0)) then
+        if (not (Field is TMySQLLargeWordField) or (UInt64(Buffer^) and $80000000 = 0)) then
           RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Largeint(Buffer^), Connection.FormatSettings))
         else
           RBS := Connection.LibPack(UInt64ToStr(UInt64(Buffer^)));
@@ -6142,7 +6407,7 @@ var
             if (LongWordA < LongWordB) then Result := -1 else if (LongWordA > LongWordB) then Result := +1 else Result := 0;
           end;
         ftLargeInt:
-          if (not (Field is TLargeWordField)) then
+          if (not (Field is TMySQLLargeWordField)) then
             begin GetFieldData(Field, @LargeIntA, A^.NewData); GetFieldData(Field, @LargeIntB, B^.NewData); Result := Sign(LargeIntA - LargeIntB); end
           else
           begin

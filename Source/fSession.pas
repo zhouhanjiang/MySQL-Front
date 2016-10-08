@@ -1336,6 +1336,7 @@ type
   public
     function AddRight(const NewUserRight: TSUserRight): Boolean;
     procedure Assign(const Source: TSUser); reintroduce;
+    procedure Clear(); virtual;
     constructor Create(const ASItems: TSItems; const AName: string = ''); reintroduce;
     procedure DeleteRight(const UserRight: TSUserRight);
     destructor Destroy(); override;
@@ -1636,52 +1637,52 @@ const
 
 function StrToMySQLRowType(const Str: string): TSTableField.TRowType;
 begin
-  if (UpperCase(Str) = 'FIXED') then Result := mrFixed
-  else if (UpperCase(Str) = 'DYNAMIC') then Result := mrDynamic
-  else if (UpperCase(Str) = 'COMPRESSED') then Result := mrCompressed
-  else if (UpperCase(Str) = 'REDUNDANT') then Result := mrRedundant
-  else if (UpperCase(Str) = 'COMPACT') then Result := mrCompact
+  if (StrIComp(PChar(Str), 'FIXED') = 0) then Result := mrFixed
+  else if (StrIComp(PChar(Str), 'DYNAMIC') = 0) then Result := mrDynamic
+  else if (StrIComp(PChar(Str), 'COMPRESSED') = 0) then Result := mrCompressed
+  else if (StrIComp(PChar(Str), 'REDUNDANT') = 0) then Result := mrRedundant
+  else if (StrIComp(PChar(Str), 'COMPACT') = 0) then Result := mrCompact
   else Result := mrUnknown;
 end;
 
 function StrToPartitionType(const Str: string): TSPartition.TPartitionType;
 begin
-  if (UpperCase(Str) = 'HASH') then Result := ptHash
-  else if (UpperCase(Str) = 'KEY') then Result := ptKey
-  else if (UpperCase(Str) = 'RANGE') then Result := ptRange
-  else if (UpperCase(Str) = 'LIST') then Result := ptList
+  if (StrIComp(PChar(Str), 'HASH') = 0) then Result := ptHash
+  else if (StrIComp(PChar(Str), 'KEY') = 0) then Result := ptKey
+  else if (StrIComp(PChar(Str), 'RANGE') = 0) then Result := ptRange
+  else if (StrIComp(PChar(Str), 'LIST') = 0) then Result := ptList
   else Result := ptNone;
 end;
 
 function StrToEventType(const Str: string): TSEvent.TEventType;
 begin
-  if (UpperCase(Str) = 'ONE TIME') then Result := etSingle
-  else if (UpperCase(Str) = 'RECURRING') then Result := etMultiple
+  if (StrIComp(PChar(Str), 'ONE TIME') = 0) then Result := etSingle
+  else if (StrIComp(PChar(Str), 'RECURRING') = 0) then Result := etMultiple
   else Result := etUnknown;
 end;
 
 function StrToIntervalType(const Str: string): TSEvent.TIntervalType;
 begin
-  if (UpperCase(Str) = 'YEAR') then Result := itYear
-  else if (UpperCase(Str) = 'QUARTER') then Result := itQuarter
-  else if (UpperCase(Str) = 'MONTH') then Result := itMonth
-  else if (UpperCase(Str) = 'DAY') then Result := itDay
-  else if (UpperCase(Str) = 'HOUR') then Result := itHour
-  else if (UpperCase(Str) = 'MINUTE') then Result := itMinute
-  else if (UpperCase(Str) = 'WEEK') then Result := itWeek
-  else if (UpperCase(Str) = 'SECOND') then Result := itSecond
-  else if (UpperCase(Str) = 'MICROSECOND') then Result := itMicrosecond
-  else if (UpperCase(Str) = 'YEAR_MONTH') then Result := itYearMonth
-  else if (UpperCase(Str) = 'DAY_HOUR') then Result := itDayMinute
-  else if (UpperCase(Str) = 'DAY_MINUTE') then Result := itDayMinute
-  else if (UpperCase(Str) = 'DAY_SECOND') then Result := itDaySecond
-  else if (UpperCase(Str) = 'HOUR_MINUTE') then Result := itHourMinute
-  else if (UpperCase(Str) = 'HOUR_SECOND') then Result := itHourSecond
-  else if (UpperCase(Str) = 'MINUTE_SECOND') then Result := itMinuteSecond
-  else if (UpperCase(Str) = 'DAY_MICROSECOND') then Result := itDayMicrosecond
-  else if (UpperCase(Str) = 'HOUR_MICROSECOND') then Result := itHourMicrosecond
-  else if (UpperCase(Str) = 'MINUTE_MICROSECOND') then Result := itMinuteMicrosecond
-  else if (UpperCase(Str) = 'SECOND_MICROSECOND') then Result := itSecondMicrosecond
+  if (StrIComp(PChar(Str), 'YEAR') = 0) then Result := itYear
+  else if (StrIComp(PChar(Str), 'QUARTER') = 0) then Result := itQuarter
+  else if (StrIComp(PChar(Str), 'MONTH') = 0) then Result := itMonth
+  else if (StrIComp(PChar(Str), 'DAY') = 0) then Result := itDay
+  else if (StrIComp(PChar(Str), 'HOUR') = 0) then Result := itHour
+  else if (StrIComp(PChar(Str), 'MINUTE') = 0) then Result := itMinute
+  else if (StrIComp(PChar(Str), 'WEEK') = 0) then Result := itWeek
+  else if (StrIComp(PChar(Str), 'SECOND') = 0) then Result := itSecond
+  else if (StrIComp(PChar(Str), 'MICROSECOND') = 0) then Result := itMicrosecond
+  else if (StrIComp(PChar(Str), 'YEAR_MONTH') = 0) then Result := itYearMonth
+  else if (StrIComp(PChar(Str), 'DAY_HOUR') = 0) then Result := itDayMinute
+  else if (StrIComp(PChar(Str), 'DAY_MINUTE') = 0) then Result := itDayMinute
+  else if (StrIComp(PChar(Str), 'DAY_SECOND') = 0) then Result := itDaySecond
+  else if (StrIComp(PChar(Str), 'HOUR_MINUTE') = 0) then Result := itHourMinute
+  else if (StrIComp(PChar(Str), 'HOUR_SECOND') = 0) then Result := itHourSecond
+  else if (StrIComp(PChar(Str), 'MINUTE_SECOND') = 0) then Result := itMinuteSecond
+  else if (StrIComp(PChar(Str), 'DAY_MICROSECOND') = 0) then Result := itDayMicrosecond
+  else if (StrIComp(PChar(Str), 'HOUR_MICROSECOND') = 0) then Result := itHourMicrosecond
+  else if (StrIComp(PChar(Str), 'MINUTE_MICROSECOND') = 0) then Result := itMinuteMicrosecond
+  else if (StrIComp(PChar(Str), 'SECOND_MICROSECOND') = 0) then Result := itSecondMicrosecond
   else Result := itUnknown;
 end;
 
@@ -2058,10 +2059,7 @@ procedure TSObject.SetSource(const AField: TField);
 var
   SQL: string;
 begin
-  if (not (AField.DataSet is TMySQLQuery) or not (AField.DataType in TextDataTypes)) then
-    SQL := AField.AsString
-  else
-    SQL := TMySQLQuery(AField.DataSet).GetAsString(AField);
+  SQL := AField.AsString;
 
   if ((SQL <> '') and (SQL[Length(SQL)] <> ';')) then
     SQL := SQL + ';';
@@ -2402,11 +2400,7 @@ end;
 
 procedure TSKeyColumn.Assign(const Source: TSKeyColumn);
 begin
-try
   Field := IndexColumns.Key.Table.FieldByName(Source.Field.Name);
-except
-  Field := IndexColumns.Key.Table.FieldByName(Source.Field.Name);
-end;
   Length := Source.Length;
 end;
 
@@ -2821,7 +2815,7 @@ begin
     if (not SQLParseChar(Parse, ')')) then
       raise EConvertError.CreateFmt(SSourceParseError, [Name, string(Parse.Start)]);
   end
-  else if ((FieldType = mfTinyInt) and ((UpperCase(Identifier) = 'BOOL') or (UpperCase(Identifier) = 'BOOLEAN'))) then
+  else if ((FieldType = mfTinyInt) and ((StrIComp(PChar(Identifier), 'BOOL') = 0) or (StrIComp(PChar(Identifier), 'BOOLEAN') = 0))) then
     Size := 1
   else if (FieldType in [mfTinyText, mfTinyBlob]) then
     Size := (1 shl 8) - 1
@@ -3894,6 +3888,8 @@ begin
 end;
 
 procedure TSBaseTable.BuildStatus(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean);
+var
+  TempCharset: TSCharset;
 begin
   if (not UseInformationSchema) then
   begin
@@ -3907,11 +3903,11 @@ begin
     else
       FRows := DataSet.FieldByName('Rows').AsLargeInt;
     FAvgRowLength := DataSet.FieldByName('Avg_row_length').AsLargeInt;
-    if (not TryStrToInt64(DataSet.FieldByName('Data_length').AsString, FDataSize)) then FDataSize := 0;
-    if (not TryStrToInt64(DataSet.FieldByName('Index_length').AsString, FIndexSize)) then FIndexSize := 0;
-    if (not TryStrToInt64(DataSet.FieldByName('Max_data_length').AsString, FMaxDataSize)) then FMaxDataSize := 0;
-    if (not TryStrToInt64(DataSet.FieldByName('Data_free').AsString, FUnusedSize)) then FUnusedSize := 0;
-    if (not TryStrToInt64(DataSet.FieldByName('Auto_increment').AsString, FAutoIncrement)) then FAutoIncrement := 0;
+    FDataSize := DataSet.FieldByName('Data_length').AsLargeInt;
+    FIndexSize := DataSet.FieldByName('Index_length').AsLargeInt;
+    FMaxDataSize := DataSet.FieldByName('Max_data_length').AsLargeInt;
+    FUnusedSize := DataSet.FieldByName('Data_free').AsLargeInt;
+    FAutoIncrement := DataSet.FieldByName('Auto_increment').AsLargeInt;
     FCreated := DataSet.FieldByName('Create_time').AsDateTime;
     FUpdated := DataSet.FieldByName('Update_time').AsDateTime;
     FChecked := DataSet.FieldByName('Check_time').AsDateTime;
@@ -3926,23 +3922,27 @@ begin
     else
       FRows := DataSet.FieldByName('TABLE_ROWS').AsLargeInt;
     FAvgRowLength := DataSet.FieldByName('AVG_ROW_LENGTH').AsInteger;
-    if (not TryStrToInt64(DataSet.FieldByName('DATA_LENGTH').AsString, FDataSize)) then FDataSize := 0;
-    if (not TryStrToInt64(DataSet.FieldByName('MAX_DATA_LENGTH').AsString, FMaxDataSize)) then FMaxDataSize := 0;
-    if (not TryStrToInt64(DataSet.FieldByName('INDEX_LENGTH').AsString, FIndexSize)) then FIndexSize := 0;
-    if (not TryStrToInt64(DataSet.FieldByName('DATA_FREE').AsString, FUnusedSize)) then FUnusedSize := 0;
-    if (not TryStrToInt64(DataSet.FieldByName('AUTO_INCREMENT').AsString, FAutoIncrement)) then FAutoIncrement := 0;
+    FDataSize := DataSet.FieldByName('DATA_LENGTH').AsLargeint;
+    FMaxDataSize := DataSet.FieldByName('MAX_DATA_LENGTH').AsLargeInt;
+    FIndexSize := DataSet.FieldByName('INDEX_LENGTH').AsLargeInt;
+    FUnusedSize := DataSet.FieldByName('DATA_FREE').AsLargeInt;
+    FAutoIncrement := DataSet.FieldByName('AUTO_INCREMENT').AsLargeInt;
     FCreated := DataSet.FieldByName('CREATE_TIME').AsDateTime;
     FUpdated := DataSet.FieldByName('UPDATE_TIME').AsDateTime;
     FChecked := DataSet.FieldByName('CHECK_TIME').AsDateTime;
     if (Assigned(DataSet.FindField('TABLE_COLLATION'))) then
-      Collation := DataSet.FieldByName('TABLE_COLLATION').AsString;
+      FCollation := DataSet.FieldByName('TABLE_COLLATION').AsString;
     try
       FComment := DataSet.FieldByName('TABLE_COMMENT').AsString;
     except
       FComment := string(DataSet.FieldByName('TABLE_COMMENT').AsAnsiString);
     end;
 
-    Charset := Session.CharsetByCollation(Collation).Name;
+    TempCharset := Session.CharsetByCollation(FCollation);
+    if (not Assigned(TempCharset)) then
+      FCharset := ''
+    else
+      FCharset := Session.CharsetByCollation(Collation).Name;
   end;
 
   if (Pos('InnoDB free: ', FComment) > 0) then
@@ -4921,26 +4921,16 @@ begin
 end;
 
 procedure TSBaseTable.SetSource(const ADataSet: TMySQLQuery);
-var
-  RBS: RawByteString;
-  S: string;
 begin
   try
     SetSource(ADataSet.FieldByName('Create Table'));
   except
     // Sometimes, the MySQL server sends wrong encoded field comments
     // This code allow the user to handle this table - but the comments are wrong.
-    SetLength(S, ADataSet.LibLengths[ADataSet.FieldByName('Create Table').FieldNo - 1]);
-    try
-      AnsiCharToWideChar(CP_ACP, ADataSet.LibRow[ADataSet.FieldByName('Create Table').FieldNo - 1], ADataSet.LibLengths[ADataSet.FieldByName('Create Table').FieldNo - 1], @S[1], Length(S));
-      SetSource(S);
-    except
-      SetString(RBS, ADataSet.LibRow[ADataSet.FieldByName('Create Table').FieldNo - 1], ADataSet.LibLengths[ADataSet.FieldByName('Create Table').FieldNo - 1]);
-      SetSource(string(RBS));
-    end;
+    SetSource(string(ADataSet.FieldByName('Create Table').AsAnsiString));
   end;
 
-  ParseCreateTable(ADataSet.FieldByName('Create Table').AsString);
+  ParseCreateTable(FSource);
   PushBuildEvent();
 end;
 
@@ -5094,17 +5084,17 @@ begin
       Inc(EndingCommentLen);
     end;
 
-    if (UpperCase(RightStr(SQL, 18)) = ' WITH CHECK OPTION') then
+    if (StrIComp(PChar(RightStr(SQL, 18)), ' WITH CHECK OPTION') = 0) then
     begin
       FCheckOption := voDefault;
       Dec(Len, 18); Inc(EndingCommentLen, 18);
     end
-    else if (UpperCase(RightStr(SQL, 27)) = ' WITH CASCADED CHECK OPTION') then
+    else if (StrIComp(PChar(RightStr(SQL, 27)), ' WITH CASCADED CHECK OPTION') = 0) then
     begin
       FCheckOption := voCascaded;
       Dec(Len, 27); Inc(EndingCommentLen, 27);
     end
-    else if (UpperCase(RightStr(SQL, 24)) = ' WITH LOCAL CHECK OPTION') then
+    else if (StrIComp(PChar(RightStr(SQL, 24)), ' WITH LOCAL CHECK OPTION') = 0) then
     begin
       FCheckOption := voLocal;
       Dec(Len, 24); Inc(EndingCommentLen, 24);
@@ -5251,11 +5241,11 @@ begin
         begin
           if (Database = Session.PerformanceSchema) then
             NewTable := TSSystemView.Create(Self, Name, True)
-          else if ((Session.Connection.ServerVersion < 50002) or (UpperCase(DataSet.FieldByName('Table_Type').AsString) = 'BASE TABLE') or (UpperCase(DataSet.FieldByName('Table_Type').AsString) = 'ERROR')) then
+          else if ((Session.Connection.ServerVersion < 50002) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'BASE TABLE') = 0) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'ERROR') = 0)) then
             NewTable := TSBaseTable.Create(Self, Name)
-          else if ((UpperCase(DataSet.FieldByName('Table_Type').AsString) = 'SYSTEM VIEW') or ((50000 <= Session.Connection.ServerVersion) and (Session.Connection.ServerVersion < 50012) and (Database = Session.InformationSchema)) or (Database = Session.PerformanceSchema)) then
+          else if ((StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'SYSTEM VIEW') = 0) or ((50000 <= Session.Connection.ServerVersion) and (Session.Connection.ServerVersion < 50012) and (Database = Session.InformationSchema)) or (Database = Session.PerformanceSchema)) then
             NewTable := TSSystemView.Create(Self, Name, True)
-          else if (UpperCase(DataSet.FieldByName('Table_Type').AsString) = 'VIEW') then
+          else if (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'VIEW') = 0) then
             NewTable := TSView.Create(Self, Name)
           else
             raise EDatabaseError.CreateFmt('Unknown TABLE_TYPE "%s" for NewTable "%S". NewTable will be ignored.  (%s)', [DataSet.FieldByName('TABLE_TYPE').AsString, Name, DataSet.CommandText]);
@@ -5304,11 +5294,11 @@ begin
         begin
           if (Database = Session.PerformanceSchema) then
             NewTable := TSSystemView.Create(Self, Name, True)
-          else if ((Session.Connection.ServerVersion < 50002) or (UpperCase(DataSet.FieldByName('Table_Type').AsString) = 'BASE TABLE') or (UpperCase(DataSet.FieldByName('Table_Type').AsString) = 'ERROR')) then
+          else if ((Session.Connection.ServerVersion < 50002) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'BASE TABLE') = 0) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'ERROR') = 0)) then
             NewTable := TSBaseTable.Create(Self, Name)
-          else if ((UpperCase(DataSet.FieldByName('Table_Type').AsString) = 'SYSTEM VIEW') or ((50000 <= Session.Connection.ServerVersion) and (Session.Connection.ServerVersion < 50012) and (Database = Session.InformationSchema)) or (Database = Session.PerformanceSchema)) then
+          else if ((StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'SYSTEM VIEW') = 0) or ((50000 <= Session.Connection.ServerVersion) and (Session.Connection.ServerVersion < 50012) and (Database = Session.InformationSchema)) or (Database = Session.PerformanceSchema)) then
             NewTable := TSSystemView.Create(Self, Name, True)
-          else if (UpperCase(DataSet.FieldByName('Table_Type').AsString) = 'VIEW') then
+          else if (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'VIEW') = 0) then
             NewTable := TSView.Create(Self, Name)
           else
             raise EDatabaseError.CreateFmt('Unknown TABLE_TYPE "%s" for NewTable "%S". NewTable will be ignored.  (%s)', [DataSet.FieldByName('TABLE_TYPE').AsString, Name, DataSet.CommandText]);
@@ -5429,8 +5419,8 @@ begin
           NewField.FieldType := mfUnknown
         else
           NewField.ParseFieldType(Parse);
-        NewField.FInPrimaryKey := UpperCase(DataSet.FieldByName('EXTRA').AsString) = 'PRI';
-        NewField.FInUniqueKey := NewField.InPrimaryKey or (UpperCase(DataSet.FieldByName('EXTRA').AsString) = 'UNI');
+        NewField.FInPrimaryKey := StrIComp(PChar(DataSet.FieldByName('EXTRA').AsString), 'PRI') = 0;
+        NewField.FInUniqueKey := NewField.InPrimaryKey or (StrIComp(PChar(DataSet.FieldByName('EXTRA').AsString), 'UNI') = 0);
         NewField.NullAllowed := DataSet.FieldByName('IS_NULLABLE').AsBoolean;
 
         Inc(Index);
@@ -5912,7 +5902,7 @@ begin
       else if (SQLParseKeyword(Parse, 'CONTAINS SQL') or SQLParseKeyword(Parse, 'NO SQL') or SQLParseKeyword(Parse, 'READS SQL DATA') or SQLParseKeyword(Parse, 'MODIFIES SQL DATA')) then
       else if (SQLParseKeyword(Parse, 'SQL SECURITY')) then
       begin
-        if (UpperCase(SQLParseValue(Parse)) = 'DEFINER') then
+        if (StrIComp(PChar(SQLParseValue(Parse)), 'DEFINER') = 0) then
           FSecurity := seDefiner
         else
           FSecurity := seInvoker;
@@ -6080,7 +6070,7 @@ begin
       if (not UseInformationSchema) then
       begin
         Name := DataSet.FieldByName('Name').AsString;
-        if (UpperCase(DataSet.FieldByName('Type').AsString) = 'PROCEDURE') then
+        if (StrIComp(PChar(DataSet.FieldByName('Type').AsString), 'PROCEDURE') = 0) then
           RoutineType := rtProcedure
         else
           RoutineType := rtFunction;
@@ -6088,7 +6078,7 @@ begin
       else if (Session.Databases.NameCmp(DataSet.FieldByName('ROUTINE_SCHEMA').AsString, Database.Name) = 0) then
       begin
         Name := DataSet.FieldByName('ROUTINE_NAME').AsString;
-        if (UpperCase(DataSet.FieldByName('ROUTINE_TYPE').AsString) = 'PROCEDURE') then
+        if (StrIComp(PChar(DataSet.FieldByName('ROUTINE_TYPE').AsString), 'PROCEDURE') = 0) then
           RoutineType := rtProcedure
         else
           RoutineType := rtFunction;
@@ -6494,11 +6484,11 @@ begin
 
         if (not UseInformationSchema) then
         begin
-          if (UpperCase(DataSet.FieldByName('Event').AsString) = 'INSERT') then
+          if (StrIComp(PChar(DataSet.FieldByName('Event').AsString), 'INSERT') = 0) then
             Trigger[Index].FEvent := teInsert
-          else if (UpperCase(DataSet.FieldByName('Event').AsString) = 'UPDATE') then
+          else if (StrIComp(PChar(DataSet.FieldByName('Event').AsString), 'UPDATE') = 0) then
             Trigger[Index].FEvent := teUpdate
-          else if (UpperCase(DataSet.FieldByName('Event').AsString) = 'DELETE') then
+          else if (StrIComp(PChar(DataSet.FieldByName('Event').AsString), 'DELETE') = 0) then
             Trigger[Index].FEvent := teDelete;
           if (not Assigned(DataSet.FindField('Definer'))) then
             Trigger[Index].FDefiner := ''
@@ -6506,18 +6496,18 @@ begin
             Trigger[Index].FDefiner := DataSet.FieldByName('Definer').AsString;
           Trigger[Index].FStmt := DataSet.FieldByName('Statement').AsString + ';';
           Trigger[Index].FTableName := DataSet.FieldByName('Table').AsString;
-          if (UpperCase(DataSet.FieldByName('Timing').AsString) = 'BEFORE') then
+          if (StrIComp(PChar(DataSet.FieldByName('Timing').AsString), 'BEFORE') = 0) then
             Trigger[Index].FTiming := ttBefore
-          else if (UpperCase(DataSet.FieldByName('Timing').AsString) = 'AFTER') then
+          else if (StrIComp(PChar(DataSet.FieldByName('Timing').AsString), 'AFTER') = 0) then
             Trigger[Index].FTiming := ttAfter;
         end
         else
         begin
-          if (UpperCase(DataSet.FieldByName('EVENT_MANIPULATION').AsString) = 'INSERT') then
+          if (StrIComp(PChar(DataSet.FieldByName('EVENT_MANIPULATION').AsString), 'INSERT') = 0) then
             Trigger[Index].FEvent := teInsert
-          else if (UpperCase(DataSet.FieldByName('EVENT_MANIPULATION').AsString) = 'UPDATE') then
+          else if (StrIComp(PChar(DataSet.FieldByName('EVENT_MANIPULATION').AsString), 'UPDATE') = 0) then
             Trigger[Index].FEvent := teUpdate
-          else if (UpperCase(DataSet.FieldByName('EVENT_MANIPULATION').AsString) = 'DELETE') then
+          else if (StrIComp(PChar(DataSet.FieldByName('EVENT_MANIPULATION').AsString), 'DELETE') = 0) then
             Trigger[Index].FEvent := teDelete;
           Trigger[Index].FName := DataSet.FieldByName('TRIGGER_NAME').AsString;
           if (not Assigned(DataSet.FindField('DEFINER'))) then
@@ -6527,9 +6517,9 @@ begin
           Trigger[Index].FStmt := Trim(DataSet.FieldByName('ACTION_STATEMENT').AsString);
           if (RightStr(Trigger[Index].FStmt, 1) <> ';') then Trigger[Index].FStmt := Trigger[Index].FStmt + ';';
           Trigger[Index].FTableName := DataSet.FieldByName('EVENT_OBJECT_TABLE').AsString;
-          if (UpperCase(DataSet.FieldByName('ACTION_TIMING').AsString) = 'BEFORE') then
+          if (StrIComp(PChar(DataSet.FieldByName('ACTION_TIMING').AsString), 'BEFORE') = 0) then
             Trigger[Index].FTiming := ttBefore
-          else if (UpperCase(DataSet.FieldByName('ACTION_TIMING').AsString) = 'AFTER') then
+          else if (StrIComp(PChar(DataSet.FieldByName('ACTION_TIMING').AsString), 'AFTER') = 0) then
             Trigger[Index].FTiming := ttAfter;
         end;
         Trigger[Index].FValid := True;
@@ -6887,10 +6877,7 @@ begin
     repeat
       if (DataSet.RecNo = Length(Names)) then
         SetLength(Names, Length(Names) + Length(Names) div 4);
-      if (DataSet.Fields[0].DataType = ftString) then
-        StrPCopy(@Names[DataSet.RecNo][0], DataSet.Fields[0].AsString)
-      else
-        AnsiCharToWideChar(Session.Connection.CodePage, DataSet.LibRow[0], DataSet.LibLengths[0], @Names[DataSet.RecNo][0], NAME_LEN);
+      StrPCopy(@Names[DataSet.RecNo][0], DataSet.Fields[0].AsString);
     until (not DataSet.FindNext());
     SetLength(Names, DataSet.RecordCount);
   end;
@@ -8647,9 +8634,9 @@ end;
 
 function TSDatabases.NameCmp(const Name1, Name2: string): Integer;
 begin
-  if ((UpperCase(Name1) = INFORMATION_SCHEMA) and (UpperCase(Name2) = INFORMATION_SCHEMA)) then
+  if ((StrIComp(PChar(Name1), INFORMATION_SCHEMA) = 0) and (StrIComp(PChar(Name2), INFORMATION_SCHEMA) = 0)) then
     Result := 0
-  else if ((UpperCase(Name1) = PERFORMANCE_SCHEMA) and (UpperCase(Name2) = PERFORMANCE_SCHEMA)) then
+  else if ((StrIComp(PChar(Name1), PERFORMANCE_SCHEMA) = 0) and (StrIComp(PChar(Name2), PERFORMANCE_SCHEMA) = 0)) then
     Result := 0
   else if (Session.LowerCaseTableNames = 0) then
     Result := lstrcmp(PChar(Name1), PChar(Name2))
@@ -8700,7 +8687,7 @@ end;
 
 function TSVariable.GetAsBoolean(): Boolean;
 begin
-  Result := (Value = '1') or (UpperCase(Value) = 'TRUE') or (UpperCase(Value) = 'YES') or (UpperCase(Value) = 'ON');
+  Result := (Value = '1') or (StrIComp(PChar(Value), 'TRUE') = 0) or (StrIComp(PChar(Value), 'YES') = 0) or (StrIComp(PChar(Value), 'ON') = 0);
 end;
 
 function TSVariable.GetAsFloat(): Double;
@@ -8714,9 +8701,9 @@ end;
 function TSVariable.GetAsInteger(): Integer;
 begin
   if (not TryStrToInt(ReplaceStr(Value, '.', ''), Result)) then
-    if (UpperCase(Value) = 'OFF') then
+    if (StrIComp(PChar(Value), 'OFF') = 0) then
       Result := 0
-    else if (UpperCase(Value) = 'ON') then
+    else if (StrIComp(PChar(Value), 'ON') = 0) then
       Result := 1
     else
       EConvertError.CreateFmt(SConvStrParseError + '(' + Value + ')', ['"' + Name + '"']);
@@ -8737,11 +8724,11 @@ end;
 procedure TSVariable.SetAsBoolean(const AAsBoolean: Boolean);
 begin
   if (AAsBoolean <> AsBoolean) then
-    if ((UpperCase(Value) = 'YES') or (UpperCase(Value) = 'NO')) then
+    if ((StrIComp(PChar(Value), 'YES') = 0) or (StrIComp(PChar(Value), 'NO') = 0)) then
       if (AAsBoolean) then Value := 'YES' else Value := 'NO'
-    else if ((UpperCase(Value) = '1') or (UpperCase(Value) = '0')) then
+    else if ((Value = '1') or (Value = '0')) then
       if (AAsBoolean) then Value := '1' else Value := '0'
-    else if ((UpperCase(Value) = 'ON') or (UpperCase(Value) = 'OFF')) then
+    else if ((StrIComp(PChar(Value), 'ON') = 0) or (StrIComp(PChar(Value), 'OFF') = 0)) then
       if (AAsBoolean) then Value := 'ON' else Value := 'OFF'
     else
       if (AAsBoolean) then Value := 'TRUE' else Value := 'FALSE'
@@ -8811,7 +8798,7 @@ begin
     end
     else if (Assigned(Session.VariableByName('character_set_client'))) then
     begin
-      if (UpperCase(Session.VariableByName('character_set_client').Value) <> UpperCase(Session.VariableByName('character_set_results').Value)) then
+      if (StrIComp(PChar(Session.VariableByName('character_set_client').Value), PChar(Session.VariableByName('character_set_results').Value)) <> 0) then
         raise ERangeError.CreateFmt(SPropertyOutOfRange + ': character_set_client (%s) <> character_set_results (%s)', ['Charset', Session.VariableByName('character_set_client').Value, Session.VariableByName('character_set_results').Value])
       else
         Session.Connection.Charset := Session.VariableByName('character_set_client').Value;
@@ -9043,15 +9030,15 @@ begin
 
     if (Assigned(Session.VariableByName('table_type'))) then
       for I := 0 to TList(Self).Count - 1 do
-        Engine[I].FDefault := UpperCase(Engine[I].Name) = UpperCase(Session.VariableByName('table_type').Value);
+        Engine[I].FDefault := StrIComp(PChar(Engine[I].Name), PChar(Session.VariableByName('table_type').Value)) = 0;
     if (Assigned(Session.VariableByName('storage_engine'))) then
       for I := 0 to TList(Self).Count - 1 do
-        Engine[I].FDefault := UpperCase(Engine[I].Name) = UpperCase(Session.VariableByName('storage_engine').Value);
+        Engine[I].FDefault := StrIComp(PChar(Engine[I].Name), PChar(Session.VariableByName('storage_engine').Value)) = 0;
   end
   else if (not DataSet.IsEmpty()) then
     repeat
-      if ((not UseInformationSchema and (UpperCase(DataSet.FieldByName('Support').AsString) <> 'NO') and (UpperCase(DataSet.FieldByName('Support').AsString) <> 'DISABLED'))
-        or (UseInformationSchema and (UpperCase(DataSet.FieldByName('SUPPORT').AsString) <> 'NO') and (UpperCase(DataSet.FieldByName('SUPPORT').AsString) <> 'DISABLED'))) then
+      if ((not UseInformationSchema and (StrIComp(PChar(DataSet.FieldByName('Support').AsString), 'NO') <> 0) and (StrIComp(PChar(DataSet.FieldByName('Support').AsString), 'DISABLED') <> 0))
+        or (UseInformationSchema and (StrIComp(PChar(DataSet.FieldByName('SUPPORT').AsString), 'NO') <> 0) and (StrIComp(PChar(DataSet.FieldByName('SUPPORT').AsString), 'DISABLED') <> 0))) then
       begin
         if (not UseInformationSchema) then
           Name := DataSet.FieldByName('Engine').AsString
@@ -9060,7 +9047,7 @@ begin
 
         if (InsertIndex(Name, Index)) then
         begin
-          if (UpperCase(Name) = 'PERFORMANCE_SCHEMA') then
+          if (Session.Databases.NameCmp(Name, 'PERFORMANCE_SCHEMA') = 0) then
             NewEngine := TSSystemEngine.Create(Self, Name)
           else
             NewEngine := TSEngine.Create(Self, Name);
@@ -9076,12 +9063,12 @@ begin
         if (not UseInformationSchema) then
         begin
           Engine[Index].FComment := DataSet.FieldByName('Comment').AsString;
-          Engine[Index].FDefault := UpperCase(DataSet.FieldByName('Support').AsString) = 'DEFAULT';
+          Engine[Index].FDefault := StrIComp(PChar(DataSet.FieldByName('Support').AsString), 'DEFAULT') = 0;
         end
         else
         begin
           Engine[Index].FComment := DataSet.FieldByName('COMMENT').AsString;
-          Engine[Index].FDefault := UpperCase(DataSet.FieldByName('SUPPORT').AsString) = 'DEFAULT';
+          Engine[Index].FDefault := StrIComp(PChar(DataSet.FieldByName('SUPPORT').AsString), 'DEFAULT') = 0;
         end;
       end;
     until (not DataSet.FindNext());
@@ -9498,16 +9485,16 @@ begin
       begin
         Collation[Index].FCharset := Session.CharsetByName(DataSet.FieldByName('Charset').AsString);
         Collation[Index].FId := DataSet.FieldByName('Id').AsInteger;
-        Collation[Index].FDefault := UpperCase(DataSet.FieldByName('Default').AsString) = 'YES';
-        Collation[Index].FCompiled := UpperCase(DataSet.FieldByName('Compiled').AsString) = 'YES';
+        Collation[Index].FDefault := StrIComp(PChar(DataSet.FieldByName('Default').AsString), 'YES') = 0;
+        Collation[Index].FCompiled := StrIComp(PChar(DataSet.FieldByName('Compiled').AsString), 'YES') = 0;
         Collation[Index].FSortLength := DataSet.FieldByName('Sortlen').AsInteger;
       end
       else
       begin
         Collation[Index].FCharset := Session.CharsetByName(DataSet.FieldByName('CHARACTER_SET_NAME').AsString);
         Collation[Index].FId := DataSet.FieldByName('ID').AsInteger;
-        Collation[Index].FDefault := UpperCase(DataSet.FieldByName('IS_DEFAULT').AsString) = 'YES';
-        Collation[Index].FCompiled := UpperCase(DataSet.FieldByName('IS_COMPILED').AsString) = 'YES';
+        Collation[Index].FDefault := StrIComp(PChar(DataSet.FieldByName('IS_DEFAULT').AsString), 'YES') = 0;
+        Collation[Index].FCompiled := StrIComp(PChar(DataSet.FieldByName('IS_COMPILED').AsString), 'YES') = 0;
         Collation[Index].FSortLength := DataSet.FieldByName('SORTLEN').AsInteger;
       end;
     until (not DataSet.FindNext());
@@ -9823,6 +9810,22 @@ begin
   FUserConnections := Source.UserConnections;
 end;
 
+procedure TSUser.Clear();
+begin
+  ConnectionsPerHour := 0;
+  NewPassword := '';
+  QueriesPerHour := 0;
+  RawPassword := '';
+  UpdatesPerHour := 0;
+  UserConnections := 0;
+
+  while (FRights.Count > 0) do
+  begin
+    TSUserRight(FRights[0]).Free();
+    FRights.Delete(0);
+  end;
+end;
+
 constructor TSUser.Create(const ASItems: TSItems; const AName: string = '');
 begin
   inherited;
@@ -9985,11 +9988,7 @@ var
   RawPassword: string;
   TableName: string;
 begin
-  while (FRights.Count > 0) do
-  begin
-    TSUserRight(FRights[0]).Free();
-    FRights.Delete(0);
-  end;
+  Clear();
 
   if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.ServerVersion)) then
   begin
@@ -10806,7 +10805,7 @@ begin
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.ServerVersion;
   FUser := nil;
-  ParseEndDate := EncodeDate(2016, 10, 10);
+  ParseEndDate := EncodeDate(2016, 10, 17);
   FSQLParser := nil;
   UnparsableSQL := '';
 
@@ -11269,19 +11268,19 @@ begin
       Result := FieldTypes[I];
 
   if (not Assigned(Result)) then
-    if ((UpperCase(Caption) = 'BOOL') or (UpperCase(Caption) = 'BOOLEAN')) then
+    if ((StrIComp(PChar(Caption), 'BOOL') = 0) or (StrIComp(PChar(Caption), 'BOOLEAN') = 0)) then
       Result := FieldTypeByMySQLFieldType(mfTinyInt)
-    else if (UpperCase(Caption) = 'INT4') then
+    else if (StrIComp(PChar(Caption), 'INT4') = 0) then
       Result := FieldTypeByMySQLFieldType(mfMediumInt)
-    else if (UpperCase(Caption) = 'INTEGER') then
+    else if (StrIComp(PChar(Caption), 'INTEGER') = 0) then
       Result := FieldTypeByMySQLFieldType(mfInt)
-    else if (UpperCase(Caption) = 'LONG') then
+    else if (StrIComp(PChar(Caption), 'LONG') = 0) then
       Result := FieldTypeByMySQLFieldType(mfInt)
-    else if (UpperCase(Caption) = 'DEC') then
+    else if (StrIComp(PChar(Caption), 'DEC') = 0) then
       Result := FieldTypeByMySQLFieldType(mfDecimal)
-    else if (UpperCase(Caption) = 'NVARCHAR') then
+    else if (StrIComp(PChar(Caption), 'NVARCHAR') = 0) then
       Result := FieldTypeByMySQLFieldType(mfVarChar)
-    else if (UpperCase(Caption) = 'SERIAL') then
+    else if (StrIComp(PChar(Caption), 'SERIAL') = 0) then
       Result := FieldTypeByMySQLFieldType(mfInt);
 
   if (not Assigned(Result)) then
@@ -12114,13 +12113,13 @@ begin
             Result := Charsets.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
           else if (TableNameCmp(ObjectName, 'COLLATIONS') = 0) then
             Result := Collations.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
-          else if ((TableNameCmp(ObjectName, 'COLUMNS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'TABLE_SCHEMA') and SQLParseChar(Parse, '=')) then
+          else if ((TableNameCmp(ObjectName, 'COLUMNS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'TABLE_SCHEMA') = 0) and SQLParseChar(Parse, '=')) then
             DatabaseByName(SQLParseValue(Parse)).Tables.BuildViewFields(DataSet, True)
           else if (TableNameCmp(ObjectName, 'ENGINES') = 0) then
             Result := Engines.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
           else if ((TableNameCmp(ObjectName, 'EVENTS') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
             Result := BuildEvents(DataSet)
-          else if ((TableNameCmp(ObjectName, 'EVENTS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'EVENT_SCHEMA') and SQLParseChar(Parse, '=')) then
+          else if ((TableNameCmp(ObjectName, 'EVENTS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'EVENT_SCHEMA') = 0) and SQLParseChar(Parse, '=')) then
           begin
             Database := DatabaseByName(SQLParseValue(Parse));
             Result := Database.Events.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'));
@@ -12131,7 +12130,7 @@ begin
             Result := Processes.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
           else if ((TableNameCmp(ObjectName, 'ROUTINES') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
             Result := BuildRoutines(DataSet)
-          else if ((TableNameCmp(ObjectName, 'ROUTINES') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'ROUTINE_SCHEMA') and SQLParseChar(Parse, '=')) then
+          else if ((TableNameCmp(ObjectName, 'ROUTINES') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'ROUTINE_SCHEMA') = 0) and SQLParseChar(Parse, '=')) then
           begin
             Database := DatabaseByName(SQLParseValue(Parse));
             Result := Database.Routines.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'));
@@ -12142,18 +12141,18 @@ begin
             Result := Variables.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
           else if ((TableNameCmp(ObjectName, 'SCHEMATA') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
             Result := Databases.Build(DataSet, True, False)
-          else if ((TableNameCmp(ObjectName, 'SCHEMATA') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'SCHEMA_NAME')) then
+          else if ((TableNameCmp(ObjectName, 'SCHEMATA') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'SCHEMA_NAME') = 0)) then
             Result := Databases.Build(DataSet, True, False)
           else if ((TableNameCmp(ObjectName, 'TABLES') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
             Result := BuildTables(DataSet)
-          else if ((TableNameCmp(ObjectName, 'TABLES') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'TABLE_SCHEMA') and SQLParseChar(Parse, '=')) then
+          else if ((TableNameCmp(ObjectName, 'TABLES') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'TABLE_SCHEMA') = 0) and SQLParseChar(Parse, '=')) then
           begin
             Database := DatabaseByName(SQLParseValue(Parse));
             Result := Database.Tables.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'));
           end
           else if ((TableNameCmp(ObjectName, 'TRIGGERS') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
             Result := BuildTriggers(DataSet)
-          else if ((TableNameCmp(ObjectName, 'TRIGGERS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'EVENT_OBJECT_SCHEMA') and SQLParseChar(Parse, '=')) then
+          else if ((TableNameCmp(ObjectName, 'TRIGGERS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'EVENT_OBJECT_SCHEMA') = 0) and SQLParseChar(Parse, '=')) then
           begin
             Database := DatabaseByName(SQLParseValue(Parse));
             Result := Database.Triggers.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'));
@@ -12195,7 +12194,7 @@ begin
         if ((Databases.NameCmp(DatabaseName, INFORMATION_SCHEMA) = 0)
           and (TableNameCmp(ObjectName, 'COLUMNS') = 0)
           and SQLParseKeyword(Parse, 'WHERE')
-          and (UpperCase(SQLParseValue(Parse)) = 'TABLE_SCHEMA')
+          and (StrIComp(PChar(SQLParseValue(Parse)), 'TABLE_SCHEMA') = 0)
           and SQLParseChar(Parse, '=')) then
         begin
           DataSet.Open(DataHandle);

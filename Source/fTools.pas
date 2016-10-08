@@ -6381,7 +6381,7 @@ begin
             ftWideString,
             ftWideMemo:
               begin
-                S := DataSet.GetAsString(Fields[I]);
+                S := Fields[I].AsString;
                 Size := Length(S) * SizeOf(Char);
                 Index := 0;
                 repeat
@@ -7168,7 +7168,7 @@ procedure TTExportCanvas.ExecuteTableRecord(const Table: TSTable; const Fields: 
     else if (Field.DataType = ftBlob) then
       Result := '<BLOB>'
     else
-      Result := DataSet.GetAsString(Field);
+      Result := Field.AsString;
   end;
 
 var
@@ -8625,7 +8625,7 @@ begin
           for I := 0 to Length(Fields) - 1 do
             if (Assigned(DataSet.LibRow^[Fields[I].FieldNo - 1])) then
             begin
-              Value := DataSet.GetAsString(Fields[I]);
+              Value := Fields[I].AsString;
 
               if (not (Self is TTReplace)) then
                 if (not RegExpr) then
@@ -8690,11 +8690,11 @@ begin
                   else if (BitField(Fields[I])) then
                     SQL := SQL + 'b''' + Fields[I].AsString + ''''
                   else if (Fields[I].DataType in NotQuotedDataTypes + [ftTimestamp]) then
-                    SQL := SQL + DataSet.GetAsString(Fields[I])
+                    SQL := SQL + Fields[I].AsString
                   else if (Fields[I].DataType in [ftDate, ftDateTime, ftTime]) then
-                    SQL := SQL + '''' + DataSet.GetAsString(Fields[I]) + ''''
+                    SQL := SQL + '''' + Fields[I].AsString + ''''
                   else
-                    SQL := SQL + SQLEscape(DataSet.GetAsString(Fields[I]));
+                    SQL := SQL + SQLEscape(Fields[I].AsString);
                   Found := True;
                 end;
               SQL := SQL + ';' + #13#10;
