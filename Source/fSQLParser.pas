@@ -1507,6 +1507,8 @@ type
               TableName: array [0 .. 64] of Char;
             );
         end;
+      private const
+        DefaultListLength = 100;
       private
         FActive: Boolean;
         FCount: Integer;
@@ -6908,7 +6910,7 @@ type
     function ParseTriggerIdent(): TOffset;
     function ParseTrimFunc(): TOffset;
     function ParseTruncateTableStmt(): TOffset;
-    function ParseUnknownStmt(): TOffset;
+    function ParseUnknownStmt(const FirstToken: TOffset): TOffset;
     function ParseUnlockTablesStmt(): TOffset;
     function ParseUpdateStmt(): TOffset;
     function ParseUpdateStmtValue(): TOffset;
@@ -6917,7 +6919,6 @@ type
     function ParseValue(const KeywordIndex: TWordList.TIndex; const Assign: TValueAssign; const Brackets: Boolean; const ParseItem: TParseFunction): TOffset; overload;
     function ParseValue(const KeywordIndex: TWordList.TIndex; const Assign: TValueAssign; const OptionIndices: TWordList.TIndices): TOffset; overload;
     function ParseValue(const KeywordIndex: TWordList.TIndex; const Assign: TValueAssign; const ParseValueNode: TParseFunction): TOffset; overload;
-    function ParseValue(const KeywordIndices: TWordList.TIndices; const Assign: TValueAssign; const OptionIndices: TWordList.TIndices): TOffset; overload;
     function ParseValue(const KeywordIndices: TWordList.TIndices; const Assign: TValueAssign; const ParseValueNode: TParseFunction): TOffset; overload;
     function ParseValue(const KeywordIndices: TWordList.TIndices; const Assign: TValueAssign; const ValueKeywordIndex1: TWordList.TIndex; const ValueKeywordIndex2: TWordList.TIndex = -1): TOffset; overload;
     function ParseVariableIdent(): TOffset;
@@ -7843,7 +7844,7 @@ begin
   FParser := AParser;
 
   FCount := 0;
-  SetLength(FItems, 100);
+  SetLength(FItems, DefaultListLength);
 end;
 
 procedure TSQLParser.TCompletionList.Delete(const Index: Integer);
@@ -7872,13 +7873,9 @@ end;
 
 procedure TSQLParser.TCompletionList.SetActive(AActive: Boolean);
 begin
-  if (not FActive and AActive) then
+  if (FActive and not AActive) then
   begin
-    SetLength(FItems, 100);
-  end
-  else if (FActive and not AActive) then
-  begin
-    SetLength(FItems, 0);
+    SetLength(FItems, DefaultListLength);
     FCount := 0;
   end;
 
@@ -11691,9 +11688,9 @@ begin
     PE_IncompleteStmt:
       Result := 'Incompleted statement';
     PE_UnexpectedToken:
-      Result := 'Unexpected text';
+      Result := 'Unexpected string';
     PE_ExtraToken:
-      Result := 'Text after completed statement';
+      Result := 'Unexpected string';
     else
       raise Exception.Create(SArgumentOutOfRange);
   end;
@@ -11703,12 +11700,12 @@ begin
     Result := Result + ' in line ' + IntToStr(Error.Line);
 
   if ((Error.Code in [PE_IncompleteToken, PE_UnexpectedChar]) and Assigned(Error.Pos)) then
-    Result := Result + ' near: ' + Location(Error.Pos) + ''''
+    Result := Result + ' at: ' + Location(Error.Pos) + ''''
   else if ((Error.Code in [PE_IncompleteToken, PE_UnexpectedChar, PE_UnexpectedToken, PE_ExtraToken]) and (Error.Token > 0)) then
   begin
     TokenPtr(Error.Token)^.GetText(Text, Length);
     SetString(S, Text, Length);
-    Result := Result + ' near: ' + Copy(S, 1, 20);
+    Result := Result + ' at: ' + Copy(S, 1, 20);
   end;
 end;
 
@@ -14965,7 +14962,7 @@ begin
   else
   begin
     SetError(PE_UnexpectedToken);
-    Result := ParseUnknownStmt();
+    Result := 0;
   end;
 end;
 
@@ -15159,9 +15156,9 @@ begin
         TableOptionNodes.StatsAutoRecalc := ParseValue(kiSTATS_AUTO_RECALC, vaAuto, ParseInteger);
         Specifications.Add(Pointer(TableOptionNodes.StatsAutoRecalc));
       end
-      else if ((TableOptionNodes.StatsPersistent = 0) and IsTag(kiSTATS_PERSISTENT, kiDEFAULT)) then
+      else if ((TableOptionNodes.StatsPersistent = 0) and IsTag(kiSTATS_PERSISTENT)) then
       begin
-        TableOptionNodes.StatsPersistent := ParseValue(WordIndices(kiSTATS_PERSISTENT, kiDEFAULT), vaAuto, WordIndices(kiDEFAULT));
+        TableOptionNodes.StatsPersistent := ParseValue(kiSTATS_PERSISTENT, vaAuto, ParseExpr);
         Specifications.Add(Pointer(TableOptionNodes.StatsPersistent));
       end
       else if ((TableOptionNodes.StatsSamplePages = 0) and IsTag(kiSTATS_SAMPLE_PAGES)) then
@@ -16470,7 +16467,8 @@ begin
   else if ((TemporaryTag = 0) and (IndexTag = 0)
     and IsTag(kiVIEW)) then
     Result := ParseCreateViewStmt(CreateTag, OrReplaceTag, AlgorithmValue, DefinerValue, SQLSecurityTag)
-  else if (EndOfStmt(CurrentToken)) then
+  else if ((OrReplaceTag = 0) and (AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (IndexTag = 0)
+    and EndOfStmt(CurrentToken)) then
   begin
     SetError(PE_IncompleteStmt);
     Result := 0;
@@ -16478,7 +16476,7 @@ begin
   else
   begin
     SetError(PE_UnexpectedToken);
-    Result := ParseUnknownStmt();
+    Result := 0;
   end;
 end;
 
@@ -16693,9 +16691,9 @@ begin
         TableOptions.StatsAutoRecalc := ParseValue(kiSTATS_AUTO_RECALC, vaAuto, ParseInteger);
         Options.Add(Pointer(TableOptions.StatsAutoRecalc));
       end
-      else if ((TableOptions.StatsPersistent = 0) and IsTag(kiSTATS_PERSISTENT, kiDEFAULT)) then
+      else if ((TableOptions.StatsPersistent = 0) and IsTag(kiSTATS_PERSISTENT)) then
       begin
-        TableOptions.StatsPersistent := ParseValue(kiSTATS_PERSISTENT, vaAuto, WordIndices(kiDEFAULT));
+        TableOptions.StatsPersistent := ParseValue(kiSTATS_PERSISTENT, vaAuto, ParseExpr);
         Options.Add(Pointer(TableOptions.StatsPersistent));
       end
       else if ((TableOptions.StatsSamplePages = 0) and IsTag(kiSTATS_SAMPLE_PAGES)) then
@@ -17437,8 +17435,6 @@ begin
       Nodes.OnDeleteTag := ParseTag(kiON, kiDELETE, kiCASCADE)
     else if ((Nodes.OnDeleteTag = 0) and IsTag(kiON, kiDELETE, kiSET, kiNULL)) then
       Nodes.OnDeleteTag := ParseTag(kiON, kiDELETE, kiSET, kiNULL)
-    else if ((Nodes.OnDeleteTag = 0) and IsTag(kiON, kiDELETE, kiCASCADE)) then
-      Nodes.OnDeleteTag := ParseTag(kiON, kiDELETE, kiCASCADE)
     else if ((Nodes.OnDeleteTag = 0) and IsTag(kiON, kiDELETE, kiNO, kiACTION)) then
       Nodes.OnDeleteTag := ParseTag(kiON, kiDELETE, kiNO, kiACTION)
     else if ((Nodes.OnUpdateTag = 0) and IsTag(kiON, kiUPDATE, kiRESTRICT)) then
@@ -17447,8 +17443,6 @@ begin
       Nodes.OnUpdateTag := ParseTag(kiON, kiUPDATE, kiCASCADE)
     else if ((Nodes.OnUpdateTag = 0) and IsTag(kiON, kiUPDATE, kiSET, kiNULL)) then
       Nodes.OnUpdateTag := ParseTag(kiON, kiUPDATE, kiSET, kiNULL)
-    else if ((Nodes.OnUpdateTag = 0) and IsTag(kiON, kiUPDATE, kiCASCADE)) then
-      Nodes.OnUpdateTag := ParseTag(kiON, kiUPDATE, kiCASCADE)
     else if ((Nodes.OnUpdateTag = 0) and IsTag(kiON, kiUPDATE, kiNO, kiACTION)) then
       Nodes.OnUpdateTag := ParseTag(kiON, kiUPDATE, kiNO, kiACTION)
     else
@@ -21346,6 +21340,7 @@ begin
     and (TokenPtr(CurrentToken)^.KeywordIndex <> kiJOIN)
     and (TokenPtr(CurrentToken)^.KeywordIndex <> kiLEFT)
     and (TokenPtr(CurrentToken)^.KeywordIndex <> kiLIMIT)
+    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiLOCK)
     and (TokenPtr(CurrentToken)^.KeywordIndex <> kiNATURAL)
     and (TokenPtr(CurrentToken)^.KeywordIndex <> kiON)
     and (TokenPtr(CurrentToken)^.KeywordIndex <> kiORDER)
@@ -21355,8 +21350,8 @@ begin
     and (TokenPtr(CurrentToken)^.KeywordIndex <> kiRIGHT)
     and (TokenPtr(CurrentToken)^.KeywordIndex <> kiSET)
     and (TokenPtr(CurrentToken)^.KeywordIndex <> kiSTRAIGHT_JOIN)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiWHERE)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiLOCK)) then
+    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiUSING)
+    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiWHERE)) then
     Nodes.AliasIdent := ParseAliasIdent();
 
   if (not ErrorFound) then
@@ -21522,21 +21517,11 @@ begin
   Children[ChildrenCount] := ParseTableFactor();
   Inc(ChildrenCount);
 
-  while (not ErrorFound and not EndOfStmt(CurrentToken)
-    and (IsTag(kiINNER)
-      or IsTag(kiCROSS)
-      or IsTag(kiJOIN)
-      or IsTag(kiSTRAIGHT_JOIN)
-      or IsTag(kiLEFT)
-      or IsTag(kiRIGHT)
-      or IsTag(kiNATURAL))) do
+  JoinType := jtInner;
+  while (not ErrorFound and (JoinType <> jtUnknown)) do
   begin
-    if (ChildrenCount = Length(Children)) then
-      raise Exception.Create(SArgumentOutOfRange);
-
     FillChar(JoinNodes, SizeOf(JoinNodes), 0);
 
-    JoinType := jtUnknown;
     if (IsTag(kiINNER, kiJOIN)) then
     begin
       JoinNodes.JoinTag := ParseTag(kiINNER, kiJOIN);
@@ -21602,24 +21587,16 @@ begin
       JoinNodes.JoinTag := ParseTag(kiNATURAL, kiRIGHT, kiOUTER, kiJOIN);
       JoinType := jtNaturalRight;
     end
-    else if (EndOfStmt(CurrentToken)) then
-      SetError(PE_IncompleteStmt)
     else
-      SetError(PE_UnexpectedToken);
+      JoinType := jtUnknown;
 
-    if (not ErrorFound) then
-      if (not (JoinType in [jtLeft, jtRight])) then
-      begin
-        JoinNodes.RightTable := ParseTableFactor();
+    case (JoinType) of
+      jtInner,
+      jtCross:
+        begin
+          JoinNodes.RightTable := ParseTableFactor();
 
-        if (not ErrorFound) then
-          if ((JoinType in [jtStraight]) and IsTag(kiON)) then
-          begin
-            JoinNodes.OnTag := ParseTag(kiON);
-            if (not ErrorFound) then
-              JoinNodes.OnExpr := ParseExpr();
-          end
-          else if (JoinType in [jtInner, jtCross]) then
+          if (not ErrorFound) then
             if (IsTag(kiON)) then
             begin
               JoinNodes.OnTag := ParseTag(kiON);
@@ -21632,32 +21609,61 @@ begin
               if (not ErrorFound) then
                 JoinNodes.OnExpr := ParseList(True, ParseFieldIdent);
             end;
-      end
-      else
-      begin
-        JoinNodes.RightTable := ParseSelectStmtTableReference();
+        end;
+      jtEqui,
+      jtNaturalLeft,
+      jtNaturalRight:
+        begin
+          JoinNodes.RightTable := ParseTableFactor();
+        end;
+      jtStraight:
+        begin
+          JoinNodes.RightTable := ParseTableFactor();
 
-        if (not ErrorFound and not (JoinType in [jtNaturalLeft, jtNaturalRight])) then
-          if (IsTag(kiON)) then
-          begin
-            JoinNodes.OnTag := ParseTag(kiON);
-            if (not ErrorFound) then
-              if (EndOfStmt(CurrentToken)) then
-                SetError(PE_IncompleteStmt)
-              else
+          if (not ErrorFound) then
+            if (IsTag(kiON)) then
+            begin
+              JoinNodes.OnTag := ParseTag(kiON);
+              if (not ErrorFound) then
                 JoinNodes.OnExpr := ParseExpr();
-          end
-          else if (IsTag(kiUSING)) then
-          begin
-            JoinNodes.OnTag := ParseTag(kiUSING);
+            end;
+        end;
+      jtLeft,
+      jtRight:
+        begin
+          JoinNodes.RightTable := ParseSelectStmtTableReference();
 
-            if (not ErrorFound) then
-              JoinNodes.OnExpr := ParseList(True, ParseFieldIdent);
-          end;
-      end;
+          if (not ErrorFound) then
+            if (IsTag(kiON)) then
+            begin
+              JoinNodes.OnTag := ParseTag(kiON);
+              if (not ErrorFound) then
+                if (EndOfStmt(CurrentToken)) then
+                  SetError(PE_IncompleteStmt)
+                else
+                  JoinNodes.OnExpr := ParseExpr();
+            end
+            else if (IsTag(kiUSING)) then
+            begin
+              JoinNodes.OnTag := ParseTag(kiUSING);
 
-    Children[ChildrenCount] := TSelectStmt.TTableJoin.Create(Self, JoinType, JoinNodes);
-    Inc(ChildrenCount);
+              if (not ErrorFound) then
+                JoinNodes.OnExpr := ParseList(True, ParseFieldIdent);
+            end
+            else if (EndOfStmt(CurrentToken)) then
+              SetError(PE_IncompleteStmt)
+            else
+              SetError(PE_UnexpectedToken);
+        end;
+    end;
+
+    if (JoinType <> jtUnknown) then
+    begin
+      if (ChildrenCount = Length(Children)) then
+        raise Exception.Create(SArgumentOutOfRange);
+      Children[ChildrenCount] := TSelectStmt.TTableJoin.Create(Self, JoinType, JoinNodes);
+      Inc(ChildrenCount);
+    end;
   end;
 
   if (ChildrenCount = 0) then
@@ -22855,12 +22861,15 @@ function TSQLParser.ParseStmt(): TOffset;
 var
   BeginLabel: TOffset;
   Continue: Boolean;
+  FirstToken: TOffset;
   Token: TOffset;
 begin
   {$IFDEF Debug}
   Continue := False;
   Result := 0;
   {$ENDIF}
+
+  FirstToken := CurrentToken;
 
   BeginLabel := 0;
   if (InPL_SQL
@@ -22885,7 +22894,7 @@ begin
     else
     begin
       SetError(PE_UnexpectedToken);
-      Result := ParseUnknownStmt();
+      Result := 0;
     end
 
   else if (IsTag(kiALTER)) then
@@ -23176,8 +23185,11 @@ begin
   else
   begin
     SetError(PE_UnexpectedToken);
-    Result := ParseUnknownStmt();
+    Result := 0;
   end;
+
+  if (Result = 0) then
+    Result := ParseUnknownStmt(FirstToken);
 
   if (IsStmt(Result)) then
   begin
@@ -24434,11 +24446,20 @@ begin
   Result := TTruncateStmt.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseUnknownStmt(): TOffset;
+function TSQLParser.ParseUnknownStmt(const FirstToken: TOffset): TOffset;
 var
+  Token: PToken;
   Tokens: Classes.TList;
 begin
   Tokens := Classes.TList.Create();
+
+  Token := TokenPtr(FirstToken);
+
+  while (Assigned(Token) and (Token^.Offset <> CurrentToken) and not EndOfStmt(Token^.Offset)) do
+  begin
+    Tokens.Add(Pointer(Token^.Offset));
+    Token := Token^.NextToken;
+  end;
 
   while (not EndOfStmt(CurrentToken)) do
     Tokens.Add(Pointer(ApplyCurrentToken()));
@@ -24679,41 +24700,6 @@ begin
 
   if (not ErrorFound) then
     Nodes.Expr := ParseValueNode();
-
-  Result := TValue.Create(Self, Nodes);
-end;
-
-function TSQLParser.ParseValue(const KeywordIndices: TWordList.TIndices;
-  const Assign: TValueAssign; const OptionIndices: TWordList.TIndices): TOffset;
-var
-  I: Integer;
-  Nodes: TValue.TNodes;
-begin
-  FillChar(Nodes, SizeOf(Nodes), 0);
-
-  Nodes.IdentTag := ParseTag(KeywordIndices[0], KeywordIndices[1], KeywordIndices[2], KeywordIndices[3], KeywordIndices[4], KeywordIndices[5], KeywordIndices[6]);
-
-  if (not ErrorFound and (Assign in [vaYes, vaAuto])) then
-    if (EndOfStmt(CurrentToken)) then
-      SetError(PE_IncompleteStmt)
-    else if (TokenPtr(CurrentToken)^.OperatorType = otEqual) then
-      Nodes.AssignToken := ApplyCurrentToken()
-    else if (Assign = vaYes) then
-      SetError(PE_UnexpectedToken);
-
-  if (not ErrorFound) then
-  begin
-    for I := 0 to Length(OptionIndices) - 1 do
-      if ((OptionIndices[I] < 0)) then
-        break
-      else if (OptionIndices[I] = TokenPtr(CurrentToken)^.KeywordIndex) then
-      begin
-        Nodes.Expr := ParseTag(TokenPtr(CurrentToken)^.KeywordIndex);
-        break;
-      end;
-    if (Nodes.Expr = 0) then
-      SetError(PE_UnexpectedToken);
-  end;
 
   Result := TValue.Create(Self, Nodes);
 end;
@@ -25463,6 +25449,7 @@ var
   J: Integer;
   KeywordIndices: array [0 .. 7 - 1] of TWordList.TIndex;
   TokenCount: Integer;
+  MaxTokenCount: Integer;
 begin
   Assert(not ErrorFound and ((AErrorCode <> PE_IncompleteStmt) or (AErrorToken = 0) or IsToken(AErrorToken)));
 
@@ -25473,75 +25460,55 @@ begin
   else
     Error.Token := ChildPtr(AErrorToken)^.FFirstToken;
 
-  if (AErrorCode = PE_UnexpectedToken) then
+  if (AErrorCode in [PE_UnexpectedToken, PE_ExtraToken]) then
   begin
-    for I := 0 to Length(KeywordIndices) - 1 do
-      KeywordIndices[I] := - 1;
-
     TokenCount := 0;
-    if (not EndOfStmt(CurrentToken)) then
-    begin
-      KeywordIndices[0] := TokenPtr(CurrentToken)^.KeywordIndex;
-      Inc(TokenCount);
-      if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex >= 0)) then
+    for I := 0 to Length(KeywordIndices) -1 do
+      if (((I = 0) or (I = TokenCount))
+        and not EndOfStmt(NextToken[I]) and (TokenPtr(NextToken[I])^.KeywordIndex >= 0)) then
       begin
-        KeywordIndices[1] := TokenPtr(NextToken[1])^.KeywordIndex;
+        KeywordIndices[I] := TokenPtr(NextToken[I])^.KeywordIndex;
         Inc(TokenCount);
-        if (not EndOfStmt(NextToken[2]) and (TokenPtr(NextToken[2])^.KeywordIndex >= 0)) then
-        begin
-          KeywordIndices[2] := TokenPtr(NextToken[2])^.KeywordIndex;
-          Inc(TokenCount);
-          if (not EndOfStmt(NextToken[3]) and (TokenPtr(NextToken[3])^.KeywordIndex >= 0)) then
-          begin
-            KeywordIndices[3] := TokenPtr(NextToken[3])^.KeywordIndex;
-            Inc(TokenCount);
-            if (not EndOfStmt(NextToken[4]) and (TokenPtr(NextToken[4])^.KeywordIndex >= 0)) then
-            begin
-              KeywordIndices[4] := TokenPtr(NextToken[4])^.KeywordIndex;
-              Inc(TokenCount);
-              if (not EndOfStmt(NextToken[5]) and (TokenPtr(NextToken[5])^.KeywordIndex >= 0)) then
-              begin
-                KeywordIndices[5] := TokenPtr(NextToken[5])^.KeywordIndex;
-                Inc(TokenCount);
-                if (not EndOfStmt(NextToken[6]) and (TokenPtr(NextToken[6])^.KeywordIndex >= 0)) then
-                  KeywordIndices[6] := TokenPtr(NextToken[6])^.KeywordIndex;
-              end;
-            end;
-          end;
-        end;
-      end;
-    end;
+      end
+      else
+        KeywordIndices[I] := - 1;
 
-    for I := 0 to Length(KeywordIndices) - 1 do
-      if (KeywordIndices[I] >= 0) then
-        for J := CompletionList.Count - 1 downto 0 do
-          if (CompletionList[J]^.ItemType = itTag) then
-            if (CompletionList[J]^.KeywordIndices[I] <> KeywordIndices[I]) then
-              CompletionList.Delete(J);
+    MaxTokenCount := 0;
+    for I := 0 to CompletionList.Count - 1 do
+      for J := 0 to TokenCount - 1 do
+        if (KeywordIndices[J] = CompletionList[I]^.KeywordIndices[J]) then
+          if (J + 1 > MaxTokenCount) then
+            MaxTokenCount := J + 1;
 
-    Found := False;
-    for J := 0 to CompletionList.Count - 1 do
-      if (CompletionList[J]^.ItemType = itTag) then
+    for I := CompletionList.Count - 1 downto 0 do
+      if (CompletionList[I]^.ItemType = itTag) then
       begin
         Found := True;
-
-        for I := 0 to Length(CompletionList[J]^.KeywordIndices) - 1 do
-          if (I < TokenCount) then
-            CompletionList[J]^.KeywordIndices[I] := CompletionList[J]^.KeywordIndices[I + 1]
-          else
-            CompletionList[J]^.KeywordIndices[I] := -1;
+        for J := 0 to MaxTokenCount - 1 do
+          if ((CompletionList[I]^.KeywordIndices[J] <> KeywordIndices[J])) then
+            Found := False;
+        if (not Found) then
+          CompletionList.Delete(I);
       end;
 
+    Found := False;
+    if (TokenCount > 0) then
+      for J := 0 to CompletionList.Count - 1 do
+        if (CompletionList[J]^.ItemType = itTag) then
+        begin
+          Found := True;
+
+          Move(CompletionList[J]^.KeywordIndices[MaxTokenCount], CompletionList[J]^.KeywordIndices[0], MaxTokenCount * SizeOf(CompletionList[J]^.KeywordIndices[0]));
+        end;
+
     if (Found) then
-    begin
-      if (EndOfStmt(NextToken[TokenCount])) then
+      if (EndOfStmt(NextToken[MaxTokenCount])) then
       begin
         Error.Code := PE_IncompleteStmt;
         Error.Token := 0;
       end
       else
-        Error.Token := NextToken[TokenCount];
-    end;
+        Error.Token := NextToken[MaxTokenCount];
   end;
 
   if (Error.Code = PE_InvalidMySQLCond) then
@@ -26145,3 +26112,4 @@ end.
 // UPDATE `pronostico` AS `p` SET `p`.`corregido` = 1;  ... remove AliasIdent
 // Add missing useful keywords
 // PE_UnexpectedToken in ParseCreateStmt / ParseAlterStmt
+

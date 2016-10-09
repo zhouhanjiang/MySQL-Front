@@ -3903,11 +3903,11 @@ begin
     else
       FRows := DataSet.FieldByName('Rows').AsLargeInt;
     FAvgRowLength := DataSet.FieldByName('Avg_row_length').AsLargeInt;
-    FDataSize := DataSet.FieldByName('Data_length').AsLargeInt;
-    FIndexSize := DataSet.FieldByName('Index_length').AsLargeInt;
-    FMaxDataSize := DataSet.FieldByName('Max_data_length').AsLargeInt;
-    FUnusedSize := DataSet.FieldByName('Data_free').AsLargeInt;
-    FAutoIncrement := DataSet.FieldByName('Auto_increment').AsLargeInt;
+    if (not TryStrToInt64(DataSet.FieldByName('Data_length').AsString, FDataSize)) then FDataSize := 0;
+    if (not TryStrToInt64(DataSet.FieldByName('Index_length').AsString, FIndexSize)) then FIndexSize := 0;
+    if (not TryStrToInt64(DataSet.FieldByName('Max_data_length').AsString, FMaxDataSize)) then FMaxDataSize := 0;
+    if (not TryStrToInt64(DataSet.FieldByName('Data_free').AsString, FUnusedSize)) then FUnusedSize := 0;
+    if (not TryStrToInt64(DataSet.FieldByName('Auto_increment').AsString, FAutoIncrement)) then FAutoIncrement := 0;
     FCreated := DataSet.FieldByName('Create_time').AsDateTime;
     FUpdated := DataSet.FieldByName('Update_time').AsDateTime;
     FChecked := DataSet.FieldByName('Check_time').AsDateTime;
@@ -3922,11 +3922,11 @@ begin
     else
       FRows := DataSet.FieldByName('TABLE_ROWS').AsLargeInt;
     FAvgRowLength := DataSet.FieldByName('AVG_ROW_LENGTH').AsInteger;
-    FDataSize := DataSet.FieldByName('DATA_LENGTH').AsLargeint;
-    FMaxDataSize := DataSet.FieldByName('MAX_DATA_LENGTH').AsLargeInt;
-    FIndexSize := DataSet.FieldByName('INDEX_LENGTH').AsLargeInt;
-    FUnusedSize := DataSet.FieldByName('DATA_FREE').AsLargeInt;
-    FAutoIncrement := DataSet.FieldByName('AUTO_INCREMENT').AsLargeInt;
+    if (not TryStrToInt64(DataSet.FieldByName('DATA_LENGTH').AsString, FDataSize)) then FDataSize := 0;
+    if (not TryStrToInt64(DataSet.FieldByName('MAX_DATA_LENGTH').AsString, FMaxDataSize)) then FMaxDataSize := 0;
+    if (not TryStrToInt64(DataSet.FieldByName('INDEX_LENGTH').AsString, FIndexSize)) then FIndexSize := 0;
+    if (not TryStrToInt64(DataSet.FieldByName('DATA_FREE').AsString, FUnusedSize)) then FUnusedSize := 0;
+    if (not TryStrToInt64(DataSet.FieldByName('AUTO_INCREMENT').AsString, FAutoIncrement)) then FAutoIncrement := 0;
     FCreated := DataSet.FieldByName('CREATE_TIME').AsDateTime;
     FUpdated := DataSet.FieldByName('UPDATE_TIME').AsDateTime;
     FChecked := DataSet.FieldByName('CHECK_TIME').AsDateTime;

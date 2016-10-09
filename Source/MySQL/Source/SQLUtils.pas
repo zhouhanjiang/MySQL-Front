@@ -3118,8 +3118,10 @@ begin
     end;
 
     Len := SQLUnescape(Buffer, Len, Buffer, Len);
+
     SetLength(Result, Len);
 
+    if (Len > 0) then
     asm
         PUSH ES
         PUSH ESI
