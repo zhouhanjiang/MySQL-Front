@@ -28,15 +28,10 @@ type
     FBHelp: TButton;
     FBOk: TButton;
     FBold: TCheckBox;
-    FEditorAutoIndent: TCheckBox;
+    FEditorCompletionEnabled: TCheckBox;
+    FEditorCompletionTime: TEdit;
     FEditorCurrRowBGColorEnabled: TCheckBox;
     FEditorFont: TEdit;
-    FEditorLinenumbers: TCheckBox;
-    FEditorRightEdge: TEdit;
-    FEditorTabAccepted: TCheckBox;
-    FEditorTabToSpaces: TCheckBox;
-    FEditorTabWidth: TEdit;
-    FEditorTabWidthCharacters: TLabel;
     FEditorWordWrap: TCheckBox;
     FForeground: TCheckBox;
     FGridCurrRowBGColorEnabled: TCheckBox;
@@ -48,13 +43,10 @@ type
     FL2LogSize: TLabel;
     FLanguage: TComboBox_Ext;
     FLAssociate: TLabel;
-    FLEditorAutoIndent: TLabel;
+    FLEditorCompletion: TLabel;
+    FLEditorCompletionTime: TLabel;
     FLEditorCurrRowBGColor: TLabel;
     FLEditorFont: TLabel;
-    FLEditorLinenumbers: TLabel;
-    FLEditorRightEdge: TLabel;
-    FLEditorRightEdgeCharacters: TLabel;
-    FLEditorTabWidth: TLabel;
     FLEditorWordWrap: TLabel;
     FLGridBGColorEnabled: TLabel;
     FLGridCurrRowBGColor: TLabel;
@@ -78,8 +70,7 @@ type
     FPreview: TSynMemo;
     FStyles: TListView;
     FTabsVisible: TCheckBox;
-    FUDEditorRightEdge: TUpDown;
-    FUDEditorTabWidth: TUpDown;
+    FUDEditorCompletionTime: TUpDown;
     FUDLogSize: TUpDown;
     FUDMaxColumnWidth: TUpDown;
     FUnderline: TCheckBox;
@@ -421,14 +412,11 @@ begin
     Preferences.SQLFontColor := PEditorFont.Font.Color;
     Preferences.SQLFontSize := PEditorFont.Font.Size;
     Preferences.SQLFontCharset := PEditorFont.Font.Charset;
-    Preferences.Editor.LineNumbers := FEditorLineNumbers.Checked;
-    Preferences.Editor.AutoIndent := FEditorAutoIndent.Checked;
-    Preferences.Editor.TabAccepted := FEditorTabAccepted.Checked;
-    Preferences.Editor.TabToSpaces := FEditorTabToSpaces.Checked;
-    Preferences.Editor.TabWidth := FUDEditorTabWidth.Position;
-    Preferences.Editor.RightEdge := FUDEditorRightEdge.Position;
     Preferences.Editor.CurrRowBGColorEnabled := FEditorCurrRowBGColorEnabled.Checked;
     Preferences.Editor.CurrRowBGColor := PEditorCurrRowBGColor.Color;
+    Preferences.Editor.CodeCompletion := FEditorCompletionEnabled.Checked;
+    TryStrToInt(FEditorCompletionTime.Text, Preferences.Editor.CodeCompletionTime);
+    Preferences.Editor.WordWrap := FEditorWordWrap.Checked;
 
     Preferences.LogFontName := PLogFont.Font.Name;
     Preferences.LogFontStyle := PLogFont.Font.Style;
@@ -479,7 +467,7 @@ begin
     Preferences.Editor.LineNumbersForeground := LineNumbersAttri.Foreground;
     Preferences.Editor.LineNumbersBackground := LineNumbersAttri.Background;
     Preferences.Editor.LineNumbersStyle := LineNumbersAttri.Style;
-    Preferences.Editor.WordWrap := FEditorWordWrap.Checked;
+
     if (FUpdateCheckNever.Checked) then Preferences.UpdateCheck := utNever;
     if (FUpdateCheckDaily.Checked) then Preferences.UpdateCheck := utDaily;
 
@@ -544,15 +532,11 @@ begin
   PEditorFont.Font.Color := Preferences.SQLFontColor;
   PEditorFont.Font.Size := Preferences.SQLFontSize;
   PEditorFont.Font.Charset := Preferences.SQLFontCharset;
-  FEditorLinenumbers.Checked := Preferences.Editor.LineNumbers;
-  FEditorAutoIndent.Checked := Preferences.Editor.AutoIndent;
-  FEditorTabAccepted.Checked := Preferences.Editor.TabAccepted;
-  FEditorTabToSpaces.Checked := Preferences.Editor.TabToSpaces;
-  FUDEditorTabWidth.Position := Preferences.Editor.TabWidth;
-  FUDEditorRightEdge.Position := Preferences.Editor.RightEdge;
   FEditorCurrRowBGColorEnabled.Checked := Preferences.Editor.CurrRowBGColorEnabled;
   PEditorCurrRowBGColor.Color := Preferences.Editor.CurrRowBGColor;
   FEditorWordWrap.Checked := Preferences.Editor.WordWrap;
+  FEditorCompletionEnabled.Checked := Preferences.Editor.CodeCompletion;
+  FUDEditorCompletionTime.Position := Preferences.Editor.CodeCompletionTime;
 
   FLogFont.Text := Preferences.LogFontName;
   PLogFont.Font.Name := Preferences.LogFontName;
@@ -757,22 +741,14 @@ begin
   TSEditor.Caption := Preferences.LoadStr(473);
   GEditor.Caption := Preferences.LoadStr(473);
   FLEditorFont.Caption := Preferences.LoadStr(439) + ':';
-  FLEditorLinenumbers.Caption := Preferences.LoadStr(527) + ':';
-  FEditorLinenumbers.Caption := Preferences.LoadStr(526);
-  FLEditorAutoIndent.Caption := Preferences.LoadStr(529) + ':';
-  FEditorAutoIndent.Caption := Preferences.LoadStr(756);
-  FEditorTabAccepted.Caption := Preferences.LoadStr(776);
-  FEditorTabToSpaces.Caption := Preferences.LoadStr(759);
-  FLEditorTabWidth.Caption := Preferences.LoadStr(757) + ':';
-  FLEditorRightEdge.Caption := Preferences.LoadStr(758) + ':';
-  FEditorTabWidthCharacters.Caption := Preferences.LoadStr(395);
-  FEditorTabWidthCharacters.Left := FUDEditorTabWidth.Left + FUDEditorTabWidth.Width + Canvas.TextWidth('  ');
-  FLEditorRightEdgeCharacters.Caption := Preferences.LoadStr(395);
-  FLEditorRightEdgeCharacters.Left := FUDEditorRightEdge.Left + FUDEditorRightEdge.Width + Canvas.TextWidth('  ');
   FLEditorCurrRowBGColor.Caption := Preferences.LoadStr(784) + ':';
   FLEditorCurrRowBGColor.Caption := Preferences.LoadStr(784) + ':';
   FLEditorWordWrap.Caption := Preferences.LoadStr(891) + ':';
   FEditorWordWrap.Caption := Preferences.LoadStr(892);
+  FLEditorCompletion.Caption := Preferences.LoadStr(660) + ':';
+  FEditorCompletionEnabled.Width := FEditorCurrRowBGColorEnabled.Width + Canvas.TextWidth(FEditorCompletionEnabled.Caption);
+  FLEditorCompletionTime.Caption := Preferences.LoadStr(843);
+  FLEditorCompletionTime.Left := FUDEditorCompletionTime.Left + FUDEditorCompletionTime.Width + Canvas.TextWidth('  ');
 
   TSHighlighter.Caption := Preferences.LoadStr(528);
   GColors.Caption := Preferences.LoadStr(474);

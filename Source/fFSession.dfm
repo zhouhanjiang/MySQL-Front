@@ -2336,7 +2336,7 @@ object FSession: TFSession
   object SynCompletion: TSynCompletionProposal
     Options = [scoLimitToMatchedText, scoUseInsertList, scoEndCharCompletion, scoCompleteWithEnter]
     EndOfTokenChr = '()[]. '
-    TriggerChars = '.'
+    TriggerChars = '._abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -12
@@ -2348,7 +2348,10 @@ object FSession: TFSession
     TitleFont.Name = 'MS Sans Serif'
     TitleFont.Style = [fsBold]
     Columns = <>
+    OnChange = SynCompletionChange
+    OnClose = SynCompletionClose
     OnExecute = SynCompletionExecute
+    OnShow = SynCompletionShow
     ShortCut = 16416
     Editor = FSQLEditorSynMemo
     OnAfterCodeCompletion = SynCompletionAfterCodeCompletion

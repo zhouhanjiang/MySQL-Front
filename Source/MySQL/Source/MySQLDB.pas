@@ -2560,7 +2560,7 @@ begin
     LibraryThread.SQLStmtsInPackets.Add(Pointer(LibraryThread.SQLStmt > OldStmt));
 
   if (SQL = '') then
-    raise EDatabaseError.Create('Empy query')
+    raise EDatabaseError.Create('Empty query')
   else if (LibraryThread.SQLStmtLengths.Count = 0) then
     raise EDatabaseError.Create('No query')
   else if (SetNames) then
@@ -3926,7 +3926,7 @@ end;
 
 procedure TMySQLDateTimeField.SetAsString(const Value: string);
 begin
-  if (Value = '') then
+   if (Value = '') then
     AsDateTime := -1
   else
     AsDateTime := MySQLDB.StrToDateTime(Value, TMySQLQuery(DataSet).Connection.FormatSettings);

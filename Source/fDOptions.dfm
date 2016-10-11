@@ -45,12 +45,16 @@ object DOptions: TDOptions
     Top = 8
     Width = 362
     Height = 345
-    ActivePage = TSView
+    ActivePage = TSEditor
     HotTrack = True
     MultiLine = True
     TabOrder = 0
     object TSView: TTabSheet
       Caption = 'TSView'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GProgram: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -283,15 +287,11 @@ object DOptions: TDOptions
     object TSEditor: TTabSheet
       Caption = 'TSEditor'
       OnResize = TSEditorResize
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GEditor: TGroupBox_Ext
         Left = 4
         Top = 4
         Width = 345
-        Height = 285
+        Height = 141
         Caption = 'GEditor'
         TabOrder = 0
         object FLEditorFont: TLabel
@@ -302,71 +302,41 @@ object DOptions: TDOptions
           Caption = 'FLEditorFont'
           FocusControl = FEditorFont
         end
-        object FLEditorLinenumbers: TLabel
+        object FLEditorCompletion: TLabel
           Left = 8
-          Top = 53
-          Width = 99
+          Top = 112
+          Width = 91
           Height = 13
-          Caption = 'FLEditorLinenumbers'
-          FocusControl = FEditorLinenumbers
-        end
-        object FLEditorTabWidth: TLabel
-          Left = 8
-          Top = 159
-          Width = 86
-          Height = 13
-          Caption = 'FLEditorTabWidth'
-          FocusControl = FEditorTabWidth
-        end
-        object FLEditorRightEdge: TLabel
-          Left = 8
-          Top = 193
-          Width = 89
-          Height = 13
-          Caption = 'FLEditorRightEdge'
-          FocusControl = FEditorRightEdge
+          Caption = 'FLEditorCompletion'
+          FocusControl = FEditorCompletionEnabled
         end
         object FLEditorCurrRowBGColor: TLabel
           Left = 8
-          Top = 229
+          Top = 54
           Width = 119
           Height = 13
           Caption = 'FLEditorCurrRowBGColor'
         end
-        object FLEditorAutoIndent: TLabel
-          Left = 8
-          Top = 81
-          Width = 91
+        object FLEditorCompletionTime: TLabel
+          Left = 224
+          Top = 112
+          Width = 114
           Height = 13
-          Caption = 'FLEditorAutoIndent'
-        end
-        object FEditorTabWidthCharacters: TLabel
-          Left = 191
-          Top = 159
-          Width = 131
-          Height = 13
-          Caption = 'FEditorTabWidthCharacters'
-        end
-        object FLEditorRightEdgeCharacters: TLabel
-          Left = 206
-          Top = 193
-          Width = 140
-          Height = 13
-          Caption = 'FLEditorRightEdgeCharacters'
+          Caption = 'FLEditorCompletionTime'
         end
         object FLEditorWordWrap: TLabel
           Left = 9
-          Top = 258
+          Top = 83
           Width = 91
           Height = 13
           Caption = 'FLEditorWordWrap'
         end
         object FEditorCurrRowBGColorEnabled: TCheckBox
           Left = 144
-          Top = 228
+          Top = 53
           Width = 19
           Height = 17
-          TabOrder = 11
+          TabOrder = 3
         end
         object FEditorFont: TEdit
           Left = 144
@@ -390,91 +360,38 @@ object DOptions: TDOptions
           TabOrder = 0
           Visible = False
         end
-        object FEditorLinenumbers: TCheckBox
+        object FEditorCompletionEnabled: TCheckBox
           Left = 144
-          Top = 52
-          Width = 193
+          Top = 111
+          Width = 19
           Height = 17
-          Caption = 'FEditorLinenumbers'
-          TabOrder = 3
-        end
-        object FEditorTabWidth: TEdit
-          Left = 144
-          Top = 156
-          Width = 25
-          Height = 21
-          TabOrder = 7
-          Text = '4'
-        end
-        object FEditorAutoIndent: TCheckBox
-          Left = 144
-          Top = 80
-          Width = 193
-          Height = 17
-          Caption = 'FEditorAutoIndent'
-          TabOrder = 4
-        end
-        object FEditorRightEdge: TEdit
-          Left = 144
-          Top = 190
-          Width = 41
-          Height = 21
-          TabOrder = 9
-          Text = '80'
-        end
-        object FUDEditorRightEdge: TUpDown
-          Left = 185
-          Top = 190
-          Width = 15
-          Height = 21
-          Associate = FEditorRightEdge
-          Max = 1024
-          Position = 80
-          TabOrder = 10
-        end
-        object FUDEditorTabWidth: TUpDown
-          Left = 169
-          Top = 156
-          Width = 15
-          Height = 21
-          Associate = FEditorTabWidth
-          Min = 1
-          Position = 4
-          TabOrder = 8
-        end
-        object FEditorTabToSpaces: TCheckBox
-          Left = 144
-          Top = 128
-          Width = 193
-          Height = 17
-          Caption = 'FEditorTabToSpaces'
           TabOrder = 6
-        end
-        object FEditorTabAccepted: TCheckBox
-          Left = 144
-          Top = 104
-          Width = 193
-          Height = 17
-          Caption = 'FEditorTabAccepted'
-          TabOrder = 5
         end
         object PEditorCurrRowBGColor: TPanel_Ext
           Left = 162
-          Top = 226
+          Top = 51
           Width = 49
           Height = 21
           BevelOuter = bvLowered
           ParentBackground = False
-          TabOrder = 12
+          TabOrder = 4
           OnClick = PEditorCurrRowBGColorClick
+        end
+        object FEditorCompletionTime: TEdit
+          Left = 162
+          Top = 109
+          Width = 41
+          Height = 21
+          TabOrder = 7
+          Text = '3.000'
         end
         object FEditorWordWrap: TCheckBox
           Left = 144
-          Top = 257
+          Top = 82
           Width = 198
           Height = 17
           Caption = 'FEditorWordWrap'
-          TabOrder = 13
+          TabOrder = 5
         end
         object FBEditorFont: TButton
           Left = 265
@@ -485,6 +402,17 @@ object DOptions: TDOptions
           TabOrder = 2
           OnClick = FBEditorFontClick
           OnKeyPress = FEditorFontKeyPress
+        end
+        object FUDEditorCompletionTime: TUpDown
+          Left = 203
+          Top = 109
+          Width = 15
+          Height = 21
+          Associate = FEditorCompletionTime
+          Max = 5000
+          Increment = 100
+          Position = 3000
+          TabOrder = 8
         end
       end
     end

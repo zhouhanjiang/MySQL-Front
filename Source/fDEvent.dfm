@@ -222,6 +222,7 @@ object DEvent: TDEvent
           Gutter.Font.Style = []
           Gutter.Width = 0
           Options = [eoAutoIndent, eoDragDropEditing, eoGroupUndo, eoHideShowScrollbars, eoShowScrollHint, eoSmartTabDelete, eoSmartTabs, eoTabsToSpaces, eoTrimTrailingSpaces]
+          RightEdge = 0
           RightEdgeColor = clWindow
           ScrollHintFormat = shfTopToBottom
           OnChange = FBOkCheckEnabled
@@ -514,10 +515,6 @@ object DEvent: TDEvent
     end
     object TSInformations: TTabSheet
       Caption = 'TSInformations'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         373
         455)
@@ -597,10 +594,6 @@ object DEvent: TDEvent
     object TSSource: TTabSheet
       Caption = 'TSSource'
       OnShow = TSSourceShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         373
         455)

@@ -367,15 +367,6 @@ begin
   FStatement.Font.Color := Preferences.SQLFontColor;
   FStatement.Font.Size := Preferences.SQLFontSize;
   FStatement.Font.Charset := Preferences.SQLFontCharset;
-  if (Preferences.Editor.AutoIndent) then
-    FStatement.Options := FStatement.Options + [eoAutoIndent, eoSmartTabs]
-  else
-    FStatement.Options := FStatement.Options - [eoAutoIndent, eoSmartTabs];
-  if (Preferences.Editor.TabToSpaces) then
-    FStatement.Options := FStatement.Options + [eoTabsToSpaces]
-  else
-    FStatement.Options := FStatement.Options - [eoTabsToSpaces];
-  FStatement.RightEdge := Preferences.Editor.RightEdge;
   if (not Preferences.Editor.CurrRowBGColorEnabled) then
     FStatement.ActiveLineColor := clNone
   else

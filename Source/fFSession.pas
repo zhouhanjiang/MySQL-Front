@@ -668,6 +668,9 @@ type
       Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure TreeViewMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
+    procedure SynCompletionShow(Sender: TObject);
+    procedure SynCompletionChange(Sender: TObject; AIndex: Integer);
+    procedure SynCompletionClose(Sender: TObject);
   type
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
     TTabState = set of (tsLoading, tsActive);
@@ -1100,6 +1103,7 @@ const
 const
   tiNavigator = 1;
   tiStatusBar = 2;
+  tiHideSynCompletion = 3;
 
 const
   giDatabases = 1;
@@ -4821,6 +4825,7 @@ begin
     FSQLEditorSynMemo.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
 
   SynCompletion.Font := FSQLEditorSynMemo.Font;
+  SynCompletion.Width := Round(260 * Screen.PixelsPerInch / USER_DEFAULT_SCREEN_DPI);
 
   FText.Font.Name := Preferences.GridFontName;
   FText.Font.Style := Preferences.GridFontStyle;
@@ -4834,7 +4839,6 @@ begin
     LogFont.lfQuality  := NonClientMetrics.lfMessageFont.lfQuality;
     FText.Font.Handle := CreateFontIndirect(LogFont);
   end;
-  FText.WantTabs := Preferences.Editor.TabAccepted;
 
   FRTF.Font := FText.Font;
 
@@ -7355,9 +7359,9 @@ begin
   MainAction('aDEditServer').Enabled := Assigned(Node) and (Node.ImageIndex = iiServer);
   MainAction('aDEditDatabase').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
   MainAction('aDEditTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
-  MainAction('aDEditView').Enabled := Assigned(Node) and (Node.ImageIndex = iiView) and (TSView(Node.Data).Source <> '');
-  MainAction('aDEditRoutine').Enabled := Assigned(Node) and (Node.ImageIndex in [iiProcedure, iiFunction]) and (TSRoutine(Node.Data).Source <> '');
-  MainAction('aDEditEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiEvent) and (TSEvent(Node.Data).Source <> '');
+  MainAction('aDEditView').Enabled := Assigned(Node) and (Node.ImageIndex = iiView);
+  MainAction('aDEditRoutine').Enabled := Assigned(Node) and (Node.ImageIndex in [iiProcedure, iiFunction]);
+  MainAction('aDEditEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiEvent);
   MainAction('aDEditKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiKey);
   MainAction('aDEditField').Enabled := Assigned(Node) and (Node.ImageIndex in [iiField, iiVirtualField]);
   MainAction('aDEditForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiForeignKey);
@@ -10106,7 +10110,7 @@ begin
           begin
             Database := TSDatabase(FNavigator.Selected.Data);
 
-            aPOpenInNewWindow.Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiSystemView, iiView, iiProcedure, iiFunction]) and (not (Item.ImageIndex in [iiProcedure, iiFunction, iiEvent]) or (TSDBObject(Item.Data).Source <> ''));
+            aPOpenInNewWindow.Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiSystemView, iiView, iiProcedure, iiFunction]);
             aPOpenInNewTab.Enabled := aPOpenInNewWindow.Enabled;
             MainAction('aFImportSQL').Enabled := (ListView.SelCount = 0) and (SelectedImageIndex = iiDatabase);
             MainAction('aFImportText').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
@@ -10139,9 +10143,9 @@ begin
             MainAction('aDDeleteEvent').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiEvent);
             MainAction('aDEditDatabase').Enabled := (ListView.SelCount = 0) and (SelectedImageIndex = iiDatabase);
             MainAction('aDEditTable').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable);
-            MainAction('aDEditView').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiView) and (TSView(Item.Data).Source <> '');
-            MainAction('aDEditRoutine').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiProcedure, iiFunction]) and (TSRoutine(Item.Data).Source <> '');
-            MainAction('aDEditEvent').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiEvent) and (TSEvent(Item.Data).Source <> '');
+            MainAction('aDEditView').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiView);
+            MainAction('aDEditRoutine').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiProcedure, iiFunction]);
+            MainAction('aDEditEvent').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiEvent);
             MainAction('aDEmpty').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable);
             aDDelete.Enabled := (ListView.SelCount >= 1);
 
@@ -10161,14 +10165,14 @@ begin
                 MainAction('aDDeleteRoutine').Enabled := MainAction('aDDeleteRoutine').Enabled and (ListView.Items[I].ImageIndex in [iiProcedure, iiFunction]);
                 MainAction('aDDeleteEvent').Enabled := MainAction('aDDeleteEvent').Enabled and (ListView.Items[I].ImageIndex in [iiEvent]);
                 MainAction('aDEditTable').Enabled := MainAction('aDEditTable').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
-                MainAction('aDEditView').Enabled := MainAction('aDEditView').Enabled and (ListView.Items[I].ImageIndex in [iiView]) and (TSView(ListView.Items[I].Data).Source <> '');
-                MainAction('aDEditRoutine').Enabled := MainAction('aDEditRoutine').Enabled and (ListView.Items[I].ImageIndex in [iiProcedure, iiFunction]) and (TSRoutine(ListView.Items[I].Data).Source <> '');
-                MainAction('aDEditEvent').Enabled := MainAction('aDEditEvent').Enabled and (ListView.Items[I].ImageIndex in [iiEvent]) and (TSEvent(ListView.Items[I].Data).Source <> '');
+                MainAction('aDEditView').Enabled := MainAction('aDEditView').Enabled and (ListView.Items[I].ImageIndex in [iiView]);
+                MainAction('aDEditRoutine').Enabled := MainAction('aDEditRoutine').Enabled and (ListView.Items[I].ImageIndex in [iiProcedure, iiFunction]);
+                MainAction('aDEditEvent').Enabled := MainAction('aDEditEvent').Enabled and (ListView.Items[I].ImageIndex in [iiEvent]);
                 MainAction('aDEmpty').Enabled := MainAction('aDEmpty').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
                 aDDelete.Enabled := aDDelete.Enabled and not (ListView.Items[I].ImageIndex in [iiSystemView]);
               end;
 
-            mlOpen.Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiSystemView, iiView, iiProcedure, iiFunction, iiEvent]) and (not (Item.ImageIndex in [iiProcedure, iiFunction, iiEvent]) or (TSDBObject(Item.Data).Source <> ''));
+            mlOpen.Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiSystemView, iiView, iiProcedure, iiFunction, iiEvent]);
 
             if (SelectedImageIndex = iiSystemDatabase) then
               mlEProperties.Action := nil
@@ -12940,6 +12944,17 @@ begin
   SynCompletion.InsertList.Clear();
 end;
 
+procedure TFSession.SynCompletionChange(Sender: TObject; AIndex: Integer);
+begin
+  KillTimer(Handle, tiHideSynCompletion);
+  SetTimer(Handle, tiHideSynCompletion, 5000, nil);
+end;
+
+procedure TFSession.SynCompletionClose(Sender: TObject);
+begin
+  KillTimer(Handle, tiHideSynCompletion);
+end;
+
 procedure TFSession.SynCompletionExecute(Kind: SynCompletionType;
   Sender: TObject; var CurrentInput: string; var x, y: Integer;
   var CanExecute: Boolean);
@@ -13233,6 +13248,11 @@ begin
 
     Session.SQLParser.Clear();
   end;
+end;
+
+procedure TFSession.SynCompletionShow(Sender: TObject);
+begin
+  SetTimer(Handle, tiHideSynCompletion, 5000, nil);
 end;
 
 procedure TFSession.SynMemoApplyPreferences(const SynMemo: TSynMemo);
@@ -13796,8 +13816,6 @@ begin
         TSTable(PListView.Controls[I].Tag).PushBuildEvent();
     end;
 
-  SQLBuilder.RightMargin := Preferences.Editor.RightEdge;
-
   FOffset.Hint := Preferences.LoadStr(846) + ' (' + ShortCutToText(aTBOffset.ShortCut) + ')';
   FUDOffset.Hint := Preferences.LoadStr(846);
   FLimit.Hint := Preferences.LoadStr(197) + ' (' + ShortCutToText(aTBLimit.ShortCut) + ')';
@@ -13827,19 +13845,7 @@ begin
   FSQLEditorSynMemo.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
   FSQLEditorSynMemo.Gutter.Font.Size := FSQLEditorSynMemo.Font.Size;
   FSQLEditorSynMemo.Gutter.Font.Charset := FSQLEditorSynMemo.Font.Charset;
-  FSQLEditorSynMemo.Gutter.Visible := Preferences.Editor.LineNumbers;
   FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options + [eoScrollHintFollows];  // Slow down the performance on large content
-  if (Preferences.Editor.AutoIndent) then
-    FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options + [eoAutoIndent, eoSmartTabs]
-  else
-    FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options - [eoAutoIndent, eoSmartTabs];
-  if (Preferences.Editor.TabToSpaces) then
-    FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options + [eoTabsToSpaces]
-  else
-    FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options - [eoTabsToSpaces];
-  FSQLEditorSynMemo.TabWidth := Preferences.Editor.TabWidth;
-  FSQLEditorSynMemo.RightEdge := Preferences.Editor.RightEdge;
-  FSQLEditorSynMemo.WantTabs := Preferences.Editor.TabAccepted;
   FSQLEditorSynMemo.WordWrap := Preferences.Editor.WordWrap;
 
   for I := 0 to PSynMemo.ControlCount - 1 do
@@ -13847,6 +13853,11 @@ begin
       SynMemoApplyPreferences(TSynMemo(PSynMemo.Controls[I]));
 
   SynMemoApplyPreferences(FQueryBuilderSynMemo);
+
+  if (not Preferences.Editor.CodeCompletion) then
+    SynCompletion.TimerInterval := 0
+  else
+    SynCompletion.TimerInterval := Preferences.Editor.CodeCompletionTime;
 
   FSQLEditorPrint.Font := FSQLEditorSynMemo.Font;
 
@@ -14418,7 +14429,11 @@ begin
         StatusBar.Panels[sbMessage].Text := '';
         StatusBarRefresh();
       end;
-
+    tiHideSynCompletion:
+      begin
+        KillTimer(Handle, tiHideSynCompletion);
+        SynCompletion.CancelCompletion();
+      end;
   end;
 end;
 

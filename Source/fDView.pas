@@ -510,15 +510,6 @@ begin
   else
     FStmt.Gutter.Color := Preferences.Editor.LineNumbersBackground;
   FStmt.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
-  if (Preferences.Editor.AutoIndent) then
-    FStmt.Options := FStmt.Options + [eoAutoIndent, eoSmartTabs]
-  else
-    FStmt.Options := FStmt.Options - [eoAutoIndent, eoSmartTabs];
-  if (Preferences.Editor.TabToSpaces) then
-    FStmt.Options := FStmt.Options + [eoTabsToSpaces]
-  else
-    FStmt.Options := FStmt.Options - [eoTabsToSpaces];
-  FStmt.RightEdge := Preferences.Editor.RightEdge;
   if (not Preferences.Editor.CurrRowBGColorEnabled) then
     FStmt.ActiveLineColor := clNone
   else

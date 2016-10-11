@@ -434,18 +434,6 @@ begin
   else
     FSource.Gutter.Color := Preferences.Editor.LineNumbersBackground;
   FSource.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
-  FSource.Gutter.Visible := Preferences.Editor.LineNumbers;
-  if (Preferences.Editor.AutoIndent) then
-    FSource.Options := FSource.Options + [eoAutoIndent, eoSmartTabs]
-  else
-    FSource.Options := FSource.Options - [eoAutoIndent, eoSmartTabs];
-  if (Preferences.Editor.TabToSpaces) then
-    FSource.Options := FSource.Options + [eoTabsToSpaces]
-  else
-    FSource.Options := FSource.Options - [eoTabsToSpaces];
-  FSource.TabWidth := Preferences.Editor.TabWidth;
-  FSource.RightEdge := Preferences.Editor.RightEdge;
-  FSource.WantTabs := Preferences.Editor.TabAccepted;
   FSource.WordWrap := Preferences.Editor.WordWrap;
 
   msUndo.Action := MainAction('aEUndo'); msCut.ShortCut := 0;

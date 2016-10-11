@@ -2071,7 +2071,7 @@ begin
   FValidSource := True;
   FSource := ASource;
 
-  if ((Now() <= Session.ParseEndDate) and (LeftStr(Name, 3) <> 'ps_')) then
+  if ((Now() <= Session.ParseEndDate) and (LeftStr(Name, 3) <> 'ps_') and (StrIComp(PChar(Name), 'create_synonym_db') <> 0)) then
   begin
     try
       if (not Session.SQLParser.ParseSQL(FSource)) then

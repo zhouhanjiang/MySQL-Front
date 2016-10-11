@@ -72,16 +72,12 @@ object DRoutine: TDRoutine
     Top = 8
     Width = 321
     Height = 325
-    ActivePage = TSBasics
+    ActivePage = TSSource
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -165,10 +161,6 @@ object DRoutine: TDRoutine
     end
     object TSInformations: TTabSheet
       Caption = 'TSInformations'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -275,10 +267,6 @@ object DRoutine: TDRoutine
     end
     object TSSource: TTabSheet
       Caption = 'TSSource'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -306,7 +294,9 @@ object DRoutine: TDRoutine
         Gutter.ShowLineNumbers = True
         MaxScrollWidth = 65535
         Options = [eoDragDropEditing, eoGroupUndo, eoHideShowScrollbars, eoShowScrollHint, eoSmartTabDelete, eoTabIndent, eoTabsToSpaces]
+        RightEdge = 0
         ScrollHintFormat = shfTopToBottom
+        WantTabs = True
         OnChange = FSourceChange
         FontSmoothing = fsmNone
       end

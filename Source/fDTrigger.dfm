@@ -46,10 +46,6 @@ object DTrigger: TDTrigger
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -195,7 +191,7 @@ object DTrigger: TDTrigger
           Gutter.Font.Style = []
           Gutter.Width = 0
           Options = [eoAutoIndent, eoDragDropEditing, eoGroupUndo, eoHideShowScrollbars, eoShowScrollHint, eoSmartTabDelete, eoSmartTabs, eoTabsToSpaces, eoTrimTrailingSpaces]
-          RightEdgeColor = clWindow
+          RightEdge = 0
           OnChange = FStatementChange
           FontSmoothing = fsmNone
         end
@@ -203,10 +199,6 @@ object DTrigger: TDTrigger
     end
     object TSInformations: TTabSheet
       Caption = 'TSInformations'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -269,10 +261,6 @@ object DTrigger: TDTrigger
     end
     object TSSource: TTabSheet
       Caption = 'TSSource'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)

@@ -92,7 +92,8 @@ type
       procedure LoadFromXML(const XML: IXMLNode); virtual;
       procedure SaveToXML(const XML: IXMLNode); virtual;
     public
-      AutoIndent: Boolean;
+      CodeCompletion: Boolean;
+      CodeCompletionTime: Integer;
       ConditionalCommentForeground, ConditionalCommentBackground: TColor;
       ConditionalCommentStyle: TFontStyles;
       CommentForeground, CommentBackground: TColor;
@@ -109,17 +110,12 @@ type
       KeywordStyle: TFontStyles;
       NumberForeground, NumberBackground: TColor;
       NumberStyle: TFontStyles;
-      LineNumbers: Boolean;
       LineNumbersForeground, LineNumbersBackground: TColor;
       LineNumbersStyle: TFontStyles;
-      RightEdge: Integer;
       StringForeground, StringBackground: TColor;
       StringStyle: TFontStyles;
       SymbolForeground, SymbolBackground: TColor;
       SymbolStyle: TFontStyles;
-      TabAccepted: Boolean;
-      TabToSpaces: Boolean;
-      TabWidth: Integer;
       VariableForeground, VariableBackground: TColor;
       VariableStyle: TFontStyles;
       WordWrap: Boolean;
@@ -1515,7 +1511,8 @@ constructor TPPreferences.TEditor.Create();
 begin
   inherited;
 
-  AutoIndent := True;
+  CodeCompletion := True;
+  CodeCompletionTime := 3000;
   ConditionalCommentForeground := clTeal; ConditionalCommentBackground := clNone; ConditionalCommentStyle := [];
   CommentForeground := clGreen; CommentBackground := clNone; CommentStyle := [fsItalic];
   CurrRowBGColorEnabled := True; CurrRowBGColor := $C0FFFF;
@@ -1523,43 +1520,28 @@ begin
   FunctionForeground := clNavy; FunctionBackground := clNone; FunctionStyle := [fsBold];
   IdentifierForeground := clNone; IdentifierBackground := clNone; IdentifierStyle := [];
   KeywordForeground := clNavy; KeywordBackground := clNone; KeywordStyle := [fsBold];
-  LineNumbers := True;
   LineNumbersForeground := $9999CC; LineNumbersBackground := $F4F4F4; LineNumbersStyle := [];
   NumberForeground := clBlue; NumberBackground := clNone; NumberStyle := [];
-  RightEdge := 80;
   StringForeground := clBlue; StringBackground := clNone; StringStyle := [];
   SymbolForeground := clNone; SymbolBackground := clNone; SymbolStyle := [];
-  TabAccepted := True;
-  TabToSpaces := True;
-  TabWidth := 2;
   VariableForeground := clGreen; VariableBackground := clNone; VariableStyle := [];
   WordWrap := False;
 end;
 
 procedure TPPreferences.TEditor.LoadFromXML(const XML: IXMLNode);
 begin
-  if (Assigned(XMLNode(XML, 'autoindent'))) then TryStrToBool(XMLNode(XML, 'autoindent').Attributes['enabled'], AutoIndent);
+  if (Assigned(XMLNode(XML, 'autocompletion'))) then TryStrToBool(XMLNode(XML, 'autocompletion').Attributes['enabled'], CodeCompletion);
+  if (Assigned(XMLNode(XML, 'autocompletion/time'))) then TryStrToInt(XMLNode(XML, 'autocompletion/time').Text, CodeCompletionTime);
   if (Assigned(XMLNode(XML, 'currentrow/background'))) then TryStrToBool(XMLNode(XML, 'currentrow/background').Attributes['visible'], CurrRowBGColorEnabled);
   if (Assigned(XMLNode(XML, 'currentrow/background/color'))) then CurrRowBGColor := StringToColor(XMLNode(XML, 'currentrow/background/color').Text);
-  if (Assigned(XMLNode(XML, 'linenumbers'))) then TryStrToBool(XMLNode(XML, 'linenumbers').Attributes['visible'], LineNumbers);
-  if (Assigned(XMLNode(XML, 'rightedge/position'))) then TryStrToInt(XMLNode(XML, 'rightedge/position').Text, RightEdge);
-  if (Assigned(XMLNode(XML, 'tabs'))) then TryStrToBool(XMLNode(XML, 'tabs').Attributes['accepted'], TabAccepted);
-  if (Assigned(XMLNode(XML, 'tabs'))) then TryStrToBool(XMLNode(XML, 'tabs').Attributes['tospace'], TabToSpaces);
-  if (Assigned(XMLNode(XML, 'tabs/size'))) then TryStrToInt(XMLNode(XML, 'tabs/size').Text, TabWidth);
-  if (Assigned(XMLNode(XML, 'wordwrap'))) then TryStrToBool(XMLNode(XML, 'wordwrap').Text, WordWrap);
 end;
 
 procedure TPPreferences.TEditor.SaveToXML(const XML: IXMLNode);
 begin
-  XMLNode(XML, 'autoindent').Attributes['enabled'] := AutoIndent;
+  XMLNode(XML, 'autocompletion').Attributes['enabled'] := CodeCompletion;
+  XMLNode(XML, 'autocompletion/time').Text := IntToStr(CodeCompletionTime);
   XMLNode(XML, 'currentrow/background').Attributes['visible'] := CurrRowBGColorEnabled;
   XMLNode(XML, 'currentrow/background/color').Text := ColorToString(CurrRowBGColor);
-  XMLNode(XML, 'linenumbers').Attributes['visible'] := LineNumbers;
-  XMLNode(XML, 'rightedge').Attributes['visible'] := RightEdge > 0;
-  XMLNode(XML, 'rightedge/position').Text := IntToStr(RightEdge);
-  XMLNode(XML, 'tabs').Attributes['accepted'] := TabAccepted;
-  XMLNode(XML, 'tabs').Attributes['tospace'] := TabToSpaces;
-  XMLNode(XML, 'tabs/size').Text := IntToStr(TabWidth);
   XMLNode(XML, 'wordwrap').Text := BoolToStr(WordWrap, True);
 end;
 
