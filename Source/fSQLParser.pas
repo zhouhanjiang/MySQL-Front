@@ -13469,7 +13469,8 @@ begin
     Commands.IncreaseIndent();
   end;
   FormatNode(Nodes.SelectTag);
-  Commands.IncreaseIndent();
+  if (Separator = stReturnBefore) then
+    Commands.IncreaseIndent();
   FormatNode(Nodes.DistinctTag, stSpaceBefore);
   FormatNode(Nodes.HighPriorityTag, stSpaceBefore);
   FormatNode(Nodes.MaxStatementTime, stSpaceBefore);
@@ -13489,18 +13490,17 @@ begin
       Commands.WriteReturn();
     FormatList(Nodes.ColumnsList, Spacer);
   end;
-  Commands.DecreaseIndent();
+  if (Separator = stReturnBefore) then
+    Commands.DecreaseIndent();
   FormatInto(Nodes.Into1);
   if (Nodes.From.Tag > 0) then
   begin
     FormatNode(Nodes.From.Tag, Separator);
-    Commands.IncreaseIndent();
     if (Separator = stSpaceBefore) then
       Commands.WriteSpace()
     else
       Commands.WriteReturn();
     FormatList(Nodes.From.TableReferenceList, Spacer);
-    Commands.DecreaseIndent();
   end;
   if (Nodes.Partition.Tag > 0) then
   begin
@@ -13565,6 +13565,8 @@ begin
   FormatInto(Nodes.Into2);
   FormatNode(Nodes.ForUpdatesTag, Separator);
   FormatNode(Nodes.LockInShareMode, Separator);
+  FormatNode(Nodes.Union.Tag, stReturnBefore);
+  FormatNode(Nodes.Union.SelectStmt, stReturnBefore);
   if (Nodes.CloseBracket > 0) then
   begin
     if (Separator = stReturnBefore) then
@@ -13572,9 +13574,6 @@ begin
     Commands.DecreaseIndent();
     FormatNode(Nodes.CloseBracket);
   end;
-
-  FormatNode(Nodes.Union.Tag, stReturnBefore);
-  FormatNode(Nodes.Union.SelectStmt, stReturnBefore);
 end;
 
 procedure TSQLParser.FormatSelectStmtColumn(const Nodes: TSelectStmt.TColumn.TNodes);
@@ -16773,13 +16772,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  if (not ErrorFound) then
-    if (AddType = fatAdd) then
-      Nodes.AddTag := ParseTag(kiADD)
-    else if (AddType = fatChange) then
-      Nodes.AddTag := ParseTag(kiCHANGE)
-    else if (AddType = fatModify) then
-      Nodes.AddTag := ParseTag(kiMODIFY);
+  Nodes.AddTag := AddTag;
 
   if (not ErrorFound and (AddType <> fatNone)) then
     if (IsTag(kiCOLUMN)) then
@@ -20276,6 +20269,7 @@ begin
     and not EndOfStmt(CurrentToken)
     and (Nodes.AliasIdent = 0)
     and (TokenPtr(CurrentToken)^.TokenType in ttIdents + ttStrings)
+    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiEND)
     and (TokenPtr(CurrentToken)^.KeywordIndex <> kiREAD)
     and (TokenPtr(CurrentToken)^.KeywordIndex <> kiLOW_PRIORITY)
     and (TokenPtr(CurrentToken)^.KeywordIndex <> kiWRITE)) then
@@ -21160,9 +21154,6 @@ begin
           Nodes.LockInShareMode := ParseTag(kiLOCK, kiIN, kiSHARE, kiMODE);
     end;
 
-  if (not ErrorFound and (Nodes.OpenBracket > 0)) then
-    Nodes.CloseBracket := ParseSymbol(ttCloseBracket);
-
   if (not ErrorFound) then
   begin
     if (IsTag(kiUNION, kiALL)) then
@@ -21175,6 +21166,9 @@ begin
     if (not ErrorFound and (Nodes.Union.Tag > 0)) then
       Nodes.Union.SelectStmt := ParseSelectStmt(False);
   end;
+
+  if (not ErrorFound and (Nodes.OpenBracket > 0)) then
+    Nodes.CloseBracket := ParseSymbol(ttCloseBracket);
 
   Result := TSelectStmt.Create(Self, Nodes);
 end;
@@ -21200,6 +21194,7 @@ begin
     and not EndOfStmt(CurrentToken)
     and (Nodes.AliasIdent = 0)
     and (TokenPtr(CurrentToken)^.TokenType in ttIdents + ttStrings)
+    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiEND)
     and (TokenPtr(CurrentToken)^.KeywordIndex <> kiFROM)
     and (TokenPtr(CurrentToken)^.KeywordIndex <> kiINTO)
     and (TokenPtr(CurrentToken)^.KeywordIndex <> kiUNION)) then
@@ -21276,6 +21271,7 @@ begin
     and (Nodes.AliasIdent = 0)
     and (TokenPtr(CurrentToken)^.TokenType in ttIdents + ttStrings)
     and (TokenPtr(CurrentToken)^.KeywordIndex <> kiCROSS)
+    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiEND)
     and (TokenPtr(CurrentToken)^.KeywordIndex <> kiFOR)
     and (TokenPtr(CurrentToken)^.KeywordIndex <> kiINNER)
     and (TokenPtr(CurrentToken)^.KeywordIndex <> kiGROUP)
@@ -23461,7 +23457,7 @@ label
     SelBitOR, SelCloseCurlyBracket, SelTilde, SelE,
   SLComment, SLCommentL,
   MLComment, MLCommentL, MLCommentL2, MLCommentL3,
-  Ident, IdentL, IdentL2, IdentL3, IdentLE, IdentE, IdentE2, IdentE3,
+  Ident, IdentL, IdentL2, IdentLE, IdentString,
   Quoted, QuotedL, QuotedL2, QuotedLE, QuotedE, QuotedE2, QuotedE3,
     QuotedSecondQuoter, QuotedSecondQuoterL, QuotedSecondQuoterLE,
   Numeric, NumericL, NumericExp, NumericE, NumericDot, NumericLE,
@@ -23868,9 +23864,7 @@ begin
         MOV OperatorType,otInvertBits
         JMP SingleChar
       SelE:
-        CMP AX,127                       // #127 ?
-        JE UnexpectedChar                // No!
-        JMP Ident
+        JMP UnexpectedChar
 
       // ------------------------------
 
@@ -23912,59 +23906,40 @@ begin
 
       Ident:
         MOV TokenType,ttIdent
-        MOV EDX,ESI
         ADD ESI,2                        // Step over first character
         DEC ECX                          // One character handled
         JZ Finish
       IdentL:
         MOV AX,[ESI]                     // One Character from SQL to AX
-        CMP AX,' '                       // <Space>?
-        JE IdentE                        // Yes!
         CMP AX,''''                      // "'"?
-        JE IdentE3                       // Yes!
+        JE IdentString                   // Yes!
         CMP AnsiQuotes,True              // AnsiQuotes?
         JE IdentL2                       // Yes!
         CMP AX,'"'                       // '"'?
-        JE IdentE3                       // Yes!
+        JE IdentString                   // Yes!
       IdentL2:
-        CALL Separator                   // SQL separator?
-        JE Finish                        // No!
-      IdentL3:
         CMP AX,'$'                       // "$"?
         JE IdentLE                       // Yes!
         CMP AX,'_'                       // "_"?
         JE IdentLE                       // Yes!
         CMP AX,'0'                       // Digit?
-        JB IdentE                        // No!
+        JB Finish                        // No!
         CMP AX,'9'
         JBE IdentLE                      // Yes!
         CMP AX,'A'                       // String character?
-        JB IdentE                        // No!
+        JB Finish                        // No!
         CMP AX,'Z'
         JBE IdentLE                      // Yes!
         CMP AX,'a'                       // String character?
-        JB IdentE                        // No!
+        JB Finish                        // No!
         CMP AX,'z'
         JBE IdentLE                      // Yes!
+        JMP Finish
       IdentLE:
         ADD ESI,2                        // Next character in SQL
         LOOP IdentL
         JMP Finish
-      IdentE:
-        CMP ESI,EDX                      // Empty ident?
-        JE IncompleteToken               // Yes!
-        CMP AX,''''                      // "'"?
-        JE IdentE3                       // Yes!
-        CMP AnsiQuotes,True              // AnsiQuotes?
-        JE IdentE2                       // Yes!
-        CMP AX,'"'                       // '"'?
-        JE IdentE3                       // Yes!
-      IdentE2:
-        JMP Finish
-      IdentE3:
-        MOV AX,[EDX]
-        CMP AX,'_'                       // "_" (MySQL character set)?
-        JNE Finish                       // No!
+      IdentString:
         MOV TokenType,ttString
         JMP Quoted
 
