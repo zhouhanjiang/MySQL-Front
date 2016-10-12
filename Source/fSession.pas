@@ -1466,8 +1466,8 @@ type
     function GetSlowLog(): string;
     function GetSlowSQLLog(const User: TSUser = nil): string;
     function GetSQLLog(const User: TSUser = nil): string;
-    procedure MonitorLog(const Sender: TObject; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
-    procedure MonitorExecutedStmts(const Sender: TObject; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
+    procedure MonitorLog(const Connection: TMySQLConnection; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
+    procedure MonitorExecutedStmts(const Connection: TMySQLConnection; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
     function SessionResult(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
     property Sessions: TSSessions read FSessions;
     property InvalidObjects: TList read FInvalidObjects;
@@ -2073,23 +2073,11 @@ begin
 
   if ((Now() <= Session.ParseEndDate) and (LeftStr(Name, 3) <> 'ps_') and (StrIComp(PChar(Name), 'create_synonym_db') <> 0)) then
   begin
-    try
-      if (not Session.SQLParser.ParseSQL(FSource)) then
-        Session.UnparsableSQL := Session.UnparsableSQL
-          + '# SetSource()' + #13#10
-          + '# Error: ' + Session.SQLParser.Root^.FirstStmt^.ErrorMessage + #13#10
-          + Trim(FSource) + #13#10 + #13#10 + #13#10;
-    except
+    if (not Session.SQLParser.ParseSQL(FSource)) then
       Session.UnparsableSQL := Session.UnparsableSQL
-        + '# SetSource()' + #13#10;
-      try
-        Session.UnparsableSQL := Session.UnparsableSQL
-          + '# Error: ' + Session.SQLParser.Root^.FirstStmt^.ErrorMessage + #13#10;
-      except
-      end;
-      Session.UnparsableSQL := Session.UnparsableSQL
+        + '# SetSource()' + #13#10
+        + '# Error: ' + Session.SQLParser.Root^.FirstStmt^.ErrorMessage + #13#10
         + Trim(FSource) + #13#10 + #13#10 + #13#10;
-    end;
     Session.SQLParser.Clear();
   end;
 end;
@@ -11511,12 +11499,12 @@ begin
   if (Assigned(Users)) then Users.Invalidate();
 end;
 
-procedure TSSession.MonitorLog(const Sender: TObject; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
+procedure TSSession.MonitorLog(const Connection: TMySQLConnection; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
 begin
   ExecuteEvent(etMonitor);
 end;
 
-procedure TSSession.MonitorExecutedStmts(const Sender: TObject; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
+procedure TSSession.MonitorExecutedStmts(const Connection: TMySQLConnection; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
 var
   Database: TSDatabase;
   DatabaseName: string;
@@ -11536,32 +11524,29 @@ var
   User: TSUser;
   Variable: TSVariable;
 begin
+
+
   if (Now() <= ParseEndDate) then
   begin
     SetString(SQL, Text, Len);
-    try
-      if (not SQLParser.ParseSQL(SQL)) then
-      begin
-        UnparsableSQL := UnparsableSQL
-          + '# MonitorExecutedStmts()' + #13#10
-          + '# Error: ' + SQLParser.Root^.FirstStmt^.ErrorMessage + #13#10
-          + Trim(SQL) + #13#10 + #13#10 + #13#10;
-      end;
-    except
+    if ((Connection.ErrorCode = ER_PARSE_ERROR) and SQLParser.ParseSQL(SQL)) then
+    begin
       UnparsableSQL := UnparsableSQL
-        + '# MonitorExecutedStmts()' + #13#10;
-      try
-        UnparsableSQL := UnparsableSQL
-          + '# Error: ' + SQLParser.Root^.FirstStmt^.ErrorMessage + #13#10;
-      except
-      end;
+        + '# MonitorExecutedStmts() - ER_PARSE_ERROR' + #13#10
+        + '# Error: ' + SQLParser.Root^.FirstStmt^.ErrorMessage + #13#10
+        + Trim(SQL) + #13#10 + #13#10 + #13#10;
+    end
+    else if ((Connection.ErrorCode = 0) and not SQLParser.ParseSQL(SQL)) then
+    begin
       UnparsableSQL := UnparsableSQL
+        + '# MonitorExecutedStmts()' + #13#10
+        + '# Error: ' + SQLParser.Root^.FirstStmt^.ErrorMessage + #13#10
         + Trim(SQL) + #13#10 + #13#10 + #13#10;
     end;
     SQLParser.Clear();
   end;
 
-  if (SQLCreateParse(Parse, Text, Len, Connection.ServerVersion)) then
+  if ((Connection.ErrorCode = 0) and SQLCreateParse(Parse, Text, Len, Connection.ServerVersion)) then
     if (SQLParseKeyword(Parse, 'SELECT') or SQLParseKeyword(Parse, 'SHOW')) then
       // Do nothing - but do not parse the Text further more
     else if (SQLParseDDLStmt(DDLStmt, Text, Len, Connection.ServerVersion)) then

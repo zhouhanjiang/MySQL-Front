@@ -2334,9 +2334,11 @@ object FSession: TFSession
     Top = 72
   end
   object SynCompletion: TSynCompletionProposal
-    Options = [scoLimitToMatchedText, scoUseInsertList, scoEndCharCompletion, scoCompleteWithEnter]
+    Options = [scoLimitToMatchedText, scoUseInsertList, scoUseBuiltInTimer, scoEndCharCompletion, scoCompleteWithEnter]
     EndOfTokenChr = '()[]. '
-    TriggerChars = '._abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+    TriggerChars = 
+      '._$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012345678' +
+      '9'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -12

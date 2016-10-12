@@ -13058,14 +13058,14 @@ begin
         case (Item^.ItemType) of
           itList:
             begin
-              if (Item^.DatabaseName = '') then
+              if (PChar(@Item^.DatabaseName) = '') then
                 Database := Session.DatabaseByName(SelectedDatabase)
               else
-                Database := Session.DatabaseByName(Item^.DatabaseName);
-              if (not Assigned(Database) or (Item^.TableName = '')) then
+                Database := Session.DatabaseByName(StrPas(PChar(@Item^.DatabaseName)));
+              if (not Assigned(Database) or (PChar(@Item^.TableName) = '')) then
                 Table := nil
               else
-                Table := Database.TableByName(Item^.TableName);
+                Table := Database.TableByName(StrPas(PChar(@Item^.TableName)));
               case (Item^.DbIdentType) of
                 ditDatabase:
                   List.Add(Session.Databases);
@@ -13087,7 +13087,7 @@ begin
                 ditForeignKey:
                   if (Assigned(Table)) then
                     List.Add(Table)
-                  else if (Assigned(Database) and Assigned(Database.Columns)) then
+                  else if (Assigned(Database) and Assigned(Database.Columns) and (PChar(@Item^.TableName) = '')) then
                     List.Add(Database.Columns);
                 ditUser:
                   List.Add(Session.Users);
@@ -13192,7 +13192,7 @@ begin
                         SynCompletionListAdd(
                           Table.Fields[J].Name,
                           Session.Connection.EscapeIdentifier(Table.Fields[J].Name))
-                    else if (Assigned(Database) and Assigned(Database.Columns)) then
+                    else if (Assigned(Database) and Assigned(Database.Columns) and (PChar(@Item^.TableName) = '')) then
                       for J := 0 to Database.Columns.Count - 1 do
                       begin
                         ColumnName := Database.Columns[J]; // Buffer for speeding
@@ -13241,6 +13241,17 @@ begin
         end;
 
         CanExecute := SynCompletion.ItemList.Count > 0;
+
+        if (CanExecute and (CurrentInput <> '')) then
+        begin
+          CanExecute := False; Len := Length(CurrentInput);
+          for I := 0 to SynCompletion.ItemList.Count - 1 do
+            if (AnsiStrLIComp(PChar(SynCompletion.ItemList[I]), PChar(CurrentInput), Len) = 0) then
+            begin
+              CanExecute := True;
+              break;
+            end;
+        end;
       end;
 
       List.Free();
@@ -13846,7 +13857,6 @@ begin
   FSQLEditorSynMemo.Gutter.Font.Size := FSQLEditorSynMemo.Font.Size;
   FSQLEditorSynMemo.Gutter.Font.Charset := FSQLEditorSynMemo.Font.Charset;
   FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options + [eoScrollHintFollows];  // Slow down the performance on large content
-  FSQLEditorSynMemo.WordWrap := Preferences.Editor.WordWrap;
 
   for I := 0 to PSynMemo.ControlCount - 1 do
     if (PSynMemo.Controls[I] is TSynMemo) then

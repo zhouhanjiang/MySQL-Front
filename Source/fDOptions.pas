@@ -32,7 +32,6 @@ type
     FEditorCompletionTime: TEdit;
     FEditorCurrRowBGColorEnabled: TCheckBox;
     FEditorFont: TEdit;
-    FEditorWordWrap: TCheckBox;
     FForeground: TCheckBox;
     FGridCurrRowBGColorEnabled: TCheckBox;
     FGridFont: TEdit;
@@ -47,7 +46,6 @@ type
     FLEditorCompletionTime: TLabel;
     FLEditorCurrRowBGColor: TLabel;
     FLEditorFont: TLabel;
-    FLEditorWordWrap: TLabel;
     FLGridBGColorEnabled: TLabel;
     FLGridCurrRowBGColor: TLabel;
     FLGridFont: TLabel;
@@ -416,7 +414,6 @@ begin
     Preferences.Editor.CurrRowBGColor := PEditorCurrRowBGColor.Color;
     Preferences.Editor.CodeCompletion := FEditorCompletionEnabled.Checked;
     TryStrToInt(FEditorCompletionTime.Text, Preferences.Editor.CodeCompletionTime);
-    Preferences.Editor.WordWrap := FEditorWordWrap.Checked;
 
     Preferences.LogFontName := PLogFont.Font.Name;
     Preferences.LogFontStyle := PLogFont.Font.Style;
@@ -534,7 +531,6 @@ begin
   PEditorFont.Font.Charset := Preferences.SQLFontCharset;
   FEditorCurrRowBGColorEnabled.Checked := Preferences.Editor.CurrRowBGColorEnabled;
   PEditorCurrRowBGColor.Color := Preferences.Editor.CurrRowBGColor;
-  FEditorWordWrap.Checked := Preferences.Editor.WordWrap;
   FEditorCompletionEnabled.Checked := Preferences.Editor.CodeCompletion;
   FUDEditorCompletionTime.Position := Preferences.Editor.CodeCompletionTime;
 
@@ -743,8 +739,6 @@ begin
   FLEditorFont.Caption := Preferences.LoadStr(439) + ':';
   FLEditorCurrRowBGColor.Caption := Preferences.LoadStr(784) + ':';
   FLEditorCurrRowBGColor.Caption := Preferences.LoadStr(784) + ':';
-  FLEditorWordWrap.Caption := Preferences.LoadStr(891) + ':';
-  FEditorWordWrap.Caption := Preferences.LoadStr(892);
   FLEditorCompletion.Caption := Preferences.LoadStr(660) + ':';
   FEditorCompletionEnabled.Width := FEditorCurrRowBGColorEnabled.Width + Canvas.TextWidth(FEditorCompletionEnabled.Caption);
   FLEditorCompletionTime.Caption := Preferences.LoadStr(843);

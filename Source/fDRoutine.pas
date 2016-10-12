@@ -434,7 +434,6 @@ begin
   else
     FSource.Gutter.Color := Preferences.Editor.LineNumbersBackground;
   FSource.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
-  FSource.WordWrap := Preferences.Editor.WordWrap;
 
   msUndo.Action := MainAction('aEUndo'); msCut.ShortCut := 0;
   msCut.Action := MainAction('aECut'); msCut.ShortCut := 0;

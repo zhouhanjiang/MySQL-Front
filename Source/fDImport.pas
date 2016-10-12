@@ -1972,7 +1972,7 @@ begin
   FDelimiterTab.Caption := Preferences.LoadStr(394);
   FDelimiterChar.Caption := Preferences.LoadStr(355) + ':';
   FLQuoteValues.Caption := Preferences.LoadStr(353) + ':';
-  FQuoteNothing.Caption := Preferences.LoadStr(396);
+  FQuoteNothing.Caption := Preferences.LoadStr(359);
   FQuoteStrings.Caption := Preferences.LoadStr(397) + ':';
   GCSVPreview.Caption := Preferences.LoadStr(423);
 

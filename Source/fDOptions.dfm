@@ -287,11 +287,15 @@ object DOptions: TDOptions
     object TSEditor: TTabSheet
       Caption = 'TSEditor'
       OnResize = TSEditorResize
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GEditor: TGroupBox_Ext
         Left = 4
         Top = 4
         Width = 345
-        Height = 141
+        Height = 115
         Caption = 'GEditor'
         TabOrder = 0
         object FLEditorFont: TLabel
@@ -304,11 +308,12 @@ object DOptions: TDOptions
         end
         object FLEditorCompletion: TLabel
           Left = 8
-          Top = 112
+          Top = 84
           Width = 91
           Height = 13
           Caption = 'FLEditorCompletion'
           FocusControl = FEditorCompletionEnabled
+          Visible = False
         end
         object FLEditorCurrRowBGColor: TLabel
           Left = 8
@@ -319,17 +324,11 @@ object DOptions: TDOptions
         end
         object FLEditorCompletionTime: TLabel
           Left = 224
-          Top = 112
+          Top = 84
           Width = 114
           Height = 13
           Caption = 'FLEditorCompletionTime'
-        end
-        object FLEditorWordWrap: TLabel
-          Left = 9
-          Top = 83
-          Width = 91
-          Height = 13
-          Caption = 'FLEditorWordWrap'
+          Visible = False
         end
         object FEditorCurrRowBGColorEnabled: TCheckBox
           Left = 144
@@ -362,10 +361,11 @@ object DOptions: TDOptions
         end
         object FEditorCompletionEnabled: TCheckBox
           Left = 144
-          Top = 111
+          Top = 83
           Width = 19
           Height = 17
-          TabOrder = 6
+          TabOrder = 5
+          Visible = False
         end
         object PEditorCurrRowBGColor: TPanel_Ext
           Left = 162
@@ -379,19 +379,12 @@ object DOptions: TDOptions
         end
         object FEditorCompletionTime: TEdit
           Left = 162
-          Top = 109
+          Top = 81
           Width = 41
           Height = 21
-          TabOrder = 7
-          Text = '3.000'
-        end
-        object FEditorWordWrap: TCheckBox
-          Left = 144
-          Top = 82
-          Width = 198
-          Height = 17
-          Caption = 'FEditorWordWrap'
-          TabOrder = 5
+          TabOrder = 6
+          Text = '3000'
+          Visible = False
         end
         object FBEditorFont: TButton
           Left = 265
@@ -405,14 +398,15 @@ object DOptions: TDOptions
         end
         object FUDEditorCompletionTime: TUpDown
           Left = 203
-          Top = 109
+          Top = 81
           Width = 15
           Height = 21
           Associate = FEditorCompletionTime
           Max = 5000
           Increment = 100
           Position = 3000
-          TabOrder = 8
+          TabOrder = 7
+          Visible = False
         end
       end
     end

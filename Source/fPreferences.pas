@@ -118,7 +118,6 @@ type
       SymbolStyle: TFontStyles;
       VariableForeground, VariableBackground: TColor;
       VariableStyle: TFontStyles;
-      WordWrap: Boolean;
       constructor Create(); virtual;
     end;
 
@@ -1525,24 +1524,22 @@ begin
   StringForeground := clBlue; StringBackground := clNone; StringStyle := [];
   SymbolForeground := clNone; SymbolBackground := clNone; SymbolStyle := [];
   VariableForeground := clGreen; VariableBackground := clNone; VariableStyle := [];
-  WordWrap := False;
 end;
 
 procedure TPPreferences.TEditor.LoadFromXML(const XML: IXMLNode);
 begin
-  if (Assigned(XMLNode(XML, 'autocompletion'))) then TryStrToBool(XMLNode(XML, 'autocompletion').Attributes['enabled'], CodeCompletion);
-  if (Assigned(XMLNode(XML, 'autocompletion/time'))) then TryStrToInt(XMLNode(XML, 'autocompletion/time').Text, CodeCompletionTime);
+//  if (Assigned(XMLNode(XML, 'autocompletion'))) then TryStrToBool(XMLNode(XML, 'autocompletion').Attributes['enabled'], CodeCompletion);
+//  if (Assigned(XMLNode(XML, 'autocompletion/time'))) then TryStrToInt(XMLNode(XML, 'autocompletion/time').Text, CodeCompletionTime);
   if (Assigned(XMLNode(XML, 'currentrow/background'))) then TryStrToBool(XMLNode(XML, 'currentrow/background').Attributes['visible'], CurrRowBGColorEnabled);
   if (Assigned(XMLNode(XML, 'currentrow/background/color'))) then CurrRowBGColor := StringToColor(XMLNode(XML, 'currentrow/background/color').Text);
 end;
 
 procedure TPPreferences.TEditor.SaveToXML(const XML: IXMLNode);
 begin
-  XMLNode(XML, 'autocompletion').Attributes['enabled'] := CodeCompletion;
-  XMLNode(XML, 'autocompletion/time').Text := IntToStr(CodeCompletionTime);
+//  XMLNode(XML, 'autocompletion').Attributes['enabled'] := CodeCompletion;
+//  XMLNode(XML, 'autocompletion/time').Text := IntToStr(CodeCompletionTime);
   XMLNode(XML, 'currentrow/background').Attributes['visible'] := CurrRowBGColorEnabled;
   XMLNode(XML, 'currentrow/background/color').Text := ColorToString(CurrRowBGColor);
-  XMLNode(XML, 'wordwrap').Text := BoolToStr(WordWrap, True);
 end;
 
 { TPPreferences.TExport *******************************************************}

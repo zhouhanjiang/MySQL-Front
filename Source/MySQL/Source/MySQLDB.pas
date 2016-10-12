@@ -109,7 +109,7 @@ type
     end;
     TTraceType = (ttTime, ttRequest, ttResult, ttInfo, ttDebug);
     TTraceTypes = set of TTraceType;
-    TMySQLOnMonitor = procedure (const Sender: TObject; const Text: PChar; const Length: Integer; const ATraceType: TTraceType) of object;
+    TMySQLOnMonitor = procedure (const Connection: TMySQLConnection; const Text: PChar; const Length: Integer; const ATraceType: TTraceType) of object;
   private
     Cache: TCache;
     FCacheSize: Integer;
@@ -126,7 +126,7 @@ type
     procedure Clear(); virtual;
     constructor Create(AOwner: TComponent); override;
     destructor Destroy(); override;
-    procedure DoMonitor(const Sender: TObject; const Text: PChar; const Length: Integer; const ATraceType: TTraceType); virtual;
+    procedure DoMonitor(const Connection: TMySQLConnection; const Text: PChar; const Length: Integer; const ATraceType: TTraceType); virtual;
   published
     property Connection: TMySQLConnection read FConnection write SetConnection;
     property Enabled: Boolean read FEnabled write FEnabled default False;
@@ -794,6 +794,7 @@ type
 
   TMySQLWideMemoField = class(TWideMemoField)
   public
+    function GetAsAnsiString(): AnsiString; override;
     function GetAsString(): string; override;
     function GetAsVariant: Variant; override;
     procedure GetText(var Text: string; DisplayText: Boolean); override;
@@ -802,6 +803,7 @@ type
 
   TMySQLWideStringField = class(TWideStringField)
   protected
+    function GetAsAnsiString(): AnsiString; override;
     function GetAsDateTime(): TDateTime; override;
     function GetAsString(): string; override;
     procedure GetText(var Text: string; DisplayText: Boolean); override;
@@ -1320,8 +1322,8 @@ end;
 
 function AnsiCharToWideChar(const CodePage: UINT; const lpMultiByteStr: LPCSTR; const cchMultiByte: Integer; const lpWideCharStr: LPWSTR; const cchWideChar: Integer): Integer;
 var
-  Index: Integer;
-  S: RawByteString;
+  Hex: string;
+  Length: Integer;
 begin
   if (not Assigned(lpMultiByteStr) or (cchMultiByte = 0)) then
     Result := 0
@@ -1330,14 +1332,11 @@ begin
     Result := MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, lpMultiByteStr, cchMultiByte, lpWideCharStr, cchWideChar);
     if (Result = 0) then
     begin
-      Index := cchMultiByte - 1;
-      while ((Index > 0) and (MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, lpMultiByteStr, Index, nil, 0) = 0)) do
-        Dec(Index);
-      if (Index < 0) then
-        S := ''
-      else
-        SetString(S, lpMultiByteStr, Index);
-      raise EOSError.CreateFmt(SOSError + ' near "%s" (CodePage: %d)', [GetLastError(), SysErrorMessage(GetLastError()), Copy(StrPas(lpMultiByteStr), 1 + Index, 20), CodePage]);
+      Length := cchMultiByte - 1;
+      while ((Length > 0) and (MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, lpMultiByteStr, Length, nil, 0) = 0)) do
+        Dec(Length);
+      Hex := SQLEscapeBin(lpMultiByteStr, cchMultiByte, True);
+      raise EOSError.CreateFmt(SOSError + ' (CodePage: %d, Hex: %s, Index: %d)', [GetLastError(), SysErrorMessage(GetLastError()), CodePage, Hex, Length]);
     end;
   end;
 end;
@@ -1712,7 +1711,7 @@ begin
   FOnMonitor := AOnMonitor;
 end;
 
-procedure TMySQLMonitor.DoMonitor(const Sender: TObject; const Text: PChar; const Length: Integer; const ATraceType: TTraceType);
+procedure TMySQLMonitor.DoMonitor(const Connection: TMySQLConnection; const Text: PChar; const Length: Integer; const ATraceType: TTraceType);
 var
   CacheLength: Integer;
   CacheText: PChar;
@@ -1799,7 +1798,7 @@ begin
   end;
 
   if (Enabled and Assigned(OnMonitor)) then
-    OnMonitor(Sender, Text, Length, ATraceType);
+    OnMonitor(Connection, Text, Length, ATraceType);
 end;
 
 { TMySQLMonitor ***************************************************************}
@@ -3467,9 +3466,6 @@ begin
 
     StmtLength := Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]);
 
-    if (not Assigned(LibraryThread.ResHandle)) then
-      WriteMonitor(@LibraryThread.SQL[LibraryThread.SQLStmtIndex], StmtLength, ttResult);
-
     if (LibraryThread.SQLCLStmts.IndexOf(Pointer(LibraryThread.SQLStmt)) >= 0) then
     begin
       if (SQLParseCLStmt(CLStmt, @LibraryThread.SQL[LibraryThread.SQLStmtIndex], StmtLength, ServerVersion)) then
@@ -3522,6 +3518,8 @@ begin
       WriteMonitor(PChar(S), Length(S), ttInfo);
     end;
   end;
+
+  WriteMonitor(@LibraryThread.SQL[LibraryThread.SQLStmtIndex], StmtLength, ttResult);
 
   if (FErrorCode > 0) then
     LibraryThread.State := ssReady
@@ -4093,8 +4091,7 @@ end;
 
 function TMySQLStringField.GetAsAnsiString(): AnsiString;
 begin
-  SetLength(Result, TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
-  MoveMemory(@Result[1], TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  SetString(Result, TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
 end;
 
 function TMySQLStringField.GetAsString(): string;
@@ -4291,6 +4288,11 @@ end;
 
 { TMySQLWideMemoField *************************************************************}
 
+function TMySQLWideMemoField.GetAsAnsiString(): AnsiString;
+begin
+  SetString(Result, TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+end;
+
 function TMySQLWideMemoField.GetAsString(): string;
 begin
   GetText(Result, False);
@@ -4327,6 +4329,11 @@ end;
 
 { TMySQLWideStringField *******************************************************}
 
+function TMySQLWideStringField.GetAsAnsiString(): AnsiString;
+begin
+  SetString(Result, TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+end;
+
 function TMySQLWideStringField.GetAsDateTime(): TDateTime;
 begin
   Result := MySQLDB.StrToDateTime(GetAsString(), TMySQLQuery(DataSet).Connection.FormatSettings);
@@ -4334,7 +4341,7 @@ end;
 
 function TMySQLWideStringField.GetAsString(): string;
 begin
-  GetText(Result, False)
+  GetText(Result, False);
 end;
 
 procedure TMySQLWideStringField.GetText(var Text: string; DisplayText: Boolean);
@@ -4472,7 +4479,7 @@ begin
           on E: Exception do
             begin
               S := SQLEscapeBin(PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], True);
-              raise Exception.CreateFmt(E.Message + '  (DatabaseName: %s, CommandText: %s, DisplayName: %s, LibRow: %s, CodePage: %d)', [DatabaseName, CommandText, Field.DisplayName, S, Connection.CodePage])
+              raise Exception.CreateFmt(E.Message + '  (DatabaseName: %s, CommandText: %s, DisplayName: %s, LibRow: %s)', [DatabaseName, CommandText, Field.DisplayName, S])
             end;
         end;
         AnsiCharToWideChar(Connection.CodePage, PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], PChar(Dest), Field.DataSize);
