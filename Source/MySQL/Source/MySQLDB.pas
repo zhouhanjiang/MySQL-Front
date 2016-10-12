@@ -794,7 +794,6 @@ type
 
   TMySQLWideMemoField = class(TWideMemoField)
   public
-    function GetAsAnsiString(): AnsiString; override;
     function GetAsString(): string; override;
     function GetAsVariant: Variant; override;
     procedure GetText(var Text: string; DisplayText: Boolean); override;
@@ -803,7 +802,6 @@ type
 
   TMySQLWideStringField = class(TWideStringField)
   protected
-    function GetAsAnsiString(): AnsiString; override;
     function GetAsDateTime(): TDateTime; override;
     function GetAsString(): string; override;
     procedure GetText(var Text: string; DisplayText: Boolean); override;
@@ -3455,6 +3453,8 @@ begin
   FWarningCount := LibraryThread.WarningCount;
   FThreadId := LibraryThread.LibThreadId;
 
+  StmtLength := Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]);
+
   if (FErrorCode > 0) then
   begin
     S := '--> Error #' + IntToStr(FErrorCode) + ': ' + FErrorMessage;
@@ -3463,8 +3463,6 @@ begin
   else
   begin
     Inc(FExecutedStmts);
-
-    StmtLength := Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]);
 
     if (LibraryThread.SQLCLStmts.IndexOf(Pointer(LibraryThread.SQLStmt)) >= 0) then
     begin
@@ -4288,11 +4286,6 @@ end;
 
 { TMySQLWideMemoField *************************************************************}
 
-function TMySQLWideMemoField.GetAsAnsiString(): AnsiString;
-begin
-  SetString(Result, TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
-end;
-
 function TMySQLWideMemoField.GetAsString(): string;
 begin
   GetText(Result, False);
@@ -4328,11 +4321,6 @@ begin
 end;
 
 { TMySQLWideStringField *******************************************************}
-
-function TMySQLWideStringField.GetAsAnsiString(): AnsiString;
-begin
-  SetString(Result, TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
-end;
 
 function TMySQLWideStringField.GetAsDateTime(): TDateTime;
 begin

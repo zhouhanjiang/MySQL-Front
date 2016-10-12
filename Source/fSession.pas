@@ -141,8 +141,8 @@ type
     function GetValid(): Boolean; virtual;
     function GetValidSource(): Boolean; virtual;
     procedure SetName(const AName: string); override;
-    procedure SetSource(const AField: TField); overload; virtual;
-    procedure SetSource(const ADataSet: TMySQLQuery); overload; virtual; abstract;
+    procedure SetSource(const Field: TField); overload; virtual;
+    procedure SetSource(const DataSet: TMySQLQuery); overload; virtual; abstract;
     procedure SetSource(const ASource: string); overload; virtual;
   public
     procedure Assign(const Source: TSObject); reintroduce; virtual;
@@ -606,7 +606,7 @@ type
     function GetDependencies(): TSDependencies; override;
     function GetValid(): Boolean; override;
     procedure ParseCreateTable(const SQL: string); virtual;
-    procedure SetSource(const ADataSet: TMySQLQuery); overload; override;
+    procedure SetSource(const DataSet: TMySQLQuery); overload; override;
     function SQLGetSource(): string; override;
   public
     procedure Assign(const Source: TSTable); override;
@@ -681,7 +681,7 @@ type
   protected
     FComment: string;
     function GetValid(): Boolean; override;
-    procedure SetSource(const ADataSet: TMySQLQuery); overload; override;
+    procedure SetSource(const DataSet: TMySQLQuery); overload; override;
     procedure SetSource(const ASource: string); override;
     function SQLGetSource(): string; override;
     property ValidFields: Boolean read GetValidFields;
@@ -778,7 +778,7 @@ type
 
   TSProcedure = class(TSRoutine)
   protected
-    procedure SetSource(const ADataSet: TMySQLQuery); overload; override;
+    procedure SetSource(const DataSet: TMySQLQuery); overload; override;
     function SQLGetSource(): string; override;
   public
     function SQLRun(): string; override;
@@ -786,7 +786,7 @@ type
 
   TSFunction = class(TSRoutine)
   protected
-    procedure SetSource(const ADataSet: TMySQLQuery); overload; override;
+    procedure SetSource(const DataSet: TMySQLQuery); overload; override;
     function SQLGetSource(): string; override;
   public
     function SQLRun(): string; override;
@@ -823,7 +823,7 @@ type
     FTableName: string;
     FTiming: TTiming;
     FValid: Boolean;
-    procedure SetSource(const ADataSet: TMySQLQuery); overload; override;
+    procedure SetSource(const DataSet: TMySQLQuery); overload; override;
     procedure SetSource(const ASource: string); overload; override;
     function SQLGetSource(): string; override;
     property SourceParsed: Boolean read FSourceParsed;
@@ -888,7 +888,7 @@ type
     function GetEvents(): TSEvents; inline;
   protected
     procedure ParseCreateEvent(const SQL: string); virtual;
-    procedure SetSource(const ADataSet: TMySQLQuery); overload; override;
+    procedure SetSource(const DataSet: TMySQLQuery); overload; override;
     procedure SetSource(const ASource: string); override;
     function SQLGetSource(): string; override;
   public
@@ -965,7 +965,7 @@ type
     function GetValidSource(): Boolean; override;
     function ParseDependencies(const SQL: string; var Dependencies: TSDependencies): Boolean; virtual;
     procedure SetName(const AName: string); override;
-    procedure SetSource(const ADataSet: TMySQLQuery); override;
+    procedure SetSource(const DataSet: TMySQLQuery); override;
     function SQLAlterTable(const Table, NewTable: TSBaseTable; const EncloseFields: Boolean = True): string; virtual;
     function SQLGetSource(): string; virtual;
     function SQLTruncateTable(const Table: TSBaseTable): string; virtual;
@@ -1330,7 +1330,7 @@ type
     function GetCaption(): string; override;
     function GetValid(): Boolean; override;
     procedure SetName(const AName: string); override;
-    procedure SetSource(const ADataSet: TMySQLQuery); override;
+    procedure SetSource(const DataSet: TMySQLQuery); override;
     procedure SetSource(const ASource: string); override;
     function SQLGetSource(): string;
   public
@@ -2055,11 +2055,11 @@ begin
   FSource := '';
 end;
 
-procedure TSObject.SetSource(const AField: TField);
+procedure TSObject.SetSource(const Field: TField);
 var
   SQL: string;
 begin
-  SQL := AField.AsString;
+  SQL := Field.AsString;
 
   if ((SQL <> '') and (SQL[Length(SQL)] <> ';')) then
     SQL := SQL + ';';
@@ -2076,7 +2076,7 @@ begin
     if (not Session.SQLParser.ParseSQL(FSource)) then
       Session.UnparsableSQL := Session.UnparsableSQL
         + '# SetSource()' + #13#10
-        + '# Error: ' + Session.SQLParser.Root^.FirstStmt^.ErrorMessage + #13#10
+        + '# Error: ' + Session.SQLParser.ErrorMessage + #13#10
         + Trim(FSource) + #13#10 + #13#10 + #13#10;
     Session.SQLParser.Clear();
   end;
@@ -3877,6 +3877,7 @@ end;
 
 procedure TSBaseTable.BuildStatus(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean);
 var
+  RBS: RawByteString;
   TempCharset: TSCharset;
 begin
   if (not UseInformationSchema) then
@@ -3923,7 +3924,12 @@ begin
     try
       FComment := DataSet.FieldByName('TABLE_COMMENT').AsString;
     except
-      FComment := string(DataSet.FieldByName('TABLE_COMMENT').AsAnsiString);
+      // Sometimes, the MySQL server sends wrong encoded table comments
+      // This code allow the user to handle this table - but the comments are wrong.
+      SetString(RBS,
+        DataSet.LibRow^[DataSet.FieldByName('TABLE_COMMENT').FieldNo - 1],
+        DataSet.LibLengths^[DataSet.FieldByName('TABLE_COMMENT').FieldNo - 1]);
+      FComment := string(RBS);
     end;
 
     TempCharset := Session.CharsetByCollation(FCollation);
@@ -4908,14 +4914,19 @@ begin
     Session.ExecuteEvent(etItemValid, Database, Tables, Self);
 end;
 
-procedure TSBaseTable.SetSource(const ADataSet: TMySQLQuery);
+procedure TSBaseTable.SetSource(const DataSet: TMySQLQuery);
+var
+  RBS: RawByteString;
 begin
   try
-    SetSource(ADataSet.FieldByName('Create Table'));
+    SetSource(DataSet.FieldByName('Create Table'));
   except
     // Sometimes, the MySQL server sends wrong encoded field comments
     // This code allow the user to handle this table - but the comments are wrong.
-    SetSource(string(ADataSet.FieldByName('Create Table').AsAnsiString));
+    SetString(RBS,
+      DataSet.LibRow^[DataSet.FieldByName('Create Table').FieldNo - 1],
+      DataSet.LibLengths^[DataSet.FieldByName('Create Table').FieldNo - 1]);
+    SetSource(string(RBS));
   end;
 
   ParseCreateTable(FSource);
@@ -5153,9 +5164,9 @@ begin
   end;
 end;
 
-procedure TSView.SetSource(const ADataSet: TMySQLQuery);
+procedure TSView.SetSource(const DataSet: TMySQLQuery);
 begin
-  SetSource(ADataSet.FieldByName('Create View'));
+  SetSource(DataSet.FieldByName('Create View'));
 
   if (Valid) then
     PushBuildEvent();
@@ -5924,9 +5935,9 @@ end;
 
 { TSProcedure *****************************************************************}
 
-procedure TSProcedure.SetSource(const ADataSet: TMySQLQuery);
+procedure TSProcedure.SetSource(const DataSet: TMySQLQuery);
 begin
-  SetSource(ADataSet.FieldByName('Create Procedure'));
+  SetSource(DataSet.FieldByName('Create Procedure'));
 
   if (Valid) then
   begin
@@ -5993,9 +6004,9 @@ end;
 
 { TSFunction ******************************************************************}
 
-procedure TSFunction.SetSource(const ADataSet: TMySQLQuery);
+procedure TSFunction.SetSource(const DataSet: TMySQLQuery);
 begin
-  SetSource(ADataSet.FieldByName('Create Function'));
+  SetSource(DataSet.FieldByName('Create Function'));
 
   if (Valid) then
   begin
@@ -6342,9 +6353,9 @@ begin
   end;
 end;
 
-procedure TSTrigger.SetSource(const ADataSet: TMySQLQuery);
+procedure TSTrigger.SetSource(const DataSet: TMySQLQuery);
 begin
-  SetSource(ADataSet.FieldByName('SQL Original Statement'));
+  SetSource(DataSet.FieldByName('SQL Original Statement'));
 
   if (Valid) then
     Session.ExecuteEvent(etItemsValid, Session.Databases);
@@ -6720,9 +6731,9 @@ begin
   end;
 end;
 
-procedure TSEvent.SetSource(const ADataSet: TMySQLQuery);
+procedure TSEvent.SetSource(const DataSet: TMySQLQuery);
 begin
-  SetSource(ADataSet.FieldByName('Create Event'));
+  SetSource(DataSet.FieldByName('Create Event'));
 
   if (Valid) then
   begin
@@ -7585,15 +7596,15 @@ begin
     inherited SetName(AName);
 end;
 
-procedure TSDatabase.SetSource(const ADataSet: TMySQLQuery);
+procedure TSDatabase.SetSource(const DataSet: TMySQLQuery);
 begin
   // On ONE 4.1.10 server, on the first execution of SHOW CREATE DATABASE,
   // only one field ("Database") will be given back - not "Create Database" field.
   // On the second execution, the "Create Database" field is given.
   // This is a bug of the MySQL 4.1.10 server, I think.
-  if (Assigned(ADataSet.FindField('Create Database'))) then
+  if (Assigned(DataSet.FindField('Create Database'))) then
   begin
-    SetSource(ADataSet.FieldByName('Create Database'));
+    SetSource(DataSet.FieldByName('Create Database'));
 
     ParseCreateDatabase(Source);
 
@@ -10143,15 +10154,15 @@ begin
     Name := FName + '@%';
 end;
 
-procedure TSUser.SetSource(const ADataSet: TMySQLQuery);
+procedure TSUser.SetSource(const DataSet: TMySQLQuery);
 var
   Source: string;
 begin
   Source := '';
-  if (not ADataSet.IsEmpty) then
+  if (not DataSet.IsEmpty) then
     repeat
-      Source := Source + ADataSet.Fields[0].AsString + ';' + #13#10;
-    until (not ADataSet.FindNext());
+      Source := Source + DataSet.Fields[0].AsString + ';' + #13#10;
+    until (not DataSet.FindNext());
 
   if (Source <> '') then
   begin
@@ -11524,23 +11535,20 @@ var
   User: TSUser;
   Variable: TSVariable;
 begin
-
-
   if (Now() <= ParseEndDate) then
   begin
     SetString(SQL, Text, Len);
-    if ((Connection.ErrorCode = ER_PARSE_ERROR) and SQLParser.ParseSQL(SQL)) then
+    if ((Connection.ErrorCode = ER_PARSE_ERROR) and (Trim(SQL) <> '') and SQLParser.ParseSQL(SQL)) then
     begin
       UnparsableSQL := UnparsableSQL
         + '# MonitorExecutedStmts() - ER_PARSE_ERROR' + #13#10
-        + '# Error: ' + SQLParser.Root^.FirstStmt^.ErrorMessage + #13#10
         + Trim(SQL) + #13#10 + #13#10 + #13#10;
     end
     else if ((Connection.ErrorCode = 0) and not SQLParser.ParseSQL(SQL)) then
     begin
       UnparsableSQL := UnparsableSQL
         + '# MonitorExecutedStmts()' + #13#10
-        + '# Error: ' + SQLParser.Root^.FirstStmt^.ErrorMessage + #13#10
+        + '# Error: ' + SQLParser.ErrorMessage + #13#10
         + Trim(SQL) + #13#10 + #13#10 + #13#10;
     end;
     SQLParser.Clear();
