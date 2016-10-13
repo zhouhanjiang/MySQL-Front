@@ -2415,7 +2415,7 @@ function TMySQLConnection.ErrorMsg(const AHandle: MySQLConsts.MYSQL): string;
 var
   RBS: RawByteString;
 begin
-  RBS := '''' + SQLUnescape(Lib.mysql_error(AHandle)) + '''';
+  RBS := SQLUnescape(Lib.mysql_error(AHandle));
   try
     Result := LibDecode(my_char(RBS));
   except
@@ -7347,7 +7347,30 @@ end;
 
 {******************************************************************************}
 
+//function HexToStr(const Hex: string): RawByteString;
+//const
+//  Digits: string = '0123456789ABCDEF';
+//var
+//  Index: Integer;
+//begin
+//  Index := 0;
+//  Result := '';
+//  while (Index < Length(Hex) div 2) do
+//  begin
+//    Result := Result + AnsiChar(Chr((Pos(Hex[2 * Index + 1], Digits) - 1) * $10 + Pos(Hex[2 * Index + 2], Digits) - 1));
+//    Inc(Index);
+//  end;
+//end;
+//
+//var
+//  Len: Integer;
+//  RBS: RawByteString;
+//  S: string;
 initialization
+//  RBS := HexToStr('5361F06CFD6B204D65736C656B204C6973657369');
+//  SetLength(S, Length(RBS));
+//  Len := AnsiCharToWideChar(65001, PAnsiChar(RBS), Length(RBS), PChar(S), Length(S));
+//
   MySQLConnectionOnSynchronize := nil;
   SynchronizingThreads := TList.Create();
   SynchronizingThreadsCS := TCriticalSection.Create();

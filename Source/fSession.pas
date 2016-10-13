@@ -10804,7 +10804,7 @@ begin
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.ServerVersion;
   FUser := nil;
-  ParseEndDate := EncodeDate(2016, 10, 17);
+  ParseEndDate := EncodeDate(2016, 10, 21);
   FSQLParser := nil;
   UnparsableSQL := '';
 
@@ -11535,16 +11535,17 @@ var
   User: TSUser;
   Variable: TSVariable;
 begin
-  if (Now() <= ParseEndDate) then
+  if ((Now() <= ParseEndDate) and (Trim(SQL) <> '')) then
   begin
     SetString(SQL, Text, Len);
-    if ((Connection.ErrorCode = ER_PARSE_ERROR) and (Trim(SQL) <> '') and SQLParser.ParseSQL(SQL)) then
+    if ((Connection.ErrorCode = ER_PARSE_ERROR) and SQLParser.ParseSQL(SQL)) then
     begin
       UnparsableSQL := UnparsableSQL
         + '# MonitorExecutedStmts() - ER_PARSE_ERROR' + #13#10
+        + '# Error: ' + Connection.ErrorMessage + #13#10
         + Trim(SQL) + #13#10 + #13#10 + #13#10;
     end
-    else if ((Connection.ErrorCode = 0) and not SQLParser.ParseSQL(SQL)) then
+    else if ((Connection.ErrorCode <> ER_PARSE_ERROR) and (Connection.ErrorCode < ER_ERROR_LAST) and not SQLParser.ParseSQL(SQL)) then
     begin
       UnparsableSQL := UnparsableSQL
         + '# MonitorExecutedStmts()' + #13#10

@@ -4932,6 +4932,8 @@ begin
     FFiles.OnKeyDown := ListViewKeyDown;
     FFiles.OnEnter := FFilesEnter;
   end;
+
+  FFolders.SelectedFolder := Path;
 end;
 
 function TFSession.CreateDBGrid(const PDBGrid: TPanel_Ext; const DataSource: TDataSource): TMySQLDBGrid;
@@ -10422,7 +10424,8 @@ procedure TFSession.mfOpenClick(Sender: TObject);
 begin
   if (Assigned(FFiles.Selected) and (LowerCase(ExtractFileExt(FFolders.SelectedFolder + PathDelim + FFiles.Selected.Caption)) = '.sql')) then
   begin
-    View := vEditor;
+    if (not (View in [vEditor, vEditor2, vEditor3])) then
+      View := vEditor;
 
     if (Boolean(Perform(UM_CLOSE_TAB_QUERY, 0, 0))) then
       OpenSQLFile(FFolders.SelectedFolder + PathDelim + FFiles.Selected.Caption);

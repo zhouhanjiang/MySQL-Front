@@ -504,8 +504,9 @@ procedure UnescapeString();
 // EDI: Pointer to unquoted text buffer
 // EBX will be incresed of the needed length in text buffer
 // ESI will be moved to the next usable character inside SQL
-// EAX new quoted string length
-// EDX will be decremented by the filled characters into text buffer
+// EAX Updated quoted string length
+// EBX Updated needed length of text buffer
+// EDX Updated unused length of text buffer
 // ZF if no text buffer too small or unterminated string
 label
   StringL, String1, String2, String3, String4, String5, StringLE, StringLE2, StringE,
