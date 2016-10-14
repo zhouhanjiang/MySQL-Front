@@ -12,25 +12,6 @@ type
       POffsetArray = ^TOffsetArray;
       TOffsetArray = array [0..$FFFF] of TOffset;
 
-      POffsetList = ^TOffsetList;
-      TOffsetList = record
-      private
-        ArrayLength: Integer;
-        FCount: Integer;
-        FNodes: POffsetArray;
-        DynamicArray: array of TOffset;
-        StackArray: array [0 .. 20 - 1] of TOffset;
-        function Get(Index: Integer): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
-        procedure Put(Index: Integer; Node: TOffset); {$IFNDEF Debug} inline; {$ENDIF}
-      public
-        procedure Add(const Node: TOffset);
-        procedure Delete(const Index: Integer; const Count: Integer = 1);
-        procedure Init();
-        property Count: Integer read FCount;
-        property Node[Index: Integer]: TOffset read Get write Put; default;
-        property Nodes: POffsetArray read FNodes;
-      end;
-
       TError = record
         Code: Byte;
         Line: Integer;
@@ -48,7 +29,6 @@ type
         ChecksumValue: TOffset;
         CollateValue: TOffset;
         CommentValue: TOffset;
-        CompressValue: TOffset;
         ConnectionValue: TOffset;
         DataDirectoryValue: TOffset;
         DelayKeyWriteValue: TOffset;
@@ -59,7 +39,6 @@ type
         MaxRowsValue: TOffset;
         MinRowsValue: TOffset;
         PackKeysValue: TOffset;
-        PageChecksumValue: TOffset;
         PasswordValue: TOffset;
         RowFormatValue: TOffset;
         StatsAutoRecalc: TOffset;
@@ -143,6 +122,25 @@ type
         procedure Write(const Text: string; const SpaceBefore: Boolean); overload;
         procedure WriteReturn(); {$IFNDEF Debug} inline; {$ENDIF}
         procedure WriteSpace(); {$IFNDEF Debug} inline; {$ENDIF}
+      end;
+
+      POffsetList = ^TOffsetList;
+      TOffsetList = record
+      private
+        ArrayLength: Integer;
+        FCount: Integer;
+        FNodes: POffsetArray;
+        DynamicArray: array of TOffset;
+        StackArray: array [0 .. 20 - 1] of TOffset;
+        function Get(Index: Integer): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
+        procedure Put(Index: Integer; Node: TOffset); {$IFNDEF Debug} inline; {$ENDIF}
+      public
+        procedure Add(const Node: TOffset);
+        procedure Delete(const Index: Integer; const Count: Integer = 1);
+        procedure Init();
+        property Count: Integer read FCount;
+        property Node[Index: Integer]: TOffset read Get write Put; default;
+        property Nodes: POffsetArray read FNodes;
       end;
 
   protected
@@ -294,13 +292,11 @@ type
         ntSetStmtAssignment,
         ntSetTransactionStmt,
         ntSetTransactionStmtCharacteristic,
-        ntShowAuthorsStmt,
         ntShowBinaryLogsStmt,
         ntShowBinlogEventsStmt,
         ntShowCharacterSetStmt,
         ntShowCollationStmt,
         ntShowColumnsStmt,
-        ntShowContributorsStmt,
         ntShowCountErrorsStmt,
         ntShowCountWarningsStmt,
         ntShowCreateDatabaseStmt,
@@ -449,13 +445,11 @@ type
         stSetPassword,
         stSet,
         stSetTransaction,
-        stShowAuthors,
         stShowBinaryLogs,
         stShowBinlogEvents,
         stShowCharacterSet,
         stShowCollation,
         stShowColumns,
-        stShowContributors,
         stShowCountErrors,
         stShowCountWarnings,
         stShowCreateDatabase,
@@ -796,13 +790,11 @@ type
         'ntSetStmtAssignment',
         'ntSetTransactionStmt',
         'ntSetTransactionStmtCharacteristic',
-        'ntShowAuthorsStmt',
         'ntShowBinaryLogsStmt',
         'ntShowBinlogEventsStmt',
         'ntShowCharacterSetStmt',
         'ntShowCollationStmt',
         'ntShowColumnsStmt',
-        'ntShowContributorsStmt',
         'ntShowCountErrorsStmt',
         'ntShowCountWarningsStmt',
         'ntShowCreateDatabaseStmt',
@@ -951,13 +943,11 @@ type
         'stSetPassword',
         'stSet',
         'stSetTransaction',
-        'stShowAuthors',
         'stShowBinaryLogs',
         'stShowBinlogEvents',
         'stShowCharacterSet',
         'stShowCollation',
         'stShowColumns',
-        'stShowContributors',
         'stShowCountErrors',
         'stShowCountWarnings',
         'stShowCreateDatabase',
@@ -1058,7 +1048,7 @@ type
 
         'otDot',
 
-        'otInterval',
+        'otINTERVAL',
 
         'otBinary',
         'otCollate',
@@ -1165,38 +1155,38 @@ type
         9,   // otShiftLeft
         9,   // otShiftRight
 
-        9,   // otBitAND
+        10,  // otBitAND
 
-        10,  // otBitOR
+        11,  // otBitOR
 
-        11,  // otEqual
-        11,  // otNullSaveEqual
-        11,  // otGreaterEqual
-        11,  // otGreater
-        11,  // otLessEqual
-        11,  // otLess
-        11,  // otNotEqual
-        11,  // otIS
-        11,  // otSounds
-        11,  // otLike
-        11,  // otRegExp
-        11,  // otIn
+        12,  // otEqual
+        12,  // otNullSaveEqual
+        12,  // otGreaterEqual
+        12,  // otGreater
+        12,  // otLessEqual
+        12,  // otLess
+        12,  // otNotEqual
+        12,  // otIS
+        12,  // otSounds
+        12,  // otLike
+        12,  // otRegExp
+        12,  // otIn
 
-        12,  // otBetween
-        12,  // otCase
-        12,  // otEscape
+        13,  // otBetween
+        13,  // otCase
+        13,  // otEscape
 
-        13,  // otNot
+        14,  // otNot
 
-        14,  // otAnd
+        15,  // otAnd
 
-        15,  // otXOr
+        16,  // otXOr
 
-        16,  // otOr
+        17,  // otOr
 
-        17   // otAssign
+        18   // otAssign
       );
-      MaxOperatorPrecedence = 17;
+      MaxOperatorPrecedence = 18;
 
       StmtNodeTypes = [
         ntAnalyzeTableStmt,
@@ -1279,13 +1269,11 @@ type
         ntSetPasswordStmt,
         ntSetStmt,
         ntSetTransactionStmt,
-        ntShowAuthorsStmt,
         ntShowBinaryLogsStmt,
         ntShowBinlogEventsStmt,
         ntShowCharacterSetStmt,
         ntShowCollationStmt,
         ntShowColumnsStmt,
-        ntShowContributorsStmt,
         ntShowCountErrorsStmt,
         ntShowCountWarningsStmt,
         ntShowCreateDatabaseStmt,
@@ -1436,13 +1424,11 @@ type
         ntSetPasswordStmt,
         ntSetStmt,
         ntSetTransactionStmt,
-        ntShowAuthorsStmt,
         ntShowBinaryLogsStmt,
         ntShowBinlogEventsStmt,
         ntShowCharacterSetStmt,
         ntShowCollationStmt,
         ntShowColumnsStmt,
-        ntShowContributorsStmt,
         ntShowCountErrorsStmt,
         ntShowCountWarningsStmt,
         ntShowCreateDatabaseStmt,
@@ -2767,9 +2753,12 @@ type
           DefinitionList: TOffset;
           TableOptionList: TOffset;
           PartitionOptions: TOffset;
-          LikeTag: TOffset;
-          LikeTableIdent: TOffset;
-          SelectStmt1: TOffset;
+          Like: packed record
+            OpenBracket: TOffset;
+            Tag: TOffset;
+            TableIdent: TOffset;
+            CloseBracket: TOffset;
+          end;
           IgnoreReplaceTag: TOffset;
           AsTag: TOffset;
           SelectStmt2: TOffset;
@@ -3842,7 +3831,7 @@ type
         Nodes: TNodes;
         class function Create(const AParser: TSQLParser;
           const ANodes: TNodes; const ADelimiterType: TTokenType;
-          const AChildren: POffsetList): TOffset; static;
+          const AElements: POffsetList): TOffset; static;
         function GetFirstChild(): PChild; {$IFNDEF Debug} inline; {$ENDIF}
       public
         property DelimiterType: TTokenType read FDelimiterType;
@@ -4580,8 +4569,12 @@ type
           Into2: TIntoNodes;
           ForUpdatesTag: TOffset;
           LockInShareMode: TOffset;
+          Union1: packed record
+            Tag: TOffset;
+            SelectStmt: TOffset;
+          end;
           CloseBracket: TOffset;
-          Union: packed record
+          Union2: packed record
             Tag: TOffset;
             SelectStmt: TOffset;
           end;
@@ -4700,21 +4693,6 @@ type
         property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
-      PShowAuthorsStmt = ^TShowAuthorsStmt;
-      TShowAuthorsStmt = packed record
-      private type
-        TNodes = packed record
-          StmtTag: TOffset;
-        end;
-      private
-        Heritage: TStmt;
-      private
-        Nodes: TNodes;
-        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
-      public
-        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
-      end;
-
       PShowBinaryLogsStmt = ^TShowBinaryLogsStmt;
       TShowBinaryLogsStmt = packed record
       private type
@@ -4799,21 +4777,6 @@ type
           FromDatabaseValue: TOffset;
           LikeValue: TOffset;
           WhereValue: TOffset;
-        end;
-      private
-        Heritage: TStmt;
-      private
-        Nodes: TNodes;
-        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
-      public
-        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
-      end;
-
-      PShowContributorsStmt = ^TShowContributorsStmt;
-      TShowContributorsStmt = packed record
-      private type
-        TNodes = packed record
-          StmtTag: TOffset;
         end;
       private
         Heritage: TStmt;
@@ -5948,6 +5911,7 @@ type
 
   private type
     TSpacer = (sNone, sSpace, sReturn);
+    TExprOptions = set of (eoIn);
   private
     diBIGINT,
     diBINARY,
@@ -5982,6 +5946,7 @@ type
     diMULTILINESTRING,
     diMULTIPOINT,
     diMULTIPOLYGON,
+    diNUMBER,
     diNUMERIC,
     diNCHAR,
     diNVARCHAR,
@@ -6020,7 +5985,6 @@ type
     kiASCII,
     kiAT,
     kiAUTO_INCREMENT,
-    kiAUTHORS,
     kiAVG_ROW_LENGTH,
     kiBEFORE,
     kiBEGIN,
@@ -6062,7 +6026,6 @@ type
     kiCOMMITTED,
     kiCOMPACT,
     kiCOMPLETION,
-    kiCOMPRESS,
     kiCOMPRESSED,
     kiCONCURRENT,
     kiCONDITION,
@@ -6075,7 +6038,6 @@ type
     kiCONTAINS,
     kiCONTEXT,
     kiCONTINUE,
-    kiCONTRIBUTORS,
     kiCONVERT,
     kiCOPY,
     kiCPU,
@@ -6311,7 +6273,6 @@ type
     kiOWNER,
     kiPACK_KEYS,
     kiPAGE,
-    kiPAGE_CHECKSUM,
     kiPARSER,
     kiPARTIAL,
     kiPARTITION,
@@ -6415,7 +6376,7 @@ type
     kiSQL_SMALL_RESULT,
     kiSQLEXCEPTION,
     kiSQLSTATE,
-    kiSQLWARNINGS,
+    kiSQLWARNING,
     kiSTACKED,
     kiSTARTING,
     kiSTART,
@@ -6529,6 +6490,7 @@ type
       Line: Integer;
       Pos: PChar;
     end;
+    ReservedWordList: TWordList;
     Text: string;
     TokenBuffer: record
       Count: Integer;
@@ -6624,7 +6586,7 @@ type
     procedure FormatSubPartition(const Nodes: TSubPartition.TNodes);
     procedure FormatSubquery(const Nodes: TSubquery.TNodes);
     procedure FormatSubstringFunc(const Nodes: TSubstringFunc.TNodes);
-    procedure FormatToken(const Token: PToken);
+    procedure FormatToken(const Token: TToken);
     procedure FormatTrimFunc(const Nodes: TTrimFunc.TNodes);
     procedure FormatTruncateStmt(const Nodes: TTruncateStmt.TNodes);
     procedure FormatUnaryOp(const Nodes: TUnaryOp.TNodes);
@@ -6645,6 +6607,7 @@ type
     function GetParsedToken(const Index: Integer): TOffset;
     function GetInCompound(): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
     function GetInPL_SQL(): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
+    function GetReservedWords(): string;
     function GetRoot(): PRoot; {$IFNDEF Debug} inline; {$ENDIF}
     function IsNextTag(const Index: Integer; const KeywordIndex1: TWordList.TIndex;
       const KeywordIndex2: TWordList.TIndex = -1; const KeywordIndex3: TWordList.TIndex = -1;
@@ -6748,7 +6711,7 @@ type
     function ParseExistsFunc(): TOffset;
     function ParseExplainStmt(): TOffset;
     function ParseExpr(): TOffset; overload; {$IFNDEF Debug} inline; {$ENDIF}
-    function ParseExpr(const InAllowed: Boolean): TOffset; overload;
+    function ParseExpr(const Options: TExprOptions): TOffset; overload;
     function ParseExtractFunc(): TOffset;
     function ParseFetchStmt(): TOffset;
     function ParseFieldIdent(): TOffset;
@@ -6831,13 +6794,11 @@ type
     function ParseSetStmtAssignment(): TOffset;
     function ParseSetTransactionStmt(): TOffset;
     function ParseSetTransactionStmtCharacterisic(): TOffset;
-    function ParseShowAuthorsStmt(): TOffset;
     function ParseShowBinaryLogsStmt(): TOffset;
     function ParseShowBinlogEventsStmt(): TOffset;
     function ParseShowCharacterSetStmt(): TOffset;
     function ParseShowCollationStmt(): TOffset;
     function ParseShowColumnsStmt(): TOffset;
-    function ParseShowContributorsStmt(): TOffset;
     function ParseShowCountErrorsStmt(): TOffset;
     function ParseShowCountWarningsStmt(): TOffset;
     function ParseShowCreateDatabaseStmt(): TOffset;
@@ -6921,6 +6882,7 @@ type
     procedure SetError(const AErrorCode: Byte; const Node: TOffset = 0);
     procedure SetFunctions(AFunctions: string);
     procedure SetKeywords(AKeywords: string);
+    procedure SetReservedWords(AReservedWords: string);
     function TableNameCmp(const Name1, Name2: string): Integer;
     property ErrorFound: Boolean read GetErrorFound;
     property InCompound: Boolean read GetInCompound;
@@ -6942,6 +6904,7 @@ type
     function NodeSize(const NodeType: TNodeType): Integer;
     function StmtPtr(const ANode: TOffset): PStmt; {$IFNDEF Debug} inline; {$ENDIF}
     function TokenPtr(const Token: TOffset): PToken; {$IFNDEF Debug} inline; {$ENDIF}
+    property ReservedWords: string read GetReservedWords write SetReservedWords;
 
   public
     type
@@ -7014,7 +6977,7 @@ const
     'DATE,DATETIME,DOUBLE,ENUM,FLOAT,GEOMETRY,GEOMETRYCOLLECTION,INT,INT4,' +
     'INTEGER,LARGEINT,LINESTRING,JSON,LONG,LONGBLOB,LONGTEXT,MEDIUMBLOB,' +
     'MEDIUMINT,MEDIUMTEXT,MULTILINESTRING,MULTIPOINT,MULTIPOLYGON,' +
-    'NUMERIC,NCHAR,NVARCHAR,POINT,POLYGON,REAL,SERIAL,SET,SIGNED,' +
+    'NUMBER,NUMERIC,NCHAR,NVARCHAR,POINT,POLYGON,REAL,SERIAL,SET,SIGNED,' +
     'SMALLINT,TEXT,TIME,TIMESTAMP,TINYBLOB,TINYINT,TINYTEXT,UNSIGNED,' +
     'VARBINARY,VARCHAR,YEAR';
 
@@ -7101,14 +7064,14 @@ const
     'ANY,SOME,OFF,STATS_SAMPLE_PAGES,' +
 
     'ACCOUNT,ACTION,ADD,AFTER,AGAINST,ALGORITHM,ALL,ALTER,ALWAYS,ANALYZE,AND,' +
-    'AS,ASC,ASCII,AT,AUTO_INCREMENT,AUTHORS,AVG_ROW_LENGTH,BEFORE,BEGIN,' +
+    'AS,ASC,ASCII,AT,AUTO_INCREMENT,AVG_ROW_LENGTH,BEFORE,BEGIN,' +
     'BETWEEN,BINARY,BINLOG,BLOCK,BOOLEAN,BOTH,BTREE,BY,CACHE,CALL,CASCADE,' +
     'CASCADED,CASE,CATALOG_NAME,CHANGE,CHANGED,CHANNEL,CHAIN,CHARACTER,' +
     'CHARSET,CHECK,CHECKSUM,CLASS_ORIGIN,CLIENT,CLOSE,COALESCE,CODE,COLLATE,' +
     'COLLATION,COLUMN,COLUMN_FORMAT,COLUMN_NAME,COLUMNS,COMMENT,COMMIT,' +
     'COMMITTED,COMPACT,COMPLETION,COMPRESS,COMPRESSED,CONCURRENT,CONDITION,' +
     'CONNECTION,CONSISTENT,CONSTRAINT,CONSTRAINT_CATALOG,CONSTRAINT_NAME,' +
-    'CONSTRAINT_SCHEMA,CONTAINS,CONTEXT,CONTINUE,CONTRIBUTORS,CONVERT,COPY,' +
+    'CONSTRAINT_SCHEMA,CONTAINS,CONTEXT,CONTINUE,CONVERT,COPY,' +
     'CPU,CREATE,CROSS,CURRENT,CURRENT_DATE,CURRENT_TIME,CURRENT_TIMESTAMP,' +
     'CURRENT_USER,CURSOR,CURSOR_NAME,DATA,DATABASE,DATABASES,DATAFILE,DAY,' +
     'DAY_HOUR,DAY_MICROSECOND,DAY_MINUTE,DAY_SECOND,DEALLOCATE,DECLARE,' +
@@ -7152,7 +7115,7 @@ const
     'SEPARATOR,SERIALIZABLE,SERVER,SESSION,SET,SHARE,SHARED,SHOW,SHUTDOWN,' +
     'SIGNAL,SIGNED,SIMPLE,SLAVE,SNAPSHOT,SOCKET,SONAME,SOUNDS,SOURCE,SPATIAL,' +
     'SQL,SQL_BIG_RESULT,SQL_BUFFER_RESULT,SQL_CACHE,SQL_CALC_FOUND_ROWS,' +
-    'SQL_NO_CACHE,SQL_SMALL_RESULT,SQLEXCEPTION,SQLSTATE,SQLWARNINGS,STACKED,' +
+    'SQL_NO_CACHE,SQL_SMALL_RESULT,SQLEXCEPTION,SQLSTATE,SQLWARNING,STACKED,' +
     'STARTING,START,STARTS,STATS_AUTO_RECALC,STATS_PERSISTENT,STATUS,STOP,' +
     'STORAGE,STORED,STRAIGHT_JOIN,SUBCLASS_ORIGIN,SUBPARTITION,SUBPARTITIONS,' +
     'SUPER,SUSPEND,SWAPS,SWITCHES,TABLE,TABLE_NAME,TABLES,TABLESPACE,' +
@@ -7162,6 +7125,36 @@ const
     'UNTIL,UPDATE,UPGRADE,USAGE,USE,USE_FRM,USER,USING,VALIDATION,VALUE,' +
     'VALUES,VARIABLES,VIEW,VIRTUAL,WAIT,WARNINGS,WEEK,WHEN,WHERE,WHILE,' +
     'WRAPPER,WRITE,WITH,WITHOUT,WORK,XA,XID,XML,XOR,YEAR,YEAR_MONTH,ZEROFILL';
+
+  MySQLReservedWords =
+    'ACCESSIBLE,ADD,ALL,ALTER,ANALYZE,AND,AS,ASC,ASENSITIVE,BEFORE,BETWEEN,' +
+    'BIGINT,BINARY,BLOB,BOTH,BY,CALL,CASCADE,CASE,CHANGE,CHAR,CHARACTER,' +
+    'CHECK,COLLATE,COLUMN,CONDITION,CONSTRAINT,CONTINUE,CONVERT,CREATE,' +
+    'CROSS,CURRENT_DATE,CURRENT_TIME,CURRENT_TIMESTAMP,CURRENT_USER,CURSOR,' +
+    'DATABASE,DATABASES,DAY_HOUR,DAY_MICROSECOND,DAY_MINUTE,DAY_SECOND,' +
+    'DEC,DECIMAL,DECLARE,DEFAULT,DELAYED,DELETE,DESC,DESCRIBE,DETERMINISTIC,' +
+    'DISTINCT,DISTINCTROW,DIV,DOUBLE,DROP,DUAL,EACH,ELSE,ELSEIF,ENCLOSED,' +
+    'ESCAPED,EXISTS,EXIT,EXPLAIN,FALSE,FETCH,FLOAT,FLOAT4,FLOAT8,FOR,FORCE,' +
+    'FOREIGN,FROM,FULLTEXT,GENERATED,GET,GRANT,GROUP,HAVING,HIGH_PRIORITY,' +
+    'HOUR_MICROSECOND,HOUR_MINUTE,HOUR_SECOND,IF,IGNORE,IN,INDEX,INFILE,' +
+    'INNER,INOUT,INSENSITIVE,INSERT,INT,INT1,INT2,INT3,INT4,INT8,INTEGER,' +
+    'INTERVAL,INTO,IO_AFTER_GTIDS,IO_BEFORE_GTIDS,IS,ITERATE,JOIN,KEY,KEYS,' +
+    'KILL,LEADING,LEAVE,LEFT,LIKE,LIMIT,LINEAR,LINES,LOAD,LOCALTIME,' +
+    'LOCALTIMESTAMP,LOCK,LONG,LONGBLOB,LONGTEXT,LOOP,LOW_PRIORITY,' +
+    'MASTER_BIND,MASTER_SSL_VERIFY_SERVER_CERT,MATCH,MAXVALUE,MEDIUMBLOB,' +
+    'MEDIUMINT,MEDIUMTEXT,MIDDLEINT,MINUTE_MICROSECOND,MINUTE_SECOND,MOD,' +
+    'MODIFIES,NATURAL,NO_WRITE_TO_BINLOG,NOT,NULL,NUMERIC,ON,OPTIMIZE,' +
+    'OPTIMIZER_COSTS,OPTION,OPTIONALLY,OR,ORDER,OUT,OUTER,OUTFILE,PARTITION,' +
+    'PRECISION,PRIMARY,PROCEDURE,PURGE,RANGE,READ,READ_WRITE,READS,REAL,' +
+    'REFERENCES,REGEXP,RELEASE,RENAME,REPEAT,REPLACE,REQUIRE,RESIGNAL,' +
+    'RESTRICT,RETURN,REVOKE,RIGHT,RLIKE,SCHEMA,SCHEMAS,SECOND_MICROSECOND,' +
+    'SELECT,SENSITIVE,SEPARATOR,SET,SHOW,SIGNAL,SMALLINT,SPATIAL,SPECIFIC,' +
+    'SQL,SQL_BIG_RESULT,SQL_CALC_FOUND_ROWS,SQL_SMALL_RESULT,SQLEXCEPTION,' +
+    'SQLSTATE,SQLWARNING,SSL,STARTING,STORED,STRAIGHT_JOIN,TABLE,TERMINATED,' +
+    'THEN,TINYBLOB,TINYINT,TINYTEXT,TO,TRAILING,TRIGGER,TRUE,UNDO,UNION,' +
+    'UNIQUE,UNLOCK,UNSIGNED,UPDATE,USAGE,USE,USING,UTC_DATE,UTC_TIME,' +
+    'UTC_TIMESTAMP,VALUES,VARBINARY,VARCHAR,VARCHARACTER,VARYING,VIRTUAL,' +
+    'WHEN,WHERE,WHILE,WITH,WRITE,XOR,YEAR_MONTH,ZEROFILL';
 
 function HTMLEscape(const Value: PChar; const ValueLen: Integer; const Escaped: PChar; const EscapedLen: Integer): Integer; overload;
 label
@@ -7480,15 +7473,10 @@ function TSQLParser.TWordList.IndexOf(const Word: PChar; const Length: Integer):
 var
   Comp: Integer;
   Left: Integer;
-  I: Integer;
   Mid: Integer;
   Right: Integer;
-  UpcaseWord: array [0 .. 255] of Char;
 begin
   Result := -1;
-
-  for I := 0 to Length - 1 do
-    UpcaseWord[I] := Upcase(Word[I]);
 
   if (Length <= System.Length(FFirst) - 2) then
   begin
@@ -7497,7 +7485,7 @@ begin
     while (Left <= Right) do
     begin
       Mid := (Right - Left) div 2 + Left;
-      Comp := StrLComp(FIndex[Mid], @UpcaseWord, Length);
+      Comp := StrLIComp(FIndex[Mid], Word, Length);
       if (Comp < 0) then
         Left := Mid + 1
       else if (Comp = 0) then
@@ -9224,10 +9212,6 @@ end;
 class function TSQLParser.TDbIdent.Create(const AParser: TSQLParser;
   const ADbIdentType: TDbIdentType; const ANodes: TNodes): TOffset;
 begin
-  Assert((ANodes.DatabaseIdent = 0) or (AParser.TokenPtr(ANodes.DatabaseIdent)^.UsageType = utDbIdent));
-  Assert((ANodes.TableIdent = 0) or (AParser.TokenPtr(ANodes.TableIdent)^.UsageType = utDbIdent));
-  Assert((ANodes.Ident = 0) or (AParser.TokenPtr(ANodes.Ident)^.UsageType = utDbIdent));
-
   Result := TRange.Create(AParser, ntDbIdent);
 
   with PDbIdent(AParser.NodePtr(Result))^ do
@@ -9938,7 +9922,7 @@ end;
 
 class function TSQLParser.TList.Create(const AParser: TSQLParser;
   const ANodes: TNodes; const ADelimiterType: TTokenType;
-  const AChildren: POffsetList): TOffset;
+  const AElements: POffsetList): TOffset;
 var
   I: Integer;
 begin
@@ -9947,24 +9931,24 @@ begin
   with PList(AParser.NodePtr(Result))^ do
   begin
     Nodes := ANodes;
-    if (AChildren.Count > 0) then
-      Nodes.FirstChild := AChildren^[0];
+    if (AElements.Count > 0) then
+      Nodes.FirstChild := AElements^[0];
 
     FDelimiterType := ADelimiterType;
 
     if (ADelimiterType = ttUnknown) then
-      FElementCount := AChildren^.Count
+      FElementCount := AElements^.Count
     else
     begin
       FElementCount := 0;
-      for I := 0 to AChildren^.Count - 1 do
-        if (not AParser.IsToken(AChildren^[I])
-          or (AParser.TokenPtr(AChildren^[I])^.TokenType <> ADelimiterType)) then
+      for I := 0 to AElements^.Count - 1 do
+        if (not AParser.IsToken(AElements^[I])
+          or (AParser.TokenPtr(AElements^[I])^.TokenType <> ADelimiterType)) then
           Inc(FElementCount)
     end;
 
     Heritage.AddChildren(1, @Nodes.OpenBracket);
-    Heritage.AddChildren(AChildren.Count, AChildren.Nodes);
+    Heritage.AddChildren(AElements.Count, AElements.Nodes);
     Heritage.AddChildren(1, @Nodes.CloseBracket);
   end;
 end;
@@ -10567,20 +10551,6 @@ begin
   end;
 end;
 
-{ TSQLParser.TShowAuthorsStmt *************************************************}
-
-class function TSQLParser.TShowAuthorsStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
-begin
-  Result := TStmt.Create(AParser, stShowAuthors);
-
-  with PShowAuthorsStmt(AParser.NodePtr(Result))^ do
-  begin
-    Nodes := ANodes;
-
-    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
-  end;
-end;
-
 { TSQLParser.TShowBinaryLogsStmt **********************************************}
 
 class function TSQLParser.TShowBinaryLogsStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
@@ -10644,20 +10614,6 @@ begin
   Result := TStmt.Create(AParser, stShowColumns);
 
   with PShowColumnsStmt(AParser.NodePtr(Result))^ do
-  begin
-    Nodes := ANodes;
-
-    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
-  end;
-end;
-
-{ TSQLParser.TShowContributorsStmt ********************************************}
-
-class function TSQLParser.TShowContributorsStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
-begin
-  Result := TStmt.Create(AParser, stShowContributors);
-
-  with PShowContributorsStmt(AParser.NodePtr(Result))^ do
   begin
     Nodes := ANodes;
 
@@ -11662,11 +11618,13 @@ begin
   Nodes.UsedSize := 0;
   Nodes.MemSize := 0;
   SetLength(OperatorTypeByKeywordIndex, 0);
+  ReservedWordList := TWordList.Create(Self);
   TokenBuffer.Count := 0;
 
   Datatypes := MySQLDatatypes;
   Functions := MySQLFunctions;
   Keywords := MySQLKeywords;
+  ReservedWords := MySQLReservedWords;
 
   Clear();
 end;
@@ -11734,15 +11692,15 @@ begin
     begin
       Dec(Length, Integer(Error.Pos - Text));
       SetString(S, Error.Pos, Length);
-      Result := Result + ' at: ' + Copy(S, 1, 20);
+      Result := Result + ' near: ' + Copy(S, 1, 20);
     end
     else if (Assigned(Error.Pos)) then
-      Result := Result + ' at: ' + Location(Error.Pos);
+      Result := Result + ' near: ' + Location(Error.Pos);
   end
   else if ((Error.Code in [PE_IncompleteToken, PE_UnexpectedChar, PE_UnexpectedToken, PE_ExtraToken]) and (Error.Token > 0)) then
   begin
     SetString(S, Text, Length);
-    Result := Result + ' at: ' + Copy(S, 1, 20);
+    Result := Result + ' near: ' + Copy(S, 1, 20);
   end;
 end;
 
@@ -11755,6 +11713,7 @@ begin
   DatatypeList.Free();
   FunctionList.Free();
   KeywordList.Free();
+  ReservedWordList.Free();
 
   inherited;
 end;
@@ -12183,19 +12142,15 @@ begin
     Commands.WriteSpace();
     FormatList(Nodes.DefinitionList, sReturn);
   end
-  else if (Nodes.LikeTag > 0) then
+  else if (Nodes.Like.Tag > 0) then
   begin
     Commands.IncreaseIndent();
-    FormatNode(Nodes.LikeTag, stReturnBefore);
-    FormatNode(Nodes.LikeTableIdent, stSpaceBefore);
-    Commands.DecreaseIndent();
-  end
-  else if (Nodes.SelectStmt1 > 0) then
-  begin
-    Commands.IncreaseIndent();
-    FormatNode(Nodes.SelectStmt1, stReturnBefore);
-    Commands.DecreaseIndent();
     Commands.WriteReturn();
+    FormatNode(Nodes.Like.OpenBracket);
+    FormatNode(Nodes.Like.Tag);
+    FormatNode(Nodes.Like.TableIdent, stSpaceBefore);
+    FormatNode(Nodes.Like.CloseBracket);
+    Commands.DecreaseIndent();
   end;
   FormatNode(Nodes.TableOptionList, stSpaceBefore);
   FormatNode(Nodes.PartitionOptions, stReturnBefore);
@@ -12396,7 +12351,6 @@ begin
     Commands.IncreaseIndent();
     FormatNode(Nodes.SelectStmt, stReturnBefore);
     Commands.DecreaseIndent();
-    FormatNode(Nodes.OptionTag, stReturnBefore);
     Commands.DecreaseIndent();
   end
   else
@@ -12414,9 +12368,9 @@ begin
     Commands.DecreaseIndent();
     FormatNode(Nodes.SelectStmt, stReturnBefore);
     Commands.IncreaseIndent();
-    FormatNode(Nodes.OptionTag, stReturnBefore);
     Commands.DecreaseIndent();
   end;
+  FormatNode(Nodes.OptionTag, stReturnBefore);
 end;
 
 procedure TSQLParser.FormatComments(const Token: PToken; Start: Boolean = False);
@@ -12444,6 +12398,8 @@ begin
             else
               Commands.WriteReturn();
           T^.GetText(Text, Length);
+          while ((Length > 0) and CharInSet(Text[0], [#9, #10, #13, ' '])) do
+            Dec(Length);
           Commands.Write(Text, Length);
           ReturnFound := False;
           Spacer := sReturn;
@@ -13118,7 +13074,7 @@ begin
 
     CommentsWritten := False;
     case (Node^.NodeType) of
-      ntToken: FormatToken(PToken(Node));
+      ntToken: FormatToken(PToken(Node)^);
       ntList:
         case (PList(Node)^.DelimiterType) of
           ttDot: FormatList(PList(Node)^.Nodes, sNone);
@@ -13267,13 +13223,11 @@ begin
       ntSetStmtAssignment: DefaultFormatNode(@TSetStmt.PAssignment(Node)^.Nodes, SizeOf(TSetStmt.TAssignment.TNodes));
       ntSetTransactionStmt: DefaultFormatNode(@PSetTransactionStmt(Node)^.Nodes, SizeOf(TSetTransactionStmt.TNodes));
       ntSetTransactionStmtCharacteristic: DefaultFormatNode(@TSetTransactionStmt.PCharacteristic(Node)^.Nodes, SizeOf(TSetTransactionStmt.TCharacteristic.TNodes));
-      ntShowAuthorsStmt: DefaultFormatNode(@PShowAuthorsStmt(Node)^.Nodes, SizeOf(TShowAuthorsStmt.TNodes));
       ntShowBinaryLogsStmt: DefaultFormatNode(@PShowBinaryLogsStmt(Node)^.Nodes, SizeOf(TShowBinaryLogsStmt.TNodes));
       ntShowBinlogEventsStmt: FormatShowBinlogEventsStmt(PShowBinlogEventsStmt(Node)^.Nodes);
       ntShowCharacterSetStmt: DefaultFormatNode(@PShowCharacterSetStmt(Node)^.Nodes, SizeOf(TShowCharacterSetStmt.TNodes));
       ntShowCollationStmt: DefaultFormatNode(@PShowCollationStmt(Node)^.Nodes, SizeOf(TShowCollationStmt.TNodes));
       ntShowColumnsStmt: DefaultFormatNode(@PShowColumnsStmt(Node)^.Nodes, SizeOf(TShowColumnsStmt.TNodes));
-      ntShowContributorsStmt: DefaultFormatNode(@PShowContributorsStmt(Node)^.Nodes, SizeOf(TShowContributorsStmt.TNodes));
       ntShowCountErrorsStmt: DefaultFormatNode(@PShowCountErrorsStmt(Node)^.Nodes, SizeOf(TShowCountErrorsStmt.TNodes));
       ntShowCountWarningsStmt: DefaultFormatNode(@PShowCountWarningsStmt(Node)^.Nodes, SizeOf(TShowCountWarningsStmt.TNodes));
       ntShowCreateDatabaseStmt: DefaultFormatNode(@PShowCreateDatabaseStmt(Node)^.Nodes, SizeOf(TShowCreateDatabaseStmt.TNodes));
@@ -13609,8 +13563,8 @@ begin
   FormatInto(Nodes.Into2);
   FormatNode(Nodes.ForUpdatesTag, Separator);
   FormatNode(Nodes.LockInShareMode, Separator);
-  FormatNode(Nodes.Union.Tag, stReturnBefore);
-  FormatNode(Nodes.Union.SelectStmt, stReturnBefore);
+  FormatNode(Nodes.Union1.Tag, stReturnBefore);
+  FormatNode(Nodes.Union1.SelectStmt, stReturnBefore);
   if (Nodes.CloseBracket > 0) then
   begin
     if (Separator = stReturnBefore) then
@@ -13618,6 +13572,8 @@ begin
     Commands.DecreaseIndent();
     FormatNode(Nodes.CloseBracket);
   end;
+  FormatNode(Nodes.Union2.Tag, stReturnBefore);
+  FormatNode(Nodes.Union2.SelectStmt, stReturnBefore);
 end;
 
 procedure TSQLParser.FormatSelectStmtColumn(const Nodes: TSelectStmt.TColumn.TNodes);
@@ -13858,7 +13814,7 @@ begin
   FormatNode(Nodes.CloseBracket);
 end;
 
-procedure TSQLParser.FormatToken(const Token: PToken);
+procedure TSQLParser.FormatToken(const Token: TToken);
 label
   UpcaseL, UpcaseLE,
   LowcaseL, LowcaseLE;
@@ -13870,18 +13826,18 @@ var
   S: string;
   Text: PChar;
 begin
-  if ((Token^.UsageType = utKeyword)
-    or (Token^.UsageType = utFunction)
-    or (Token^.OperatorType <> otUnknown)
-    or (Token^.UsageType = utConst) and (Token^.KeywordIndex = kiDEFAULT)
-    or (Token^.UsageType = utConst) and (Token^.KeywordIndex = kiFALSE)
-    or (Token^.UsageType = utConst) and (Token^.KeywordIndex = kiNULL)
-    or (Token^.UsageType = utConst) and (Token^.KeywordIndex = kiOFF)
-    or (Token^.UsageType = utConst) and (Token^.KeywordIndex = kiON)
-    or (Token^.UsageType = utConst) and (Token^.KeywordIndex = kiTRUE)
-    or (Token^.UsageType = utConst) and (Token^.KeywordIndex = kiUNKNOWN)) then
+  if ((Token.UsageType = utKeyword)
+    or (Token.UsageType = utFunction)
+    or (Token.OperatorType <> otUnknown)
+    or (Token.UsageType = utConst) and (Token.KeywordIndex = kiDEFAULT)
+    or (Token.UsageType = utConst) and (Token.KeywordIndex = kiFALSE)
+    or (Token.UsageType = utConst) and (Token.KeywordIndex = kiNULL)
+    or (Token.UsageType = utConst) and (Token.KeywordIndex = kiOFF)
+    or (Token.UsageType = utConst) and (Token.KeywordIndex = kiON)
+    or (Token.UsageType = utConst) and (Token.KeywordIndex = kiTRUE)
+    or (Token.UsageType = utConst) and (Token.KeywordIndex = kiUNKNOWN)) then
   begin
-    Token^.GetText(Text, Length);
+    Token.GetText(Text, Length);
 
     if (Length > 0) then
     begin
@@ -13916,12 +13872,12 @@ begin
           POP ES
       end;
 
-      Commands.Write(@Keyword[0], Token^.Length);
+      Commands.Write(@Keyword[0], Token.Length);
     end;
   end
-  else if (Token^.UsageType = utDatatype) then
+  else if (Token.UsageType = utDatatype) then
   begin
-    Token^.GetText(Text, Length);
+    Token.GetText(Text, Length);
 
     if (Length > 0) then
     begin
@@ -13956,20 +13912,20 @@ begin
           POP ES
       end;
 
-      Commands.Write(@Keyword[0], Token^.Length);
+      Commands.Write(@Keyword[0], Token.Length);
     end;
   end
-  else if ((Token^.UsageType = utDbIdent) and (Token^.DbIdentType = ditField) and (Token^.AsString = '*')) then
-    Commands.Write(Token^.AsString)
-  else if ((Token^.UsageType = utDbIdent) and ((Token^.TokenType = ttMySQLIdent) or (Token^.TokenType = ttDQIdent) and AnsiQuotes)
-    or (Token^.DbIdentType in [ditDatabase, ditTable, ditProcedure, ditFunction, ditTrigger, ditEvent, ditKey, ditField, ditForeignKey, ditPartition, ditAlias])) then
+  else if ((Token.UsageType = utDbIdent) and (Token.OperatorType = otMulti)) then
+    Commands.Write(Token.FText, Token.FLength)
+  else if ((Token.UsageType = utDbIdent) and ((Token.TokenType = ttMySQLIdent) or (Token.TokenType = ttDQIdent) and AnsiQuotes)
+    or (Token.DbIdentType in [ditDatabase, ditTable, ditProcedure, ditFunction, ditTrigger, ditEvent, ditKey, ditField, ditForeignKey, ditPartition, ditAlias])) then
     if (AnsiQuotes) then
-      Commands.Write(SQLEscape(Token^.AsString, '"'))
+      Commands.Write(SQLEscape(Token.AsString, '"'))
     else
-      Commands.Write(SQLEscape(Token^.AsString, '`'))
-  else if ((Token^.UsageType = utConst) and (Token^.TokenType in ttStrings)) then
+      Commands.Write(SQLEscape(Token.AsString, '`'))
+  else if ((Token.UsageType = utConst) and (Token.TokenType in ttStrings)) then
   begin
-    Token^.GetText(Text, Length);
+    Token.GetText(Text, Length);
     Index := 0;
     while ((Index < Length) and not (CharInSet(Text[Index], ['''', '"']))) do
       Inc(Index);
@@ -13983,12 +13939,9 @@ begin
     end;
   end
   else
-  begin
-    Token^.GetText(Text, Length);
-    Commands.Write(Text, Length);
-  end;
+    Commands.Write(Token.FText, Token.FLength);
 
-  FormatComments(Token^.NextTokenAll, False);
+  FormatComments(Token.NextTokenAll, False);
 end;
 
 procedure TSQLParser.FormatTrimFunc(const Nodes: TTrimFunc.TNodes);
@@ -14024,7 +13977,7 @@ begin
   Token := PRange(Node)^.FirstToken;
   while (Assigned(Token)) do
   begin
-    FormatToken(Token);
+    FormatToken(Token^);
 
     if (Token = PRange(Node)^.LastToken) then
       Token := nil
@@ -14235,6 +14188,11 @@ begin
     Result := 0
   else
     Result := TokenBuffer.Items[Index].Token;
+end;
+
+function TSQLParser.GetReservedWords(): string;
+begin
+  Result := ReservedWordList.Text;
 end;
 
 function TSQLParser.GetRoot(): PRoot;
@@ -14617,13 +14575,11 @@ begin
     ntSetTransactionStmt: Result := SizeOf(TSetTransactionStmt);
     ntSetTransactionStmtCharacteristic: Result := SizeOf(TSetTransactionStmt.TCharacteristic);
     ntTrimFunc: Result := SizeOf(TTrimFunc);
-    ntShowAuthorsStmt: Result := SizeOf(TShowAuthorsStmt);
     ntShowBinaryLogsStmt: Result := SizeOf(TShowBinaryLogsStmt);
     ntShowBinlogEventsStmt: Result := SizeOf(TShowBinlogEventsStmt);
     ntShowCharacterSetStmt: Result := SizeOf(TShowCharacterSetStmt);
     ntShowCollationStmt: Result := SizeOf(TShowCollationStmt);
     ntShowColumnsStmt: Result := SizeOf(TShowColumnsStmt);
-    ntShowContributorsStmt: Result := SizeOf(TShowContributorsStmt);
     ntShowCountErrorsStmt: Result := SizeOf(TShowCountErrorsStmt);
     ntShowCountWarningsStmt: Result := SizeOf(TShowCountWarningsStmt);
     ntShowCreateDatabaseStmt: Result := SizeOf(TShowCreateDatabaseStmt);
@@ -15110,11 +15066,6 @@ begin
         TableOptionNodes.CommentValue := ParseValue(kiCOMMENT, vaAuto, ParseString);
         Specifications.Add(TableOptionNodes.CommentValue);
       end
-      else if ((TableOptionNodes.CompressValue = 0) and IsTag(kiCOMPRESS)) then
-      begin
-        TableOptionNodes.CompressValue := ParseValue(kiCOMPRESS, vaAuto, ParseString);
-        Specifications.Add(TableOptionNodes.CompressValue);
-      end
       else if ((TableOptionNodes.ConnectionValue = 0) and IsTag(kiCONNECTION)) then
       begin
         TableOptionNodes.ConnectionValue := ParseValue(kiCONNECTION, vaAuto, ParseString);
@@ -15164,11 +15115,6 @@ begin
       begin
         TableOptionNodes.PackKeysValue := ParseValue(kiPACK_KEYS, vaAuto, ParseExpr);
         Specifications.Add(TableOptionNodes.PackKeysValue);
-      end
-      else if ((TableOptionNodes.PageChecksumValue = 0) and IsTag(kiPAGE_CHECKSUM)) then
-      begin
-        TableOptionNodes.PageChecksumValue := ParseValue(kiPAGE_CHECKSUM, vaAuto, ParseInteger);
-        Specifications.Add(TableOptionNodes.PageChecksumValue);
       end
       else if ((TableOptionNodes.PasswordValue = 0) and IsTag(kiPASSWORD)) then
       begin
@@ -16577,15 +16523,23 @@ begin
   if (not ErrorFound) then
     if (IsTag(kiLIKE)) then
     begin
-      Nodes.LikeTag := ParseTag(kiLIKE);
+      Nodes.Like.Tag := ParseTag(kiLIKE);
 
       if (not ErrorFound) then
-        Nodes.LikeTableIdent := ParseTableIdent();
+        Nodes.Like.TableIdent := ParseTableIdent();
     end
     else if (IsSymbol(ttOpenBracket) and IsNextTag(1, kiLIKE)) then
     begin
-      // Where is this format definied in the manual???
-      SetError(PE_UnexpectedToken, NextToken[1]);
+      Nodes.Like.OpenBracket := ParseSymbol(ttOpenBracket);
+
+      if (not ErrorFound) then
+        Nodes.Like.Tag := ParseTag(kiLIKE);
+
+      if (not ErrorFound) then
+        Nodes.Like.TableIdent := ParseTableIdent();
+
+      if (not ErrorFound) then
+        Nodes.Like.CloseBracket := ParseSymbol(ttCloseBracket);
     end
     else if (IsSymbol(ttOpenBracket) and IsNextTag(1, kiSELECT)) then
     begin
@@ -16597,7 +16551,7 @@ begin
       Nodes.DefinitionList := ParseList(True, ParseCreateTableStmtDefinition);
     end;
 
-  if (not ErrorFound and (Nodes.LikeTag = 0)) then
+  if (not ErrorFound and (Nodes.Like.Tag = 0)) then
   begin
     FillChar(TableOptions, SizeOf(TableOptions), 0);
     Options.Init();
@@ -16655,11 +16609,6 @@ begin
         TableOptions.CommentValue := ParseValue(kiCOMMENT, vaAuto, ParseString);
         Options.Add(TableOptions.CommentValue);
       end
-      else if ((TableOptions.CompressValue = 0) and IsTag(kiCOMPRESS)) then
-      begin
-        TableOptions.CompressValue := ParseValue(kiCOMPRESS, vaAuto, ParseString);
-        Options.Add(TableOptions.CompressValue);
-      end
       else if ((TableOptions.ConnectionValue = 0) and IsTag(kiCONNECTION)) then
       begin
         TableOptions.ConnectionValue := ParseValue(kiCONNECTION, vaAuto, ParseString);
@@ -16709,11 +16658,6 @@ begin
       begin
         TableOptions.PackKeysValue := ParseValue(kiPACK_KEYS, vaAuto, ParseExpr);
         Options.Add(TableOptions.PackKeysValue);
-      end
-      else if ((TableOptions.PageChecksumValue = 0) and IsTag(kiPAGE_CHECKSUM)) then
-      begin
-        TableOptions.PageChecksumValue := ParseValue(kiPAGE_CHECKSUM, vaAuto, ParseInteger);
-        Options.Add(TableOptions.PageChecksumValue);
       end
       else if ((TableOptions.PasswordValue = 0) and IsTag(kiPASSWORD)) then
       begin
@@ -16779,11 +16723,11 @@ begin
     end;
   end;
 
-  if (not ErrorFound and (Nodes.LikeTag = 0)) then
+  if (not ErrorFound and (Nodes.Like.Tag = 0)) then
     if (IsTag(kiPARTITION, kiBY)) then
       Nodes.PartitionOptions := ParseCreateTableStmtPartitionOptions();
 
-  if (not ErrorFound and (Nodes.LikeTag = 0)) then
+  if (not ErrorFound and (Nodes.Like.Tag = 0)) then
   begin
     if (IsTag(kiIGNORE)) then
       Nodes.IgnoreReplaceTag := ParseTag(kiIGNORE)
@@ -16997,9 +16941,13 @@ begin
 
   ConstraintNode := 0;
   if (IsTag(kiCONSTRAINT)) then
-    if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType in ttIdents)) then
+    if (not EndOfStmt(NextToken[1])
+      and (TokenPtr(NextToken[1])^.TokenType in ttIdents)
+      and not IsNextTag(1, kiFOREIGN)
+      and not IsNextTag(1, kiUNIQUE)) then
       ConstraintNode := ParseValue(kiCONSTRAINT, vaNo, ParseDbIdent)
-    else if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType in ttStrings)) then
+    else if (not EndOfStmt(NextToken[1])
+      and ((TokenPtr(NextToken[1])^.TokenType = ttString) or (TokenPtr(NextToken[1])^.TokenType = ttDQIdent) and not AnsiQuotes)) then
       ConstraintNode := ParseValue(kiCONSTRAINT, vaNo, ParseString)
     else
       ConstraintNode := ParseTag(kiCONSTRAINT);
@@ -17720,6 +17668,7 @@ begin
         or (DatatypeIndex = diMEDIUMTEXT)
         or (DatatypeIndex = diNCHAR)
         or (DatatypeIndex = diNVARCHAR)
+        or (DatatypeIndex = diNUMBER)
         or (DatatypeIndex = diNUMERIC)
         or (DatatypeIndex = diREAL)
         or (DatatypeIndex = diSMALLINT)
@@ -17777,6 +17726,7 @@ begin
       or (DatatypeIndex = diINT)
       or (DatatypeIndex = diINTEGER)
       or (DatatypeIndex = diMEDIUMINT)
+      or (DatatypeIndex = diNUMBER)
       or (DatatypeIndex = diNUMERIC)
       or (DatatypeIndex = diREAL)
       or (DatatypeIndex = diSMALLINT)
@@ -17857,10 +17807,31 @@ end;
 
 function TSQLParser.ParseDbIdent(): TOffset;
 begin
-  Result := ApplyCurrentToken(utDbIdent);
+  Result := ParseDbIdent(ditUnknown);
 end;
 
 function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType; const FullQualified: Boolean = True): TOffset;
+
+  function ParseDbIdentToken(): TOffset;
+  begin
+    if (EndOfStmt(CurrentToken)) then
+    begin
+      SetError(PE_IncompleteStmt);
+      Result := 0;
+    end
+    else if ((TokenPtr(CurrentToken)^.TokenType = ttString) and (ADbIdentType in [ditAlias])
+      or (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent) and not AnsiQuotes
+      or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and (AnsiQuotes or (ADbIdentType in [ditAlias]))
+      or (TokenPtr(CurrentToken)^.OperatorType = otMulti) and (ADbIdentType in [ditDatabase, ditTable, ditProcedure, ditFunction, ditField])
+      or (TokenPtr(CurrentToken)^.TokenType = ttIdent) and (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0)) then
+      Result := ApplyCurrentToken(utDbIdent)
+    else
+    begin
+      SetError(PE_UnexpectedToken);
+      Result := 0;
+    end;
+  end;
+
 var
   Nodes: TDbIdent.TNodes;
 begin
@@ -17897,17 +17868,8 @@ begin
     end;
     SetError(PE_IncompleteStmt);
   end
-// Which keywords are allowed, which not?
-//  else if (TokenPtr(CurrentToken)^.KeywordIndex >= 0) then
-//    SetError(PE_UnexpectedToken)
-  else if (TokenPtr(CurrentToken)^.TokenType in ttIdents) then
-    Nodes.Ident := ApplyCurrentToken(utDbIdent)
-  else if ((TokenPtr(CurrentToken)^.TokenType in ttStrings) and (ADbIdentType = ditAlias)) then
-    Nodes.Ident := ApplyCurrentToken(utDbIdent)
-  else if (TokenPtr(CurrentToken)^.OperatorType = otMulti) then
-    Nodes.Ident := ApplyCurrentToken(utDbIdent)
   else
-    SetError(PE_UnexpectedToken);
+    Nodes.Ident := ParseDbIdentToken();
 
   if (not ErrorFound
     and FullQualified
@@ -17924,17 +17886,11 @@ begin
 
           if (EndOfStmt(CurrentToken)) then
           begin
-            CompletionList.AddList(ADbIdentType, SQLUnescape(TokenPtr(Nodes.DatabaseIdent)^.Text));
-            SetError(PE_IncompleteStmt);
+            CompletionList.AddList(ADbIdentType);
+            Nodes.Ident := 0;
           end
-          else if (TokenPtr(CurrentToken)^.OperatorType = otMulti) then
-            Nodes.Ident := ApplyCurrentToken(utDbIdent)
-          else if ((TokenPtr(CurrentToken)^.TokenType <> ttIdent)
-            and (not AnsiQuotes or (TokenPtr(CurrentToken)^.TokenType <> ttDQIdent))
-            and (AnsiQuotes or (TokenPtr(CurrentToken)^.TokenType <> ttMySQLIdent))) then
-            SetError(PE_UnexpectedToken)
           else
-            Nodes.Ident := ApplyCurrentToken(utDbIdent);
+            Nodes.Ident := ParseDbIdentToken();
         end;
       ditKey,
       ditField,
@@ -17945,20 +17901,17 @@ begin
 
           if (EndOfStmt(CurrentToken)) then
           begin
-            CompletionList.AddList(ADbIdentType, '', SQLUnescape(TokenPtr(Nodes.TableIdent)^.Text));
-            SetError(PE_IncompleteStmt);
+            CompletionList.AddList(ditTable);
+            CompletionList.AddList(ADbIdentType);
+            Nodes.Ident := 0;
           end
-          else if (TokenPtr(CurrentToken)^.OperatorType = otMulti) then
-            Nodes.Ident := ApplyCurrentToken(utDbIdent)
-          else if ((TokenPtr(CurrentToken)^.TokenType <> ttIdent)
-            and (not AnsiQuotes or (TokenPtr(CurrentToken)^.TokenType <> ttDQIdent))
-            and (AnsiQuotes or (TokenPtr(CurrentToken)^.TokenType <> ttMySQLIdent))) then
-            SetError(PE_UnexpectedToken)
           else
-            Nodes.Ident := ApplyCurrentToken(utDbIdent);
+            Nodes.Ident := ParseDbIdentToken();
 
           if (not ErrorFound
-            and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.OperatorType = otDot)) then
+            and FullQualified
+            and not EndOfStmt(CurrentToken)
+            and (TokenPtr(CurrentToken)^.OperatorType = otDot)) then
           begin
             Nodes.DatabaseIdent := Nodes.TableIdent;
             Nodes.DatabaseDot := Nodes.TableDot;
@@ -17967,17 +17920,11 @@ begin
 
             if (EndOfStmt(CurrentToken)) then
             begin
-              CompletionList.AddList(ADbIdentType, SQLUnescape(TokenPtr(Nodes.DatabaseIdent)^.Text), SQLUnescape(TokenPtr(Nodes.TableIdent)^.Text));
-              SetError(PE_IncompleteStmt);
+              CompletionList.AddList(ADbIdentType);
+              Nodes.Ident := 0;
             end
-            else if (TokenPtr(CurrentToken)^.OperatorType = otMulti) then
-              Nodes.Ident := ApplyCurrentToken(utDbIdent)
-            else if ((TokenPtr(CurrentToken)^.TokenType <> ttIdent)
-              and (not AnsiQuotes or (TokenPtr(CurrentToken)^.TokenType <> ttDQIdent))
-              and (AnsiQuotes or (TokenPtr(CurrentToken)^.TokenType <> ttMySQLIdent))) then
-              SetError(PE_UnexpectedToken)
             else
-              Nodes.Ident := ApplyCurrentToken(utDbIdent);
+              Nodes.Ident := ParseDbIdentToken();
           end;
         end;
     end;
@@ -18139,8 +18086,8 @@ begin
     Result := ParseValue(WordIndices(kiSQLSTATE, kiVALUE), vaNo, ParseExpr)
   else if (IsTag(kiSQLSTATE)) then
     Result := ParseValue(kiSQLSTATE, vaNo, ParseExpr)
-  else if (TokenPtr(CurrentToken)^.KeywordIndex = kiSQLWARNINGS) then
-    Result := ParseTag(kiSQLWARNINGS)
+  else if (TokenPtr(CurrentToken)^.KeywordIndex = kiSQLWARNING) then
+    Result := ParseTag(kiSQLWARNING)
   else if (IsTag(kiNOT, kiFOUND)) then
     Result := ParseTag(kiNOT, kiFOUND)
   else if (IsTag(kiSQLEXCEPTION)) then
@@ -18596,10 +18543,10 @@ end;
 
 function TSQLParser.ParseExpr(): TOffset;
 begin
-  Result := ParseExpr(True);
+  Result := ParseExpr([eoIn]);
 end;
 
-function TSQLParser.ParseExpr(const InAllowed: Boolean): TOffset;
+function TSQLParser.ParseExpr(const Options: TExprOptions): TOffset;
 var
   I: Integer;
   KeywordIndex: Integer;
@@ -18627,12 +18574,25 @@ begin
       else if (Token.TokenType = ttAt) then
         Nodes.Add(ParseVariableIdent())
       else if (Token.TokenType = ttOpenBracket) then
-        if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiSELECT)) then
+        if (IsNextTag(1, kiSELECT)) then
           Nodes.Add(ParseSubSelectStmt())
-        else if ((Nodes.Count > 0) and IsOperator(Nodes[Nodes.Count - 1]) and (TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType = otIn)) then
+        else if ((Nodes.Count > 0) and IsToken(Nodes[Nodes.Count - 1]) and (TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType = otIn)) then
           Nodes.Add(ParseList(True, ParseExpr))
         else
           Nodes.Add(ParseSubArea(ParseExpr))
+      else if (Token.KeywordIndex = kiINTERVAL) then
+        // INTERVAL is operator and function, so we have to handle it separately
+        // ... but how to detect, if it's operator or function correctly???
+        if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.TokenType = ttOpenBracket)) then
+          Nodes.Add(ParseFunctionCall())
+        else
+          Nodes.Add(ParseIntervalOp())
+      else if (Token.KeywordIndex = kiMOD) then
+        // MOD is operator and function, so we have to handle it separately
+        if ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1])) then
+          Nodes.Add(ParseFunctionCall())
+        else
+          Nodes.Add(ApplyCurrentToken(utOperator))
       else if (Token.OperatorType <> otUnknown) then
         if (Token.OperatorType = otMulti) then
           if ((Nodes.Count = 0) or IsToken(Nodes[Nodes.Count - 1]) and (TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType = otDot)) then
@@ -18644,23 +18604,21 @@ begin
             Nodes.Add(ApplyCurrentToken(utOperator))
         else if ((Token.OperatorType = otMinus) and ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1]))) then
         begin
-          Token.FOperatorType := otUnaryMinus;
+          TokenPtr(CurrentToken)^.FOperatorType := otUnaryMinus;
           Nodes.Add(ApplyCurrentToken(utOperator));
         end
         else if ((Token.OperatorType = otPlus) and ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1]))) then
         begin
-          Token.FOperatorType := otUnaryPlus;
+          TokenPtr(CurrentToken)^.FOperatorType := otUnaryPlus;
           Nodes.Add(ApplyCurrentToken(utOperator));
         end
         else if ((Token.OperatorType = otNot) and ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1]))) then
         begin
-          Token.FOperatorType := otUnaryNot;
+          TokenPtr(CurrentToken)^.FOperatorType := otUnaryNot;
           Nodes.Add(ApplyCurrentToken(utOperator));
         end
         else if (Token.OperatorType = otCase) then
           Nodes.Add(ParseCaseOp())
-        else if (Token.OperatorType = otInterval) then
-          Nodes.Add(ParseIntervalOp())
         else
           Nodes.Add(ApplyCurrentToken(utOperator))
       else if (Token.TokenType in ttIdents) then
@@ -18676,61 +18634,59 @@ begin
           and (Nodes.Count > 0) and IsToken(Nodes[Nodes.Count - 1]) and (TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType in [otEqual, otGreater, otLess, otGreaterEqual, otLessEqual, otNotEqual])) then
           Nodes.Add(ParseSubquery())
         else if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.TokenType = ttOpenBracket)) then
-          if (FunctionList.IndexOf(Token.Text) >= 0) then
-          begin
-            Token.GetText(Text, Length);
-            if ((Length = 7) and (StrLIComp(Text, 'ADDDATE', Length) = 0)) then
-              Nodes.Add(ParseDateAddFunc())
-            else if ((Length = 4) and (StrLIComp(Text, 'CAST', Length) = 0)) then
-              Nodes.Add(ParseCastFunc())
-            else if ((Length = 4) and (StrLIComp(Text, 'CHAR', Length) = 0)) then
-              Nodes.Add(ParseCharFunc())
-            else if ((Length = 7) and (StrLIComp(Text, 'CONVERT', Length) = 0)) then
-              Nodes.Add(ParseConvertFunc())
-            else if ((Length = 8) and (StrLIComp(Text, 'DATE_ADD', Length) = 0)) then
-              Nodes.Add(ParseDateAddFunc())
-            else if ((Length = 8) and (StrLIComp(Text, 'DATE_SUB', Length) = 0)) then
-              Nodes.Add(ParseDateAddFunc())
-            else if ((Length = 6) and (StrLIComp(Text, 'EXISTS', Length) = 0)) then
-              Nodes.Add(ParseExistsFunc())
-            else if ((Length = 7) and (StrLIComp(Text, 'EXTRACT', Length) = 0)) then
-              Nodes.Add(ParseExtractFunc())
-            else if ((Length = 12) and (StrLIComp(Text, 'GROUP_CONCAT', Length) = 0)) then
-              Nodes.Add(ParseGroupConcatFunc())
-            else if ((Length = 5) and (StrLIComp(Text, 'MATCH', Length) = 0)) then
-              Nodes.Add(ParseMatchFunc())
-            else if ((Length = 8) and (StrLIComp(Text, 'POSITION', Length) = 0)) then
-              Nodes.Add(ParsePositionFunc())
-            else if ((Length = 7) and (StrLIComp(Text, 'SUBDATE', Length) = 0)) then
-              Nodes.Add(ParseDateAddFunc())
-            else if ((Length = 6) and (StrLIComp(Text, 'SUBSTR', Length) = 0)) then
-              Nodes.Add(ParseSubstringFunc())
-            else if ((Length = 9) and (StrLIComp(Text, 'SUBSTRING', Length) = 0)) then
-              Nodes.Add(ParseSubstringFunc())
-            else if ((Length = 4) and (StrLIComp(Text, 'TRIM', Length) = 0)) then
-              Nodes.Add(ParseTrimFunc())
-            else if ((Length = 13) and (StrLIComp(Text, 'WEIGHT_STRING', Length) = 0)) then
-              Nodes.Add(ParseWeightStringFunc())
-            else // SynFunc()
-              Nodes.Add(ParseFunctionCall());
-          end
-          else // Func()
-            Nodes.Add(ParseFunctionCall())
+        begin
+          Token.GetText(Text, Length);
+          if ((Length = 7) and (StrLIComp(Text, 'ADDDATE', Length) = 0)) then
+            Nodes.Add(ParseDateAddFunc())
+          else if ((Length = 4) and (StrLIComp(Text, 'CAST', Length) = 0)) then
+            Nodes.Add(ParseCastFunc())
+          else if ((Length = 4) and (StrLIComp(Text, 'CHAR', Length) = 0)) then
+            Nodes.Add(ParseCharFunc())
+          else if ((Length = 7) and (StrLIComp(Text, 'CONVERT', Length) = 0)) then
+            Nodes.Add(ParseConvertFunc())
+          else if ((Length = 8) and (StrLIComp(Text, 'DATE_ADD', Length) = 0)) then
+            Nodes.Add(ParseDateAddFunc())
+          else if ((Length = 8) and (StrLIComp(Text, 'DATE_SUB', Length) = 0)) then
+            Nodes.Add(ParseDateAddFunc())
+          else if ((Length = 6) and (StrLIComp(Text, 'EXISTS', Length) = 0)) then
+            Nodes.Add(ParseExistsFunc())
+          else if ((Length = 7) and (StrLIComp(Text, 'EXTRACT', Length) = 0)) then
+            Nodes.Add(ParseExtractFunc())
+          else if ((Length = 12) and (StrLIComp(Text, 'GROUP_CONCAT', Length) = 0)) then
+            Nodes.Add(ParseGroupConcatFunc())
+          else if ((Length = 5) and (StrLIComp(Text, 'MATCH', Length) = 0)) then
+            Nodes.Add(ParseMatchFunc())
+          else if ((Length = 8) and (StrLIComp(Text, 'POSITION', Length) = 0)) then
+            Nodes.Add(ParsePositionFunc())
+          else if ((Length = 7) and (StrLIComp(Text, 'SUBDATE', Length) = 0)) then
+            Nodes.Add(ParseDateAddFunc())
+          else if ((Length = 6) and (StrLIComp(Text, 'SUBSTR', Length) = 0)) then
+            Nodes.Add(ParseSubstringFunc())
+          else if ((Length = 9) and (StrLIComp(Text, 'SUBSTRING', Length) = 0)) then
+            Nodes.Add(ParseSubstringFunc())
+          else if ((Length = 4) and (StrLIComp(Text, 'TRIM', Length) = 0)) then
+            Nodes.Add(ParseTrimFunc())
+          else if ((Length = 13) and (StrLIComp(Text, 'WEIGHT_STRING', Length) = 0)) then
+            Nodes.Add(ParseWeightStringFunc())
+          else
+            Nodes.Add(ParseFunctionCall());
+        end
         else if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.OperatorType = otDot)) then
           if (not EndOfStmt(NextToken[2]) and (TokenPtr(NextToken[2])^.TokenType in ttIdents)
             and not EndOfStmt(NextToken[3]) and (TokenPtr(NextToken[3])^.TokenType = ttOpenBracket)) then
-            // Db.Func()
             Nodes.Add(ParseFunctionCall())
-          else // Db.Tbl.Clmn or Tbl.Clmn
+          else
             Nodes.Add(ParseDbIdent(ditField))
         else
           Nodes.Add(ParseDbIdent())
       else
         SetError(PE_UnexpectedToken);
+
+      Assert(ErrorFound or (Nodes.Count > 0) and (Nodes[Nodes.Count - 1] > 0));
     until (ErrorFound
       or EndOfStmt(CurrentToken)
-      or ((Nodes.Count = 0) or not IsOperator(Nodes[Nodes.Count - 1])) and not IsOperator(CurrentToken)
-      or (TokenPtr(CurrentToken)^.OperatorType = otIn) and not InAllowed);
+      or not IsOperator(Nodes[Nodes.Count - 1]) and not IsOperator(CurrentToken)
+      or not (eoIn in Options) and (TokenPtr(CurrentToken)^.OperatorType = otIn));
 
   if (not ErrorFound and EndOfStmt(CurrentToken)) then
     if ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1])) then
@@ -18847,10 +18803,10 @@ begin
               if (NodeIndex = 0) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if ((IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex = kiNOT))
-                and ((NodeIndex < 2) or not IsOperator(Nodes[NodeIndex - 2]))) then
+                and ((NodeIndex < 2) or IsOperator(Nodes[NodeIndex - 2]))) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if ((not IsToken(Nodes[NodeIndex - 1]) or (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex <> kiNOT))
-                and ((NodeIndex < 1) or not IsOperator(Nodes[NodeIndex - 1]))) then
+                and ((NodeIndex < 1) or IsOperator(Nodes[NodeIndex - 1]))) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if (NodeIndex + 2 = Nodes.Count) then
               begin
@@ -18881,8 +18837,8 @@ begin
               else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)
                 and ((NodeIndex < 2) or IsOperator(Nodes[NodeIndex - 2]))) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
-              else if ((not IsToken(Nodes[NodeIndex - 1]) or (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType <> otNot))
-                and IsOperator(Nodes[NodeIndex - 1])) then
+              else if ((not IsToken(Nodes[NodeIndex - 1]) or (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex <> kiNOT))
+                and ((NodeIndex < 1) or IsOperator(Nodes[NodeIndex - 1]))) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if (NodeIndex + 1 = Nodes.Count) then
                 SetError(PE_IncompleteStmt)
@@ -18907,8 +18863,8 @@ begin
               else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)
                 and ((NodeIndex < 2) or IsOperator(Nodes[NodeIndex - 2]))) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
-              else if ((not IsToken(Nodes[NodeIndex - 1]) or (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType <> otNot))
-                and IsOperator(Nodes[NodeIndex - 1])) then
+              else if ((not IsToken(Nodes[NodeIndex - 1]) or (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex <> kiNOT))
+                and ((NodeIndex < 1) or IsOperator(Nodes[NodeIndex - 1]))) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if (NodeIndex + 1 = Nodes.Count) then
                 SetError(PE_IncompleteStmt)
@@ -18958,8 +18914,8 @@ begin
               else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)
                 and ((NodeIndex < 2) or IsOperator(Nodes[NodeIndex - 2]))) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
-              else if ((not IsToken(Nodes[NodeIndex - 1]) or (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType <> otNot))
-                and IsOperator(Nodes[NodeIndex - 1])) then
+              else if ((not IsToken(Nodes[NodeIndex - 1]) or (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex <> kiNOT))
+                and ((NodeIndex < 1) or IsOperator(Nodes[NodeIndex - 1]))) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if (NodeIndex + 1 = Nodes.Count) then
                 SetError(PE_IncompleteStmt)
@@ -18983,8 +18939,8 @@ begin
               else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)
                 and ((NodeIndex < 2) or IsOperator(Nodes[NodeIndex - 2]))) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
-              else if ((not IsToken(Nodes[NodeIndex - 1]) or (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType <> otNot))
-                and IsOperator(Nodes[NodeIndex - 1])) then
+              else if ((not IsToken(Nodes[NodeIndex - 1]) or (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex <> kiNOT))
+                and ((NodeIndex < 1) or IsOperator(Nodes[NodeIndex - 1]))) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if (NodeIndex + 1 = Nodes.Count) then
                 SetError(PE_IncompleteStmt)
@@ -20164,11 +20120,8 @@ begin
   if (not ErrorFound
     and not EndOfStmt(CurrentToken)
     and (Nodes.AliasIdent = 0)
-    and (TokenPtr(CurrentToken)^.TokenType in ttIdents + ttStrings)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiEND)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiREAD)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiLOW_PRIORITY)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiWRITE)) then
+    and ((TokenPtr(CurrentToken)^.TokenType in [ttString, ttMySQLIdent, ttDQIdent])
+      or (TokenPtr(CurrentToken)^.TokenType = ttIdent) and (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0))) then
     Nodes.AliasIdent := ParseAliasIdent();
 
   if (not ErrorFound) then
@@ -20229,7 +20182,7 @@ begin
     Nodes.OpenBracket := ParseSymbol(ttOpenBracket);
 
   if (not ErrorFound) then
-    Nodes.Expr := ParseExpr(False);
+    Nodes.Expr := ParseExpr([]);
 
   if (not ErrorFound and not EndOfStmt(CurrentToken)) then
     if (IsTag(kiIN, kiNATURAL, kiLANGUAGE, kiMODE, kiWITH, kiQUERY, kiEXPANSION)) then
@@ -20306,7 +20259,7 @@ begin
     Nodes.OpenBracket := ParseSymbol(ttOpenBracket);
 
   if (not ErrorFound) then
-    Nodes.SubStr := ParseExpr(False);
+    Nodes.SubStr := ParseExpr([]);
 
   if (not ErrorFound) then
     Nodes.InTag := ParseTag(kiIN);
@@ -21040,18 +20993,33 @@ begin
   if (not ErrorFound) then
   begin
     if (IsTag(kiUNION, kiALL)) then
-      Nodes.Union.Tag := ParseTag(kiUNION, kiALL)
+      Nodes.Union1.Tag := ParseTag(kiUNION, kiALL)
     else if (IsTag(kiUNION, kiDISTINCT)) then
-      Nodes.Union.Tag := ParseTag(kiUNION, kiDISTINCT)
+      Nodes.Union1.Tag := ParseTag(kiUNION, kiDISTINCT)
     else if (IsTag(kiUNION)) then
-      Nodes.Union.Tag := ParseTag(kiUNION);
+      Nodes.Union1.Tag := ParseTag(kiUNION);
 
-    if (not ErrorFound and (Nodes.Union.Tag > 0)) then
-      Nodes.Union.SelectStmt := ParseSelectStmt(False);
+    if (not ErrorFound and (Nodes.Union1.Tag > 0)) then
+      Nodes.Union1.SelectStmt := ParseSelectStmt(False);
   end;
 
   if (not ErrorFound and (Nodes.OpenBracket > 0)) then
+  begin
     Nodes.CloseBracket := ParseSymbol(ttCloseBracket);
+
+    if (not ErrorFound) then
+    begin
+      if (IsTag(kiUNION, kiALL)) then
+        Nodes.Union2.Tag := ParseTag(kiUNION, kiALL)
+      else if (IsTag(kiUNION, kiDISTINCT)) then
+        Nodes.Union2.Tag := ParseTag(kiUNION, kiDISTINCT)
+      else if (IsTag(kiUNION)) then
+        Nodes.Union2.Tag := ParseTag(kiUNION);
+
+      if (not ErrorFound and (Nodes.Union2.Tag > 0)) then
+        Nodes.Union2.SelectStmt := ParseSelectStmt(False);
+    end;
+  end;
 
   Result := TSelectStmt.Create(Self, Nodes);
 end;
@@ -21081,11 +21049,8 @@ begin
     if (not ErrorFound
       and not EndOfStmt(CurrentToken)
       and (Nodes.AliasIdent = 0)
-      and (TokenPtr(CurrentToken)^.TokenType in ttIdents + ttStrings)
-      and (TokenPtr(CurrentToken)^.KeywordIndex <> kiEND)
-      and (TokenPtr(CurrentToken)^.KeywordIndex <> kiFROM)
-      and (TokenPtr(CurrentToken)^.KeywordIndex <> kiINTO)
-      and (TokenPtr(CurrentToken)^.KeywordIndex <> kiUNION)) then
+      and ((TokenPtr(CurrentToken)^.TokenType in [ttString, ttMySQLIdent, ttDQIdent])
+        or (TokenPtr(CurrentToken)^.TokenType = ttIdent) and (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0))) then
       Nodes.AliasIdent := ParseAliasIdent();
   end;
 
@@ -21158,31 +21123,8 @@ begin
   if (not ErrorFound
     and not EndOfStmt(CurrentToken)
     and (Nodes.AliasIdent = 0)
-    and (TokenPtr(CurrentToken)^.TokenType in ttIdents + ttStrings)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiCROSS)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiEND)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiFOR)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiINNER)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiGROUP)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiHAVING)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiINTO)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiJOIN)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiLEFT)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiLIMIT)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiLOCK)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiNATURAL)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiON)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiORDER)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiOUTER)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiPARTITION)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiPROCEDURE)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiRIGHT)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiSET)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiSTRAIGHT_JOIN)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiTABLE)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiUNION)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiUSING)
-    and (TokenPtr(CurrentToken)^.KeywordIndex <> kiWHERE)) then
+    and ((TokenPtr(CurrentToken)^.TokenType in [ttString, ttMySQLIdent, ttDQIdent])
+      or (TokenPtr(CurrentToken)^.TokenType = ttIdent) and (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0))) then
     Nodes.AliasIdent := ParseAliasIdent();
 
   if (not ErrorFound) then
@@ -21245,9 +21187,11 @@ begin
       Nodes.AliasIdent := ParseAliasIdent();
   end;
 
-  if (not ErrorFound and (Nodes.AliasIdent = 0)
+  if (not ErrorFound
     and not EndOfStmt(CurrentToken)
-    and (TokenPtr(CurrentToken)^.TokenType in ttIdents + ttStrings)) then
+    and (Nodes.AliasIdent = 0)
+    and ((TokenPtr(CurrentToken)^.TokenType in [ttString, ttMySQLIdent, ttDQIdent])
+      or (TokenPtr(CurrentToken)^.TokenType = ttIdent) and (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0))) then
     Nodes.AliasIdent := ParseAliasIdent();
 
   Result := TSelectStmt.TTableFactorSubquery.Create(Self, Nodes);
@@ -21314,18 +21258,19 @@ function TSQLParser.ParseSelectStmtTableReference(): TOffset;
 
   function ParseTableFactor(): TOffset;
   begin
-    if (EndOfStmt(CurrentToken)) then
-    begin
-      SetError(PE_IncompleteStmt);
-      Result := 0;
-    end
-    else if (IsSymbol(ttOpenBracket)
+    if (IsSymbol(ttOpenBracket)
       and IsNextTag(1, kiSELECT)) then
       Result := ParseSelectStmtTableFactorSubquery()
     else if (IsSymbol(ttOpenBracket)) then
       Result := ParseList(True, ParseSelectStmtTableEscapedReference)
-    else if (TokenPtr(CurrentToken)^.TokenType in ttIdents) then
+    else if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType in ttIdents)) then
       Result := ParseSelectStmtTableFactor()
+    else if (EndOfStmt(CurrentToken)) then
+    begin
+      CompletionList.AddList(ditTable);
+      SetError(PE_IncompleteStmt);
+      Result := 0;
+    end
     else
     begin
       SetError(PE_UnexpectedToken);
@@ -21649,17 +21594,6 @@ begin
   Result := TSetTransactionStmt.TCharacteristic.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseShowAuthorsStmt(): TOffset;
-var
-  Nodes: TShowAuthorsStmt.TNodes;
-begin
-  FillChar(Nodes, SizeOf(Nodes), 0);
-
-  Nodes.StmtTag := ParseTag(kiSHOW, kiAUTHORS);
-
-  Result := TShowAuthorsStmt.Create(Self, Nodes);
-end;
-
 function TSQLParser.ParseShowBinaryLogsStmt(): TOffset;
 var
   Nodes: TShowBinaryLogsStmt.TNodes;
@@ -21784,17 +21718,6 @@ begin
       Nodes.WhereValue := ParseValue(kiWHERE, vaNo, ParseExpr);
 
   Result := TShowColumnsStmt.Create(Self, Nodes);
-end;
-
-function TSQLParser.ParseShowContributorsStmt(): TOffset;
-var
-  Nodes: TShowContributorsStmt.TNodes;
-begin
-  FillChar(Nodes, SizeOf(Nodes), 0);
-
-  Nodes.StmtTag := ParseTag(kiSHOW, kiCONTRIBUTORS);
-
-  Result := TShowContributorsStmt.Create(Self, Nodes);
 end;
 
 function TSQLParser.ParseShowCountErrorsStmt(): TOffset;
@@ -22877,9 +22800,7 @@ begin
     Continue := True; // This "Hack" is needed to use <Ctrl+LeftClick>
   if (Continue) then  // the Delphi XE2 IDE. But why???
   {$ENDIF}
-  if (IsTag(kiSHOW, kiAUTHORS)) then
-    Result := ParseShowAuthorsStmt()
-  else if (IsTag(kiSHOW, kiBINARY, kiLOGS)) then
+  if (IsTag(kiSHOW, kiBINARY, kiLOGS)) then
     Result := ParseShowBinaryLogsStmt()
   else if (IsTag(kiSHOW, kiMASTER, kiLOGS)) then
     Result := ParseShowBinaryLogsStmt()
@@ -22893,8 +22814,6 @@ begin
     Result := ParseShowColumnsStmt()
   else if (IsTag(kiSHOW, kiFULL, kiCOLUMNS)) then
     Result := ParseShowColumnsStmt()
-  else if (IsTag(kiSHOW, kiCONTRIBUTORS)) then
-    Result := ParseShowContributorsStmt()
   else if (IsTag(kiSHOW) and IsNextTag(5, kiERRORS)) then // SHOW COUNT(*) ERRORS
     Result := ParseShowCountErrorsStmt()
   else if (IsTag(kiSHOW) and IsNextTag(5, kiWARNINGS)) then // SHOW COUNT(*) WARINGS
@@ -23347,8 +23266,8 @@ label
   SingleChar,
   Finish;
 const
-  Terminators: PChar = #9#10#13#32'"#%&''()*+,-./:;<=>@`{|}'; // Characters, terminating a token
-  TerminatorsL = 27; // Count of Terminators
+  Terminators: PChar = #9#10#13#32'"#%&''()*+,-./:;<=>@`{|}'#127; // Characters, terminating a token
+  TerminatorsL = 28; // Count of Terminators
 var
   AnsiQuotes: Boolean;
   DotFound: Boolean;
@@ -24361,7 +24280,7 @@ begin
   begin
     FillChar(Nodes, SizeOf(Nodes), 0);
 
-    Nodes.NameToken := ParseDbIdent();
+    Nodes.NameToken := ApplyCurrentToken(utDbIdent);
 
     if (not ErrorFound and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType = ttAt)) then
     begin
@@ -24373,7 +24292,7 @@ begin
         else if (not (TokenPtr(CurrentToken)^.TokenType in ttIdents + ttStrings + [ttIPAddress])) then
           SetError(PE_UnexpectedToken)
         else
-          Nodes.HostToken := ParseDbIdent();
+          Nodes.HostToken := ApplyCurrentToken(utDbIdent);
     end;
 
     Result := TUser.Create(Self, Nodes);
@@ -24546,7 +24465,7 @@ begin
     else if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.TokenType = ttDot)) then
       Nodes.Ident := ParseList(False, ParseDbIdent, ttDot)
     else
-      Nodes.Ident := ParseDbIdent();
+      Nodes.Ident := ApplyCurrentToken(utDbIdent);
 
   Result := TVariable.Create(Self, Nodes);
 end;
@@ -25175,6 +25094,7 @@ begin
     diMULTILINESTRING      := IndexOf('MULTILINESTRING');
     diMULTIPOINT           := IndexOf('MULTIPOINT');
     diMULTIPOLYGON         := IndexOf('MULTIPOLYGON');
+    diNUMBER               := IndexOf('NUMBER');
     diNUMERIC              := IndexOf('NUMERIC');
     diNCHAR                := IndexOf('NCHAR');
     diNVARCHAR             := IndexOf('NVARCHAR');
@@ -25307,523 +25227,524 @@ begin
 
   if (AKeywords <> '') then
   begin
-    kiACCOUNT                  := IndexOf('ACCOUNT');
-    kiACTION                   := IndexOf('ACTION');
-    kiADD                      := IndexOf('ADD');
-    kiAFTER                    := IndexOf('AFTER');
-    kiAGAINST                  := IndexOf('AGAINST');
-    kiALGORITHM                := IndexOf('ALGORITHM');
-    kiALL                      := IndexOf('ALL');
-    kiALTER                    := IndexOf('ALTER');
-    kiALWAYS                   := IndexOf('ALWAYS');
-    kiANALYZE                  := IndexOf('ANALYZE');
-    kiAND                      := IndexOf('AND');
-    kiANY                      := IndexOf('ANY');
-    kiAS                       := IndexOf('AS');
-    kiASC                      := IndexOf('ASC');
-    kiASCII                    := IndexOf('ASCII');
-    kiAT                       := IndexOf('AT');
-    kiAUTO_INCREMENT           := IndexOf('AUTO_INCREMENT');
-    kiAUTHORS                  := IndexOf('AUTHORS');
-    kiAVG_ROW_LENGTH           := IndexOf('AVG_ROW_LENGTH');
-    kiBEFORE                   := IndexOf('BEFORE');
-    kiBEGIN                    := IndexOf('BEGIN');
-    kiBETWEEN                  := IndexOf('BETWEEN');
-    kiBINARY                   := IndexOf('BINARY');
-    kiBINLOG                   := IndexOf('BINLOG');
-    kiBLOCK                    := IndexOf('BLOCK');
-    kiBOOLEAN                  := IndexOf('BOOLEAN');
-    kiBOTH                     := IndexOf('BOTH');
-    kiBTREE                    := IndexOf('BTREE');
-    kiBY                       := IndexOf('BY');
-    kiCACHE                    := IndexOf('CACHE');
-    kiCALL                     := IndexOf('CALL');
-    kiCASCADE                  := IndexOf('CASCADE');
-    kiCASCADED                 := IndexOf('CASCADED');
-    kiCASE                     := IndexOf('CASE');
-    kiCATALOG_NAME             := IndexOf('CATALOG_NAME');
-    kiCHANGE                   := IndexOf('CHANGE');
-    kiCHANGED                  := IndexOf('CHANGED');
-    kiCHANNEL                  := IndexOf('CHANNEL');
-    kiCHAIN                    := IndexOf('CHAIN');
-    kiCHARACTER                := IndexOf('CHARACTER');
-    kiCHARSET                  := IndexOf('CHARSET');
-    kiCHECK                    := IndexOf('CHECK');
-    kiCHECKSUM                 := IndexOf('CHECKSUM');
-    kiCLASS_ORIGIN             := IndexOf('CLASS_ORIGIN');
-    kiCLIENT                   := IndexOf('CLIENT');
-    kiCLOSE                    := IndexOf('CLOSE');
-    kiCOALESCE                 := IndexOf('COALESCE');
-    kiCODE                     := IndexOf('CODE');
-    kiCOLLATE                  := IndexOf('COLLATE');
-    kiCOLLATION                := IndexOf('COLLATION');
-    kiCOLUMN                   := IndexOf('COLUMN');
-    kiCOLUMN_NAME              := IndexOf('COLUMN_NAME');
-    kiCOLUMN_FORMAT            := IndexOf('COLUMN_FORMAT');
-    kiCOLUMNS                  := IndexOf('COLUMNS');
-    kiCOMMENT                  := IndexOf('COMMENT');
-    kiCOMMIT                   := IndexOf('COMMIT');
-    kiCOMMITTED                := IndexOf('COMMITTED');
-    kiCOMPACT                  := IndexOf('COMPACT');
-    kiCOMPLETION               := IndexOf('COMPLETION');
-    kiCOMPRESS                 := IndexOf('COMPRESS');
-    kiCOMPRESSED               := IndexOf('COMPRESSED');
-    kiCONCURRENT               := IndexOf('CONCURRENT');
-    kiCONNECTION               := IndexOf('CONNECTION');
-    kiCONDITION                := IndexOf('CONDITION');
-    kiCONSISTENT               := IndexOf('CONSISTENT');
-    kiCONSTRAINT               := IndexOf('CONSTRAINT');
-    kiCONSTRAINT_CATALOG       := IndexOf('CONSTRAINT_CATALOG');
-    kiCONSTRAINT_NAME          := IndexOf('CONSTRAINT_NAME');
-    kiCONSTRAINT_SCHEMA        := IndexOf('CONSTRAINT_SCHEMA');
-    kiCONTAINS                 := IndexOf('CONTAINS');
-    kiCONTEXT                  := IndexOf('CONTEXT');
-    kiCONTINUE                 := IndexOf('CONTINUE');
-    kiCONTRIBUTORS             := IndexOf('CONTRIBUTORS');
-    kiCONVERT                  := IndexOf('CONVERT');
-    kiCOPY                     := IndexOf('COPY');
-    kiCPU                      := IndexOf('CPU');
-    kiCREATE                   := IndexOf('CREATE');
-    kiCROSS                    := IndexOf('CROSS');
-    kiCURRENT                  := IndexOf('CURRENT');
-    kiCURRENT_DATE             := IndexOf('CURRENT_DATE');
-    kiCURRENT_TIME             := IndexOf('CURRENT_TIME');
-    kiCURRENT_TIMESTAMP        := IndexOf('CURRENT_TIMESTAMP');
-    kiCURRENT_USER             := IndexOf('CURRENT_USER');
-    kiCURSOR                   := IndexOf('CURSOR');
-    kiCURSOR_NAME              := IndexOf('CURSOR_NAME');
-    kiDATA                     := IndexOf('DATA');
-    kiDATABASE                 := IndexOf('DATABASE');
-    kiDATABASES                := IndexOf('DATABASES');
-    kiDATAFILE                 := IndexOf('DATAFILE');
-    kiDAY                      := IndexOf('DAY');
-    kiDAY_HOUR                 := IndexOf('DAY_HOUR');
-    kiDAY_MICROSECOND          := IndexOf('DAY_MICROSECOND');
-    kiDAY_MINUTE               := IndexOf('DAY_MINUTE');
-    kiDAY_SECOND               := IndexOf('DAY_SECOND');
-    kiDEALLOCATE               := IndexOf('DEALLOCATE');
-    kiDECLARE                  := IndexOf('DECLARE');
-    kiDEFAULT                  := IndexOf('DEFAULT');
-    kiDEFINER                  := IndexOf('DEFINER');
-    kiDELAY_KEY_WRITE          := IndexOf('DELAY_KEY_WRITE');
-    kiDELAYED                  := IndexOf('DELAYED');
-    kiDELETE                   := IndexOf('DELETE');
-    kiDESC                     := IndexOf('DESC');
-    kiDESCRIBE                 := IndexOf('DESCRIBE');
-    kiDETERMINISTIC            := IndexOf('DETERMINISTIC');
-    kiDIAGNOSTICS              := IndexOf('DIAGNOSTICS');
-    kiDIRECTORY                := IndexOf('DIRECTORY');
-    kiDISABLE                  := IndexOf('DISABLE');
-    kiDISCARD                  := IndexOf('DISCARD');
-    kiDISK                     := IndexOf('DISK');
-    kiDISTINCT                 := IndexOf('DISTINCT');
-    kiDISTINCTROW              := IndexOf('DISTINCTROW');
-    kiDIV                      := IndexOf('DIV');
-    kiDO                       := IndexOf('DO');
-    kiDROP                     := IndexOf('DROP');
-    kiDUMPFILE                 := IndexOf('DUMPFILE');
-    kiDUPLICATE                := IndexOf('DUPLICATE');
-    kiDYNAMIC                  := IndexOf('DYNAMIC');
-    kiEACH                     := IndexOf('EACH');
-    kiELSE                     := IndexOf('ELSE');
-    kiELSEIF                   := IndexOf('ELSEIF');
-    kiENABLE                   := IndexOf('ENABLE');
-    kiENABLE                   := IndexOf('ENABLE');
-    kiENCLOSED                 := IndexOf('ENCLOSED');
-    kiEND                      := IndexOf('END');
-    kiENDS                     := IndexOf('ENDS');
-    kiENGINE                   := IndexOf('ENGINE');
-    kiENGINES                  := IndexOf('ENGINES');
-    kiEVENT                    := IndexOf('EVENT');
-    kiEVENTS                   := IndexOf('EVENTS');
-    kiERRORS                   := IndexOf('ERRORS');
-    kiESCAPE                   := IndexOf('ESCAPE');
-    kiESCAPED                  := IndexOf('ESCAPED');
-    kiEVERY                    := IndexOf('EVERY');
-    kiEXCHANGE                 := IndexOf('EXCHANGE');
-    kiEXCLUSIVE                := IndexOf('EXCLUSIVE');
-    kiEXECUTE                  := IndexOf('EXECUTE');
-    kiEXISTS                   := IndexOf('EXISTS');
-    kiEXPANSION                := IndexOf('EXPANSION');
-    kiEXPIRE                   := IndexOf('EXPIRE');
-    kiEXPLAIN                  := IndexOf('EXPLAIN');
-    kiEXIT                     := IndexOf('EXIT');
-    kiEXTENDED                 := IndexOf('EXTENDED');
-    kiFALSE                    := IndexOf('FALSE');
-    kiFAST                     := IndexOf('FAST');
-    kiFAULTS                   := IndexOf('FAULTS');
-    kiFETCH                    := IndexOf('FETCH');
-    kiFILE_BLOCK_SIZE          := IndexOf('FILE_BLOCK_SIZE');
-    kiFLUSH                    := IndexOf('FLUSH');
-    kiFIELDS                   := IndexOf('FIELDS');
-    kiFILE                     := IndexOf('FILE');
-    kiFIRST                    := IndexOf('FIRST');
-    kiFIXED                    := IndexOf('FIXED');
-    kiFOLLOWS                  := IndexOf('FOLLOWS');
-    kiFOR                      := IndexOf('FOR');
-    kiFORCE                    := IndexOf('FORCE');
-    kiFOREIGN                  := IndexOf('FOREIGN');
-    kiFORMAT                   := IndexOf('FORMAT');
-    kiFOUND                    := IndexOf('FOUND');
-    kiFROM                     := IndexOf('FROM');
-    kiFULL                     := IndexOf('FULL');
-    kiFULLTEXT                 := IndexOf('FULLTEXT');
-    kiFUNCTION                 := IndexOf('FUNCTION');
-    kiGENERATED                := IndexOf('GENERATED');
-    kiGET                      := IndexOf('GET');
-    kiGLOBAL                   := IndexOf('GLOBAL');
-    kiGRANT                    := IndexOf('GRANT');
-    kiGRANTS                   := IndexOf('GRANTS');
-    kiGROUP                    := IndexOf('GROUP');
-    kiHANDLER                  := IndexOf('HANDLER');
-    kiHASH                     := IndexOf('HASH');
-    kiHAVING                   := IndexOf('HAVING');
-    kiHELP                     := IndexOf('HELP');
-    kiHIGH_PRIORITY            := IndexOf('HIGH_PRIORITY');
-    kiHOST                     := IndexOf('HOST');
-    kiHOSTS                    := IndexOf('HOSTS');
-    kiHOUR                     := IndexOf('HOUR');
-    kiHOUR_MICROSECOND         := IndexOf('HOUR_MICROSECOND');
-    kiHOUR_MINUTE              := IndexOf('HOUR_MINUTE');
-    kiHOUR_SECOND              := IndexOf('HOUR_SECOND');
-    kiIDENTIFIED               := IndexOf('IDENTIFIED');
-    kiIF                       := IndexOf('IF');
-    kiIGNORE                   := IndexOf('IGNORE');
-    kiIGNORE_SERVER_IDS        := IndexOf('IGNORE_SERVER_IDS');
-    kiIMPORT                   := IndexOf('IMPORT');
-    kiIN                       := IndexOf('IN');
-    kiINDEX                    := IndexOf('INDEX');
-    kiINDEXES                  := IndexOf('INDEXES');
-    kiINITIAL_SIZE             := IndexOf('INITIAL_SIZE');
-    kiINNER                    := IndexOf('INNER');
-    kiINFILE                   := IndexOf('INFILE');
-    kiINNODB                   := IndexOf('INNODB');
-    kiINOUT                    := IndexOf('INOUT');
-    kiINPLACE                  := IndexOf('INPLACE');
-    kiINSTANCE                 := IndexOf('INSTANCE');
-    kiINSERT                   := IndexOf('INSERT');
-    kiINSERT_METHOD            := IndexOf('INSERT_METHOD');
-    kiINTERVAL                 := IndexOf('INTERVAL');
-    kiINTO                     := IndexOf('INTO');
-    kiINVOKER                  := IndexOf('INVOKER');
-    kiIO                       := IndexOf('IO');
-    kiIPC                      := IndexOf('IPC');
-    kiIS                       := IndexOf('IS');
-    kiISOLATION                := IndexOf('ISOLATION');
-    kiITERATE                  := IndexOf('ITERATE');
-    kiJOIN                     := IndexOf('JOIN');
-    kiJSON                     := IndexOf('JSON');
-    kiKEY                      := IndexOf('KEY');
-    kiKEY_BLOCK_SIZE           := IndexOf('KEY_BLOCK_SIZE');
-    kiKEYS                     := IndexOf('KEYS');
-    kiKILL                     := IndexOf('KILL');
-    kiLANGUAGE                 := IndexOf('LANGUAGE');
-    kiLAST                     := IndexOf('LAST');
-    kiLEADING                  := IndexOf('LEADING');
-    kiLEAVE                    := IndexOf('LEAVE');
-    kiLEFT                     := IndexOf('LEFT');
-    kiLESS                     := IndexOf('LESS');
-    kiLEVEL                    := IndexOf('LEVEL');
-    kiLIKE                     := IndexOf('LIKE');
-    kiLIMIT                    := IndexOf('LIMIT');
-    kiLINEAR                   := IndexOf('LINEAR');
-    kiLINES                    := IndexOf('LINES');
-    kiLIST                     := IndexOf('LIST');
-    kiLOGS                     := IndexOf('LOGS');
-    kiLOAD                     := IndexOf('LOAD');
-    kiLOCAL                    := IndexOf('LOCAL');
-    kiLOCALTIME                := IndexOf('LOCALTIME');
-    kiLOCALTIMESTAMP           := IndexOf('LOCALTIMESTAMP');
-    kiLOCK                     := IndexOf('LOCK');
-    kiLOOP                     := IndexOf('LOOP');
-    kiLOW_PRIORITY             := IndexOf('LOW_PRIORITY');
-    kiMASTER                   := IndexOf('MASTER');
-    kiMASTER_AUTO_POSITION     := IndexOf('MASTER_AUTO_POSITION');
-    kiMASTER_BIND              := IndexOf('MASTER_BIND');
-    kiMASTER_CONNECT_RETRY     := IndexOf('MASTER_CONNECT_RETRY');
-    kiMASTER_DELAY             := IndexOf('MASTER_DELAY');
-    kiMASTER_HEARTBEAT_PERIOD  := IndexOf('MASTER_HEARTBEAT_PERIOD');
-    kiMASTER_HOST              := IndexOf('MASTER_HOST');
-    kiMASTER_LOG_FILE          := IndexOf('MASTER_LOG_FILE');
-    kiMASTER_LOG_POS           := IndexOf('MASTER_LOG_POS');
-    kiMASTER_PASSWORD          := IndexOf('MASTER_PASSWORD');
-    kiMASTER_PORT              := IndexOf('MASTER_PORT');
-    kiMASTER_RETRY_COUNT       := IndexOf('MASTER_RETRY_COUNT');
-    kiMASTER_SSL               := IndexOf('MASTER_SSL');
-    kiMASTER_SSL_CA            := IndexOf('MASTER_SSL_CA');
-    kiMASTER_SSL_CAPATH        := IndexOf('MASTER_SSL_CAPATH');
-    kiMASTER_SSL_CERT          := IndexOf('MASTER_SSL_CERT');
-    kiMASTER_SSL_CIPHER        := IndexOf('MASTER_SSL_CIPHER');
-    kiMASTER_SSL_CRL           := IndexOf('MASTER_SSL_CRL');
-    kiMASTER_SSL_CRLPATH       := IndexOf('MASTER_SSL_CRLPATH');
-    kiMASTER_SSL_KEY           := IndexOf('MASTER_SSL_KEY');
+    kiACCOUNT                       := IndexOf('ACCOUNT');
+    kiACTION                        := IndexOf('ACTION');
+    kiADD                           := IndexOf('ADD');
+    kiAFTER                         := IndexOf('AFTER');
+    kiAGAINST                       := IndexOf('AGAINST');
+    kiALGORITHM                     := IndexOf('ALGORITHM');
+    kiALL                           := IndexOf('ALL');
+    kiALTER                         := IndexOf('ALTER');
+    kiALWAYS                        := IndexOf('ALWAYS');
+    kiANALYZE                       := IndexOf('ANALYZE');
+    kiAND                           := IndexOf('AND');
+    kiANY                           := IndexOf('ANY');
+    kiAS                            := IndexOf('AS');
+    kiASC                           := IndexOf('ASC');
+    kiASCII                         := IndexOf('ASCII');
+    kiAT                            := IndexOf('AT');
+    kiAUTO_INCREMENT                := IndexOf('AUTO_INCREMENT');
+    kiAVG_ROW_LENGTH                := IndexOf('AVG_ROW_LENGTH');
+    kiBEFORE                        := IndexOf('BEFORE');
+    kiBEGIN                         := IndexOf('BEGIN');
+    kiBETWEEN                       := IndexOf('BETWEEN');
+    kiBINARY                        := IndexOf('BINARY');
+    kiBINLOG                        := IndexOf('BINLOG');
+    kiBLOCK                         := IndexOf('BLOCK');
+    kiBOOLEAN                       := IndexOf('BOOLEAN');
+    kiBOTH                          := IndexOf('BOTH');
+    kiBTREE                         := IndexOf('BTREE');
+    kiBY                            := IndexOf('BY');
+    kiCACHE                         := IndexOf('CACHE');
+    kiCALL                          := IndexOf('CALL');
+    kiCASCADE                       := IndexOf('CASCADE');
+    kiCASCADED                      := IndexOf('CASCADED');
+    kiCASE                          := IndexOf('CASE');
+    kiCATALOG_NAME                  := IndexOf('CATALOG_NAME');
+    kiCHANGE                        := IndexOf('CHANGE');
+    kiCHANGED                       := IndexOf('CHANGED');
+    kiCHANNEL                       := IndexOf('CHANNEL');
+    kiCHAIN                         := IndexOf('CHAIN');
+    kiCHARACTER                     := IndexOf('CHARACTER');
+    kiCHARSET                       := IndexOf('CHARSET');
+    kiCHECK                         := IndexOf('CHECK');
+    kiCHECKSUM                      := IndexOf('CHECKSUM');
+    kiCLASS_ORIGIN                  := IndexOf('CLASS_ORIGIN');
+    kiCLIENT                        := IndexOf('CLIENT');
+    kiCLOSE                         := IndexOf('CLOSE');
+    kiCOALESCE                      := IndexOf('COALESCE');
+    kiCODE                          := IndexOf('CODE');
+    kiCOLLATE                       := IndexOf('COLLATE');
+    kiCOLLATION                     := IndexOf('COLLATION');
+    kiCOLUMN                        := IndexOf('COLUMN');
+    kiCOLUMN_NAME                   := IndexOf('COLUMN_NAME');
+    kiCOLUMN_FORMAT                 := IndexOf('COLUMN_FORMAT');
+    kiCOLUMNS                       := IndexOf('COLUMNS');
+    kiCOMMENT                       := IndexOf('COMMENT');
+    kiCOMMIT                        := IndexOf('COMMIT');
+    kiCOMMITTED                     := IndexOf('COMMITTED');
+    kiCOMPACT                       := IndexOf('COMPACT');
+    kiCOMPLETION                    := IndexOf('COMPLETION');
+    kiCOMPRESSED                    := IndexOf('COMPRESSED');
+    kiCONCURRENT                    := IndexOf('CONCURRENT');
+    kiCONNECTION                    := IndexOf('CONNECTION');
+    kiCONDITION                     := IndexOf('CONDITION');
+    kiCONSISTENT                    := IndexOf('CONSISTENT');
+    kiCONSTRAINT                    := IndexOf('CONSTRAINT');
+    kiCONSTRAINT_CATALOG            := IndexOf('CONSTRAINT_CATALOG');
+    kiCONSTRAINT_NAME               := IndexOf('CONSTRAINT_NAME');
+    kiCONSTRAINT_SCHEMA             := IndexOf('CONSTRAINT_SCHEMA');
+    kiCONTAINS                      := IndexOf('CONTAINS');
+    kiCONTEXT                       := IndexOf('CONTEXT');
+    kiCONTINUE                      := IndexOf('CONTINUE');
+    kiCONVERT                       := IndexOf('CONVERT');
+    kiCOPY                          := IndexOf('COPY');
+    kiCPU                           := IndexOf('CPU');
+    kiCREATE                        := IndexOf('CREATE');
+    kiCROSS                         := IndexOf('CROSS');
+    kiCURRENT                       := IndexOf('CURRENT');
+    kiCURRENT_DATE                  := IndexOf('CURRENT_DATE');
+    kiCURRENT_TIME                  := IndexOf('CURRENT_TIME');
+    kiCURRENT_TIMESTAMP             := IndexOf('CURRENT_TIMESTAMP');
+    kiCURRENT_USER                  := IndexOf('CURRENT_USER');
+    kiCURSOR                        := IndexOf('CURSOR');
+    kiCURSOR_NAME                   := IndexOf('CURSOR_NAME');
+    kiDATA                          := IndexOf('DATA');
+    kiDATABASE                      := IndexOf('DATABASE');
+    kiDATABASES                     := IndexOf('DATABASES');
+    kiDATAFILE                      := IndexOf('DATAFILE');
+    kiDAY                           := IndexOf('DAY');
+    kiDAY_HOUR                      := IndexOf('DAY_HOUR');
+    kiDAY_MICROSECOND               := IndexOf('DAY_MICROSECOND');
+    kiDAY_MINUTE                    := IndexOf('DAY_MINUTE');
+    kiDAY_SECOND                    := IndexOf('DAY_SECOND');
+    kiDEALLOCATE                    := IndexOf('DEALLOCATE');
+    kiDECLARE                       := IndexOf('DECLARE');
+    kiDEFAULT                       := IndexOf('DEFAULT');
+    kiDEFINER                       := IndexOf('DEFINER');
+    kiDELAY_KEY_WRITE               := IndexOf('DELAY_KEY_WRITE');
+    kiDELAYED                       := IndexOf('DELAYED');
+    kiDELETE                        := IndexOf('DELETE');
+    kiDESC                          := IndexOf('DESC');
+    kiDESCRIBE                      := IndexOf('DESCRIBE');
+    kiDETERMINISTIC                 := IndexOf('DETERMINISTIC');
+    kiDIAGNOSTICS                   := IndexOf('DIAGNOSTICS');
+    kiDIRECTORY                     := IndexOf('DIRECTORY');
+    kiDISABLE                       := IndexOf('DISABLE');
+    kiDISCARD                       := IndexOf('DISCARD');
+    kiDISK                          := IndexOf('DISK');
+    kiDISTINCT                      := IndexOf('DISTINCT');
+    kiDISTINCTROW                   := IndexOf('DISTINCTROW');
+    kiDIV                           := IndexOf('DIV');
+    kiDO                            := IndexOf('DO');
+    kiDROP                          := IndexOf('DROP');
+    kiDUMPFILE                      := IndexOf('DUMPFILE');
+    kiDUPLICATE                     := IndexOf('DUPLICATE');
+    kiDYNAMIC                       := IndexOf('DYNAMIC');
+    kiEACH                          := IndexOf('EACH');
+    kiELSE                          := IndexOf('ELSE');
+    kiELSEIF                        := IndexOf('ELSEIF');
+    kiENABLE                        := IndexOf('ENABLE');
+    kiENABLE                        := IndexOf('ENABLE');
+    kiENCLOSED                      := IndexOf('ENCLOSED');
+    kiEND                           := IndexOf('END');
+    kiENDS                          := IndexOf('ENDS');
+    kiENGINE                        := IndexOf('ENGINE');
+    kiENGINES                       := IndexOf('ENGINES');
+    kiEVENT                         := IndexOf('EVENT');
+    kiEVENTS                        := IndexOf('EVENTS');
+    kiERRORS                        := IndexOf('ERRORS');
+    kiESCAPE                        := IndexOf('ESCAPE');
+    kiESCAPED                       := IndexOf('ESCAPED');
+    kiEVERY                         := IndexOf('EVERY');
+    kiEXCHANGE                      := IndexOf('EXCHANGE');
+    kiEXCLUSIVE                     := IndexOf('EXCLUSIVE');
+    kiEXECUTE                       := IndexOf('EXECUTE');
+    kiEXISTS                        := IndexOf('EXISTS');
+    kiEXPANSION                     := IndexOf('EXPANSION');
+    kiEXPIRE                        := IndexOf('EXPIRE');
+    kiEXPLAIN                       := IndexOf('EXPLAIN');
+    kiEXIT                          := IndexOf('EXIT');
+    kiEXTENDED                      := IndexOf('EXTENDED');
+    kiFALSE                         := IndexOf('FALSE');
+    kiFAST                          := IndexOf('FAST');
+    kiFAULTS                        := IndexOf('FAULTS');
+    kiFETCH                         := IndexOf('FETCH');
+    kiFILE_BLOCK_SIZE               := IndexOf('FILE_BLOCK_SIZE');
+    kiFLUSH                         := IndexOf('FLUSH');
+    kiFIELDS                        := IndexOf('FIELDS');
+    kiFILE                          := IndexOf('FILE');
+    kiFIRST                         := IndexOf('FIRST');
+    kiFIXED                         := IndexOf('FIXED');
+    kiFOLLOWS                       := IndexOf('FOLLOWS');
+    kiFOR                           := IndexOf('FOR');
+    kiFORCE                         := IndexOf('FORCE');
+    kiFOREIGN                       := IndexOf('FOREIGN');
+    kiFORMAT                        := IndexOf('FORMAT');
+    kiFOUND                         := IndexOf('FOUND');
+    kiFROM                          := IndexOf('FROM');
+    kiFULL                          := IndexOf('FULL');
+    kiFULLTEXT                      := IndexOf('FULLTEXT');
+    kiFUNCTION                      := IndexOf('FUNCTION');
+    kiGENERATED                     := IndexOf('GENERATED');
+    kiGET                           := IndexOf('GET');
+    kiGLOBAL                        := IndexOf('GLOBAL');
+    kiGRANT                         := IndexOf('GRANT');
+    kiGRANTS                        := IndexOf('GRANTS');
+    kiGROUP                         := IndexOf('GROUP');
+    kiHANDLER                       := IndexOf('HANDLER');
+    kiHASH                          := IndexOf('HASH');
+    kiHAVING                        := IndexOf('HAVING');
+    kiHELP                          := IndexOf('HELP');
+    kiHIGH_PRIORITY                 := IndexOf('HIGH_PRIORITY');
+    kiHOST                          := IndexOf('HOST');
+    kiHOSTS                         := IndexOf('HOSTS');
+    kiHOUR                          := IndexOf('HOUR');
+    kiHOUR_MICROSECOND              := IndexOf('HOUR_MICROSECOND');
+    kiHOUR_MINUTE                   := IndexOf('HOUR_MINUTE');
+    kiHOUR_SECOND                   := IndexOf('HOUR_SECOND');
+    kiIDENTIFIED                    := IndexOf('IDENTIFIED');
+    kiIF                            := IndexOf('IF');
+    kiIGNORE                        := IndexOf('IGNORE');
+    kiIGNORE_SERVER_IDS             := IndexOf('IGNORE_SERVER_IDS');
+    kiIMPORT                        := IndexOf('IMPORT');
+    kiIN                            := IndexOf('IN');
+    kiINDEX                         := IndexOf('INDEX');
+    kiINDEXES                       := IndexOf('INDEXES');
+    kiINITIAL_SIZE                  := IndexOf('INITIAL_SIZE');
+    kiINNER                         := IndexOf('INNER');
+    kiINFILE                        := IndexOf('INFILE');
+    kiINNODB                        := IndexOf('INNODB');
+    kiINOUT                         := IndexOf('INOUT');
+    kiINPLACE                       := IndexOf('INPLACE');
+    kiINSTANCE                      := IndexOf('INSTANCE');
+    kiINSERT                        := IndexOf('INSERT');
+    kiINSERT_METHOD                 := IndexOf('INSERT_METHOD');
+    kiINTERVAL                      := IndexOf('INTERVAL');
+    kiINTO                          := IndexOf('INTO');
+    kiINVOKER                       := IndexOf('INVOKER');
+    kiIO                            := IndexOf('IO');
+    kiIPC                           := IndexOf('IPC');
+    kiIS                            := IndexOf('IS');
+    kiISOLATION                     := IndexOf('ISOLATION');
+    kiITERATE                       := IndexOf('ITERATE');
+    kiJOIN                          := IndexOf('JOIN');
+    kiJSON                          := IndexOf('JSON');
+    kiKEY                           := IndexOf('KEY');
+    kiKEY_BLOCK_SIZE                := IndexOf('KEY_BLOCK_SIZE');
+    kiKEYS                          := IndexOf('KEYS');
+    kiKILL                          := IndexOf('KILL');
+    kiLANGUAGE                      := IndexOf('LANGUAGE');
+    kiLAST                          := IndexOf('LAST');
+    kiLEADING                       := IndexOf('LEADING');
+    kiLEAVE                         := IndexOf('LEAVE');
+    kiLEFT                          := IndexOf('LEFT');
+    kiLESS                          := IndexOf('LESS');
+    kiLEVEL                         := IndexOf('LEVEL');
+    kiLIKE                          := IndexOf('LIKE');
+    kiLIMIT                         := IndexOf('LIMIT');
+    kiLINEAR                        := IndexOf('LINEAR');
+    kiLINES                         := IndexOf('LINES');
+    kiLIST                          := IndexOf('LIST');
+    kiLOGS                          := IndexOf('LOGS');
+    kiLOAD                          := IndexOf('LOAD');
+    kiLOCAL                         := IndexOf('LOCAL');
+    kiLOCALTIME                     := IndexOf('LOCALTIME');
+    kiLOCALTIMESTAMP                := IndexOf('LOCALTIMESTAMP');
+    kiLOCK                          := IndexOf('LOCK');
+    kiLOOP                          := IndexOf('LOOP');
+    kiLOW_PRIORITY                  := IndexOf('LOW_PRIORITY');
+    kiMASTER                        := IndexOf('MASTER');
+    kiMASTER_AUTO_POSITION          := IndexOf('MASTER_AUTO_POSITION');
+    kiMASTER_BIND                   := IndexOf('MASTER_BIND');
+    kiMASTER_CONNECT_RETRY          := IndexOf('MASTER_CONNECT_RETRY');
+    kiMASTER_DELAY                  := IndexOf('MASTER_DELAY');
+    kiMASTER_HEARTBEAT_PERIOD       := IndexOf('MASTER_HEARTBEAT_PERIOD');
+    kiMASTER_HOST                   := IndexOf('MASTER_HOST');
+    kiMASTER_LOG_FILE               := IndexOf('MASTER_LOG_FILE');
+    kiMASTER_LOG_POS                := IndexOf('MASTER_LOG_POS');
+    kiMASTER_PASSWORD               := IndexOf('MASTER_PASSWORD');
+    kiMASTER_PORT                   := IndexOf('MASTER_PORT');
+    kiMASTER_RETRY_COUNT            := IndexOf('MASTER_RETRY_COUNT');
+    kiMASTER_SSL                    := IndexOf('MASTER_SSL');
+    kiMASTER_SSL_CA                 := IndexOf('MASTER_SSL_CA');
+    kiMASTER_SSL_CAPATH             := IndexOf('MASTER_SSL_CAPATH');
+    kiMASTER_SSL_CERT               := IndexOf('MASTER_SSL_CERT');
+    kiMASTER_SSL_CIPHER             := IndexOf('MASTER_SSL_CIPHER');
+    kiMASTER_SSL_CRL                := IndexOf('MASTER_SSL_CRL');
+    kiMASTER_SSL_CRLPATH            := IndexOf('MASTER_SSL_CRLPATH');
+    kiMASTER_SSL_KEY                := IndexOf('MASTER_SSL_KEY');
     kiMASTER_SSL_VERIFY_SERVER_CERT := IndexOf('MASTER_SSL_VERIFY_SERVER_CERT');
-    kiMASTER_TLS_VERSION       := IndexOf('MASTER_TLS_VERSION');
-    kiMASTER_USER              := IndexOf('MASTER_USER');
-    kiMATCH                    := IndexOf('MATCH');
-    kiMAX_CONNECTIONS_PER_HOUR := IndexOf('MAX_CONNECTIONS_PER_HOUR');
-    kiMAX_QUERIES_PER_HOUR     := IndexOf('MAX_QUERIES_PER_HOUR');
-    kiMAX_ROWS                 := IndexOf('MAX_ROWS');
-    kiMAX_STATEMENT_TIME       := IndexOf('MAX_STATEMENT_TIME');
-    kiMAX_UPDATES_PER_HOUR     := IndexOf('MAX_UPDATES_PER_HOUR');
-    kiMAX_USER_CONNECTIONS     := IndexOf('MAX_USER_CONNECTIONS');
-    kiMAXVALUE                 := IndexOf('MAXVALUE');
-    kiMEDIUM                   := IndexOf('MEDIUM');
-    kiMEMORY                   := IndexOf('MEMORY');
-    kiMERGE                    := IndexOf('MERGE');
-    kiMESSAGE_TEXT             := IndexOf('MESSAGE_TEXT');
-    kiMICROSECOND              := IndexOf('MICROSECOND');
-    kiMIGRATE                  := IndexOf('MIGRATE');
-    kiMIN_ROWS                 := IndexOf('MIN_ROWS');
-    kiMINUTE                   := IndexOf('MINUTE');
-    kiMINUTE_SECOND            := IndexOf('MINUTE_SECOND');
-    kiMINUTE_MICROSECOND       := IndexOf('MINUTE_MICROSECOND');
-    kiMOD                      := IndexOf('MOD');
-    kiMODE                     := IndexOf('MODE');
-    kiMODIFIES                 := IndexOf('MODIFIES');
-    kiMODIFY                   := IndexOf('MODIFY');
-    kiMONTH                    := IndexOf('MONTH');
-    kiMUTEX                    := IndexOf('MUTEX');
-    kiMYSQL_ERRNO              := IndexOf('MYSQL_ERRNO');
-    kiNAME                     := IndexOf('NAME');
-    kiNAMES                    := IndexOf('NAMES');
-    kiNATIONAL                 := IndexOf('NATIONAL');
-    kiNATURAL                  := IndexOf('NATURAL');
-    kiNEVER                    := IndexOf('NEVER');
-    kiNEXT                     := IndexOf('NEXT');
-    kiNO                       := IndexOf('NO');
-    kiNONE                     := IndexOf('NONE');
-    kiNOT                      := IndexOf('NOT');
-    kiNO_WRITE_TO_BINLOG       := IndexOf('NO_WRITE_TO_BINLOG');
-    kiNULL                     := IndexOf('NULL');
-    kiNUMBER                   := IndexOf('NUMBER');
-    kiOFFSET                   := IndexOf('OFFSET');
-    kiOJ                       := IndexOf('OJ');
-    kiOFF                      := IndexOf('OFF');
-    kiON                       := IndexOf('ON');
-    kiONE                      := IndexOf('ONE');
-    kiONLY                     := IndexOf('ONLY');
-    kiOPEN                     := IndexOf('OPEN');
-    kiOPTIMIZE                 := IndexOf('OPTIMIZE');
-    kiOPTION                   := IndexOf('OPTION');
-    kiOPTIONALLY               := IndexOf('OPTIONALLY');
-    kiOPTIONS                  := IndexOf('OPTIONS');
-    kiOR                       := IndexOf('OR');
-    kiORDER                    := IndexOf('ORDER');
-    kiOUT                      := IndexOf('OUT');
-    kiOUTER                    := IndexOf('OUTER');
-    kiOUTFILE                  := IndexOf('OUTFILE');
-    kiOWNER                    := IndexOf('OWNER');
-    kiPACK_KEYS                := IndexOf('PACK_KEYS');
-    kiPAGE                     := IndexOf('PAGE');
-    kiPAGE_CHECKSUM            := IndexOf('PAGE_CHECKSUM');
-    kiPARSER                   := IndexOf('PARSER');
-    kiPARTIAL                  := IndexOf('PARTIAL');
-    kiPARTITION                := IndexOf('PARTITION');
-    kiPARTITIONING             := IndexOf('PARTITIONING');
-    kiPARTITIONS               := IndexOf('PARTITIONS');
-    kiPASSWORD                 := IndexOf('PASSWORD');
-    kiPERSISTENT               := IndexOf('PERSISTENT');
-    kiPHASE                    := IndexOf('PHASE');
-    kiQUERY                    := IndexOf('QUERY');
-    kiRECOVER                  := IndexOf('RECOVER');
-    kiREDUNDANT                := IndexOf('REDUNDANT');
-    kiPLUGINS                  := IndexOf('PLUGINS');
-    kiPORT                     := IndexOf('PORT');
-    kiPRECEDES                 := IndexOf('PRECEDES');
-    kiPREPARE                  := IndexOf('PREPARE');
-    kiPRESERVE                 := IndexOf('PRESERVE');
-    kiPRIMARY                  := IndexOf('PRIMARY');
-    kiPRIVILEGES               := IndexOf('PRIVILEGES');
-    kiPROCEDURE                := IndexOf('PROCEDURE');
-    kiPROCESS                  := IndexOf('PROCESS');
-    kiPROCESSLIST              := IndexOf('PROCESSLIST');
-    kiPROFILE                  := IndexOf('PROFILE');
-    kiPROFILES                 := IndexOf('PROFILES');
-    kiPROXY                    := IndexOf('PROXY');
-    kiPURGE                    := IndexOf('PURGE');
-    kiQUARTER                  := IndexOf('QUARTER');
-    kiQUICK                    := IndexOf('QUICK');
-    kiRANGE                    := IndexOf('RANGE');
-    kiREAD                     := IndexOf('READ');
-    kiREADS                    := IndexOf('READS');
-    kiREBUILD                  := IndexOf('REBUILD');
-    kiREFERENCES               := IndexOf('REFERENCES');
-    kiREGEXP                   := IndexOf('REGEXP');
-    kiRELAY_LOG_FILE           := IndexOf('RELAY_LOG_FILE');
-    kiRELAY_LOG_POS            := IndexOf('RELAY_LOG_POS');
-    kiRELAYLOG                 := IndexOf('RELAYLOG');
-    kiRELEASE                  := IndexOf('RELEASE');
-    kiRELOAD                   := IndexOf('RELOAD');
-    kiREMOVE                   := IndexOf('REMOVE');
-    kiRENAME                   := IndexOf('RENAME');
-    kiREORGANIZE               := IndexOf('REORGANIZE');
-    kiREPEAT                   := IndexOf('REPEAT');
-    kiREPLICATION              := IndexOf('REPLICATION');
-    kiREPAIR                   := IndexOf('REPAIR');
-    kiREPEATABLE               := IndexOf('REPEATABLE');
-    kiREPLACE                  := IndexOf('REPLACE');
-    kiREQUIRE                  := IndexOf('REQUIRE');
-    kiRESET                    := IndexOf('RESET');
-    kiRESIGNAL                 := IndexOf('RESIGNAL');
-    kiRESTRICT                 := IndexOf('RESTRICT');
-    kiRESUME                   := IndexOf('RESUME');
-    kiRETURN                   := IndexOf('RETURN');
-    kiRETURNED_SQLSTATE        := IndexOf('RETURNED_SQLSTATE');
-    kiRETURNS                  := IndexOf('RETURNS');
-    kiREVERSE                  := IndexOf('REVERSE');
-    kiREVOKE                   := IndexOf('REVOKE');
-    kiRIGHT                    := IndexOf('RIGHT');
-    kiRLIKE                    := IndexOf('RLIKE');
-    kiROLLBACK                 := IndexOf('ROLLBACK');
-    kiROLLUP                   := IndexOf('ROLLUP');
-    kiROTATE                   := IndexOf('ROTATE');
-    kiROUTINE                  := IndexOf('ROUTINE');
-    kiROW                      := IndexOf('ROW');
-    kiROW_COUNT                := IndexOf('ROW_COUNT');
-    kiROW_FORMAT               := IndexOf('ROW_FORMAT');
-    kiROWS                     := IndexOf('ROWS');
-    kiSAVEPOINT                := IndexOf('SAVEPOINT');
-    kiSCHEDULE                 := IndexOf('SCHEDULE');
-    kiSCHEMA                   := IndexOf('SCHEMA');
-    kiSCHEMA_NAME              := IndexOf('SCHEMA_NAME');
-    kiSECOND                   := IndexOf('SECOND');
-    kiSECOND_MICROSECOND       := IndexOf('SECOND_MICROSECOND');
-    kiSECURITY                 := IndexOf('SECURITY');
-    kiSELECT                   := IndexOf('SELECT');
-    kiSEPARATOR                := IndexOf('SEPARATOR');
-    kiSERIALIZABLE             := IndexOf('SERIALIZABLE');
-    kiSERVER                   := IndexOf('SERVER');
-    kiSESSION                  := IndexOf('SESSION');
-    kiSET                      := IndexOf('SET');
-    kiSHARE                    := IndexOf('SHARE');
-    kiSHARED                   := IndexOf('SHARED');
-    kiSHOW                     := IndexOf('SHOW');
-    kiSHUTDOWN                 := IndexOf('SHUTDOWN');
-    kiSIGNAL                   := IndexOf('SIGNAL');
-    kiSIGNED                   := IndexOf('SIGNED');
-    kiSIMPLE                   := IndexOf('SIMPLE');
-    kiSLAVE                    := IndexOf('SLAVE');
-    kiSNAPSHOT                 := IndexOf('SNAPSHOT');
-    kiSOCKET                   := IndexOf('SOCKET');
-    kiSOME                     := IndexOf('SOME');
-    kiSONAME                   := IndexOf('SONAME');
-    kiSOUNDS                   := IndexOf('SOUNDS');
-    kiSOURCE                   := IndexOf('SOURCE');
-    kiSPATIAL                  := IndexOf('SPATIAL');
-    kiSQL                      := IndexOf('SQL');
-    kiSQL_BIG_RESULT           := IndexOf('SQL_BIG_RESULT');
-    kiSQL_BUFFER_RESULT        := IndexOf('SQL_BUFFER_RESULT');
-    kiSQL_CACHE                := IndexOf('SQL_CACHE');
-    kiSQL_CALC_FOUND_ROWS      := IndexOf('SQL_CALC_FOUND_ROWS');
-    kiSQL_NO_CACHE             := IndexOf('SQL_NO_CACHE');
-    kiSQL_SMALL_RESULT         := IndexOf('SQL_SMALL_RESULT');
-    kiSQLEXCEPTION             := IndexOf('SQLEXCEPTION');
-    kiSQLSTATE                 := IndexOf('SQLSTATE');
-    kiSQLWARNINGS              := IndexOf('SQLWARNINGS');
-    kiSTACKED                  := IndexOf('STACKED');
-    kiSTARTING                 := IndexOf('STARTING');
-    kiSTART                    := IndexOf('START');
-    kiSTARTS                   := IndexOf('STARTS');
-    kiSTATS_AUTO_RECALC        := IndexOf('STATS_AUTO_RECALC');
-    kiSTATS_PERSISTENT         := IndexOf('STATS_PERSISTENT');
-    kiSTATS_SAMPLE_PAGES       := IndexOf('STATS_SAMPLE_PAGES');
-    kiSTATUS                   := IndexOf('STATUS');
-    kiSTOP                     := IndexOf('STOP');
-    kiSTORAGE                  := IndexOf('STORAGE');
-    kiSTORED                   := IndexOf('STORED');
-    kiSTRAIGHT_JOIN            := IndexOf('STRAIGHT_JOIN');
-    kiSUBCLASS_ORIGIN          := IndexOf('SUBCLASS_ORIGIN');
-    kiSUBPARTITION             := IndexOf('SUBPARTITION');
-    kiSUBPARTITIONS            := IndexOf('SUBPARTITIONS');
-    kiSUPER                    := IndexOf('SUPER');
-    kiSUSPEND                  := IndexOf('SUSPEND');
-    kiSWAPS                    := IndexOf('SWAPS');
-    kiSWITCHES                 := IndexOf('SWITCHES');
-    kiTABLE                    := IndexOf('TABLE');
-    kiTABLE_NAME               := IndexOf('TABLE_NAME');
-    kiTABLES                   := IndexOf('TABLES');
-    kiTABLESPACE               := IndexOf('TABLESPACE');
-    kiTEMPORARY                := IndexOf('TEMPORARY');
-    kiTEMPTABLE                := IndexOf('TEMPTABLE');
-    kiTERMINATED               := IndexOf('TERMINATED');
-    kiTHAN                     := IndexOf('THAN');
-    kiTHEN                     := IndexOf('THEN');
-    kiTO                       := IndexOf('TO');
-    kiTRAILING                 := IndexOf('TRAILING');
-    kiTRADITIONAL              := IndexOf('TRADITIONAL');
-    kiTRANSACTION              := IndexOf('TRANSACTION');
-    kiTRANSACTIONAL            := IndexOf('TRANSACTIONAL');
-    kiTRIGGER                  := IndexOf('TRIGGER');
-    kiTRIGGERS                 := IndexOf('TRIGGERS');
-    kiTRUNCATE                 := IndexOf('TRUNCATE');
-    kiTRUE                     := IndexOf('TRUE');
-    kiTYPE                     := IndexOf('TYPE');
-    kiUNCOMMITTED              := IndexOf('UNCOMMITTED');
-    kiUNDEFINED                := IndexOf('UNDEFINED');
-    kiUNDO                     := IndexOf('UNDO');
-    kiUNICODE                  := IndexOf('UNICODE');
-    kiUNION                    := IndexOf('UNION');
-    kiUNIQUE                   := IndexOf('UNIQUE');
-    kiUNKNOWN                  := IndexOf('UNKNOWN');
-    kiUNLOCK                   := IndexOf('UNLOCK');
-    kiUNSIGNED                 := IndexOf('UNSIGNED');
-    kiUNTIL                    := IndexOf('UNTIL');
-    kiUPDATE                   := IndexOf('UPDATE');
-    kiUPGRADE                  := IndexOf('UPGRADE');
-    kiUSAGE                    := IndexOf('USAGE');
-    kiUSE                      := IndexOf('USE');
-    kiUSE_FRM                  := IndexOf('USE_FRM');
-    kiUSER                     := IndexOf('USER');
-    kiUSING                    := IndexOf('USING');
-    kiVALIDATION               := IndexOf('VALIDATION');
-    kiVALUE                    := IndexOf('VALUE');
-    kiVALUES                   := IndexOf('VALUES');
-    kiVARIABLES                := IndexOf('VARIABLES');
-    kiVIEW                     := IndexOf('VIEW');
-    kiVIRTUAL                  := IndexOf('VIRTUAL');
-    kiWAIT                     := IndexOf('WAIT');
-    kiWARNINGS                 := IndexOf('WARNINGS');
-    kiWEEK                     := IndexOf('WEEK');
-    kiWHEN                     := IndexOf('WHEN');
-    kiWHERE                    := IndexOf('WHERE');
-    kiWHILE                    := IndexOf('WHILE');
-    kiWRAPPER                  := IndexOf('WRAPPER');
-    kiWITH                     := IndexOf('WITH');
-    kiWITHOUT                  := IndexOf('WITHOUT');
-    kiWORK                     := IndexOf('WORK');
-    kiWRITE                    := IndexOf('WRITE');
-    kiXA                       := IndexOf('XA');
-    kiXID                      := IndexOf('XID');
-    kiXML                      := IndexOf('XML');
-    kiXOR                      := IndexOf('XOR');
-    kiYEAR                     := IndexOf('YEAR');
-    kiYEAR_MONTH               := IndexOf('YEAR_MONTH');
-    kiZEROFILL                 := IndexOf('ZEROFILL');
+    kiMASTER_TLS_VERSION            := IndexOf('MASTER_TLS_VERSION');
+    kiMASTER_USER                   := IndexOf('MASTER_USER');
+    kiMATCH                         := IndexOf('MATCH');
+    kiMAX_CONNECTIONS_PER_HOUR      := IndexOf('MAX_CONNECTIONS_PER_HOUR');
+    kiMAX_QUERIES_PER_HOUR          := IndexOf('MAX_QUERIES_PER_HOUR');
+    kiMAX_ROWS                      := IndexOf('MAX_ROWS');
+    kiMAX_STATEMENT_TIME            := IndexOf('MAX_STATEMENT_TIME');
+    kiMAX_UPDATES_PER_HOUR          := IndexOf('MAX_UPDATES_PER_HOUR');
+    kiMAX_USER_CONNECTIONS          := IndexOf('MAX_USER_CONNECTIONS');
+    kiMAXVALUE                      := IndexOf('MAXVALUE');
+    kiMEDIUM                        := IndexOf('MEDIUM');
+    kiMEMORY                        := IndexOf('MEMORY');
+    kiMERGE                         := IndexOf('MERGE');
+    kiMESSAGE_TEXT                  := IndexOf('MESSAGE_TEXT');
+    kiMICROSECOND                   := IndexOf('MICROSECOND');
+    kiMIGRATE                       := IndexOf('MIGRATE');
+    kiMIN_ROWS                      := IndexOf('MIN_ROWS');
+    kiMINUTE                        := IndexOf('MINUTE');
+    kiMINUTE_SECOND                 := IndexOf('MINUTE_SECOND');
+    kiMINUTE_MICROSECOND            := IndexOf('MINUTE_MICROSECOND');
+    kiMOD                           := IndexOf('MOD');
+    kiMODE                          := IndexOf('MODE');
+    kiMODIFIES                      := IndexOf('MODIFIES');
+    kiMODIFY                        := IndexOf('MODIFY');
+    kiMONTH                         := IndexOf('MONTH');
+    kiMUTEX                         := IndexOf('MUTEX');
+    kiMYSQL_ERRNO                   := IndexOf('MYSQL_ERRNO');
+    kiNAME                          := IndexOf('NAME');
+    kiNAMES                         := IndexOf('NAMES');
+    kiNATIONAL                      := IndexOf('NATIONAL');
+    kiNATURAL                       := IndexOf('NATURAL');
+    kiNEVER                         := IndexOf('NEVER');
+    kiNEXT                          := IndexOf('NEXT');
+    kiNO                            := IndexOf('NO');
+    kiNONE                          := IndexOf('NONE');
+    kiNOT                           := IndexOf('NOT');
+    kiNO_WRITE_TO_BINLOG            := IndexOf('NO_WRITE_TO_BINLOG');
+    kiNULL                          := IndexOf('NULL');
+    kiNUMBER                        := IndexOf('NUMBER');
+    kiOFFSET                        := IndexOf('OFFSET');
+    kiOJ                            := IndexOf('OJ');
+    kiOFF                           := IndexOf('OFF');
+    kiON                            := IndexOf('ON');
+    kiONE                           := IndexOf('ONE');
+    kiONLY                          := IndexOf('ONLY');
+    kiOPEN                          := IndexOf('OPEN');
+    kiOPTIMIZE                      := IndexOf('OPTIMIZE');
+    kiOPTION                        := IndexOf('OPTION');
+    kiOPTIONALLY                    := IndexOf('OPTIONALLY');
+    kiOPTIONS                       := IndexOf('OPTIONS');
+    kiOR                            := IndexOf('OR');
+    kiORDER                         := IndexOf('ORDER');
+    kiOUT                           := IndexOf('OUT');
+    kiOUTER                         := IndexOf('OUTER');
+    kiOUTFILE                       := IndexOf('OUTFILE');
+    kiOWNER                         := IndexOf('OWNER');
+    kiPACK_KEYS                     := IndexOf('PACK_KEYS');
+    kiPAGE                          := IndexOf('PAGE');
+    kiPARSER                        := IndexOf('PARSER');
+    kiPARTIAL                       := IndexOf('PARTIAL');
+    kiPARTITION                     := IndexOf('PARTITION');
+    kiPARTITIONING                  := IndexOf('PARTITIONING');
+    kiPARTITIONS                    := IndexOf('PARTITIONS');
+    kiPASSWORD                      := IndexOf('PASSWORD');
+    kiPERSISTENT                    := IndexOf('PERSISTENT');
+    kiPHASE                         := IndexOf('PHASE');
+    kiQUERY                         := IndexOf('QUERY');
+    kiRECOVER                       := IndexOf('RECOVER');
+    kiREDUNDANT                     := IndexOf('REDUNDANT');
+    kiPLUGINS                       := IndexOf('PLUGINS');
+    kiPORT                          := IndexOf('PORT');
+    kiPRECEDES                      := IndexOf('PRECEDES');
+    kiPREPARE                       := IndexOf('PREPARE');
+    kiPRESERVE                      := IndexOf('PRESERVE');
+    kiPRIMARY                       := IndexOf('PRIMARY');
+    kiPRIVILEGES                    := IndexOf('PRIVILEGES');
+    kiPROCEDURE                     := IndexOf('PROCEDURE');
+    kiPROCESS                       := IndexOf('PROCESS');
+    kiPROCESSLIST                   := IndexOf('PROCESSLIST');
+    kiPROFILE                       := IndexOf('PROFILE');
+    kiPROFILES                      := IndexOf('PROFILES');
+    kiPROXY                         := IndexOf('PROXY');
+    kiPURGE                         := IndexOf('PURGE');
+    kiQUARTER                       := IndexOf('QUARTER');
+    kiQUICK                         := IndexOf('QUICK');
+    kiRANGE                         := IndexOf('RANGE');
+    kiREAD                          := IndexOf('READ');
+    kiREADS                         := IndexOf('READS');
+    kiREBUILD                       := IndexOf('REBUILD');
+    kiREFERENCES                    := IndexOf('REFERENCES');
+    kiREGEXP                        := IndexOf('REGEXP');
+    kiRELAY_LOG_FILE                := IndexOf('RELAY_LOG_FILE');
+    kiRELAY_LOG_POS                 := IndexOf('RELAY_LOG_POS');
+    kiRELAYLOG                      := IndexOf('RELAYLOG');
+    kiRELEASE                       := IndexOf('RELEASE');
+    kiRELOAD                        := IndexOf('RELOAD');
+    kiREMOVE                        := IndexOf('REMOVE');
+    kiRENAME                        := IndexOf('RENAME');
+    kiREORGANIZE                    := IndexOf('REORGANIZE');
+    kiREPEAT                        := IndexOf('REPEAT');
+    kiREPLICATION                   := IndexOf('REPLICATION');
+    kiREPAIR                        := IndexOf('REPAIR');
+    kiREPEATABLE                    := IndexOf('REPEATABLE');
+    kiREPLACE                       := IndexOf('REPLACE');
+    kiREQUIRE                       := IndexOf('REQUIRE');
+    kiRESET                         := IndexOf('RESET');
+    kiRESIGNAL                      := IndexOf('RESIGNAL');
+    kiRESTRICT                      := IndexOf('RESTRICT');
+    kiRESUME                        := IndexOf('RESUME');
+    kiRETURN                        := IndexOf('RETURN');
+    kiRETURNED_SQLSTATE             := IndexOf('RETURNED_SQLSTATE');
+    kiRETURNS                       := IndexOf('RETURNS');
+    kiREVERSE                       := IndexOf('REVERSE');
+    kiREVOKE                        := IndexOf('REVOKE');
+    kiRIGHT                         := IndexOf('RIGHT');
+    kiRLIKE                         := IndexOf('RLIKE');
+    kiROLLBACK                      := IndexOf('ROLLBACK');
+    kiROLLUP                        := IndexOf('ROLLUP');
+    kiROTATE                        := IndexOf('ROTATE');
+    kiROUTINE                       := IndexOf('ROUTINE');
+    kiROW                           := IndexOf('ROW');
+    kiROW_COUNT                     := IndexOf('ROW_COUNT');
+    kiROW_FORMAT                    := IndexOf('ROW_FORMAT');
+    kiROWS                          := IndexOf('ROWS');
+    kiSAVEPOINT                     := IndexOf('SAVEPOINT');
+    kiSCHEDULE                      := IndexOf('SCHEDULE');
+    kiSCHEMA                        := IndexOf('SCHEMA');
+    kiSCHEMA_NAME                   := IndexOf('SCHEMA_NAME');
+    kiSECOND                        := IndexOf('SECOND');
+    kiSECOND_MICROSECOND            := IndexOf('SECOND_MICROSECOND');
+    kiSECURITY                      := IndexOf('SECURITY');
+    kiSELECT                        := IndexOf('SELECT');
+    kiSEPARATOR                     := IndexOf('SEPARATOR');
+    kiSERIALIZABLE                  := IndexOf('SERIALIZABLE');
+    kiSERVER                        := IndexOf('SERVER');
+    kiSESSION                       := IndexOf('SESSION');
+    kiSET                           := IndexOf('SET');
+    kiSHARE                         := IndexOf('SHARE');
+    kiSHARED                        := IndexOf('SHARED');
+    kiSHOW                          := IndexOf('SHOW');
+    kiSHUTDOWN                      := IndexOf('SHUTDOWN');
+    kiSIGNAL                        := IndexOf('SIGNAL');
+    kiSIGNED                        := IndexOf('SIGNED');
+    kiSIMPLE                        := IndexOf('SIMPLE');
+    kiSLAVE                         := IndexOf('SLAVE');
+    kiSNAPSHOT                      := IndexOf('SNAPSHOT');
+    kiSOCKET                        := IndexOf('SOCKET');
+    kiSOME                          := IndexOf('SOME');
+    kiSONAME                        := IndexOf('SONAME');
+    kiSOUNDS                        := IndexOf('SOUNDS');
+    kiSOURCE                        := IndexOf('SOURCE');
+    kiSPATIAL                       := IndexOf('SPATIAL');
+    kiSQL                           := IndexOf('SQL');
+    kiSQL_BIG_RESULT                := IndexOf('SQL_BIG_RESULT');
+    kiSQL_BUFFER_RESULT             := IndexOf('SQL_BUFFER_RESULT');
+    kiSQL_CACHE                     := IndexOf('SQL_CACHE');
+    kiSQL_CALC_FOUND_ROWS           := IndexOf('SQL_CALC_FOUND_ROWS');
+    kiSQL_NO_CACHE                  := IndexOf('SQL_NO_CACHE');
+    kiSQL_SMALL_RESULT              := IndexOf('SQL_SMALL_RESULT');
+    kiSQLEXCEPTION                  := IndexOf('SQLEXCEPTION');
+    kiSQLSTATE                      := IndexOf('SQLSTATE');
+    kiSQLWARNING                    := IndexOf('SQLWARNING');
+    kiSTACKED                       := IndexOf('STACKED');
+    kiSTARTING                      := IndexOf('STARTING');
+    kiSTART                         := IndexOf('START');
+    kiSTARTS                        := IndexOf('STARTS');
+    kiSTATS_AUTO_RECALC             := IndexOf('STATS_AUTO_RECALC');
+    kiSTATS_PERSISTENT              := IndexOf('STATS_PERSISTENT');
+    kiSTATS_SAMPLE_PAGES            := IndexOf('STATS_SAMPLE_PAGES');
+    kiSTATUS                        := IndexOf('STATUS');
+    kiSTOP                          := IndexOf('STOP');
+    kiSTORAGE                       := IndexOf('STORAGE');
+    kiSTORED                        := IndexOf('STORED');
+    kiSTRAIGHT_JOIN                 := IndexOf('STRAIGHT_JOIN');
+    kiSUBCLASS_ORIGIN               := IndexOf('SUBCLASS_ORIGIN');
+    kiSUBPARTITION                  := IndexOf('SUBPARTITION');
+    kiSUBPARTITIONS                 := IndexOf('SUBPARTITIONS');
+    kiSUPER                         := IndexOf('SUPER');
+    kiSUSPEND                       := IndexOf('SUSPEND');
+    kiSWAPS                         := IndexOf('SWAPS');
+    kiSWITCHES                      := IndexOf('SWITCHES');
+    kiTABLE                         := IndexOf('TABLE');
+    kiTABLE_NAME                    := IndexOf('TABLE_NAME');
+    kiTABLES                        := IndexOf('TABLES');
+    kiTABLESPACE                    := IndexOf('TABLESPACE');
+    kiTEMPORARY                     := IndexOf('TEMPORARY');
+    kiTEMPTABLE                     := IndexOf('TEMPTABLE');
+    kiTERMINATED                    := IndexOf('TERMINATED');
+    kiTHAN                          := IndexOf('THAN');
+    kiTHEN                          := IndexOf('THEN');
+    kiTO                            := IndexOf('TO');
+    kiTRAILING                      := IndexOf('TRAILING');
+    kiTRADITIONAL                   := IndexOf('TRADITIONAL');
+    kiTRANSACTION                   := IndexOf('TRANSACTION');
+    kiTRANSACTIONAL                 := IndexOf('TRANSACTIONAL');
+    kiTRIGGER                       := IndexOf('TRIGGER');
+    kiTRIGGERS                      := IndexOf('TRIGGERS');
+    kiTRUNCATE                      := IndexOf('TRUNCATE');
+    kiTRUE                          := IndexOf('TRUE');
+    kiTYPE                          := IndexOf('TYPE');
+    kiUNCOMMITTED                   := IndexOf('UNCOMMITTED');
+    kiUNDEFINED                     := IndexOf('UNDEFINED');
+    kiUNDO                          := IndexOf('UNDO');
+    kiUNICODE                       := IndexOf('UNICODE');
+    kiUNION                         := IndexOf('UNION');
+    kiUNIQUE                        := IndexOf('UNIQUE');
+    kiUNKNOWN                       := IndexOf('UNKNOWN');
+    kiUNLOCK                        := IndexOf('UNLOCK');
+    kiUNSIGNED                      := IndexOf('UNSIGNED');
+    kiUNTIL                         := IndexOf('UNTIL');
+    kiUPDATE                        := IndexOf('UPDATE');
+    kiUPGRADE                       := IndexOf('UPGRADE');
+    kiUSAGE                         := IndexOf('USAGE');
+    kiUSE                           := IndexOf('USE');
+    kiUSE_FRM                       := IndexOf('USE_FRM');
+    kiUSER                          := IndexOf('USER');
+    kiUSING                         := IndexOf('USING');
+    kiVALIDATION                    := IndexOf('VALIDATION');
+    kiVALUE                         := IndexOf('VALUE');
+    kiVALUES                        := IndexOf('VALUES');
+    kiVARIABLES                     := IndexOf('VARIABLES');
+    kiVIEW                          := IndexOf('VIEW');
+    kiVIRTUAL                       := IndexOf('VIRTUAL');
+    kiWAIT                          := IndexOf('WAIT');
+    kiWARNINGS                      := IndexOf('WARNINGS');
+    kiWEEK                          := IndexOf('WEEK');
+    kiWHEN                          := IndexOf('WHEN');
+    kiWHERE                         := IndexOf('WHERE');
+    kiWHILE                         := IndexOf('WHILE');
+    kiWRAPPER                       := IndexOf('WRAPPER');
+    kiWITH                          := IndexOf('WITH');
+    kiWITHOUT                       := IndexOf('WITHOUT');
+    kiWORK                          := IndexOf('WORK');
+    kiWRITE                         := IndexOf('WRITE');
+    kiXA                            := IndexOf('XA');
+    kiXID                           := IndexOf('XID');
+    kiXML                           := IndexOf('XML');
+    kiXOR                           := IndexOf('XOR');
+    kiYEAR                          := IndexOf('YEAR');
+    kiYEAR_MONTH                    := IndexOf('YEAR_MONTH');
+    kiZEROFILL                      := IndexOf('ZEROFILL');
 
     SetLength(OperatorTypeByKeywordIndex, KeywordList.Count);
     for Index := 0 to KeywordList.Count - 1 do
       OperatorTypeByKeywordIndex[Index] := otUnknown;
-    OperatorTypeByKeywordIndex[kiAND]                := otAnd;
-    OperatorTypeByKeywordIndex[kiCASE]               := otCase;
-    OperatorTypeByKeywordIndex[kiBETWEEN]            := otBetween;
-    OperatorTypeByKeywordIndex[kiBINARY]             := otBinary;
-    OperatorTypeByKeywordIndex[kiCOLLATE]            := otCollate;
-    OperatorTypeByKeywordIndex[kiDISTINCT]           := otDistinct;
-    OperatorTypeByKeywordIndex[kiDIV]                := otDiv;
-    OperatorTypeByKeywordIndex[kiESCAPE]             := otEscape;
-    OperatorTypeByKeywordIndex[kiIS]                 := otIs;
-    OperatorTypeByKeywordIndex[kiIN]                 := otIn;
-    OperatorTypeByKeywordIndex[kiINTERVAL]           := otInterval;
-    OperatorTypeByKeywordIndex[kiLIKE]               := otLike;
-    OperatorTypeByKeywordIndex[kiMOD]                := otMod;
-    OperatorTypeByKeywordIndex[kiNOT]                := otNot;
-    OperatorTypeByKeywordIndex[kiOR]                 := otOr;
-    OperatorTypeByKeywordIndex[kiREGEXP]             := otRegExp;
-    OperatorTypeByKeywordIndex[kiRLIKE]              := otRegExp;
-    OperatorTypeByKeywordIndex[kiSOUNDS]             := otSounds;
-    OperatorTypeByKeywordIndex[kiXOR]                := otXOr;
+    OperatorTypeByKeywordIndex[kiAND]      := otAnd;
+    OperatorTypeByKeywordIndex[kiCASE]     := otCase;
+    OperatorTypeByKeywordIndex[kiBETWEEN]  := otBetween;
+    OperatorTypeByKeywordIndex[kiBINARY]   := otBinary;
+    OperatorTypeByKeywordIndex[kiCOLLATE]  := otCollate;
+    OperatorTypeByKeywordIndex[kiDISTINCT] := otDistinct;
+    OperatorTypeByKeywordIndex[kiDIV]      := otDiv;
+    OperatorTypeByKeywordIndex[kiESCAPE]   := otEscape;
+    OperatorTypeByKeywordIndex[kiIS]       := otIs;
+    OperatorTypeByKeywordIndex[kiIN]       := otIn;
+    OperatorTypeByKeywordIndex[kiINTERVAL] := otInterval;
+    OperatorTypeByKeywordIndex[kiLIKE]     := otLike;
+    OperatorTypeByKeywordIndex[kiMOD]      := otMod;
+    OperatorTypeByKeywordIndex[kiNOT]      := otNot;
+    OperatorTypeByKeywordIndex[kiOR]       := otOr;
+    OperatorTypeByKeywordIndex[kiREGEXP]   := otRegExp;
+    OperatorTypeByKeywordIndex[kiRLIKE]    := otRegExp;
+    OperatorTypeByKeywordIndex[kiSOUNDS]   := otSounds;
+    OperatorTypeByKeywordIndex[kiXOR]      := otXOr;
   end;
+end;
+
+procedure TSQLParser.SetReservedWords(AReservedWords: string);
+begin
+  ReservedWordList.Text := AReservedWords;
 end;
 
 function TSQLParser.StmtPtr(const ANode: TOffset): PStmt;
@@ -25868,8 +25789,6 @@ initialization
     Assert(Max = TSQLParser.MaxOperatorPrecedence);
   {$ENDIF}
 end.
-// INSERT, UPDATE, DELETE ... CompletionList for Column names
 // Comments als erstes in increased areas
-// ParseExpr ohne ditField
-// NodeSize als inline?
 // LIMIT 0.3
+

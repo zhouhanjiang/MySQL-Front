@@ -2071,7 +2071,10 @@ begin
   FValidSource := True;
   FSource := ASource;
 
-  if ((Now() <= Session.ParseEndDate) and (LeftStr(Name, 3) <> 'ps_') and (StrIComp(PChar(Name), 'create_synonym_db') <> 0)) then
+  if ((Now() <= Session.ParseEndDate)
+    and (StrLIComp(PChar(Name), 'ps_', 3) <> 0)
+    and (StrIComp(PChar(Name), 'create_synonym_db') <> 0)
+    and (StrIComp(PChar(Name), 'diagnostics') <> 0)) then
   begin
     if (not Session.SQLParser.ParseSQL(FSource)) then
       Session.UnparsableSQL := Session.UnparsableSQL
@@ -10804,7 +10807,7 @@ begin
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.ServerVersion;
   FUser := nil;
-  ParseEndDate := EncodeDate(2016, 10, 21);
+  ParseEndDate := EncodeDate(2016, 10, 22);
   FSQLParser := nil;
   UnparsableSQL := '';
 

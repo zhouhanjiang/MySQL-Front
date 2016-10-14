@@ -6487,8 +6487,7 @@ procedure TFSession.FNavigatorChanging(Sender: TObject; Node: TTreeNode;
 begin
   AllowChange := AllowChange
     and not Dragging(Sender)
-    and not (Assigned(Node) and (Node.ImageIndex in [iiKey, iiField, iiVirtualField, iiSystemViewField, iiViewField, iiForeignKey]))
-    and not (Assigned(Node) and (Node.ImageIndex in [iiProcedure, iiFunction, iiEvent]) and (TSDBObject(Node.Data).Source = '') and ((Node.ImageIndex <> iiView) or (View <> vIDE)));
+    and not (Assigned(Node) and (Node.ImageIndex in [iiKey, iiField, iiVirtualField, iiSystemViewField, iiViewField, iiForeignKey]));
 
   if (AllowChange and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then
     try

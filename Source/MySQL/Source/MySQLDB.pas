@@ -7367,7 +7367,7 @@ end;
 //  RBS: RawByteString;
 //  S: string;
 initialization
-//  RBS := HexToStr('5361F06CFD6B204D65736C656B204C6973657369');
+//  RBS := HexToStr('416E61646F6C75204D65736C656B2050726F6772616DFD');
 //  SetLength(S, Length(RBS));
 //  Len := AnsiCharToWideChar(65001, PAnsiChar(RBS), Length(RBS), PChar(S), Length(S));
 //
