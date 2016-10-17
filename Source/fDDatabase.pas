@@ -291,7 +291,7 @@ begin
 
   FSource.Highlighter := MainHighlighter;
 
-  PageControl.ActivePage := TSBasics; // TSInformationsShow soll nicht vorzeitig aufgerufen werden
+  PageControl.ActivePage := TSBasics; // TSInformationsShow should not be called previously while the next showing
 end;
 
 procedure TDDatabase.FormHide(Sender: TObject);
@@ -303,7 +303,7 @@ begin
 
   FSource.Lines.Clear();
 
-  PageControl.ActivePage := TSBasics; // TSInformationsShow soll nicht vorzeitig aufgerufen werden
+  PageControl.ActivePage := TSBasics; // TSInformationsShow should not be called previously while the next showing
 end;
 
 procedure TDDatabase.FormSessionEvent(const Event: TSSession.TEvent);

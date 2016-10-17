@@ -32,7 +32,7 @@ type
         ConnectionValue: TOffset;
         DataDirectoryValue: TOffset;
         DelayKeyWriteValue: TOffset;
-        EngineValue: TOffset;
+        EngineIdent: TOffset;
         IndexDirectoryValue: TOffset;
         InsertMethodValue: TOffset;
         KeyBlockSizeValue: TOffset;
@@ -8603,7 +8603,7 @@ end;
 
 function TSQLParser.TBeginLabel.GetLabelName(): string;
 begin
-  if (Parser.IsToken(Nodes.BeginToken)) then
+  if (not Parser.IsToken(Nodes.BeginToken)) then
     Result := ''
   else
     Result := Parser.TokenPtr(Nodes.BeginToken)^.AsString;
@@ -15045,10 +15045,10 @@ var
   OldSpecificationsCount: Integer;
   Specifications: TOffsetList;
   TableOptionFound: Boolean;
-  TableOptionNodes: TTableOptionNodes;
+  TableOptions: TTableOptionNodes;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
-  FillChar(TableOptionNodes, SizeOf(TableOptionNodes), 0);
+  FillChar(TableOptions, SizeOf(TableOptions), 0);
 
   Specifications.Init();
 
@@ -15070,165 +15070,165 @@ begin
     Found2 := True; OldSpecificationsCount := Specifications.Count;
     while (not ErrorFound and Found2) do
     begin
-      if ((TableOptionNodes.AutoIncrementValue = 0) and IsTag(kiAUTO_INCREMENT)) then
+      if ((TableOptions.AutoIncrementValue = 0) and IsTag(kiAUTO_INCREMENT)) then
       begin
-        TableOptionNodes.AutoIncrementValue := ParseValue(kiAUTO_INCREMENT, vaAuto, ParseInteger);
-        Specifications.Add(TableOptionNodes.AutoIncrementValue);
+        TableOptions.AutoIncrementValue := ParseValue(kiAUTO_INCREMENT, vaAuto, ParseInteger);
+        Specifications.Add(TableOptions.AutoIncrementValue);
       end
-      else if ((TableOptionNodes.AvgRowLengthValue = 0) and IsTag(kiAVG_ROW_LENGTH)) then
+      else if ((TableOptions.AvgRowLengthValue = 0) and IsTag(kiAVG_ROW_LENGTH)) then
       begin
-        TableOptionNodes.AvgRowLengthValue := ParseValue(kiAVG_ROW_LENGTH, vaAuto, ParseInteger);
-        Specifications.Add(TableOptionNodes.AvgRowLengthValue);
+        TableOptions.AvgRowLengthValue := ParseValue(kiAVG_ROW_LENGTH, vaAuto, ParseInteger);
+        Specifications.Add(TableOptions.AvgRowLengthValue);
       end
-      else if ((TableOptionNodes.CharacterSetValue = 0) and IsTag(kiCHARACTER, kiSET)) then
+      else if ((TableOptions.CharacterSetValue = 0) and IsTag(kiCHARACTER, kiSET)) then
       begin
-        TableOptionNodes.CharacterSetValue := ParseValue(WordIndices(kiCHARACTER, kiSET), vaAuto, ParseCharsetIdent);
-        Specifications.Add(TableOptionNodes.CharacterSetValue);
+        TableOptions.CharacterSetValue := ParseValue(WordIndices(kiCHARACTER, kiSET), vaAuto, ParseCharsetIdent);
+        Specifications.Add(TableOptions.CharacterSetValue);
       end
-      else if ((TableOptionNodes.CharacterSetValue = 0) and IsTag(kiCHARSET)) then
+      else if ((TableOptions.CharacterSetValue = 0) and IsTag(kiCHARSET)) then
       begin
-        TableOptionNodes.CharacterSetValue := ParseValue(kiCHARSET, vaAuto, ParseCharsetIdent);
-        Specifications.Add(TableOptionNodes.CharacterSetValue);
+        TableOptions.CharacterSetValue := ParseValue(kiCHARSET, vaAuto, ParseCharsetIdent);
+        Specifications.Add(TableOptions.CharacterSetValue);
       end
-      else if ((TableOptionNodes.ChecksumValue = 0) and IsTag(kiCHECKSUM)) then
+      else if ((TableOptions.ChecksumValue = 0) and IsTag(kiCHECKSUM)) then
       begin
-        TableOptionNodes.ChecksumValue := ParseValue(kiCHECKSUM, vaAuto, ParseInteger);
-        Specifications.Add(TableOptionNodes.ChecksumValue);
+        TableOptions.ChecksumValue := ParseValue(kiCHECKSUM, vaAuto, ParseInteger);
+        Specifications.Add(TableOptions.ChecksumValue);
       end
-      else if ((TableOptionNodes.CollateValue = 0) and IsTag(kiCOLLATE)) then
+      else if ((TableOptions.CollateValue = 0) and IsTag(kiCOLLATE)) then
       begin
-        TableOptionNodes.CollateValue := ParseValue(kiCOLLATE, vaAuto, ParseCollateIdent);
-        Specifications.Add(TableOptionNodes.CollateValue);
+        TableOptions.CollateValue := ParseValue(kiCOLLATE, vaAuto, ParseCollateIdent);
+        Specifications.Add(TableOptions.CollateValue);
       end
-      else if ((TableOptionNodes.CharacterSetValue = 0) and IsTag(kiDEFAULT, kiCHARACTER, kiSET)) then
+      else if ((TableOptions.CharacterSetValue = 0) and IsTag(kiDEFAULT, kiCHARACTER, kiSET)) then
       begin
-        TableOptionNodes.CharacterSetValue := ParseValue(WordIndices(kiDEFAULT, kiCHARACTER, kiSET), vaAuto, ParseCharsetIdent);
-        Specifications.Add(TableOptionNodes.CharacterSetValue);
+        TableOptions.CharacterSetValue := ParseValue(WordIndices(kiDEFAULT, kiCHARACTER, kiSET), vaAuto, ParseCharsetIdent);
+        Specifications.Add(TableOptions.CharacterSetValue);
       end
-      else if ((TableOptionNodes.CharacterSetValue = 0) and IsTag(kiDEFAULT, kiCHARSET)) then
+      else if ((TableOptions.CharacterSetValue = 0) and IsTag(kiDEFAULT, kiCHARSET)) then
       begin
-        TableOptionNodes.CharacterSetValue := ParseValue(WordIndices(kiDEFAULT, kiCHARSET), vaAuto, ParseCharsetIdent);
-        Specifications.Add(TableOptionNodes.CharacterSetValue);
+        TableOptions.CharacterSetValue := ParseValue(WordIndices(kiDEFAULT, kiCHARSET), vaAuto, ParseCharsetIdent);
+        Specifications.Add(TableOptions.CharacterSetValue);
       end
-      else if ((TableOptionNodes.CollateValue = 0) and IsTag(kiDEFAULT, kiCOLLATE)) then
+      else if ((TableOptions.CollateValue = 0) and IsTag(kiDEFAULT, kiCOLLATE)) then
       begin
-        TableOptionNodes.CollateValue := ParseValue(WordIndices(kiDEFAULT, kiCOLLATE), vaAuto, ParseCollateIdent);
-        Specifications.Add(TableOptionNodes.CollateValue);
+        TableOptions.CollateValue := ParseValue(WordIndices(kiDEFAULT, kiCOLLATE), vaAuto, ParseCollateIdent);
+        Specifications.Add(TableOptions.CollateValue);
       end
-      else if ((TableOptionNodes.CommentValue = 0) and IsTag(kiCOMMENT)) then
+      else if ((TableOptions.CommentValue = 0) and IsTag(kiCOMMENT)) then
       begin
-        TableOptionNodes.CommentValue := ParseValue(kiCOMMENT, vaAuto, ParseString);
-        Specifications.Add(TableOptionNodes.CommentValue);
+        TableOptions.CommentValue := ParseValue(kiCOMMENT, vaAuto, ParseString);
+        Specifications.Add(TableOptions.CommentValue);
       end
-      else if ((TableOptionNodes.ConnectionValue = 0) and IsTag(kiCONNECTION)) then
+      else if ((TableOptions.ConnectionValue = 0) and IsTag(kiCONNECTION)) then
       begin
-        TableOptionNodes.ConnectionValue := ParseValue(kiCONNECTION, vaAuto, ParseString);
-        Specifications.Add(TableOptionNodes.ConnectionValue);
+        TableOptions.ConnectionValue := ParseValue(kiCONNECTION, vaAuto, ParseString);
+        Specifications.Add(TableOptions.ConnectionValue);
       end
-      else if ((TableOptionNodes.DataDirectoryValue = 0) and IsTag(kiDATA, kiDIRECTORY)) then
+      else if ((TableOptions.DataDirectoryValue = 0) and IsTag(kiDATA, kiDIRECTORY)) then
       begin
-        TableOptionNodes.DataDirectoryValue := ParseValue(WordIndices(kiDATA, kiDIRECTORY), vaAuto, ParseString);
-        Specifications.Add(TableOptionNodes.DataDirectoryValue);
+        TableOptions.DataDirectoryValue := ParseValue(WordIndices(kiDATA, kiDIRECTORY), vaAuto, ParseString);
+        Specifications.Add(TableOptions.DataDirectoryValue);
       end
-      else if ((TableOptionNodes.DelayKeyWriteValue = 0) and IsTag(kiDELAY_KEY_WRITE)) then
+      else if ((TableOptions.DelayKeyWriteValue = 0) and IsTag(kiDELAY_KEY_WRITE)) then
       begin
-        TableOptionNodes.DelayKeyWriteValue := ParseValue(kiDELAY_KEY_WRITE, vaAuto, ParseInteger);
-        Specifications.Add(TableOptionNodes.DelayKeyWriteValue);
+        TableOptions.DelayKeyWriteValue := ParseValue(kiDELAY_KEY_WRITE, vaAuto, ParseInteger);
+        Specifications.Add(TableOptions.DelayKeyWriteValue);
       end
-      else if ((TableOptionNodes.EngineValue = 0) and IsTag(kiENGINE)) then
+      else if ((TableOptions.EngineIdent = 0) and IsTag(kiENGINE)) then
       begin
-        TableOptionNodes.EngineValue := ParseValue(kiENGINE, vaAuto, ParseEngineIdent);
-        Specifications.Add(TableOptionNodes.EngineValue);
+        TableOptions.EngineIdent := ParseValue(kiENGINE, vaAuto, ParseEngineIdent);
+        Specifications.Add(TableOptions.EngineIdent);
       end
-      else if ((TableOptionNodes.IndexDirectoryValue = 0) and IsTag(kiINDEX, kiDIRECTORY)) then
+      else if ((TableOptions.IndexDirectoryValue = 0) and IsTag(kiINDEX, kiDIRECTORY)) then
       begin
-        TableOptionNodes.IndexDirectoryValue := ParseValue(WordIndices(kiINDEX, kiDIRECTORY), vaAuto, ParseString);
-        Specifications.Add(TableOptionNodes.IndexDirectoryValue);
+        TableOptions.IndexDirectoryValue := ParseValue(WordIndices(kiINDEX, kiDIRECTORY), vaAuto, ParseString);
+        Specifications.Add(TableOptions.IndexDirectoryValue);
       end
-      else if ((TableOptionNodes.InsertMethodValue = 0) and IsTag(kiINSERT_METHOD)) then
+      else if ((TableOptions.InsertMethodValue = 0) and IsTag(kiINSERT_METHOD)) then
       begin
-        TableOptionNodes.InsertMethodValue := ParseValue(kiINSERT_METHOD, vaAuto, WordIndices(kiNO, kiFIRST, kiLAST));
-        Specifications.Add(TableOptionNodes.InsertMethodValue);
+        TableOptions.InsertMethodValue := ParseValue(kiINSERT_METHOD, vaAuto, WordIndices(kiNO, kiFIRST, kiLAST));
+        Specifications.Add(TableOptions.InsertMethodValue);
       end
-      else if ((TableOptionNodes.KeyBlockSizeValue = 0) and IsTag(kiKEY_BLOCK_SIZE)) then
+      else if ((TableOptions.KeyBlockSizeValue = 0) and IsTag(kiKEY_BLOCK_SIZE)) then
       begin
-        TableOptionNodes.KeyBlockSizeValue := ParseValue(kiKEY_BLOCK_SIZE, vaAuto, ParseInteger);
-        Specifications.Add(TableOptionNodes.KeyBlockSizeValue);
+        TableOptions.KeyBlockSizeValue := ParseValue(kiKEY_BLOCK_SIZE, vaAuto, ParseInteger);
+        Specifications.Add(TableOptions.KeyBlockSizeValue);
       end
-      else if ((TableOptionNodes.MaxRowsValue = 0) and IsTag(kiMAX_ROWS)) then
+      else if ((TableOptions.MaxRowsValue = 0) and IsTag(kiMAX_ROWS)) then
       begin
-        TableOptionNodes.MaxRowsValue := ParseValue(kiMAX_ROWS, vaAuto, ParseInteger);
-        Specifications.Add(TableOptionNodes.MaxRowsValue);
+        TableOptions.MaxRowsValue := ParseValue(kiMAX_ROWS, vaAuto, ParseInteger);
+        Specifications.Add(TableOptions.MaxRowsValue);
       end
-      else if ((TableOptionNodes.MinRowsValue = 0) and IsTag(kiMIN_ROWS)) then
+      else if ((TableOptions.MinRowsValue = 0) and IsTag(kiMIN_ROWS)) then
       begin
-        TableOptionNodes.MinRowsValue := ParseValue(kiMIN_ROWS, vaAuto, ParseInteger);
-        Specifications.Add(TableOptionNodes.MinRowsValue);
+        TableOptions.MinRowsValue := ParseValue(kiMIN_ROWS, vaAuto, ParseInteger);
+        Specifications.Add(TableOptions.MinRowsValue);
       end
-      else if ((TableOptionNodes.PackKeysValue = 0) and IsTag(kiPACK_KEYS)) then
+      else if ((TableOptions.PackKeysValue = 0) and IsTag(kiPACK_KEYS)) then
       begin
-        TableOptionNodes.PackKeysValue := ParseValue(kiPACK_KEYS, vaAuto, ParseExpr);
-        Specifications.Add(TableOptionNodes.PackKeysValue);
+        TableOptions.PackKeysValue := ParseValue(kiPACK_KEYS, vaAuto, ParseExpr);
+        Specifications.Add(TableOptions.PackKeysValue);
       end
-      else if ((TableOptionNodes.PageChecksumInt = 0) and IsTag(kiPAGE_CHECKSUM)) then
+      else if ((TableOptions.PageChecksumInt = 0) and IsTag(kiPAGE_CHECKSUM)) then
       begin
-        TableOptionNodes.PageChecksumInt := ParseValue(kiPAGE_CHECKSUM, vaAuto, ParseInteger);
-        Specifications.Add(TableOptionNodes.PageChecksumInt);
+        TableOptions.PageChecksumInt := ParseValue(kiPAGE_CHECKSUM, vaAuto, ParseInteger);
+        Specifications.Add(TableOptions.PageChecksumInt);
       end
-      else if ((TableOptionNodes.PasswordValue = 0) and IsTag(kiPASSWORD)) then
+      else if ((TableOptions.PasswordValue = 0) and IsTag(kiPASSWORD)) then
       begin
-        TableOptionNodes.PasswordValue := ParseValue(kiPASSWORD, vaAuto, ParseString);
-        Specifications.Add(TableOptionNodes.PasswordValue);
+        TableOptions.PasswordValue := ParseValue(kiPASSWORD, vaAuto, ParseString);
+        Specifications.Add(TableOptions.PasswordValue);
       end
-      else if ((TableOptionNodes.RowFormatValue = 0) and IsTag(kiROW_FORMAT)) then
+      else if ((TableOptions.RowFormatValue = 0) and IsTag(kiROW_FORMAT)) then
       begin
-        TableOptionNodes.RowFormatValue := ParseValue(kiROW_FORMAT, vaAuto, ParseDbIdent);
-        Specifications.Add(TableOptionNodes.RowFormatValue);
+        TableOptions.RowFormatValue := ParseValue(kiROW_FORMAT, vaAuto, ParseDbIdent);
+        Specifications.Add(TableOptions.RowFormatValue);
       end
-      else if ((TableOptionNodes.StatsAutoRecalc = 0) and IsTag(kiSTATS_AUTO_RECALC, kiDEFAULT)) then
+      else if ((TableOptions.StatsAutoRecalc = 0) and IsTag(kiSTATS_AUTO_RECALC, kiDEFAULT)) then
       begin
-        TableOptionNodes.StatsAutoRecalc := ParseValue(kiSTATS_AUTO_RECALC, vaAuto, WordIndices(kiDEFAULT));
-        Specifications.Add(TableOptionNodes.StatsAutoRecalc);
+        TableOptions.StatsAutoRecalc := ParseValue(kiSTATS_AUTO_RECALC, vaAuto, WordIndices(kiDEFAULT));
+        Specifications.Add(TableOptions.StatsAutoRecalc);
       end
-      else if ((TableOptionNodes.StatsAutoRecalc = 0) and IsTag(kiSTATS_AUTO_RECALC)) then
+      else if ((TableOptions.StatsAutoRecalc = 0) and IsTag(kiSTATS_AUTO_RECALC)) then
       begin
-        TableOptionNodes.StatsAutoRecalc := ParseValue(kiSTATS_AUTO_RECALC, vaAuto, ParseInteger);
-        Specifications.Add(TableOptionNodes.StatsAutoRecalc);
+        TableOptions.StatsAutoRecalc := ParseValue(kiSTATS_AUTO_RECALC, vaAuto, ParseInteger);
+        Specifications.Add(TableOptions.StatsAutoRecalc);
       end
-      else if ((TableOptionNodes.StatsPersistent = 0) and IsTag(kiSTATS_PERSISTENT)) then
+      else if ((TableOptions.StatsPersistent = 0) and IsTag(kiSTATS_PERSISTENT)) then
       begin
-        TableOptionNodes.StatsPersistent := ParseValue(kiSTATS_PERSISTENT, vaAuto, ParseExpr);
-        Specifications.Add(TableOptionNodes.StatsPersistent);
+        TableOptions.StatsPersistent := ParseValue(kiSTATS_PERSISTENT, vaAuto, ParseExpr);
+        Specifications.Add(TableOptions.StatsPersistent);
       end
-      else if ((TableOptionNodes.StatsSamplePages = 0) and IsTag(kiSTATS_SAMPLE_PAGES)) then
+      else if ((TableOptions.StatsSamplePages = 0) and IsTag(kiSTATS_SAMPLE_PAGES)) then
       begin
-        TableOptionNodes.StatsSamplePages := ParseValue(kiSTATS_SAMPLE_PAGES, vaAuto, ParseExpr);
-        Specifications.Add(TableOptionNodes.StatsSamplePages);
+        TableOptions.StatsSamplePages := ParseValue(kiSTATS_SAMPLE_PAGES, vaAuto, ParseExpr);
+        Specifications.Add(TableOptions.StatsSamplePages);
       end
-      else if ((TableOptionNodes.TablespaceIdent = 0) and IsTag(kiTABLESPACE)) then
+      else if ((TableOptions.TablespaceIdent = 0) and IsTag(kiTABLESPACE)) then
       begin
-        TableOptionNodes.TablespaceIdent := ParseValue(kiTABLESPACE, vaAuto, ParseDbIdent);
-        Specifications.Add(TableOptionNodes.TablespaceIdent);
+        TableOptions.TablespaceIdent := ParseValue(kiTABLESPACE, vaAuto, ParseDbIdent);
+        Specifications.Add(TableOptions.TablespaceIdent);
       end
-      else if ((TableOptionNodes.TableChecksumInt = 0) and IsTag(kiTABLE_CHECKSUM)) then
+      else if ((TableOptions.TableChecksumInt = 0) and IsTag(kiTABLE_CHECKSUM)) then
       begin
-        TableOptionNodes.TableChecksumInt := ParseValue(kiTABLE_CHECKSUM, vaAuto, ParseInteger);
-        Specifications.Add(TableOptionNodes.TableChecksumInt);
+        TableOptions.TableChecksumInt := ParseValue(kiTABLE_CHECKSUM, vaAuto, ParseInteger);
+        Specifications.Add(TableOptions.TableChecksumInt);
       end
-      else if ((TableOptionNodes.TransactionalInt = 0) and IsTag(kiTRANSACTIONAL)) then
+      else if ((TableOptions.TransactionalInt = 0) and IsTag(kiTRANSACTIONAL)) then
       begin
-        TableOptionNodes.TransactionalInt := ParseValue(kiTRANSACTIONAL, vaAuto, ParseInteger);
-        Specifications.Add(TableOptionNodes.TransactionalInt);
+        TableOptions.TransactionalInt := ParseValue(kiTRANSACTIONAL, vaAuto, ParseInteger);
+        Specifications.Add(TableOptions.TransactionalInt);
       end
-      else if ((TableOptionNodes.EngineValue = 0) and IsTag(kiTYPE)) then
+      else if ((TableOptions.EngineIdent = 0) and IsTag(kiTYPE)) then
       begin
-        TableOptionNodes.EngineValue := ParseValue(kiTYPE, vaAuto, ParseEngineIdent);
-        Specifications.Add(TableOptionNodes.EngineValue);
+        TableOptions.EngineIdent := ParseValue(kiTYPE, vaAuto, ParseEngineIdent);
+        Specifications.Add(TableOptions.EngineIdent);
       end
-      else if ((TableOptionNodes.UnionList = 0) and IsTag(kiUNION)) then
+      else if ((TableOptions.UnionList = 0) and IsTag(kiUNION)) then
       begin
-        TableOptionNodes.UnionList := ParseCreateTableStmtUnion();
-        Specifications.Add(TableOptionNodes.UnionList);
+        TableOptions.UnionList := ParseCreateTableStmtUnion();
+        Specifications.Add(TableOptions.UnionList);
       end
       else
         Found2 := False;
@@ -16720,10 +16720,10 @@ begin
         TableOptions.DelayKeyWriteValue := ParseValue(kiDELAY_KEY_WRITE, vaAuto, ParseInteger);
         Options.Add(TableOptions.DelayKeyWriteValue);
       end
-      else if ((TableOptions.EngineValue = 0) and IsTag(kiENGINE)) then
+      else if ((TableOptions.EngineIdent = 0) and IsTag(kiENGINE)) then
       begin
-        TableOptions.EngineValue := ParseValue(kiENGINE, vaAuto, ParseEngineIdent);
-        Options.Add(TableOptions.EngineValue);
+        TableOptions.EngineIdent := ParseValue(kiENGINE, vaAuto, ParseEngineIdent);
+        Options.Add(TableOptions.EngineIdent);
       end
       else if ((TableOptions.IndexDirectoryValue = 0) and IsTag(kiINDEX, kiDIRECTORY)) then
       begin
@@ -16754,6 +16754,11 @@ begin
       begin
         TableOptions.PackKeysValue := ParseValue(kiPACK_KEYS, vaAuto, ParseExpr);
         Options.Add(TableOptions.PackKeysValue);
+      end
+      else if ((TableOptions.PageChecksumInt = 0) and IsTag(kiPAGE_CHECKSUM)) then
+      begin
+        TableOptions.PageChecksumInt := ParseValue(kiPAGE_CHECKSUM, vaAuto, ParseInteger);
+        Options.Add(TableOptions.PageChecksumInt);
       end
       else if ((TableOptions.PasswordValue = 0) and IsTag(kiPASSWORD)) then
       begin
@@ -16790,15 +16795,20 @@ begin
         TableOptions.TablespaceIdent := ParseValue(kiTABLESPACE, vaAuto, ParseDbIdent);
         Options.Add(TableOptions.TablespaceIdent);
       end
+      else if ((TableOptions.TableChecksumInt = 0) and IsTag(kiTABLE_CHECKSUM)) then
+      begin
+        TableOptions.TableChecksumInt := ParseValue(kiTABLE_CHECKSUM, vaAuto, ParseInteger);
+        Options.Add(TableOptions.TableChecksumInt);
+      end
       else if ((TableOptions.TransactionalInt = 0) and IsTag(kiTRANSACTIONAL)) then
       begin
         TableOptions.TransactionalInt := ParseValue(kiTRANSACTIONAL, vaAuto, ParseInteger);
         Options.Add(TableOptions.TransactionalInt);
       end
-      else if ((TableOptions.EngineValue = 0) and IsTag(kiTYPE)) then
+      else if ((TableOptions.EngineIdent = 0) and IsTag(kiTYPE)) then
       begin
-        TableOptions.EngineValue := ParseValue(kiTYPE, vaAuto, ParseEngineIdent);
-        Options.Add(TableOptions.EngineValue);
+        TableOptions.EngineIdent := ParseValue(kiTYPE, vaAuto, ParseEngineIdent);
+        Options.Add(TableOptions.EngineIdent);
       end
       else if ((TableOptions.UnionList = 0) and IsTag(kiUNION)) then
       begin

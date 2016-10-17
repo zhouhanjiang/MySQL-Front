@@ -64,7 +64,7 @@ type
     FCharset: TComboBox_Ext;
     FComment: TEdit;
     FCollation: TComboBox_Ext;
-    TSInformation: TTabSheet;
+    TSInformations: TTabSheet;
     GDates: TGroupBox_Ext;
     FLCreated: TLabel;
     FLUpdated: TLabel;
@@ -183,7 +183,7 @@ type
     procedure TSFieldsShow(Sender: TObject);
     procedure TSForeignKeysShow(Sender: TObject);
     procedure TSKeysShow(Sender: TObject);
-    procedure TSInformationShow(Sender: TObject);
+    procedure TSInformationsShow(Sender: TObject);
     procedure TSPartitionsShow(Sender: TObject);
     procedure TSReferencedShow(Sender: TObject);
     procedure TSSourceShow(Sender: TObject);
@@ -199,6 +199,7 @@ type
     procedure FIndicesRefresh(Sender: TObject);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure FPartitionsRefresh(Sender: TObject);
+    procedure FReferencedItemAdd(const SDBObject: TSDBObject);
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Charset: string;
@@ -221,7 +222,7 @@ uses
   Clipbrd, StrUtils,
   SQLUtils,
   fPreferences,
-  fDField, fDKey, fDForeignKey, fDTrigger, fDPartition;
+  fDField, fDKey, fDForeignKey, fDTrigger, fDPartition, fDExecutingSQL;
 
 var
   FTable: TDTable;
@@ -605,13 +606,13 @@ begin
   end;
 
 
-  TSInformation.TabVisible := Assigned(Table);
+  TSInformations.TabVisible := Assigned(Table);
   TSKeys.TabVisible := True;
   TSFields.TabVisible := True;
   TSForeignKeys.TabVisible := Assigned(Table);
   TSTriggers.TabVisible := Assigned(Table) and Assigned(Database.Triggers);
-  TSReferenced.TabVisible := Assigned(Table) and Assigned(NewTable.Engine);
-  TSPartitions.TabVisible := Assigned(Table) and Assigned(NewTable.Partitions);
+  TSReferenced.TabVisible := Assigned(Table);
+  TSPartitions.TabVisible := Assigned(Table) and Assigned(Table.Partitions);
   TSExtras.TabVisible := Assigned(Table);
   TSSource.TabVisible := Assigned(Table);
 
@@ -970,7 +971,7 @@ begin
 
   BorderStyle := bsSizeable;
 
-  PageControl.ActivePage := nil; // TSInformationsShow should not called too early
+  PageControl.ActivePage := nil; // TSInformationsShow should not be called previously while the next showing
 
   SetWindowLong(FAutoIncrement.Handle, GWL_STYLE, GetWindowLong(FAutoIncrement.Handle, GWL_STYLE) or ES_NUMBER);
   FFields.RowSelect := CheckWin32Version(6);
@@ -989,7 +990,7 @@ procedure TDTable.FormHide(Sender: TObject);
 begin
   Database.Session.UnRegisterEventProc(FormSessionEvent);
 
-  PageControl.ActivePage := nil; // TSInformationsShow soll beim nächsten Öffnen nicht vorzeitig aufgerufen werden
+  PageControl.ActivePage := nil; // TSInformationsShow should not be called previously while the next showing
 
   if (Assigned(NewTable)) then
     FreeAndNil(NewTable);
@@ -1018,22 +1019,21 @@ end;
 
 procedure TDTable.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = etItemValid) and (Event.SItem = Table)
-    or (Event.EventType = etAfterExecuteSQL)) then
-    if (not PageControl.Visible) then
+  if ((Event.EventType = etItemValid)
+    or (Event.EventType = etAfterExecuteSQL) and (Event.Session.Connection.ErrorCode <> 0)) then
+  begin
+    if (not PageControl.Visible
+      and (Event.SItem = Table)) then
     begin
-      if (Assigned(Table)) then NewTable.Assign(Table);
+      NewTable.Assign(Table);
+      TSExtrasShow(nil);
       Built();
     end
-    else
-      TSExtrasShow(nil)
+    else if (Event.SItem is TSBaseTable) then
+      FReferencedItemAdd(TSBaseTable(Event.SItem));
+  end
   else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is fSession.TSTable)) then
-    ModalResult := mrOk
-  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.Connection.ErrorCode <> 0)) then
-  begin
-    PageControl.Visible := True;
-    PSQLWait.Visible := not PageControl.Visible;
-  end;
+    ModalResult := mrOk;
 end;
 
 procedure TDTable.FormShow(Sender: TObject);
@@ -1166,7 +1166,7 @@ begin
   FCollation.Visible := Database.Session.Connection.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
   GRecords.Visible := Assigned(Table);
 
-  TSInformation.TabVisible := Assigned(Table);
+  TSInformations.TabVisible := Assigned(Table);
   TSKeys.TabVisible := True;
   TSFields.TabVisible := True;
   TSForeignKeys.TabVisible := Assigned(Table);
@@ -1283,6 +1283,84 @@ begin
   FPartitionsChange(Sender, nil, ctState);
 
   FBOkCheckEnabled(Sender);
+end;
+
+procedure TDTable.FReferencedItemAdd(const SDBObject: TSDBObject);
+var
+  I: Integer;
+  Index: Integer;
+  J: Integer;
+  K: Integer;
+  ListItem: TListItem;
+  OldItemsCount: Integer;
+  S: string;
+  S2: string;
+  Source: TSBaseTable;
+  TempOnChange: TLVChangeEvent;
+begin
+  TempOnChange := FReferenced.OnChange;
+  FReferenced.OnChange := nil;
+  FReferenced.Items.BeginUpdate();
+
+  OldItemsCount := FReferenced.Items.Count;
+
+  if (SDbObject is TSBaseTable) then
+  begin
+    Source := TSBaseTable(SDBObject);
+
+    for J := 0 to Source.ForeignKeys.Count - 1 do
+      if (Source.ForeignKeys[J].Parent.TableName = NewTable.Name) then
+      begin
+        Index := FReferenced.Items.Count;
+        for K := 0 to FReferenced.Items.Count - 1 do
+          if (Database.Tables.NameCmp(Source.Name, NewTable.Name) < 1) then
+            Index := K;
+
+        if (Index < FReferenced.Items.Count) then
+          ListItem := FReferenced.Items.Insert(Index)
+        else
+          ListItem := FReferenced.Items.Add();
+        ListItem.Caption := Source.Name + '.' + Source.ForeignKeys[J].Name;
+        S := '';
+        if (Source.Name <> NewTable.Name) then
+          S := S + Source.Name + '.';
+        if (Length(Source.ForeignKeys[J].Fields) > 1) then S := S + '(';
+        for K := 0 to Length(Source.ForeignKeys[J].Fields) - 1 do
+        begin
+          if (K > 0) then S := S + ', ';
+          S := S + Source.ForeignKeys[J].Fields[K].Name;
+        end;
+        if (Length(Source.ForeignKeys[J].Fields) > 1) then S := S + ')';
+        S := S + ' -> ';
+        if (Length(Source.ForeignKeys[J].Fields) > 1) then S := S + '(';
+        for K := 0 to Length(Source.ForeignKeys[J].Parent.FieldNames) - 1 do
+        begin
+          if (K > 0) then S := S + ', ';
+            S := S + Source.ForeignKeys[J].Parent.FieldNames[K];
+        end;
+        if (Length(Source.ForeignKeys[J].Fields) > 1) then S := S + ')';
+        ListItem.SubItems.Add(S);
+
+        S := '';
+        if (Source.ForeignKeys[J].OnDelete = dtCascade) then S := 'cascade on delete';
+        if (Source.ForeignKeys[J].OnDelete = dtSetNull) then S := 'set nil on delete';
+        if (Source.ForeignKeys[J].OnDelete = dtSetDefault) then S := 'set default on delete';
+        if (Source.ForeignKeys[J].OnDelete = dtNoAction) then S := 'no action on delete';
+
+        S2 := '';
+        if (Source.ForeignKeys[J].OnUpdate = utCascade) then S2 := 'cascade on update';
+        if (Source.ForeignKeys[J].OnUpdate = utSetNull) then S2 := 'set nil on update';
+        if (Source.ForeignKeys[J].OnUpdate = utSetDefault) then S2 := 'set default on update';
+        if (Source.ForeignKeys[J].OnUpdate = utNoAction) then S2 := 'no action on update';
+        if (S <> '') and (S2 <> '') then S := S + ', ';
+
+        ListItem.SubItems.Add(S + S2);
+        ListItem.ImageIndex := iiForeignKey;
+      end;
+  end;
+
+  FReferenced.Items.EndUpdate();
+  FReferenced.OnChange := TempOnChange;
 end;
 
 procedure TDTable.FTriggersChange(Sender: TObject; Item: TListItem;
@@ -1481,7 +1559,7 @@ begin
   FKeys.OnChange := TempOnChange;
 end;
 
-procedure TDTable.TSInformationShow(Sender: TObject);
+procedure TDTable.TSInformationsShow(Sender: TObject);
 begin
   FCreated.Caption := '???';
   FUpdated.Caption := '???';
@@ -1517,18 +1595,8 @@ end;
 procedure TDTable.TSReferencedShow(Sender: TObject);
 var
   I: Integer;
-  J: Integer;
-  K: Integer;
   List: TList;
-  ListItem: TListItem;
-  S: string;
-  S2: string;
-  Source: TSBaseTable;
-  TempOnChange: TLVChangeEvent;
 begin
-  TempOnChange := FReferenced.OnChange;
-  FReferenced.OnChange := nil;
-
   mlDCreate.Action := aPCreateForeignKey;
   mlDDelete.Action := aPDeleteForeignKey;
   mlDProperties.Action := aPEditForeignKey;
@@ -1539,66 +1607,25 @@ begin
   mlDCreate.ShortCut := VK_INSERT;
   mlDDelete.ShortCut := VK_DELETE;
 
+  FReferenced.Items.BeginUpdate();
+  FReferenced.Items.Clear();
+
+  for I := 0 to Database.Tables.Count - 1 do
+    if ((Database.Tables[I] is TSBaseTable)
+      and (Database.Tables[I].Name <> NewTable.Name)
+      and Database.Tables[I].ValidSource) then
+      FReferencedItemAdd(Database.Tables[I]);
+
+  FReferenced.Items.EndUpdate();
+
   List := TList.Create();
-  for I := 0 to NewTable.Database.Tables.Count - 1 do
-    List.Add(NewTable.Database.Tables[I]);
+  for I := 0 to Database.Tables.Count - 1 do
+    if (Database.Tables[I] is TSBaseTable) then
+      List.Add(Database.Tables[I]);
   Database.Session.Connection.BeginSynchron();
   Database.Session.Update(List);
   Database.Session.Connection.EndSynchron();
   List.Free();
-
-  if (Assigned(Table) and (FReferenced.Items.Count = 0)) then
-    for I := 0 to NewTable.Database.Tables.Count - 1 do
-      if ((NewTable.Database.Tables[I] is TSBaseTable) and (NewTable.Database.Tables[I].Name <> NewTable.Name)) then
-      begin
-        Source := TSBaseTable(NewTable.Database.Tables[I]);
-
-        for J := 0 to Source.ForeignKeys.Count - 1 do
-          if (Source.ForeignKeys[J].Parent.TableName = NewTable.Name) then
-          begin
-            ListItem := FReferenced.Items.Add();
-            ListItem.Caption := Source.Name + '.' + Source.ForeignKeys[J].Name;
-            S := '';
-            if (Source.Name <> NewTable.Name) then
-              S := S + Source.Name + '.';
-            if (Length(Source.ForeignKeys[J].Fields) > 1) then S := S + '(';
-            for K := 0 to Length(Source.ForeignKeys[J].Fields) - 1 do
-            begin
-              if (K > 0) then S := S + ', ';
-              S := S + Source.ForeignKeys[J].Fields[K].Name;
-            end;
-            if (Length(Source.ForeignKeys[J].Fields) > 1) then S := S + ')';
-            S := S + ' -> ';
-            if (Length(Source.ForeignKeys[J].Fields) > 1) then S := S + '(';
-            for K := 0 to Length(Source.ForeignKeys[J].Parent.FieldNames) - 1 do
-            begin
-              if (K > 0) then S := S + ', ';
-                S := S + Source.ForeignKeys[J].Parent.FieldNames[K];
-            end;
-            if (Length(Source.ForeignKeys[J].Fields) > 1) then S := S + ')';
-            ListItem.SubItems.Add(S);
-
-            S := '';
-            if (Source.ForeignKeys[J].OnDelete = dtCascade) then S := 'cascade on delete';
-            if (Source.ForeignKeys[J].OnDelete = dtSetNull) then S := 'set nil on delete';
-            if (Source.ForeignKeys[J].OnDelete = dtSetDefault) then S := 'set default on delete';
-            if (Source.ForeignKeys[J].OnDelete = dtNoAction) then S := 'no action on delete';
-
-            S2 := '';
-            if (Source.ForeignKeys[J].OnUpdate = utCascade) then S2 := 'cascade on update';
-            if (Source.ForeignKeys[J].OnUpdate = utSetNull) then S2 := 'set nil on update';
-            if (Source.ForeignKeys[J].OnUpdate = utSetDefault) then S2 := 'set default on update';
-            if (Source.ForeignKeys[J].OnUpdate = utNoAction) then S2 := 'no action on update';
-            if (S <> '') and (S2 <> '') then S := S + ', ';
-
-            ListItem.SubItems.Add(S + S2);
-            ListItem.ImageIndex := iiForeignKey;
-          end;
-      end;
-
-  FListSelectItem(FReferenced, FReferenced.Selected, Assigned(FReferenced.Selected));
-
-  FReferenced.OnChange := TempOnChange;
 end;
 
 procedure TDTable.TSSourceShow(Sender: TObject);
@@ -1672,7 +1699,7 @@ begin
   FLAutoIncrement.Caption := Preferences.LoadStr(117) + ':';
   FLRowType.Caption := Preferences.LoadStr(129) + ':';
 
-  TSInformation.Caption := Preferences.LoadStr(121);
+  TSInformations.Caption := Preferences.LoadStr(121);
   GDates.Caption := Preferences.LoadStr(122);
   FLCreated.Caption := Preferences.LoadStr(118) + ':';
   FLUpdated.Caption := Preferences.LoadStr(119) + ':';

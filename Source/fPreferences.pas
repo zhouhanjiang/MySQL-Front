@@ -1510,7 +1510,7 @@ constructor TPPreferences.TEditor.Create();
 begin
   inherited;
 
-  CodeCompletion := True;
+  CodeCompletion := False;
   CodeCompletionTime := 1000;
   ConditionalCommentForeground := clTeal; ConditionalCommentBackground := clNone; ConditionalCommentStyle := [];
   CommentForeground := clGreen; CommentBackground := clNone; CommentStyle := [fsItalic];
