@@ -22,8 +22,9 @@ const
   UM_ACTIVATEFTEXT = WM_USER + 501;
   UM_POST_BUILDER_QUERY_CHANGE = WM_USER + 502;
   UM_POST_MONITOR = WM_USER + 503;
-  UM_WANTED_SYNCHRONIZE = WM_USER + 504;
-  UM_STATUS_BAR_REFRESH = WM_USER + 505;
+  UM_SYNCOMPLETION_TIMER = WM_USER + 504;
+  UM_WANTED_SYNCHRONIZE = WM_USER + 505;
+  UM_STATUS_BAR_REFRESH = WM_USER + 506;
 
 const
   sbMessage = 0;
@@ -668,9 +669,9 @@ type
       Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure TreeViewMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
-    procedure SynCompletionShow(Sender: TObject);
-    procedure SynCompletionChange(Sender: TObject; AIndex: Integer);
     procedure SynCompletionClose(Sender: TObject);
+    procedure FSQLEditorSynMemoKeyPress(Sender: TObject; var Key: Char);
+    procedure SynCompletionChange(Sender: TObject; AIndex: Integer);
   type
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
     TTabState = set of (tsLoading, tsActive);
@@ -746,6 +747,7 @@ type
     TTableDesktop = class(TSObjectDesktop)
     private
       DataSource: TDataSource;
+      FDBGrid: TMySQLDBGrid;
       PDBGrid: TPanel_Ext;
       FXML: IXMLNode;
       function GetFilter(Index: Integer): string;
@@ -757,7 +759,6 @@ type
       procedure SetLimit(const Limit: Integer);
       procedure SetLimited(const ALimited: Boolean);
     public
-      DBGrid: TMySQLDBGrid;
       ListView: TListView;
       procedure AddFilter(const AFilter: string);
       constructor Create(const AFClient: TFSession; const ATable: TSTable);
@@ -766,6 +767,7 @@ type
       procedure DataSetAfterOpen(DataSet: TDataSet); virtual;
       procedure DataSetAfterRefresh(DataSet: TDataSet); virtual;
       destructor Destroy(); override;
+      property DBGrid: TMySQLDBGrid read FDBGrid;
       property Filters[Index: Integer]: string read GetFilter;
       property FilterCount: Integer read GetFilterCount;
       property Limit: Integer read GetLimit write SetLimit;
@@ -1031,6 +1033,7 @@ type
     procedure UMPostMonitor(var Message: TMessage); message UM_POST_MONITOR;
     procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
     procedure UMStausBarRefresh(var Message: TMessage); message UM_STATUS_BAR_REFRESH;
+    procedure UMSynCompletionTime(var Message: TMessage); message UM_SYNCOMPLETION_TIMER;
     procedure UMWantedSynchronize(var Message: TMessage); message UM_WANTED_SYNCHRONIZE;
     function UpdateAfterAddressChanged(): Boolean;
     function ViewToParam(const AView: TView): Variant;
@@ -1103,7 +1106,8 @@ const
 const
   tiNavigator = 1;
   tiStatusBar = 2;
-  tiHideSynCompletion = 3;
+  tiShowSynCompletion = 3;
+  tiHideSynCompletion = 4;
 
 const
   giDatabases = 1;
@@ -1548,7 +1552,7 @@ end;
 
 function TFSession.TTableDesktop.CreateDBGrid(): TMySQLDBGrid;
 begin
-  if (not Assigned(DBGrid)) then
+  if (not Assigned(FDBGrid)) then
   begin
     if (not Assigned(PDBGrid)) then
       PDBGrid := FSession.CreatePDBGrid();
@@ -1557,11 +1561,11 @@ begin
       DataSource := TDataSource.Create(FSession.Owner);
       DataSource.Enabled := False;
     end;
-    DBGrid := FSession.CreateDBGrid(PDBGrid, DataSource);
+    FDBGrid := FSession.CreateDBGrid(PDBGrid, DataSource);
     DataSource.DataSet := Table.DataSet;
   end;
 
-  Result := DBGrid;
+  Result := FDBGrid;
 end;
 
 function TFSession.TTableDesktop.CreateListView(): TListView;
@@ -1578,6 +1582,9 @@ end;
 
 procedure TFSession.TTableDesktop.DataSetAfterOpen(DataSet: TDataSet);
 begin
+  if (not Assigned(DBGrid)) then
+    CreateDBGrid();
+
   DBGrid.DataSource.DataSet := DataSet;
 
   FSession.DataSetAfterOpen(DataSet);
@@ -3787,7 +3794,7 @@ begin
     MsgBox(Session.SQLParser.ErrorMessage, Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
   else
   begin
-    SQL := Session.SQLParser.FormatSQL(SelectedDatabase);
+    SQL := Session.SQLParser.FormatSQL();
 
     if (ActiveSynMemo.SelAvail) then
       ActiveSynMemo.SelText := SQL
@@ -7927,6 +7934,26 @@ begin
   FRTF.SelectAll();
 
   FRTF.OnChange := TempFRTFOnChange;
+end;
+
+procedure TFSession.FSQLEditorSynMemoKeyPress(Sender: TObject; var Key: Char);
+var
+  AnsiKey: AnsiChar;
+begin
+  if (Preferences.Editor.CodeCompletion
+    and not SynCompletion.Form.Active) then
+    if (Key = '.') then
+      PostMessage(Handle, UM_SYNCOMPLETION_TIMER, tiShowSynCompletion, 10)
+    else
+    begin
+      Byte(AnsiKey) := Ord(Key) and $FF;
+      if ((AnsiKey in ['0' .. '9'])
+        or (AnsiKey in ['A' .. 'Z'])
+        or (AnsiKey in ['a' .. 'z'])
+        or (AnsiKey in ['$', '_'])
+        or (Key > Chr(127))) then
+        PostMessage(Handle, UM_SYNCOMPLETION_TIMER, tiShowSynCompletion, Preferences.Editor.CodeCompletionTime)
+    end;
 end;
 
 procedure TFSession.FSQLHistoryChange(Sender: TObject; Node: TTreeNode);
@@ -12949,7 +12976,6 @@ end;
 procedure TFSession.SynCompletionChange(Sender: TObject; AIndex: Integer);
 begin
   KillTimer(Handle, tiHideSynCompletion);
-  SetTimer(Handle, tiHideSynCompletion, 5000, nil);
 end;
 
 procedure TFSession.SynCompletionClose(Sender: TObject);
@@ -13022,11 +13048,7 @@ var
   SQL: string;
   Table: TSTable;
 begin
-  {$IFNDEF Debug}
-  CanExecute := False;
-  {$ELSE}
   CanExecute := ActiveSynMemo.SelText = '';
-  {$ENDIF}
 
   if (CanExecute) then
   begin
@@ -13263,11 +13285,6 @@ begin
   end;
 end;
 
-procedure TFSession.SynCompletionShow(Sender: TObject);
-begin
-  SetTimer(Handle, tiHideSynCompletion, 5000, nil);
-end;
-
 procedure TFSession.SynMemoApplyPreferences(const SynMemo: TSynMemo);
 begin
   if (SynMemo <> FSQLEditorSynMemo) then
@@ -13427,6 +13444,8 @@ var
 begin
   if (not (csDestroying in ComponentState)) then
   begin
+    KillTimer(Handle, tiShowSynCompletion);
+
     if (((scCaretX in Changes) or (scSelection in Changes) or (scModified in Changes) or (scAll in Changes)) and Assigned(ActiveSynMemo)) then
     begin
       if (SynCompletionPending.Active) then
@@ -13866,11 +13885,6 @@ begin
 
   SynMemoApplyPreferences(FQueryBuilderSynMemo);
 
-  if (not Preferences.Editor.CodeCompletion) then
-    SynCompletion.TimerInterval := 0
-  else
-    SynCompletion.TimerInterval := Preferences.Editor.CodeCompletionTime;
-
   FSQLEditorPrint.Font := FSQLEditorSynMemo.Font;
 
   smEEmpty.Caption := Preferences.LoadStr(181);
@@ -14303,6 +14317,12 @@ begin
   StatusBarRefresh();
 end;
 
+procedure TFSession.UMSynCompletionTime(var Message: TMessage);
+begin
+  // SetTimer must be called after SynMemoStatusChange
+  SetTimer(Handle, Message.WParam, Message.LParam, nil);
+end;
+
 procedure TFSession.UMWantedSynchronize(var Message: TMessage);
 begin
   if (not (csDestroying in ComponentState)) then
@@ -14441,9 +14461,19 @@ begin
         StatusBar.Panels[sbMessage].Text := '';
         StatusBarRefresh();
       end;
+    tiShowSynCompletion:
+      begin
+        KillTimer(Handle, Message.TimerID);
+        if (Window.Active) then
+        begin
+          SynCompletion.Form.CurrentEditor := ActiveSynMemo;
+          SynCompletion.ActivateCompletion();
+          PostMessage(Handle, UM_SYNCOMPLETION_TIMER, tiHideSynCompletion, 5000);
+        end;
+      end;
     tiHideSynCompletion:
       begin
-        KillTimer(Handle, tiHideSynCompletion);
+        KillTimer(Handle, Message.TimerID);
         SynCompletion.CancelCompletion();
       end;
   end;

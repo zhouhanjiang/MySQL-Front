@@ -240,6 +240,8 @@ type
     FLatestConnect: TDateTime;
     FLibraryName: string;
     FLibraryType: TMySQLLibrary.TLibraryType;
+    FMariaVersion: Integer;
+    FMariaVersionStr: string;
     FOnConvertError: TConvertErrorNotifyEvent;
     FOnSQLError: TErrorEvent;
     FOnUpdateIndexDefs: TOnUpdateIndexDefsEvent;
@@ -374,6 +376,8 @@ type
     property Info: string read GetInfo;
     property LatestConnect: TDateTime read FLatestConnect;
     property Lib: TMySQLLibrary read FLib;
+    property MariaVersion: Integer read FMariaVersion;
+    property MariaVersionStr: string read FMariaVersionStr;
     property NextCommandText: string read GetNextCommandText;
     property MaxAllowedPacket: Integer read GetMaxAllowedPacket;
     property MultiStatements: Boolean read FMultiStatements;
@@ -2278,6 +2282,8 @@ begin
   FLib := nil;
   FLibraryThread := nil;
   FLibraryType := ltBuiltIn;
+  FMariaVersion := 0;
+  FMariaVersionStr := '';
   FMultiStatements := True;
   FOnConvertError := nil;
   FOnSQLError := nil;
@@ -2285,6 +2291,8 @@ begin
   FPassword := '';
   FPort := MYSQL_PORT;
   FServerTimeout := 0;
+  FServerVersion := 0;
+  FServerVersionStr := '';
   FTerminateCS := TCriticalSection.Create();
   FTerminatedThreads := TTerminatedThreads.Create(Self);
   FThreadDeep := 0;
@@ -3252,12 +3260,58 @@ begin
         begin
           S := FServerVersionStr;
           if (Pos('-', S) > 0) then
-            S := Copy(S, 1, Pos('-', S) - 1);
-          if (S[2] = '.') and (S[4] = '.') then
-            Insert('0', S, 3);
-          if (S[2] = '.') and (Length(S) = 6) then
-            Insert('0', S, 6);
-          Val(StringReplace(S, '.', '', [rfReplaceAll	]), FServerVersion, I);
+            S := LeftStr(S, Pos('-', S) - 1);
+          if ((Pos('.', S) = 0) or not TryStrToInt(LeftStr(S, Pos('.', S) - 1), I)) then
+            FServerVersion := 0
+          else
+          begin
+            FServerVersion := I * 10000;
+            Delete(S, 1, Pos('.', S));
+            if ((Pos('.', S) = 0) or not TryStrToInt(LeftStr(S, Pos('.', S) - 1), I)) then
+              FServerVersion := 0
+            else
+            begin
+              FServerVersion := FServerVersion + I * 100;
+              Delete(S, 1, Pos('.', S));
+              if (not TryStrToInt(S, I)) then
+                FServerVersion := 0
+              else
+              begin
+                FServerVersion := FServerVersion + I;
+                Delete(S, 1, Pos('.', S));
+              end;
+            end;
+          end;
+        end;
+
+        S := FServerVersionStr;
+        if (Pos('-MariaDB', S) > 0) then
+        begin
+          Delete(S, 1, Pos('-', S));
+          FMariaVersionStr := S;
+          if (Pos('-', S) > 0) then
+            S := LeftStr(S, Pos('-', S) - 1);
+          if ((Pos('.', S) = 0) or not TryStrToInt(LeftStr(S, Pos('.', S) - 1), I)) then
+            FMariaVersion := 0
+          else
+          begin
+            FMariaVersion := I * 10000;
+            Delete(S, 1, Pos('.', S));
+            if ((Pos('.', S) = 0) or not TryStrToInt(LeftStr(S, Pos('.', S) - 1), I)) then
+              FMariaVersion := 0
+            else
+            begin
+              FMariaVersion := FMariaVersion + I * 100;
+              Delete(S, 1, Pos('.', S));
+              if (not TryStrToInt(S, I)) then
+                FMariaVersion := 0
+              else
+              begin
+                FMariaVersion := FMariaVersion + I;
+                Delete(S, 1, Pos('.', S));
+              end;
+            end;
+          end;
         end;
       end;
 

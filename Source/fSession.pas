@@ -10686,7 +10686,7 @@ begin
   if (not Assigned(FEngines) and Connecting) then
   begin
     if (not Assigned(SQLParser)) then
-      FSQLParser := TSQLParser.Create(Connection.ServerVersion, LowerCaseTableNames);
+      FSQLParser := TSQLParser.Create(Connection.ServerVersion);
 
     if (not Assigned(FCollations) and (Connection.ServerVersion >= 40100)) then FCollations := TSCollations.Create(Self);
     if (not Assigned(FFieldTypes)) then FFieldTypes := TSFieldTypes.Create(Self);
@@ -10807,7 +10807,7 @@ begin
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.ServerVersion;
   FUser := nil;
-  ParseEndDate := EncodeDate(2016, 10, 22);
+  ParseEndDate := EncodeDate(2016, 10, 24);
   FSQLParser := nil;
   UnparsableSQL := '';
 

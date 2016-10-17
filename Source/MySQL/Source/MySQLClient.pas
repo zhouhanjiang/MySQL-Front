@@ -2334,12 +2334,28 @@ begin
       begin
         S := DecodeString(fserver_info);
         if (Pos('-', S) > 0) then
-          S := copy(S, 1, Pos('-', S) - 1);
-        if ((S <> '') and (S[2] = '.') and (S[4] = '.')) then
-          Insert('0', S, 3);
-        if ((S <> '') and (S[2] = '.') and (Length(S) = 6)) then
-          Insert('0', S, 6);
-        Val(StringReplace(S, '.', '', [rfReplaceAll	]), fserver_version, I);
+          S := LeftStr(S, Pos('-', S) - 1);
+        if ((Pos('.', S) = 0) or not TryStrToInt(LeftStr(S, Pos('.', S) - 1), I)) then
+          fserver_version := 0
+        else
+        begin
+          fserver_version := I * 10000;
+          Delete(S, 1, Pos('.', S));
+          if ((Pos('.', S) = 0) or not TryStrToInt(LeftStr(S, Pos('.', S) - 1), I)) then
+            fserver_version := 0
+          else
+          begin
+            fserver_version := fserver_version + my_uint(I) * 100;
+            Delete(S, 1, Pos('.', S));
+            if (not TryStrToInt(S, I)) then
+              fserver_version := 0
+            else
+            begin
+              fserver_version := fserver_version + my_uint(I);
+              Delete(S, 1, Pos('.', S));
+            end;
+          end;
+        end;
 
         fclient_capabilities := fclient_capabilities and ($FFFF2481 or ($0000DB7E and fserver_capabilities));
         if (get_server_version() < 40101) then

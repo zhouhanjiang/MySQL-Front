@@ -518,36 +518,36 @@ const
     IDYES, IDYESALL, IDNO, IDNOALL, IDOK, IDCANCEL, IDABORT, IDTRYAGAIN, IDIGNORE, IDALL,
     IDHELP);
 
-function GetAveCharSize(Canvas: TCanvas): TPoint;
-var
-  I: Integer;
-  Buffer: array[0..51] of Char;
-  tm: TTextMetric;
-begin
-  for I := 0 to 25 do Buffer[I] := Char(I + Ord('A'));
-  for I := 0 to 25 do Buffer[I + 26] := Char(I + Ord('a'));
-  GetTextMetrics(Canvas.Handle, tm);
-  GetTextExtentPoint(Canvas.Handle, Buffer, 52, TSize(Result));
-  Result.X := (Result.X div 26 + 1) div 2;
-  Result.Y := tm.tmHeight;
-end;
-
-function GetButtonCaption(MsgDlgBtn: TMsgDlgBtn): string;
-begin
-  case MsgDlgBtn of
-    mbYes:         Result := Preferences.LoadStr(74);
-    mbYesToAll:    Result := Preferences.LoadStr(74) + ', ' + LowerCase(Preferences.LoadStr(214));
-    mbNo:          Result := Preferences.LoadStr(75);
-    mbNoToAll:     Result := Preferences.LoadStr(75) + ', ' + LowerCase(Preferences.LoadStr(214));
-    mbOK:          Result := Preferences.LoadStr(29);
-    mbCancel:      Result := Preferences.LoadStr(30);
-    mbAbort:       Result := 'Abort';
-    mbRetry:       Result := 'Retry';
-    mbIgnore:      Result := 'Ignore';
-    mbAll:         Result := Preferences.LoadStr(214);
-    mbHelp:        Result := Preferences.LoadStr(167);
+  function GetAveCharSize(Canvas: TCanvas): TPoint;
+  var
+    I: Integer;
+    Buffer: array[0..51] of Char;
+    tm: TTextMetric;
+  begin
+    for I := 0 to 25 do Buffer[I] := Char(I + Ord('A'));
+    for I := 0 to 25 do Buffer[I + 26] := Char(I + Ord('a'));
+    GetTextMetrics(Canvas.Handle, tm);
+    GetTextExtentPoint(Canvas.Handle, Buffer, 52, TSize(Result));
+    Result.X := (Result.X div 26 + 1) div 2;
+    Result.Y := tm.tmHeight;
   end;
-end;
+
+  function GetButtonCaption(MsgDlgBtn: TMsgDlgBtn): string;
+  begin
+    case MsgDlgBtn of
+      mbYes:         Result := Preferences.LoadStr(74);
+      mbYesToAll:    Result := Preferences.LoadStr(74) + ', ' + LowerCase(Preferences.LoadStr(214));
+      mbNo:          Result := Preferences.LoadStr(75);
+      mbNoToAll:     Result := Preferences.LoadStr(75) + ', ' + LowerCase(Preferences.LoadStr(214));
+      mbOK:          Result := Preferences.LoadStr(29);
+      mbCancel:      Result := Preferences.LoadStr(30);
+      mbAbort:       Result := 'Abort';
+      mbRetry:       Result := 'Retry';
+      mbIgnore:      Result := 'Ignore';
+      mbAll:         Result := Preferences.LoadStr(214);
+      mbHelp:        Result := Preferences.LoadStr(167);
+    end;
+  end;
 
 const
   mcHorzMargin = 6;

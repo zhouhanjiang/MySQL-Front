@@ -421,6 +421,7 @@ object FSession: TFSession
         OnDragOver = SynMemoDragOver
         OnEnter = SynMemoEnter
         OnExit = SynMemoExit
+        OnKeyPress = FSQLEditorSynMemoKeyPress
         BorderStyle = bsNone
         Gutter.AutoSize = True
         Gutter.DigitCount = 2
@@ -2334,7 +2335,7 @@ object FSession: TFSession
     Top = 72
   end
   object SynCompletion: TSynCompletionProposal
-    Options = [scoLimitToMatchedText, scoUseInsertList, scoUseBuiltInTimer, scoEndCharCompletion, scoCompleteWithEnter]
+    Options = [scoLimitToMatchedText, scoUseInsertList, scoEndCharCompletion, scoCompleteWithEnter]
     EndOfTokenChr = '()[]. '
     TriggerChars = 
       '._$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012345678' +
@@ -2353,7 +2354,6 @@ object FSession: TFSession
     OnChange = SynCompletionChange
     OnClose = SynCompletionClose
     OnExecute = SynCompletionExecute
-    OnShow = SynCompletionShow
     ShortCut = 16416
     Editor = FSQLEditorSynMemo
     OnAfterCodeCompletion = SynCompletionAfterCodeCompletion

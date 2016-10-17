@@ -1511,7 +1511,7 @@ begin
   inherited;
 
   CodeCompletion := True;
-  CodeCompletionTime := 3000;
+  CodeCompletionTime := 1000;
   ConditionalCommentForeground := clTeal; ConditionalCommentBackground := clNone; ConditionalCommentStyle := [];
   CommentForeground := clGreen; CommentBackground := clNone; CommentStyle := [fsItalic];
   CurrRowBGColorEnabled := True; CurrRowBGColor := $C0FFFF;
@@ -1528,16 +1528,16 @@ end;
 
 procedure TPPreferences.TEditor.LoadFromXML(const XML: IXMLNode);
 begin
-//  if (Assigned(XMLNode(XML, 'autocompletion'))) then TryStrToBool(XMLNode(XML, 'autocompletion').Attributes['enabled'], CodeCompletion);
-//  if (Assigned(XMLNode(XML, 'autocompletion/time'))) then TryStrToInt(XMLNode(XML, 'autocompletion/time').Text, CodeCompletionTime);
+  if (Assigned(XMLNode(XML, 'autocompletion'))) then TryStrToBool(XMLNode(XML, 'autocompletion').Attributes['enabled'], CodeCompletion);
+  if (Assigned(XMLNode(XML, 'autocompletion/time'))) then TryStrToInt(XMLNode(XML, 'autocompletion/time').Text, CodeCompletionTime);
   if (Assigned(XMLNode(XML, 'currentrow/background'))) then TryStrToBool(XMLNode(XML, 'currentrow/background').Attributes['visible'], CurrRowBGColorEnabled);
   if (Assigned(XMLNode(XML, 'currentrow/background/color'))) then CurrRowBGColor := StringToColor(XMLNode(XML, 'currentrow/background/color').Text);
 end;
 
 procedure TPPreferences.TEditor.SaveToXML(const XML: IXMLNode);
 begin
-//  XMLNode(XML, 'autocompletion').Attributes['enabled'] := CodeCompletion;
-//  XMLNode(XML, 'autocompletion/time').Text := IntToStr(CodeCompletionTime);
+  XMLNode(XML, 'autocompletion').Attributes['enabled'] := CodeCompletion;
+  XMLNode(XML, 'autocompletion/time').Text := IntToStr(CodeCompletionTime);
   XMLNode(XML, 'currentrow/background').Attributes['visible'] := CurrRowBGColorEnabled;
   XMLNode(XML, 'currentrow/background/color').Text := ColorToString(CurrRowBGColor);
 end;

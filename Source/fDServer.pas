@@ -206,7 +206,10 @@ begin
   Caption := Preferences.LoadStr(842, Session.Caption);
 
   FHost.Caption := Session.Connection.HostInfo;
-  FVersion.Caption := Session.Connection.ServerVersionStr;
+  if (Session.Connection.MariaVersion = 0) then
+    FVersion.Caption := Session.Connection.ServerVersionStr
+  else
+    FVersion.Caption := Session.Connection.MariaVersionStr;
   FComment.Visible := Assigned(Session.VariableByName('version_comment'));
   FLComment.Visible := FComment.Visible;
   if (FComment.Visible) then
