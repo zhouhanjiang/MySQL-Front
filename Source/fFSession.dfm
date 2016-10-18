@@ -83,13 +83,14 @@ object FSession: TFSession
         Left = 2
         Top = 106
         Width = 116
-        Height = 126
+        Height = 489
         Align = alClient
         BevelOuter = bvNone
         Color = clWindow
         Constraints.MinHeight = 50
         ParentBackground = False
         TabOrder = 0
+        ExplicitHeight = 126
       end
       object PFolders: TPanel_Ext
         Left = 2
@@ -123,7 +124,7 @@ object FSession: TFSession
         Left = 2
         Top = 2
         Width = 116
-        Height = 230
+        Height = 593
         HelpContext = 1082
         Align = alClient
         BorderStyle = bsNone
@@ -144,6 +145,7 @@ object FSession: TFSession
         OnDblClick = ListViewDblClick
         OnEnter = FJobsEnter
         OnExit = FJobsExit
+        ExplicitHeight = 230
       end
     end
     object PSQLHistory: TPanel_Ext
@@ -437,6 +439,7 @@ object FSession: TFSession
         RightEdge = 0
         ScrollHintFormat = shfTopToBottom
         SearchEngine = FSQLEditorSearch
+        TabWidth = 2
         WantTabs = True
         OnStatusChange = SynMemoStatusChange
         FontSmoothing = fsmNone

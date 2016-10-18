@@ -60,7 +60,7 @@ type
   TSItem = class(TObject)
   private
     FName: string;
-    FSItems: TSItems;
+    FItems: TSItems;
     function GetSession(): TSSession; inline;
   protected
     function GetCaption(): string; virtual;
@@ -74,7 +74,7 @@ type
     property Index: Integer read GetIndex;
     property Name: string read FName write SetName;
     property Session: TSSession read GetSession;
-    property SItems: TSItems read FSItems;
+    property Items: TSItems read FItems;
   end;
 
   TSItems = class(TList)
@@ -146,7 +146,7 @@ type
     procedure SetSource(const ASource: string); overload; virtual;
   public
     procedure Assign(const Source: TSObject); reintroduce; virtual;
-    constructor Create(const ASItems: TSItems; const AName: string = ''); reintroduce; virtual;
+    constructor Create(const AItems: TSItems; const AName: string = ''); reintroduce; virtual;
     destructor Destroy(); override;
     procedure Invalidate(); virtual;
     function Update(): Boolean; virtual;
@@ -183,10 +183,31 @@ type
   TSDependencies = class(TList)
   private
     function GetDependency(Index: Integer): TSDependency;
+  protected
+    FValid: Boolean;
   public
     function Add(Item: Pointer): Integer;
-    destructor Destroy(); override;
+    procedure Clear(); override;
+    constructor Create(); virtual;
     property Dependency[Index: Integer]: TSDependency read GetDependency; default;
+    property Valid: Boolean read FValid;
+  end;
+
+  TSReferencedRequester = class
+  private
+    FDBObject: TSDBObject;
+    function GetDatabase(): TSDatabase; inline;
+    function GetSession(): TSSession; inline;
+  protected
+    function BuildBaseTableDependencies(const DataSet: TMySQLQuery): Boolean; virtual;
+    function GetValid(): Boolean; virtual;
+    function SQLGetDependencies(): string; virtual;
+  public
+    constructor Create(const ADBObject: TSDBObject); virtual;
+    property DBObject: TSDBObject read FDBObject;
+    property Database: TSDatabase read GetDatabase;
+    property Session: TSSession read GetSession;
+    property Valid: Boolean read GetValid;
   end;
 
   TSDBObject = class(TSObject)
@@ -194,15 +215,17 @@ type
     TSecurity = (seDefiner, seInvoker);
   private
     FDatabase: TSDatabase;
+    FReferencedRequester: TSReferencedRequester;
     function GetDBObjects(): TSDBObjects; inline;
   protected
     FDependencies: TSDependencies;
-    function GetDependencies(): TSDependencies; virtual;
     procedure SetDatabase(const ADatabase: TSDatabase); virtual;
+    procedure SetDependencies(const SQL: string);
     procedure SetSource(const ASource: string); override;
     function SQLGetSource(): string; virtual; abstract;
   public
-    constructor Create(const ACDBObjects: TSDBObjects; const AName: string = ''); reintroduce; virtual;
+    procedure Clear(); virtual;
+    constructor Create(const ADBObjects: TSDBObjects; const AName: string = ''); reintroduce; virtual;
     destructor Destroy(); override;
     function GetSourceEx(const DropBeforeCreate: Boolean = False): string; virtual; abstract;
     procedure Invalidate(); override;
@@ -210,7 +233,8 @@ type
     function Update(): Boolean; override;
     property Database: TSDatabase read FDatabase;
     property DBObjects: TSDBObjects read GetDBObjects;
-    property Dependencies: TSDependencies read GetDependencies;
+    property Dependencies: TSDependencies read FDependencies;
+    property ReferencedRequester: TSReferencedRequester read FReferencedRequester;
   end;
 
   TSDBObjects = class(TSObjects)
@@ -474,6 +498,20 @@ type
     property Valid: Boolean read FValid;
   end;
 
+  TSMergeSourceTable = class
+    DatabaseName: string;
+    TableName: string;
+  end;
+
+  TSMergeSourceTables = class(TList)
+  private
+    function GetMergeSourceTable(Index: Integer): TSMergeSourceTable; inline;
+  public
+    procedure Clear(); override;
+    destructor Destroy(); override;
+    property MergeSourceTable[Index: Integer]: TSMergeSourceTable read GetMergeSourceTable; default;
+  end;
+
   TSTable = class(TSDBObject)
   type
     TDataSet = class(TMySQLTable)
@@ -566,7 +604,6 @@ type
   type
     TPackKeys = (piUnpacked, piPacked, piDefault);
     TInsertMethod = (imNo, imFirst, imLast);
-    TMergeSourceTable = record DatabaseName: string; TableName: string; end;
   private
     FAutoIncrement: LargeInt; // 0 -> unknown
     FAvgRowLength: LargeInt;
@@ -586,7 +623,7 @@ type
     FKeys: TSKeys;
     FMaxDataSize: Int64;
     FMaxRows: Int64;
-    FMergeSourceTables: array of TMergeSourceTable;
+    FMergeSourceTables: TSMergeSourceTables;
     FMinRows: Int64;
     FPackKeys: TPackKeys;
     FPartitions: TSPartitions;
@@ -602,12 +639,13 @@ type
     function GetTriggerCount(): Integer;
   protected
     FValidStatus: Boolean;
+    procedure AddDependency(const ReferencedTable: TSBaseTable);
     procedure BuildStatus(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean); virtual;
-    function GetDependencies(): TSDependencies; override;
     function GetValid(): Boolean; override;
     procedure ParseCreateTable(const SQL: string); virtual;
     procedure SetSource(const DataSet: TMySQLQuery); overload; override;
     function SQLGetSource(): string; override;
+    property MergeSourceTables: TSMergeSourceTables read FMergeSourceTables;
   public
     procedure Assign(const Source: TSTable); override;
     function FieldByName(const FieldName: string): TSBaseTableField; reintroduce; virtual;
@@ -736,7 +774,7 @@ type
     TRoutineType = (rtUnknown, rtProcedure, rtFunction);
     TMySQLDataSets = array of TMySQLDataSet;
   private
-    FStmt: string;
+    FBody: string;
     FComment: string;
     FCreated: TDateTime;
     FDefiner: string;
@@ -747,6 +785,7 @@ type
     FRoutineType: TRoutineType;
     FSecurity: TSDBObject.TSecurity;
     FSourceEx: string;
+    FStmt: string;
     function GetInputDataSet(): TMySQLDataSet;
     function GetParameter(Index: Integer): TSRoutineParameter;
     function GetParameterCount(): Integer;
@@ -755,11 +794,13 @@ type
   protected
     procedure SetSource(const ASource: string); override;
     function SQLGetSource(): string; override;
+    property Body: string read FBody;
   public
     procedure Assign(const Source: TSRoutine); reintroduce; virtual;
     constructor Create(const ACDBObjects: TSDBObjects; const AName: string = ''); override;
     destructor Destroy(); override;
     function GetSourceEx(const DropBeforeCreate: Boolean = False): string; override;
+    procedure Invalidate(); override;
     function SQLRun(): string; virtual;
     property Stmt: string read FStmt;
     property Comment: string read FComment write FComment;
@@ -889,7 +930,6 @@ type
   protected
     procedure ParseCreateEvent(const SQL: string); virtual;
     procedure SetSource(const DataSet: TMySQLQuery); overload; override;
-    procedure SetSource(const ASource: string); override;
     function SQLGetSource(): string; override;
   public
     procedure Assign(const Source: TSEvent); reintroduce; virtual;
@@ -963,7 +1003,6 @@ type
     function GetSource(): string; override;
     function GetValid(): Boolean; override;
     function GetValidSource(): Boolean; override;
-    function ParseDependencies(const SQL: string; var Dependencies: TSDependencies): Boolean; virtual;
     procedure SetName(const AName: string); override;
     procedure SetSource(const DataSet: TMySQLQuery); override;
     function SQLAlterTable(const Table, NewTable: TSBaseTable; const EncloseFields: Boolean = True): string; virtual;
@@ -1400,7 +1439,7 @@ type
     TUpdate = function (): Boolean of object;
     TEvent = class(TObject)
     type
-      TEventType = (etItemsValid, etItemValid, etItemCreated, etItemDropped, etItemAltered, etBeforeExecuteSQL, etAfterExecuteSQL, etMonitor, etError);
+      TEventType = (etItemsValid, etItemValid, etItemCreated, etItemDropped, etItemAltered, etDependenciesAdded, etBeforeExecuteSQL, etAfterExecuteSQL, etMonitor, etError);
     public
       Session: TSSession;
       EventType: TEventType;
@@ -1731,7 +1770,7 @@ constructor TSItem.Create(const ASItems: TSItems; const AName: string = '');
 begin
   inherited Create();
 
-  FSItems := ASItems;
+  FItems := ASItems;
   FName := AName;
 end;
 
@@ -1747,12 +1786,12 @@ end;
 
 function TSItem.GetIndex(): Integer;
 begin
-  Result := SItems.IndexOf(Self);
+  Result := Items.IndexOf(Self);
 end;
 
 function TSItem.GetSession(): TSSession;
 begin
-  Result := SItems.Session;
+  Result := Items.Session;
 end;
 
 procedure TSItem.SetName(const AName: string);
@@ -1761,11 +1800,11 @@ var
 begin
   if (AName <> FName) then
   begin
-    if (SItems.InsertIndex(AName, NewIndex) and (Index >= 0)) then
+    if (Items.InsertIndex(AName, NewIndex) and (Index >= 0)) then
     begin
       if (NewIndex > Index) then
         Dec(NewIndex);
-      SItems.Move(Index, NewIndex);
+      Items.Move(Index, NewIndex);
     end;
     FName := AName;
   end;
@@ -1881,9 +1920,9 @@ end;
 
 function TSEntity.GetEntities(): TSEntities;
 begin
-  Assert(SItems is TSEntities);
+  Assert(Items is TSEntities);
 
-  Result := TSEntities(SItems);
+  Result := TSEntities(Items);
 end;
 
 { TSEntities ******************************************************************}
@@ -1979,7 +2018,7 @@ begin
   FValidSource := Source.ValidSource;
 end;
 
-constructor TSObject.Create(const ASItems: TSItems; const AName: string = '');
+constructor TSObject.Create(const AItems: TSItems; const AName: string = '');
 begin
   inherited;
 
@@ -2017,9 +2056,9 @@ end;
 
 function TSObject.GetObjects(): TSObjects;
 begin
-  Assert(SItems is TSObjects);
+  Assert(Items is TSObjects);
 
-  Result := TSObjects(SItems);
+  Result := TSObjects(Items);
 end;
 
 function TSObject.GetSource(): string;
@@ -2063,6 +2102,21 @@ begin
 
   if ((SQL <> '') and (SQL[Length(SQL)] <> ';')) then
     SQL := SQL + ';';
+
+  if ((Now() <= Session.ParseEndDate)
+    and (StrIComp(PChar(Name), 'create_synonym_db') <> 0)
+    and (StrIComp(PChar(Name), 'diagnostics') <> 0)
+    and (StrIComp(PChar(Name), 'execute_prepared_stmt') <> 0)
+    and (StrLIComp(PChar(Name), 'ps_', 3) <> 0)) then
+  begin
+    if (not Session.SQLParser.ParseSQL(SQL)) then
+      Session.UnparsableSQL := Session.UnparsableSQL
+        + '# SetSource()' + #13#10
+        + '# Error: ' + Session.SQLParser.ErrorMessage + #13#10
+        + Trim(FSource) + #13#10 + #13#10 + #13#10;
+    Session.SQLParser.Clear();
+  end;
+
   SetSource(SQL);
 end;
 
@@ -2070,19 +2124,6 @@ procedure TSObject.SetSource(const ASource: string);
 begin
   FValidSource := True;
   FSource := ASource;
-
-  if ((Now() <= Session.ParseEndDate)
-    and (StrLIComp(PChar(Name), 'ps_', 3) <> 0)
-    and (StrIComp(PChar(Name), 'create_synonym_db') <> 0)
-    and (StrIComp(PChar(Name), 'diagnostics') <> 0)) then
-  begin
-    if (not Session.SQLParser.ParseSQL(FSource)) then
-      Session.UnparsableSQL := Session.UnparsableSQL
-        + '# SetSource()' + #13#10
-        + '# Error: ' + Session.SQLParser.ErrorMessage + #13#10
-        + Trim(FSource) + #13#10 + #13#10 + #13#10;
-    Session.SQLParser.Clear();
-  end;
 end;
 
 function TSObject.Update(): Boolean;
@@ -2191,14 +2232,22 @@ begin
     Result := TList(Self).Add(Item);
 end;
 
-destructor TSDependencies.Destroy();
+procedure TSDependencies.Clear();
 var
   I: Integer;
 begin
   for I := 0 to Count - 1 do
     TSDependency(Items[I]).Free();
+  FValid := False;
 
   inherited;
+end;
+
+constructor TSDependencies.Create();
+begin
+  inherited Create();
+
+  FValid := False;
 end;
 
 function TSDependencies.GetDependency(Index: Integer): TSDependency;
@@ -2206,91 +2255,172 @@ begin
   Result := TSDependency(Items[Index]);
 end;
 
+{ TSReferencedRequester *******************************************************}
+
+function TSReferencedRequester.BuildBaseTableDependencies(const DataSet: TMySQLQuery): Boolean;
+var
+  DatabaseName: string;
+  TableName: string;
+begin
+  if (not DataSet.IsEmpty()) then
+    repeat
+      DatabaseName := DataSet.FieldByName('CONSTRAINT_SCHEMA').AsString;
+      TableName := DataSet.FieldByName('TABLE_NAME').AsString;
+
+      if (Session.Databases.NameCmp(DatabaseName, Database.Name) = 0)
+        and Assigned(Database.BaseTableByName(TableName)) then
+        Database.BaseTableByName(TableName).AddDependency(TSBaseTable(DBObject));
+    until (not DataSet.FindNext());
+
+  Result := False;
+end;
+
+constructor TSReferencedRequester.Create(const ADBObject: TSDBObject);
+begin
+  inherited Create();
+
+  FDBObject := ADBObject;
+end;
+
+function TSReferencedRequester.GetDatabase(): TSDatabase;
+begin
+  Result := DBObject.Database;
+end;
+
+function TSReferencedRequester.GetSession(): TSSession;
+begin
+  Result := DBObject.Session;
+end;
+
+function TSReferencedRequester.GetValid(): Boolean;
+var
+  I: Integer;
+begin
+  Result := True;
+
+  if (DBObject is TSBaseTable) then
+    if (Session.Connection.ServerVersion < 50116) then
+    begin
+      for I := 0 to Database.Tables.Count - 1 do
+        if (Database.Tables[I] is TSBaseTable) then
+          Result := Result and Database.Tables[I].ValidSource;
+    end
+    else
+      Result := False;
+
+  for I := 0 to Database.Tables.Count - 1 do
+    if (Database.Tables[I] is TSView) then
+      Result := Result and Database.Tables[I].Dependencies.Valid;
+
+  if (Assigned(Database.Routines)) then
+    for I := 0 to Database.Routines.Count - 1 do
+      Result := Result and Database.Routines[I].Dependencies.Valid;
+
+  if (Assigned(Database.Triggers)) then
+    for I := 0 to Database.Triggers.Count - 1 do
+      Result := Result and Database.Triggers[I].Dependencies.Valid;
+
+  if (Assigned(Database.Events)) then
+    for I := 0 to Database.Events.Count - 1 do
+      Result := Result and Database.Events[I].Dependencies.Valid;
+end;
+
+function TSReferencedRequester.SQLGetDependencies(): string;
+var
+  I: Integer;
+  SQL: string;
+  TableCount: Integer;
+begin
+  if ((DBObject is TSEvent) or (DBObject is TSTrigger)) then
+    raise EAbstractError.Create(SAbstractError);
+
+  SQL := '';
+
+  if (DBObject is TSBaseTable) then
+    if (Session.Connection.ServerVersion < 50116) then
+    begin
+      for I := 0 to Database.Tables.Count - 1 do
+        if ((Database.Tables[I] is TSBaseTable)
+          and not Database.Tables[I].ValidSource) then
+          SQL := SQL + Database.Tables[I].SQLGetSource();
+    end
+    else
+    begin
+      TableCount := 0;
+      for I := 0 to Database.Tables.Count - 1 do
+        if ((Database.Tables[I] is TSBaseTable)
+          and (Database.Tables[I] <> DBObject)
+          and not Database.Tables[I].ValidSource
+          and (not Assigned(Database.Tables[I].Dependencies) or not Database.Tables[I].Dependencies.Valid)) then
+          Inc(TableCount);
+
+      if (TableCount > 0) then
+      begin
+        SQL := SQL
+          + 'SELECT * FROM '
+          + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('REFERENTIAL_CONSTRAINTS')
+          + ' WHERE ' + Session.Connection.EscapeIdentifier('UNIQUE_CONSTRAINT_SCHEMA') + ' = ' + SQLEscape(Database.Name)
+          + ' AND ' + Session.Connection.EscapeIdentifier('REFERENCED_TABLE_NAME') + ' = ' + SQLEscape(DBObject.Name)
+          + ' AND ' + Session.Connection.EscapeIdentifier('CONSTRAINT_SCHEMA') + ' = ' + SQLEscape(Database.Name) + ';' + #13#10;
+      end;
+    end;
+
+  for I := 0 to Database.Tables.Count - 1 do
+    if ((Database.Tables[I] is TSView)
+      and not Database.Tables[I].ValidSource) then
+      SQL := SQL + Database.Tables[I].SQLGetSource();
+
+  if (Assigned(Database.Triggers)) then
+    for I := 0 to Database.Triggers.Count - 1 do
+      if ((not (DBObject is TSBaseTable) or (Database.Tables.NameCmp(Database.Triggers[I].TableName, DBObject.Name) <> 0))
+        and not Database.Triggers[I].ValidSource) then
+        SQL := SQL + Database.Triggers[I].SQLGetSource();
+
+  if (Assigned(Database.Events)) then
+    for I := 0 to Database.Events.Count - 1 do
+      if (not Database.Events[I].ValidSource) then
+        SQL := SQL + Database.Events[I].SQLGetSource();
+
+  Result := SQL;
+end;
+
 { TSDBObject ******************************************************************}
 
-constructor TSDBObject.Create(const ACDBObjects: TSDBObjects; const AName: string = '');
+procedure TSDBObject.Clear();
 begin
-  inherited Create(ACDBObjects, AName);
+  Dependencies.Clear();
 
-  FDatabase := ACDBObjects.Database;
-  FDependencies := nil;
+  inherited;
+end;
+
+constructor TSDBObject.Create(const ADBObjects: TSDBObjects; const AName: string = '');
+begin
+  inherited Create(ADBObjects, AName);
+
+  FDatabase := ADBObjects.Database;
+
+  FDependencies := TSDependencies.Create();
+  FReferencedRequester := TSReferencedRequester.Create(Self);
 end;
 
 destructor TSDBObject.Destroy();
 begin
-  if (Assigned(FDependencies)) then
-    FDependencies.Free();
+  FDependencies.Free();
+  FReferencedRequester.Free();
 
   inherited;
 end;
 
 function TSDBObject.GetDBObjects(): TSDBObjects;
 begin
-  Assert(SItems is TSDBObjects);
+  Assert(Items is TSDBObjects);
 
-  Result := TSDBObjects(SItems);
-end;
-
-function TSDBObject.GetDependencies(): TSDependencies;
-var
-  Dependency: TSDependency;
-  PreviousToken1: TSQLParser.PToken;
-  PreviousToken2: TSQLParser.PToken;
-  Token: TSQLParser.PToken;
-begin
-  if (not Assigned(FDependencies)) then
-  begin
-    if (Session.SQLParser.ParseSQL(Source)) then
-    begin
-      FDependencies := TSDependencies.Create();
-
-      PreviousToken1 := nil; PreviousToken2 := nil;
-      Token := Session.SQLParser.Root^.FirstTokenAll;
-      while (Assigned(Token)) do
-      begin
-        if (Token^.DbIdentType = ditTable) then
-        begin
-          Dependency := TSDependency.Create(Session);
-          if ((PreviousToken1^.OperatorType = otDot) and (PreviousToken2^.DbIdentType = ditDatabase)) then
-            Dependency.DatabaseName := PreviousToken2^.AsString;
-          Dependency.DependedClass := TSTable;
-          Dependency.DependedName := Token^.AsString;
-          FDependencies.Add(Dependency);
-        end
-        else if (Token^.DbIdentType = ditFunction) then
-        begin
-          Dependency := TSDependency.Create(Session);
-          if ((PreviousToken1^.OperatorType = otDot) and (PreviousToken2^.DbIdentType = ditDatabase)) then
-            Dependency.DatabaseName := PreviousToken2^.AsString;
-          Dependency.DependedClass := TSFunction;
-          Dependency.DependedName := Token^.AsString;
-          FDependencies.Add(Dependency);
-        end
-        else if ((Token^.DbIdentType = ditProcedure)) then
-        begin
-          Dependency := TSDependency.Create(Session);
-          if ((PreviousToken1^.OperatorType = otDot) and (PreviousToken2^.DbIdentType = ditDatabase)) then
-            Dependency.DatabaseName := PreviousToken2^.AsString;
-          Dependency.DependedClass := TSProcedure;
-          Dependency.DependedName := Token^.AsString;
-          FDependencies.Add(Dependency);
-        end;
-
-        PreviousToken2 := PreviousToken1;
-        PreviousToken1 := Token;
-        Token := Token^.NextToken;
-      end;
-    end;
-    Session.SQLParser.Clear();
-  end;
-
-  Result := FDependencies;
+  Result := TSDBObjects(Items);
 end;
 
 procedure TSDBObject.Invalidate();
 begin
-  if (Assigned(FDependencies)) then
-    FreeAndNil(FDependencies);
+  Dependencies.Clear();
 
   inherited;
 end;
@@ -2300,8 +2430,8 @@ begin
   if (Valid) then
   begin
     if (SItemsEvents) then
-      Session.ExecuteEvent(etItemsValid, Database, SItems);
-    Session.ExecuteEvent(etItemValid, Database, SItems, Self);
+      Session.ExecuteEvent(etItemsValid, Database, Items);
+    Session.ExecuteEvent(etItemValid, Database, Items, Self);
   end;
 end;
 
@@ -2311,24 +2441,92 @@ begin
   begin
     Entities.Delete(Self);
     if (Self is TSTable) then
-      FSItems := ADatabase.Tables
+      FItems := ADatabase.Tables
     else if (Self is TSRoutine) then
-      FSItems := ADatabase.Routines
+      FItems := ADatabase.Routines
     else if (Self is TSRoutine) then
-      FSItems := ADatabase.Routines
+      FItems := ADatabase.Routines
     else if (Self is TSTrigger) then
-      FSItems := ADatabase.Triggers
+      FItems := ADatabase.Triggers
     else
       raise ERangeError.Create(SRangeError);
     Entities.Add(Self, True);
   end;
 end;
 
+procedure TSDBObject.SetDependencies(const SQL: string);
+var
+  Dependency: TSDependency;
+  PreviousToken1: TSQLParser.PToken;
+  PreviousToken2: TSQLParser.PToken;
+  Token: TSQLParser.PToken;
+begin
+  Dependencies.Clear();
+
+  if (Session.SQLParser.ParseSQL(SQL)) then
+  begin
+    PreviousToken1 := nil; PreviousToken2 := nil;
+    Token := Session.SQLParser.Root^.FirstTokenAll;
+    while (Assigned(Token)) do
+    begin
+      if (Token^.DbIdentType = ditTable) then
+      begin
+        Dependency := TSDependency.Create(Session);
+        if ((PreviousToken1^.OperatorType = otDot) and (PreviousToken2^.DbIdentType = ditDatabase)) then
+          Dependency.DatabaseName := PreviousToken2^.AsString;
+        Dependency.DependedClass := TSTable;
+        Dependency.DependedName := Token^.AsString;
+        Dependencies.Add(Dependency);
+      end
+      else if ((Token^.DbIdentType = ditProcedure)) then
+      begin
+        Dependency := TSDependency.Create(Session);
+        if ((PreviousToken1^.OperatorType = otDot) and (PreviousToken2^.DbIdentType = ditDatabase)) then
+          Dependency.DatabaseName := PreviousToken2^.AsString;
+        Dependency.DependedClass := TSProcedure;
+        Dependency.DependedName := Token^.AsString;
+        Dependencies.Add(Dependency);
+      end
+      else if (Token^.DbIdentType = ditFunction) then
+      begin
+        Dependency := TSDependency.Create(Session);
+        if ((PreviousToken1^.OperatorType = otDot) and (PreviousToken2^.DbIdentType = ditDatabase)) then
+          Dependency.DatabaseName := PreviousToken2^.AsString;
+        Dependency.DependedClass := TSFunction;
+        Dependency.DependedName := Token^.AsString;
+        Dependencies.Add(Dependency);
+      end
+      else if (Token^.DbIdentType = ditFunction) then
+      begin
+        Dependency := TSDependency.Create(Session);
+        if ((PreviousToken1^.OperatorType = otDot) and (PreviousToken2^.DbIdentType = ditDatabase)) then
+          Dependency.DatabaseName := PreviousToken2^.AsString;
+        Dependency.DependedClass := TSFunction;
+        Dependency.DependedName := Token^.AsString;
+        Dependencies.Add(Dependency);
+      end;
+
+      PreviousToken2 := PreviousToken1;
+      PreviousToken1 := Token;
+      Token := Token^.NextToken;
+    end;
+
+    Dependencies.FValid := True;
+
+    if (Dependencies.Count > 0) then
+      Session.ExecuteEvent(etDependenciesAdded, Database, Items, Self);
+  end;
+  Session.SQLParser.Clear();
+end;
+
 procedure TSDBObject.SetSource(const ASource: string);
 begin
   inherited;
 
-  if (not (Self is TSBaseTable)) then
+  if (not (Self is TSBaseTable) and not (Self is TSRoutine)) then
+    SetDependencies(Source);
+
+  if (not (Self is TSTable)) then
     PushBuildEvent(False);
 end;
 
@@ -2518,6 +2716,15 @@ begin
   Unique := False;
 end;
 
+destructor TSKey.Destroy();
+begin
+  Clear();
+
+  FColumns.Free();
+
+  inherited;
+end;
+
 function TSKey.GetCaption(): string;
 begin
   if (PrimaryKey) then
@@ -2528,9 +2735,9 @@ end;
 
 function TSKey.GetKeys(): TSKeys;
 begin
-  Assert(SItems is TSKeys);
+  Assert(Items is TSKeys);
 
-  Result := TSKeys(SItems);
+  Result := TSKeys(Items);
 end;
 
 procedure TSKey.GetSortDef(var SortDef: TIndexDef);
@@ -2578,15 +2785,6 @@ begin
   Result := Result and (Fulltext = Second.Fulltext);
   Result := Result and (PrimaryKey = Second.PrimaryKey);
   Result := Result and (Unique = Second.Unique);
-end;
-
-destructor TSKey.Destroy();
-begin
-  Clear();
-
-  FColumns.Free();
-
-  inherited;
 end;
 
 procedure TSKey.SetName(const AName: string);
@@ -3312,9 +3510,9 @@ end;
 
 function TSForeignKey.GetForeignKeys(): TSForeignKeys;
 begin
-  Assert(SItems is TSForeignKeys);
+  Assert(Items is TSForeignKeys);
 
-  Result := TSForeignKeys(SItems);
+  Result := TSForeignKeys(Items);
 end;
 
 function TSForeignKey.GetTable(): TSBaseTable;
@@ -3474,6 +3672,30 @@ begin
   Result := Result + ';' + #13#10;
 end;
 
+{ TSMergeSourceTables *********************************************************}
+
+procedure TSMergeSourceTables.Clear();
+var
+  I: Integer;
+begin
+  for I := 0 to Count - 1 do
+    MergeSourceTable[I].Free();
+
+  inherited;
+end;
+
+destructor TSMergeSourceTables.Destroy();
+begin
+  Clear();
+
+  inherited;
+end;
+
+function TSMergeSourceTables.GetMergeSourceTable(Index: Integer): TSMergeSourceTable;
+begin
+  Result := TSMergeSourceTable(Items[Index]);
+end;
+
 { TSTable *********************************************************************}
 
 procedure TSTable.Assign(const Source: TSTable);
@@ -3577,7 +3799,7 @@ end;
 
 function TSTable.GetTables(): TSTables;
 begin
-  Result := TSTables(SItems);
+  Result := TSTables(Items);
 end;
 
 function TSTable.GetValidData(): Boolean;
@@ -3645,10 +3867,10 @@ begin
   begin
     if (SItemsEvents) then
     begin
-      Session.ExecuteEvent(etItemsValid, Database, SItems);
+      Session.ExecuteEvent(etItemsValid, Database, Items);
       Session.ExecuteEvent(etItemsValid, Self, Fields);
     end;
-    Session.ExecuteEvent(etItemValid, Database, SItems, Self);
+    Session.ExecuteEvent(etItemValid, Database, Items, Self);
   end;
 end;
 
@@ -3802,6 +4024,22 @@ begin
 end;
 
 { TSBaseTable *****************************************************************}
+
+procedure TSBaseTable.AddDependency(const ReferencedTable: TSBaseTable);
+var
+  Dependency: TSDependency;
+begin
+  if (not Dependencies.Valid) then
+  begin
+    Dependency := TSDependency.Create(Session);
+    Dependency.DatabaseName := ReferencedTable.Database.Name;
+    Dependency.DependedClass := TSTable;
+    Dependency.DependedName := ReferencedTable.Name;
+    Dependencies.Add(Dependency);
+
+    Session.ExecuteEvent(etDependenciesAdded, Database, Items, Self);
+  end;
+end;
 
 procedure TSBaseTable.Assign(const Source: TSTable);
 var
@@ -3989,6 +4227,7 @@ begin
   FInsertMethod := imNo;
   FMaxDataSize := -1;
   FMaxRows := -1;
+  FMergeSourceTables := TSMergeSourceTables.Create();
   FMinRows := -1;
   FPackKeys := piDefault;
   FRows := -1;
@@ -4010,8 +4249,6 @@ begin
 end;
 
 destructor TSBaseTable.Destroy();
-var
-  I: Integer;
 begin
   inherited;
 
@@ -4019,12 +4256,7 @@ begin
   FForeignKeys.Free();
   if (Assigned(FPartitions)) then
     FPartitions.Free();
-  for I := 0 to Length(FMergeSourceTables) - 1 do
-  begin
-    FMergeSourceTables[I].DatabaseName := '';
-    FMergeSourceTables[I].TableName := '';
-  end;
-  SetLength(FMergeSourceTables, 0);
+  FMergeSourceTables.Free();
 end;
 
 procedure TSBaseTable.Empty();
@@ -4098,37 +4330,6 @@ end;
 function TSBaseTable.GetBaseTableFields(): TSBaseTableFields;
 begin
   Result := TSBaseTableFields(GetFields());
-end;
-
-function TSBaseTable.GetDependencies(): TSDependencies;
-var
-  Dependency: TSDependency;
-  I: Integer;
-begin
-  if (not Assigned(FDependencies) and ((Length(FMergeSourceTables) > 0) or Assigned(ForeignKeys) and (ForeignKeys.Count > 0))) then
-  begin
-    FDependencies := TSDependencies.Create();
-
-    for I := 0 to Length(FMergeSourceTables) - 1 do
-    begin
-      Dependency := TSDependency.Create(Session);
-      Dependency.DatabaseName := FMergeSourceTables[I].DatabaseName;
-      Dependency.DependedClass := TSTable;
-      Dependency.DependedName := FMergeSourceTables[I].TableName;
-      FDependencies.Add(Dependency);
-    end;
-
-    for I := 0 to ForeignKeys.Count - 1 do
-    begin
-      Dependency := TSDependency.Create(Session);
-      Dependency.DatabaseName := ForeignKeys[I].Parent.DatabaseName;
-      Dependency.DependedClass := TSTable;
-      Dependency.DependedName := ForeignKeys[I].Parent.TableName;
-      FDependencies.Add(Dependency);
-    end;
-  end;
-
-  Result := FDependencies;
 end;
 
 function TSBaseTable.GetPrimaryKey(): TSKey;
@@ -4275,8 +4476,8 @@ end;
 
 procedure TSBaseTable.ParseCreateTable(const SQL: string);
 var
-  DatabaseName: string;
   DeleteList: TList;
+  Dependency: TSDependency;
   FieldName: string;
   FirstParse: Boolean;
   Fulltext: Boolean;
@@ -4302,12 +4503,7 @@ begin
     raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL])
   else
   begin
-    for I := 0 to Length(FMergeSourceTables) - 1 do
-    begin
-      FMergeSourceTables[I].DatabaseName := '';
-      FMergeSourceTables[I].TableName := '';
-    end;
-    SetLength(FMergeSourceTables, 0);
+    MergeSourceTables.Clear();
 
 
     FirstParse := FFields.Count = 0;
@@ -4869,9 +5065,10 @@ begin
       begin
         if (SQLParseChar(Parse, '(')) then
           repeat
-            SetLength(FMergeSourceTables, Length(FMergeSourceTables) + 1);
-            FMergeSourceTables[Length(FMergeSourceTables) + 1].DatabaseName := Database.Name;
-            if (not SQLParseObjectName(Parse, FMergeSourceTables[Length(FMergeSourceTables) + 1].DatabaseName, FMergeSourceTables[Length(FMergeSourceTables) + 1].TableName)) then
+            FMergeSourceTables.Add(TSMergeSourceTable.Create());
+            FMergeSourceTables[Index].DatabaseName := Database.Name;
+
+            if (not SQLParseObjectName(Parse, FMergeSourceTables[Index].DatabaseName, FMergeSourceTables[Index].TableName)) then
               raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
             SQLParseChar(Parse, ',');
           until (SQLParseEnd(Parse) or SQLParseChar(Parse, ')'));
@@ -4883,7 +5080,7 @@ begin
           SQLParseValue(Parse);
       end;
 
-      // subpartitioning is not supported now
+      // Subpartitioning has to be implemented
     end;
 
     for I := 0 to FFields.Count - 1 do
@@ -4901,6 +5098,30 @@ begin
     if ((FKeys.Count >= 1) and (FKeys[0].PrimaryKey)) then
       for J := 0 to FKeys.Key[0].Columns.Count - 1 do
         FKeys.Key[0].Columns.Column[J].Field.FInPrimaryKey := True;
+
+
+    for I := 0 to MergeSourceTables.Count - 1 do
+    begin
+      Dependency := TSDependency.Create(Session);
+      Dependency.DatabaseName := MergeSourceTables[I].DatabaseName;
+      Dependency.DependedClass := TSTable;
+      Dependency.DependedName := MergeSourceTables[I].TableName;
+      Dependencies.Add(Dependency);
+    end;
+
+    for I := 0 to ForeignKeys.Count - 1 do
+    begin
+      Dependency := TSDependency.Create(Session);
+      Dependency.DatabaseName := ForeignKeys[I].Parent.DatabaseName;
+      Dependency.DependedClass := TSTable;
+      Dependency.DependedName := ForeignKeys[I].Parent.TableName;
+      Dependencies.Add(Dependency);
+    end;
+
+    Dependencies.FValid := True;
+
+    if (Dependencies.Count > 0) then
+      Session.ExecuteEvent(etDependenciesAdded, Database, Items, Self);
   end;
 end;
 
@@ -5170,9 +5391,6 @@ end;
 procedure TSView.SetSource(const DataSet: TMySQLQuery);
 begin
   SetSource(DataSet.FieldByName('Create View'));
-
-  if (Valid) then
-    PushBuildEvent();
 end;
 
 procedure TSView.SetSource(const ASource: string);
@@ -5180,6 +5398,9 @@ begin
   inherited;
 
   ParseCreateView(FSource);
+
+  Valid;
+  PushBuildEvent(False);
 end;
 
 function TSView.SQLGetSource(): string;
@@ -5615,7 +5836,7 @@ constructor TSRoutine.Create(const ACDBObjects: TSDBObjects; const AName: string
 begin
   inherited;
 
-  FStmt := '';
+  FBody := '';
   FComment := '';
   FCreated := 0;
   FDefiner := '';
@@ -5623,6 +5844,7 @@ begin
   FModified := 0;
   FRoutineType := rtUnknown;
   FSecurity := seDefiner;
+  FStmt := '';
   SetLength(FParameters, 0);
   FValidSource := False;
 end;
@@ -5792,9 +6014,9 @@ end;
 
 function TSRoutine.GetRoutines(): TSRoutines;
 begin
-  Assert(SItems is TSRoutines);
+  Assert(Items is TSRoutines);
 
-  Result := TSRoutines(SItems);
+  Result := TSRoutines(Items);
 end;
 
 function TSRoutine.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
@@ -5810,6 +6032,13 @@ begin
       SQL := 'DROP FUNCTION IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
 
   Result := SQL;
+end;
+
+procedure TSRoutine.Invalidate();
+begin
+  inherited;
+
+  FBody := '';
 end;
 
 procedure TSRoutine.ParseCreateRoutine(const SQL: string);
@@ -5921,6 +6150,8 @@ end;
 
 procedure TSRoutine.SetSource(const ASource: string);
 begin
+  FBody := '';
+
   inherited;
 
   ParseCreateRoutine(FSource);
@@ -6102,34 +6333,24 @@ begin
         else if (DeleteList.IndexOf(Items[Index]) >= 0) then
           DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
 
-        if (not UseInformationSchema) then
-        begin
-          Routine[Index].FComment := DataSet.FieldByName('Comment').AsString;
-          if (DataSet.FieldByName('Security_type').AsString = 'INVOKER') then
-            Routine[Index].FSecurity := seInvoker
-          else
-            Routine[Index].FSecurity := seDefiner ;
-          Routine[Index].FCreated := DataSet.FieldByName('Created').AsDateTime;
-          Routine[Index].FDefiner := DataSet.FieldByName('Definer').AsString;
-          Routine[Index].FModified := DataSet.FieldByName('Modified').AsDateTime;
-          Routine[Index].FRoutineType := RoutineType;
-        end
+        Routine[Index].FComment := DataSet.FieldByName('ROUTINE_COMMENT').AsString;
+        if (DataSet.FieldByName('SECURITY_TYPE').AsString = 'INVOKER') then
+          Routine[Index].FSecurity := seInvoker
         else
-        begin
-          Routine[Index].FComment := DataSet.FieldByName('ROUTINE_COMMENT').AsString;
-          if (DataSet.FieldByName('SECURITY_TYPE').AsString = 'INVOKER') then
-            Routine[Index].FSecurity := seInvoker
-          else
-            Routine[Index].FSecurity := seDefiner;
-          Routine[Index].FCreated := DataSet.FieldByName('CREATED').AsDateTime;
-          Routine[Index].FDefiner := DataSet.FieldByName('DEFINER').AsString;
-          Routine[Index].FModified := DataSet.FieldByName('LAST_ALTERED').AsDateTime;
-          Routine[Index].FRoutineType := RoutineType;
-        end;
+          Routine[Index].FSecurity := seDefiner;
+        Routine[Index].FCreated := DataSet.FieldByName('CREATED').AsDateTime;
+        Routine[Index].FDefiner := DataSet.FieldByName('DEFINER').AsString;
+        Routine[Index].FModified := DataSet.FieldByName('LAST_ALTERED').AsDateTime;
+        Routine[Index].FBody := DataSet.FieldByName('ROUTINE_DEFINITION').AsString;
+        Routine[Index].FRoutineType := RoutineType;
       end;
 
       if (Filtered and SessionEvents) then
         Session.ExecuteEvent(etItemValid, Session, Self, Routine[Index]);
+
+      // Inside Body there are no parameter, but for Dependencies we don't need
+      // them, so we can set the dependencies without a SHOW CREATE PROCEDURE / FUNCTION
+      Routine[Index].SetDependencies('CREATE ROUTINE ' + Session.Connection.EscapeIdentifier(Name) + ' ' + Routine[Index].FBody);
     until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('ROUTINE_SCHEMA').AsString, Database.Name) <> 0));
 
   Result := inherited or (Session.Connection.ErrorCode = ER_CANNOT_LOAD_FROM_TABLE);
@@ -6277,9 +6498,9 @@ end;
 
 function TSTrigger.GetTriggers(): TSTriggers;
 begin
-  Assert(SItems is TSTriggers);
+  Assert(Items is TSTriggers);
 
-  Result := TSTriggers(SItems);
+  Result := TSTriggers(Items);
 end;
 
 procedure TSTrigger.Invalidate();
@@ -6641,9 +6862,9 @@ end;
 
 function TSEvent.GetEvents(): TSEvents;
 begin
-  Assert(SItems is TSEvents);
+  Assert(Items is TSEvents);
 
-  Result := TSEvents(SItems);
+  Result := TSEvents(Items);
 end;
 
 function TSEvent.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
@@ -6737,19 +6958,6 @@ end;
 procedure TSEvent.SetSource(const DataSet: TMySQLQuery);
 begin
   SetSource(DataSet.FieldByName('Create Event'));
-
-  if (Valid) then
-  begin
-    Session.ExecuteEvent(etItemsValid, Session.Databases);
-    Session.ExecuteEvent(etItemValid, Database, Events, Self);
-  end;
-end;
-
-procedure TSEvent.SetSource(const ASource: string);
-begin
-  inherited;
-
-  ParseCreateEvent(FSource);
 end;
 
 function TSEvent.SQLGetSource(): string;
@@ -7317,9 +7525,9 @@ end;
 
 function TSDatabase.GetDatabases(): TSDatabases;
 begin
-  Assert(SItems is TSDatabases);
+  Assert(Items is TSDatabases);
 
-  Result := TSDatabases(SItems);
+  Result := TSDatabases(Items);
 end;
 
 function TSDatabase.GetDataSize(): Int64;
@@ -7514,11 +7722,6 @@ begin
     else
       FCollation := '';
   end;
-end;
-
-function TSDatabase.ParseDependencies(const SQL: string; var Dependencies: TSDependencies): Boolean;
-begin
-  Result := False;
 end;
 
 function TSDatabase.ProcedureByName(const ProcedureName: string): TSProcedure;
@@ -8209,7 +8412,8 @@ begin
 
   if (not Assigned(Event) and (SQLTrimStmt(NewEvent.Stmt, Session.Connection.ServerVersion) <> '') or Assigned(Event) and (SQLTrimStmt(NewEvent.Stmt, Session.Connection.ServerVersion) <> SQLTrimStmt(Event.Stmt, Session.Connection.ServerVersion)))then
   begin
-    SQL := SQL + '  DO ' + SQLTrimStmt(NewEvent.Stmt, Session.Connection.ServerVersion);
+    SQL := SQL + '  DO' + #13#10
+      + SQLTrimStmt(NewEvent.Stmt, Session.Connection.ServerVersion);
     if (SQL[Length(SQL)] = ';') then Delete(SQL, Length(SQL), 1);
   end;
 
@@ -8403,7 +8607,6 @@ end;
 
 function TSDatabase.UpdateView(const View, NewView: TSView): Boolean;
 var
-  List: TList;
   SQL: string;
 begin
   SQL := '';
@@ -8443,12 +8646,8 @@ begin
     SQL := SQL + ';';
   SQL := SQL + #13#10;
 
-  SQL := SQL + NewView.SQLGetSource();
-
-  List := TList.Create();
-  List.Add(NewView);
   SQL := SQL + Tables.SQLGetViewFields();
-  List.Free();
+  SQL := SQL + NewView.SQLGetSource();
 
   if (Assigned(View) and (View.Name <> NewView.Name)) then
     SQL := 'RENAME TABLE '
@@ -8718,9 +8917,9 @@ end;
 
 function TSVariable.GetVariables(): TSVariables;
 begin
-  Assert(SItems is TSVariables);
+  Assert(Items is TSVariables);
 
-  Result := TSVariables(SItems);
+  Result := TSVariables(Items);
 end;
 
 procedure TSVariable.SetAsBoolean(const AAsBoolean: Boolean);
@@ -8950,9 +9149,9 @@ end;
 
 function TSEngine.GetEngines(): TSEngines;
 begin
-  Assert(SItems is TSEngines);
+  Assert(Items is TSEngines);
 
-  Result := TSEngines(SItems);
+  Result := TSEngines(Items);
 end;
 
 function TSEngine.GetIsInnoDB(): Boolean;
@@ -9126,9 +9325,9 @@ end;
 
 function TSPlugin.GetPlugins(): TSPlugins;
 begin
-  Assert(SItems is TSPlugins);
+  Assert(Items is TSPlugins);
 
-  Result := TSPlugins(SItems);
+  Result := TSPlugins(Items);
 end;
 
 { TSPlugins *******************************************************************}
@@ -9213,10 +9412,10 @@ end;
 
 function TSFieldType.GetFieldTypes(): TSFieldTypes;
 begin
-  if (not (SItems is TSFieldTypes)) then
+  if (not (Items is TSFieldTypes)) then
     Result := nil
   else
-    Result := TSFieldTypes(SItems);
+    Result := TSFieldTypes(Items);
 end;
 
 { TSFieldTypes ****************************************************************}
@@ -9320,9 +9519,9 @@ end;
 
 function TSCharset.GetCharsets(): TSCharsets;
 begin
-  Assert(SItems is TSCharsets);
+  Assert(Items is TSCharsets);
 
-  Result := TSCharsets(SItems);
+  Result := TSCharsets(Items);
 end;
 
 function TSCharset.GetCodePage(): Cardinal;
@@ -9452,9 +9651,9 @@ end;
 
 function TSCollation.GetCollations(): TSCollations;
 begin
-  Assert(SItems is TSCollations);
+  Assert(Items is TSCollations);
 
-  Result := TSCollations(SItems);
+  Result := TSCollations(Items);
 end;
 
 { TSCollations ****************************************************************}
@@ -9797,7 +9996,7 @@ var
 begin
   inherited Assign(Source);
 
-  if (not Assigned(FSItems)) then FSItems := Source.Users;
+  if (not Assigned(FItems)) then FItems := Source.Users;
 
   FConnectionsPerHour := Source.ConnectionsPerHour;
   FRawPassword := Source.RawPassword;
@@ -9915,9 +10114,9 @@ end;
 
 function TSUser.GetUsers(): TSUsers;
 begin
-  Assert(SItems is TSUsers);
+  Assert(Items is TSUsers);
 
-  Result := TSUsers(SItems);
+  Result := TSUsers(Items);
 end;
 
 function TSUser.GetValid(): Boolean;
@@ -10807,7 +11006,7 @@ begin
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.ServerVersion;
   FUser := nil;
-  ParseEndDate := EncodeDate(2016, 10, 24);
+  ParseEndDate := EncodeDate(2016, 10, 26);
   FSQLParser := nil;
   UnparsableSQL := '';
 
@@ -10932,7 +11131,7 @@ var
   SQL: string;
 begin
   Connection.BeginSynchron();
-  Update(List); // We need the Source for the dependencies
+  Update(List); // We need the Source for the Dependencies
   Connection.EndSynchron();
 
   List.Sort(Compare);
@@ -12125,6 +12324,19 @@ begin
             Result := Plugins.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
           else if (TableNameCmp(ObjectName, 'PROCESSLIST') = 0) then
             Result := Processes.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
+          else if ((TableNameCmp(ObjectName, 'REFERENTIAL_CONSTRAINTS') = 0)
+            and SQLParseKeyword(Parse, 'WHERE')
+            and (StrIComp(PChar(SQLParseValue(Parse)), 'UNIQUE_CONSTRAINT_SCHEMA') = 0)
+            and SQLParseChar(Parse, '=')) then
+          begin
+            Database := DatabaseByName(SQLParseValue(Parse));
+            if (Assigned(Database) and SQLParseKeyword(Parse, 'AND') and (StrIComp(PChar(SQLParseValue(Parse)), 'REFERENCED_TABLE_NAME') = 0) and SQLParseChar(Parse, '=')) then
+            begin
+              Table := Database.TableByName(SQLParseValue(Parse));
+              if (Assigned(Table)) then
+                Result := Table.ReferencedRequester.BuildBaseTableDependencies(DataSet);
+            end;
+          end
           else if ((TableNameCmp(ObjectName, 'ROUTINES') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
             Result := BuildRoutines(DataSet)
           else if ((TableNameCmp(ObjectName, 'ROUTINES') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'ROUTINE_SCHEMA') = 0) and SQLParseChar(Parse, '=')) then
@@ -12536,7 +12748,9 @@ begin
       ViewInTables := ViewInTables or (TSObject(List[I]) is TSView);
     end
     else if ((TObject(List[I]) is TSUser) and not TSUser(List[I]).Valid) then
-      SQL := SQL + TSUser(List[I]).SQLGetSource();
+      SQL := SQL + TSUser(List[I]).SQLGetSource()
+    else if ((TObject(List[I]) is TSReferencedRequester) and not TSReferencedRequester(List[I]).Valid) then
+      SQL := SQL + TSReferencedRequester(List[I]).SQLGetDependencies;
   if (Tables.Count > 0) then
   begin
     if (BaseTableInTables) then
@@ -13031,4 +13245,5 @@ initialization
 finalization
   Sessions.Free();
 end.
-
+// TSSession.DeleteEntities braucht nicht den Source anderer Tabellen - nur deren Dependencies
+// Dependencies werden nicht vollständig ermittelt, wenn ein SHOW CREATE VIEW fehlschlägt

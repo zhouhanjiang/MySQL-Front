@@ -1510,7 +1510,6 @@ type
         DefaultListLength = 100;
       private
         Active: Boolean;
-        Blocked: Boolean;
         FCount: Integer;
         FParser: TSQLParser;
         FItems: array of TItem;
@@ -1524,7 +1523,6 @@ type
         procedure AddList(DbIdentType: TDbIdentType;
           const DatabaseName: string = ''; TableName: string = '');
         procedure AddText(const Text: string = '');
-        procedure Block();
         procedure Clear();
       public
         procedure Cleanup();
@@ -7749,7 +7747,7 @@ procedure TSQLParser.TCompletionList.AddList(DbIdentType: TDbIdentType;
 var
   Item: PItem;
 begin
-  if (Active and not Blocked) then
+  if (Active) then
   begin
     if (FCount = Length(FItems)) then
       SetLength(FItems, 2 * Length(FItems));
@@ -7778,28 +7776,25 @@ procedure TSQLParser.TCompletionList.AddTag(const KeywordIndex1: TWordList.TInde
 var
   Item: PItem;
 begin
-  if (not Blocked) then
-  begin
-     if (FCount = System.Length(FItems)) then
-      SetLength(FItems, 2 * System.Length(FItems));
-    Item := @FItems[FCount];
-    Inc(FCount);
-    Item^.ItemType := itTag;
-    Item^.KeywordIndices[0] := KeywordIndex1;
-    Item^.KeywordIndices[1] := KeywordIndex2;
-    Item^.KeywordIndices[2] := KeywordIndex3;
-    Item^.KeywordIndices[3] := KeywordIndex4;
-    Item^.KeywordIndices[4] := KeywordIndex5;
-    Item^.KeywordIndices[5] := KeywordIndex6;
-    Item^.KeywordIndices[6] := KeywordIndex7;
-  end;
+  if (FCount = System.Length(FItems)) then
+    SetLength(FItems, 2 * System.Length(FItems));
+  Item := @FItems[FCount];
+  Inc(FCount);
+  Item^.ItemType := itTag;
+  Item^.KeywordIndices[0] := KeywordIndex1;
+  Item^.KeywordIndices[1] := KeywordIndex2;
+  Item^.KeywordIndices[2] := KeywordIndex3;
+  Item^.KeywordIndices[3] := KeywordIndex4;
+  Item^.KeywordIndices[4] := KeywordIndex5;
+  Item^.KeywordIndices[5] := KeywordIndex6;
+  Item^.KeywordIndices[6] := KeywordIndex7;
 end;
 
 procedure TSQLParser.TCompletionList.AddText(const Text: string);
 var
   Item: PItem;
 begin
-  if (Active and not Blocked) then
+  if (Active) then
   begin
     if (FCount = System.Length(FItems)) then
       SetLength(FItems, 2 * System.Length(FItems));
@@ -7848,14 +7843,8 @@ begin
       end;
 end;
 
-procedure TSQLParser.TCompletionList.Block();
-begin
-  Blocked := True;
-end;
-
 procedure TSQLParser.TCompletionList.Clear();
 begin
-  Blocked := False;
   FCount := 0;
 end;
 
@@ -7865,7 +7854,6 @@ begin
 
   FParser := AParser;
 
-  Blocked := False;
   FCount := 0;
   SetLength(FItems, DefaultListLength);
 end;
@@ -7901,7 +7889,6 @@ begin
   end;
 
   Active := AActive;
-  Blocked := False;
 end;
 
 { TSQLParser.TNode ************************************************************}
@@ -17975,9 +17962,7 @@ begin
 
           if (EndOfStmt(CurrentToken)) then
           begin
-            CompletionList.Clear();
             CompletionList.AddList(ADbIdentType, TokenPtr(Nodes.TableIdent)^.AsString);
-            CompletionList.Block();
             Nodes.Ident := 0;
           end
           else
@@ -17996,10 +17981,8 @@ begin
 
           if (EndOfStmt(CurrentToken)) then
           begin
-            CompletionList.Clear();
             CompletionList.AddList(ditTable, TokenPtr(Nodes.TableIdent)^.AsString);
             CompletionList.AddList(ADbIdentType, '', TokenPtr(Nodes.TableIdent)^.AsString);
-            CompletionList.Block();
             Nodes.Ident := 0;
           end
           else
@@ -18668,69 +18651,65 @@ var
   Operands: TOffsetList;
   OperatorPrecedence: Integer;
   Text: PChar;
-  Token: PToken; // Cache for speeding
 begin
   Nodes.Init();
 
   if (not EndOfStmt(CurrentToken)) then
     repeat
-      Token := TokenPtr(CurrentToken); // Cache for speeding
-      if (Token^.TokenType = ttInteger) then
+      if (TokenPtr(CurrentToken)^.TokenType = ttInteger) then
         Nodes.Add(ApplyCurrentToken(utInteger))
-      else if (Token^.TokenType = ttNumeric) then
+      else if (TokenPtr(CurrentToken)^.TokenType = ttNumeric) then
         Nodes.Add(ApplyCurrentToken(utNumeric))
-      else if ((Token^.TokenType = ttString)
-        or ((Token^.TokenType = ttDQIdent) and not AnsiQuotes)) then
+      else if ((TokenPtr(CurrentToken)^.TokenType = ttString)
+        or ((TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and not AnsiQuotes)) then
         Nodes.Add(ApplyCurrentToken(utString))
-      else if (Token^.TokenType = ttAt) then
+      else if (TokenPtr(CurrentToken)^.TokenType = ttAt) then
         Nodes.Add(ParseVariableIdent())
-      else if (Token^.TokenType = ttOpenBracket) then
+      else if (TokenPtr(CurrentToken)^.TokenType = ttOpenBracket) then
         if (IsNextTag(1, kiSELECT)) then
           Nodes.Add(ParseSubSelectStmt())
         else if ((Nodes.Count > 0) and IsToken(Nodes[Nodes.Count - 1]) and (TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType = otIn)) then
           Nodes.Add(ParseList(True, ParseExpr))
         else
           Nodes.Add(ParseSubArea(ParseExpr))
-      else if (Token^.KeywordIndex = kiMOD) then
+      else if (TokenPtr(CurrentToken)^.KeywordIndex = kiMOD) then
         // MOD is operator and function, so we have to handle it separately
         if ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1])) then
           Nodes.Add(ParseFunctionCall())
         else
           Nodes.Add(ApplyCurrentToken(utOperator))
-      else if (Token^.OperatorType <> otNone) then
-        if ((Token^.OperatorType = otMulti) and (Nodes.Count = 0) and (eoAllFields in Options)) then
+      else if (TokenPtr(CurrentToken)^.OperatorType <> otNone) then
+        if ((TokenPtr(CurrentToken)^.OperatorType = otMulti) and (Nodes.Count = 0) and (eoAllFields in Options)) then
         begin
-          Token^.FOperatorType := otNone;
+          TokenPtr(CurrentToken)^.FOperatorType := otNone;
           Nodes.Add(ApplyCurrentToken(utDbIdent));
           break; // * is a complete expression!
         end
-        else if ((Token^.OperatorType = otMinus) and ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1]))) then
+        else if ((TokenPtr(CurrentToken)^.OperatorType = otMinus) and ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1]))) then
         begin
-          Token^.FOperatorType := otUnaryMinus;
+          TokenPtr(CurrentToken)^.FOperatorType := otUnaryMinus;
           Nodes.Add(ApplyCurrentToken(utOperator));
         end
-        else if ((Token^.OperatorType = otPlus) and ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1]))) then
+        else if ((TokenPtr(CurrentToken)^.OperatorType = otPlus) and ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1]))) then
         begin
-          Token^.FOperatorType := otUnaryPlus;
+          TokenPtr(CurrentToken)^.FOperatorType := otUnaryPlus;
           Nodes.Add(ApplyCurrentToken(utOperator));
         end
-        else if ((Token^.OperatorType = otNot) and ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1]))) then
+        else if ((TokenPtr(CurrentToken)^.OperatorType = otNot) and ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1]))) then
         begin
-          Token^.FOperatorType := otUnaryNot;
+          TokenPtr(CurrentToken)^.FOperatorType := otUnaryNot;
           Nodes.Add(ApplyCurrentToken(utOperator));
         end
-        else if (Token^.OperatorType = otInterval) then
+        else if (TokenPtr(CurrentToken)^.OperatorType = otInterval) then
           Nodes.Add(ParseInterval())
-        else if (Token^.OperatorType = otCase) then
+        else if (TokenPtr(CurrentToken)^.OperatorType = otCase) then
           Nodes.Add(ParseCaseOp())
-        else if ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1])) then
-          SetError(PE_UnexpectedToken)
         else
           Nodes.Add(ApplyCurrentToken(utOperator))
-      else if (Token^.TokenType in ttIdents) then
+      else if (TokenPtr(CurrentToken)^.TokenType in ttIdents) then
         if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.TokenType = ttOpenBracket)) then
         begin
-          Token^.GetText(Text, Length);
+          TokenPtr(CurrentToken)^.GetText(Text, Length);
           if ((Length = 7) and (StrLIComp(Text, 'ADDDATE', Length) = 0)) then
             Nodes.Add(ParseDateAddFunc())
           else if ((Length = 4) and (StrLIComp(Text, 'CAST', Length) = 0)) then
@@ -18768,22 +18747,22 @@ begin
           else
             Nodes.Add(ParseFunctionCall()); // Func()
         end
-        else if ((Token^.KeywordIndex >= 0) // Compare for speeding only
-          and ((Token^.KeywordIndex = kiCURRENT_DATE)
-            or (Token^.KeywordIndex = kiCURRENT_TIME)
-            or (Token^.KeywordIndex = kiCURRENT_TIMESTAMP)
-            or (Token^.KeywordIndex = kiCURRENT_USER)
-            or (Token^.KeywordIndex = kiDEFAULT)
-            or (Token^.KeywordIndex = kiFALSE)
-            or (Token^.KeywordIndex = kiLOCALTIME)
-            or (Token^.KeywordIndex = kiLOCALTIMESTAMP)
-            or (Token^.KeywordIndex = kiNULL)
-            or (Token^.KeywordIndex = kiON)
-            or (Token^.KeywordIndex = kiOFF)
-            or (Token^.KeywordIndex = kiTRUE)
-            or (Token^.KeywordIndex = kiUNKNOWN))) then
+        else if ((TokenPtr(CurrentToken)^.KeywordIndex >= 0) // Compare for speeding only
+          and ((TokenPtr(CurrentToken)^.KeywordIndex = kiCURRENT_DATE)
+            or (TokenPtr(CurrentToken)^.KeywordIndex = kiCURRENT_TIME)
+            or (TokenPtr(CurrentToken)^.KeywordIndex = kiCURRENT_TIMESTAMP)
+            or (TokenPtr(CurrentToken)^.KeywordIndex = kiCURRENT_USER)
+            or (TokenPtr(CurrentToken)^.KeywordIndex = kiDEFAULT)
+            or (TokenPtr(CurrentToken)^.KeywordIndex = kiFALSE)
+            or (TokenPtr(CurrentToken)^.KeywordIndex = kiLOCALTIME)
+            or (TokenPtr(CurrentToken)^.KeywordIndex = kiLOCALTIMESTAMP)
+            or (TokenPtr(CurrentToken)^.KeywordIndex = kiNULL)
+            or (TokenPtr(CurrentToken)^.KeywordIndex = kiON)
+            or (TokenPtr(CurrentToken)^.KeywordIndex = kiOFF)
+            or (TokenPtr(CurrentToken)^.KeywordIndex = kiTRUE)
+            or (TokenPtr(CurrentToken)^.KeywordIndex = kiUNKNOWN))) then
           Nodes.Add(ApplyCurrentToken(utDbIdent))
-        else if (((Token^.KeywordIndex = kiANY) or (Token^.KeywordIndex = kiSOME) or (Token^.KeywordIndex = kiALL))
+        else if (((TokenPtr(CurrentToken)^.KeywordIndex = kiANY) or (TokenPtr(CurrentToken)^.KeywordIndex = kiSOME) or (TokenPtr(CurrentToken)^.KeywordIndex = kiALL))
           and (Nodes.Count > 0) and IsToken(Nodes[Nodes.Count - 1]) and (TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType in [otEqual, otGreater, otLess, otGreaterEqual, otLessEqual, otNotEqual])) then
           Nodes.Add(ParseSubquery())
         else if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.OperatorType = otDot)) then
@@ -18802,51 +18781,6 @@ begin
       or EndOfStmt(CurrentToken)
       or not IsOperator(Nodes[Nodes.Count - 1]) and not IsOperator(CurrentToken)
       or not (eoIn in Options) and (TokenPtr(CurrentToken)^.OperatorType = otIn));
-
-  if (not ErrorFound and EndOfStmt(CurrentToken)) then
-    if ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1])) then
-    begin // Add operands
-      if ((Nodes.Count >= 4)
-        and IsToken(Nodes[Nodes.Count - 4]) and (TokenPtr(Nodes[Nodes.Count - 4])^.TokenType in ttIdents)
-        and IsToken(Nodes[Nodes.Count - 3]) and (TokenPtr(Nodes[Nodes.Count - 3])^.OperatorType = otDot)
-        and IsToken(Nodes[Nodes.Count - 2]) and (TokenPtr(Nodes[Nodes.Count - 2])^.TokenType in ttIdents)
-        and IsToken(Nodes[Nodes.Count - 1]) and (TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType = otDot)) then
-      begin
-        CompletionList.AddList(ditField, TokenPtr(Nodes[Nodes.Count - 4])^.AsString, TokenPtr(Nodes[Nodes.Count - 2])^.AsString);
-      end
-      else if ((Nodes.Count >= 2)
-        and IsToken(Nodes[Nodes.Count - 2]) and (TokenPtr(Nodes[Nodes.Count - 2])^.TokenType in ttIdents)
-        and IsToken(Nodes[Nodes.Count - 1]) and (TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType = otDot)) then
-      begin
-        CompletionList.AddList(ditTable, TokenPtr(Nodes[Nodes.Count - 2])^.AsString);
-        CompletionList.AddList(ditField, '', TokenPtr(Nodes[Nodes.Count - 2])^.AsString);
-      end
-      else if ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1])) then
-      begin
-        for I := 0 to FunctionList.Count - 1 do
-          CompletionList.AddText(FunctionList[I]);
-        CompletionList.AddList(ditFunction);
-        CompletionList.AddList(ditDatabase);
-        CompletionList.AddList(ditTable);
-        CompletionList.AddList(ditField);
-      end;
-      CompletionList.AddTag(kiCURRENT_DATE);
-      CompletionList.AddTag(kiCURRENT_TIME);
-      CompletionList.AddTag(kiCURRENT_TIMESTAMP);
-      CompletionList.AddTag(kiCURRENT_USER);
-      CompletionList.AddTag(kiFALSE);
-      CompletionList.AddTag(kiNULL);
-      CompletionList.AddTag(kiON);
-      CompletionList.AddTag(kiOFF);
-      CompletionList.AddTag(kiTRUE);
-      SetError(PE_IncompleteStmt);
-    end
-    else
-    begin // Add operators
-      for KeywordIndex := 0 to KeywordList.Count - 1 do
-        if (OperatorTypeByKeywordIndex[KeywordIndex] <> otNone) then
-          CompletionList.AddTag(KeywordIndex);
-    end;
 
   if (not ErrorFound and (Nodes.Count > 1)) then
     for OperatorPrecedence := 1 to MaxOperatorPrecedence do
@@ -19075,14 +19009,56 @@ begin
           end;
     end;
 
+  if (not ErrorFound and (Nodes.Count <> 1)) then
+    SetError(PE_Unknown);
+
+  if (not ErrorFound and EndOfStmt(CurrentToken)) then
+    if ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1])) then
+    begin // Add operands
+      if ((Nodes.Count >= 4)
+        and IsToken(Nodes[Nodes.Count - 4]) and (TokenPtr(Nodes[Nodes.Count - 4])^.TokenType in ttIdents)
+        and IsToken(Nodes[Nodes.Count - 3]) and (TokenPtr(Nodes[Nodes.Count - 3])^.OperatorType = otDot)
+        and IsToken(Nodes[Nodes.Count - 2]) and (TokenPtr(Nodes[Nodes.Count - 2])^.TokenType in ttIdents)
+        and IsToken(Nodes[Nodes.Count - 1]) and (TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType = otDot)) then
+      begin
+        CompletionList.AddList(ditField, TokenPtr(Nodes[Nodes.Count - 4])^.AsString, TokenPtr(Nodes[Nodes.Count - 2])^.AsString);
+      end
+      else if ((Nodes.Count >= 2)
+        and IsToken(Nodes[Nodes.Count - 2]) and (TokenPtr(Nodes[Nodes.Count - 2])^.TokenType in ttIdents)
+        and IsToken(Nodes[Nodes.Count - 1]) and (TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType = otDot)) then
+      begin
+        CompletionList.AddList(ditTable, TokenPtr(Nodes[Nodes.Count - 2])^.AsString);
+        CompletionList.AddList(ditField, '', TokenPtr(Nodes[Nodes.Count - 2])^.AsString);
+      end
+      else if ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1])) then
+      begin
+        for I := 0 to FunctionList.Count - 1 do
+          CompletionList.AddText(FunctionList[I]);
+        CompletionList.AddList(ditFunction);
+        CompletionList.AddList(ditDatabase);
+        CompletionList.AddList(ditTable);
+        CompletionList.AddList(ditField);
+      end;
+      CompletionList.AddTag(kiCURRENT_DATE);
+      CompletionList.AddTag(kiCURRENT_TIME);
+      CompletionList.AddTag(kiCURRENT_TIMESTAMP);
+      CompletionList.AddTag(kiCURRENT_USER);
+      CompletionList.AddTag(kiFALSE);
+      CompletionList.AddTag(kiNULL);
+      CompletionList.AddTag(kiON);
+      CompletionList.AddTag(kiOFF);
+      CompletionList.AddTag(kiTRUE);
+      SetError(PE_IncompleteStmt);
+    end
+    else
+    begin // Add operators
+      for KeywordIndex := 0 to KeywordList.Count - 1 do
+        if (OperatorTypeByKeywordIndex[KeywordIndex] <> otNone) then
+          CompletionList.AddTag(KeywordIndex);
+    end;
+
   if (Nodes.Count = 0) then
     Result := 0
-  else if (Nodes.Count > 1) then
-  begin
-    if (not ErrorFound) then
-      SetError(PE_Unknown);
-    Result := 0;
-  end
   else
     Result := Nodes[0];
 end;

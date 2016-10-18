@@ -779,6 +779,7 @@ type
     TViewDesktop = class(TTableDesktop)
     public
       SynMemo: TSynMemo;
+      SynMemoTextAtUpdate: string;
       constructor Create(const AFClient: TFSession; const AView: TSView);
       function CreateSynMemo(): TSynMemo; virtual;
       destructor Destroy(); override;
@@ -799,6 +800,7 @@ type
       procedure TCResultChange(Sender: TObject);
     public
       SynMemo: TSynMemo;
+      SynMemoTextAtUpdate: string;
       procedure CloseIDEResult();
       constructor Create(const AFClient: TFSession; const ARoutine: TSRoutine);
       function CreateSynMemo(): TSynMemo; virtual;
@@ -810,6 +812,7 @@ type
     TEventDesktop = class(TSObjectDesktop)
     public
       SynMemo: TSynMemo;
+      SynMemoTextAtUpdate: string;
       constructor Create(const AFClient: TFSession; const AEvent: TSEvent);
       function CreateSynMemo(): TSynMemo; virtual;
       destructor Destroy(); override;
@@ -818,6 +821,7 @@ type
     TTriggerDesktop = class(TSObjectDesktop)
     public
       SynMemo: TSynMemo;
+      SynMemoTextAtUpdate: string;
       constructor Create(const AFClient: TFSession; const ATrigger: TSTrigger);
       function CreateSynMemo(): TSynMemo; virtual;
       destructor Destroy(); override;
@@ -4810,6 +4814,7 @@ begin
   end;
 
   SSideBar.Width := GetSystemMetrics(SM_CXFIXEDFRAME);
+  SBlob.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
   SResult.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
   PResultHeader.Width := CloseButton.Bitmap.Width + 2 * GetSystemMetrics(SM_CXEDGE);
   SLog.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
@@ -8968,8 +8973,8 @@ end;
 procedure TFSession.ListViewEditing(Sender: TObject; Item: TListItem;
   var AllowEdit: Boolean);
 begin
-  AllowEdit := (Item.ImageIndex = iiDatabase) and (Session.Connection.ServerVersion >= 50107) or (Item.ImageIndex = iiForeignKey) and (Session.Connection.ServerVersion >= 40013) or (Item.ImageIndex in [iiBaseTable, iiView, iiEvent, iiField, iiVirtualField, iiTrigger,
-  iiUser]);
+  AllowEdit := (Item.ImageIndex = iiDatabase)
+    and (Session.Connection.ServerVersion >= 50107) or (Item.ImageIndex = iiForeignKey) and (Session.Connection.ServerVersion >= 40013) or (Item.ImageIndex in [iiBaseTable, iiView, iiEvent, iiField, iiVirtualField, iiTrigger, iiUser]);
 end;
 
 procedure TFSession.ListViewInitialize(const ListView: TListView);
@@ -9468,8 +9473,8 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         Item.ImageIndex := iiFunction;
       Item.Caption := TSRoutine(Data).Caption;
       case (TSRoutine(Data).RoutineType) of
-        TSRoutine.TRoutineType.rtProcedure: Item.SubItems.Add('Procedure');
-        TSRoutine.TRoutineType.rtFunction: Item.SubItems.Add('Function');
+        TSRoutine.TRoutineType.rtProcedure: Item.SubItems.Add(Preferences.LoadStr(768));
+        TSRoutine.TRoutineType.rtFunction: Item.SubItems.Add(Preferences.LoadStr(769));
       end;
       Item.SubItems.Add('');
       if (not TSRoutine(Data).Valid or (TSRoutine(Data).Source = '')) then
@@ -12111,13 +12116,14 @@ begin
       begin
         View := TSView(FNavigator.Selected.Data);
 
+        Desktop(View).SynMemoTextAtUpdate := ActiveSynMemo.Text;
+
         NewView := TSView.Create(Database.Tables);
         NewView.Assign(View);
 
         NewView.Stmt := Trim(ActiveSynMemo.Text);
 
-        Database.UpdateView(View, NewView);
-        Result := True;
+        Result := Database.UpdateView(View, NewView);
 
         NewView.Free();
       end;
@@ -12125,6 +12131,8 @@ begin
     iiFunction:
       begin
         Routine := TSRoutine(FNavigator.Selected.Data);
+
+        Desktop(Routine).SynMemoTextAtUpdate := ActiveSynMemo.Text;
 
         if (SelectedImageIndex = iiProcedure) then
           NewRoutine := TSProcedure.Create(Routine.Database.Routines)
@@ -12140,6 +12148,8 @@ begin
       begin
         Event := TSEvent(FNavigator.Selected.Data);
 
+        Desktop(Event).SynMemoTextAtUpdate := ActiveSynMemo.Text;
+
         NewEvent := TSEvent.Create(Database.Events);
         NewEvent.Assign(Event);
 
@@ -12152,6 +12162,8 @@ begin
     iiTrigger:
       begin
         Trigger := TSTrigger(FNavigator.Selected.Data);
+
+        Desktop(Trigger).SynMemoTextAtUpdate := ActiveSynMemo.Text;
 
         NewTrigger := TSTrigger.Create(Database.Triggers);
         NewTrigger.Assign(Trigger);
@@ -12537,12 +12549,37 @@ begin
         PContentChange(nil);
       end;
 
-    if ((SessionEvent.EventType = etItemAltered) and (SessionEvent.SItem is TSTable)
-      and Assigned(Desktop(TSTable(SessionEvent.SItem)).DBGrid)) then
+    if (SessionEvent.EventType = etItemAltered) then
     begin
-      Wanted.Update := TSTable(SessionEvent.SItem).Update;
-      FFilter.Text := '';
-      FFilterEnabled.Down := False;
+      if (SessionEvent.SItem is TSTable) then
+      begin
+        if (Assigned(Desktop(TSTable(SessionEvent.SItem)).DBGrid)) then
+        begin
+          Wanted.Update := TSTable(SessionEvent.SItem).Update;
+          FFilter.Text := '';
+          FFilterEnabled.Down := False;
+        end;
+      end;
+      if (SessionEvent.SItem is TSView) then
+      begin
+        Desktop(TSView(SessionEvent.SItem)).SynMemo.Modified := Desktop(TSView(SessionEvent.SItem)).SynMemoTextAtUpdate <> Desktop(TSView(SessionEvent.SItem)).SynMemo.Text;
+        Desktop(TSView(SessionEvent.SItem)).SynMemoTextAtUpdate := '';
+      end
+      else if (SessionEvent.SItem is TSRoutine) then
+      begin
+        Desktop(TSRoutine(SessionEvent.SItem)).SynMemo.Modified := Desktop(TSRoutine(SessionEvent.SItem)).SynMemoTextAtUpdate <> Desktop(TSRoutine(SessionEvent.SItem)).SynMemo.Text;
+        Desktop(TSRoutine(SessionEvent.SItem)).SynMemoTextAtUpdate := '';
+      end
+      else if (SessionEvent.SItem is TSEvent) then
+      begin
+        Desktop(TSEvent(SessionEvent.SItem)).SynMemo.Modified := Desktop(TSEvent(SessionEvent.SItem)).SynMemoTextAtUpdate <> Desktop(TSEvent(SessionEvent.SItem)).SynMemo.Text;
+        Desktop(TSEvent(SessionEvent.SItem)).SynMemoTextAtUpdate := '';
+      end
+      else if (SessionEvent.SItem is TSTrigger) then
+      begin
+        Desktop(TSTrigger(SessionEvent.SItem)).SynMemo.Modified := Desktop(TSTrigger(SessionEvent.SItem)).SynMemoTextAtUpdate <> Desktop(TSTrigger(SessionEvent.SItem)).SynMemo.Text;
+        Desktop(TSTrigger(SessionEvent.SItem)).SynMemoTextAtUpdate := '';
+      end;
     end;
   end;
 
@@ -13943,7 +13980,7 @@ begin
             for J := 0 to FNavigator.Items.Count - 1 do
               if (FNavigator.Items[J].Data = SObject) then
               begin
-                FNavigator.Selected := FNavigator.Items[I];
+                FNavigator.Selected := FNavigator.Items[J];
                 Self.View := vIDE;
                 Window.ActiveControl := SynMemo;
                 case (MsgBox(Preferences.LoadStr(584, SObject.Name), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of

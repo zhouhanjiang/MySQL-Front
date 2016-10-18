@@ -219,7 +219,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  Clipbrd, StrUtils,
+  Clipbrd, StrUtils, SysConst,
   SQLUtils,
   fPreferences,
   fDField, fDKey, fDForeignKey, fDTrigger, fDPartition, fDExecutingSQL;
@@ -611,7 +611,11 @@ begin
   TSFields.TabVisible := True;
   TSForeignKeys.TabVisible := Assigned(Table);
   TSTriggers.TabVisible := Assigned(Table) and Assigned(Database.Triggers);
+  {$IFDEF Debug}
   TSReferenced.TabVisible := Assigned(Table);
+  {$ELSE}
+  TSReferenced.TabVisible := False;
+  {$ENDIF}
   TSPartitions.TabVisible := Assigned(Table) and Assigned(Table.Partitions);
   TSExtras.TabVisible := Assigned(Table);
   TSSource.TabVisible := Assigned(Table);
@@ -1028,12 +1032,16 @@ begin
       NewTable.Assign(Table);
       TSExtrasShow(nil);
       Built();
-    end
-    else if (Event.SItem is TSBaseTable) then
-      FReferencedItemAdd(TSBaseTable(Event.SItem));
+    end;
   end
   else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is fSession.TSTable)) then
     ModalResult := mrOk;
+
+  if ((Event.EventType = etDependenciesAdded) and (Event.SItem is TSDBObject)) then
+    FReferencedItemAdd(TSDBObject(Event.SItem));
+
+  if (Event.EventType = etAfterExecuteSQL) then
+    FReferenced.Cursor := crDefault;
 end;
 
 procedure TDTable.FormShow(Sender: TObject);
@@ -1166,6 +1174,8 @@ begin
   FCollation.Visible := Database.Session.Connection.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
   GRecords.Visible := Assigned(Table);
 
+  FReferenced.Cursor := crDefault;
+
   TSInformations.TabVisible := Assigned(Table);
   TSKeys.TabVisible := True;
   TSFields.TabVisible := True;
@@ -1286,76 +1296,99 @@ begin
 end;
 
 procedure TDTable.FReferencedItemAdd(const SDBObject: TSDBObject);
+const
+  coTable = 1;
+  coRoutine = 2;
+  coEvent = 3;
 var
-  I: Integer;
+  ClassOrderDBObject: Integer;
+  Compare: Integer;
   Index: Integer;
+  I: Integer;
+  ClassOrderListItem: Integer;
   J: Integer;
-  K: Integer;
-  ListItem: TListItem;
-  OldItemsCount: Integer;
-  S: string;
-  S2: string;
-  Source: TSBaseTable;
+  Item: TListItem;
   TempOnChange: TLVChangeEvent;
 begin
   TempOnChange := FReferenced.OnChange;
   FReferenced.OnChange := nil;
   FReferenced.Items.BeginUpdate();
 
-  OldItemsCount := FReferenced.Items.Count;
-
-  if (SDbObject is TSBaseTable) then
+  if (Assigned(SDBObject.Dependencies)) then
   begin
-    Source := TSBaseTable(SDBObject);
-
-    for J := 0 to Source.ForeignKeys.Count - 1 do
-      if (Source.ForeignKeys[J].Parent.TableName = NewTable.Name) then
+    if (SDBObject is TSTable) then
+      ClassOrderDBObject := coTable
+    else if (SDBObject is TSRoutine) then
+      ClassOrderDbObject := coRoutine
+    else if (SDBObject is TSEvent) then
+      ClassOrderDbObject := coEvent
+    else
+      raise ERangeError.Create(SRangeError);
+    for I := 0 to SDBObject.Dependencies.Count - 1 do
+      if (SDBObject.Dependencies[I].DBObject = Table) then
       begin
         Index := FReferenced.Items.Count;
-        for K := 0 to FReferenced.Items.Count - 1 do
-          if (Database.Tables.NameCmp(Source.Name, NewTable.Name) < 1) then
-            Index := K;
-
-        if (Index < FReferenced.Items.Count) then
-          ListItem := FReferenced.Items.Insert(Index)
-        else
-          ListItem := FReferenced.Items.Add();
-        ListItem.Caption := Source.Name + '.' + Source.ForeignKeys[J].Name;
-        S := '';
-        if (Source.Name <> NewTable.Name) then
-          S := S + Source.Name + '.';
-        if (Length(Source.ForeignKeys[J].Fields) > 1) then S := S + '(';
-        for K := 0 to Length(Source.ForeignKeys[J].Fields) - 1 do
+        for J := 0 to FReferenced.Items.Count - 1 do
         begin
-          if (K > 0) then S := S + ', ';
-          S := S + Source.ForeignKeys[J].Fields[K].Name;
+          if (TSDBObject(FReferenced.Items[J].Data) is TSTable) then
+            ClassOrderListItem := coTable
+          else if (TSDBObject(FReferenced.Items[J].Data) is TSRoutine) then
+            ClassOrderListItem := coRoutine
+          else if (TSDBObject(FReferenced.Items[J].Data) is TSEvent) then
+            ClassOrderListItem := coEvent
+          else
+            raise ERangeError.Create(SRangeError);
+          if (ClassOrderListItem <> ClassOrderDBObject) then
+            Compare := ClassOrderDBObject - ClassOrderListItem
+          else
+            Compare := SDBObject.Index - TSDBObject(FReferenced.Items[J].Data).Index;
+          if (Compare < 1) then
+            Index := J
+          else if (Compare = 0) then
+            Index := -1;
         end;
-        if (Length(Source.ForeignKeys[J].Fields) > 1) then S := S + ')';
-        S := S + ' -> ';
-        if (Length(Source.ForeignKeys[J].Fields) > 1) then S := S + '(';
-        for K := 0 to Length(Source.ForeignKeys[J].Parent.FieldNames) - 1 do
+
+        if (Index >= 0) then
         begin
-          if (K > 0) then S := S + ', ';
-            S := S + Source.ForeignKeys[J].Parent.FieldNames[K];
+          if (Index < FReferenced.Items.Count) then
+            Item := FReferenced.Items.Insert(Index)
+          else
+            Item := FReferenced.Items.Add();
+
+          if (SDBObject is TSBaseTable) then
+          begin
+            Item.ImageIndex := iiBaseTable;
+            Item.Caption := SDBObject.Caption;
+            Item.SubItems.Add(Preferences.LoadStr(302));
+          end
+          else if (SDBObject is TSView) then
+          begin
+            Item.ImageIndex := iiView;
+            Item.Caption := SDBObject.Caption;
+            Item.SubItems.Add(Preferences.LoadStr(738));
+          end
+          else if (SDBObject is TSProcedure) then
+          begin
+            Item.ImageIndex := iiProcedure;
+            Item.Caption := SDBObject.Caption;
+            Item.SubItems.Add(Preferences.LoadStr(768));
+          end
+          else if (SDBObject is TSFunction) then
+          begin
+            Item.ImageIndex := iiFunction;
+            Item.Caption := SDBObject.Caption;
+            Item.SubItems.Add(Preferences.LoadStr(769));
+          end
+          else if (SDBObject is TSEvent) then
+          begin
+            Item.ImageIndex := iiEvent;
+            Item.Caption := SDBObject.Caption;
+            Item.SubItems.Add(Preferences.LoadStr(812));
+          end
+          else
+            raise ERangeError.Create(SRangeError);
+          Item.Data := SDBObject;
         end;
-        if (Length(Source.ForeignKeys[J].Fields) > 1) then S := S + ')';
-        ListItem.SubItems.Add(S);
-
-        S := '';
-        if (Source.ForeignKeys[J].OnDelete = dtCascade) then S := 'cascade on delete';
-        if (Source.ForeignKeys[J].OnDelete = dtSetNull) then S := 'set nil on delete';
-        if (Source.ForeignKeys[J].OnDelete = dtSetDefault) then S := 'set default on delete';
-        if (Source.ForeignKeys[J].OnDelete = dtNoAction) then S := 'no action on delete';
-
-        S2 := '';
-        if (Source.ForeignKeys[J].OnUpdate = utCascade) then S2 := 'cascade on update';
-        if (Source.ForeignKeys[J].OnUpdate = utSetNull) then S2 := 'set nil on update';
-        if (Source.ForeignKeys[J].OnUpdate = utSetDefault) then S2 := 'set default on update';
-        if (Source.ForeignKeys[J].OnUpdate = utNoAction) then S2 := 'no action on update';
-        if (S <> '') and (S2 <> '') then S := S + ', ';
-
-        ListItem.SubItems.Add(S + S2);
-        ListItem.ImageIndex := iiForeignKey;
       end;
   end;
 
@@ -1607,24 +1640,37 @@ begin
   mlDCreate.ShortCut := VK_INSERT;
   mlDDelete.ShortCut := VK_DELETE;
 
-  FReferenced.Items.BeginUpdate();
-  FReferenced.Items.Clear();
+  if (FReferenced.Items.Count = 0) then
+  begin
+    FReferenced.Items.BeginUpdate();
+    FReferenced.Items.Clear();
 
-  for I := 0 to Database.Tables.Count - 1 do
-    if ((Database.Tables[I] is TSBaseTable)
-      and (Database.Tables[I].Name <> NewTable.Name)
-      and Database.Tables[I].ValidSource) then
-      FReferencedItemAdd(Database.Tables[I]);
+    for I := 0 to Database.Tables.Count - 1 do
+      if ((Database.Tables[I] <> Table) and Database.Tables[I].Dependencies.Valid) then
+        FReferencedItemAdd(Database.Tables[I]);
 
-  FReferenced.Items.EndUpdate();
+    if (Assigned(Database.Routines)) then
+      for I := 0 to Database.Routines.Count - 1 do
+        if (Database.Routines[I].Dependencies.Valid) then
+          FReferencedItemAdd(Database.Routines[I]);
+
+    if (Assigned(Database.Triggers)) then
+      for I := 0 to Database.Triggers.Count - 1 do
+        if ((Database.Triggers[I].Table <> Table) and Database.Triggers[I].Dependencies.Valid) then
+          FReferencedItemAdd(Database.Triggers[I]);
+
+    if (Assigned(Database.Events)) then
+      for I := 0 to Database.Events.Count - 1 do
+        if (Database.Events[I].Dependencies.Valid) then
+          FReferencedItemAdd(Database.Events[I]);
+
+    FReferenced.Items.EndUpdate();
+  end;
 
   List := TList.Create();
-  for I := 0 to Database.Tables.Count - 1 do
-    if (Database.Tables[I] is TSBaseTable) then
-      List.Add(Database.Tables[I]);
-  Database.Session.Connection.BeginSynchron();
-  Database.Session.Update(List);
-  Database.Session.Connection.EndSynchron();
+  List.Add(Table.ReferencedRequester);
+  if (not Database.Session.Update(List)) then
+    FReferenced.Cursor := crSQLWait;
   List.Free();
 end;
 
@@ -1746,7 +1792,6 @@ begin
   TSReferenced.Caption := Preferences.LoadStr(782);
   FReferenced.Column[0].Caption := Preferences.LoadStr(35);
   FReferenced.Column[1].Caption := Preferences.LoadStr(69);
-  FReferenced.Column[2].Caption := Preferences.LoadStr(73);
 
   TSPartitions.Caption := Preferences.LoadStr(830);
   GPartitions.Caption := Preferences.LoadStr(85);
