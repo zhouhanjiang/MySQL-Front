@@ -73,7 +73,6 @@ type
     procedure TSSQLLogShow(Sender: TObject);
     procedure TSStartupShow(Sender: TObject);
   private
-    procedure Built();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure ListViewShowSortDirection(const ListView: TListView);
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
@@ -112,12 +111,6 @@ end;
 
 {TDServer *********************************************************************}
 
-procedure TDServer.Built();
-begin
-  PageControl.Visible := True;
-  PSQLWait.Visible := not PageControl.Visible;
-end;
-
 function TDServer.Execute(): Boolean;
 begin
   ShowModal();
@@ -149,10 +142,7 @@ end;
 
 procedure TDServer.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = etItemsValid) and (Assigned(Session.Plugins) and (Event.SItems = Session.Plugins))
-    and (not Assigned(Session.Plugins) or Session.Plugins.Valid)) then
-    Built()
-  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.Connection.ErrorCode <> 0)) then
+  if (Event.EventType = etAfterExecuteSQL) then
   begin
     PageControl.Visible := True;
     PSQLWait.Visible := not PageControl.Visible;
@@ -206,10 +196,10 @@ begin
   Caption := Preferences.LoadStr(842, Session.Caption);
 
   FHost.Caption := Session.Connection.HostInfo;
-  if (Session.Connection.MariaVersion = 0) then
+  if (Session.Connection.MariaDBVersion = 0) then
     FVersion.Caption := Session.Connection.ServerVersionStr
   else
-    FVersion.Caption := Session.Connection.MariaVersionStr;
+    FVersion.Caption := Session.Connection.MariaDBVersionStr;
   FComment.Visible := Assigned(Session.VariableByName('version_comment'));
   FLComment.Visible := FComment.Visible;
   if (FComment.Visible) then

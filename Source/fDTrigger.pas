@@ -173,8 +173,9 @@ begin
   if ((Event.EventType = etItemValid) and (Event.SItem = Trigger)) then
     Built()
   else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is TSTrigger)) then
-    ModalResult := mrOk
-  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.Connection.ErrorCode <> 0)) then
+    ModalResult := mrOk;
+
+  if (Event.EventType = etAfterExecuteSQL) then
   begin
     PageControl.Visible := True;
     PSQLWait.Visible := not PageControl.Visible;
@@ -198,7 +199,7 @@ begin
     if (FInsert.Checked) then NewTrigger.Event := teInsert;
     if (FUpdate.Checked) then NewTrigger.Event := teUpdate;
     if (FDelete.Checked) then NewTrigger.Event := teDelete;
-    NewTrigger.Stmt := SQLTrimStmt(PChar(FStatement.Text), Table.Session.Connection.ServerVersion);
+    NewTrigger.Stmt := SQLTrimStmt(PChar(FStatement.Text), Table.Session.Connection.MySQLVersion);
 
     if (not Assigned(Trigger)) then
       CanClose := Table.Database.AddTrigger(NewTrigger)

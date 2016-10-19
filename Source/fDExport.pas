@@ -1241,7 +1241,7 @@ begin
             else
             begin
               for I := 0 to Session.Databases.Count - 1 do
-                if (((Session.Databases.NameCmp(Session.Databases[I].Name, 'mysql') <> 0) or (Session.Databases.NameCmp(Session.Databases[I].Name, 'sys') <> 0) and (Session.Connection.ServerVersion >= 50707)) and not (Session.Databases[I] is TSSystemDatabase)) then
+                if (((Session.Databases.NameCmp(Session.Databases[I].Name, 'mysql') <> 0) or (Session.Databases.NameCmp(Session.Databases[I].Name, 'sys') <> 0) and (Session.Connection.MySQLVersion >= 50707)) and not (Session.Databases[I] is TSSystemDatabase)) then
                 begin
                   NewNode := TreeView.Items.AddChild(Node, Session.Databases[I].Name);
                   NewNode.ImageIndex := iiDatabase;
@@ -1703,7 +1703,7 @@ begin
     TE_Database:
       begin
         Msg := Preferences.LoadStr(165, IntToStr(Session.Connection.ErrorCode), Session.Connection.ErrorMessage);
-        ErrorMsg := SQLUnwrapStmt(Session.Connection.ErrorMessage, Session.Connection.ServerVersion);
+        ErrorMsg := SQLUnwrapStmt(Session.Connection.ErrorMessage, Session.Connection.MySQLVersion);
         if (Session.Connection.ErrorCode > 0) then
           ErrorMsg := ErrorMsg + ' (#' + IntToStr(Session.Connection.ErrorCode) + ')';
       end;

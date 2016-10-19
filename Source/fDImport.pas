@@ -953,7 +953,7 @@ begin
     for I := 0 to Session.Charsets.Count - 1 do
       FCharset.Items.Add(Session.Charsets.Charset[I].Name);
   end;
-  FCharset.Visible := Session.Connection.ServerVersion >= 40101; FLCharset.Visible := FCharset.Visible;
+  FCharset.Visible := Session.Connection.MySQLVersion >= 40101; FLCharset.Visible := FCharset.Visible;
 
   FCollation.Items.Clear();
   if (Session.Charsets.Count = 0) then
@@ -964,7 +964,7 @@ begin
     for I := 0 to Session.Charsets.Count - 1 do
       FCollation.Items.Add(Session.Charsets.Charset[I].Name);
   end;
-  FCollation.Visible := Session.Connection.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
+  FCollation.Visible := Session.Connection.MySQLVersion >= 40101; FLCollation.Visible := FCollation.Visible;
 
   FUpdate.Enabled := (SObject is TSBaseTable) and Assigned(TSBaseTable(SObject).PrimaryKey);
   FInsertOrUpdate.Enabled := (ImportType = itTextFile) and FUpdate.Enabled; FLInsertUpdate.Enabled := FInsertOrUpdate.Enabled;
@@ -1223,7 +1223,7 @@ begin
             else
             begin
               for I := 0 to Session.Databases.Count - 1 do
-                if (((Session.Databases.NameCmp(Session.Databases[I].Name, 'mysql') <> 0) or (Session.Databases.NameCmp(Session.Databases[I].Name, 'sys') <> 0) and (Session.Connection.ServerVersion >= 50707)) and not (Session.Databases[I] is TSSystemDatabase)) then
+                if (((Session.Databases.NameCmp(Session.Databases[I].Name, 'mysql') <> 0) or (Session.Databases.NameCmp(Session.Databases[I].Name, 'sys') <> 0) and (Session.Connection.MySQLVersion >= 50707)) and not (Session.Databases[I] is TSSystemDatabase)) then
                 begin
                   NewNode := TreeView.Items.AddChild(Node, Session.Databases[I].Name);
                   NewNode.ImageIndex := iiDatabase;

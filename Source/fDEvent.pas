@@ -169,7 +169,7 @@ begin
 
   FEnabled.Checked := Event.Enabled;
   FPreserve.Checked := Event.Preserve;
-  FComment.Text := SQLUnwrapStmt(Event.Comment, Database.Session.Connection.ServerVersion);
+  FComment.Text := SQLUnwrapStmt(Event.Comment, Database.Session.Connection.MySQLVersion);
   FStatement.Lines.Text := Event.Stmt;
 
   FDefiner.Caption := Event.Definer;
@@ -260,11 +260,13 @@ begin
   if ((Event.EventType = etItemValid) and (Event.SItem = Self.Event)) then
     Built()
   else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is TSEvent)) then
-    ModalResult := mrOk
-  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.Connection.ErrorCode <> 0)) then
+    ModalResult := mrOk;
+
+  if (Event.EventType = etAfterExecuteSQL) then
   begin
     PageControl.Visible := True;
     PSQLWait.Visible := not PageControl.Visible;
+    FBOkCheckEnabled(nil);
   end;
 end;
 
@@ -314,7 +316,7 @@ begin
     end;
     NewEvent.Enabled := FEnabled.Checked;
     NewEvent.Preserve := FPreserve.Checked;
-    if (not Assigned(Event) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewEvent.Comment, Database.Session.Connection.ServerVersion))) then
+    if (not Assigned(Event) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewEvent.Comment, Database.Session.Connection.MySQLVersion))) then
       NewEvent.Comment := Trim(FComment.Text);
     NewEvent.Stmt := FStatement.Lines.Text;
 

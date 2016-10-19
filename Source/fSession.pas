@@ -533,7 +533,8 @@ type
     function GetDataSet(): TDataSet;
     function GetTables(): TSTables; inline;
     function GetValidData(): Boolean;
-    function OpenEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+    function OpenEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
+      const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
   protected
     FDataSet: TDataSet;
     FFilterSQL: string;
@@ -987,7 +988,8 @@ type
     FTables: TSTables;
     FTriggers: TSTriggers;
     RepairTableList: TList;
-    function CheckTableEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+    function CheckTableEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
+      const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
     function GetCount(): Integer;
     function GetDatabases(): TSDatabases; inline;
     function GetDataSize(): Int64;
@@ -1507,7 +1509,8 @@ type
     function GetSQLLog(const User: TSUser = nil): string;
     procedure MonitorLog(const Connection: TMySQLConnection; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
     procedure MonitorExecutedStmts(const Connection: TMySQLConnection; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
-    function SessionResult(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+    function SessionResult(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
+      const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
     property Sessions: TSSessions read FSessions;
     property InvalidObjects: TList read FInvalidObjects;
   public
@@ -1546,7 +1549,7 @@ type
     function UnescapeValue(const Value: string; const FieldType: TSField.TFieldType = mfVarChar): string; overload;
     function UnecapeRightIdentifier(const Identifier: string): string;
     function Update(): Boolean; overload;
-    function Update(const Objects: TList; const Status: Boolean = False): Boolean; overload;
+    function Update(const Objects: TList; const Status: Boolean = False; const ExecuteCompletely: Boolean = False): Boolean; overload;
     function UpdateDatabase(const Database, NewDatabase: TSDatabase): Boolean;
     function UpdateUser(const User, NewUser: TSUser): Boolean;
     function UpdateVariable(const Variable, NewVariable: TSVariable; const UpdateModes: TSVariable.TUpdateModes): Boolean;
@@ -2103,20 +2106,6 @@ begin
   if ((SQL <> '') and (SQL[Length(SQL)] <> ';')) then
     SQL := SQL + ';';
 
-  if ((Now() <= Session.ParseEndDate)
-    and (StrIComp(PChar(Name), 'create_synonym_db') <> 0)
-    and (StrIComp(PChar(Name), 'diagnostics') <> 0)
-    and (StrIComp(PChar(Name), 'execute_prepared_stmt') <> 0)
-    and (StrLIComp(PChar(Name), 'ps_', 3) <> 0)) then
-  begin
-    if (not Session.SQLParser.ParseSQL(SQL)) then
-      Session.UnparsableSQL := Session.UnparsableSQL
-        + '# SetSource()' + #13#10
-        + '# Error: ' + Session.SQLParser.ErrorMessage + #13#10
-        + Trim(FSource) + #13#10 + #13#10 + #13#10;
-    Session.SQLParser.Clear();
-  end;
-
   SetSource(SQL);
 end;
 
@@ -2299,7 +2288,7 @@ begin
   Result := True;
 
   if (DBObject is TSBaseTable) then
-    if (Session.Connection.ServerVersion < 50116) then
+    if (Session.Connection.MySQLVersion < 50116) then
     begin
       for I := 0 to Database.Tables.Count - 1 do
         if (Database.Tables[I] is TSBaseTable) then
@@ -2337,7 +2326,7 @@ begin
   SQL := '';
 
   if (DBObject is TSBaseTable) then
-    if (Session.Connection.ServerVersion < 50116) then
+    if (Session.Connection.MySQLVersion < 50116) then
     begin
       for I := 0 to Database.Tables.Count - 1 do
         if ((Database.Tables[I] is TSBaseTable)
@@ -2463,7 +2452,20 @@ var
 begin
   Dependencies.Clear();
 
-  if (Session.SQLParser.ParseSQL(SQL)) then
+  if (not Session.SQLParser.ParseSQL(SQL)) then
+  begin
+    if (not (Self is TSRoutine)
+      and (Now() <= Session.ParseEndDate)
+      and (StrIComp(PChar(Name), 'create_synonym_db') <> 0)
+      and (StrIComp(PChar(Name), 'diagnostics') <> 0)
+      and (StrIComp(PChar(Name), 'execute_prepared_stmt') <> 0)
+      and (StrLIComp(PChar(Name), 'ps_', 3) <> 0)) then
+      Session.UnparsableSQL := Session.UnparsableSQL
+        + '# SetDependencies()' + #13#10
+        + '# Error: ' + Session.SQLParser.ErrorMessage + #13#10
+        + SQL + #13#10 + #13#10;
+  end
+  else
   begin
     PreviousToken1 := nil; PreviousToken2 := nil;
     Token := Session.SQLParser.Root^.FirstTokenAll;
@@ -2524,7 +2526,20 @@ begin
   inherited;
 
   if (not (Self is TSBaseTable) and not (Self is TSRoutine)) then
-    SetDependencies(Source);
+    SetDependencies(Source)
+  else if ((Now() <= Session.ParseEndDate)
+    and (StrIComp(PChar(Name), 'create_synonym_db') <> 0)
+    and (StrIComp(PChar(Name), 'diagnostics') <> 0)
+    and (StrIComp(PChar(Name), 'execute_prepared_stmt') <> 0)
+    and (StrLIComp(PChar(Name), 'ps_', 3) <> 0)) then
+  begin
+    if (not Session.SQLParser.ParseSQL(Source)) then
+      Session.UnparsableSQL := Session.UnparsableSQL
+        + '# SetSource()' + #13#10
+        + '# Error: ' + Session.SQLParser.ErrorMessage + #13#10
+        + Source + #13#10 + #13#10;
+    Session.SQLParser.Clear();
+  end;
 
   if (not (Self is TSTable)) then
     PushBuildEvent(False);
@@ -2903,7 +2918,7 @@ var
 begin
   Result := '';
 
-  if (National and (Session.Connection.ServerVersion < 40101)) then
+  if (National and (Session.Connection.MySQLVersion < 40101)) then
     Result := Result + 'national ';
 
   Result := Result + Session.FieldTypeByMySQLFieldType(FieldType).DBTypeStr();
@@ -2922,13 +2937,13 @@ begin
     Result := Result + '(' + IntToStr(Size) + ',' + IntToStr(Decimals) + ')'
   else if (FieldType in [mfChar, mfVarChar, mfBinary, mfVarBinary]) then
     Result := Result + '(' + IntToStr(Size) + ')'
-  else if ((FieldType in [mfTime, mfDateTime, mfTimeStamp]) and (Size > 0) and (Session.Connection.ServerVersion >= 50604)) then
+  else if ((FieldType in [mfTime, mfDateTime, mfTimeStamp]) and (Size > 0) and (Session.Connection.MySQLVersion >= 50604)) then
     Result := Result + '(' + IntToStr(Size) + ')'
   else if (FieldType in [mfTinyText, mfText, mfMediumText, mfLongText, mfTinyBlob, mfBlob, mfMediumBlob, mfLongBlob]) then
   else if (FieldType in [mfGeometry, mfPoint, mfLineString, mfPolygon, mfMultiPoint,  mfMultiLineString, mfMultiPolygon, mfGeometryCollection]) then
   else if (FieldType in [mfDate, mfDateTime, mfTime]) then
   else if (FieldType in [mfTimeStamp]) then
-    if (Session.Connection.ServerVersion < 40100) then
+    if (Session.Connection.MySQLVersion < 40100) then
       Result := Result + '(' + IntToStr(Size) + ')'
     else
   else
@@ -2952,7 +2967,7 @@ begin
   else if (FieldType in NotQuotedFieldTypes) then
     if (Value = '') then Result := 'NULL' else Result := Value
   else if (FieldType in BinaryFieldTypes) then
-    Result := SQLEscapeBin(Value, Session.Connection.ServerVersion <= 40000)
+    Result := SQLEscapeBin(Value, Session.Connection.MySQLVersion <= 40000)
   else
     Result := SQLEscape(Value);
 end;
@@ -3082,7 +3097,7 @@ begin
 
   if ((FieldType in [mfTinyInt, mfSmallInt, mfMediumInt, mfInt, mfBigInt, mfFloat, mfDouble, mfDecimal]) and Zerofill) then
     Result := Result + ' zerofill';
-  if (Binary and (Session.Connection.ServerVersion < 40101)) then
+  if (Binary and (Session.Connection.MySQLVersion < 40101)) then
     Result := Result + ' binary';
 end;
 
@@ -3183,7 +3198,7 @@ begin
 
   if (Assigned(TSBaseTable(TSTableField(Source).Fields.Table).FEngine)) then
     FieldType := TSBaseTable(TSTableField(Source).Fields.Table).Engine.ApplyMySQLFieldType(TSTableField(Source).FieldType, TSTableField(Source).Size);
-  if (Session.Connection.ServerVersion < 40102) then
+  if (Session.Connection.MySQLVersion < 40102) then
     OnUpdate := ''
   else
   begin
@@ -3846,7 +3861,8 @@ begin
   Session.Connection.SendSQL(DataSet.SQLSelect(), OpenEvent);
 end;
 
-function TSTable.OpenEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+function TSTable.OpenEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
+  const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
 begin
   DataSet.Open(DataHandle);
 
@@ -4078,20 +4094,20 @@ begin
     FForeignKeys.FValid := True; // Do not allow GetSource!
     FForeignKeys.Assign(TSBaseTable(Source).ForeignKeys);
 
-    if (Assigned(FPartitions) and (not Assigned(Database) or (Session.Connection.ServerVersion < 50107))) then
+    if (Assigned(FPartitions) and (not Assigned(Database) or (Session.Connection.MySQLVersion < 50107))) then
       FreeAndNil(FPartitions)
-    else if (not Assigned(FPartitions) and Assigned(Database) and (Session.Connection.ServerVersion >= 50107)) then
+    else if (not Assigned(FPartitions) and Assigned(Database) and (Session.Connection.MySQLVersion >= 50107)) then
       FPartitions := TSPartitions.Create(Self);
     if (Assigned(FPartitions) and Assigned(TSBaseTable(Source).Partitions)) then FPartitions.Assign(TSBaseTable(Source).Partitions);
   end;
 
   if (Assigned(Source.Database) and Assigned(Database)) then
-    if ((Session.Connection.ServerVersion < 40101) and (Session.Connection.ServerVersion < 40101) or (Source.Session.Connection.ServerVersion >= 40101) and (Session.Connection.ServerVersion >= 40101)) then
+    if ((Session.Connection.MySQLVersion < 40101) and (Session.Connection.MySQLVersion < 40101) or (Source.Session.Connection.MySQLVersion >= 40101) and (Session.Connection.MySQLVersion >= 40101)) then
     begin
       Charset := TSBaseTable(Source).Charset;
       Collation := TSBaseTable(Source).Collation;
     end
-    else if ((Source.Session.Connection.ServerVersion < 40101) and (Session.Connection.ServerVersion >= 40101)) then
+    else if ((Source.Session.Connection.MySQLVersion < 40101) and (Session.Connection.MySQLVersion >= 40101)) then
     begin
       for I := 0 to Length(CharsetTranslations) - 1 do
         if (TSBaseTable(Source).Charset = StrPas(CharsetTranslations[I].OldCharset)) then
@@ -4100,7 +4116,7 @@ begin
           Collation := StrPas(CharsetTranslations[I].NewCollation);
         end;
     end
-    else if ((Session.Connection.ServerVersion > 40101) and (Session.Connection.ServerVersion < 40101)) then
+    else if ((Session.Connection.MySQLVersion > 40101) and (Session.Connection.MySQLVersion < 40101)) then
     begin
       for I := 0 to Length(CharsetTranslations) - 1 do
         if ((TSBaseTable(Source).Charset = StrPas(CharsetTranslations[I].NewCharset)) and (TSBaseTable(Source).Collation = StrPas(CharsetTranslations[I].NewCollation))) then
@@ -4204,7 +4220,7 @@ begin
 
   FKeys := TSKeys.Create(Self);
   FForeignKeys := TSForeignKeys.Create(Self);
-  if (ASDBObjects.Database.Session.Connection.ServerVersion < 50107) then
+  if (ASDBObjects.Database.Session.Connection.MySQLVersion < 50107) then
     FPartitions := nil
   else
     FPartitions := TSPartitions.Create(Self);
@@ -4244,7 +4260,7 @@ begin
     mrDynamic: Result := 'DYNAMIC';
     mrCompressed: Result := 'COMPRESSED';
     mrRedundant: Result := 'REDUNDANT';
-    mrCompact: if (Session.Connection.ServerVersion >= 50003) then Result := 'COMPACT';
+    mrCompact: if (Session.Connection.MySQLVersion >= 50003) then Result := 'COMPACT';
   end;
 end;
 
@@ -4499,7 +4515,7 @@ var
   TempParse: TSQLParse;
   Unique: Boolean;
 begin
-  if (not SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.ServerVersion)) then
+  if (not SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion)) then
     raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL])
   else
   begin
@@ -5217,7 +5233,7 @@ begin
     vaTemptable: SQL := SQL + 'ALGORITHM=TEMPTABLE ';
   end;
   SQL := SQL + 'VIEW ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name);
-  SQL := SQL + ' AS ' + SQLTrimStmt(Stmt, Session.Connection.ServerVersion);
+  SQL := SQL + ' AS ' + SQLTrimStmt(Stmt, Session.Connection.MySQLVersion);
   if (SQL[Length(SQL)] = ';') then
     Delete(SQL, Length(SQL), 1);
   case (CheckOption) of
@@ -5255,7 +5271,7 @@ var
   TableName: string;
   Token: TSQLParser.PToken;
 begin
-  if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.ServerVersion)) then
+  if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion)) then
   begin
     Result := SQL;
 
@@ -5300,7 +5316,7 @@ begin
 
     if (not SQLParseKeyword(Parse, 'AS')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
-    Len := SQLTrimStmt(SQL, SQLParseGetIndex(Parse), Length(SQL) - (SQLParseGetIndex(Parse) - 1), Session.Connection.ServerVersion, StartingCommentLen, EndingCommentLen);
+    Len := SQLTrimStmt(SQL, SQLParseGetIndex(Parse), Length(SQL) - (SQLParseGetIndex(Parse) - 1), Session.Connection.MySQLVersion, StartingCommentLen, EndingCommentLen);
     if (Copy(SQL, Length(SQL) - EndingCommentLen, 1) = ';') then
     begin
       Dec(Len);
@@ -5464,9 +5480,9 @@ begin
         begin
           if (Database = Session.PerformanceSchema) then
             NewTable := TSSystemView.Create(Self, Name, True)
-          else if ((Session.Connection.ServerVersion < 50002) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'BASE TABLE') = 0) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'ERROR') = 0)) then
+          else if ((Session.Connection.MySQLVersion < 50002) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'BASE TABLE') = 0) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'ERROR') = 0)) then
             NewTable := TSBaseTable.Create(Self, Name)
-          else if ((StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'SYSTEM VIEW') = 0) or ((50000 <= Session.Connection.ServerVersion) and (Session.Connection.ServerVersion < 50012) and (Database = Session.InformationSchema)) or (Database = Session.PerformanceSchema)) then
+          else if ((StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'SYSTEM VIEW') = 0) or ((50000 <= Session.Connection.MySQLVersion) and (Session.Connection.MySQLVersion < 50012) and (Database = Session.InformationSchema)) or (Database = Session.PerformanceSchema)) then
             NewTable := TSSystemView.Create(Self, Name, True)
           else if (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'VIEW') = 0) then
             NewTable := TSView.Create(Self, Name)
@@ -5517,9 +5533,9 @@ begin
         begin
           if (Database = Session.PerformanceSchema) then
             NewTable := TSSystemView.Create(Self, Name, True)
-          else if ((Session.Connection.ServerVersion < 50002) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'BASE TABLE') = 0) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'ERROR') = 0)) then
+          else if ((Session.Connection.MySQLVersion < 50002) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'BASE TABLE') = 0) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'ERROR') = 0)) then
             NewTable := TSBaseTable.Create(Self, Name)
-          else if ((StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'SYSTEM VIEW') = 0) or ((50000 <= Session.Connection.ServerVersion) and (Session.Connection.ServerVersion < 50012) and (Database = Session.InformationSchema)) or (Database = Session.PerformanceSchema)) then
+          else if ((StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'SYSTEM VIEW') = 0) or ((50000 <= Session.Connection.MySQLVersion) and (Session.Connection.MySQLVersion < 50012) and (Database = Session.InformationSchema)) or (Database = Session.PerformanceSchema)) then
             NewTable := TSSystemView.Create(Self, Name, True)
           else if (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'VIEW') = 0) then
             NewTable := TSView.Create(Self, Name)
@@ -5565,7 +5581,7 @@ begin
 
   if (DataSet.IsEmpty()) then
   begin
-    if (SQLCreateParse(Parse, PChar(DataSet.CommandText), Length(DataSet.CommandText), Session.Connection.ServerVersion)) then
+    if (SQLCreateParse(Parse, PChar(DataSet.CommandText), Length(DataSet.CommandText), Session.Connection.MySQLVersion)) then
     begin
       if (SQLParseKeyword(Parse, 'SELECT')) then
       begin
@@ -5638,7 +5654,7 @@ begin
         NewField.Comment := DataSet.FieldByName('COLUMN_COMMENT').AsString;
         NewField.Default := DataSet.FieldByName('COLUMN_DEFAULT').AsString;
         NewField.Charset := DataSet.FieldByName('CHARACTER_SET_NAME').AsString;
-        if (DataSet.FieldByName('COLUMN_TYPE').IsNull or (DataSet.FieldByName('COLUMN_TYPE').AsString = 'null') or not SQLCreateParse(Parse, PChar(DataSet.FieldByName('COLUMN_TYPE').AsString), Length(DataSet.FieldByName('COLUMN_TYPE').AsString), Session.Connection.ServerVersion)) then
+        if (DataSet.FieldByName('COLUMN_TYPE').IsNull or (DataSet.FieldByName('COLUMN_TYPE').AsString = 'null') or not SQLCreateParse(Parse, PChar(DataSet.FieldByName('COLUMN_TYPE').AsString), Length(DataSet.FieldByName('COLUMN_TYPE').AsString), Session.Connection.MySQLVersion)) then
           NewField.FieldType := mfUnknown
         else
           NewField.ParseFieldType(Parse);
@@ -5707,7 +5723,7 @@ end;
 
 function TSTables.SQLGetItems(const Name: string = ''): string;
 begin
-  if (Session.Connection.ServerVersion < 50002) then
+  if (Session.Connection.MySQLVersion < 50002) then
     Result := 'SHOW TABLES FROM ' + Session.Connection.EscapeIdentifier(Database.Name) + ';' + #13#10
   else
     Result := 'SHOW FULL TABLES FROM ' + Session.Connection.EscapeIdentifier(Database.Name) + ';' + #13#10;
@@ -5721,7 +5737,7 @@ var
 begin
   Result := '';
 
-  if (Session.Connection.ServerVersion < 50003) then // 5.0.2 supports INFORMATION_SCHEMA, but the WHERE clause is supported up from 5.0.3
+  if (Session.Connection.MySQLVersion < 50003) then // 5.0.2 supports INFORMATION_SCHEMA, but the WHERE clause is supported up from 5.0.3
   begin
     if (Assigned(List)) then
     begin
@@ -5892,7 +5908,7 @@ begin
           mfBit:
             begin
               Field := TMySQLBlobField.Create(nil);
-              if ((50020 <= Session.Connection.ServerVersion) and (Session.Connection.ServerVersion < 50100) or (Session.Connection.ServerVersion >= 50110)) then
+              if ((50020 <= Session.Connection.MySQLVersion) and (Session.Connection.MySQLVersion < 50100) or (Session.Connection.MySQLVersion >= 50110)) then
                 Field.Size := Parameter[I].Size div 8
               else
                 Field.Size := Parameter[I].Size;
@@ -5909,7 +5925,7 @@ begin
           mfDate: Field := TMySQLDateField.Create(nil);
           mfDateTime: Field := TMySQLDateTimeField.Create(nil);
           mfTimeStamp:
-            if (Session.Connection.ServerVersion < 40100) then
+            if (Session.Connection.MySQLVersion < 40100) then
               Field := TMySQLTimeStampField.Create(nil)
             else
               Field := TMySQLDateTimeField.Create(nil);
@@ -5918,7 +5934,7 @@ begin
           mfChar,
           mfVarChar:
             begin
-              if ((Parameter[I].Size < 256) and ((Parameter[I].Size < 65535) or (Session.Connection.ServerVersion < 50000))) then
+              if ((Parameter[I].Size < 256) and ((Parameter[I].Size < 65535) or (Session.Connection.MySQLVersion < 50000))) then
                 Field := TMySQLWideStringField.Create(nil)
               else
                 Field := TMySQLWideMemoField.Create(nil);
@@ -6051,7 +6067,7 @@ var
 begin
   S := SQL; RemovedLength := 0;
 
-  if (SQLCreateParse(Parse, PChar(S), Length(S), Session.Connection.ServerVersion)) then
+  if (SQLCreateParse(Parse, PChar(S), Length(S), Session.Connection.MySQLVersion)) then
   begin
     while (Length(FParameters) > 0) do
     begin
@@ -6521,7 +6537,7 @@ var
 begin
   S := SQL; RemovedLength := 0;
 
-  if (not SQLCreateParse(Parse, PChar(S), Length(S), Session.Connection.ServerVersion)) then
+  if (not SQLCreateParse(Parse, PChar(S), Length(S), Session.Connection.MySQLVersion)) then
     raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S])
   else
   begin
@@ -6747,7 +6763,7 @@ begin
         end;
         Trigger[Index].FValid := True;
 
-        if (Session.Connection.ServerVersion < 50121) then
+        if (Session.Connection.MySQLVersion < 50121) then
           Trigger[Index].SetSource(Trigger[Index].GetSourceEx());
 
         if (Filtered and SessionEvents) then
@@ -6892,7 +6908,7 @@ var
 begin
   S := SQL; RemovedLength := 0;
 
-  if (not SQLCreateParse(Parse, PChar(S), Length(S), Session.Connection.ServerVersion)) then
+  if (not SQLCreateParse(Parse, PChar(S), Length(S), Session.Connection.MySQLVersion)) then
   begin
     if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
 
@@ -7034,7 +7050,7 @@ begin
           Event[Index].FIntervalValue := DataSet.FieldByName('INTERVAL_VALUE').AsString;
           Event[Index].FPreserve := DataSet.FieldByName('ON_COMPLETION').AsString = 'PRESERVE';
           Event[Index].FStartDateTime := DataSet.FieldByName('STARTS').AsDateTime;
-          Event[Index].FStmt := SQLTrimStmt(DataSet.FieldByName('EVENT_DEFINITION').AsString, Session.Connection.ServerVersion);
+          Event[Index].FStmt := SQLTrimStmt(DataSet.FieldByName('EVENT_DEFINITION').AsString, Session.Connection.MySQLVersion);
           Event[Index].FUpdated := DataSet.FieldByName('LAST_ALTERED').AsDateTime;
         end;
 
@@ -7209,7 +7225,8 @@ begin
   end;
 end;
 
-function TSDatabase.CheckTableEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+function TSDatabase.CheckTableEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
+  const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
 var
   DatabaseName: string;
   DataSet: TMySQLQuery;
@@ -7223,7 +7240,7 @@ begin
     if (not DataSet.IsEmpty) then
       repeat
         if ((lstrcmpi(PChar(DataSet.FieldByName('Msg_text').AsString), 'OK') <> 0)
-          and SQLCreateParse(Parse, PChar(DataSet.FieldByName('Table').AsString), Length(DataSet.FieldByName('Table').AsString), Session.Connection.ServerVersion)) then
+          and SQLCreateParse(Parse, PChar(DataSet.FieldByName('Table').AsString), Length(DataSet.FieldByName('Table').AsString), Session.Connection.MySQLVersion)) then
         begin
           DatabaseName := Name;
           if (SQLParseObjectName(Parse, DatabaseName, TableName)) then
@@ -7243,7 +7260,7 @@ var
   RoutineName: string;
   SQL: string;
 begin
-  if (not SQLCreateParse(Parse, PChar(Routine.Source), Length(Routine.Source), Session.Connection.ServerVersion)) then
+  if (not SQLCreateParse(Parse, PChar(Routine.Source), Length(Routine.Source), Session.Connection.MySQLVersion)) then
     Result := False
   else
   begin
@@ -7302,7 +7319,7 @@ begin
     if (Assigned(TableByName(NewTableName))) then
       SQL := 'DROP TABLE ' + Session.Connection.EscapeIdentifier(NewTableName) + ';' + #13#10;
 
-    SQL := SQL + SQLAlterTable(nil, NewBaseTable, not Data or (Session.Connection.ServerVersion >= 40100));
+    SQL := SQL + SQLAlterTable(nil, NewBaseTable, not Data or (Session.Connection.MySQLVersion >= 40100));
 
     if (Data) then
     begin
@@ -7325,7 +7342,7 @@ begin
     List.Free();
     NewBaseTable.Free();
 
-    if ((Session.Connection.ServerVersion >= 40100) or not Assigned(TSBaseTable(Table).AutoIncrementField)) then
+    if ((Session.Connection.MySQLVersion >= 40100) or not Assigned(TSBaseTable(Table).AutoIncrementField)) then
       Result := Session.Connection.SendSQL(SQL, Session.SessionResult)
     else
       Result := Session.Connection.ExecuteSQL(SQL, Session.SessionResult);
@@ -7358,7 +7375,7 @@ begin
   else
     Result := False;
 
-  if (Result and (Session.Connection.ServerVersion < 40100) and Assigned(TSBaseTable(Table).AutoIncrementField)) then
+  if (Result and (Session.Connection.MySQLVersion < 40100) and Assigned(TSBaseTable(Table).AutoIncrementField)) then
   begin
     Session.Connection.BeginSynchron();
     BaseTableByName(NewTableName).Update();
@@ -7381,11 +7398,11 @@ begin
   FCollation := '';
   FCharset := '';
 
-  if ((Session.Connection.ServerVersion < 50000)                              ) then FColumns := nil else FColumns := TSColumns.Create(Self);
-  if ((Session.Connection.ServerVersion < 50004) or (Self is TSSystemDatabase)) then FRoutines := nil else FRoutines := TSRoutines.Create(Self);
+  if ((Session.Connection.MySQLVersion < 50000)                              ) then FColumns := nil else FColumns := TSColumns.Create(Self);
+  if ((Session.Connection.MySQLVersion < 50004) or (Self is TSSystemDatabase)) then FRoutines := nil else FRoutines := TSRoutines.Create(Self);
   FTables := TSTables.Create(Self);
-  if ((Session.Connection.ServerVersion < 50010) or (Self is TSSystemDatabase)) then FTriggers := nil else FTriggers := TSTriggers.Create(Self);
-  if ((Session.Connection.ServerVersion < 50106) or (Self is TSSystemDatabase)) then FEvents := nil else FEvents := TSEvents.Create(Self);
+  if ((Session.Connection.MySQLVersion < 50010) or (Self is TSSystemDatabase)) then FTriggers := nil else FTriggers := TSTriggers.Create(Self);
+  if ((Session.Connection.MySQLVersion < 50106) or (Self is TSSystemDatabase)) then FEvents := nil else FEvents := TSEvents.Create(Self);
 end;
 
 function TSDatabase.DeleteObject(const DBObject: TSDBObject): Boolean;
@@ -7625,7 +7642,7 @@ function TSDatabase.GetValidSource(): Boolean;
 begin
   if (Self is TSSystemDatabase) then
     Result := True
-  else if (Session.Connection.ServerVersion < 40101) then
+  else if (Session.Connection.MySQLVersion < 40101) then
   begin
     if (FSource = '') then
       FSource := 'CREATE DATABASE ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10;
@@ -7704,7 +7721,7 @@ procedure TSDatabase.ParseCreateDatabase(const SQL: string);
 var
   Parse: TSQLParse;
 begin
-  if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.ServerVersion)) then
+  if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion)) then
   begin
     if (not SQLParseKeyword(Parse, 'CREATE DATABASE')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, SQL]);
 
@@ -7756,7 +7773,7 @@ begin
     if (Assigned(Table.FDataSet)) then
       Table.FDataSet.CommandText := NewTableName;
 
-    if ((Table is TSView) and (Session.Connection.ServerVersion < 50014)) then
+    if ((Table is TSView) and (Session.Connection.MySQLVersion < 50014)) then
     begin
       NewView := TSView.Create(Tables);
       NewView.Assign(TSView(Table));
@@ -7862,7 +7879,7 @@ begin
 
         if (NewField.FieldKind = mkReal) then
         begin
-          if ((NewField.FieldType in TextFieldTypes) and (Session.Connection.ServerVersion >= 40101)) then
+          if ((NewField.FieldType in TextFieldTypes) and (Session.Connection.MySQLVersion >= 40101)) then
           begin
             if ((NewField.Charset <> '') and (NewField.Charset <> NewTable.Charset)) then
               SQLPart := SQLPart + ' CHARACTER SET ' + NewField.Charset;
@@ -7884,7 +7901,7 @@ begin
             if (NewField.OnUpdateSize > 0) then
               SQLPart := SQLPart + '(' + IntToStr(NewField.OnUpdateSize) + ')';
           end;
-          if ((Session.Connection.ServerVersion >= 40100) and (NewField.Comment <> '')) then
+          if ((Session.Connection.MySQLVersion >= 40100) and (NewField.Comment <> '')) then
             SQLPart := SQLPart + ' COMMENT ' + SQLEscape(NewField.Comment);
         end
         else if (NewField.FieldKind = mkVirtual) then
@@ -7901,7 +7918,7 @@ begin
         end
         else
           raise ERangeError.Create(SRangeError);
-        if (Assigned(Table) and (not Assigned(OldField) or (Session.Connection.ServerVersion >= 40001))) then
+        if (Assigned(Table) and (not Assigned(OldField) or (Session.Connection.MySQLVersion >= 40001))) then
           if (not Assigned(NewField.FieldBefore) and (not Assigned(OldField) or Assigned(OldField.FieldBefore))) then
             SQLPart := SQLPart + ' FIRST'
           else if (Assigned(NewField.FieldBefore) and ((not Assigned(OldField) and Assigned(NewField.FieldBefore) and (NewField.FieldBefore.Index <> NewTable.Fields.Count - 2)) or (Assigned(OldField) and (not Assigned(OldField.FieldBefore) or (lstrcmpi(PChar(OldField.FieldBefore.Name), PChar(NewField.FieldBefore.Name)) <> 0) or (TSBaseTableField(NewField.FieldBefore).Moved))))) then
@@ -7937,7 +7954,7 @@ begin
       if (not NewKey.PrimaryKey and (NewKey.Name <> '')) then
         SQLPart := SQLPart + ' ' + Session.Connection.EscapeIdentifier(NewKey.Name);
 
-      if ((((40100 <= Session.Connection.ServerVersion) and (Session.Connection.ServerVersion < 50060)) or ((50100 <= Session.Connection.ServerVersion) and (Session.Connection.ServerVersion < 50110))) and (NewKey.IndexType <> '')) then
+      if ((((40100 <= Session.Connection.MySQLVersion) and (Session.Connection.MySQLVersion < 50060)) or ((50100 <= Session.Connection.MySQLVersion) and (Session.Connection.MySQLVersion < 50110))) and (NewKey.IndexType <> '')) then
         SQLPart := SQLPart + ' USING=' + NewKey.IndexType;
 
       FieldNames := '';
@@ -7950,11 +7967,11 @@ begin
       end;
       SQLPart := SQLPart + ' (' + FieldNames + ')';
 
-      if ((Session.Connection.ServerVersion >= 50110) and (NewKey.BlockSize > 0)) then
+      if ((Session.Connection.MySQLVersion >= 50110) and (NewKey.BlockSize > 0)) then
         SQLPart := SQLPart + ' KEY_BLOCK_SIZE ' + IntToStr(NewKey.BlockSize);
-      if ((((50060 <= Session.Connection.ServerVersion) and (Session.Connection.ServerVersion < 50100)) or (50110 <= Session.Connection.ServerVersion)) and (NewKey.IndexType <> '')) then
+      if ((((50060 <= Session.Connection.MySQLVersion) and (Session.Connection.MySQLVersion < 50100)) or (50110 <= Session.Connection.MySQLVersion)) and (NewKey.IndexType <> '')) then
         SQLPart := SQLPart + ' USING ' + NewKey.IndexType;
-      if ((Session.Connection.ServerVersion >= 50503) and (NewKey.Comment <> '')) then
+      if ((Session.Connection.MySQLVersion >= 50503) and (NewKey.Comment <> '')) then
         SQLPart := SQLPart + ' COMMENT ' + SQLEscape(NewKey.Comment);
 
       if (SQL <> '') then SQL := SQL + ',' + #13#10;
@@ -8089,7 +8106,7 @@ begin
   if (Assigned(NewTable.FEngine) and (not Assigned(Table) and (NewTable.FEngine <> Session.Engines.DefaultEngine) or Assigned(Table) and (NewTable.FEngine <> Table.Engine))) then
   begin
     if (Assigned(Table) and (SQL <> '')) then SQL := SQL + ',' + #13#10;
-    if ((Session.Connection.ServerVersion < 40102) and Assigned(NewTable.FEngine)) then
+    if ((Session.Connection.MySQLVersion < 40102) and Assigned(NewTable.FEngine)) then
       SQL := SQL + ' TYPE=' + NewTable.FEngine.Name
     else
       SQL := SQL + ' ENGINE=' + NewTable.FEngine.Name;
@@ -8107,12 +8124,12 @@ begin
     else
       SQL := SQL + ' CHECKSUM=1';
   end;
-  if (not Assigned(Table) and (NewTable.FComment <> '') or Assigned(Table) and (NewTable.FComment <> Table.Comment) and (Session.Connection.ServerVersion >= 40100)) then
+  if (not Assigned(Table) and (NewTable.FComment <> '') or Assigned(Table) and (NewTable.FComment <> Table.Comment) and (Session.Connection.MySQLVersion >= 40100)) then
   begin
     if (Assigned(Table) and (SQL <> '')) then SQL := SQL + ',' + #13#10;
     SQL := SQL + ' COMMENT=' + SQLEscape(NewTable.FComment);
   end;
-  if (Session.Connection.ServerVersion >= 40100) then
+  if (Session.Connection.MySQLVersion >= 40100) then
   begin
     if ((NewTable.Charset <> '') and (not Assigned(Table) or (NewTable.FCharset <> Table.Charset))) then
     begin
@@ -8133,7 +8150,7 @@ begin
     else
       SQL := SQL + ' DELAY_KEY_WRITE=1';
   end;
-  if (((not Assigned(Table) and (NewTable.InsertMethod <> imNo) or Assigned(Table) and (NewTable.Checksum <> Table.Checksum))) and (Session.Connection.ServerVersion >= 40000)) then
+  if (((not Assigned(Table) and (NewTable.InsertMethod <> imNo) or Assigned(Table) and (NewTable.Checksum <> Table.Checksum))) and (Session.Connection.MySQLVersion >= 40000)) then
   begin
     if (Assigned(Table) and (SQL <> '')) then SQL := SQL + ',' + #13#10;
     case (NewTable.InsertMethod) of
@@ -8294,7 +8311,7 @@ end;
 
 function TSDatabase.SQLGetSource(): string;
 begin
-  if ((Session.Connection.ServerVersion < 40101) or (Self is TSSystemDatabase)) then
+  if ((Session.Connection.MySQLVersion < 40101) or (Self is TSSystemDatabase)) then
     Result := ''
   else
     Result := 'SHOW CREATE DATABASE ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10;
@@ -8302,7 +8319,7 @@ end;
 
 function TSDatabase.SQLTruncateTable(const Table: TSBaseTable): string;
 begin
-  if (Session.Connection.ServerVersion < 32328) then
+  if (Session.Connection.MySQLVersion < 32328) then
   begin
     Result := 'DELETE FROM ' + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(Table.Name) + ';' + #13#10;
     if (Assigned(Table.Engine) and Table.Engine.IsInnoDB) then
@@ -8410,10 +8427,10 @@ begin
   if (not Assigned(Event) and (NewEvent.Comment <> '') or Assigned(Event) and (NewEvent.Comment <> Event.Comment))then
     SQL := SQL + '  COMMENT ' + SQLEscape(NewEvent.Comment) + #13#10;
 
-  if (not Assigned(Event) and (SQLTrimStmt(NewEvent.Stmt, Session.Connection.ServerVersion) <> '') or Assigned(Event) and (SQLTrimStmt(NewEvent.Stmt, Session.Connection.ServerVersion) <> SQLTrimStmt(Event.Stmt, Session.Connection.ServerVersion)))then
+  if (not Assigned(Event) and (SQLTrimStmt(NewEvent.Stmt, Session.Connection.MySQLVersion) <> '') or Assigned(Event) and (SQLTrimStmt(NewEvent.Stmt, Session.Connection.MySQLVersion) <> SQLTrimStmt(Event.Stmt, Session.Connection.MySQLVersion)))then
   begin
     SQL := SQL + '  DO' + #13#10
-      + SQLTrimStmt(NewEvent.Stmt, Session.Connection.ServerVersion);
+      + SQLTrimStmt(NewEvent.Stmt, Session.Connection.MySQLVersion);
     if (SQL[Length(SQL)] = ';') then Delete(SQL, Length(SQL), 1);
   end;
 
@@ -8480,7 +8497,10 @@ begin
   Result := Session.Connection.ExecuteSQL(SQL, Session.SessionResult);
 
   // Warum verliert die MySQL Datenbank den Multi Stmt Status ??? (Fixed in 5.0.67 - auch schon vorher?)
-  if (not Result and Session.Connection.MultiStatements and Assigned(Session.Connection.Lib.mysql_set_server_option)) then
+  if (not Result
+    and Session.Connection.MultiStatements
+    and (Session.Connection.MySQLVersion < 50067)
+    and Assigned(Session.Connection.Lib.mysql_set_server_option)) then
     Session.Connection.Lib.mysql_set_server_option(Session.Connection.Handle, MYSQL_OPTION_MULTI_STATEMENTS_ON);
 
   if (not Result and Assigned(Routine)) then
@@ -8594,7 +8614,10 @@ begin
   Result := Session.Connection.ExecuteSQL(SQL, Session.SessionResult);
 
   // Warum verliert die MySQL Datenbank den Multi Stmt Status ??? (Fixed in 5.0.67 - auch schon vorher?)
-  if (Session.Connection.Connected and Session.Connection.MultiStatements and Assigned(Session.Connection.Lib.mysql_set_server_option)) then
+  if (Session.Connection.Connected
+    and (Session.Connection.MySQLVersion < 50067)
+    and Session.Connection.MultiStatements
+    and Assigned(Session.Connection.Lib.mysql_set_server_option)) then
     Session.Connection.Lib.mysql_set_server_option(Session.Connection.Handle, MYSQL_OPTION_MULTI_STATEMENTS_ON);
 
   if (not Result and Assigned(Trigger)) then
@@ -8617,7 +8640,7 @@ begin
       vaMerge: SQL := SQL + 'ALGORITHM=MERGE ';
       vaTemptable: SQL := SQL + 'ALGORITHM=TEMPTABLE ';
     end;
-  if (Session.Connection.ServerVersion >= 50016) then
+  if (Session.Connection.MySQLVersion >= 50016) then
   begin
     if (not Assigned(View) and (NewView.Definer <> '') or Assigned(View) and (View.Definer <> NewView.Definer)) then
       SQL := SQL + 'DEFINER=' + Session.EscapeUser(NewView.Definer, True) + ' ';
@@ -8628,7 +8651,7 @@ begin
       end;
   end;
   SQL := SQL + 'VIEW ' + Session.Connection.EscapeIdentifier(NewView.Database.Name) + '.' + Session.Connection.EscapeIdentifier(NewView.Name);
-  SQL := SQL + ' AS ' + SQLTrimStmt(NewView.Stmt, Session.Connection.ServerVersion);
+  SQL := SQL + ' AS ' + SQLTrimStmt(NewView.Stmt, Session.Connection.MySQLVersion);
   if (SQL[Length(SQL)] = ';') then
     Delete(SQL, Length(SQL), 1);
   case (NewView.CheckOption) of
@@ -8850,7 +8873,7 @@ var
   DatabaseNames: TCSVStrings;
   I: Integer;
 begin
-  if (Session.Connection.ServerVersion < 50006) then
+  if (Session.Connection.MySQLVersion < 50006) then
     Result := 'SHOW DATABASES;' + #13#10
   else
   begin
@@ -8867,7 +8890,7 @@ begin
         Result := Result + SQLEscape(DatabaseNames[I]);
       end;
       Result := Result + ',' + SQLEscape(INFORMATION_SCHEMA);
-      if (Session.Connection.ServerVersion >= 50503) then
+      if (Session.Connection.MySQLVersion >= 50503) then
         Result := Result + ',' + SQLEscape(PERFORMANCE_SCHEMA);
       Result := Result + ')';
 
@@ -9005,7 +9028,7 @@ begin
         Session.Connection.Charset := Session.VariableByName('character_set_client').Value;
     end;
 
-    if (Session.Connection.ServerVersion < 40102) then
+    if (Session.Connection.MySQLVersion < 40102) then
       Session.Engines.Build(nil, False);
 
     if (Assigned(Session.VariableByName('max_allowed_packet'))) then
@@ -9051,7 +9074,7 @@ begin
   // PERFORMANCE_SCHEMA.SESSION_VARIABLES shows the variables. But only,
   // if SHOW_COMPATIBILITY_56 = OFF.
 
-  if (Session.Connection.ServerVersion < 40003) then
+  if (Session.Connection.MySQLVersion < 40003) then
     Result := 'SHOW VARIABLES;' + #13#10
   else
   begin
@@ -9134,7 +9157,7 @@ function TSStati.SQLGetItems(const Name: string = ''): string;
 begin
   // See comment in TSVariables.SQLGetItems.
 
-  if (Session.Connection.ServerVersion < 50002) then
+  if (Session.Connection.MySQLVersion < 50002) then
     Result := 'SHOW STATUS;' + #13#10
   else
     Result := 'SHOW SESSION STATUS;' + #13#10
@@ -9161,7 +9184,7 @@ end;
 
 function TSEngine.GetForeignKeyAllowed(): Boolean;
 begin
-  Result := IsInnoDB or IsMyISAM and (Session.Connection.ServerVersion >= 50200);
+  Result := IsInnoDB or IsMyISAM and (Session.Connection.MySQLVersion >= 50200);
 end;
 
 function TSEngine.GetIsMerge(): Boolean;
@@ -9180,16 +9203,16 @@ function TSEngine.ApplyMySQLFieldType(const MySQLFieldType: TSField.TFieldType; 
 begin
   Result := Session.FieldTypes.ApplyMySQLFieldType(Self, MySQLFieldType);
 
-  if (((Result in [mfChar, mfVarChar]) and (Session.Connection.ServerVersion < 50003) or (Result in [mfTinyText])) and (MySQLFieldSize >= 1 shl 8)) then
+  if (((Result in [mfChar, mfVarChar]) and (Session.Connection.MySQLVersion < 50003) or (Result in [mfTinyText])) and (MySQLFieldSize >= 1 shl 8)) then
     Result := mfText;
-  if (((Result in [mfChar, mfVarChar]) and (Session.Connection.ServerVersion >= 50003) or (Result in [mfText])) and (MySQLFieldSize >= 1 shl 16)) then
+  if (((Result in [mfChar, mfVarChar]) and (Session.Connection.MySQLVersion >= 50003) or (Result in [mfText])) and (MySQLFieldSize >= 1 shl 16)) then
     Result := mfMediumText;
   if ((Result in [mfMediumText]) and (MySQLFieldSize >= 1 shl 24)) then
     Result := mfLongText;
 
-  if (((Result in [mfBinary, mfVarBinary]) and (Session.Connection.ServerVersion < 50003) or (Result in [mfTinyBlob])) and (MySQLFieldSize >= 1 shl 8)) then
+  if (((Result in [mfBinary, mfVarBinary]) and (Session.Connection.MySQLVersion < 50003) or (Result in [mfTinyBlob])) and (MySQLFieldSize >= 1 shl 8)) then
     Result := mfBlob;
-  if (((Result in [mfBinary, mfVarBinary]) and (Session.Connection.ServerVersion >= 50003) or (Result in [mfBlob])) and (MySQLFieldSize >= 1 shl 16)) then
+  if (((Result in [mfBinary, mfVarBinary]) and (Session.Connection.MySQLVersion >= 50003) or (Result in [mfBlob])) and (MySQLFieldSize >= 1 shl 16)) then
     Result := mfMediumBlob;
   if ((Result in [mfMediumBlob]) and (MySQLFieldSize >= 1 shl 24)) then
     Result := mfLongBlob;
@@ -9210,7 +9233,7 @@ begin
 
   if (not Assigned(DataSet) and Session.Variables.Valid) then
   begin
-    if ((Session.Connection.ServerVersion >= 32334) and Assigned(Session.VariableByName('have_bdb')) and Session.VariableByName('have_bdb').AsBoolean) then
+    if ((Session.Connection.MySQLVersion >= 32334) and Assigned(Session.VariableByName('have_bdb')) and Session.VariableByName('have_bdb').AsBoolean) then
       Add(TSEngine.Create(Self, 'BDB'));
 
     Add(TSEngine.Create(Self, 'HEAP'));
@@ -9221,7 +9244,7 @@ begin
     if (Assigned(Session.VariableByName('have_isam')) and Session.VariableByName('have_isam').AsBoolean) then
       Add(TSEngine.Create(Self, 'ISAM'));
 
-    if (Session.Connection.ServerVersion >= 32325) then
+    if (Session.Connection.MySQLVersion >= 32325) then
       Add(TSEngine.Create(Self, 'MERGE'));
 
     Add(TSEngine.Create(Self, 'MyISAM'));
@@ -9305,9 +9328,9 @@ end;
 
 function TSEngines.SQLGetItems(const Name: string = ''): string;
 begin
-  if (Session.Connection.ServerVersion < 40102) then
+  if (Session.Connection.MySQLVersion < 40102) then
     Result := ''
-  else if (Session.Connection.ServerVersion < 50105) then
+  else if (Session.Connection.MySQLVersion < 50105) then
     Result := 'SHOW ENGINES;' + #13#10
   else
     Result := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('ENGINES') + ';' + #13#10;
@@ -9315,7 +9338,7 @@ end;
 
 function TSEngines.Update(): Boolean;
 begin
-  if (Session.Connection.ServerVersion < 40102) then
+  if (Session.Connection.MySQLVersion < 40102) then
     Result := Session.Variables.Update()
   else
     Result := inherited;
@@ -9386,9 +9409,9 @@ end;
 
 function TSPlugins.SQLGetItems(const Name: string = ''): string;
 begin
-  if (Session.Connection.ServerVersion < 50109) then
+  if (Session.Connection.MySQLVersion < 50109) then
     Result := 'SHOW PLUGIN;' + #13#10
-  else if (Session.Connection.ServerVersion < 50105) then
+  else if (Session.Connection.MySQLVersion < 50105) then
     Result := 'SHOW PLUGINS;' + #13#10
   else
     Result := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('PLUGINS') + ';' + #13#10;
@@ -9494,9 +9517,9 @@ function TSFieldTypes.FieldAvailable(const Engine: TSEngine; const MySQLFieldTyp
 begin
   case (MySQLFieldType) of
     mfUnknown: Result := False;
-    mfBit: Result := Assigned(Engine) and ((Session.Connection.ServerVersion >= 50003) and (Engine.Name = 'MyISAM') or (Session.Connection.ServerVersion >= 50005) and ((Engine.Name = 'MEMORY') or Engine.IsInnoDB or (Engine.Name = 'BDB')));
+    mfBit: Result := Assigned(Engine) and ((Session.Connection.MySQLVersion >= 50003) and (Engine.Name = 'MyISAM') or (Session.Connection.MySQLVersion >= 50005) and ((Engine.Name = 'MEMORY') or Engine.IsInnoDB or (Engine.Name = 'BDB')));
     mfBinary,
-    mfVarBinary: Result := Session.Connection.ServerVersion >= 40102;
+    mfVarBinary: Result := Session.Connection.MySQLVersion >= 40102;
     mfGeometry,
     mfPoint,
     mfLineString,
@@ -9504,8 +9527,8 @@ begin
     mfMultiPoint,
     mfMultiLineString,
     mfMultiPolygon,
-    mfGeometryCollection: Result := Assigned(Engine) and (Assigned(Session.VariableByName('have_geometry')) and Session.VariableByName('have_geometry').AsBoolean and ((Engine.Name = 'MyISAM') or (Session.Connection.ServerVersion >= 50016) and (Engine.IsInnoDB or (Engine.Name = 'NDB') or (Engine.Name = 'BDB') or (Engine.Name = 'ARCHIVE'))));
-    mfJSON: Result := Session.Connection.ServerVersion >= 50708;
+    mfGeometryCollection: Result := Assigned(Engine) and (Assigned(Session.VariableByName('have_geometry')) and Session.VariableByName('have_geometry').AsBoolean and ((Engine.Name = 'MyISAM') or (Session.Connection.MySQLVersion >= 50016) and (Engine.IsInnoDB or (Engine.Name = 'NDB') or (Engine.Name = 'BDB') or (Engine.Name = 'ARCHIVE'))));
+    mfJSON: Result := Session.Connection.MySQLVersion >= 50708;
     else Result := True;
   end;
 end;
@@ -9631,9 +9654,9 @@ end;
 
 function TSCharsets.SQLGetItems(const Name: string = ''): string;
 begin
-  if (Session.Connection.ServerVersion < 40100) then
+  if (Session.Connection.MySQLVersion < 40100) then
     Result := ''
-  else if (Session.Connection.ServerVersion < 50006) then
+  else if (Session.Connection.MySQLVersion < 50006) then
     Result := 'SHOW CHARACTER SET;' + #13#10
   else
     Result := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('CHARACTER_SETS') + ';' + #13#10;
@@ -9641,7 +9664,7 @@ end;
 
 function TSCharsets.Update(): Boolean;
 begin
-  if (Session.Connection.ServerVersion < 40100) then
+  if (Session.Connection.MySQLVersion < 40100) then
     Result := Session.Variables.Update()
   else
     Result := inherited;
@@ -9720,7 +9743,7 @@ end;
 
 function TSCollations.SQLGetItems(const Name: string = ''): string;
 begin
-  if (Session.Connection.ServerVersion < 50006) then
+  if (Session.Connection.MySQLVersion < 50006) then
     Result := 'SHOW COLLATION;' + #13#10
   else
     Result := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('COLLATIONS') + ';' + #13#10;
@@ -9840,7 +9863,7 @@ end;
 
 function TSProcesses.GetValid(): Boolean;
 begin
-  if ((Session.Connection.ServerVersion >= 50000) and (not Assigned(Session.UserRights) or not Session.UserRights.RProcess)) then
+  if ((Session.Connection.MySQLVersion >= 50000) and (not Assigned(Session.UserRights) or not Session.UserRights.RProcess)) then
     Result := False
   else
     Result := inherited;
@@ -9853,7 +9876,7 @@ end;
 
 function TSProcesses.SQLGetItems(const Name: string = ''): string;
 begin
-  if (Session.Connection.ServerVersion < 50107) then
+  if (Session.Connection.MySQLVersion < 50107) then
     Result := 'SHOW FULL PROCESSLIST;' + #13#10
   else
     Result := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('PROCESSLIST') + ';' + #13#10;
@@ -10142,34 +10165,34 @@ procedure TSUser.ParseGrant(const SQL: string);
     with Right do
       begin
         RAlter           := (RAlter           or (Privileg = 'ALTER')                   or (Privileg = 'ALL PRIVILEGES'));
-        RAlterRoutine    := (RAlterRoutine    or (Privileg = 'ALTER ROUTINE')           or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.ServerVersion >= 50003);
+        RAlterRoutine    := (RAlterRoutine    or (Privileg = 'ALTER ROUTINE')           or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.MySQLVersion >= 50003);
         RCreate          := (RCreate          or (Privileg = 'CREATE')                  or (Privileg = 'ALL PRIVILEGES'));
-        RCreateRoutine   := (RCreateRoutine   or (Privileg = 'CREATE ROUTINE')          or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.ServerVersion >= 50003);
-        RCreateTableSpace:= (RCreateTableSpace or(Privileg = 'CREATE TABLESPACE')       or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.ServerVersion >= 50500);
-        RCreateTempTable := (RCreateTempTable or (Privileg = 'CREATE TEMPORARY TABLES') or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.ServerVersion >= 40002);
-        RCreateUser      := (RCreateUser      or (Privileg = 'CREATE USER')             or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.ServerVersion >= 50003);
-        RCreateView      := (RCreateView      or (Privileg = 'CREATE VIEW')             or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.ServerVersion >= 50001);
+        RCreateRoutine   := (RCreateRoutine   or (Privileg = 'CREATE ROUTINE')          or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.MySQLVersion >= 50003);
+        RCreateTableSpace:= (RCreateTableSpace or(Privileg = 'CREATE TABLESPACE')       or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.MySQLVersion >= 50500);
+        RCreateTempTable := (RCreateTempTable or (Privileg = 'CREATE TEMPORARY TABLES') or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.MySQLVersion >= 40002);
+        RCreateUser      := (RCreateUser      or (Privileg = 'CREATE USER')             or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.MySQLVersion >= 50003);
+        RCreateView      := (RCreateView      or (Privileg = 'CREATE VIEW')             or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.MySQLVersion >= 50001);
         RDelete          := (RDelete          or (Privileg = 'DELETE')                  or (Privileg = 'ALL PRIVILEGES'));
         RDrop            := (RDrop            or (Privileg = 'DROP')                    or (Privileg = 'ALL PRIVILEGES'));
-        REvent           := (REvent           or (Privileg = 'EVENT')                   or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.ServerVersion >= 50106);
-        RExecute         := (RExecute         or (Privileg = 'EXECUTE')                 or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.ServerVersion >= 50003);
+        REvent           := (REvent           or (Privileg = 'EVENT')                   or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.MySQLVersion >= 50106);
+        RExecute         := (RExecute         or (Privileg = 'EXECUTE')                 or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.MySQLVersion >= 50003);
         RFile            := (RFile            or (Privileg = 'FILE')                    or (Privileg = 'ALL PRIVILEGES'));
         RGrant           := (RGrant           or (Privileg = 'GRANT OPTION')            or (Privileg = 'ALL PRIVILEGES'));
         RIndex           := (RIndex           or (Privileg = 'INDEX')                   or (Privileg = 'ALL PRIVILEGES'));
         RInsert          := (RInsert          or (Privileg = 'INSERT')                  or (Privileg = 'ALL PRIVILEGES'));
-        RLockTables      := (RLockTables      or (Privileg = 'LOCK TABLES')             or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.ServerVersion >= 40002);
+        RLockTables      := (RLockTables      or (Privileg = 'LOCK TABLES')             or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.MySQLVersion >= 40002);
         RProcess         := (RProcess         or (Privileg = 'PROCESS')                 or (Privileg = 'ALL PRIVILEGES'));
-        RProxy           := (RProxy           or (Privileg = 'PROXY')                   or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.ServerVersion >= 50507);
+        RProxy           := (RProxy           or (Privileg = 'PROXY')                   or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.MySQLVersion >= 50507);
         RReferences      := (RReferences      or (Privileg = 'REFERENCES')              or (Privileg = 'ALL PRIVILEGES'));
         RReload          := (RReload          or (Privileg = 'RELOAD')                  or (Privileg = 'ALL PRIVILEGES'));
-        RReplClient      := (RReplClient      or (Privileg = 'REPLICATION CLIENT')      or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.ServerVersion >= 40002);
-        RReplSlave       := (RReplSlave       or (Privileg = 'REPLICATION SLAVE')       or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.ServerVersion >= 40002);
+        RReplClient      := (RReplClient      or (Privileg = 'REPLICATION CLIENT')      or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.MySQLVersion >= 40002);
+        RReplSlave       := (RReplSlave       or (Privileg = 'REPLICATION SLAVE')       or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.MySQLVersion >= 40002);
         RSelect          := (RSelect          or (Privileg = 'SELECT')                  or (Privileg = 'ALL PRIVILEGES'));
-        RShowDatabases   := (RShowDatabases   or (Privileg = 'SHOW DATABASES')          or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.ServerVersion >= 40002);
-        RShowView        := (RShowView        or (Privileg = 'SHOW VIEW')               or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.ServerVersion >= 50001);
+        RShowDatabases   := (RShowDatabases   or (Privileg = 'SHOW DATABASES')          or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.MySQLVersion >= 40002);
+        RShowView        := (RShowView        or (Privileg = 'SHOW VIEW')               or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.MySQLVersion >= 50001);
         RShutdown        := (RShutdown        or (Privileg = 'SHUTDOWN')                or (Privileg = 'ALL PRIVILEGES'));
-        RSuper           := (RSuper           or (Privileg = 'SUPER')                   or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.ServerVersion >= 40002);
-        RTrigger         := (RTrigger         or (Privileg = 'TRIGGER')                 or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.ServerVersion >= 50106);
+        RSuper           := (RSuper           or (Privileg = 'SUPER')                   or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.MySQLVersion >= 40002);
+        RTrigger         := (RTrigger         or (Privileg = 'TRIGGER')                 or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.MySQLVersion >= 50106);
         RUpdate          := (RUpdate          or (Privileg = 'UPDATE')                  or (Privileg = 'ALL PRIVILEGES'));
       end;
   end;
@@ -10191,7 +10214,7 @@ var
 begin
   Clear();
 
-  if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.ServerVersion)) then
+  if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion)) then
   begin
     while (not SQLParseEnd(Parse)) do
     begin
@@ -10428,7 +10451,7 @@ begin
     repeat
       if (not UseInformationSchema) then
         Name := DataSet.FieldByName('User').AsString + '@' + DataSet.FieldByName('Host').AsString
-      else if (SQLCreateParse(Parse, PChar(DataSet.FieldByName('GRANTEE').AsString), Length(DataSet.FieldByName('GRANTEE').AsString), Session.Connection.ServerVersion)) then
+      else if (SQLCreateParse(Parse, PChar(DataSet.FieldByName('GRANTEE').AsString), Length(DataSet.FieldByName('GRANTEE').AsString), Session.Connection.MySQLVersion)) then
         Name := SQLParseValue(Parse)
       else
         raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Name']);
@@ -10475,7 +10498,7 @@ end;
 
 function TSUsers.SQLGetItems(const Name: string = ''): string;
 begin
-  if (Session.Connection.ServerVersion < 50002) then
+  if (Session.Connection.MySQLVersion < 50002) then
     Result := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier('mysql') + '.' + Session.Connection.EscapeIdentifier('user') + ';' + #13#10
   else
   begin
@@ -10576,7 +10599,7 @@ end;
 
 function TSConnection.GetDataFileAllowed(): Boolean;
 begin
-  Result := inherited GetDataFileAllowed() and ((ServerVersion < 40003) or Session.VariableByName('local_infile').AsBoolean);
+  Result := inherited GetDataFileAllowed() and ((MySQLVersion < 40003) or Session.VariableByName('local_infile').AsBoolean);
 end;
 
 function TSConnection.GetMaxAllowedPacket(): Integer;
@@ -10738,7 +10761,7 @@ begin
   Result := AIdentifierName;
 
   Result := ReplaceStr(Result, #0, '_');
-  if (Connection.ServerVersion < 50106) then
+  if (Connection.MySQLVersion < 50106) then
   begin
     Result := ReplaceStr(Result, ' ', '_');
     Result := ReplaceStr(Result, '/', '_');
@@ -10885,12 +10908,12 @@ begin
   if (not Assigned(FEngines) and Connecting) then
   begin
     if (not Assigned(SQLParser)) then
-      FSQLParser := TSQLParser.Create(Connection.ServerVersion);
+      FSQLParser := TSQLParser.Create(Connection.MySQLVersion);
 
-    if (not Assigned(FCollations) and (Connection.ServerVersion >= 40100)) then FCollations := TSCollations.Create(Self);
+    if (not Assigned(FCollations) and (Connection.MySQLVersion >= 40100)) then FCollations := TSCollations.Create(Self);
     if (not Assigned(FFieldTypes)) then FFieldTypes := TSFieldTypes.Create(Self);
     if (not Assigned(FEngines)) then FEngines := TSEngines.Create(Self);
-    if (not Assigned(FPlugins) and (Connection.ServerVersion >= 50105)) then FPlugins := TSPlugins.Create(Self);
+    if (not Assigned(FPlugins) and (Connection.MySQLVersion >= 50105)) then FPlugins := TSPlugins.Create(Self);
     if (not Assigned(FProcesses)) then FProcesses := TSProcesses.Create(Self);
     if (not Assigned(FStati)) then FStati := TSStati.Create(Self);
     if (not Assigned(FUsers)) then FUsers := TSUsers.Create(Self);
@@ -10899,7 +10922,7 @@ begin
     begin
       Account.LastLogin := Now();
 
-      if ((Connection.ServerVersion > 40100) and not Account.ManualURLFetched) then
+      if ((Connection.MySQLVersion > 40100) and not Account.ManualURLFetched) then
       begin
         Connection.BeginSilent();
 
@@ -11004,7 +11027,7 @@ begin
   FMetadataProvider := TacEventMetadataProvider.Create(nil);
   FPerformanceSchema := nil;
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
-  FSyntaxProvider.ServerVersionInt := Connection.ServerVersion;
+  FSyntaxProvider.ServerVersionInt := Connection.MySQLVersion;
   FUser := nil;
   ParseEndDate := EncodeDate(2016, 10, 26);
   FSQLParser := nil;
@@ -11222,7 +11245,7 @@ begin
 
   for I := 0 to List.Count - 1 do
     if (TObject(List[I]) is TSProcess) then
-      if (Connection.ServerVersion < 50000) then
+      if (Connection.MySQLVersion < 50000) then
         SQL := SQL + 'KILL ' + IntToStr(TSProcess(List[I]).ThreadId) + ';' + #13#10
       else
         SQL := SQL + 'KILL CONNECTION ' + IntToStr(TSProcess(List[I]).ThreadId) + ';' + #13#10;
@@ -11263,7 +11286,7 @@ begin
   begin
     User := TSUser(List[I]);
 
-    if (Connection.ServerVersion < 40101) then
+    if (Connection.MySQLVersion < 40101) then
     begin
       SQL := SQL + 'DELETE FROM ' + Connection.EscapeIdentifier('mysql') + '.' + Connection.EscapeIdentifier('user')         + ' WHERE ' + Connection.EscapeIdentifier('User') + '=' + SQLEscape(User.Name) + ';' + #13#10;
       SQL := SQL + 'DELETE FROM ' + Connection.EscapeIdentifier('mysql') + '.' + Connection.EscapeIdentifier('db')           + ' WHERE ' + Connection.EscapeIdentifier('User') + '=' + SQLEscape(User.Name) + ';' + #13#10;
@@ -11542,12 +11565,12 @@ end;
 
 function TSSession.GetLogActive(): Boolean;
 begin
-  Result := (Connection.ServerVersion >= 50111) and Assigned(VariableByName('log')) and VariableByName('log').AsBoolean;
+  Result := (Connection.MySQLVersion >= 50111) and Assigned(VariableByName('log')) and VariableByName('log').AsBoolean;
 end;
 
 function TSSession.GetSlowLogActive(): Boolean;
 begin
-  Result := (Connection.ServerVersion >= 50111) and Assigned(VariableByName('log_slow_queries')) and VariableByName('log_slow_queries').AsBoolean;
+  Result := (Connection.MySQLVersion >= 50111) and Assigned(VariableByName('log_slow_queries')) and VariableByName('log_slow_queries').AsBoolean;
 end;
 
 function TSSession.GetSlowLog(): string;
@@ -11757,10 +11780,10 @@ begin
     SQLParser.Clear();
   end;
 
-  if ((Connection.ErrorCode = 0) and SQLCreateParse(Parse, Text, Len, Connection.ServerVersion)) then
+  if ((Connection.ErrorCode = 0) and SQLCreateParse(Parse, Text, Len, Connection.MySQLVersion)) then
     if (SQLParseKeyword(Parse, 'SELECT') or SQLParseKeyword(Parse, 'SHOW')) then
       // Do nothing - but do not parse the Text further more
-    else if (SQLParseDDLStmt(DDLStmt, Text, Len, Connection.ServerVersion)) then
+    else if (SQLParseDDLStmt(DDLStmt, Text, Len, Connection.MySQLVersion)) then
     begin
       DDLStmt.DatabaseName := TableName(DDLStmt.DatabaseName);
       if (DDLStmt.ObjectType = otTable) then
@@ -11920,7 +11943,7 @@ begin
                 dtDrop:
                   begin
                     NextSQL := Connection.NextCommandText;
-                    if (SQLParseDDLStmt(NextDDLStmt, PChar(NextSQL), Length(NextSQL), Connection.ServerVersion)
+                    if (SQLParseDDLStmt(NextDDLStmt, PChar(NextSQL), Length(NextSQL), Connection.MySQLVersion)
                       and (NextDDLStmt.ObjectType = DDLStmt.ObjectType)
                       and ((NextDDLStmt.DatabaseName = DDLStmt.DatabaseName) or (NextDDLStmt.DatabaseName = ''))
                       and (NextDDLStmt.ObjectName = DDLStmt.ObjectName)) then
@@ -11973,7 +11996,7 @@ begin
                 dtDrop:
                   begin
                     NextSQL := Connection.NextCommandText;
-                    if (SQLParseDDLStmt(NextDDLStmt, PChar(NextSQL), Length(NextSQL), Connection.ServerVersion)
+                    if (SQLParseDDLStmt(NextDDLStmt, PChar(NextSQL), Length(NextSQL), Connection.MySQLVersion)
                       and (NextDDLStmt.ObjectType = DDLStmt.ObjectType)
                       and ((NextDDLStmt.DatabaseName = DDLStmt.DatabaseName) or (NextDDLStmt.DatabaseName = ''))
                       and (NextDDLStmt.ObjectName = DDLStmt.ObjectName)) then
@@ -12029,7 +12052,7 @@ begin
         end;
       end;
     end
-    else if (SQLParseDMLStmt(DMLStmt, Text, Len, Connection.ServerVersion)) then
+    else if (SQLParseDMLStmt(DMLStmt, Text, Len, Connection.MySQLVersion)) then
     begin
       if ((Length(DMLStmt.DatabaseNames) = 1) and (Length(DMLStmt.TableNames) = 1)
         and (Databases.NameCmp(DMLStmt.DatabaseNames[0], 'mysql') = 0) and (TableNameCmp(DMLStmt.TableNames[0], 'user') = 0)) then
@@ -12278,7 +12301,8 @@ begin
   end;
 end;
 
-function TSSession.SessionResult(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+function TSSession.SessionResult(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
+  const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
 var
   Database: TSDatabase;
   DatabaseName: string;
@@ -12288,15 +12312,13 @@ var
   ObjectName: string;
   Parse: TSQLParse;
   SObject: TSObject;
-  SQL: string;
   Table: TSTable;
 begin
   Result := False;
 
   DataSet := TMySQLQuery.Create(nil);
 
-  SQL := Connection.CommandText;
-  if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Connection.ServerVersion)) then
+  if (SQLCreateParse(Parse, PChar(CommandText), Length(CommandText), Connection.MySQLVersion)) then
     if (SQLParseKeyword(Parse, 'SELECT')) then
     begin
       DatabaseName := Connection.DatabaseName;
@@ -12650,7 +12672,7 @@ begin
   List.Free();
 end;
 
-function TSSession.Update(const Objects: TList; const Status: Boolean = False): Boolean;
+function TSSession.Update(const Objects: TList; const Status: Boolean = False; const ExecuteCompletely: Boolean = False): Boolean;
 var
   BaseTableInTables: Boolean;
   Database: TSDatabase;
@@ -12665,13 +12687,13 @@ begin
   SQL := '';
 
   if (FCurrentUser = '') then
-    if (Connection.ServerVersion < 40006) then
+    if (Connection.MySQLVersion < 40006) then
       SQL := SQL + 'SELECT SYSDATE(),USER();' + #13#10
     else
       SQL := SQL + 'SELECT SYSDATE(),CURRENT_USER();' + #13#10;
 
-  if (not Assigned(FUser) and ((Connection.ServerVersion >= 40102) or (FCurrentUser <> ''))) then
-    if (Connection.ServerVersion < 40102) then
+  if (not Assigned(FUser) and ((Connection.MySQLVersion >= 40102) or (FCurrentUser <> ''))) then
+    if (Connection.MySQLVersion < 40102) then
       SQL := SQL + 'SHOW GRANTS FOR ' + EscapeUser(FCurrentUser) + ';' + #13#10
     else
       SQL := SQL + 'SHOW GRANTS FOR CURRENT_USER();' + #13#10;
@@ -12775,12 +12797,12 @@ begin
         SQL := SQL + TSDatabase(List[I]).Tables.SQLGetStatus(TSDatabase(List[I]).Tables);
     end;
 
-  if (not Assigned(Objects) and Status and (Connection.ServerVersion >= 50002) and not Valid) then
+  if (not Assigned(Objects) and Status and (Connection.MySQLVersion >= 50002) and not Valid) then
   begin
     SQL := SQL + 'SELECT * FROM ' + Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Connection.EscapeIdentifier('TABLES') + ';' + #13#10;
-    if (Connection.ServerVersion >= 50010) then SQL := SQL + 'SELECT * FROM ' + Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Connection.EscapeIdentifier('TRIGGERS') + ';' + #13#10;
-    if (Connection.ServerVersion >= 50004) then SQL := SQL + 'SELECT * FROM ' + Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Connection.EscapeIdentifier('ROUTINES') + ';' + #13#10;
-    if (Connection.ServerVersion >= 50106) then SQL := SQL + 'SELECT * FROM ' + Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Connection.EscapeIdentifier('EVENTS') + ';' + #13#10;
+    if (Connection.MySQLVersion >= 50010) then SQL := SQL + 'SELECT * FROM ' + Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Connection.EscapeIdentifier('TRIGGERS') + ';' + #13#10;
+    if (Connection.MySQLVersion >= 50004) then SQL := SQL + 'SELECT * FROM ' + Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Connection.EscapeIdentifier('ROUTINES') + ';' + #13#10;
+    if (Connection.MySQLVersion >= 50106) then SQL := SQL + 'SELECT * FROM ' + Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Connection.EscapeIdentifier('EVENTS') + ';' + #13#10;
   end;
 
 
@@ -12798,7 +12820,7 @@ var
   SQL: string;
 begin
   SQL := '';
-  if (Connection.ServerVersion >= 40101) then
+  if (Connection.MySQLVersion >= 40101) then
   begin
     if (NewDatabase.Charset <> '') then
       SQL := SQL + ' DEFAULT CHARACTER SET ' + NewDatabase.Charset;
@@ -12810,7 +12832,7 @@ begin
     SQL := 'CREATE DATABASE ' + Connection.EscapeIdentifier(NewDatabase.Name) + SQL + ';' + #13#10
       + NewDatabase.SQLGetSource()
   else if (SQL <> '') then
-    if (Connection.ServerVersion < 40108) then
+    if (Connection.MySQLVersion < 40108) then
     begin
       SQL := 'ALTER DATABASE ' + SQL + ';' + #13#10;
       if (Connection.DatabaseName <> Database.Name) then
@@ -12956,34 +12978,34 @@ type
     Result := '';
 
     if ((not Grant xor NewRight.RAlter          ) and (Grant xor (Assigned(OldRight) and OldRight.RAlter          )) and (RightType in [rtAll, rtDatabase])                                                   ) then       Result := Result + ',ALTER';
-    if ((not Grant xor NewRight.RAlterRoutine   ) and (Grant xor (Assigned(OldRight) and OldRight.RAlterRoutine   )) and (RightType in [rtAll, rtDatabase, rtRoutine]) and (Connection.ServerVersion >= 50003)) then       Result := Result + ',ALTER ROUTINE';
+    if ((not Grant xor NewRight.RAlterRoutine   ) and (Grant xor (Assigned(OldRight) and OldRight.RAlterRoutine   )) and (RightType in [rtAll, rtDatabase, rtRoutine]) and (Connection.MySQLVersion >= 50003)) then       Result := Result + ',ALTER ROUTINE';
     if ((not Grant xor NewRight.RCreate         ) and (Grant xor (Assigned(OldRight) and OldRight.RCreate         )) and (RightType in [rtAll, rtDatabase])                                                   ) then       Result := Result + ',CREATE';
-    if ((not Grant xor NewRight.RCreateRoutine  ) and (Grant xor (Assigned(OldRight) and OldRight.RCreateRoutine  )) and (RightType in [rtAll, rtDatabase])            and (Connection.ServerVersion >= 50003)) then       Result := Result + ',CREATE ROUTINE';
-    if ((not Grant xor NewRight.RCreateTableSpace)and (Grant xor (Assigned(OldRight) and OldRight.RCreateTableSpace))and (RightType in [rtAll])                        and (Connection.ServerVersion >= 50500)) then       Result := Result + ',CREATE TABLESPACE';
-    if ((not Grant xor NewRight.RCreateTempTable) and (Grant xor (Assigned(OldRight) and OldRight.RCreateTempTable)) and (RightType in [rtAll, rtDatabase])            and (Connection.ServerVersion >= 40002)) then       Result := Result + ',CREATE TEMPORARY TABLES';
-    if ((not Grant xor NewRight.RCreateUser     ) and (Grant xor (Assigned(OldRight) and OldRight.RCreateUser     )) and (RightType in [rtAll, rtDatabase])            and (Connection.ServerVersion >= 50003)) then       Result := Result + ',CREATE USER';
-    if ((not Grant xor NewRight.RCreateView     ) and (Grant xor (Assigned(OldRight) and OldRight.RCreateView     )) and (RightType in [rtAll, rtDatabase])            and (Connection.ServerVersion >= 50001)) then       Result := Result + ',CREATE VIEW';
+    if ((not Grant xor NewRight.RCreateRoutine  ) and (Grant xor (Assigned(OldRight) and OldRight.RCreateRoutine  )) and (RightType in [rtAll, rtDatabase])            and (Connection.MySQLVersion >= 50003)) then       Result := Result + ',CREATE ROUTINE';
+    if ((not Grant xor NewRight.RCreateTableSpace)and (Grant xor (Assigned(OldRight) and OldRight.RCreateTableSpace))and (RightType in [rtAll])                        and (Connection.MySQLVersion >= 50500)) then       Result := Result + ',CREATE TABLESPACE';
+    if ((not Grant xor NewRight.RCreateTempTable) and (Grant xor (Assigned(OldRight) and OldRight.RCreateTempTable)) and (RightType in [rtAll, rtDatabase])            and (Connection.MySQLVersion >= 40002)) then       Result := Result + ',CREATE TEMPORARY TABLES';
+    if ((not Grant xor NewRight.RCreateUser     ) and (Grant xor (Assigned(OldRight) and OldRight.RCreateUser     )) and (RightType in [rtAll, rtDatabase])            and (Connection.MySQLVersion >= 50003)) then       Result := Result + ',CREATE USER';
+    if ((not Grant xor NewRight.RCreateView     ) and (Grant xor (Assigned(OldRight) and OldRight.RCreateView     )) and (RightType in [rtAll, rtDatabase])            and (Connection.MySQLVersion >= 50001)) then       Result := Result + ',CREATE VIEW';
     if ((not Grant xor NewRight.RDelete         ) and (Grant xor (Assigned(OldRight) and OldRight.RDelete         )) and (RightType in [rtAll, rtDatabase, rtTable])                                          ) then       Result := Result + ',DELETE';
     if ((not Grant xor NewRight.RDrop           ) and (Grant xor (Assigned(OldRight) and OldRight.RDrop           )) and (RightType in [rtAll, rtDatabase])                                                   ) then       Result := Result + ',DROP';
-    if ((not Grant xor NewRight.REvent          ) and (Grant xor (Assigned(OldRight) and OldRight.REvent          )) and (RightType in [rtAll, rtDatabase])            and (Connection.ServerVersion >= 50106)) then       Result := Result + ',EVENT';
-    if ((not Grant xor NewRight.RExecute        ) and (Grant xor (Assigned(OldRight) and OldRight.RExecute        )) and (RightType in [rtAll, rtDatabase, rtRoutine]) and (Connection.ServerVersion >= 50003)) then       Result := Result + ',EXECUTE';
+    if ((not Grant xor NewRight.REvent          ) and (Grant xor (Assigned(OldRight) and OldRight.REvent          )) and (RightType in [rtAll, rtDatabase])            and (Connection.MySQLVersion >= 50106)) then       Result := Result + ',EVENT';
+    if ((not Grant xor NewRight.RExecute        ) and (Grant xor (Assigned(OldRight) and OldRight.RExecute        )) and (RightType in [rtAll, rtDatabase, rtRoutine]) and (Connection.MySQLVersion >= 50003)) then       Result := Result + ',EXECUTE';
     if ((not Grant xor NewRight.RFile           ) and (Grant xor (Assigned(OldRight) and OldRight.RFile           )) and (RightType in [rtAll])                                                               ) then       Result := Result + ',FILE';
     if ((not Grant xor NewRight.RGrant          ) and (Grant xor (Assigned(OldRight) and OldRight.RGrant          )) and (RightType in [rtAll, rtDatabase, rtRoutine])                                        ) then       Result := Result + ',GRANT OPTION';
     if ((not Grant xor NewRight.RIndex          ) and (Grant xor (Assigned(OldRight) and OldRight.RIndex          )) and (RightType in [rtAll, rtDatabase])                                                   ) then       Result := Result + ',INDEX';
     if ((not Grant xor NewRight.RInsert         ) and (Grant xor (Assigned(OldRight) and OldRight.RInsert         ))                                                                                          ) then begin Result := Result + ',INSERT';                  if (not Grant and (OldRight.FieldName <> '')) then Result := Result + '(' + Connection.EscapeIdentifier(OldRight.FieldName) + ')' else if (Grant and (NewRight.FieldName <> '')) then Result := Result + '(' + Connection.EscapeIdentifier(NewRight.FieldName) + ')'; end;
-    if ((not Grant xor NewRight.RLockTables     ) and (Grant xor (Assigned(OldRight) and OldRight.RLockTables     )) and (RightType in [rtAll, rtDatabase])            and (Connection.ServerVersion >= 40002)) then       Result := Result + ',LOCK TABLES';
+    if ((not Grant xor NewRight.RLockTables     ) and (Grant xor (Assigned(OldRight) and OldRight.RLockTables     )) and (RightType in [rtAll, rtDatabase])            and (Connection.MySQLVersion >= 40002)) then       Result := Result + ',LOCK TABLES';
     if ((not Grant xor NewRight.RProcess        ) and (Grant xor (Assigned(OldRight) and OldRight.RProcess        )) and (RightType in [rtAll])                                                               ) then       Result := Result + ',PROCESS';
-    if ((not Grant xor NewRight.RProxy          ) and (Grant xor (Assigned(OldRight) and OldRight.RProxy          )) and (RightType in [rtAll])                        and (Connection.ServerVersion >= 50507)) then       Result := Result + ',PROXY';
+    if ((not Grant xor NewRight.RProxy          ) and (Grant xor (Assigned(OldRight) and OldRight.RProxy          )) and (RightType in [rtAll])                        and (Connection.MySQLVersion >= 50507)) then       Result := Result + ',PROXY';
     if ((not Grant xor NewRight.RReferences     ) and (Grant xor (Assigned(OldRight) and OldRight.RReferences     ))                                                                                          ) then begin Result := Result + ',REFERENCES';              if (not Grant and (OldRight.FieldName <> '')) then Result := Result + '(' + Connection.EscapeIdentifier(OldRight.FieldName) + ')' else if (Grant and (NewRight.FieldName <> '')) then Result := Result + '(' + Connection.EscapeIdentifier(NewRight.FieldName) + ')'; end;
     if ((not Grant xor NewRight.RReload         ) and (Grant xor (Assigned(OldRight) and OldRight.RReload         )) and (RightType in [rtAll])                                                               ) then       Result := Result + ',RELOAD';
-    if ((not Grant xor NewRight.RReplClient     ) and (Grant xor (Assigned(OldRight) and OldRight.RReplClient     )) and (RightType in [rtAll])                        and (Connection.ServerVersion >= 40002)) then       Result := Result + ',REPLICATION CLIENT';
-    if ((not Grant xor NewRight.RReplSlave      ) and (Grant xor (Assigned(OldRight) and OldRight.RReplSlave      )) and (RightType in [rtAll])                        and (Connection.ServerVersion >= 40002)) then       Result := Result + ',REPLICATION SLAVE';
+    if ((not Grant xor NewRight.RReplClient     ) and (Grant xor (Assigned(OldRight) and OldRight.RReplClient     )) and (RightType in [rtAll])                        and (Connection.MySQLVersion >= 40002)) then       Result := Result + ',REPLICATION CLIENT';
+    if ((not Grant xor NewRight.RReplSlave      ) and (Grant xor (Assigned(OldRight) and OldRight.RReplSlave      )) and (RightType in [rtAll])                        and (Connection.MySQLVersion >= 40002)) then       Result := Result + ',REPLICATION SLAVE';
     if ((not Grant xor NewRight.RSelect         ) and (Grant xor (Assigned(OldRight) and OldRight.RSelect         ))                                                                                          ) then begin Result := Result + ',SELECT';                  if (not Grant and (OldRight.FieldName <> '')) then Result := Result + '(' + Connection.EscapeIdentifier(OldRight.FieldName) + ')' else if (Grant and (NewRight.FieldName <> '')) then Result := Result + '(' + Connection.EscapeIdentifier(NewRight.FieldName) + ')'; end;
-    if ((not Grant xor NewRight.RShowDatabases  ) and (Grant xor (Assigned(OldRight) and OldRight.RShowDatabases  )) and (RightType in [rtAll])                        and (Connection.ServerVersion >= 40002)) then       Result := Result + ',SHOW DATABASES';
-    if ((not Grant xor NewRight.RShowView       ) and (Grant xor (Assigned(OldRight) and OldRight.RShowView       )) and (RightType in [rtAll, rtDatabase])            and (Connection.ServerVersion >= 50001)) then       Result := Result + ',SHOW VIEW';
+    if ((not Grant xor NewRight.RShowDatabases  ) and (Grant xor (Assigned(OldRight) and OldRight.RShowDatabases  )) and (RightType in [rtAll])                        and (Connection.MySQLVersion >= 40002)) then       Result := Result + ',SHOW DATABASES';
+    if ((not Grant xor NewRight.RShowView       ) and (Grant xor (Assigned(OldRight) and OldRight.RShowView       )) and (RightType in [rtAll, rtDatabase])            and (Connection.MySQLVersion >= 50001)) then       Result := Result + ',SHOW VIEW';
     if ((not Grant xor NewRight.RShutdown       ) and (Grant xor (Assigned(OldRight) and OldRight.RShutdown       )) and (RightType in [rtAll])                                                               ) then       Result := Result + ',SHUTDOWN';
-    if ((not Grant xor NewRight.RSuper          ) and (Grant xor (Assigned(OldRight) and OldRight.RSuper          )) and (RightType in [rtAll])                        and (Connection.ServerVersion >= 40002)) then       Result := Result + ',SUPER';
-    if ((not Grant xor NewRight.RTrigger        ) and (Grant xor (Assigned(OldRight) and OldRight.RTrigger        )) and (RightType in [rtAll, rtDatabase])            and (Connection.ServerVersion >= 50106)) then       Result := Result + ',TRIGGER';
+    if ((not Grant xor NewRight.RSuper          ) and (Grant xor (Assigned(OldRight) and OldRight.RSuper          )) and (RightType in [rtAll])                        and (Connection.MySQLVersion >= 40002)) then       Result := Result + ',SUPER';
+    if ((not Grant xor NewRight.RTrigger        ) and (Grant xor (Assigned(OldRight) and OldRight.RTrigger        )) and (RightType in [rtAll, rtDatabase])            and (Connection.MySQLVersion >= 50106)) then       Result := Result + ',TRIGGER';
     if ((not Grant xor NewRight.RUpdate         ) and (Grant xor (Assigned(OldRight) and OldRight.RUpdate         ))                                                                                          ) then begin Result := Result + ',UPDATE';                  if (not Grant and (OldRight.FieldName <> '')) then Result := Result + '(' + Connection.EscapeIdentifier(OldRight.FieldName) + ')' else if (Grant and (NewRight.FieldName <> '')) then Result := Result + '(' + Connection.EscapeIdentifier(NewRight.FieldName) + ')'; end;
 
     Delete(Result, 1, 1);
@@ -13004,7 +13026,7 @@ begin
   SQL := '';
 
   if (Assigned(User) and (NewUser.Name <> User.Name)) then
-    if (Connection.ServerVersion < 50002) then
+    if (Connection.MySQLVersion < 50002) then
     begin
       SQL := SQL + 'UPDATE ' + Connection.EscapeIdentifier('mysql') + '.' + Connection.EscapeIdentifier('user'        ) + ' SET ' + Connection.EscapeIdentifier('User') + '=' + SQLEscape(NewUser.Login) + ',' + Connection.EscapeIdentifier('Host') + '=' + SQLEscape(NewUser.Host) + ' WHERE ' + Connection.EscapeIdentifier('User') + '=' + SQLEscape(User.Login) + ' AND ' + Connection.EscapeIdentifier('Host') + '=' + SQLEscape(User.Host) + ';' + #13#10;
       SQL := SQL + 'UPDATE ' + Connection.EscapeIdentifier('mysql') + '.' + Connection.EscapeIdentifier('db'          ) + ' SET ' + Connection.EscapeIdentifier('User') + '=' + SQLEscape(NewUser.Login) + ',' + Connection.EscapeIdentifier('Host') + '=' + SQLEscape(NewUser.Host) + ' WHERE ' + Connection.EscapeIdentifier('User') + '=' + SQLEscape(User.Login) + ' AND ' + Connection.EscapeIdentifier('Host') + '=' + SQLEscape(User.Host) + ';' + #13#10;
@@ -13014,7 +13036,7 @@ begin
     else
       SQL := SQL + 'RENAME USER ' + EscapeUser(User.Name) + ' TO ' + EscapeUser(NewUser.Name) + ';' + #13#10;
 
-  if (not Assigned(User) and (Connection.ServerVersion > 50002)) then
+  if (not Assigned(User) and (Connection.MySQLVersion > 50002)) then
     SQL := SQL + 'CREATE USER ' + EscapeUser(NewUser.Name) + ';' + #13#10;
 
   if (not Assigned(User)) then
@@ -13072,12 +13094,12 @@ begin
       if (not Assigned(User) and (NewUser.ConnectionsPerHour > 0) or Assigned(User) and (User.ConnectionsPerHour <> NewUser.ConnectionsPerHour)) then Options := Options + ' MAX_CONNECTIONS_PER_HOUR ' + IntToStr(NewUser.ConnectionsPerHour);
       if (not Assigned(User) and (NewUser.QueriesPerHour     > 0) or Assigned(User) and (User.QueriesPerHour     <> NewUser.QueriesPerHour    )) then Options := Options + ' MAX_QUERIES_PER_HOUR '     + IntToStr(NewUser.QueriesPerHour);
       if (not Assigned(User) and (NewUser.UpdatesPerHour     > 0) or Assigned(User) and (User.UpdatesPerHour     <> NewUser.UpdatesPerHour    )) then Options := Options + ' MAX_UPDATES_PER_HOUR '     + IntToStr(NewUser.UpdatesPerHour);
-      if (Connection.ServerVersion >= 50003) then
+      if (Connection.MySQLVersion >= 50003) then
         if (not Assigned(User) and (NewUser.UserConnections    > 0) or Assigned(User) and (User.UserConnections    <> NewUser.UserConnections   )) then Options := Options + ' MAX_USER_CONNECTIONS '     + IntToStr(NewUser.UserConnections);
     end;
     Options := Trim(Options);
 
-    if ((Privileges = '') and ((Options <> '') or (not Assigned(User) and (Connection.ServerVersion <= 50002)))) then
+    if ((Privileges = '') and ((Options <> '') or (not Assigned(User) and (Connection.MySQLVersion <= 50002)))) then
       Privileges := 'USAGE';
 
     if (Privileges <> '') then
@@ -13085,7 +13107,7 @@ begin
       SingleSQL := 'GRANT ' + Privileges + ' ON ';
 
       if (NewRight.TableName <> '') then
-        if (Connection.ServerVersion < 50006) then
+        if (Connection.MySQLVersion < 50006) then
           SingleSQL := SingleSQL + Connection.EscapeIdentifier(NewRight.DatabaseName) + '.' + Connection.EscapeIdentifier(NewRight.TableName)
         else
           SingleSQL := SingleSQL + 'TABLE ' + Connection.EscapeIdentifier(NewRight.DatabaseName) + '.' + Connection.EscapeIdentifier(NewRight.TableName)

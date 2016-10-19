@@ -314,11 +314,13 @@ begin
     else
       TSExtrasShow(nil)
   else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is TSDatabase)) then
-    ModalResult := mrOk
-  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.Connection.ErrorCode <> 0)) then
+    ModalResult := mrOk;
+
+  if (Event.EventType = etAfterExecuteSQL) then
   begin
     PageControl.Visible := True;
     PSQLWait.Visible := not PageControl.Visible;
+    FBOkCheckEnabled(nil);
   end;
 end;
 
@@ -383,8 +385,8 @@ begin
   end;
 
   FName.Enabled := not Assigned(Database) or not Assigned(Session.DatabaseByName(Database.Name));
-  FCharset.Visible := Session.Connection.ServerVersion >= 40101; FLCharset.Visible := FCharset.Visible;
-  FCollation.Visible := Session.Connection.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
+  FCharset.Visible := Session.Connection.MySQLVersion >= 40101; FLCharset.Visible := FCharset.Visible;
+  FCollation.Visible := Session.Connection.MySQLVersion >= 40101; FLCollation.Visible := FCollation.Visible;
 
   FBOptimize.Enabled := True;
   FBCheck.Enabled := True;

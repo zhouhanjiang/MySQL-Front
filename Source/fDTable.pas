@@ -575,7 +575,7 @@ begin
     FCollation.ItemIndex := -1;
   FCollationChange(Self);
 
-  FComment.Text := SQLUnwrapStmt(NewTable.Comment, Database.Session.Connection.ServerVersion);
+  FComment.Text := SQLUnwrapStmt(NewTable.Comment, Database.Session.Connection.MySQLVersion);
 
   if (not Assigned(NewTable.Engine)) then
     FEngine.ItemIndex := -1
@@ -904,8 +904,8 @@ begin
   aPDeletePartition.Enabled := Selected and (ListView.SelCount >= 1);
   aPEditPartition.Enabled := Selected and (ListView.SelCount = 1) and (Page = TSPartitions);
 
-  aPUp.Enabled := Selected and (ListView = FFields) and not ListView.Items[0].Selected and (NewTable.Database.Session.Connection.ServerVersion >= 40001);
-  aPDown.Enabled := Selected and (ListView = FFields) and not ListView.Items[ListView.Items.Count - 1].Selected and (NewTable.Database.Session.Connection.ServerVersion >= 40001);
+  aPUp.Enabled := Selected and (ListView = FFields) and not ListView.Items[0].Selected and (NewTable.Database.Session.Connection.MySQLVersion >= 40001);
+  aPDown.Enabled := Selected and (ListView = FFields) and not ListView.Items[ListView.Items.Count - 1].Selected and (NewTable.Database.Session.Connection.MySQLVersion >= 40001);
 
   ShowEnabledItems(MList.Items);
 
@@ -921,7 +921,7 @@ begin
     NewTable.Name := Trim(FName.Text);
     NewTable.Charset := FCharset.Text;
     NewTable.Collation := FCollation.Text;
-    if (not Assigned(Table) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewTable.Comment, Database.Session.Connection.ServerVersion))) then
+    if (not Assigned(Table) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewTable.Comment, Database.Session.Connection.MySQLVersion))) then
       NewTable.Comment := Trim(FComment.Text);
 
     if (GRecords.Visible) then
@@ -1170,8 +1170,8 @@ begin
   end;
 
 
-  FCharset.Visible := Database.Session.Connection.ServerVersion >= 40101; FLCharset.Visible := FCharset.Visible;
-  FCollation.Visible := Database.Session.Connection.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
+  FCharset.Visible := Database.Session.Connection.MySQLVersion >= 40101; FLCharset.Visible := FCharset.Visible;
+  FCollation.Visible := Database.Session.Connection.MySQLVersion >= 40101; FLCollation.Visible := FCollation.Visible;
   GRecords.Visible := Assigned(Table);
 
   FReferenced.Cursor := crDefault;
@@ -1477,7 +1477,7 @@ begin
           end;
         end;
         ListItem.SubItems.Add(S);
-        if (NewTable.Session.Connection.ServerVersion >= 40100) then
+        if (NewTable.Session.Connection.MySQLVersion >= 40100) then
           ListItem.SubItems.Add(NewTable.Fields[I].Comment);
         ListItem.ImageIndex := iiField;
       end
@@ -1582,7 +1582,7 @@ begin
         ListItem.SubItems.Add('fulltext')
       else
         ListItem.SubItems.Add('');
-      if (Database.Session.Connection.ServerVersion >= 50503) then
+      if (Database.Session.Connection.MySQLVersion >= 50503) then
         ListItem.SubItems.Add(NewTable.Keys[I].Comment);
       ListItem.ImageIndex := iiKey;
     end;
@@ -1669,7 +1669,7 @@ begin
 
   List := TList.Create();
   List.Add(Table.ReferencedRequester);
-  if (not Database.Session.Update(List)) then
+  if (not Database.Session.Update(List, False, True)) then
     FReferenced.Cursor := crSQLWait;
   List.Free();
 end;

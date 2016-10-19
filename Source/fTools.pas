@@ -903,7 +903,7 @@ begin
   if (Replace) then
     Result := Result + '  REPLACE' + #13#10;
   Result := Result + '  INTO TABLE ' + Session.Connection.EscapeIdentifier(DatabaseName) + '.' + Session.Connection.EscapeIdentifier(TableName) + #13#10;
-  if (((50038 <= Session.Connection.ServerVersion) and (Session.Connection.ServerVersion < 50100) or (50117 <= Session.Connection.ServerVersion)) and (FileCharset <> '')) then
+  if (((50038 <= Session.Connection.MySQLVersion) and (Session.Connection.MySQLVersion < 50100) or (50117 <= Session.Connection.MySQLVersion)) and (FileCharset <> '')) then
     Result := Result + '  CHARACTER SET ' + FileCharset + #13#10;
   Result := Result + '  FIELDS' + #13#10;
   Result := Result + '    TERMINATED BY ' + SQLEscape(',') + #13#10;
@@ -923,8 +923,8 @@ begin
   end;
   Result := SysUtils.Trim(Result) + ';' + #13#10;
 
-  if (((Session.Connection.ServerVersion < 50038) or (50100 <= Session.Connection.ServerVersion)) and (Session.Connection.ServerVersion < 50117) and (FileCharset <> '')) then
-    if ((Session.Connection.ServerVersion < 40100) or not Assigned(Session.VariableByName('character_set_database'))) then
+  if (((Session.Connection.MySQLVersion < 50038) or (50100 <= Session.Connection.MySQLVersion)) and (Session.Connection.MySQLVersion < 50117) and (FileCharset <> '')) then
+    if ((Session.Connection.MySQLVersion < 40100) or not Assigned(Session.VariableByName('character_set_database'))) then
       Session.Connection.Charset := FileCharset
     else if ((Session.VariableByName('character_set_database').Value <> FileCharset) and (Session.Connection.LibraryType <> ltHTTP)) then
       Result :=
@@ -1707,7 +1707,7 @@ procedure TTImport.AfterExecute();
 var
   SQL: string;
 begin
-  if (Data and (Session.Connection.ServerVersion >= 40014)) then
+  if (Data and (Session.Connection.MySQLVersion >= 40014)) then
   begin
     SQL := 'SET UNIQUE_CHECKS=' + OLD_UNIQUE_CHECKS + ',FOREIGN_KEY_CHECKS=' + OLD_FOREIGN_KEY_CHECKS + ';' + #13#10;
     while (not Session.Connection.ExecuteSQL(SQL) and (Success = daSuccess)) do
@@ -1735,7 +1735,7 @@ begin
 
   Session.Connection.BeginSilent();
 
-  if (Data and (Session.Connection.ServerVersion >= 40014)) then
+  if (Data and (Session.Connection.MySQLVersion >= 40014)) then
   begin
     if (Assigned(Session.VariableByName('UNIQUE_CHECKS'))
       and Assigned(Session.VariableByName('FOREIGN_KEY_CHECKS'))) then
@@ -1964,14 +1964,14 @@ begin
       SQL := SQL + Database.SQLUse() + #13#10;
     if (Session.Connection.Lib.LibraryType <> ltHTTP) then
     begin
-      if (Session.Connection.ServerVersion < 40011) then
+      if (Session.Connection.MySQLVersion < 40011) then
         SQL := SQL + 'BEGIN;' + #13#10
       else
         SQL := SQL + 'START TRANSACTION;' + #13#10;
       if (Structure) then
       begin
         SQL := SQL + 'LOCK TABLES ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + EscapedTableName + ' WRITE;' + #13#10;
-        if ((Session.Connection.ServerVersion >= 40000) and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
+        if ((Session.Connection.MySQLVersion >= 40000) and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
           SQL := SQL + 'ALTER TABLE ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + EscapedTableName + ' DISABLE KEYS;' + #13#10;
       end;
     end;
@@ -2193,7 +2193,7 @@ begin
       SQL := '';
       if (Structure) then
       begin
-        if ((Session.Connection.ServerVersion >= 40000) and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
+        if ((Session.Connection.MySQLVersion >= 40000) and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
           SQL := SQL + 'ALTER TABLE ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
         SQL := SQL + 'UNLOCK TABLES;' + #13#10;
       end;
@@ -2535,7 +2535,7 @@ begin
       end;
 
     SetNames := not EOF
-      and SQLParseCLStmt(CLStmt, @FileContent.Str[Index], Length(FileContent.Str), Session.Connection.ServerVersion)
+      and SQLParseCLStmt(CLStmt, @FileContent.Str[Index], Length(FileContent.Str), Session.Connection.MySQLVersion)
       and (CLStmt.CommandType in [ctSetNames, ctSetCharacterSet, ctSetCharset]);
 
     if ((Index > 1) and (SetNames or (Index - 1 + Len >= SQLPacketSize))) then
@@ -4570,7 +4570,7 @@ begin
   Content := Content + '# Internet: ' + SysUtils.LoadStr(1004) + #13#10;
   Content := Content + #13#10;
 
-  if ((CodePage <> CP_UNICODE) and (Session.Connection.CodePageToCharset(CodePage) <> '') and (Session.Connection.ServerVersion >= 40101)) then
+  if ((CodePage <> CP_UNICODE) and (Session.Connection.CodePageToCharset(CodePage) <> '') and (Session.Connection.MySQLVersion >= 40101)) then
     Content := Content + '/*!40101 SET NAMES ' + Session.Connection.CodePageToCharset(CodePage) + ' */;' + #13#10;
 
   WriteContent(Content);
@@ -5326,7 +5326,7 @@ begin
         Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(35)) + '</th>';
         Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(69)) + '</th>';
         Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(73)) + '</th>';
-        if (Session.Connection.ServerVersion >= 50503) then
+        if (Session.Connection.MySQLVersion >= 50503) then
           Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(111)) + '</th>';
         Content := Content + '</tr>' + #13#10;
         for I := 0 to TSBaseTable(Table).Keys.Count - 1 do
@@ -5351,7 +5351,7 @@ begin
             Content := Content + '<td>fulltext</td>'
           else
             Content := Content + '<td>&nbsp;</td>';
-          if (Session.Connection.ServerVersion >= 50503) then
+          if (Session.Connection.MySQLVersion >= 50503) then
             Content := Content + '<td>' + HTMLEscape(TSBaseTable(Table).Keys[I].Comment) + '</td>';
           Content := Content + '</tr>' + #13#10;
         end;
@@ -5367,7 +5367,7 @@ begin
       Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(71)) + '</th>';
       Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(72)) + '</th>';
       Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(73)) + '</th>';
-      if (Session.Connection.ServerVersion >= 40100) then
+      if (Session.Connection.MySQLVersion >= 40100) then
         Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(111)) + '</th>';
       Content := Content + '</tr>' + #13#10;
       for I := 0 to Table.Fields.Count - 1 do
@@ -5409,7 +5409,7 @@ begin
           Content := Content + '<td>' + HTMLEscape(S) + '</td>'
         else
           Content := Content + '<td>&nbsp;</td>';
-        if (Session.Connection.ServerVersion >= 40100) then
+        if (Session.Connection.MySQLVersion >= 40100) then
           if (TSBaseTableField(Table.Fields[I]).Comment <> '') then
             Content := Content + '<td>' + HTMLEscape(TSBaseTableField(Table.Fields[I]).Comment) + '</td>'
           else
@@ -6926,14 +6926,14 @@ begin
         SetFont(ContentFont, ContentFont.Size + 2, ContentFont.Style + [fsBold]);
         ContentTextOut(Preferences.LoadStr(458) + ':', Padding);
 
-        if (Session.Connection.ServerVersion < 50503) then
+        if (Session.Connection.MySQLVersion < 50503) then
           SetLength(Columns, 3)
         else
           SetLength(Columns, 4);
         Columns[0].HeaderText := Preferences.LoadStr(35);
         Columns[1].HeaderText := Preferences.LoadStr(69);
         Columns[2].HeaderText := Preferences.LoadStr(73);
-        if (Session.Connection.ServerVersion >= 50503) then
+        if (Session.Connection.MySQLVersion >= 50503) then
           Columns[3].HeaderText := Preferences.LoadStr(111);
 
         SetLength(GridData, TSBaseTable(Table).Keys.Count);
@@ -6962,7 +6962,7 @@ begin
             GridData[I][2].Text := 'fulltext'
           else
             GridData[I][2].Text := '';
-          if (Session.Connection.ServerVersion >= 50503) then
+          if (Session.Connection.MySQLVersion >= 50503) then
             GridData[I][3].Text := TSBaseTable(Table).Keys[I].Comment;
         end;
 
@@ -6974,7 +6974,7 @@ begin
       SetFont(ContentFont, ContentFont.Size + 2, ContentFont.Style + [fsBold]);
       ContentTextOut(Preferences.LoadStr(253) + ':', Padding);
 
-      if (Session.Connection.ServerVersion < 40100) then
+      if (Session.Connection.MySQLVersion < 40100) then
         SetLength(Columns, 5)
       else
         SetLength(Columns, 6);
@@ -6983,7 +6983,7 @@ begin
       Columns[2].HeaderText := Preferences.LoadStr(71);
       Columns[3].HeaderText := Preferences.LoadStr(72);
       Columns[4].HeaderText := Preferences.LoadStr(73);
-      if (Session.Connection.ServerVersion >= 40100) then
+      if (Session.Connection.MySQLVersion >= 40100) then
         Columns[5].HeaderText := Preferences.LoadStr(111);
 
 
@@ -7030,7 +7030,7 @@ begin
           end;
         end;
         GridData[I][4].Text := S;
-        if (Session.Connection.ServerVersion >= 40100) then
+        if (Session.Connection.MySQLVersion >= 40100) then
           GridData[I][5].Text := TSBaseTableField(Table.Fields[I]).Comment;
       end;
 
@@ -7709,7 +7709,7 @@ procedure TTTransfer.AfterExecute();
 var
   SQL: string;
 begin
-  if (Data and (DestinationSession.Connection.ServerVersion >= 40014)) then
+  if (Data and (DestinationSession.Connection.MySQLVersion >= 40014)) then
   begin
     SQL := 'SET UNIQUE_CHECKS=' + OLD_UNIQUE_CHECKS + ', FOREIGN_KEY_CHECKS=' + OLD_FOREIGN_KEY_CHECKS + ';' + #13#10;
     while ((Success <> daRetry) and not DestinationSession.Connection.ExecuteSQL(SQL)) do
@@ -7760,7 +7760,7 @@ begin
     end;
   end;
 
-  if (Data and (DestinationSession.Connection.ServerVersion >= 40014)) then
+  if (Data and (DestinationSession.Connection.MySQLVersion >= 40014)) then
   begin
     if (Assigned(DestinationSession.VariableByName('UNIQUE_CHECKS'))
       and Assigned(DestinationSession.VariableByName('FOREIGN_KEY_CHECKS'))) then
@@ -8024,7 +8024,7 @@ begin
   FieldCount := 0;
   for I := 0 to SourceTable.Fields.Count - 1 do
     for J := 0 to DestinationTable.Fields.Count - 1 do
-      if (lstrcmpi(PChar(SourceTable.Fields[I].Name), PChar(DestinationTable.Fields[J].Name)) = 0) then
+      if (DestinationTable.Fields.NameCmp(SourceTable.Fields[I].Name, DestinationTable.Fields[J].Name) = 0) then
         Inc(FieldCount);
 
   if ((Success = daSuccess) and (FieldCount > 0)) then
@@ -8060,18 +8060,18 @@ begin
         begin
           SQL := '';
           if (DestinationSession.Connection.Lib.LibraryType <> ltHTTP) then
-            if (DestinationSession.Connection.ServerVersion < 40011) then
+            if (DestinationSession.Connection.MySQLVersion < 40011) then
               SQL := SQL + 'BEGIN;' + #13#10
             else
               SQL := SQL + 'START TRANSACTION;' + #13#10;
           if (DestinationSession.Databases.NameCmp(DestinationSession.Connection.DatabaseName, DestinationDatabase.Name) <> 0) then
             SQL := SQL + DestinationDatabase.SQLUse();
-          if ((DestinationSession.Connection.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM and not DataSet.IsEmpty()) then
+          if ((DestinationSession.Connection.MySQLVersion >= 40000) and DestinationTable.Engine.IsMyISAM and not DataSet.IsEmpty()) then
             SQL := SQL + 'ALTER TABLE ' + DestinationSession.Connection.EscapeIdentifier(DestinationDatabase.Name) + '.' + DestinationSession.Connection.EscapeIdentifier(DestinationTable.Name) + ' DISABLE KEYS;' + #13#10;
           if (DestinationDatabase.Name <> DestinationSession.Connection.DatabaseName) then
             SQL := SQL + DestinationDatabase.SQLUse();
           SQL := SQL + SQLLoadDataInfile(DestinationDatabase, False, Pipename, DestinationSession.Connection.Charset, DestinationDatabase.Name, DestinationTable.Name, []);
-          if ((DestinationSession.Connection.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM and not DataSet.IsEmpty()) then
+          if ((DestinationSession.Connection.MySQLVersion >= 40000) and DestinationTable.Engine.IsMyISAM and not DataSet.IsEmpty()) then
             SQL := SQL + 'ALTER TABLE ' + DestinationSession.Connection.EscapeIdentifier(DestinationDatabase.Name) + '.' + DestinationSession.Connection.EscapeIdentifier(DestinationTable.Name) + ' ENABLE KEYS;' + #13#10;
           if (DestinationSession.Connection.Lib.LibraryType <> ltHTTP) then
             SQL := SQL + 'COMMIT;' + #13#10;
@@ -8159,12 +8159,12 @@ begin
         SQLInsertPostfix := ';' + #13#10;
 
         if (DestinationSession.Connection.Lib.LibraryType <> ltHTTP) then
-          if (DestinationSession.Connection.ServerVersion < 40011) then
+          if (DestinationSession.Connection.MySQLVersion < 40011) then
             SQL := SQL + 'BEGIN;' + #13#10
           else
             SQL := SQL + 'START TRANSACTION;' + #13#10;
         SQL := SQL + 'LOCK TABLES ' + EscapedTableName + ' WRITE;' + #13#10;
-        if ((DestinationSession.Connection.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
+        if ((DestinationSession.Connection.MySQLVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
           SQL := SQL + 'ALTER TABLE ' + EscapedTableName + ' DISABLE KEYS;' + #13#10;
 
         if (DestinationSession.Databases.NameCmp(DestinationSession.Connection.DatabaseName, DestinationDatabase.Name) <> 0) then
@@ -8266,7 +8266,7 @@ begin
           SQL := SQL + SQLInsertPostfix;
           Inc(SQLInsertLen, Length(SQLInsertPostfix));
         end;
-        if ((DestinationSession.Connection.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
+        if ((DestinationSession.Connection.MySQLVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
           SQL := SQL + 'ALTER TABLE ' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
         SQL := SQL + 'UNLOCK TABLES;' + #13#10;
         if (DestinationSession.Connection.Lib.LibraryType <> ltHTTP) then
@@ -8283,7 +8283,7 @@ begin
       if (Success <> daSuccess) then
       begin
         SQL := '';
-        if ((DestinationSession.Connection.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
+        if ((DestinationSession.Connection.MySQLVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
           SQL := SQL + 'ALTER TABLE ' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
         SQL := SQL + 'UNLOCK TABLES;' + #13#10;
         if (DestinationSession.Connection.Lib.LibraryType <> ltHTTP) then

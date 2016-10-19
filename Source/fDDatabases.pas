@@ -95,10 +95,6 @@ begin
   if (not Assigned(FDatabases.ItemFocused) and (FDatabases.Items.Count > 0)) then
     FDatabases.ItemFocused := FDatabases.Items[0];
 
-  GroupBox.Visible := True;
-  PSQLWait.Visible := not GroupBox.Visible;
-  FBOkCheckEnabled(nil);
-
   ActiveControl := FDatabases;
 end;
 
@@ -129,6 +125,13 @@ procedure TDDatabases.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType in [etItemsValid]) and (Event.SItems = Session.Databases)) then
     Built();
+
+  if (Event.EventType = etAfterExecuteSQL) then
+  begin
+    GroupBox.Visible := True;
+    PSQLWait.Visible := not GroupBox.Visible;
+    FBOkCheckEnabled(nil);
+  end;
 end;
 
 procedure TDDatabases.FormCreate(Sender: TObject);

@@ -196,7 +196,7 @@ var
 begin
   FBOk.Enabled := PageControl.Visible
     and (FName.Text <> '')
-    and SQLSingleStmt(FStmt.Text) and SQLCreateParse(Parse, PChar(FStmt.Text), Length(FStmt.Text), Database.Session.Connection.ServerVersion) and SQLParseKeyword(Parse, 'SELECT');
+    and SQLSingleStmt(FStmt.Text) and SQLCreateParse(Parse, PChar(FStmt.Text), Length(FStmt.Text), Database.Session.Connection.MySQLVersion) and SQLParseKeyword(Parse, 'SELECT');
   for I := 0 to Database.Tables.Count - 1 do
     if (Database.Session.TableNameCmp(FName.Text, Database.Tables[I].Name) = 0) and not (not Assigned(View) or (Database.Session.TableNameCmp(FName.Text, View.Name) = 0)) then
       FBOk.Enabled := False;
@@ -312,8 +312,9 @@ begin
   if ((Event.EventType = etItemValid) and (Event.SItem = View)) then
     Built()
   else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is TSView)) then
-    Close()
-  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.Connection.ErrorCode <> 0)) then
+    Close();
+
+  if (Event.EventType = etAfterExecuteSQL) then
   begin
     PageControl.Visible := True;
     PSQLWait.Visible := not PageControl.Visible;

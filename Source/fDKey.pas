@@ -229,8 +229,8 @@ begin
 
     FFulltext.Enabled :=
       not Assigned(Table.Engine)
-        or (UpperCase(Table.Engine.Name) = 'INNODB') and (FIndexedFields.Items.Count > 0) and (Table.Session.Connection.ServerVersion >= 50600)
-        or (UpperCase(Table.Engine.Name) = 'MYISAM') and (FIndexedFields.Items.Count > 0) and (Table.Session.Connection.ServerVersion >= 32323);
+        or (UpperCase(Table.Engine.Name) = 'INNODB') and (FIndexedFields.Items.Count > 0) and (Table.Session.Connection.MySQLVersion >= 50600)
+        or (UpperCase(Table.Engine.Name) = 'MYISAM') and (FIndexedFields.Items.Count > 0) and (Table.Session.Connection.MySQLVersion >= 32323);
   end
   else
   begin
@@ -416,12 +416,14 @@ end;
 procedure TDKey.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = etItemAltered) and (Event.SItem = Table)) then
-    ModalResult := mrOk
-  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.Connection.ErrorCode <> 0)) then
+    ModalResult := mrOk;
+
+  if (Event.EventType = etAfterExecuteSQL) then
   begin
     GBasics.Visible := True;
     GAttributes.Visible := GBasics.Visible;
     PSQLWait.Visible := not GBasics.Visible;
+    FBOkCheckEnabled(nil);
   end;
 end;
 
@@ -451,7 +453,7 @@ begin
   end;
 
   FIndexedFields.Items.Clear();
-  FComment.Visible := Table.Session.Connection.ServerVersion >= 50503; FLComment.Visible := FComment.Visible;
+  FComment.Visible := Table.Session.Connection.MySQLVersion >= 50503; FLComment.Visible := FComment.Visible;
 
   SetLength(Lengths, Table.Fields.Count);
   for I := 0 to Length(Lengths) - 1 do

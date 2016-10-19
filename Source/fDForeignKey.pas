@@ -108,12 +108,17 @@ begin
   else if ((Event.EventType = etItemValid) and (Event.SItem = SelectedParentTable)) then
     FParentTableChange(Event.Sender)
   else if ((Event.EventType = etItemAltered) and (Event.SItem = Table)) then
-    ModalResult := mrOk
-  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.Connection.ErrorCode <> 0)) then
+    ModalResult := mrOk;
+
+  if (Event.EventType = etAfterExecuteSQL) then
   begin
     GBasics.Visible := True;
     GAttributes.Visible := GBasics.Visible;
     PSQLWait.Visible := not GBasics.Visible;
+    FBOkCheckEnabled(nil);
+
+    FParentTable.Cursor := crDefault;
+    FParentFields.Cursor := crDefault;
   end;
 end;
 
@@ -337,21 +342,21 @@ begin
     FFields.Items.Add(Table.Fields.Field[I].Name);
   FFields.Items.EndUpdate();
 
-  FName.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013);
-  FLName.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013);
-  FLTable.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013);
-  FLFields.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013);
-  FLChild.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013);
-  FLParent.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013);
-  FFields.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013);
-  FOnDelete.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013); FLOnDelete.Enabled := FOnDelete.Enabled;
-  FOnUpdate.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013); FLOnUpdate.Enabled := FOnUpdate.Enabled;
+  FName.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
+  FLName.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
+  FLTable.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
+  FLFields.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
+  FLChild.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
+  FLParent.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
+  FFields.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
+  FOnDelete.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013); FLOnDelete.Enabled := FOnDelete.Enabled;
+  FOnUpdate.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013); FLOnUpdate.Enabled := FOnUpdate.Enabled;
 
   GBasics.Visible := True;
   GAttributes.Visible := GBasics.Visible;
   PSQLWait.Visible := not GBasics.Visible;
 
-  FBOk.Visible := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013);
+  FBOk.Visible := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
   if (FBOk.Visible) then
     FBCancel.Caption := Preferences.LoadStr(30)
   else
@@ -374,7 +379,7 @@ begin
 
   if (not Assigned(SelectedParentDatabase)) then
     FParentTable.Cursor := crDefault
-  else if (SelectedParentDatabase.Valid and not SelectedParentDatabase.Update()) then
+  else if (not SelectedParentDatabase.Update()) then
     FParentTable.Cursor := crSQLWait
   else
   begin
@@ -384,7 +389,7 @@ begin
       if (SelectedParentDatabase.Tables.Table[I] is TSBaseTable) then
         FParentTable.Items.Add(SelectedParentDatabase.Tables.Table[I].Name);
 
-    FParentTable.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013);
+    FParentTable.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
     FBOkCheckEnabled(Sender);
   end;
 end;
@@ -398,7 +403,9 @@ begin
 
   if (not Assigned(SelectedParentTable)) then
     FParentFields.Cursor := crDefault
-  else if (SelectedParentTable.Update()) then
+  else if (not SelectedParentTable.Update()) then
+    FParentFields.Cursor := crSQLWait
+  else
   begin
     FParentFields.Cursor := crDefault;
 
@@ -411,7 +418,7 @@ begin
           if (Table.ForeignKeys.NameCmp(FParentFields.Items.Strings[I], ForeignKey.Parent.FieldNames[J]) = 0) then
             FParentFields.Selected[I] := True;
 
-    FParentFields.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013);
+    FParentFields.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
     FBOkCheckEnabled(Sender);
   end;
 end;

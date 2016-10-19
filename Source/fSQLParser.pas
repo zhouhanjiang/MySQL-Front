@@ -18704,6 +18704,10 @@ begin
           Nodes.Add(ParseInterval())
         else if (TokenPtr(CurrentToken)^.OperatorType = otCase) then
           Nodes.Add(ParseCaseOp())
+        else if ((Nodes.Count = 0)
+          or IsOperator(Nodes[Nodes.Count - 1]) and (TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType <> otNot)
+          or (TokenPtr(CurrentToken)^.OperatorType <> otBetween) and (TokenPtr(CurrentToken)^.OperatorType <> otIn) and (TokenPtr(CurrentToken)^.OperatorType <> otLike)) then
+          SetError(PE_UnexpectedToken)
         else
           Nodes.Add(ApplyCurrentToken(utOperator))
       else if (TokenPtr(CurrentToken)^.TokenType in ttIdents) then

@@ -704,7 +704,8 @@ type
       procedure CloseResult();
       constructor Create(const AFClient: TFSession; const ASynMemo: TSynMemo; const APDBGrid: TPanel_Ext);
       destructor Destroy(); override;
-      function ResultEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+      function ResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
+        const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
       property ActiveDBGrid: TMySQLDBGrid read GetActiveDBGrid;
       property SynMemo: TSynMemo read FSynMemo;
     end;
@@ -731,7 +732,8 @@ type
       FWorkbench: TWWorkbench;
     public
       ListView: TListView;
-      function BuilderResultEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+      function BuilderResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
+        const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
       procedure CloseBuilderResult();
       procedure CloseQuery(Sender: TObject; var CanClose: Boolean);
       constructor Create(const AFClient: TFSession; const ADatabase: TSDatabase);
@@ -805,7 +807,8 @@ type
       constructor Create(const AFClient: TFSession; const ARoutine: TSRoutine);
       function CreateSynMemo(): TSynMemo; virtual;
       destructor Destroy(); override;
-      function IDEResultEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+      function IDEResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
+        const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
       property ActiveDBGrid: TMySQLDBGrid read GetActiveDBGrid;
     end;
 
@@ -1256,7 +1259,8 @@ begin
     Result := TResult(Results[TCResult.TabIndex]^).DBGrid;
 end;
 
-function TFSession.TSQLEditor.ResultEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+function TFSession.TSQLEditor.ResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
+  const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
 var
   EndingCommentLength: Integer;
   Item: ^TResult;
@@ -1303,7 +1307,7 @@ begin
     begin
       SQL := DataHandle.Connection.CommandText;
       Len := SQLStmtLength(PChar(SQL), Length(SQL));
-      SQLTrimStmt(DataHandle.Connection.CommandText, 1, Len, FSession.Session.Connection.ServerVersion, StartingCommentLength, EndingCommentLength);
+      SQLTrimStmt(DataHandle.Connection.CommandText, 1, Len, FSession.Session.Connection.MySQLVersion, StartingCommentLength, EndingCommentLength);
       FSynMemo.SelStart := FSession.aDRunExecuteSelStart + DataHandle.Connection.ExecutedSQLLength + StartingCommentLength;
       FSynMemo.SelLength := Len - StartingCommentLength - EndingCommentLength;
     end
@@ -1392,7 +1396,8 @@ end;
 
 { TFSession.TDatabaseDesktop **************************************************}
 
-function TFSession.TDatabaseDesktop.BuilderResultEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+function TFSession.TDatabaseDesktop.BuilderResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
+  const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
 begin
   if (Data) then
   begin
@@ -1828,7 +1833,8 @@ begin
     Result := TResult(Results[TCResult.TabIndex]^).DBGrid;
 end;
 
-function TFSession.TRoutineDesktop.IDEResultEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+function TFSession.TRoutineDesktop.IDEResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
+  const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
 var
   Item: ^TResult;
 begin
@@ -2530,8 +2536,8 @@ begin
       or ((View = vIDE) and SQLSingleStmt(SQL) and (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent]))) and not Empty;
     MainAction('aDRunSelection').Enabled := (((View in [vEditor, vEditor2, vEditor3]) and not Empty) or Assigned(ActiveSynMemo) and (Trim(ActiveSynMemo.SelText) <> ''));
     MainAction('aDPostObject').Enabled := (View = vIDE) and Assigned(ActiveSynMemo) and ActiveSynMemo.Modified and SQLSingleStmt(SQL)
-      and ((SelectedImageIndex in [iiView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.Connection.ServerVersion) and (SQLParseKeyword(Parse, 'SELECT'))
-        or (SelectedImageIndex in [iiProcedure, iiFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.ServerVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
+      and ((SelectedImageIndex in [iiView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
+        or (SelectedImageIndex in [iiProcedure, iiFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
         or (SelectedImageIndex in [iiEvent, iiTrigger]));
     MainAction('aEFormatSQL').Enabled := not Empty;
 
@@ -3527,7 +3533,7 @@ begin
   else if (Window.ActiveControl = ActiveWorkbench) then
   begin
     Database := TSDatabase(FNavigator.Selected.Data);
-    if (((Session.Databases.NameCmp(Database.Name, 'mysql') <> 0) and (Session.Databases.NameCmp(Database.Name, 'sys') <> 0) and (Session.Connection.ServerVersion >= 50707)) and not (Database is TSSystemDatabase)) then
+    if (((Session.Databases.NameCmp(Database.Name, 'mysql') <> 0) and (Session.Databases.NameCmp(Database.Name, 'sys') <> 0) and (Session.Connection.MySQLVersion >= 50707)) and not (Database is TSSystemDatabase)) then
       for I := 0 to ActiveWorkbench.Tables.Count - 1 do
         if (not Assigned(ActiveWorkbench.Selected) or ActiveWorkbench.Tables[I].Selected) then
           DExport.SObjects.Add(ActiveWorkbench.Tables[I].BaseTable);
@@ -3540,7 +3546,7 @@ begin
           if (ActiveListView.Items[I].Selected) then
           begin
             Database := TSDatabase(ActiveListView.Items[I].Data);
-            if (((Session.Databases.NameCmp(Database.Name, 'mysql') <> 0) and (Session.Databases.NameCmp(Database.Name, 'sys') <> 0) and (Session.Connection.ServerVersion >= 50707)) and not (Database is TSSystemDatabase)) then
+            if (((Session.Databases.NameCmp(Database.Name, 'mysql') <> 0) and (Session.Databases.NameCmp(Database.Name, 'sys') <> 0) and (Session.Connection.MySQLVersion >= 50707)) and not (Database is TSSystemDatabase)) then
               DExport.SObjects.Add(Database);
           end;
 
@@ -3578,7 +3584,7 @@ begin
   begin
     for I := 0 to Session.Databases.Count - 1 do
       if (((Session.Databases.NameCmp(Session.Databases[I].Name, 'mysql') <> 0)
-        and ((Session.Databases.NameCmp(Session.Databases[I].Name, 'sys') <> 0) or (Session.Connection.ServerVersion < 50707)))
+        and ((Session.Databases.NameCmp(Session.Databases[I].Name, 'sys') <> 0) or (Session.Connection.MySQLVersion < 50707)))
         and not (Session.Databases[I] is TSSystemDatabase)) then
         DExport.SObjects.Add(Session.Databases[I]);
   end;
@@ -4710,7 +4716,7 @@ begin
     Session.SyntaxProvider.IdentCaseSens := icsSensitiveLowerCase
   else
     Session.SyntaxProvider.IdentCaseSens := icsNonSensitive;
-  Session.SyntaxProvider.ServerVersionInt := Session.Connection.ServerVersion;
+  Session.SyntaxProvider.ServerVersionInt := Session.Connection.MySQLVersion;
   Session.MetadataProvider.OnGetSQLFieldNames := MetadataProviderGetSQLFieldNames;
 
   FQueryBuilder.MetadataProvider := Session.MetadataProvider;
@@ -5749,7 +5755,7 @@ var
 begin
   if (Sender is TMySQLDBGrid) then
   begin
-    if (View = vIDE) then SQL := SQLTrimStmt(ActiveSynMemo.Text, Session.Connection.ServerVersion) else SQL := '';
+    if (View = vIDE) then SQL := SQLTrimStmt(ActiveSynMemo.Text, Session.Connection.MySQLVersion) else SQL := '';
 
     DBGrid := TMySQLDBGrid(Sender);
 
@@ -6630,7 +6636,7 @@ end;
 procedure TFSession.FNavigatorEditing(Sender: TObject; Node: TTreeNode;
   var AllowEdit: Boolean);
 begin
-  AllowEdit := (Node.ImageIndex = iiDatabase) and (Session.Connection.ServerVersion >= 50107) or (Node.ImageIndex = iiForeignKey) and (Session.Connection.ServerVersion >= 40013) or (Node.ImageIndex in [iiBaseTable, iiView, iiEvent, iiTrigger, iiField, iiVirtualField]);
+  AllowEdit := (Node.ImageIndex = iiDatabase) and (Session.Connection.MySQLVersion >= 50107) or (Node.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013) or (Node.ImageIndex in [iiBaseTable, iiView, iiEvent, iiTrigger, iiField, iiVirtualField]);
 end;
 
 procedure TFSession.FNavigatorEmptyExecute(Sender: TObject);
@@ -7347,10 +7353,10 @@ begin
   MainAction('aFExportPDF').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
   MainAction('aECopy').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiField, iiVirtualField, iiSystemViewField, iiViewField]);
   MainAction('aEPaste').Enabled := Assigned(Node) and ((Node.ImageIndex = iiServer) and Clipboard.HasFormat(CF_MYSQLSERVER) or (Node.ImageIndex = iiDatabase) and Clipboard.HasFormat(CF_MYSQLDATABASE) or (Node.ImageIndex = iiBaseTable) and Clipboard.HasFormat(CF_MYSQLTABLE) or (Node.ImageIndex = iiUsers) and Clipboard.HasFormat(CF_MYSQLUSERS));
-  MainAction('aERename').Enabled := Assigned(Node) and ((Node.ImageIndex = iiForeignKey) and (Session.Connection.ServerVersion >= 40013) or (Node.ImageIndex in [iiBaseTable, iiView, iiEvent, iiTrigger, iiField, iiVirtualField]));
+  MainAction('aERename').Enabled := Assigned(Node) and ((Node.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013) or (Node.ImageIndex in [iiBaseTable, iiView, iiEvent, iiTrigger, iiField, iiVirtualField]));
   MainAction('aDCreateDatabase').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer]) and (not Assigned(Session.UserRights) or Session.UserRights.RCreate);
   MainAction('aDCreateTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
-  MainAction('aDCreateView').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and (Session.Connection.ServerVersion >= 50001);
+  MainAction('aDCreateView').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and (Session.Connection.MySQLVersion >= 50001);
   MainAction('aDCreateProcedure').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and Assigned(TSDatabase(Node.Data).Routines);
   MainAction('aDCreateFunction').Enabled := MainAction('aDCreateProcedure').Enabled;
   MainAction('aDCreateEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and Assigned(TSDatabase(Node.Data).Events);
@@ -7366,7 +7372,7 @@ begin
   MainAction('aDDeleteEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiEvent);
   MainAction('aDDeleteKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiKey);
   MainAction('aDDeleteField').Enabled := Assigned(Node) and (Node.ImageIndex in [iiField, iiVirtualField]) and (TObject(Node.Data) is TSTableField) and (TSTableField(Node.Data).Fields.Count > 1);
-  MainAction('aDDeleteForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiForeignKey) and (Session.Connection.ServerVersion >= 40013);
+  MainAction('aDDeleteForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013);
   MainAction('aDDeleteTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiTrigger);
   MainAction('aDDeleteProcess').Enabled := False;
   MainAction('aDEditServer').Enabled := Assigned(Node) and (Node.ImageIndex = iiServer);
@@ -7785,7 +7791,7 @@ begin
     FQueryBuilderSynMemo.Lines.Text := ''
   else
   begin
-    if ((Length(SQL) < 80) and Assigned(Session)) then SQL := SQLUnwrapStmt(SQL, Session.Connection.ServerVersion);
+    if ((Length(SQL) < 80) and Assigned(Session)) then SQL := SQLUnwrapStmt(SQL, Session.Connection.MySQLVersion);
     if (SQL = '') then
       FQueryBuilderSynMemo.Lines.Clear()
     else
@@ -8974,7 +8980,7 @@ procedure TFSession.ListViewEditing(Sender: TObject; Item: TListItem;
   var AllowEdit: Boolean);
 begin
   AllowEdit := (Item.ImageIndex = iiDatabase)
-    and (Session.Connection.ServerVersion >= 50107) or (Item.ImageIndex = iiForeignKey) and (Session.Connection.ServerVersion >= 40013) or (Item.ImageIndex in [iiBaseTable, iiView, iiEvent, iiField, iiVirtualField, iiTrigger, iiUser]);
+    and (Session.Connection.MySQLVersion >= 50107) or (Item.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013) or (Item.ImageIndex in [iiBaseTable, iiView, iiEvent, iiField, iiVirtualField, iiTrigger, iiUser]);
 end;
 
 procedure TFSession.ListViewInitialize(const ListView: TListView);
@@ -9050,7 +9056,7 @@ begin
       ListView.Columns.Add();
       ListView.Columns.Add();
       ListView.Columns.Add();
-      if (Session.Connection.ServerVersion >= 40100) then
+      if (Session.Connection.MySQLVersion >= 40100) then
         ListView.Columns.Add();
       ListView.Columns.EndUpdate();
       SetColumnWidths(ListView, lkTable);
@@ -9160,7 +9166,7 @@ begin
     ListView.Columns[2].Caption := Preferences.LoadStr(71);
     ListView.Columns[3].Caption := Preferences.LoadStr(72);
     ListView.Columns[4].Caption := Preferences.LoadStr(73);
-    if (Session.Connection.ServerVersion >= 40100) then
+    if (Session.Connection.MySQLVersion >= 40100) then
       ListView.Columns[5].Caption := Preferences.LoadStr(111);
   end
   else if (TObject(ListView.Tag) is TSView) then
@@ -9531,7 +9537,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         Item.SubItems.Add('fulltext')
       else
         Item.SubItems.Add('');
-      if (Session.Connection.ServerVersion >= 50503) then
+      if (Session.Connection.MySQLVersion >= 50503) then
         Item.SubItems.Add(TSKey(Data).Comment);
     end
     else if (Data is TSBaseTableField) then
@@ -9565,7 +9571,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
           end;
         end;
         Item.SubItems.Add(S);
-        if (Session.Connection.ServerVersion >= 40100) then
+        if (Session.Connection.MySQLVersion >= 40100) then
           Item.SubItems.Add(TSBaseTableField(Data).Comment);
         if (TSBaseTableField(Data).Table is TSSystemView) then
           Item.ImageIndex := iiSystemViewField
@@ -9894,7 +9900,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         giTables:
           begin
             Header := Preferences.LoadStr(234);
-            if (Session.Connection.ServerVersion >= 50001) then
+            if (Session.Connection.MySQLVersion >= 50001) then
               Header := Header + ' + ' + Preferences.LoadStr(873);
             Header := Header + ' (' + IntToStr(SessionEvent.SItems.Count) + ')';
             SetListViewGroupHeader(ListView, GroupID, Header);
@@ -10104,7 +10110,7 @@ begin
             MainAction('aEPaste').Enabled := (not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLSERVER) or Assigned(Item) and (Item.ImageIndex = iiDatabase) and Clipboard.HasFormat(CF_MYSQLDATABASE));
             MainAction('aDCreateDatabase').Enabled := (ListView.SelCount = 0) and (not Assigned(Session.UserRights) or Session.UserRights.RCreate);
             MainAction('aDCreateTable').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
-            MainAction('aDCreateView').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and (Session.Connection.ServerVersion >= 50001);
+            MainAction('aDCreateView').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and (Session.Connection.MySQLVersion >= 50001);
             MainAction('aDCreateProcedure').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and Assigned(TSDatabase(Item.Data).Routines);
             MainAction('aDCreateFunction').Enabled := MainAction('aDCreateProcedure').Enabled;
             MainAction('aDCreateEvent').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and Assigned(TSDatabase(Item.Data).Events);
@@ -10162,7 +10168,7 @@ begin
             MainAction('aEPaste').Enabled := (not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLDATABASE) or Assigned(Item) and ((Item.ImageIndex = iiBaseTable) and Clipboard.HasFormat(CF_MYSQLTABLE) or (Item.ImageIndex = iiView) and Clipboard.HasFormat(CF_MYSQLVIEW)));
             MainAction('aERename').Enabled := Assigned(Item) and (ListView.SelCount = 1) and (Item.ImageIndex in [iiBaseTable, iiView, iiEvent]);
             MainAction('aDCreateTable').Enabled := (ListView.SelCount = 0) and (SelectedImageIndex = iiDatabase);
-            MainAction('aDCreateView').Enabled := (ListView.SelCount = 0) and (Session.Connection.ServerVersion >= 50001) and (SelectedImageIndex = iiDatabase);
+            MainAction('aDCreateView').Enabled := (ListView.SelCount = 0) and (Session.Connection.MySQLVersion >= 50001) and (SelectedImageIndex = iiDatabase);
             MainAction('aDCreateProcedure').Enabled := (ListView.SelCount = 0) and (SelectedImageIndex = iiDatabase) and Assigned(Database.Events);
             MainAction('aDCreateFunction').Enabled := MainAction('aDCreateProcedure').Enabled;
             MainAction('aDCreateEvent').Enabled := (ListView.SelCount = 0) and (SelectedImageIndex = iiDatabase) and Assigned(Database.Events);
@@ -10239,14 +10245,14 @@ begin
             MainAction('aFExportPDF').Enabled := (ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiTrigger]);
             MainAction('aECopy').Enabled := (ListView.SelCount >= 1);
             MainAction('aEPaste').Enabled := not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLTABLE);
-            MainAction('aERename').Enabled := Assigned(Item) and (ListView.SelCount = 1) and ((Item.ImageIndex in [iiField, iiVirtualField, iiTrigger]) or (Item.ImageIndex = iiForeignKey) and (Session.Connection.ServerVersion >= 40013));
+            MainAction('aERename').Enabled := Assigned(Item) and (ListView.SelCount = 1) and ((Item.ImageIndex in [iiField, iiVirtualField, iiTrigger]) or (Item.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013));
             MainAction('aDCreateKey').Enabled := (ListView.SelCount = 0);
             MainAction('aDCreateField').Enabled := (ListView.SelCount = 0);
             MainAction('aDCreateForeignKey').Enabled := (ListView.SelCount = 0);
             MainAction('aDCreateTrigger').Enabled := (ListView.SelCount = 0) and Assigned(BaseTable.Database.Triggers);
             MainAction('aDDeleteKey').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiKey);
             MainAction('aDDeleteField').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiField, iiVirtualField]) and (BaseTable.Fields.Count > ListView.SelCount);
-            MainAction('aDDeleteForeignKey').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiForeignKey) and (Session.Connection.ServerVersion >= 40013);
+            MainAction('aDDeleteForeignKey').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013);
             MainAction('aDDeleteTrigger').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiTrigger);
             MainAction('aDEditTable').Enabled := (ListView.SelCount = 0);
             MainAction('aDEditKey').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiKey);
@@ -10355,7 +10361,7 @@ var
   Table: TSTable;
   TableName: string;
 begin
-  if (SQLCreateParse(Parse, PChar(ASQL), Length(ASQL), Session.Connection.ServerVersion)
+  if (SQLCreateParse(Parse, PChar(ASQL), Length(ASQL), Session.Connection.MySQLVersion)
     and SQLParseKeyword(Parse, 'SELECT')) then
   begin
     repeat
@@ -13507,8 +13513,8 @@ begin
         or ((View = vIDE) and SQLSingleStmt(SQL) and (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent]))) and not Empty;
       MainAction('aDRunSelection').Enabled := (((View in [vEditor, vEditor2, vEditor3]) and not Empty) or Assigned(ActiveSynMemo) and (Trim(ActiveSynMemo.SelText) <> ''));
       MainAction('aDPostObject').Enabled := (View = vIDE) and ActiveSynMemo.Modified and SQLSingleStmt(SQL)
-        and ((SelectedImageIndex in [iiView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.Connection.ServerVersion) and (SQLParseKeyword(Parse, 'SELECT'))
-          or (SelectedImageIndex in [iiProcedure, iiFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.ServerVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
+        and ((SelectedImageIndex in [iiView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
+          or (SelectedImageIndex in [iiProcedure, iiFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
           or (SelectedImageIndex in [iiEvent, iiTrigger]));
       MainAction('aEFormatSQL').Enabled := not Empty;
     end;
@@ -14159,7 +14165,7 @@ begin
     MainAction('aDCancel').Enabled := Session.Connection.InUse();
     MainAction('aEJobAddImport').Enabled := CheckWin32Version(6);
     MainAction('aEJobAddExport').Enabled := CheckWin32Version(6);
-    MainAction('aHSQL').Enabled := Session.Connection.ServerVersion >= 40100;
+    MainAction('aHSQL').Enabled := Session.Connection.MySQLVersion >= 40100;
     MainAction('aHManual').Enabled := Session.Account.ManualURL <> '';
 
     aPResult.ShortCut := ShortCut(VK_F8, [ssAlt]);

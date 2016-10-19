@@ -213,8 +213,9 @@ begin
   if ((Event.EventType = etItemValid) and (Event.SItem = User)) then
     Built()
   else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is TSUser)) then
-    ModalResult := mrOk
-  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.Connection.ErrorCode <> 0)) then
+    ModalResult := mrOk;
+
+  if (Event.EventType = etAfterExecuteSQL) then
   begin
     PageControl.Visible := True;
     PSQLWait.Visible := not PageControl.Visible;
@@ -360,7 +361,7 @@ begin
       Built();
   end;
 
-  FUserConnections.Visible := Session.Connection.ServerVersion >= 50003;
+  FUserConnections.Visible := Session.Connection.MySQLVersion >= 50003;
   FLUserConnections.Visible := FUserConnections.Visible;
   FUDUserConnections.Visible := FUserConnections.Visible;
 

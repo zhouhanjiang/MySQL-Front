@@ -41,8 +41,9 @@ type
     procedure FBContentClick(Sender: TObject);
   private
     ManualURL: string;
-    function ClientResult(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
+    function HelpResult(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
+      const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMSendSQL(var Message: TMessage); message UM_SEND_SQL;
     procedure WMNotify(var Message: TWMNotify); message WM_NOTIFY;
@@ -97,7 +98,8 @@ begin
   Constraints.MinWidth := 2 * GetSystemMetrics(SM_CXFRAME) + FBDescription.Width + FBExample.Width + FBManual.Width + FQuickSearch.Width + TBQuickSearchEnabled.Width + 50;
 end;
 
-function TDSQLHelp.ClientResult(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+function TDSQLHelp.HelpResult(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
+  const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
 var
   DataSet: TMySQLQuery;
 begin
@@ -176,7 +178,7 @@ function TDSQLHelp.Execute(): Boolean;
 begin
   Show();
 
-  Keyword := Trim(SQLUnwrapStmt(Keyword, Session.Connection.ServerVersion));
+  Keyword := Trim(SQLUnwrapStmt(Keyword, Session.Connection.MySQLVersion));
   if (Keyword = '') then
     Keyword := 'Contents';
   Perform(UM_SEND_SQL, 0, 0);
@@ -347,7 +349,7 @@ end;
 
 procedure TDSQLHelp.UMSendSQL(var Message: TMessage);
 begin
-  Session.Connection.SendSQL('HELP ' + SQLEscape(Keyword), ClientResult);
+  Session.Connection.SendSQL('HELP ' + SQLEscape(Keyword), HelpResult);
 end;
 
 initialization
