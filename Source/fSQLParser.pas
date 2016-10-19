@@ -18705,8 +18705,7 @@ begin
         else if (TokenPtr(CurrentToken)^.OperatorType = otCase) then
           Nodes.Add(ParseCaseOp())
         else if ((Nodes.Count = 0)
-          or IsOperator(Nodes[Nodes.Count - 1]) and (TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType <> otNot)
-          or (TokenPtr(CurrentToken)^.OperatorType <> otBetween) and (TokenPtr(CurrentToken)^.OperatorType <> otIn) and (TokenPtr(CurrentToken)^.OperatorType <> otLike)) then
+          or IsOperator(Nodes[Nodes.Count - 1]) and ((TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType <> otNot) or not (TokenPtr(CurrentToken)^.OperatorType in [otBetween, otIn, otLike]))) then
           SetError(PE_UnexpectedToken)
         else
           Nodes.Add(ApplyCurrentToken(utOperator))
