@@ -196,10 +196,7 @@ begin
   Caption := Preferences.LoadStr(842, Session.Caption);
 
   FHost.Caption := Session.Connection.HostInfo;
-  if (Session.Connection.MariaDBVersion = 0) then
-    FVersion.Caption := Session.Connection.ServerVersionStr
-  else
-    FVersion.Caption := Session.Connection.MariaDBVersionStr;
+  FVersion.Caption := Session.Connection.ServerVersionStr;
   FComment.Visible := Assigned(Session.VariableByName('version_comment'));
   FLComment.Visible := FComment.Visible;
   if (FComment.Visible) then

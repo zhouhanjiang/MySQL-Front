@@ -2347,13 +2347,9 @@ begin
           begin
             fserver_version := fserver_version + my_uint(I) * 100;
             Delete(S, 1, Pos('.', S));
-            if (not TryStrToInt(S, I)) then
-              fserver_version := 0
-            else
-            begin
-              fserver_version := fserver_version + my_uint(I);
-              Delete(S, 1, Pos('.', S));
-            end;
+            TryStrToInt(S, I);
+            fserver_version := fserver_version + my_uint(I);
+            Delete(S, 1, Pos('.', S));
           end;
         end;
 

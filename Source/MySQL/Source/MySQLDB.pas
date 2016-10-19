@@ -240,7 +240,6 @@ type
     FLibraryName: string;
     FLibraryType: TMySQLLibrary.TLibraryType;
     FMariaDBVersion: Integer;
-    FMariaDBVersionStr: string;
     FMySQLVersion: Integer;
     FOnConvertError: TConvertErrorNotifyEvent;
     FOnSQLError: TErrorEvent;
@@ -377,7 +376,6 @@ type
     property LatestConnect: TDateTime read FLatestConnect;
     property Lib: TMySQLLibrary read FLib;
     property MariaDBVersion: Integer read FMariaDBVersion;
-    property MariaDBVersionStr: string read FMariaDBVersionStr;
     property MySQLVersion: Integer read FMySQLVersion;
     property NextCommandText: string read GetNextCommandText;
     property MaxAllowedPacket: Integer read GetMaxAllowedPacket;
@@ -2291,7 +2289,6 @@ begin
   FLibraryThread := nil;
   FLibraryType := ltBuiltIn;
   FMariaDBVersion := 0;
-  FMariaDBVersionStr := '';
   FMultiStatements := True;
   FOnConvertError := nil;
   FOnSQLError := nil;
@@ -3250,10 +3247,9 @@ begin
         S := FServerVersionStr;
         if (Pos('-MariaDB', S) > 0) then
         begin
-          Delete(S, 1, Pos('-', S));
-          FMariaDBVersionStr := S;
+          S := LeftStr(S, Pos('-MariaDB', S) - 1);
           if (Pos('-', S) > 0) then
-            S := LeftStr(S, Pos('-', S) - 1);
+            Delete(S, 1, Pos('-', S));
           if ((Pos('.', S) = 0) or not TryStrToInt(LeftStr(S, Pos('.', S) - 1), I)) then
             FMariaDBVersion := 0
           else
@@ -3266,13 +3262,9 @@ begin
             begin
               FMariaDBVersion := FMariaDBVersion + I * 100;
               Delete(S, 1, Pos('.', S));
-              if (not TryStrToInt(S, I)) then
-                FMariaDBVersion := 0
-              else
-              begin
-                FMariaDBVersion := FMariaDBVersion + I;
-                Delete(S, 1, Pos('.', S));
-              end;
+              TryStrToInt(S, I);
+              FMariaDBVersion := FMariaDBVersion + I;
+              Delete(S, 1, Pos('.', S));
             end;
           end;
         end;
@@ -3411,7 +3403,7 @@ begin
   WideCharToAnsiChar(CodePage, PChar(@LibraryThread.SQL[LibraryThread.SQLIndex]), PacketLength, PAnsiChar(LibSQL), LibLength);
 
   if (not MultiStatements) then
-    while ((LibLength > 0) and (LibSQL[1 + LibLength] in [#9, #10, #13, ' ', ';'])) do
+    while ((LibLength > 0) and (LibSQL[LibLength] in [#9, #10, #13, ' ', ';'])) do
       Dec(LibLength);
 
   if (LibLength = 0) then
@@ -5052,11 +5044,7 @@ begin
 
   if (CommandType = ctQuery) then
   begin
-try
     FCommandText := DataHandle.CommandText;
-except
-    FCommandText := DataHandle.CommandText;
-end;
     FDatabaseName := Connection.DatabaseName;
   end;
 
