@@ -4,7 +4,7 @@ interface {********************************************************************}
 
 uses
   Windows, Classes, Controls, Types, Grids, Messages, DB, Graphics, DBGrids,
-  StdActns, DBCtrls,
+  StdActns, DBCtrls, ComCtrls,
   StdActns_Ext;
 
 type
@@ -33,7 +33,7 @@ type
   private
     FIgnoreKeyPress: Boolean;
     FindNext: Boolean;
-    FHeader: HWND;
+    FHeaderControl: THeaderControl;
     FHintWindow: THintWindow;
     FKeyDownShiftState: TShiftState;
     FListView: HWND;
@@ -60,6 +60,10 @@ type
     procedure FindDialogFind(Sender: TObject);
     function GetCurrentRow(): Boolean;
     function GetHeader(): HWND;
+    procedure HeaderMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
+    procedure HeaderSectionClick(HeaderControl: THeaderControl; Section: THeaderSection);
+    procedure HeaderSectionDrag(Sender: TObject; FromSection, ToSection: THeaderSection; var AllowDrag: Boolean);
+    procedure HeaderSectionResize(HeaderControl: THeaderControl; Section: THeaderSection);
     procedure SearchFindExecute(const Action: TSearchFind);
     procedure SetHeaderColumnArrows();
     procedure CMFontChanged(var Message); message CM_FONTCHANGED;
@@ -295,12 +299,8 @@ begin
 
   if (FListView > 0) then
     SendMessage(FListView, WM_SETFONT, WPARAM(Font.Handle), LPARAM(TRUE));
-  if (FHeader > 0) then
-  begin
-    if (Assigned(TitleBoldFont)) then
-      FreeAndNil(TitleBoldFont);
-    SendMessage(FHeader, WM_SETFONT, WPARAM(TitleFont.Handle), LPARAM(TRUE));
-  end;
+  if (Assigned(FHeaderControl)) then
+    FHeaderControl.Font := TitleFont;
   Resize();
 end;
 
@@ -406,7 +406,7 @@ end;
 constructor TMySQLDBGrid.Create(AOwner: TComponent);
 begin
   FIgnoreKeyPress := False;
-  FHeader := 0;
+  FHeaderControl := nil;
   FListView := 0;
   IgnoreTitleClick := False;
   IgnoreTitleChange := False;
@@ -437,7 +437,6 @@ end;
 procedure TMySQLDBGrid.CreateWnd();
 var
   LVColumn: TLVColumn;
-  Style: DWORD;
 begin
   inherited;
 
@@ -448,15 +447,21 @@ begin
   LVColumn.pszText := 'Test';
   LVColumn.cchTextMax := StrLen(LVColumn.pszText);
   SendMessage(FListView, LVM_INSERTCOLUMN, 0, LPARAM(@LVColumn));
-  SendMessage(FHeader, LVM_SETUNICODEFORMAT, WPARAM(TRUE), 0);
 
-  if (FHeader > 0) then CloseHandle(FHeader);
-  Style := WS_CHILD or HDS_BUTTONS or HDS_FULLDRAG or HDS_DRAGDROP;
-  if (not (dgColumnResize in Options) and CheckWin32Version(6)) then
-    Style := Style or HDS_NOSIZING;
-  FHeader := CreateWindow(WC_HEADER, nil, Style, 0, 0, ClientWidth, RowHeights[0], Handle, 0, hInstance, nil);
-  SendMessage(FHeader, WM_SETFONT, WPARAM(TitleFont.Handle), LPARAM(TRUE));
-  SendMessage(FHeader, HDM_SETUNICODEFORMAT, WPARAM(TRUE), 0);
+  if (Assigned(FHeaderControl)) then FHeaderControl.Free();
+  FHeaderControl := THeaderControl.Create(Self);
+  FHeaderControl.DoubleBuffered := True;
+  FHeaderControl.NoSizing := not (dgColumnResize in Options);
+  FHeaderControl.OnMouseMove := HeaderMouseMove;
+  FHeaderControl.OnSectionClick := HeaderSectionClick;
+  FHeaderControl.OnSectionDrag := HeaderSectionDrag;
+  FHeaderControl.OnSectionResize := HeaderSectionResize;
+  if (not Assigned(OnTitleClick) or not (dgTitleClick in Options)) then
+    FHeaderControl.Style := hsFlat
+  else
+    FHeaderControl.Style := hsButtons;
+  FHeaderControl.Parent := Self;
+
   SetColumnAttributes();
   Resize();
 end;
@@ -492,16 +497,13 @@ end;
 destructor TMySQLDBGrid.Destroy();
 begin
   if (Assigned(FHintWindow)) then
-    FreeAndNil(FHintWindow);
+    FHintWindow.Free();
 
   if (Assigned(TitleBoldFont)) then
-    FreeAndNil(TitleBoldFont);
+    TitleBoldFont.Free();
 
-  if (FHeader > 0) then
-  begin
-    CloseWindow(FHeader);
-    FHeader := 0;
-  end;
+  if (Assigned(FHeaderControl)) then
+    FHeaderControl.Free();
 
   inherited;
 end;
@@ -528,7 +530,7 @@ end;
 
 procedure TMySQLDBGrid.DrawCell(ACol, ARow: Longint; ARect: TRect; AState: TGridDrawState);
 begin
-  if ((ARow > 0) or (FHeader = 0)) then // The header row has been replaced with the FHeader
+  if ((ARow > 0) or not Assigned(FHeaderControl)) then // The header row has been replaced with the FHeaderControl
     inherited;
 end;
 
@@ -668,10 +670,13 @@ end;
 
 function TMySQLDBGrid.GetHeader(): HWND;
 begin
-  if (FHeader = 0) then
+  if (not Assigned(FHeaderControl)) then
     HandleNeeded();
 
-  Result := FHeader;
+  if (not Assigned(FHeaderControl)) then
+    Result := 0
+  else
+    Result := FHeaderControl.Handle;
 end;
 
 function TMySQLDBGrid.GetSelText(): string;
@@ -707,6 +712,51 @@ begin
     DataLink.DataSet.RecNo := OldRecNo;
     DataLink.DataSet.EnableControls();
   end;
+end;
+
+procedure TMySQLDBGrid.HeaderMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
+var
+  HDItem: THDItem;
+  Index: Integer;
+  NeededWidth: Integer;
+begin
+  FHeaderControl.Hint := '';
+  for Index := LeftCol to FHeaderControl.Sections.Count - 1 do
+    if ((FHeaderControl.Sections[Index - LeftCol].Left <= X) and (X <= FHeaderControl.Sections[Index - LeftCol].Right)) then
+    begin
+      if (Columns[Index].Field.IsIndexField) then
+        Canvas.Font := TitleBoldFont
+      else
+        Canvas.Font := TitleFont;
+      NeededWidth := Canvas.TextWidth(Columns[Index].DisplayName) + FHeaderControl.Height;
+      Canvas.Font := Font;
+
+      HDItem.Mask := HDI_FORMAT;
+      if (BOOL(SendMessage(Header, HDM_GETITEM, Index, LParam(@HDItem))) and (HDItem.fmt and (HDF_SORTUP or HDF_SORTUP) <> 0)) then
+        Inc(NeededWidth, 2 * FHeaderControl.Height);
+
+      if (FHeaderControl.Sections[Index].Width < NeededWidth) then
+        FHeaderControl.Hint := Columns[Index].DisplayName;
+    end;
+end;
+
+procedure TMySQLDBGrid.HeaderSectionClick(HeaderControl: THeaderControl; Section: THeaderSection);
+begin
+  TitleClick(Columns[Section.Index + LeftCol]);
+end;
+
+procedure TMySQLDBGrid.HeaderSectionDrag(Sender: TObject; FromSection, ToSection: THeaderSection; var AllowDrag: Boolean);
+begin
+  Columns[FromSection.Index + LeftCol].Index := ToSection.Index;
+end;
+
+procedure TMySQLDBGrid.HeaderSectionResize(HeaderControl: THeaderControl; Section: THeaderSection);
+begin
+  if (EditorMode) then Perform(CM_Exit, 0, 0);
+  if (dgColLines in Options) then
+    Columns[Section.Index + LeftCol].Width := Section.Width - GridLineWidth
+  else
+    Columns[Section.Index + LeftCol].Width := Section.Width;
 end;
 
 procedure TMySQLDBGrid.KeyDown(var Key: Word; Shift: TShiftState);
@@ -1041,30 +1091,28 @@ var
   HDLayout: THDLayout;
   HDRect: TRect;
   HDWindowPos: TWindowPos;
-  Height: Integer;
-  Rect: TRect;
+  I: Integer;
 begin
   inherited;
 
   if (Assigned(DataLink) and Assigned(DataSource) and Assigned(DataLink.DataSet)) then
     DataLink.BufferCount := RowCount - 1;
 
-  if (GetWindowRect(FHeader, Rect)) then
+  if (Assigned(FHeaderControl)) then
   begin
     HDLayout.Rect := @HDRect;
     HDLayout.WindowPos := @HDWindowPos;
     if ((FListView > 0) and Header_Layout(ListView_GetHeader(FListView), @HDLayout)) then
-      Height := HDWindowPos.cy
-    else
-      Height := Rect.Bottom - Rect.Top;
-    SetWindowPos(FHeader, HWND_TOP, 0, 0, ClientWidth, Height, SWP_NOMOVE or SWP_SHOWWINDOW);
+      FHeaderControl.Height := HDWindowPos.cy;
 
     if (EditorMode) then Perform(CM_Exit, 0, 0);
-    if (GetWindowRect(FHeader, Rect)) then
-      if (dgRowLines in Options) then
-        RowHeights[0] := Height - GridLineWidth
-      else
-        RowHeights[0] := Height;
+    if (dgRowLines in Options) then
+      RowHeights[0] := FHeaderControl.Height - GridLineWidth
+    else
+      RowHeights[0] := FHeaderControl.Height;
+
+    for I := 0 to FHeaderControl.Sections.Count - 1 do
+      FHeaderControl.Sections[I].MaxWidth := Width - FHeaderControl.Height - GetSystemMetrics(SM_CXVSCROLL);
   end;
 end;
 
@@ -1130,45 +1178,49 @@ end;
 
 procedure TMySQLDBGrid.SetColumnAttributes();
 var
-  HDItem: THDItem;
   I: Integer;
+  Section: THeaderSection;
 begin
   inherited;
 
-  if (not IgnoreTitleChange) then
-    for I := 0 to SendMessage(FHeader, HDM_GETITEMCOUNT, 0, 0) - 1 do
-      SendMessage(FHeader, HDM_DELETEITEM, 0, 0);
-
-  for I := 0 to Columns.Count - 1 do
+  if (Assigned(FHeaderControl)) then
   begin
-    with Columns[I] do
-      TabStops[I + IndicatorOffset] := Showing and DataLink.Active and
-        Assigned(Field) and not (Field.FieldKind = fkCalculated);
+    FHeaderControl.Sections.BeginUpdate();
 
-    if (not IgnoreTitleChange and (I >= LeftCol) and Assigned(Columns[I].Field)) then
+    if (not IgnoreTitleChange) then
+      FHeaderControl.Sections.Clear();
+
+    for I := 0 to Columns.Count - 1 do
     begin
-      HDItem.Mask := HDI_FORMAT or HDI_TEXT or HDI_WIDTH;
-      HDItem.fmt := HDF_STRING;
-      if (dgColLines in Options) then
-        HDItem.cxy := Columns[I].Width + GridLineWidth
-      else
-        HDItem.cxy := Columns[I].Width;
-      HDItem.pszText := PChar(Columns[I].Field.DisplayName);
-      HDItem.cchTextMax := Length(HDItem.pszText);
+      with Columns[I] do
+        TabStops[I + IndicatorOffset] := Showing and DataLink.Active and
+          Assigned(Field) and not (Field.FieldKind = fkCalculated);
 
-      SendMessage(FHeader, HDM_INSERTITEM, I - LeftCol, LPARAM(@HDItem));
+      if (not IgnoreTitleChange and (I >= LeftCol) and Assigned(Columns[I].Field)) then
+      begin
+        Section := FHeaderControl.Sections.Insert(I - LeftCol);
+        Section.MinWidth := FHeaderControl.Height;
+        Section.MaxWidth := Width - FHeaderControl.Height - GetSystemMetrics(SM_CXVSCROLL);
+        Section.Text := Columns[I].Field.DisplayName;
+        if (dgColLines in Options) then
+          Section.Width := Columns[I].Width + GridLineWidth
+        else
+          Section.Width := Columns[I].Width;
+      end;
+
+      if (Assigned(Columns[I].Field) and Columns[I].Field.IsIndexField) then
+        Columns[I].Font.Style := Columns[I].Font.Style + [fsBold]
+      else
+        Columns[I].Font.Style := Columns[I].Font.Style - [fsBold];
     end;
 
-    if (Assigned(Columns[I].Field) and Columns[I].Field.IsIndexField) then
-      Columns[I].Font.Style := Columns[I].Font.Style + [fsBold]
-    else
-      Columns[I].Font.Style := Columns[I].Font.Style - [fsBold];
-  end;
+    FHeaderControl.Sections.EndUpdate();
 
-  if (not Assigned(OnTitleClick) or not (dgTitleClick in Options)) then
-    SetWindowLong(FHeader, GWL_STYLE, GetWindowLong(FHeader, GWL_STYLE) and not HDS_BUTTONS)
-  else
-    SetWindowLong(FHeader, GWL_STYLE, GetWindowLong(FHeader, GWL_STYLE) or HDS_BUTTONS);
+    if (not Assigned(OnTitleClick) or not (dgTitleClick in Options)) then
+      FHeaderControl.Style := hsFlat
+    else
+      FHeaderControl.Style := hsButtons;
+  end;
 
   if (not IgnoreTitleChange) then
   begin
@@ -1187,7 +1239,7 @@ begin
   HDItem.Mask := HDI_FORMAT;
   if (DataLink.DataSet is TMySQLDataSet) then
     for I := LeftCol to Columns.Count - 1 do
-      if (Columns[I].Visible and BOOL(SendMessage(FHeader, HDM_GETITEM, Index, LParam(@HDItem)))) then
+      if (Columns[I].Visible and BOOL(SendMessage(Header, HDM_GETITEM, Index, LParam(@HDItem)))) then
       begin
         if (Columns[I].Field.Tag and ftAscSortedField <> 0) then
           HDItem.fmt := HDItem.fmt and not HDF_SORTUP or HDF_SORTUP
@@ -1195,7 +1247,7 @@ begin
           HDItem.fmt := HDItem.fmt and not HDF_SORTDOWN or HDF_SORTDOWN
         else
           HDItem.fmt := HDItem.fmt and not HDF_SORTUP and not HDF_SORTDOWN;
-        SendMessage(FHeader, HDM_SETITEM, Index, LPARAM(@HDItem));
+        SendMessage(Header, HDM_SETITEM, Index, LPARAM(@HDItem));
         Inc(Index);
       end;
 end;
@@ -1276,19 +1328,17 @@ var
   NewWidth: Integer;
 begin
   HDNotify := PHDNotify(Message.NMHdr);
-  if (HDNotify^.Hdr.hwndFrom <> FHeader) then
+  if (not Assigned(FHeaderControl) or (HDNotify^.Hdr.hwndFrom <> FHeaderControl.Handle)) then
     inherited
   else
     case (HDNotify^.Hdr.code) of
-      HDN_ITEMCLICK:
-        TitleClick(Columns[LeftCol + HDNotify^.Item]);
       HDN_DIVIDERDBLCLICK:
         begin
           Column := Columns[LeftCol + HDNotify^.Item];
           if ((DataLink.DataSet is TMySQLDataSet) and not (Column.Field is TBlobField)) then
           begin
             HDItem.Mask := HDI_WIDTH;
-            if (BOOL(SendMessage(FHeader, HDM_GETITEM, HDNotify^.Item, LPARAM(@HDItem)))) then
+            if (BOOL(SendMessage(Header, HDM_GETITEM, HDNotify^.Item, LPARAM(@HDItem)))) then
             begin
               IgnoreTitleChange := True;
 
@@ -1300,7 +1350,7 @@ begin
               HDItem.cxy := NewWidth;
               if (dgColLines in Options) then
                 Inc(HDItem.cxy, GridLineWidth);
-              while (not BOOL(SendMessage(FHeader, HDM_SETITEM, HDNotify^.Item, LPARAM(@HDItem)))) do
+              while (not BOOL(SendMessage(Header, HDM_SETITEM, HDNotify^.Item, LPARAM(@HDItem)))) do
                 Inc(HDItem.cxy, GridLineWidth);
 
               IgnoreTitleChange := False;
@@ -1309,29 +1359,29 @@ begin
             end;
           end;
         end;
-      HDN_ITEMCHANGING:
-        Message.Result := LRESULT(not ((HDNotify^.PItem.Mask and HDI_WIDTH = 0) or (HDNotify^.PItem.cxy >= RowHeights[1])));
-      HDN_ITEMCHANGED:
-        begin
-          Column := Columns[LeftCol + HDNotify^.Item];
-          if (HDNotify^.PItem.Mask and HDI_WIDTH <> 0) then
-          begin
-            if (EditorMode) then Perform(CM_Exit, 0, 0);
-            if (dgColLines in Options) then
-              Column.Width := HDNotify^.PItem.cxy - GridLineWidth
-            else
-              Column.Width := HDNotify^.PItem.cxy;
-            Resize();
-          end;
-        end;
-      HDN_ENDDRAG:
-        if ((HDNotify^.PItem.Mask and HDI_ORDER <> 0) and (HDNotify^.PItem.iOrder >= 0)) then
-        begin
-          Column := Columns[LeftCol + HDNotify^.Item];
-          Column.Index := HDNotify^.PItem.iOrder + LeftCol;
-          Message.Result := LRESULT(TRUE);
-          Resize();
-        end;
+//      HDN_ITEMCHANGING:
+//        Message.Result := LRESULT(not ((HDNotify^.PItem.Mask and HDI_WIDTH = 0) or (HDNotify^.PItem.cxy >= RowHeights[1])));
+//      HDN_ITEMCHANGED:
+//        begin
+//          Column := Columns[LeftCol + HDNotify^.Item];
+//          if (HDNotify^.PItem.Mask and HDI_WIDTH <> 0) then
+//          begin
+//            if (EditorMode) then Perform(CM_Exit, 0, 0);
+//            if (dgColLines in Options) then
+//              Column.Width := HDNotify^.PItem.cxy - GridLineWidth
+//            else
+//              Column.Width := HDNotify^.PItem.cxy;
+//            Resize();
+//          end;
+//        end;
+//      HDN_ENDDRAG:
+//        if ((HDNotify^.PItem.Mask and HDI_ORDER <> 0) and (HDNotify^.PItem.iOrder >= 0)) then
+//        begin
+//          Column := Columns[LeftCol + HDNotify^.Item];
+//          Column.Index := HDNotify^.PItem.iOrder + LeftCol;
+//          Message.Result := LRESULT(TRUE);
+//          Resize();
+//        end;
       NM_CUSTOMDRAW:
         begin
           HDCustomDraw := PNMCustomDraw(HDNotify);

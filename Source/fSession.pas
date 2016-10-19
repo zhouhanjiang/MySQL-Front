@@ -4147,7 +4147,7 @@ begin
     if (Self is TSSystemView) then
       FRows := -1
     else
-      FRows := DataSet.FieldByName('Rows').AsLargeInt;
+      if (not TryStrToInt64(DataSet.FieldByName('Rows').AsString, FRows)) then FRows := 0;
     FAvgRowLength := DataSet.FieldByName('Avg_row_length').AsLargeInt;
     if (not TryStrToInt64(DataSet.FieldByName('Data_length').AsString, FDataSize)) then FDataSize := 0;
     if (not TryStrToInt64(DataSet.FieldByName('Index_length').AsString, FIndexSize)) then FIndexSize := 0;
@@ -4166,7 +4166,7 @@ begin
     if (Self is TSSystemView) then
       FRows := -1
     else
-      FRows := DataSet.FieldByName('TABLE_ROWS').AsLargeInt;
+      if (not TryStrToInt64(DataSet.FieldByName('TABLE_ROWS').AsString, FRows)) then FRows := 0;
     FAvgRowLength := DataSet.FieldByName('AVG_ROW_LENGTH').AsInteger;
     if (not TryStrToInt64(DataSet.FieldByName('DATA_LENGTH').AsString, FDataSize)) then FDataSize := 0;
     if (not TryStrToInt64(DataSet.FieldByName('MAX_DATA_LENGTH').AsString, FMaxDataSize)) then FMaxDataSize := 0;

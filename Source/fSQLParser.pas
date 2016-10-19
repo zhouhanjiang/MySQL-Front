@@ -593,6 +593,7 @@ type
         otIS,                     // "IS"
         otSounds,                 // "SOUNDS"
         otLike,                   // "LIKE"
+        otEscape,                 // "ESCAPE"
         otRegExp,                 // "REGEXP", "RLIKE"
         otIn,                     // "IN"
 
@@ -1095,6 +1096,7 @@ type
         'otIS',
         'otSounds',
         'otLike',
+        'otEscape',
         'otRegExp',
         'otIn',
 
@@ -1176,6 +1178,7 @@ type
         12,  // otIS
         12,  // otSounds
         12,  // otLike
+        12,  // otEscape
         12,  // otRegExp
         12,  // otIn
 
@@ -17879,7 +17882,7 @@ end;
 function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
   const FullQualified: Boolean = True; const JokerAllowed: Boolean = False): TOffset;
 
-  function ParseDbIdentToken(): TOffset;
+  function ParseDbIdentToken(const QualifiedIdentifier: Boolean): TOffset;
   begin
     if (EndOfStmt(CurrentToken)) then
     begin
@@ -17890,7 +17893,7 @@ function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
       or (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent) and not AnsiQuotes
       or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and (AnsiQuotes or (ADbIdentType in [ditAlias]))
       or (TokenPtr(CurrentToken)^.OperatorType = otMulti) and JokerAllowed and (ADbIdentType in [ditDatabase, ditTable, ditProcedure, ditFunction, ditField])
-      or (TokenPtr(CurrentToken)^.TokenType = ttIdent) and (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0)) then
+      or (TokenPtr(CurrentToken)^.TokenType = ttIdent) and ((ADbIdentType = ditUnknown) or QualifiedIdentifier or (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0))) then
     begin
       TokenPtr(CurrentToken)^.FOperatorType := otNone;
       Result := ApplyCurrentToken(utDbIdent);
@@ -17944,7 +17947,7 @@ begin
   begin
     if (TokenPtr(CurrentToken)^.OperatorType = otMulti) then
       DbIdentType := ditUnknown;
-    Nodes.Ident := ParseDbIdentToken();
+    Nodes.Ident := ParseDbIdentToken(False);
   end;
 
   if (not ErrorFound
@@ -17969,7 +17972,7 @@ begin
           begin
             if (TokenPtr(CurrentToken)^.OperatorType = otMulti) then
               DbIdentType := ditUnknown;
-            Nodes.Ident := ParseDbIdentToken();
+            Nodes.Ident := ParseDbIdentToken(True);
           end;
         end;
       ditKey,
@@ -17989,7 +17992,7 @@ begin
           begin
             if (TokenPtr(CurrentToken)^.OperatorType = otMulti) then
               DbIdentType := ditUnknown;
-            Nodes.Ident := ParseDbIdentToken();
+            Nodes.Ident := ParseDbIdentToken(True);
 
             if (not ErrorFound
               and FullQualified
@@ -18010,7 +18013,7 @@ begin
               begin
                 if (TokenPtr(CurrentToken)^.OperatorType = otMulti) then
                   DbIdentType := ditUnknown;
-                Nodes.Ident := ParseDbIdentToken();
+                Nodes.Ident := ParseDbIdentToken(True);
               end;
             end;
           end;
@@ -24523,7 +24526,7 @@ begin
   if (not ErrorFound) then
     if (EndOfStmt(CurrentToken)) then
       SetError(PE_IncompleteStmt)
-    else if (not (TokenPtr(CurrentToken)^.OperatorType = otEqual)) then
+    else if (not (TokenPtr(CurrentToken)^.OperatorType in [otEqual, otAssign])) then
       SetError(PE_UnexpectedToken)
     else
     begin
@@ -26047,6 +26050,7 @@ begin
     OperatorTypeByKeywordIndex[kiCOLLATE]  := otCollate;
     OperatorTypeByKeywordIndex[kiDISTINCT] := otDistinct;
     OperatorTypeByKeywordIndex[kiDIV]      := otDiv;
+    OperatorTypeByKeywordIndex[kiESCAPE]   := otEscape;
     OperatorTypeByKeywordIndex[kiIS]       := otIs;
     OperatorTypeByKeywordIndex[kiIN]       := otIn;
     OperatorTypeByKeywordIndex[kiINTERVAL] := otInterval;
