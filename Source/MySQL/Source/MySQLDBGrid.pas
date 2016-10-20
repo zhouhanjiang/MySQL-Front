@@ -1293,7 +1293,7 @@ var
   LogFont: TLogFont;
 begin
   HDNotify := PHDNotify(Message.NMHdr);
-  if (not Assigned(FHeaderControl) or (HDNotify^.Hdr.hwndFrom <> FHeaderControl.Handle)) then
+  if (not Assigned(FHeaderControl) or not Assigned(FHeaderControl.Parent) or (HDNotify^.Hdr.hwndFrom <> FHeaderControl.Handle)) then
     inherited
   else
     case (HDNotify^.Hdr.code) of

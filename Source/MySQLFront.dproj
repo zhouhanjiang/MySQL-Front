@@ -48,7 +48,6 @@
 			<DCCReference Include="MySQL\Source\MySQLConsts.pas"/>
 			<DCCReference Include="MySQL\Source\MySQLDB.pas"/>
 			<DCCReference Include="MySQL\Source\HTTPTunnel.pas"/>
-			<DCCReference Include="MySQL\Source\SQLParser.pas"/>
 			<DCCReference Include="MySQL\Source\SQLUtils.pas"/>
 			<DCCReference Include="MySQL\Source\CSVUtils.pas"/>
 			<DCCReference Include="MySQL\Source\MySQLDBGrid.pas"/>
@@ -95,9 +94,6 @@
 			</DCCReference>
 			<DCCReference Include="fDForeignKey.pas">
 				<Form>DForeignKey</Form>
-			</DCCReference>
-			<DCCReference Include="fDGoto.pas">
-				<Form>DGoto</Form>
 			</DCCReference>
 			<DCCReference Include="fDImport.pas">
 				<Form>DImport</Form>

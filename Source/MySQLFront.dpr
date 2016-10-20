@@ -43,7 +43,6 @@ uses
   fDExport in 'fDExport.pas' {DExport},
   fDField in 'fDField.pas' {DField},
   fDForeignKey in 'fDForeignKey.pas' {DForeignKey},
-  fDGoto in 'fDGoto.pas' {DGoto},
   fDImport in 'fDImport.pas' {DImport},
   fDInfo in 'fDInfo.pas' {DInfo},
   fDInstallUpdate in 'fDInstallUpdate.pas' {DInstallUpdate},
