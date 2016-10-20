@@ -95,6 +95,8 @@ begin
   if (not Assigned(FDatabases.ItemFocused) and (FDatabases.Items.Count > 0)) then
     FDatabases.ItemFocused := FDatabases.Items[0];
 
+  GroupBox.Visible := True;
+  PSQLWait.Visible := not GroupBox.Visible;
   ActiveControl := FDatabases;
 end;
 

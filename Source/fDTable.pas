@@ -1379,6 +1379,12 @@ begin
             Item.Caption := SDBObject.Caption;
             Item.SubItems.Add(Preferences.LoadStr(769));
           end
+          else if (SDBObject is TSTrigger) then
+          begin
+            Item.ImageIndex := iiTrigger;
+            Item.Caption := SDBObject.Caption;
+            Item.SubItems.Add(Preferences.LoadStr(923, TSTrigger(SDBObject).TableName));
+          end
           else if (SDBObject is TSEvent) then
           begin
             Item.ImageIndex := iiEvent;

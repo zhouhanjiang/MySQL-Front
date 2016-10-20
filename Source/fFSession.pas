@@ -96,6 +96,7 @@ type
     FText: TRichEdit;
     FUDLimit: TUpDown;
     FUDOffset: TUpDown;
+    ghmGoto: TMenuItem;
     gmDDeleteRecord: TMenuItem;
     gmDEditRecord: TMenuItem;
     gmDInsertRecord: TMenuItem;
@@ -451,8 +452,6 @@ type
     procedure DBGridCellEnter(Column: TColumn);
     procedure DBGridColEnter(Sender: TObject);
     procedure DBGridColExit(Sender: TObject);
-    procedure DBGridColumnMoved(Sender: TObject; FromIndex: Integer;
-      ToIndex: Integer);
     procedure DBGridCopyToExecute(Sender: TObject);
     procedure DBGridDataSourceDataChange(Sender: TObject; Field: TField);
     procedure DBGridDblClick(Sender: TObject);
@@ -597,7 +596,6 @@ type
     procedure mfRenameClick(Sender: TObject);
     procedure mfPropertiesClick(Sender: TObject);
     procedure MFilesPopup(Sender: TObject);
-    procedure MGridHeaderPopup(Sender: TObject);
     procedure MGridPopup(Sender: TObject);
     procedure miHOpenClick(Sender: TObject);
     procedure miHPropertiesClick(Sender: TObject);
@@ -672,6 +670,9 @@ type
     procedure SynCompletionClose(Sender: TObject);
     procedure FSQLEditorSynMemoKeyPress(Sender: TObject; var Key: Char);
     procedure SynCompletionChange(Sender: TObject; AIndex: Integer);
+    procedure ghmCopyClick(Sender: TObject);
+    procedure ghmGotoClick(Sender: TObject);
+    procedure MGridHeaderPopup(Sender: TObject);
   type
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
     TTabState = set of (tsLoading, tsActive);
@@ -874,7 +875,6 @@ type
     FSQLEditorSynMemo3: TSynMemo;
     FSQLHistoryMenuNode: TTreeNode;
     GIFImage: TGIFImage;
-    IgnoreFGridTitleClick: Boolean;
     JPEGImage: TJPEGImage;
     LastFNavigatorSelected: TTreeNode;
     LastObjectIDEAddress: string;
@@ -933,7 +933,6 @@ type
     procedure AfterExecuteSQL(Sender: TObject);
     procedure aHManualExecute(Sender: TObject);
     procedure aHSQLExecute(Sender: TObject);
-    procedure aSGotoExecute(Sender: TObject);
     procedure aViewExecute(Sender: TObject);
     procedure aVRefreshAllExecute(Sender: TObject);
     procedure aVRefreshExecute(Sender: TObject);
@@ -1007,7 +1006,6 @@ type
     procedure ListViewEmpty(Sender: TObject);
     procedure ListViewInitialize(const ListView: TListView);
     procedure ListViewUpdate(const SessionEvent: TSSession.TEvent; const ListView: TListView; const Data: TCustomData = nil);
-    procedure MGridHeaderClick(Sender: TObject);
     function NavigatorNodeToAddress(const Node: TTreeNode): string;
     procedure OnConvertError(Sender: TObject; Text: string);
     procedure OpenInNewTabExecute(const DatabaseName, TableName: string; const OpenNewWindow: Boolean = False; const Filename: TFileName = '');
@@ -1101,7 +1099,7 @@ uses
   CommCtrl_Ext, StdActns_Ext,
   MySQLConsts, SQLUtils,
   fDField, fDKey, fDTable, fDTables, fDVariable, fDDatabase, fDForeignKey,
-  fDUser, fDQuickFilter, fDSQLHelp, fDTransfer, fDSearch, fDServer, fDGoto,
+  fDUser, fDQuickFilter, fDSQLHelp, fDTransfer, fDSearch, fDServer,
   fURI, fDView, fDRoutine, fDTrigger, fDStatement, fDEvent, fDPaste, fDSegment,
   fDConnecting, fPDataBrowserDummy, fDExecutingSQL;
 
@@ -4102,12 +4100,6 @@ begin
     SendMessage(FBlobSearch.Handle, EM_SETCUEBANNER, 0, LParam(PChar(Preferences.LoadStr(424))));
 end;
 
-procedure TFSession.aSGotoExecute(Sender: TObject);
-begin
-  DGoto.DBGrid := ActiveDBGrid;
-  DGoto.Execute();
-end;
-
 procedure TFSession.aViewExecute(Sender: TObject);
 var
   NewView: TView;
@@ -4746,7 +4738,6 @@ begin
 
 
   OldFListOrderIndex := -1;
-  IgnoreFGridTitleClick := False;
 
   Session.CreateDesktop := CreateDesktop;
   Session.RegisterEventProc(FormSessionEvent);
@@ -5001,7 +4992,6 @@ begin
   Result.OnCellClick := DBGridCellEnter;
   Result.OnColEnter := DBGridColEnter;
   Result.OnColExit := DBGridColExit;
-  Result.OnColumnMoved := DBGridColumnMoved;
   Result.OnDrawColumnCell := DBGridDrawColumnCell;
   Result.OnDblClick := DBGridDblClick;
   Result.OnEnter := DBGridEnter;
@@ -5473,12 +5463,6 @@ begin
   gmFilter.Clear();
 end;
 
-procedure TFSession.DBGridColumnMoved(Sender: TObject; FromIndex: Integer;
-  ToIndex: Integer);
-begin
-  IgnoreFGridTitleClick := IgnoreFGridTitleClick or (FromIndex <> ToIndex);
-end;
-
 procedure TFSession.DBGridDrawColumnCell(Sender: TObject; const Rect: TRect;
   DataCol: Integer; Column: TColumn; State: TGridDrawState);
 
@@ -5767,7 +5751,6 @@ begin
     MainAction('aFExportPDF').Enabled := True;
     MainAction('aECopyToFile').OnExecute := DBGridCopyToExecute;
     MainAction('aEPasteFromFile').OnExecute := aEPasteFromFileExecute;
-    MainAction('aSGoto').Enabled := True;
     MainAction('aDEditRecord').OnExecute := DBGridEditExecute;
     MainAction('aDEmpty').OnExecute := DBGridEmptyExecute;
 
@@ -5813,7 +5796,6 @@ begin
       MainAction('aFImportODBC').Enabled := False;
       MainAction('aECopyToFile').Enabled := False;
       MainAction('aEPasteFromFile').Enabled := False;
-      MainAction('aSGoto').Enabled := False;
       MainAction('aDInsertRecord').Enabled := False;
       MainAction('aDDeleteRecord').Enabled := False;
       MainAction('aDEditRecord').Enabled := False;
@@ -5898,8 +5880,7 @@ var
   Pos: Integer;
   SortDef: TIndexDef;
 begin
-  if (not IgnoreFGridTitleClick
-    and not (ActiveDBGrid.Fields[Column.Index].DataType in [ftUnknown, ftWideMemo, ftBlob])) then
+  if (not (ActiveDBGrid.Fields[Column.Index].DataType in [ftUnknown, ftWideMemo, ftBlob])) then
   begin
     SortDef := TIndexDef.Create(nil, '', '', []);
 
@@ -5965,8 +5946,6 @@ begin
 
     SortDef.Free();
   end;
-
-  IgnoreFGridTitleClick := False;
 end;
 
 procedure TFSession.DBGridInitialize(const DBGrid: TMySQLDBGrid);
@@ -8575,6 +8554,41 @@ begin
     Result := TForm_Ext(Owner);
 end;
 
+procedure TFSession.ghmCopyClick(Sender: TObject);
+var
+  ClipboardData: HGLOBAL;
+  Content: string;
+  FieldInfo: TFieldInfo;
+  Len: Integer;
+begin
+  if (OpenClipboard(Handle) and GetFieldInfo(ActiveDBGrid.SelectedField.Origin, FieldInfo)) then
+  begin
+    EmptyClipboard();
+
+    Content := Session.Connection.EscapeIdentifier(FieldInfo.OriginalFieldName);
+
+    Len := Length(Content);
+    ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Len + 1) * SizeOf(Content[1]));
+    Move(PChar(Content)^, GlobalLock(ClipboardData)^, (Len + 1) * SizeOf(Content[1]));
+    SetClipboardData(CF_UNICODETEXT, ClipboardData);
+    GlobalUnlock(ClipboardData);
+
+    CloseClipboard();
+  end;
+end;
+
+procedure TFSession.ghmGotoClick(Sender: TObject);
+var
+  Item: TMenuItem;
+begin
+  if (Sender is TMenuItem) then
+  begin
+    Item := TMenuItem(Sender);
+
+    ActiveDBGrid.SelectedIndex := Item.Parent.IndexOf(Item);
+  end;
+end;
+
 procedure TFSession.gmFilterClearClick(Sender: TObject);
 begin
   Wanted.Clear();
@@ -10491,73 +10505,18 @@ begin
   FFiles.Selected.EditCaption();
 end;
 
-procedure TFSession.MGridHeaderClick(Sender: TObject);
-var
-  MenuItem: TMenuItem;
-  SortDef: TIndexDef;
-begin
-  Wanted.Clear();
-
-  if (not IgnoreFGridTitleClick) then
-  begin
-    MenuItem := TMenuItem(Sender);
-
-    SortDef := TIndexDef.Create(nil, '', '', []);
-    TSBaseTable(FNavigator.Selected.Data).Keys[MenuItem.Tag].GetSortDef(SortDef);
-    TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).Sort(SortDef);
-    SortDef.Free();
-
-    ActiveDBGrid.UpdateHeader();
-  end;
-
-  IgnoreFGridTitleClick := False;
-end;
-
 procedure TFSession.MGridHeaderPopup(Sender: TObject);
 var
   I: Integer;
-  Key: TSKey;
-  MenuItem: TMenuItem;
-  SortDef: TIndexDef;
-  SortMenuItem: TMenuItem;
-  Table: TSBaseTable;
+  Item: TMenuItem;
 begin
-  MGridHeader.Items.Clear();
-
-  if (SelectedImageIndex in [iiBaseTable, iiSystemView]) then
+  ghmGoto.Clear();
+  for I := 0 to ActiveDBGrid.Columns.Count - 1 do
   begin
-    Table := TSBaseTable(FNavigator.Selected.Data);
-
-    SortDef := TIndexDef.Create(nil, '', '', []);
-
-    for I := 0 to Table.Keys.Count - 1 do
-    begin
-      Table.Keys[I].GetSortDef(SortDef);
-
-      MenuItem := TMenuItem.Create(Self);
-      MenuItem.Caption := Table.Keys[I].Caption;
-      MenuItem.Checked := (SortDef.Fields = Table.DataSet.SortDef.Fields) and (SortDef.DescFields = Table.DataSet.SortDef.DescFields);
-      MenuItem.Default := Table.Keys[I].PrimaryKey;
-      MenuItem.Tag := I;
-      MenuItem.RadioItem := True;
-      MenuItem.OnClick := MGridHeaderClick;
-      MGridHeader.Items.Add(MenuItem);
-    end;
-
-    SortDef.Free();
-
-    SortMenuItem := nil;
-    for I := 0 to MGridHeader.Items.Count - 1 do
-      if (MGridHeader.Items[I].Count > 0) then
-        SortMenuItem := TMenuItem(MGridHeader.Items[I]);
-
-    if (Assigned(SortMenuItem) and (ActiveDBGrid.DataSource.DataSet is TSTable.TDataSet)) then
-    begin
-      Key := Table.KeyByDataSet(TSTable.TDataSet(ActiveDBGrid.DataSource.DataSet));
-      for I := 0 to SortMenuItem.Count - 1 do
-        if (SortMenuItem.Items[I].Tag >= 0) then
-          SortMenuItem.Items[I].Checked := Assigned(Key) and (Key.Index = SortMenuItem.Items[I].Tag);
-    end;
+    Item := TMenuItem.Create(ghmGoto);
+    Item.Caption := ActiveDBGrid.Columns[I].DisplayName;
+    Item.OnClick := ghmGotoClick;
+    ghmGoto.Add(Item);
   end;
 end;
 
@@ -13848,6 +13807,8 @@ begin
   gmFExport.Caption := Preferences.LoadStr(200);
   gmFilter.Caption := Preferences.LoadStr(209);
 
+  ghmGoto.Caption := Preferences.LoadStr(676);
+
   mtObjects.Caption := tbObjects.Caption;
   mtBrowser.Caption := tbBrowser.Caption;
   mtIDE.Caption := tbIDE.Caption;
@@ -14081,7 +14042,6 @@ begin
     MainAction('aECopy').OnExecute := aECopyExecute;
     MainAction('aEPaste').OnExecute := aEPasteExecute;
     MainAction('aERename').OnExecute := aERenameExecute;
-    MainAction('aSGoto').OnExecute := aSGotoExecute;
     MainAction('aVObjectBrowser').OnExecute := aViewExecute;
     MainAction('aVDataBrowser').OnExecute := aViewExecute;
     MainAction('aVObjectIDE').OnExecute := aViewExecute;

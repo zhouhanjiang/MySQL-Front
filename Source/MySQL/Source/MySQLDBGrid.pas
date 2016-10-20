@@ -52,7 +52,6 @@ type
     SearchFindDialogOnShowBeforeSearch: TNotifyEvent;
     TitleBoldFont: TFont;
     procedure ActivateHint();
-    function CanvasTextWidth(const Text: string): Integer; inline;
     function EditCopyExecute(): Boolean;
     function EditCutExecute(): Boolean;
     function EditDeleteExecute(): Boolean;
@@ -76,7 +75,6 @@ type
     procedure ColEnter(); override;
     function CreateEditor(): TInplaceEdit; override;
     procedure CreateWnd(); override;
-    procedure DblClick(); override;
     procedure DoEnter(); override;
     function DoMouseWheel(Shift: TShiftState; WheelDelta: Integer;
       MousePos: TPoint): Boolean; override;
@@ -288,11 +286,6 @@ begin
     and not ((SelectedField = Columns[Columns.Count - 1].Field) and (Key in [VK_TAB]) and not (ssShift in Shift));
 end;
 
-function TMySQLDBGrid.CanvasTextWidth(const Text: string): Integer;
-begin
-  Result := Canvas.TextWidth(Text);
-end;
-
 procedure TMySQLDBGrid.CMFontChanged(var Message);
 begin
   inherited;
@@ -464,34 +457,6 @@ begin
 
   SetColumnAttributes();
   Resize();
-end;
-
-procedure TMySQLDBGrid.DblClick();
-var
-  Coord: TGridCoord;
-  DataCol: Integer;
-  NewWidth: Integer;
-begin
-  Coord := MouseCoord(FMouseDownPoint.X - 3, FMouseDownPoint.Y);
-  if (dgIndicator in Options) then
-    DataCol := Coord.X - 1
-  else
-    DataCol := Coord.X;
-  IgnoreTitleClick := Coord.Y = 0;
-
-  if (not IgnoreTitleClick) then
-    inherited
-  else
-  begin
-    if ((DataLink.DataSet is TMySQLDataSet) and (DataCol >= 0) and not (Columns[DataCol].Field.DataType in [ftWideMemo, ftBlob])) then
-    begin
-      Canvas.Font := Columns[DataCol].Font;
-      NewWidth := TMySQLDataSet(DataLink.DataSet).GetMaxTextWidth(Columns[DataCol].Field, CanvasTextWidth) + 4 + GridLineWidth;
-      if (NewWidth > Width - RowHeights[0]) then
-        NewWidth := Width - RowHeights[0];
-      Columns[DataCol].Width := NewWidth;
-    end;
-  end;
 end;
 
 destructor TMySQLDBGrid.Destroy();
@@ -1320,68 +1285,15 @@ end;
 
 procedure TMySQLDBGrid.WMNotify(var Message: TWMNotify);
 var
-  Column: TColumn;
-  HDItem: THDItem;
   HDNotify: PHDNotify;
   HDCustomDraw: PNMCustomDraw;
   LogFont: TLogFont;
-  NewWidth: Integer;
 begin
   HDNotify := PHDNotify(Message.NMHdr);
   if (not Assigned(FHeaderControl) or (HDNotify^.Hdr.hwndFrom <> FHeaderControl.Handle)) then
     inherited
   else
     case (HDNotify^.Hdr.code) of
-      HDN_DIVIDERDBLCLICK:
-        begin
-          Column := Columns[LeftCol + HDNotify^.Item];
-          if ((DataLink.DataSet is TMySQLDataSet) and not (Column.Field is TBlobField)) then
-          begin
-            HDItem.Mask := HDI_WIDTH;
-            if (BOOL(SendMessage(Header, HDM_GETITEM, HDNotify^.Item, LPARAM(@HDItem)))) then
-            begin
-              IgnoreTitleChange := True;
-
-              Canvas.Font := Column.Font;
-              NewWidth := TMySQLDataSet(DataLink.DataSet).GetMaxTextWidth(Column.Field, CanvasTextWidth) + 4 + GridLineWidth;
-              if (NewWidth > Width - RowHeights[0]) then
-                NewWidth := Width - RowHeights[0];
-
-              HDItem.cxy := NewWidth;
-              if (dgColLines in Options) then
-                Inc(HDItem.cxy, GridLineWidth);
-              while (not BOOL(SendMessage(Header, HDM_SETITEM, HDNotify^.Item, LPARAM(@HDItem)))) do
-                Inc(HDItem.cxy, GridLineWidth);
-
-              IgnoreTitleChange := False;
-
-              Resize();
-            end;
-          end;
-        end;
-//      HDN_ITEMCHANGING:
-//        Message.Result := LRESULT(not ((HDNotify^.PItem.Mask and HDI_WIDTH = 0) or (HDNotify^.PItem.cxy >= RowHeights[1])));
-//      HDN_ITEMCHANGED:
-//        begin
-//          Column := Columns[LeftCol + HDNotify^.Item];
-//          if (HDNotify^.PItem.Mask and HDI_WIDTH <> 0) then
-//          begin
-//            if (EditorMode) then Perform(CM_Exit, 0, 0);
-//            if (dgColLines in Options) then
-//              Column.Width := HDNotify^.PItem.cxy - GridLineWidth
-//            else
-//              Column.Width := HDNotify^.PItem.cxy;
-//            Resize();
-//          end;
-//        end;
-//      HDN_ENDDRAG:
-//        if ((HDNotify^.PItem.Mask and HDI_ORDER <> 0) and (HDNotify^.PItem.iOrder >= 0)) then
-//        begin
-//          Column := Columns[LeftCol + HDNotify^.Item];
-//          Column.Index := HDNotify^.PItem.iOrder + LeftCol;
-//          Message.Result := LRESULT(TRUE);
-//          Resize();
-//        end;
       NM_CUSTOMDRAW:
         begin
           HDCustomDraw := PNMCustomDraw(HDNotify);

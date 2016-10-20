@@ -11,10 +11,11 @@ type
   TDInfo = class(TForm_Ext)
     FBuild: TLabel;
     FImage: TImage;
-    FLine: TPanel_Ext;
     FBOk: TButton;
     FURI: TLabel;
     FVersion: TLabel;
+    PImage: TPanel;
+    FName: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormShow(Sender: TObject);
@@ -33,7 +34,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  ShellAPI,
+  ShellAPI, GDIPAPI, GDIPObj, GDIPUTIL,
   fPreferences;
 
 var
@@ -56,11 +57,10 @@ procedure TDInfo.CMSysFontChanged(var Message: TMessage);
 begin
   inherited;
 
+  FName.Font.Name := Font.Name;
   FVersion.Font.Name := Font.Name;
   FBuild.Font.Name := Font.Name;
   FURI.Font.Name := Font.Name;
-
-  FVersion.Left := FBuild.Left - FVersion.Width - 2 * FVersion.Canvas.TextWidth('W');
 end;
 
 function TDInfo.Execute(): Boolean;
@@ -102,9 +102,9 @@ procedure TDInfo.UMChangePreferences(var Message: TMessage);
 begin
   Caption := Preferences.LoadStr(367) + ' ' + LoadStr(1000);
 
+  FName.Caption := SysUtils.LoadStr(1000);
   FVersion.Caption := Preferences.LoadStr(169) + ' ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor);
   FBuild.Caption := '(' + Preferences.LoadStr(737) + ': ' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + ')';
-  FVersion.Left := FBuild.Left - FVersion.Width - 8;
 
   FURI.Caption := SysUtils.LoadStr(1004);
 

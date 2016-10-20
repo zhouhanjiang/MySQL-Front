@@ -1965,6 +1965,9 @@ object FSession: TFSession
     OnPopup = MGridHeaderPopup
     Left = 217
     Top = 472
+    object ghmGoto: TMenuItem
+      Caption = 'ghmGoto'
+    end
   end
   object MSideBar: TPopupMenu
     Left = 8

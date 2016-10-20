@@ -800,14 +800,6 @@ object WWindow: TWWindow
       SearchFind = aSSearchFind
       ShortCut = 114
     end
-    object aSGoto: TAction
-      Category = 'Search'
-      Caption = 'aSGoto'
-      Enabled = False
-      HelpContext = 1149
-      HelpType = htContext
-      ShortCut = 16455
-    end
     object aDCreateDatabase: TAction
       Category = 'Database'
       Caption = 'aDCreateDatabase'
@@ -1427,12 +1419,6 @@ object WWindow: TWWindow
       end
       object miSSearchNext: TMenuItem
         Action = aSSearchNext
-      end
-      object N6: TMenuItem
-        Caption = '-'
-      end
-      object miSGoto: TMenuItem
-        Action = aSGoto
       end
     end
     object miView: TMenuItem
