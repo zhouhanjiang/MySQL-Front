@@ -1512,11 +1512,11 @@ begin
   miEdit.Caption := Preferences.LoadStr(62);
   aEUndo.Caption := Preferences.LoadStr(425);
   aERedo.Caption := Preferences.LoadStr(705);
-  aECut.Caption := Preferences.LoadStr(63) + #9 + ShortCutToText(scCtrl + Ord('X'));
-  aECopy.Caption := Preferences.LoadStr(64) + #9 + ShortCutToText(scCtrl + Ord('C'));
-  aEPaste.Caption := Preferences.LoadStr(65) + #9 + ShortCutToText(scCtrl + Ord('V'));
-  aEDelete.Caption := Preferences.LoadStr(28) + #9 + ShortCutToText(VK_DELETE);
-  aESelectAll.Caption := Preferences.LoadStr(572) + #9 + ShortCutToText(scCtrl + Ord('A'));
+  aECut.Caption := Preferences.LoadStr(63);
+  aECopy.Caption := Preferences.LoadStr(64);
+  aEPaste.Caption := Preferences.LoadStr(65);
+  aEDelete.Caption := Preferences.LoadStr(28);
+  aESelectAll.Caption := Preferences.LoadStr(572);
   aECopyToFile.Caption := Preferences.LoadStr(182) + '...';
   aEPasteFromFile.Caption := Preferences.LoadStr(183) + '...';
   aERename.Caption := Preferences.LoadStr(98);
@@ -1583,8 +1583,8 @@ begin
   aDEditProcess.Caption := Preferences.LoadStr(562) + '...';
   aDEditUser.Caption := Preferences.LoadStr(561) + '...';
   aDEditVariable.Caption := Preferences.LoadStr(267) + '...';
-  aDInsertRecord.Caption := Preferences.LoadStr(179) + #9 + ShortCutToText(VK_INSERT);
-  aDDeleteRecord.Caption := Preferences.LoadStr(178) + #9 + ShortCutToText(scCtrl + VK_DELETE);
+  aDInsertRecord.Caption := Preferences.LoadStr(179);
+  aDDeleteRecord.Caption := Preferences.LoadStr(178);
   aDEditRecord.Caption := Preferences.LoadStr(500);
   aDPostRecord.Caption := Preferences.LoadStr(516);
   aDCancelRecord.Caption := Preferences.LoadStr(517);

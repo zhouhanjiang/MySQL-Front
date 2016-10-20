@@ -761,6 +761,7 @@ object WWindow: TWWindow
       Caption = 'aESelectAll'
       HelpContext = 1028
       HelpType = htContext
+      ShortCut = 16449
     end
     object aEPaste: TEditPaste
       Category = 'Edit'
@@ -769,8 +770,7 @@ object WWindow: TWWindow
       HelpContext = 1026
       HelpType = htContext
       ImageIndex = 9
-      SecondaryShortCuts.Strings = (
-        'Shift+Ins')
+      ShortCut = 16470
     end
     object aSSearchFind: TSearchFind_Ext
       Category = 'Search'
@@ -1062,7 +1062,6 @@ object WWindow: TWWindow
       HelpContext = 1062
       HelpType = htContext
       ImageIndex = 20
-      ShortCut = 16430
     end
     object aDEditRecord: TAction
       Category = 'Database'
@@ -1150,6 +1149,7 @@ object WWindow: TWWindow
       HelpContext = 1024
       HelpType = htContext
       ImageIndex = 7
+      ShortCut = 16472
     end
     object aOAccounts: TAction
       Category = 'Options'
@@ -1165,8 +1165,7 @@ object WWindow: TWWindow
       HelpContext = 1027
       HelpType = htContext
       ImageIndex = 10
-      SecondaryShortCuts.Strings = (
-        'Ctrl+X')
+      ShortCut = 16430
     end
     object aECopy: TEditCopy
       Category = 'Edit'
@@ -1175,8 +1174,7 @@ object WWindow: TWWindow
       HelpContext = 1025
       HelpType = htContext
       ImageIndex = 8
-      SecondaryShortCuts.Strings = (
-        'Ctrl+Ins')
+      ShortCut = 16451
     end
     object aECopyToFile: TAction
       Category = 'Edit'

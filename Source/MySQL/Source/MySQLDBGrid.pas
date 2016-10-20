@@ -468,7 +468,10 @@ begin
     TitleBoldFont.Free();
 
   if (Assigned(FHeaderControl)) then
+  begin
+    FHeaderControl.Parent := nil;
     FHeaderControl.Free();
+  end;
 
   inherited;
 end;

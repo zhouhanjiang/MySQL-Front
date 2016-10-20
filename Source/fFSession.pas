@@ -5755,7 +5755,10 @@ begin
     MainAction('aDEmpty').OnExecute := DBGridEmptyExecute;
 
     MainAction('aERename').ShortCut := 0;
+    MainAction('aEDelete').ShortCut := 0;
 
+    MainAction('aDInsertRecord').ShortCut := VK_INSERT;
+    MainAction('aDDeleteRecord').ShortCut := ShortCut(VK_DELETE, [ssCtrl]);
     MainAction('aDEditRecord').ShortCut := VK_F2;
 
     DataSetAfterScroll(DBGrid.DataSource.DataSet);
@@ -5802,9 +5805,12 @@ begin
       MainAction('aDPostObject').Enabled := False;
       MainAction('aDEmpty').Enabled := False;
 
+      MainAction('aDInsertRecord').ShortCut := 0;
+      MainAction('aDDeleteRecord').ShortCut := 0;
       MainAction('aDEditRecord').ShortCut := 0;
 
       MainAction('aERename').ShortCut := VK_F2;
+      MainAction('aEDelete').ShortCut := ShortCut(VK_DELETE, [ssCtrl]);
     end;
   end;
 end;

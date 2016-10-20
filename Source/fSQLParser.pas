@@ -4,6 +4,9 @@ interface {********************************************************************}
 
 // SQL Syntax updated with MySQL 5.7.15
 
+uses
+  fProfiling;
+
 type
   TSQLParser = class
   protected
@@ -6253,6 +6256,7 @@ type
     kiNATIONAL,
     kiNATURAL,
     kiNEVER,
+    kiNEW,
     kiNEXT,
     kiNO,
     kiNONE,
@@ -6263,6 +6267,7 @@ type
     kiOFFSET,
     kiOJ,
     kiOFF,
+    kiOLD,
     kiON,
     kiONE,
     kiONLY,
@@ -6482,6 +6487,7 @@ type
     FunctionList: TWordList;
     InCreateFunctionStmt: Boolean;
     InCreateProcedureStmt: Boolean;
+    InCreateTriggerStmt: Boolean;
     KeywordList: TWordList;
     LastTokenAll: TOffset;
     Nodes: record
@@ -7075,7 +7081,7 @@ const
     'WEEKDAY,WEEKOFYEAR,WEIGHT_STRING,WITHIN,X,Y,YEAR,YEARWEEK';
 
   MySQLKeywords =
-    'ANY,SOME,OFF,STATS_SAMPLE_PAGES,DUAL,TABLE_CHECKSUM,' +
+    'ANY,SOME,OFF,STATS_SAMPLE_PAGES,DUAL,TABLE_CHECKSUM,NEW,OLD,' +
 
     'ACCOUNT,ACTION,ADD,AFTER,AGAINST,ALGORITHM,ALL,ALTER,ALWAYS,ANALYZE,AND,' +
     'AS,ASC,ASCII,AT,AUTO_INCREMENT,AVG_ROW_LENGTH,BEFORE,BEGIN,' +
@@ -11583,8 +11589,9 @@ begin
   FirstError.Pos := nil;
   FirstError.Token := 0;
   InCreateFunctionStmt := False;
-  FInPL_SQL := 0;
   InCreateProcedureStmt := False;
+  InCreateTriggerStmt := False;
+  FInPL_SQL := 0;
   if (Nodes.MemSize <> DefaultNodesMemSize) then
   begin
     Nodes.MemSize := DefaultNodesMemSize;
@@ -17519,7 +17526,13 @@ begin
       Nodes.OrderValue := ParseValue(kiPRECEDES, vaNo, ParseTriggerIdent);
 
   if (not ErrorFound) then
+  begin
+    if (InCreateTriggerStmt) then
+      raise Exception.Create(SUnknownError);
+    InCreateTriggerStmt := True;
     Nodes.Body := ParsePL_SQLStmt();
+    InCreateTriggerStmt := True;
+  end;
 
   Result := TCreateTriggerStmt.Create(Self, Nodes);
 end;
@@ -17893,7 +17906,10 @@ function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
       or (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent) and not AnsiQuotes
       or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and (AnsiQuotes or (ADbIdentType in [ditAlias]))
       or (TokenPtr(CurrentToken)^.OperatorType = otMulti) and JokerAllowed and (ADbIdentType in [ditDatabase, ditTable, ditProcedure, ditFunction, ditField])
-      or (TokenPtr(CurrentToken)^.TokenType = ttIdent) and ((ADbIdentType = ditUnknown) or QualifiedIdentifier or (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0))) then
+      or (TokenPtr(CurrentToken)^.TokenType = ttIdent)
+        and ((ADbIdentType = ditUnknown)
+          or QualifiedIdentifier
+          or (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0))) then
     begin
       TokenPtr(CurrentToken)^.FOperatorType := otNone;
       Result := ApplyCurrentToken(utDbIdent);
@@ -18703,6 +18719,8 @@ begin
           TokenPtr(CurrentToken)^.FOperatorType := otUnaryNot;
           Nodes.Add(ApplyCurrentToken(utOperator));
         end
+        else if ((TokenPtr(CurrentToken)^.OperatorType = otUnaryNot) and ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1]))) then
+          Nodes.Add(ApplyCurrentToken(utOperator))
         else if (TokenPtr(CurrentToken)^.OperatorType = otInterval) then
           Nodes.Add(ParseInterval())
         else if (TokenPtr(CurrentToken)^.OperatorType = otCase) then
@@ -20835,7 +20853,9 @@ begin
 
   CurrentToken := GetToken(0); // Cache for speeding
 
+ProfilingReset();
   StmtList := ParseList(False, ParseStmt, ttSemicolon, True);
+ProfilingReport('C:\Test.txt');
 
   Result := TRoot.Create(Self, FirstTokenAll, LastTokenAll, StmtList);
 
@@ -25828,6 +25848,7 @@ begin
     kiNATIONAL                      := IndexOf('NATIONAL');
     kiNATURAL                       := IndexOf('NATURAL');
     kiNEVER                         := IndexOf('NEVER');
+    kiNEW                           := IndexOf('NEW');
     kiNEXT                          := IndexOf('NEXT');
     kiNO                            := IndexOf('NO');
     kiNONE                          := IndexOf('NONE');
@@ -25838,6 +25859,7 @@ begin
     kiOFFSET                        := IndexOf('OFFSET');
     kiOJ                            := IndexOf('OJ');
     kiOFF                           := IndexOf('OFF');
+    kiOLD                           := IndexOf('OLD');
     kiON                            := IndexOf('ON');
     kiONE                           := IndexOf('ONE');
     kiONLY                          := IndexOf('ONLY');

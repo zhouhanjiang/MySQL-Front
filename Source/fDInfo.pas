@@ -3,9 +3,10 @@ unit fDInfo;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, SysUtils, Graphics, Forms, Jpeg,
+  Windows, Messages, Classes, SysUtils,
+  ExtCtrls, Controls, StdCtrls, Graphics, Forms,
   ExtCtrls_Ext, Forms_Ext,
-  fBase, Vcl.ExtCtrls, System.Classes, Vcl.Controls, Vcl.StdCtrls;
+  fBase;
 
 type
   TDInfo = class(TForm_Ext)
@@ -34,7 +35,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  ShellAPI, GDIPAPI, GDIPObj, GDIPUTIL,
+  ShellAPI, GDIPObj,
   fPreferences;
 
 var
@@ -71,15 +72,19 @@ end;
 
 procedure TDInfo.FormCreate(Sender: TObject);
 var
-  JPEGImage: TJPEGImage;
-  Stream: TResourceStream;
+  Graphics: TGPGraphics;
+  Image: TGPImage;
+  ResourceStream: TResourceStream;
+  StreamAdapter: TStreamAdapter;
 begin
-  Stream := TResourceStream.CreateFromID(HInstance, 1, RT_RCDATA);
-  JPEGImage := TJPEGImage.Create();
-  JPEGImage.LoadFromStream(Stream);
-  FImage.Canvas.StretchDraw(Rect(0, 0, FImage.Width, FImage.Height), JPEGImage);
-  JPEGImage.Free();
-  Stream.Free();
+  ResourceStream := TResourceStream.CreateFromID(HInstance, 1, RT_RCDATA);
+  StreamAdapter := TStreamAdapter.Create(ResourceStream);
+  Image := TGPImage.Create(StreamAdapter);
+  Graphics := TGPGraphics.Create(FImage.Canvas.Handle);
+  Graphics.DrawImage(Image, 0, 0, FImage.Width, FImage.Height);
+  Graphics.Free();
+  Image.Free();
+  ResourceStream.Free();
 end;
 
 procedure TDInfo.FormDestroy(Sender: TObject);

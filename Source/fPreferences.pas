@@ -825,7 +825,7 @@ implementation {***************************************************************}
 
 uses
   Consts, CommCtrl, SHFolder, WinInet, ShellAPI, ImgList, ShlObj, StrUtils,
-  Variants, Math, SysConst, ActiveX, RTLConsts,
+  Variants, Math, SysConst, ActiveX, RTLConsts, GDIPObj,
   MySQLConsts,
   CSVUtils,
   fURI;
