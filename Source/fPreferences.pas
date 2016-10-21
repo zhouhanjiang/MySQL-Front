@@ -2049,6 +2049,13 @@ var
   NonClientMetrics: TNonClientMetrics;
   Path: string;
   StringList: TStringList;
+//var
+//  Bitmap: Graphics.TBitmap;
+//  FileStream: TFileStream;
+//  GPGraphics: TGPGraphics;
+//  GPImage: TGPImage;
+//  ResourceStream: TResourceStream;
+//  StreamAdapter: TStreamAdapter;
 begin
   inherited Create(KEY_ALL_ACCESS);
 
@@ -2170,7 +2177,24 @@ begin
       ImageList_AddIcon(FSmallImages.Handle, GetFileIcon(StrPas(PChar(@Foldername)) + '\odbcad32.exe'))
     end
     else if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
+    begin
+//      Bitmap := Graphics.TBitmap.Create();
+//      Bitmap.Width := FSmallImages.Width;
+//      Bitmap.Height := FSmallImages.Height;
+//      Bitmap.PixelFormat := pf32Bit;
+//      Bitmap.HandleType := bmDIB;
+//      Bitmap.IgnorePalette := true;
+//      Bitmap.AlphaFormat := afDefined;
+////  ResourceStream := TResourceStream.CreateFromID(HInstance, 10000 + I, RT_GROUP_ICON);
+//  FileStream := TFileStream.Create('C:\Test.ico', fmOpenRead + fmShareDenyNone);
+//  StreamAdapter := TStreamAdapter.Create(FileStream);
+//  GPImage := TGPImage.Create(StreamAdapter);
+//  GPGraphics := TGPGraphics.Create(Bitmap.Canvas.Handle);
+//  GPGraphics.DrawImage(GPImage, 0, 0, Bitmap.Width, Bitmap.Height);
+//  FSmallImages.Add(Bitmap, nil);
+//
       ImageList_AddIcon(FSmallImages.Handle, LoadImage(hInstance, MAKEINTRESOURCE(10000 + I), IMAGE_ICON, GetSystemMetrics(SM_CYSMICON), GetSystemMetrics(SM_CXSMICON), LR_DEFAULTCOLOR))
+    end
     else if (I > 0) then
       ImageList_AddIcon(FSmallImages.Handle, ImageList_GetIcon(FSmallImages.Handle, 0, 0));
 

@@ -4,9 +4,6 @@ interface {********************************************************************}
 
 // SQL Syntax updated with MySQL 5.7.15
 
-uses
-  fProfiling;
-
 type
   TSQLParser = class
   protected
@@ -20853,9 +20850,7 @@ begin
 
   CurrentToken := GetToken(0); // Cache for speeding
 
-ProfilingReset();
   StmtList := ParseList(False, ParseStmt, ttSemicolon, True);
-ProfilingReport('C:\Test.txt');
 
   Result := TRoot.Create(Self, FirstTokenAll, LastTokenAll, StmtList);
 

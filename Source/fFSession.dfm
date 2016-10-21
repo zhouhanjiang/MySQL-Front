@@ -1999,15 +1999,6 @@ object FSession: TFSession
       Default = True
       OnClick = mfOpenClick
     end
-    object mfOpenInNewWindow: TMenuItem
-      Caption = 'mfOpenInNewWindow'
-      OnClick = mfOpenInNewWindowClick
-    end
-    object mfOpenInNewTab: TMenuItem
-      Caption = 'mfOpenInNewTab'
-      ShortCut = 16462
-      OnClick = mfOpenInNewTabClick
-    end
     object N30: TMenuItem
       Caption = '-'
     end

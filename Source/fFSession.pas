@@ -126,8 +126,6 @@ type
     mfFilterXML: TMenuItem;
     MFiles: TPopupMenu;
     mfOpen: TMenuItem;
-    mfOpenInNewTab: TMenuItem;
-    mfOpenInNewWindow: TMenuItem;
     mfProperties: TMenuItem;
     mfRename: TMenuItem;
     MGrid: TPopupMenu;
@@ -10521,6 +10519,8 @@ begin
   begin
     Item := TMenuItem.Create(ghmGoto);
     Item.Caption := ActiveDBGrid.Columns[I].DisplayName;
+    Item.Checked := I = ActiveDBGrid.SelectedIndex;
+    Item.RadioItem := True;
     Item.OnClick := ghmGotoClick;
     ghmGoto.Add(Item);
   end;
@@ -13769,8 +13769,6 @@ begin
   tbEditor3.Caption := Preferences.LoadStr(6) + ' #3';
 
   mfOpen.Caption := Preferences.LoadStr(581);
-  mfOpenInNewWindow.Caption := Preferences.LoadStr(760);
-  mfOpenInNewTab.Caption := Preferences.LoadStr(850);
   mfFilter.Caption := Preferences.LoadStr(209);
   mfFilterClear.Caption := FilterDescription('*') + ' (*.*)';
   mfFilterSQL.Caption := FilterDescription('sql') + ' (*.sql)';

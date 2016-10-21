@@ -4,12 +4,12 @@ object DInfo: TDInfo
   HelpContext = 1075
   BorderStyle = bsDialog
   Caption = 'DInfo'
-  ClientHeight = 295
-  ClientWidth = 458
+  ClientHeight = 243
+  ClientWidth = 377
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
-  Font.Height = -14
+  Font.Height = -12
   Font.Name = 'Tahoma'
   Font.Style = []
   OldCreateOrder = False
@@ -17,18 +17,55 @@ object DInfo: TDInfo
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnShow = FormShow
-  PixelsPerInch = 120
-  TextHeight = 17
+  PixelsPerInch = 106
+  TextHeight = 14
   object FVersion: TLabel
-    Left = 251
-    Top = 84
-    Width = 78
-    Height = 22
-    Margins.Left = 4
-    Margins.Top = 4
-    Margins.Right = 4
-    Margins.Bottom = 4
+    Left = 207
+    Top = 69
+    Width = 66
+    Height = 18
     Caption = 'FVersion'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -15
+    Font.Name = 'Tahoma'
+    Font.Style = [fsBold]
+    ParentFont = False
+  end
+  object FBuild: TLabel
+    Left = 207
+    Top = 93
+    Width = 29
+    Height = 13
+    Caption = 'FBuild'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -12
+    Font.Name = 'MS Sans Serif'
+    Font.Style = []
+    ParentFont = False
+  end
+  object FURI: TLabel
+    Left = 207
+    Top = 125
+    Width = 25
+    Height = 13
+    Cursor = crHandPoint
+    Caption = 'FURI'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clBlue
+    Font.Height = -12
+    Font.Name = 'MS Sans Serif'
+    Font.Style = [fsUnderline]
+    ParentFont = False
+    OnClick = FURIClick
+  end
+  object FName: TLabel
+    Left = 207
+    Top = 34
+    Width = 63
+    Height = 22
+    Caption = 'FName'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -18
@@ -36,92 +73,27 @@ object DInfo: TDInfo
     Font.Style = [fsBold]
     ParentFont = False
   end
-  object FBuild: TLabel
-    Left = 251
-    Top = 113
-    Width = 38
-    Height = 16
-    Margins.Left = 4
-    Margins.Top = 4
-    Margins.Right = 4
-    Margins.Bottom = 4
-    Caption = 'FBuild'
-    Font.Charset = DEFAULT_CHARSET
-    Font.Color = clWindowText
-    Font.Height = -15
-    Font.Name = 'MS Sans Serif'
-    Font.Style = []
-    ParentFont = False
-  end
-  object FURI: TLabel
-    Left = 251
-    Top = 152
-    Width = 31
-    Height = 16
-    Cursor = crHandPoint
-    Margins.Left = 4
-    Margins.Top = 4
-    Margins.Right = 4
-    Margins.Bottom = 4
-    Caption = 'FURI'
-    Font.Charset = DEFAULT_CHARSET
-    Font.Color = clBlue
-    Font.Height = -15
-    Font.Name = 'MS Sans Serif'
-    Font.Style = [fsUnderline]
-    ParentFont = False
-    OnClick = FURIClick
-  end
-  object FName: TLabel
-    Left = 251
-    Top = 41
-    Width = 70
-    Height = 24
-    Margins.Left = 4
-    Margins.Top = 4
-    Margins.Right = 4
-    Margins.Bottom = 4
-    Caption = 'FName'
-    Font.Charset = DEFAULT_CHARSET
-    Font.Color = clWindowText
-    Font.Height = -20
-    Font.Name = 'Tahoma'
-    Font.Style = [fsBold]
-    ParentFont = False
-  end
   object PImage: TPanel
-    Left = 21
-    Top = 21
-    Width = 210
-    Height = 210
-    Margins.Left = 4
-    Margins.Top = 4
-    Margins.Right = 4
-    Margins.Bottom = 4
+    Left = 17
+    Top = 17
+    Width = 173
+    Height = 173
     BevelOuter = bvLowered
     Color = clWhite
     ParentBackground = False
     TabOrder = 1
     object FImage: TImage
-      Left = 21
-      Top = 21
-      Width = 167
-      Height = 167
-      Margins.Left = 4
-      Margins.Top = 4
-      Margins.Right = 4
-      Margins.Bottom = 4
+      Left = 17
+      Top = 17
+      Width = 138
+      Height = 138
     end
   end
   object FBOk: TButton
-    Left = 356
-    Top = 254
-    Width = 91
-    Height = 30
-    Margins.Left = 4
-    Margins.Top = 4
-    Margins.Right = 4
-    Margins.Bottom = 4
+    Left = 293
+    Top = 209
+    Width = 75
+    Height = 25
     Cancel = True
     Caption = 'FBOk'
     Default = True
