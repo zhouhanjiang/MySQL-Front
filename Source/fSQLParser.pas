@@ -556,7 +556,6 @@ type
 
         otInterval,               // "INTERVAL"
 
-        otBinary,                 // "BINARY"
         otCollate,                // "COLLATE"
         otDistinct,               // "DISTINCT"
 
@@ -1050,7 +1049,7 @@ type
         'utDbIdent'
       );
 
-      otUnaryOperators = [otBinary, otDistinct, otUnaryNot, otUnaryMinus, otUnaryPlus, otInvertBits];
+      otUnaryOperators = [otDistinct, otUnaryNot, otUnaryMinus, otUnaryPlus, otInvertBits];
 
       OperatorTypeToString: array [TOperatorType] of PChar = (
         'otUnknown',
@@ -1059,7 +1058,6 @@ type
 
         'otInterval',
 
-        'otBinary',
         'otCollate',
         'otDistinct',
 
@@ -1141,7 +1139,6 @@ type
 
         2,   // otInterval
 
-        3,   // otBinary
         3,   // otCollate
         3,   // otDistinct
 
@@ -7003,11 +7000,11 @@ const
     'InnoDB,ISAM,MEMORY,MERGE,MRG_ISAM,MRG_MYISAM,MyISAM,NDB,NDBCLUSTER';
 
   MySQLFunctions =
-    'ABS,ACOS,ADDDATE,ADdiME,AES_DECRYPT,AES_ENCRYPT,ANY_VALUE,AREA,' +
+    'ABS,ACOS,ADDDATE,ADTIME,AES_DECRYPT,AES_ENCRYPT,ANY_VALUE,AREA,' +
     'ASBINARY,ASCII,ASIN,ASTEXT,ASWKBASWKT,ASYMMETRIC_DECRYPT,' +
     'ASYMMETRIC_DERIVE,ASYMMETRIC_ENCRYPT,ASYMMETRIC_SIGN,ASYMMETRIC_VERIFY,' +
-    'ATAN,ATAN,ATAN2,AVG,BENCHMARK,BIN,BIT_AND,BIT_COUNT,BIT_LENGTH,BIT_OR,' +
-    'BIT_XOR,BUFFER,CAST,CEIL,CEILING,CENTROID,CHAR,CHAR_LENGTH,' +
+    'ATAN,ATAN,ATAN2,AVG,BENCHMARK,BIN,BINARY,BIT_AND,BIT_COUNT,BIT_LENGTH,' +
+    'BIT_OR,BIT_XOR,BUFFER,CAST,CEIL,CEILING,CENTROID,CHAR,CHAR_LENGTH,' +
     'CHARACTER_LENGTH,CHARSET,COALESCE,COERCIBILITY,COLLATION,COMPRESS,' +
     'CONCAT,CONCAT_WS,CONNECTION_ID,CONTAINS,CONV,CONVERT,CONVERT_TZ,' +
     'CONVEXHULL,COS,COT,COUNT,CRC32,CREATE_ASYMMETRIC_PRIV_KEY,' +
@@ -17904,7 +17901,7 @@ function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
       or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and (AnsiQuotes or (ADbIdentType in [ditAlias]))
       or (TokenPtr(CurrentToken)^.OperatorType = otMulti) and JokerAllowed and (ADbIdentType in [ditDatabase, ditTable, ditProcedure, ditFunction, ditField])
       or (TokenPtr(CurrentToken)^.TokenType = ttIdent)
-        and ((ADbIdentType = ditUnknown)
+        and ((ADbIdentType in [ditUnknown, ditEngine, ditCharset, ditCollation])
           or QualifiedIdentifier
           or (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0))) then
     begin
@@ -17919,7 +17916,9 @@ function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
   end;
 
 var
+  Elements: TOffsetList;
   DbIdentType: TDbIdentType;
+  ListNodes: TList.TNodes;
   Nodes: TDbIdent.TNodes;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
@@ -18035,6 +18034,14 @@ begin
 
   if ((Nodes.DatabaseIdent = 0) and (Nodes.TableIdent = 0) and (DbIdentType = ditUnknown)) then
     Result := Nodes.Ident
+  else if (InCreateTriggerStmt and (Nodes.DatabaseIdent = 0) and IsToken(Nodes.TableIdent) and ((TokenPtr(Nodes.TableIdent)^.KeywordIndex = kiNEW) or (TokenPtr(Nodes.TableIdent)^.KeywordIndex = kiOLD))) then
+  begin
+    Elements.Init();
+    Elements.Add(Nodes.TableIdent);
+    Elements.Add(TBinaryOp.Create(Self, Nodes.TableDot, Nodes.Ident));
+    FillChar(ListNodes, SizeOf(ListNodes), 0);
+    Result := TList.Create(Self, ListNodes, ttDot, @Elements);
+  end
   else
     Result := TDbIdent.Create(Self, DbIdentType, Nodes);
 end;
@@ -18816,7 +18823,6 @@ begin
             otCase,
             otDot:
               SetError(PE_UnexpectedToken, Nodes[NodeIndex]);
-            otBinary,
             otInvertBits,
             otDistinct,
             otUnaryMinus,
@@ -26063,7 +26069,6 @@ begin
     OperatorTypeByKeywordIndex[kiAND]      := otAnd;
     OperatorTypeByKeywordIndex[kiCASE]     := otCase;
     OperatorTypeByKeywordIndex[kiBETWEEN]  := otBetween;
-    OperatorTypeByKeywordIndex[kiBINARY]   := otBinary;
     OperatorTypeByKeywordIndex[kiCOLLATE]  := otCollate;
     OperatorTypeByKeywordIndex[kiDISTINCT] := otDistinct;
     OperatorTypeByKeywordIndex[kiDIV]      := otDiv;

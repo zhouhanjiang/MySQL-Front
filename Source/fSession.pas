@@ -221,6 +221,7 @@ type
     FDependencies: TSDependencies;
     procedure SetDatabase(const ADatabase: TSDatabase); virtual;
     procedure SetDependencies(const SQL: string);
+    procedure SetSource(const Field: TField); override;
     procedure SetSource(const ASource: string); override;
     function SQLGetSource(): string; virtual; abstract;
   public
@@ -2521,7 +2522,7 @@ begin
   Session.SQLParser.Clear();
 end;
 
-procedure TSDBObject.SetSource(const ASource: string);
+procedure TSDBObject.SetSource(const Field: TField);
 begin
   inherited;
 
@@ -2540,6 +2541,11 @@ begin
         + Source + #13#10 + #13#10;
     Session.SQLParser.Clear();
   end;
+end;
+
+procedure TSDBObject.SetSource(const ASource: string);
+begin
+  inherited;
 
   if (not (Self is TSTable)) then
     PushBuildEvent(False);

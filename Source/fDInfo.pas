@@ -72,18 +72,19 @@ end;
 
 procedure TDInfo.FormCreate(Sender: TObject);
 var
-  Graphics: TGPGraphics;
-  Image: TGPImage;
+  GPGraphics: TGPGraphics;
+  GPImage: TGPImage;
   ResourceStream: TResourceStream;
   StreamAdapter: TStreamAdapter;
 begin
   ResourceStream := TResourceStream.CreateFromID(HInstance, 1, RT_RCDATA);
   StreamAdapter := TStreamAdapter.Create(ResourceStream);
-  Image := TGPImage.Create(StreamAdapter);
-  Graphics := TGPGraphics.Create(FImage.Canvas.Handle);
-  Graphics.DrawImage(Image, 0, 0, FImage.Width, FImage.Height);
-  Graphics.Free();
-  Image.Free();
+  GPImage := TGPImage.Create(StreamAdapter);
+  GPGraphics := TGPGraphics.Create(FImage.Canvas.Handle);
+  GPGraphics.DrawImage(GPImage, 8, 8, FImage.Width, FImage.Height);
+  GPGraphics.Free();
+//  StreamAdapter.Free();  ... why does this crash in Delphi XE2?
+  GPImage.Free();
   ResourceStream.Free();
 end;
 

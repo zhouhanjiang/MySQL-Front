@@ -825,7 +825,7 @@ implementation {***************************************************************}
 
 uses
   Consts, CommCtrl, SHFolder, WinInet, ShellAPI, ImgList, ShlObj, StrUtils,
-  Variants, Math, SysConst, ActiveX, RTLConsts, GDIPObj,
+  Variants, Math, SysConst, ActiveX, RTLConsts, GDIPAPI, GDIPObj,
   MySQLConsts,
   CSVUtils,
   fURI;
@@ -2051,11 +2051,16 @@ var
   StringList: TStringList;
 //var
 //  Bitmap: Graphics.TBitmap;
-//  FileStream: TFileStream;
 //  GPGraphics: TGPGraphics;
 //  GPImage: TGPImage;
-//  ResourceStream: TResourceStream;
+//  Stream: TStream;
 //  StreamAdapter: TStreamAdapter;
+//  ResInfo: HRSRC;
+//  ResData: HGLOBAL;
+//  Directory: Pointer;
+//  Size: DWord;
+//  IconId: Integer;
+//  Status: TStatus;
 begin
   inherited Create(KEY_ALL_ACCESS);
 
@@ -2178,20 +2183,26 @@ begin
     end
     else if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
     begin
+//      Stream := TResourceStream.CreateFromID(HInstance, 10000 + 10, RT_RCDATA);
+////  Stream := TFileStream.Create('C:\Test.ico', fmOpenRead);
+//
+//      StreamAdapter := TStreamAdapter.Create(Stream);
+//      GPImage := TGPImage.Create(StreamAdapter);
+//
 //      Bitmap := Graphics.TBitmap.Create();
-//      Bitmap.Width := FSmallImages.Width;
-//      Bitmap.Height := FSmallImages.Height;
-//      Bitmap.PixelFormat := pf32Bit;
-//      Bitmap.HandleType := bmDIB;
-//      Bitmap.IgnorePalette := true;
-//      Bitmap.AlphaFormat := afDefined;
-////  ResourceStream := TResourceStream.CreateFromID(HInstance, 10000 + I, RT_GROUP_ICON);
-//  FileStream := TFileStream.Create('C:\Test.ico', fmOpenRead + fmShareDenyNone);
-//  StreamAdapter := TStreamAdapter.Create(FileStream);
-//  GPImage := TGPImage.Create(StreamAdapter);
-//  GPGraphics := TGPGraphics.Create(Bitmap.Canvas.Handle);
-//  GPGraphics.DrawImage(GPImage, 0, 0, Bitmap.Width, Bitmap.Height);
-//  FSmallImages.Add(Bitmap, nil);
+//      Bitmap.PixelFormat := pf32bit;
+//      Bitmap.Canvas.Brush.Style := bsSolid;
+//      Bitmap.SetSize(FSmallImages.Width, FSmallImages.Height);
+//
+//      GPGraphics := TGPGraphics.Create(Bitmap.Canvas.Handle);
+//      GPGraphics.DrawImage(GPImage, 0, 0, Bitmap.Width, Bitmap.Height);
+//
+//      ImageList_Add(FSmallImages.Handle, Bitmap.Handle, Bitmap.MaskHandle);
+//
+//      GPGraphics.Free();
+//      GPImage.Free();
+//      Bitmap.Free();
+//      Stream.Free();
 //
       ImageList_AddIcon(FSmallImages.Handle, LoadImage(hInstance, MAKEINTRESOURCE(10000 + I), IMAGE_ICON, GetSystemMetrics(SM_CYSMICON), GetSystemMetrics(SM_CXSMICON), LR_DEFAULTCOLOR))
     end
