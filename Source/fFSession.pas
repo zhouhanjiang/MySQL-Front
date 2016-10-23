@@ -1562,7 +1562,7 @@ begin
   if (not Assigned(ListView)) then
   begin
     ListView := FSession.CreateListView(Table);
-    if (Table.Valid) then
+    if (Table.ValidSource) then
       Table.Tables.PushBuildEvent(Table);
   end;
 
@@ -5426,21 +5426,6 @@ end;
 
 procedure TFSession.DBGridDrawColumnCell(Sender: TObject; const Rect: TRect;
   DataCol: Integer; Column: TColumn; State: TGridDrawState);
-
-  function ColorAdd(const Color1, Color2: TColor): TColor;
-  begin
-    if (Color2 > 0) then
-      Result :=
-        Color1 and $ff0000 or Color2 and $ff0000
-        + Color1 and $00ff00 or Color2 and $00ff00
-        + Color1 and $0000ff or Color2 and $0000ff
-    else
-      Result :=
-        Color1 and $ff0000 and not (-Color2 and $ff0000)
-        + Color1 and $00ff00 and not (-Color2 and $00ff00)
-        + Color1 and $0000ff and not (-Color2 and $0000ff);
-  end;
-
 var
   BGRect: TRect;
   DBGrid: TMySQLDBGrid;
@@ -5512,22 +5497,6 @@ begin
     begin // Cell is NULL
       DBGrid.Canvas.Font.Color := clGrayText;
       DBGrid.Canvas.Brush.Color := Preferences.GridNullBGColor;
-    end
-    else if (Assigned(Column.Field) and (Column.Field.Tag and ftSortedField <> 0) and (not CheckWin32Version(6) or StyleServices.Enabled) and not CheckWin32Version(6, 1)) then
-    begin // Column is sorted
-      DBGrid.Canvas.Font.Color := clWindowText;
-      if (ColorToRGB(clWindow) >= $800000) then
-        DBGrid.Canvas.Brush.Color := ColorAdd(ColorToRGB(clWindow), -$101010)
-      else
-        DBGrid.Canvas.Brush.Color := ColorAdd(ColorToRGB(clWindow), $101010);
-    end
-    else if ((DBGrid.Parent <> PObjectIDE) and Preferences.GridRowBGColor and (DBGrid.DataSource.DataSet.RecNo mod 2 <> 0) and not (dgRowSelect in DBGrid.Options)) then
-    begin // Row is even
-      DBGrid.Canvas.Font.Color := clWindowText;
-      if (ColorToRGB(clWindow) >= $800000) then
-        DBGrid.Canvas.Brush.Color := ColorAdd(ColorToRGB(clWindow), -$080808)
-      else
-        DBGrid.Canvas.Brush.Color := ColorAdd(ColorToRGB(clWindow), $080808);
     end
     else
     begin

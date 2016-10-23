@@ -12745,7 +12745,7 @@ begin
       if (Assigned(Database) and (TSDBObject(List[I]).Database <> Database)) then
         if (Tables.Count > 0) then
         begin
-          if (BaseTableInTables) then
+          if (BaseTableInTables and Status) then
             SQL := SQL + Database.Tables.SQLGetStatus(Tables);
           if (ViewInTables) then
             SQL := SQL + Database.Tables.SQLGetViewFields();
@@ -12770,7 +12770,7 @@ begin
       SQL := SQL + TSReferencedRequester(List[I]).SQLGetDependencies;
   if (Tables.Count > 0) then
   begin
-    if (BaseTableInTables) then
+    if (BaseTableInTables and Status) then
       SQL := SQL + Database.Tables.SQLGetStatus(Tables);
     if (ViewInTables) then
       SQL := SQL + Database.Tables.SQLGetViewFields();

@@ -36,7 +36,6 @@ type
     FGridCurrRowBGColorEnabled: TCheckBox;
     FGridFont: TEdit;
     FGridNullText: TCheckBox;
-    FGridRowBGColorEnabled: TCheckBox;
     FGridShowMemoContent: TCheckBox;
     FItalic: TCheckBox;
     FL2LogSize: TLabel;
@@ -46,7 +45,6 @@ type
     FLEditorCompletionTime: TLabel;
     FLEditorCurrRowBGColor: TLabel;
     FLEditorFont: TLabel;
-    FLGridBGColorEnabled: TLabel;
     FLGridCurrRowBGColor: TLabel;
     FLGridFont: TLabel;
     FLGridNullValues: TLabel;
@@ -427,7 +425,6 @@ begin
     Preferences.GridMaxColumnWidth := FUDMaxColumnWidth.Position;
 
     Preferences.GridMemoContent := FGridShowMemoContent.Checked;
-    Preferences.GridRowBGColor := FGridRowBGColorEnabled.Checked;
 
     Preferences.AssociateSQL := FAssociateSQL.Checked;
 
@@ -509,7 +506,6 @@ begin
   FUDMaxColumnWidth.Position := Preferences.GridMaxColumnWidth;
 
   FGridShowMemoContent.Checked := Preferences.GridMemoContent;
-  FGridRowBGColorEnabled.Checked := Preferences.GridRowBGColor;
 
   FGridFont.Text := Preferences.GridFontName;
   PGridFont.Font.Name := Preferences.GridFontName;
@@ -730,8 +726,6 @@ begin
   FLMaxColumnWidthCharacters.Left := FUDMaxColumnWidth.Left + FUDMaxColumnWidth.Width + Canvas.TextWidth('  ');
   FLViewDatas.Caption := Preferences.LoadStr(574) + ':';
   FGridShowMemoContent.Caption := Preferences.LoadStr(575);
-  FLGridBGColorEnabled.Caption := Preferences.LoadStr(740) + ':';
-  FGridRowBGColorEnabled.Caption := Preferences.LoadStr(600);
   FLGridCurrRowBGColor.Caption := Preferences.LoadStr(784) + ':';
 
   TSEditor.Caption := Preferences.LoadStr(473);

@@ -45,16 +45,12 @@ object DOptions: TDOptions
     Top = 8
     Width = 362
     Height = 345
-    ActivePage = TSEditor
+    ActivePage = TSBrowser
     HotTrack = True
     MultiLine = True
     TabOrder = 0
     object TSView: TTabSheet
       Caption = 'TSView'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GProgram: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -109,15 +105,11 @@ object DOptions: TDOptions
     object TSBrowser: TTabSheet
       Caption = 'TSBrowser'
       OnResize = TSBrowserResize
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GGrid: TGroupBox_Ext
         Left = 4
         Top = 4
         Width = 345
-        Height = 241
+        Height = 207
         Caption = 'GGrid'
         TabOrder = 0
         object FLGridFont: TLabel
@@ -151,16 +143,9 @@ object DOptions: TDOptions
           Height = 13
           Caption = 'FLViewDatas'
         end
-        object FLGridBGColorEnabled: TLabel
-          Left = 8
-          Top = 175
-          Width = 109
-          Height = 13
-          Caption = 'FLGridBGColorEnabled'
-        end
         object FLGridCurrRowBGColor: TLabel
           Left = 8
-          Top = 208
+          Top = 174
           Width = 111
           Height = 13
           Caption = 'FLGridCurrRowBGColor'
@@ -247,29 +232,21 @@ object DOptions: TDOptions
           TabOrder = 7
           OnClick = PGridNullBGColorClick
         end
-        object FGridRowBGColorEnabled: TCheckBox
-          Left = 144
-          Top = 174
-          Width = 169
-          Height = 17
-          Caption = 'FGridRowBGColorEnabled'
-          TabOrder = 9
-        end
         object FGridCurrRowBGColorEnabled: TCheckBox
           Left = 144
-          Top = 208
+          Top = 174
           Width = 30
           Height = 17
-          TabOrder = 10
+          TabOrder = 9
         end
         object PGridCurrRowBGColor: TPanel_Ext
           Left = 162
-          Top = 206
+          Top = 172
           Width = 49
           Height = 21
           BevelOuter = bvLowered
           ParentBackground = False
-          TabOrder = 11
+          TabOrder = 10
           OnClick = PGridCurrRowBGColorClick
         end
         object FBGridFont: TButton
@@ -404,10 +381,6 @@ object DOptions: TDOptions
     object TSLog: TTabSheet
       Caption = 'TSLog'
       OnResize = TSLogResize
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GLog: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -517,10 +490,6 @@ object DOptions: TDOptions
     object TSHighlighter: TTabSheet
       Caption = 'TSHighlighter'
       OnShow = TSHighlighterShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GColors: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -673,10 +642,6 @@ object DOptions: TDOptions
     end
     object TSExtras: TTabSheet
       Caption = 'TSExtras'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GAssociate: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -703,10 +668,6 @@ object DOptions: TDOptions
     end
     object TSUpdates: TTabSheet
       Caption = 'TSUpdates'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GUpdates: TGroupBox_Ext
         Left = 4
         Top = 4

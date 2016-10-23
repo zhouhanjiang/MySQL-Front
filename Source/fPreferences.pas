@@ -392,7 +392,6 @@ type
     GridNullBGColor: TColor;
     GridNullBGColorEnabled: Boolean;
     GridNullText: Boolean;
-    GridRowBGColor: Boolean;
     Height: Integer;
     Host: THost;
     Import: TImport;
@@ -2083,7 +2082,6 @@ begin
   GridFontSize := FontSize;
   GridFontCharset := DEFAULT_CHARSET;
   GridMaxColumnWidth := Round(100 * Screen.PixelsPerInch / USER_DEFAULT_SCREEN_DPI);
-  GridRowBGColor := True;
   GridCurrRowBGColor := $C0FFFF;
   GridCurrRowBGColorEnabled := True;
   GridNullBGColorEnabled := False;
@@ -2485,7 +2483,6 @@ begin
   if (Assigned(XMLNode(XML, 'grid/null/background'))) then TryStrToBool(XMLNode(XML, 'grid/null/background').Attributes['visible'], GridNullBGColorEnabled);
   if (Assigned(XMLNode(XML, 'grid/null/background/color'))) then GridNullBGColor := StringToColor(XMLNode(XML, 'grid/null/background/color').Text);
   if (Assigned(XMLNode(XML, 'grid/maxcolumnwidth')) and TryStrToInt(XMLNode(XML, 'grid/maxcolumnwidth').Text, GridMaxColumnWidth)) then GridMaxColumnWidth := Round(GridMaxColumnWidth * Screen.PixelsPerInch / PixelsPerInch);
-  if (Assigned(XMLNode(XML, 'grid/row/background'))) then TryStrToBool(XMLNode(XML, 'grid/row/background').Attributes['visible'], GridRowBGColor);
   if (Assigned(XMLNode(XML, 'height')) and TryStrToInt(XMLNode(XML, 'height').Text, Height)) then Height := Round(Height * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'language/file'))) then LanguageFilename := ExtractFileName(XMLNode(XML, 'language/file').Text);
   if (Assigned(XMLNode(XML, 'left'))) then TryStrToInt(XMLNode(XML, 'left').Text, Left);
@@ -2692,7 +2689,6 @@ begin
   XMLNode(XML, 'grid/null/background').Attributes['visible'] := GridNullBGColorEnabled;
   XMLNode(XML, 'grid/null/background/color').Text := ColorToString(GridNullBGColor);
   XMLNode(XML, 'grid/maxcolumnwidth').Text := IntToStr(GridMaxColumnWidth);
-  XMLNode(XML, 'grid/row/background').Attributes['visible'] := GridRowBGColor;
   XMLNode(XML, 'height').Text := IntToStr(Height);
   XMLNode(XML, 'language/file').Text := ExtractFileName(LanguageFilename);
   XMLNode(XML, 'left').Text := IntToStr(Left);
