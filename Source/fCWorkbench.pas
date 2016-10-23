@@ -387,7 +387,7 @@ type
 implementation {***************************************************************}
 
 uses
-  ExtCtrls, Math, Dialogs, StdActns, Consts, Printers,
+  ExtCtrls, Math, Dialogs, StdActns, Consts, Printers, UITypes,
   fPreferences;
 
 var

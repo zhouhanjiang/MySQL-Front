@@ -343,7 +343,7 @@ end;
 
 procedure TDTrigger.UMChangePreferences(var Message: TMessage);
 begin
-  Preferences.SmallImages.GetIcon(iiTrigger, Icon);
+  Preferences.Images.GetIcon(iiTrigger, Icon);
 
   PSQLWait.Caption := Preferences.LoadStr(882) + '...';
 

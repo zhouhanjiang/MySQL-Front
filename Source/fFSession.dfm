@@ -1344,15 +1344,6 @@ object FSession: TFSession
       Caption = 'mlOpen'
       OnClick = mlOpenClick
     end
-    object mlOpenInNewWinodow: TMenuItem
-      Action = aPOpenInNewWindow
-    end
-    object mlOpenInNewTab: TMenuItem
-      Action = aPOpenInNewTab
-    end
-    object N01: TMenuItem
-      Caption = '-'
-    end
     object mlFImport: TMenuItem
       Caption = 'mlFImport'
       object mlFImportSQL: TMenuItem
@@ -1551,15 +1542,6 @@ object FSession: TFSession
       Category = 'Database'
       ImageIndex = 56
     end
-    object aPOpenInNewWindow: TAction
-      Caption = 'aPOpenInNewWinodw'
-      OnExecute = aPOpenInNewWindowExecute
-    end
-    object aPOpenInNewTab: TAction
-      Caption = 'aPOpenInNewTab'
-      ShortCut = 16462
-      OnExecute = aPOpenInNewTabExecute
-    end
     object aPObjectBrowserTable: TAction
       Caption = 'aPObjectBrowserTable'
       ShortCut = 16501
@@ -1626,15 +1608,6 @@ object FSession: TFSession
     object miNCollapse: TMenuItem
       Action = aPCollapse
       Visible = False
-    end
-    object miNOpenInNewWinodow: TMenuItem
-      Action = aPOpenInNewWindow
-    end
-    object miNOpenInNewTab: TMenuItem
-      Action = aPOpenInNewTab
-    end
-    object N06: TMenuItem
-      Caption = '-'
     end
     object miNImport: TMenuItem
       Caption = 'miNImport'
@@ -2160,15 +2133,6 @@ object FSession: TFSession
     OnPopup = MWorkbenchPopup
     Left = 152
     Top = 392
-    object mwPOpenInNewWinodw: TMenuItem
-      Action = aPOpenInNewWindow
-    end
-    object mwPOpenInNewTab: TMenuItem
-      Action = aPOpenInNewTab
-    end
-    object N26: TMenuItem
-      Caption = '-'
-    end
     object mwFImport: TMenuItem
       Caption = 'mwFImport'
       object mwFImportSQL: TMenuItem

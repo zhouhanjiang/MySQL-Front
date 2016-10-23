@@ -12683,12 +12683,10 @@ var
   BaseTableInTables: Boolean;
   Database: TSDatabase;
   I: Integer;
-  J: Integer;
   List: TList;
   SQL: string;
   Tables: TList;
   ViewInTables: Boolean;
-  Views: TList;
 begin
   SQL := '';
 
@@ -12722,7 +12720,6 @@ begin
   List.Sort(Compare);
 
   Tables := TList.Create();
-  Views := TList.Create();
   BaseTableInTables := False;
   ViewInTables := False;
 
@@ -12746,7 +12743,6 @@ begin
     else if (TObject(List[I]) is TSDBObject) then
     begin
       if (Assigned(Database) and (TSDBObject(List[I]).Database <> Database)) then
-      begin
         if (Tables.Count > 0) then
         begin
           if (BaseTableInTables) then
@@ -12757,17 +12753,10 @@ begin
           BaseTableInTables := False;
           ViewInTables := False;
         end;
-        for J := 0 to Views.Count - 1 do
-          SQL := SQL + TSDBObject(Views[J]).SQLGetSource();
-        Views.Clear();
-      end;
       Database := TSDBObject(List[I]).Database;
 
       if (not TSDBObject(List[I]).ValidSource) then
-        if (TSDBObject(List[I]) is TSView) then
-          Views.Add(List[I])
-        else
-          SQL := SQL + TSDBObject(List[I]).SQLGetSource();
+        SQL := SQL + TSDBObject(List[I]).SQLGetSource();
       if ((TSDBObject(List[I]) is TSBaseTable) and not TSBaseTable(List[I]).ValidStatus) then
         Tables.Add(List[I])
       else if ((TSObject(List[I]) is TSView) and not TSView(List[I]).ValidFields) then
@@ -12787,9 +12776,6 @@ begin
       SQL := SQL + Database.Tables.SQLGetViewFields();
     Tables.Clear();
   end;
-  for J := 0 to Views.Count - 1 do
-    SQL := SQL + TSDBObject(Views[J]).SQLGetSource();
-  Views.Clear();
 
   for I := 0 to List.Count - 1 do
     if ((TObject(List[I]) is TSTable) and Assigned(TSTable(List[I]).FDataSet) and not TSTable(List[I]).FDataSet.Active
@@ -12812,7 +12798,6 @@ begin
   end;
 
 
-  Views.Free();
   Tables.Free();
   if (Assigned(InvalidObjects)) then
     InvalidObjects.Clear();

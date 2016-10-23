@@ -151,10 +151,10 @@ end;
 
 procedure TDServer.FormCreate(Sender: TObject);
 begin
-  Preferences.SmallImages.GetIcon(iiServer, Icon);
+  Preferences.Images.GetIcon(iiServer, Icon);
 
   FStartup.Highlighter := MainHighlighter;
-  FPlugins.SmallImages := Preferences.SmallImages;
+  FPlugins.SmallImages := Preferences.Images;
 
   FSQLLog.Highlighter := MainHighlighter;
   FSlowSQLLog.Highlighter := MainHighlighter;

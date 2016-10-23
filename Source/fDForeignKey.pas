@@ -438,7 +438,7 @@ end;
 
 procedure TDForeignKey.UMChangePreferences(var Message: TMessage);
 begin
-  Preferences.SmallImages.GetIcon(iiForeignKey, Icon);
+  Preferences.Images.GetIcon(iiForeignKey, Icon);
 
   PSQLWait.Caption := Preferences.LoadStr(882) + '...';
 

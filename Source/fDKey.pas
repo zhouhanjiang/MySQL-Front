@@ -373,12 +373,12 @@ begin
 
   BorderStyle := bsSizeable;
 
-  ToolBar1.Images := Preferences.SmallImages;
-  ToolBar2.Images := Preferences.SmallImages;
-  ToolBar3.Images := Preferences.SmallImages;
-  ToolBar4.Images := Preferences.SmallImages;
-  ToolBar5.Images := Preferences.SmallImages;
-  ToolBar6.Images := Preferences.SmallImages;
+  ToolBar1.Images := Preferences.Images;
+  ToolBar2.Images := Preferences.Images;
+  ToolBar3.Images := Preferences.Images;
+  ToolBar4.Images := Preferences.Images;
+  ToolBar5.Images := Preferences.Images;
+  ToolBar6.Images := Preferences.Images;
 
   Panel.Left := GBasics.Width div 2 - Panel.Width div 2;
   Panel.Top := FAvailableFields.Top;
@@ -642,7 +642,7 @@ end;
 
 procedure TDKey.UMChangePreferences(var Message: TMessage);
 begin
-  Preferences.SmallImages.GetIcon(iiKey, Icon);
+  Preferences.Images.GetIcon(iiKey, Icon);
 
   PSQLWait.Caption := Preferences.LoadStr(882) + '...';
 

@@ -687,8 +687,8 @@ begin
 
   BorderStyle := bsSizeable;
 
-  FSelect.Images := Preferences.SmallImages;
-  FTables.SmallImages := Preferences.SmallImages;
+  FSelect.Images := Preferences.Images;
+  FTables.SmallImages := Preferences.Images;
 
   FCSVHeadline.Checked := Preferences.Import.CSV.Headline;
   FDelimiterTab.Checked := Preferences.Import.CSV.DelimiterType = dtTab;
@@ -1944,7 +1944,7 @@ end;
 
 procedure TDImport.UMChangePreferences(var Message: TMessage);
 begin
-  Preferences.SmallImages.GetIcon(iiImport, Icon);
+  Preferences.Images.GetIcon(iiImport, Icon);
 
   OpenDialog.EncodingLabel := Preferences.LoadStr(682) + ':';
 

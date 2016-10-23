@@ -267,7 +267,7 @@ begin
 
   BorderStyle := bsSizeable;
 
-  FRights.SmallImages := Preferences.SmallImages;
+  FRights.SmallImages := Preferences.Images;
 
   FSQLLog.Highlighter := MainHighlighter;
   FSlowSQLLog.Highlighter := MainHighlighter;
@@ -528,7 +528,7 @@ end;
 
 procedure TDUser.UMChangePreferences(var Message: TMessage);
 begin
-  Preferences.SmallImages.GetIcon(iiUser, Icon);
+  Preferences.Images.GetIcon(iiUser, Icon);
 
   PSQLWait.Caption := Preferences.LoadStr(882) + '...';
 

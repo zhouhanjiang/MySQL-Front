@@ -22,7 +22,7 @@
 
 1 RT_MANIFEST "{BuildTempPath}\\MySQLFront.manifest"  
 
-1 RCDATA "{BuildImagesPath}\\Info.jpg"
+Info BITMAP "{BuildImagesPath}\\Info.bmp"
 
 MAINICON ICON "{BuildImagesPath}\\MySQLFront.ico"
 10000 ICON "{BuildImagesPath}\\Blank.ico"
@@ -88,7 +88,6 @@ MAINICON ICON "{BuildImagesPath}\\MySQLFront.ico"
 10067 ICON "{BuildImagesPath}\\link_add.ico"
 10068 ICON "{BuildImagesPath}\\stop.ico"
 10072 ICON "{BuildImagesPath}\\link_delete.ico"
-10073 ICON "{BuildImagesPath}\\star_yellow.ico"
 10074 ICON "{BuildImagesPath}\\table_view.ico"
 10075 ICON "{BuildImagesPath}\\column_view.ico"
 10076 ICON "{BuildImagesPath}\\note.ico"

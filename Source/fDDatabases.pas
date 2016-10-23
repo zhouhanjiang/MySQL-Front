@@ -138,7 +138,7 @@ end;
 
 procedure TDDatabases.FormCreate(Sender: TObject);
 begin
-  FDatabases.SmallImages := Preferences.SmallImages;
+  FDatabases.SmallImages := Preferences.Images;
 
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
@@ -254,7 +254,7 @@ end;
 
 procedure TDDatabases.UMChangePreferences(var Message: TMessage);
 begin
-  Preferences.SmallImages.GetIcon(iiServer, Icon);
+  Preferences.Images.GetIcon(iiServer, Icon);
 
   Caption := Preferences.LoadStr(264);
 

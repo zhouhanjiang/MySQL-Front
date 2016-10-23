@@ -455,7 +455,7 @@ end;
 
 procedure TDTables.UMChangePreferences(var Message: TMessage);
 begin
-  Preferences.SmallImages.GetIcon(iiBaseTable, Icon);
+  Preferences.Images.GetIcon(iiBaseTable, Icon);
 
   Caption := Preferences.LoadStr(107);
 

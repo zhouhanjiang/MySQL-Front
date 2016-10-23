@@ -280,7 +280,7 @@ end;
 
 procedure TDODBC.UMChangePreferences(var Message: TMessage);
 begin
-  Preferences.SmallImages.GetIcon(iiODBC, Icon);
+  Preferences.Images.GetIcon(iiODBC, Icon);
 
   Caption := Preferences.LoadStr(907);
 

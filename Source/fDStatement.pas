@@ -127,17 +127,17 @@ begin
   case (ViewType) of
     vtQuery:
       begin
-        Preferences.SmallImages.GetIcon(iiStatement, Icon);
+        Preferences.Images.GetIcon(iiStatement, Icon);
         Caption := Preferences.LoadStr(794);
       end;
     vtStatement:
       begin
-        Preferences.SmallImages.GetIcon(iiQuery, Icon);
+        Preferences.Images.GetIcon(iiQuery, Icon);
         Caption := Preferences.LoadStr(794);
       end;
     vtProcess:
       begin
-        Preferences.SmallImages.GetIcon(iiProcess, Icon);
+        Preferences.Images.GetIcon(iiProcess, Icon);
         Caption := Preferences.LoadStr(562);
       end;
   end;

@@ -371,7 +371,7 @@ end;
 
 procedure TDAccount.UMChangePreferences(var Message: TMessage);
 begin
-  Preferences.SmallImages.GetIcon(iiServer, Icon);
+  Preferences.Images.GetIcon(iiServer, Icon);
 
   GBasics.Caption := Preferences.LoadStr(85);
   FLName.Caption := Preferences.LoadStr(35) + ':';

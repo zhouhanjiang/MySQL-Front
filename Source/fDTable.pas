@@ -957,15 +957,15 @@ end;
 
 procedure TDTable.FormCreate(Sender: TObject);
 begin
-  FFields.SmallImages := Preferences.SmallImages;
-  FKeys.SmallImages := Preferences.SmallImages;
-  FForeignKeys.SmallImages := Preferences.SmallImages;
-  FTriggers.SmallImages := Preferences.SmallImages;
-  FReferenced.SmallImages := Preferences.SmallImages;
+  FFields.SmallImages := Preferences.Images;
+  FKeys.SmallImages := Preferences.Images;
+  FForeignKeys.SmallImages := Preferences.Images;
+  FTriggers.SmallImages := Preferences.Images;
+  FReferenced.SmallImages := Preferences.Images;
 
-  TBFields.Images := Preferences.SmallImages;
-  TBIndices.Images := Preferences.SmallImages;
-  TBForeignKeys.Images := Preferences.SmallImages;
+  TBFields.Images := Preferences.Images;
+  TBIndices.Images := Preferences.Images;
+  TBForeignKeys.Images := Preferences.Images;
 //  TBPartitions.Images := Preferences.SmallImages;
 
   FSource.Highlighter := MainHighlighter;
@@ -1181,7 +1181,11 @@ begin
   TSFields.TabVisible := True;
   TSForeignKeys.TabVisible := Assigned(Table);
   TSTriggers.TabVisible := Assigned(Table) and Assigned(Database.Triggers);
+  {$IFDEF Debug}
   TSReferenced.TabVisible := Assigned(Table) and Assigned(NewTable.Engine);
+  {$ELSE}
+  TSReferenced.TabVisible := False;
+  {$ENDIF}
   TSPartitions.TabVisible := Assigned(Table) and Assigned(NewTable.Partitions);
   TSExtras.TabVisible := Assigned(Table);
   TSSource.TabVisible := Assigned(Table);
@@ -1733,7 +1737,7 @@ end;
 
 procedure TDTable.UMChangePreferences(var Message: TMessage);
 begin
-  Preferences.SmallImages.GetIcon(iiBaseTable, Icon);
+  Preferences.Images.GetIcon(iiBaseTable, Icon);
 
   PSQLWait.Caption := Preferences.LoadStr(882) + '...';
 

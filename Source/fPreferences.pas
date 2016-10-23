@@ -344,10 +344,9 @@ type
     TToolbarTabs = set of TToolbarTab;
     TUpdateCheckType = (utNever, utDaily);
   private
+    FImages: TImageList;
     FInternetAgent: string;
     FLanguage: TLanguage;
-    FLargeImages: TImageList;
-    FSmallImages: TImageList;
     FTaskService: ITaskService;
     FVerMajor, FVerMinor, FVerPatch, FVerBuild: Integer;
     FXMLDocument: IXMLDocument;
@@ -443,11 +442,10 @@ type
     destructor Destroy(); override;
     function LoadStr(const Index: Integer; const Param1: string = ''; const Param2: string = ''; const Param3: string = ''): string; overload; virtual;
     procedure Save(); virtual;
+    property Images: TImageList read FImages;
     property InternetAgent: string read FInternetAgent;
     property Language: TLanguage read GetLanguage;
     property LanguagePath: TFileName read GetLanguagePath;
-    property LargeImages: TImageList read FLargeImages;
-    property SmallImages: TImageList read FSmallImages;
     property VerMajor: Integer read FVerMajor;
     property VerMinor: Integer read FVerMinor;
     property VerPatch: Integer read FVerPatch;
@@ -2041,26 +2039,22 @@ end;
 
 constructor TPPreferences.Create();
 var
+  Bitmap: Graphics.TBitmap;
   Foldername: array [0..MAX_PATH] of Char;
   Font: TFont;
   FontSize: Integer;
+  GPBitmap: TGPBitmap;
+  GPGraphics: TGPGraphics;
   I: Integer;
+  Icon: HICON;
+  IconId: Integer;
   MaxIconIndex: Integer;
   NonClientMetrics: TNonClientMetrics;
   Path: string;
+  ResData: HGLOBAL;
+  ResInfo: HRSRC;
+  Resource: Pointer;
   StringList: TStringList;
-//var
-//  Bitmap: Graphics.TBitmap;
-//  GPGraphics: TGPGraphics;
-//  GPImage: TGPImage;
-//  Stream: TStream;
-//  StreamAdapter: TStreamAdapter;
-//  ResInfo: HRSRC;
-//  ResData: HGLOBAL;
-//  Directory: Pointer;
-//  Size: DWord;
-//  IconId: Integer;
-//  Status: TStatus;
 begin
   inherited Create(KEY_ALL_ACCESS);
 
@@ -2170,55 +2164,52 @@ begin
     if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
       MaxIconIndex := I;
 
-  FSmallImages := TImageList.Create(nil);
-  FSmallImages.ColorDepth := cd32Bit;
-  FSmallImages.Height := GetSystemMetrics(SM_CYSMICON);
-  FSmallImages.Width := GetSystemMetrics(SM_CXSMICON);
+  FImages := TImageList.Create(nil);
+  FImages.ColorDepth := cd32Bit;
+  FImages.Height := GetSystemMetrics(SM_CYSMICON);
+  FImages.Width := GetSystemMetrics(SM_CXSMICON);
 
   for I := 0 to MaxIconIndex do
     if (I = 16) then
     begin // ODBC icon
       SHGetFolderPath(Application.Handle, CSIDL_SYSTEM, 0, 0, @Foldername);
-      ImageList_AddIcon(FSmallImages.Handle, GetFileIcon(StrPas(PChar(@Foldername)) + '\odbcad32.exe'))
+      ImageList_AddIcon(FImages.Handle, GetFileIcon(StrPas(PChar(@Foldername)) + '\odbcad32.exe'));
     end
     else if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
-    begin
-//      Stream := TResourceStream.CreateFromID(HInstance, 10000 + 10, RT_RCDATA);
-////  Stream := TFileStream.Create('C:\Test.ico', fmOpenRead);
-//
-//      StreamAdapter := TStreamAdapter.Create(Stream);
-//      GPImage := TGPImage.Create(StreamAdapter);
-//
-//      Bitmap := Graphics.TBitmap.Create();
-//      Bitmap.PixelFormat := pf32bit;
-//      Bitmap.Canvas.Brush.Style := bsSolid;
-//      Bitmap.SetSize(FSmallImages.Width, FSmallImages.Height);
-//
-//      GPGraphics := TGPGraphics.Create(Bitmap.Canvas.Handle);
-//      GPGraphics.DrawImage(GPImage, 0, 0, Bitmap.Width, Bitmap.Height);
-//
-//      ImageList_Add(FSmallImages.Handle, Bitmap.Handle, Bitmap.MaskHandle);
-//
-//      GPGraphics.Free();
-//      GPImage.Free();
-//      Bitmap.Free();
-//      Stream.Free();
-//
-      ImageList_AddIcon(FSmallImages.Handle, LoadImage(hInstance, MAKEINTRESOURCE(10000 + I), IMAGE_ICON, GetSystemMetrics(SM_CYSMICON), GetSystemMetrics(SM_CXSMICON), LR_DEFAULTCOLOR))
-    end
+      if (FImages.Width = 16) then
+        ImageList_AddIcon(FImages.Handle, LoadImage(hInstance, MAKEINTRESOURCE(10000 + I), IMAGE_ICON, FImages.Width, FImages.Height, LR_DEFAULTCOLOR))
+      else
+      begin
+        ResInfo := FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON);
+        ResData := LoadResource(HInstance, ResInfo);
+        Resource := LockResource(ResData);
+        IconId := LookupIconIdFromDirectoryEx(Resource, TRUE, 128, 128, LR_DEFAULTCOLOR);
+        ResInfo := FindResource(HInstance, MAKEINTRESOURCE(IconId), RT_ICON);
+        ResData := LoadResource(HInstance, ResInfo);
+        Icon := CreateIconFromResourceEx(
+          LockResource(ResData), SizeOfResource(HInstance, ResInfo),
+          TRUE, $00030000, 128, 128, LR_DEFAULTCOLOR);
+
+        Bitmap := Graphics.TBitmap.Create();
+        Bitmap.PixelFormat := pf32bit;
+        SetBkMode(Bitmap.Canvas.Handle, TRANSPARENT);
+        Bitmap.SetSize(FImages.Width, FImages.Height);
+
+        GPBitmap := TGPBitmap.Create(Icon);
+
+        GPGraphics := TGPGraphics.Create(Bitmap.Canvas.Handle);
+        GPGraphics.SetInterpolationMode(InterpolationModeHighQuality);
+        GPGraphics.DrawImage(GPBitmap, 0, 0, Bitmap.Width, Bitmap.Height);
+
+        ImageList_Add(FImages.Handle, Bitmap.Handle, Bitmap.MaskHandle);
+
+        GPGraphics.Free();
+        Bitmap.Free();
+      end
     else if (I > 0) then
-      ImageList_AddIcon(FSmallImages.Handle, ImageList_GetIcon(FSmallImages.Handle, 0, 0));
-
-  FLargeImages := TImageList.Create(nil);
-  FLargeImages.ColorDepth := cd32Bit;
-  FLargeImages.Height := (GetSystemMetrics(SM_CYICON) + GetSystemMetrics(SM_CYSMICON)) div 2;
-  FLargeImages.Width := (GetSystemMetrics(SM_CXICON) + GetSystemMetrics(SM_CXSMICON)) div 2;
-
-  for I := 0 to MaxIconIndex do
-    if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
-      ImageList_AddIcon(FLargeImages.Handle, LoadImage(hInstance, MAKEINTRESOURCE(10000 + I), IMAGE_ICON, FLargeImages.Height, FLargeImages.Width, LR_DEFAULTCOLOR))
-    else
-      ImageList_AddIcon(FLargeImages.Handle, ImageList_GetIcon(FSmallImages.Handle, I, 0));
+    begin
+      ImageList_AddIcon(FImages.Handle, ImageList_GetIcon(FImages.Handle, 0, 0));
+    end;
 
 
   Database := TDatabase.Create();
@@ -2283,8 +2274,7 @@ begin
   User.Free();
   View.Free();
 
-  FLargeImages.Free();
-  FSmallImages.Free();
+  FImages.Free();
 
   if (Assigned(FLanguage)) then
     FLanguage.Free();

@@ -472,7 +472,7 @@ end;
 
 procedure TDEvent.UMChangePreferences(var Message: TMessage);
 begin
-  Preferences.SmallImages.GetIcon(iiEvent, Icon);
+  Preferences.Images.GetIcon(iiEvent, Icon);
 
   PSQLWait.Caption := Preferences.LoadStr(882) + '...';
 

@@ -282,19 +282,19 @@ begin
   if (not Assigned(Routine)) then
   begin
     Caption := Preferences.LoadStr(775);
-    Preferences.SmallImages.GetIcon(iiProcedure, Icon);
+    Preferences.Images.GetIcon(iiProcedure, Icon);
     HelpContext := 1097;
   end
   else if (Routine.RoutineType = rtProcedure) then
   begin
     Caption := Preferences.LoadStr(842, Routine.Name);
-    Preferences.SmallImages.GetIcon(iiProcedure, Icon);
+    Preferences.Images.GetIcon(iiProcedure, Icon);
     HelpContext := 1099;
   end
   else if (Routine.RoutineType = rtFunction) then
   begin
     Caption := Preferences.LoadStr(842, Routine.Name);
-    Preferences.SmallImages.GetIcon(iiFunction, Icon);
+    Preferences.Images.GetIcon(iiFunction, Icon);
     HelpContext := 1099;
   end;
 

@@ -1087,7 +1087,7 @@ end;
 
 procedure TDField.UMChangePreferences(var Message: TMessage);
 begin
-  Preferences.SmallImages.GetIcon(iiField, Icon);
+  Preferences.Images.GetIcon(iiField, Icon);
 
   PSQLWait.Caption := Preferences.LoadStr(882) + '...';
 

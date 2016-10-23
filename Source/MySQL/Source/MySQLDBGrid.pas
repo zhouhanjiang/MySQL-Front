@@ -443,7 +443,7 @@ begin
 
   if (Assigned(FHeaderControl)) then FHeaderControl.Free();
   FHeaderControl := THeaderControl.Create(Self);
-  FHeaderControl.DoubleBuffered := DoubleBuffered;
+  FHeaderControl.DoubleBuffered := True;
   FHeaderControl.NoSizing := not (dgColumnResize in Options);
   FHeaderControl.OnMouseMove := HeaderMouseMove;
   FHeaderControl.OnSectionClick := HeaderSectionClick;

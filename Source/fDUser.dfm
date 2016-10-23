@@ -69,6 +69,10 @@ object DUser: TDUser
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         195)
@@ -144,6 +148,10 @@ object DUser: TDUser
     object TSRights: TTabSheet
       Caption = 'TSRights'
       OnShow = TSRightsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         195)
@@ -199,6 +207,10 @@ object DUser: TDUser
     end
     object TSLimits: TTabSheet
       Caption = 'TSLimits'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         195)
@@ -313,6 +325,10 @@ object DUser: TDUser
     object TSSQLLog: TTabSheet
       Caption = 'TSSQLLog'
       OnShow = TSSQLLogShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         195)
@@ -347,6 +363,10 @@ object DUser: TDUser
     object TSSlowSQLLog: TTabSheet
       Caption = 'TSSlowSQLLog'
       OnShow = TSSlowSQLLogShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         195)
@@ -380,6 +400,10 @@ object DUser: TDUser
     end
     object TSSource: TTabSheet
       Caption = 'TSSource'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         195)

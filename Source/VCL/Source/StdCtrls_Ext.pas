@@ -100,8 +100,6 @@ begin
 
     for I := 0 to 31 do
       S := ReplaceStr(S, Chr(I), '');
-    if (S[Length(S)] = #0) then
-      Delete(S, Length(S), 1);
     SelText := S;
   end;
 end;

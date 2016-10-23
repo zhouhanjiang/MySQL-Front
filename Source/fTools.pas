@@ -1808,7 +1808,7 @@ begin
     SQL := ''
   else
   begin
-    Delete(SQL, 1, Session.Connection.ExecutedSQLLength);
+    Delete(SQL, 1, Session.Connection.SuccessfullExecutedSQLLength);
     SQL := SysUtils.Trim(SQL);
   end;
 end;
@@ -2171,7 +2171,7 @@ begin
         while ((Success <> daAbort) and (SQL <> '') and not DoExecuteSQL(Item, SQL)) do
           DoError(DatabaseError(Session), Item, True, SQL);
 
-        Delete(SQL, 1, Session.Connection.ExecutedSQLLength);
+        Delete(SQL, 1, Session.Connection.SuccessfullExecutedSQLLength);
       end;
 
       while ((Success <> daAbort) and (SQL <> '') and not DoExecuteSQL(Item, SQL)) do
@@ -7807,7 +7807,7 @@ end;
 function TTTransfer.DoExecuteSQL(const Session: TSSession; var SQL: string): Boolean;
 begin
   Result := (Success = daSuccess) and Session.Connection.ExecuteSQL(SQL);
-  Delete(SQL, 1, Session.Connection.ExecutedSQLLength);
+  Delete(SQL, 1, Session.Connection.SuccessfullExecutedSQLLength);
   SQL := SysUtils.Trim(SQL);
 end;
 
@@ -8228,7 +8228,7 @@ begin
             if (SQLExecuteLength > 0) then
             begin
               SQLExecuted.WaitFor(INFINITE);
-              Delete(SQL, 1, DestinationSession.Connection.ExecutedSQLLength);
+              Delete(SQL, 1, DestinationSession.Connection.SuccessfullExecutedSQLLength);
               SQLExecuteLength := 0;
               if (DestinationSession.Connection.ErrorCode <> 0) then
                 DoError(DatabaseError(DestinationSession), Item, False, SQL);
@@ -8256,7 +8256,7 @@ begin
         if ((Success = daSuccess) and (SQLExecuteLength > 0)) then
         begin
           SQLExecuted.WaitFor(INFINITE);
-          Delete(SQL, 1, DestinationSession.Connection.ExecutedSQLLength);
+          Delete(SQL, 1, DestinationSession.Connection.SuccessfullExecutedSQLLength);
           if (DestinationSession.Connection.ErrorCode <> 0) then
             DoError(DatabaseError(DestinationSession), Item, False, SQL);
         end;
@@ -8437,7 +8437,7 @@ end;
 function TTSearch.DoExecuteSQL(const Session: TSSession; const Item: TItem; var SQL: string): Boolean;
 begin
   Result := (Success = daSuccess) and Session.Connection.ExecuteSQL(SQL);
-  Delete(SQL, 1, Session.Connection.ExecutedSQLLength);
+  Delete(SQL, 1, Session.Connection.SuccessfullExecutedSQLLength);
   SQL := SysUtils.Trim(SQL);
 end;
 

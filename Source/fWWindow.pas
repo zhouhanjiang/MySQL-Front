@@ -963,8 +963,8 @@ begin
   MainHighlighter := Highlighter;
 
 
-  TabControl.Images := Preferences.SmallImages;
-  TBTabControl.Images := Preferences.SmallImages;
+  TabControl.Images := Preferences.Images;
+  TBTabControl.Images := Preferences.Images;
 
   if (not CheckWin32Version(6)) then
     CToolBar.EdgeBorders := [ebTop,ebBottom]
@@ -1469,9 +1469,9 @@ procedure TWWindow.UMChangePreferences(var Message: TMessage);
 var
   I: Integer;
 begin
-  ToolBar.Images := Preferences.LargeImages;
-  TabControl.Images := Preferences.SmallImages;
-  TBTabControl.Images := Preferences.SmallImages;
+  ToolBar.Images := Preferences.Images;
+  TabControl.Images := Preferences.Images;
+  TBTabControl.Images := Preferences.Images;
 
   Perform(CM_SYSFONTCHANGED, 0, 0);
 

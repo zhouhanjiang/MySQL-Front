@@ -243,8 +243,8 @@ begin
   Transfer := nil;
   BorderStyle := bsSizeable;
 
-  FSource.Images := Preferences.SmallImages;
-  FDestination.Images := Preferences.SmallImages;
+  FSource.Images := Preferences.Images;
+  FDestination.Images := Preferences.Images;
 
   SendMessage(FErrorMessages.Handle, EM_SETTEXTMODE, TM_PLAINTEXT, 0);
   SendMessage(FErrorMessages.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
@@ -926,7 +926,7 @@ end;
 
 procedure TDTransfer.UMChangePreferences(var Message: TMessage);
 begin
-  Preferences.SmallImages.GetIcon(iiTransfer, Icon);
+  Preferences.Images.GetIcon(iiTransfer, Icon);
 
   miSelectAll.Caption := Preferences.LoadStr(572);
 

@@ -35,7 +35,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  ShellAPI, GDIPObj,
+  ShellAPI, GDIPObj, GDIPAPI,
   fPreferences;
 
 var
@@ -72,20 +72,15 @@ end;
 
 procedure TDInfo.FormCreate(Sender: TObject);
 var
+  GPBitmap: TGPBitmap;
   GPGraphics: TGPGraphics;
-  GPImage: TGPImage;
-  ResourceStream: TResourceStream;
-  StreamAdapter: TStreamAdapter;
 begin
-  ResourceStream := TResourceStream.CreateFromID(HInstance, 1, RT_RCDATA);
-  StreamAdapter := TStreamAdapter.Create(ResourceStream);
-  GPImage := TGPImage.Create(StreamAdapter);
+  GPBitmap := TGPBitmap.Create(HInstance, 'Info');
   GPGraphics := TGPGraphics.Create(FImage.Canvas.Handle);
-  GPGraphics.DrawImage(GPImage, 8, 8, FImage.Width, FImage.Height);
+  GPGraphics.SetInterpolationMode(InterpolationModeHighQuality);
+  GPGraphics.DrawImage(GPBitmap, 8, 8, FImage.Width, FImage.Height);
   GPGraphics.Free();
-//  StreamAdapter.Free();  ... why does this crash in Delphi XE2?
-  GPImage.Free();
-  ResourceStream.Free();
+  GPBitmap.Free();
 end;
 
 procedure TDInfo.FormDestroy(Sender: TObject);

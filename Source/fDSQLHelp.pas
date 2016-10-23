@@ -217,7 +217,7 @@ procedure TDSQLHelp.FormCreate(Sender: TObject);
 begin
   ShowGripper := False;
 
-  TBQuickSearchEnabled.Images := Preferences.SmallImages;
+  TBQuickSearchEnabled.Images := Preferences.Images;
 
   SendMessage(FDescription.Handle, EM_SETEVENTMASK, 0, SendMessage(FDescription.Handle, EM_GETEVENTMASK, 0, 0) or ENM_LINK);
   SendMessage(FDescription.Handle, EM_AUTOURLDETECT, Integer(True), 0);
@@ -319,7 +319,7 @@ end;
 
 procedure TDSQLHelp.UMChangePreferences(var Message: TMessage);
 begin
-  Preferences.SmallImages.GetIcon(14, Icon);
+  Preferences.Images.GetIcon(14, Icon);
 
   msCopy.Action := MainAction('aECopy'); msCopy.ShortCut := 0;
   msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;

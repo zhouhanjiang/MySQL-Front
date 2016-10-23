@@ -152,7 +152,6 @@ object DTransfer: TDTransfer
     end
     object TSWhat: TTabSheet
       Caption = 'TSWhat'
-      ImageIndex = 2
       TabVisible = False
       OnShow = TSWhatShow
       ExplicitLeft = 0

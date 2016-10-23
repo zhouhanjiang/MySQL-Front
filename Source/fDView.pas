@@ -323,7 +323,7 @@ end;
 
 procedure TDView.FormCreate(Sender: TObject);
 begin
-  FFields.SmallImages := Preferences.SmallImages;
+  FFields.SmallImages := Preferences.Images;
 
   FStmt.Highlighter := MainHighlighter;
   FSource.Highlighter := MainHighlighter;
@@ -477,7 +477,7 @@ end;
 
 procedure TDView.UMChangePreferences(var Message: TMessage);
 begin
-  Preferences.SmallImages.GetIcon(iiView, Icon);
+  Preferences.Images.GetIcon(iiView, Icon);
 
   PSQLWait.Caption := Preferences.LoadStr(882) + '...';
 

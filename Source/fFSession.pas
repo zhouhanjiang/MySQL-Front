@@ -49,8 +49,6 @@ type
     aPCollapse: TAction;
     aPExpand: TAction;
     aPObjectBrowserTable: TAction;
-    aPOpenInNewTab: TAction;
-    aPOpenInNewWindow: TAction;
     aPResult: TAction;
     aTBFilter: TAction;
     aTBLimit: TAction;
@@ -170,8 +168,6 @@ type
     miNImportODBC: TMenuItem;
     miNImportSQL: TMenuItem;
     miNImportText: TMenuItem;
-    miNOpenInNewTab: TMenuItem;
-    miNOpenInNewWinodow: TMenuItem;
     miNPaste: TMenuItem;
     miNProperties: TMenuItem;
     miNRename: TMenuItem;
@@ -221,8 +217,6 @@ type
     MList: TPopupMenu;
     MLog: TPopupMenu;
     mlOpen: TMenuItem;
-    mlOpenInNewTab: TMenuItem;
-    mlOpenInNewWinodow: TMenuItem;
     MNavigator: TPopupMenu;
     mpDRun: TMenuItem;
     mpDRunSelection: TMenuItem;
@@ -276,14 +270,10 @@ type
     mwFImportSQL: TMenuItem;
     mwFImportText: TMenuItem;
     MWorkbench: TPopupMenu;
-    mwPOpenInNewTab: TMenuItem;
-    mwPOpenInNewWinodw: TMenuItem;
-    N01: TMenuItem;
     N02: TMenuItem;
     N03: TMenuItem;
     N04: TMenuItem;
     N05: TMenuItem;
-    N06: TMenuItem;
     N07: TMenuItem;
     N08: TMenuItem;
     N09: TMenuItem;
@@ -304,7 +294,6 @@ type
     N23: TMenuItem;
     N24: TMenuItem;
     N25: TMenuItem;
-    N26: TMenuItem;
     N27: TMenuItem;
     N28: TMenuItem;
     N29: TMenuItem;
@@ -428,8 +417,6 @@ type
     procedure aPCollapseExecute(Sender: TObject);
     procedure aPExpandExecute(Sender: TObject);
     procedure aPObjectBrowserTableExecute(Sender: TObject);
-    procedure aPOpenInNewTabExecute(Sender: TObject);
-    procedure aPOpenInNewWindowExecute(Sender: TObject);
     procedure aPResultExecute(Sender: TObject);
     procedure aSSearchFindNotFound(Sender: TObject);
     procedure aTBFilterExecute(Sender: TObject);
@@ -589,8 +576,6 @@ type
     procedure mfFilterAccessClick(Sender: TObject);
     procedure mfFilterExcelClick(Sender: TObject);
     procedure mfDeleteClick(Sender: TObject);
-    procedure mfOpenInNewWindowClick(Sender: TObject);
-    procedure mfOpenInNewTabClick(Sender: TObject);
     procedure mfRenameClick(Sender: TObject);
     procedure mfPropertiesClick(Sender: TObject);
     procedure MFilesPopup(Sender: TObject);
@@ -1006,7 +991,6 @@ type
     procedure ListViewUpdate(const SessionEvent: TSSession.TEvent; const ListView: TListView; const Data: TCustomData = nil);
     function NavigatorNodeToAddress(const Node: TTreeNode): string;
     procedure OnConvertError(Sender: TObject; Text: string);
-    procedure OpenInNewTabExecute(const DatabaseName, TableName: string; const OpenNewWindow: Boolean = False; const Filename: TFileName = '');
     function ParamToView(const AParam: Variant): TView;
     procedure PasteExecute(const Node: TTreeNode; const Objects: string);
     procedure PContentChange(Sender: TObject);
@@ -1304,7 +1288,7 @@ begin
       SQL := DataHandle.Connection.CommandText;
       Len := SQLStmtLength(PChar(SQL), Length(SQL));
       SQLTrimStmt(DataHandle.Connection.CommandText, 1, Len, FSession.Session.Connection.MySQLVersion, StartingCommentLength, EndingCommentLength);
-      FSynMemo.SelStart := FSession.aDRunExecuteSelStart + DataHandle.Connection.ExecutedSQLLength + StartingCommentLength;
+      FSynMemo.SelStart := FSession.aDRunExecuteSelStart + DataHandle.Connection.SuccessfullExecutedSQLLength + StartingCommentLength;
       FSynMemo.SelLength := Len - StartingCommentLength - EndingCommentLength;
     end
   end
@@ -4009,28 +3993,6 @@ begin
   URI.Free();
 end;
 
-procedure TFSession.aPOpenInNewTabExecute(Sender: TObject);
-begin
-  if (FocusedSItem is TSDatabase) then
-    OpenInNewTabExecute(TSDatabase(FocusedSItem).Name, '')
-  else if (FocusedSItem is TSTable) then
-    OpenInNewTabExecute(TSTable(FocusedSItem).Database.Name, TSTable(FocusedSItem).Name)
-  else if (Window.ActiveControl = FFiles) then
-    if (LowerCase(ExtractFileExt(Path + PathDelim + FFiles.Selected.Caption)) = '.sql') then
-      OpenInNewTabExecute(SelectedDatabase, '', False, Path + PathDelim + FFiles.Selected.Caption);
-end;
-
-procedure TFSession.aPOpenInNewWindowExecute(Sender: TObject);
-begin
-  if (FocusedSItem is TSDatabase) then
-    OpenInNewTabExecute(TSDatabase(FocusedSItem).Name, '', True)
-  else if (FocusedSItem is TSTable) then
-    OpenInNewTabExecute(TSTable(FocusedSItem).Database.Name, TSTable(FocusedSItem).Name, True)
-  else if (Window.ActiveControl = FFiles) then
-    if (LowerCase(ExtractFileExt(Path + PathDelim + FFiles.Selected.Caption)) = '.sql') then
-      OpenInNewTabExecute(SelectedDatabase, '', True, Path + PathDelim + FFiles.Selected.Caption);
-end;
-
 procedure TFSession.aPResultExecute(Sender: TObject);
 begin
   Wanted.Clear();
@@ -4498,15 +4460,15 @@ begin
   SynCompletionPending.Active := False;
 
 
-  TBSideBar.Images := Preferences.SmallImages;
-  ToolBar.Images := Preferences.SmallImages;
-  FNavigator.Images := Preferences.SmallImages;
-  FJobs.SmallImages := Preferences.SmallImages;
-  FSQLHistory.Images := Preferences.SmallImages;
-  TBLimitEnabled.Images := Preferences.SmallImages;
-  TBQuickSearchEnabled.Images := Preferences.SmallImages;
-  TBFilterEnabled.Images := Preferences.SmallImages;
-  FServerListView.SmallImages := Preferences.SmallImages;
+  TBSideBar.Images := Preferences.Images;
+  ToolBar.Images := Preferences.Images;
+  FNavigator.Images := Preferences.Images;
+  FJobs.SmallImages := Preferences.Images;
+  FSQLHistory.Images := Preferences.Images;
+  TBLimitEnabled.Images := Preferences.Images;
+  TBQuickSearchEnabled.Images := Preferences.Images;
+  TBFilterEnabled.Images := Preferences.Images;
+  FServerListView.SmallImages := Preferences.Images;
 
   FUDOffset.HandleNeeded();
   FOffset.HandleNeeded();
@@ -5035,7 +4997,7 @@ begin
   Result.GroupView := FServerListView.GroupView;
   Result.PopupMenu := FServerListView.PopupMenu;
   Result.RowSelect := FServerListView.RowSelect;
-  Result.SmallImages := Preferences.SmallImages;
+  Result.SmallImages := Preferences.Images;
   Result.ViewStyle := FServerListView.ViewStyle;
   Result.Visible := False;
   if (TObject(Data) is TSTable) then
@@ -7318,9 +7280,6 @@ procedure TFSession.FNavigatorSetMenuItems(Sender: TObject; const Node: TTreeNod
 begin
   aPExpand.Enabled := Assigned(Node) and (not Assigned(Node) or not Node.Expanded) and (Assigned(Node) and Node.HasChildren);
   aPCollapse.Enabled := Assigned(Node) and (not Assigned(Node) or Node.Expanded) and (Node.ImageIndex <> iiServer);
-  aPOpenInNewWindow.Enabled := Assigned(Node) and (Node.
-  ImageIndex in [iiServer, iiDatabase, iiSystemDatabase, iiBaseTable, iiSystemView, iiView, iiProcedure, iiFunction]);
-  aPOpenInNewTab.Enabled := aPOpenInNewWindow.Enabled;
 
   MainAction('aFImportSQL').Enabled := Assigned(Node) and (((Node.ImageIndex = iiServer) and (not Assigned(Session.UserRights) or Session.UserRights.RInsert)) or (Node.ImageIndex = iiDatabase));
   MainAction('aFImportText').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
@@ -10052,8 +10011,6 @@ begin
 
   if (Assigned(ListView) and (not (PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (Msg.wParam = MK_LBUTTON)) or (ListView.SelCount <= 1))) then
   begin
-    aPOpenInNewWindow.Enabled := False;
-    aPOpenInNewTab.Enabled := False;
     MainAction('aFImportSQL').Enabled := False;
     MainAction('aFImportText').Enabled := False;
     MainAction('aFImportExcel').Enabled := False;
@@ -10111,8 +10068,6 @@ begin
       case (SelectedImageIndex) of
         iiServer:
           begin
-            aPOpenInNewWindow.Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex in [iiDatabase, iiSystemDatabase]);
-            aPOpenInNewTab.Enabled := aPOpenInNewWindow.Enabled;
             MainAction('aFImportSQL').Enabled := (ListView.SelCount <= 1) and ((not Assigned(Session.UserRights) or Session.UserRights.RInsert) or Assigned(Item) and (Item.ImageIndex = iiDatabase));
             MainAction('aFImportText').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFImportExcel').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
@@ -10168,8 +10123,6 @@ begin
           begin
             Database := TSDatabase(FNavigator.Selected.Data);
 
-            aPOpenInNewWindow.Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiSystemView, iiView, iiProcedure, iiFunction]);
-            aPOpenInNewTab.Enabled := aPOpenInNewWindow.Enabled;
             MainAction('aFImportSQL').Enabled := (ListView.SelCount = 0) and (SelectedImageIndex = iiDatabase);
             MainAction('aFImportText').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
             MainAction('aFImportExcel').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
@@ -10466,8 +10419,6 @@ begin
   mfFilterXML.Checked := FFiles.Filter = '*.xml';
 
   mfOpen.Enabled := FFiles.SelCount = 1;
-  aPOpenInNewWindow.Enabled := (FFiles.SelCount = 1) and (LowerCase(ExtractFileExt(FFolders.SelectedFolder + PathDelim + FFiles.Selected.Caption)) = '.sql');
-  aPOpenInNewTab.Enabled := aPOpenInNewWindow.Enabled;
   mfFilter.Enabled := FFiles.SelCount = 0;
   mfDelete.Enabled := FFiles.SelCount = 1;
   mfRename.Enabled := FFiles.SelCount = 1;
@@ -10488,16 +10439,6 @@ begin
   end
   else
     FFiles.InvokeCommandOnSelected('open');
-end;
-
-procedure TFSession.mfOpenInNewTabClick(Sender: TObject);
-begin
-  OpenInNewTabExecute(TSDatabase(FocusedSItem).Name, '', False, FFolders.SelectedFolder + PathDelim + FFiles.Selected.Caption)
-end;
-
-procedure TFSession.mfOpenInNewWindowClick(Sender: TObject);
-begin
-  OpenInNewTabExecute(TSDatabase(FocusedSItem).Name, '', True, FFolders.SelectedFolder + PathDelim + FFiles.Selected.Caption)
 end;
 
 procedure TFSession.mfPropertiesClick(Sender: TObject);
@@ -11135,53 +11076,6 @@ end;
 procedure TFSession.OnConvertError(Sender: TObject; Text: string);
 begin
   fBase.ConvertError(Sender, Text);
-end;
-
-procedure TFSession.OpenInNewTabExecute(const DatabaseName, TableName: string; const OpenNewWindow: Boolean = False; const Filename: TFileName = '');
-var
-  URI: TUURI;
-  CurrentURI: TUURI;
-begin
-  URI := TUURI.Create('');
-  if (Session.Account.Connection.Host <> LOCAL_HOST) then
-    URI.Host := Session.Account.Connection.Host
-  else
-  begin
-    CurrentURI := TUURI.Create(Session.Account.Connection.HTTPTunnelURI);
-    URI.Host := CurrentURI.Host;
-    CurrentURI.Free();
-  end;
-  if (Session.Account.Connection.Port <> MYSQL_PORT) then
-    URI.Port := Session.Account.Connection.Port;
-  URI.Username := Session.Account.Connection.Username;
-  URI.Password := Session.Account.Connection.Password;
-  if (Filename = '') then
-  begin
-    URI.Database := DatabaseName;
-    URI.Table := TableName;
-    case (View) of
-      vBrowser: if (TableName <> '') then URI.Param['view'] := 'browser';
-      vIDE: if (TableName = '') then URI.Param['view'] := 'ide';
-      vBuilder: if (TableName = '') then URI.Param['view'] := 'builder';
-      vDiagram: if (TableName = '') then URI.Param['view'] := 'diagram';
-      vEditor,
-      vEditor2,
-      vEditor3: if (TableName = '') then URI.Param['view'] := ViewToParam(View);
-    end;
-  end
-  else
-  begin
-    URI.Param['view'] := 'editor';
-    URI.Database := DatabaseName;
-    URI.Param['file'] := EscapeURL(Filename);
-  end;
-
-  if (not OpenNewWindow) then
-    Window.Perform(UM_ADDTAB, 0, LPARAM(PChar(string(URI.Address))))
-  else
-    ShellExecute(Window.Handle, 'open', PChar(TFileName(Application.ExeName)), PChar(URI.Address), '', SW_SHOW);
-
-  URI.Free();
 end;
 
 procedure TFSession.OpenDiagram();
@@ -13739,8 +13633,6 @@ begin
 
   aPExpand.Caption := Preferences.LoadStr(150);
   aPCollapse.Caption := Preferences.LoadStr(151);
-  aPOpenInNewWindow.Caption := Preferences.LoadStr(760);
-  aPOpenInNewTab.Caption := Preferences.LoadStr(850);
   aDDelete.Caption := Preferences.LoadStr(28);
   aDPrev.Caption := Preferences.LoadStr(512);
   aDNext.Caption := Preferences.LoadStr(513);
@@ -14571,8 +14463,6 @@ begin
 
   Database := Session.DatabaseByName(SelectedDatabase);
 
-  aPOpenInNewWindow.Enabled := (Control is TWTable);
-  aPOpenInNewTab.Enabled := (Control is TWTable);
   MainAction('aFExportSQL').Enabled := not Assigned(Control) or (Control is TWTable);
   MainAction('aFExportText').Enabled := not Assigned(Control) or (Control is TWTable);
   MainAction('aFExportExcel').Enabled := not Assigned(Control) or (Control is TWTable);

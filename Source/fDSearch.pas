@@ -227,7 +227,7 @@ begin
 
   Search := nil;
 
-  FSelect.Images := Preferences.SmallImages;
+  FSelect.Images := Preferences.Images;
 
   FFFindText.Items.Clear();
   for I := Preferences.Find.FindTextMRU.Count - 1 downto 0 do
@@ -308,7 +308,7 @@ begin
   if (SearchOnly) then
   begin
     Caption := Preferences.LoadStr(187);
-    Preferences.SmallImages.GetIcon(12, Icon);
+    Preferences.Images.GetIcon(12, Icon);
     HelpContext := 1093;
 
     GMessages.Caption := Preferences.LoadStr(234);
@@ -332,7 +332,7 @@ begin
   else
   begin
     Caption := Preferences.LoadStr(416);
-    Preferences.SmallImages.GetIcon(29, Icon);
+    Preferences.Images.GetIcon(29, Icon);
     HelpContext := 1090;
 
     GMessages.Caption := Preferences.LoadStr(392);

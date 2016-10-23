@@ -684,7 +684,7 @@ begin
 
   Export := nil;
 
-  FSelect.Images := Preferences.SmallImages;
+  FSelect.Images := Preferences.Images;
 
   FObjects := TList.Create();
 
@@ -2147,7 +2147,7 @@ end;
 
 procedure TDExport.UMChangePreferences(var Message: TMessage);
 begin
-  Preferences.SmallImages.GetIcon(iiExport, Icon);
+  Preferences.Images.GetIcon(iiExport, Icon);
 
   SaveDialog.EncodingLabel := Preferences.LoadStr(682) + ':';
 

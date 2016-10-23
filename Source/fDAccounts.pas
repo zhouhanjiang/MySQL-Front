@@ -168,7 +168,7 @@ end;
 
 procedure TDAccounts.FormCreate(Sender: TObject);
 begin
-  FAccounts.SmallImages := Preferences.SmallImages;
+  FAccounts.SmallImages := Preferences.Images;
 
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
@@ -395,7 +395,7 @@ procedure TDAccounts.UMChangePreferences(var Message: TMessage);
 begin
   FAccounts.Canvas.Font := Font;
 
-  Preferences.SmallImages.GetIcon(40, Icon);
+  Preferences.Images.GetIcon(40, Icon);
 
   GAccounts.Caption := Preferences.LoadStr(25);
   FAccounts.Columns.Items[0].Caption := Preferences.LoadStr(35);
