@@ -5293,6 +5293,8 @@ begin
     MainAction('aDInsertRecord').Enabled := aDInsertRecord.Enabled and (DataSet.State in [dsBrowse, dsEdit]) and (DataSet.FieldCount > 0) and Assigned(ActiveDBGrid) and (ActiveDBGrid.SelectedRows.Count < 1) and not InputDataSet;
     MainAction('aDDeleteRecord').Enabled := aDDeleteRecord.Enabled and (DataSet.State in [dsBrowse, dsEdit]) and not DataSet.IsEmpty() and not InputDataSet;
 
+    // <Ctrl+Down> marks the new row as selected, but the OnAfterScroll event
+    // will be executed BEFORE mark the row as selected.
     PostMessage(Handle, UM_STATUS_BAR_REFRESH, 0, 0);
   end;
 end;
@@ -12809,24 +12811,24 @@ begin
       else if ((View = vBrowser) and (SelectedImageIndex in [iiBaseTable, iiSystemView]) and not Session.Connection.InUse() and TSBaseTable(FNavigator.Selected.Data).ValidData and TSBaseTable(FNavigator.Selected.Data).DataSet.LimitedDataReceived and (TSBaseTable(FNavigator.Selected.Data).Rows >= 0)) then
       begin
         if (Assigned(TSBaseTable(FNavigator.Selected.Data).Engine) and TSBaseTable(FNavigator.Selected.Data).Engine.IsInnoDB) then
-          StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(889, IntToStr(Count), IntToStr(TSBaseTable(FNavigator.Selected.Data).Rows))
+          StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(889, FormatFloat('#,##0', Count, LocaleFormatSettings), FormatFloat('#,##0', TSBaseTable(FNavigator.Selected.Data).Rows, LocaleFormatSettings))
         else
-          StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(889, IntToStr(Count), '~' + IntToStr(TSBaseTable(FNavigator.Selected.Data).Rows))
+          StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(889, FormatFloat('#,##0', Count, LocaleFormatSettings), '~' + FormatFloat('#,##0', TSBaseTable(FNavigator.Selected.Data).Rows, LocaleFormatSettings))
       end
       else if (Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet)) then
-        StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(887, IntToStr(ActiveDBGrid.DataSource.DataSet.RecordCount));
+        StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(887, FormatFloat('#,##0', ActiveDBGrid.DataSource.DataSet.RecordCount, LocaleFormatSettings));
     end
     else if (SelCount > 0) then
-      StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(688, IntToStr(SelCount))
+      StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(688, FormatFloat('#,##0', SelCount, LocaleFormatSettings))
     else if (Assigned(ActiveSynMemo) and (Window.ActiveControl = ActiveSynMemo) and (Count >= 0)) then
-      StatusBar.Panels[sbSummarize].Text := IntToStr(Count) + ' ' + Preferences.LoadStr(600)
+      StatusBar.Panels[sbSummarize].Text := FormatFloat('#,##0', Count, LocaleFormatSettings) + ' ' + Preferences.LoadStr(600)
     else if ((View = vBuilder) and (Count >= 0)) then
       if (Window.ActiveControl = FQueryBuilderSynMemo) then
-        StatusBar.Panels[sbSummarize].Text := IntToStr(Count) + ' ' + Preferences.LoadStr(600)
+        StatusBar.Panels[sbSummarize].Text := FormatFloat('#,##0', Count, LocaleFormatSettings) + ' ' + Preferences.LoadStr(600)
       else
-        StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(687, IntToStr(Count))
+        StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(687, FormatFloat('#,##0', Count, LocaleFormatSettings))
     else if (Count >= 0) then
-      StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(687, IntToStr(Count))
+      StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(687, FormatFloat('#,##0', Count, LocaleFormatSettings))
     else
       StatusBar.Panels[sbSummarize].Text := '';
   end;

@@ -19036,9 +19036,6 @@ begin
           end;
     end;
 
-  if (not ErrorFound and (Nodes.Count <> 1)) then
-    SetError(PE_Unknown);
-
   if (not ErrorFound and EndOfStmt(CurrentToken)) then
     if ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1])) then
     begin // Add operands
@@ -19083,6 +19080,9 @@ begin
         if (OperatorTypeByKeywordIndex[KeywordIndex] <> otNone) then
           CompletionList.AddTag(KeywordIndex);
     end;
+
+  if (not ErrorFound and (Nodes.Count <> 1)) then
+    SetError(PE_Unknown);
 
   if (Nodes.Count = 0) then
     Result := 0
