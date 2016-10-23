@@ -2538,6 +2538,7 @@ begin
       Session.UnparsableSQL := Session.UnparsableSQL
         + '# SetSource()' + #13#10
         + '# Error: ' + Session.SQLParser.ErrorMessage + #13#10
+        + '# Hex: ' + SQLEscapeBin(Source, True)
         + Source + #13#10 + #13#10;
     Session.SQLParser.Clear();
   end;
@@ -5156,7 +5157,7 @@ procedure TSBaseTable.PushBuildEvent(const SItemsEvents: Boolean = True);
 begin
   if (ValidSource and SItemsEvents) then
     Session.ExecuteEvent(etItemsValid, Self);
-  if (Valid or ValidStatus) then
+  if (ValidSource or ValidStatus) then
     Session.ExecuteEvent(etItemValid, Database, Tables, Self);
 end;
 

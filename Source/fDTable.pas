@@ -1041,7 +1041,13 @@ begin
     FReferencedItemAdd(TSDBObject(Event.SItem));
 
   if (Event.EventType = etAfterExecuteSQL) then
+  begin
     FReferenced.Cursor := crDefault;
+
+    PageControl.Visible := True;
+    PSQLWait.Visible := not PageControl.Visible;
+    FBOkCheckEnabled(nil);
+  end;
 end;
 
 procedure TDTable.FormShow(Sender: TObject);

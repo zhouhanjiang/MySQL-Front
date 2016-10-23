@@ -2643,9 +2643,7 @@ begin
 
         if (not Assigned(DBObject)) then
           NotFound := True
-        else if (DBObject.Invalid or not DBObject.Update()) then
-          AllowChange := False
-        else if ((URI.Param['view'] = 'ide') and (DBObject.Source = '')) then
+        else if (not DBObject.Valid and not DBObject.Update()) then
           AllowChange := False
         else if (URI.Param['objecttype'] = 'trigger') then
           if (URI.Param['object'] = Null) or not Assigned(Database.TriggerByName(URI.Param['object'])) then
@@ -4246,19 +4244,20 @@ begin
     FSQLHistoryRefresh(Sender);
 
   SSideBar.Visible := PNavigator.Visible or PExplorer.Visible or PJobs.Visible or PSQLHistory.Visible;
-  if (SSideBar.Visible) then
+  if (not SSideBar.Visible) then
+    PSideBar.Visible := False
+  else
   begin
     SSideBar.Left := PNavigator.Width;
     SSideBar.Align := alLeft;
     PSideBar.Visible := SSideBar.Visible;
-  end
-  else
-    PSideBar.Visible := False;
+  end;
   TBSideBar.Visible := PSideBar.Visible;
 
 
   if (PSideBar.Visible) then
   begin
+    FormResize(Sender);
     PSideBar.EnableAlign();
 
     if (MainAction('aVNavigator').Checked) then
