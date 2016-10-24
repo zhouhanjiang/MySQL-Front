@@ -72,7 +72,6 @@ function SQLTrimStmt(const SQL: PChar; const Length: Integer; const Version: Int
 function SQLUnescape(const Value: PAnsiChar): RawByteString; overload;
 function SQLUnescape(const Value: PChar; const ValueLen: Integer; const Unescaped: PChar; const UnescapedLen: Integer): Integer; overload;
 function SQLUnescape(const Value: string): string; overload;
-function SQLWrapStmt(const SQL: string; const WrapStrs: array of string; const Indent: Integer): string;
 function SQLUnwrapStmt(const SQL: string; const Version: Integer): string;
 function StrToUInt64(const S: string): UInt64;
 function TryStrToUInt64(const S: string; out Value: UInt64): Boolean;
@@ -3149,49 +3148,6 @@ begin
         POP EDI
         POP ESI
         POP ES
-    end;
-  end;
-end;
-
-function SQLWrapStmt(const SQL: string; const WrapStrs: array of string; const Indent: Integer): string;
-var
-  I: Integer;
-  InQuote: Char;
-  Pattern: string;
-  PatternLen: Integer;
-  Pos: Integer;
-  WrapStr: string;
-begin
-  Result := SQL;
-
-  for I := 0 to Length(WrapStrs) - 1 do
-  begin
-    WrapStr := WrapStrs[I];
-
-    Pattern := WrapStr;
-    PatternLen := Length(Pattern);
-
-    InQuote := #0;
-
-    Pos := 1;
-    while (Pos <= Length(Result)) do
-    begin
-      if (CharInSet(Result[Pos], ['''', '"', '`'])) then
-        if (InQuote = #0) then
-          InQuote := Result[Pos]
-        else
-          InQuote := #0
-      else if ((Result[Pos] = '\') and (InQuote <> #0)) then
-        Inc(Pos)
-      else if ((InQuote = #0) and (1 < Pos) and (Pos < Length(Result) - PatternLen - 1) and CharInSet(Result[Pos - 1], [#9, #10, #13, ' ', ',', ')']) and (Copy(Result, Pos, PatternLen) = Pattern) and CharInSet(Result[Pos + PatternLen], [#9, #10, #13, ' ', ',', '(', '='])) then
-      begin
-        while ((1 < Pos) and CharInSet(Result[Pos - 1], [#9, #10, #13, ' '])) do
-          begin Delete(Result, Pos - 1, 1); Dec(Pos); end;
-        Insert(#13#10 + StringOfChar(' ', Indent), Result, Pos);
-        Inc(Pos, 2 + Indent);
-      end;
-
-      Inc(Pos);
     end;
   end;
 end;

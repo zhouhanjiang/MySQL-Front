@@ -16110,7 +16110,7 @@ begin
     else
     begin
       if (not JokerAllowed) then
-        Nodes.ExprNode := ParseExpr()
+        Nodes.ExprNode := ParseExpr([eoIn])
       else
         Nodes.ExprNode := ParseExpr([eoIn, eoAllFields]);
     end;
@@ -26127,6 +26127,4 @@ initialization
     Assert(Max = TSQLParser.MaxOperatorPrecedence);
   {$ENDIF}
 end.
-// Comments als erstes in increased areas
-// LIMIT 0.3
 

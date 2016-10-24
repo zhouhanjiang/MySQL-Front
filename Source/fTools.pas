@@ -4481,10 +4481,10 @@ begin
       else if (TDBObjectItem(Items[I]).DBObject.Database <> Database) then
         UseDatabaseStmts := True;
 
-      if (Assigned(TDBObjectItem(Items[I]).DBObject.Dependencies)) then
-        for J := 0 to TDBObjectItem(Items[I]).DBObject.Dependencies.Count - 1 do
+      if (Assigned(TDBObjectItem(Items[I]).DBObject.References)) then
+        for J := 0 to TDBObjectItem(Items[I]).DBObject.References.Count - 1 do
         begin
-          DBObject := TDBObjectItem(Items[I]).DBObject.Dependencies[J].DBObject;
+          DBObject := TDBObjectItem(Items[I]).DBObject.References[J].DBObject;
           for K := I to Items.Count - 1 do
             if ((K <> I) and (Items[K] is TDBObjectItem)
               and (TDBObjectItem(Items[K]).DBObject = DBObject)) then
@@ -7738,10 +7738,10 @@ begin
     NewIndex := I;
 
     if (Items[I] is TDBObjectItem) then
-      if (Assigned(TDBObjectItem(Items[I]).DBObject.Dependencies)) then
-        for J := 0 to TDBObjectItem(Items[I]).DBObject.Dependencies.Count - 1 do
+      if (Assigned(TDBObjectItem(Items[I]).DBObject.References)) then
+        for J := 0 to TDBObjectItem(Items[I]).DBObject.References.Count - 1 do
         begin
-          DBObject := TDBObjectItem(Items[I]).DBObject.Dependencies[J].DBObject;
+          DBObject := TDBObjectItem(Items[I]).DBObject.References[J].DBObject;
           for K := I to Items.Count - 1 do
             if ((K <> I) and (Items[K] is TDBObjectItem)
               and (TDBObjectItem(Items[K]).DBObject = DBObject)) then

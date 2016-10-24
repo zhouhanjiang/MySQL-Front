@@ -611,34 +611,6 @@ object DTable: TDTable
         OnSelectItem = FListSelectItem
       end
     end
-    object TSReferenced: TTabSheet
-      Caption = 'TSReferenced'
-      OnShow = TSReferencedShow
-      DesignSize = (
-        313
-        261)
-      object FReferenced: TListView
-        Left = 8
-        Top = 8
-        Width = 297
-        Height = 235
-        Anchors = [akLeft, akTop, akRight, akBottom]
-        Columns = <
-          item
-            AutoSize = True
-            Caption = 'Name'
-          end
-          item
-            AutoSize = True
-            Caption = 'Type'
-          end>
-        ColumnClick = False
-        HideSelection = False
-        ReadOnly = True
-        TabOrder = 0
-        ViewStyle = vsReport
-      end
-    end
     object TSPartitions: TTabSheet
       Caption = 'TSPartitions'
       OnShow = TSPartitionsShow
@@ -781,6 +753,34 @@ object DTable: TDTable
             OnSelectItem = FListSelectItem
           end
         end
+      end
+    end
+    object TSReferenced: TTabSheet
+      Caption = 'TSReferenced'
+      OnShow = TSReferencedShow
+      DesignSize = (
+        313
+        261)
+      object FReferenced: TListView
+        Left = 8
+        Top = 8
+        Width = 297
+        Height = 235
+        Anchors = [akLeft, akTop, akRight, akBottom]
+        Columns = <
+          item
+            AutoSize = True
+            Caption = 'Name'
+          end
+          item
+            AutoSize = True
+            Caption = 'Type'
+          end>
+        ColumnClick = False
+        HideSelection = False
+        ReadOnly = True
+        TabOrder = 0
+        ViewStyle = vsReport
       end
     end
     object TSExtras: TTabSheet

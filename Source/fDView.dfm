@@ -41,16 +41,12 @@ object DView: TDView
     Top = 8
     Width = 321
     Height = 325
-    ActivePage = TSBasics
+    ActivePage = TSReferenced
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -206,10 +202,6 @@ object DView: TDView
     object TSInformations: TTabSheet
       Caption = 'TSInformations'
       OnShow = TSInformationsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -272,10 +264,6 @@ object DView: TDView
     end
     object TSFields: TTabSheet
       Caption = 'TSFields'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -318,12 +306,37 @@ object DView: TDView
         ViewStyle = vsReport
       end
     end
+    object TSReferenced: TTabSheet
+      Caption = 'TSReferenced'
+      ImageIndex = 4
+      OnShow = TSReferencedShow
+      DesignSize = (
+        313
+        297)
+      object FReferenced: TListView
+        Left = 8
+        Top = 8
+        Width = 297
+        Height = 273
+        Anchors = [akLeft, akTop, akRight, akBottom]
+        Columns = <
+          item
+            AutoSize = True
+            Caption = 'Name'
+          end
+          item
+            AutoSize = True
+            Caption = 'Type'
+          end>
+        ColumnClick = False
+        HideSelection = False
+        ReadOnly = True
+        TabOrder = 0
+        ViewStyle = vsReport
+      end
+    end
     object TSSource: TTabSheet
       Caption = 'TSSource'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)

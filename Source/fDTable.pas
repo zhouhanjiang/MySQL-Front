@@ -199,7 +199,7 @@ type
     procedure FIndicesRefresh(Sender: TObject);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure FPartitionsRefresh(Sender: TObject);
-    procedure FReferencedItemAdd(const SDBObject: TSDBObject);
+    procedure FReferencedBuild();
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Charset: string;
@@ -611,11 +611,6 @@ begin
   TSFields.TabVisible := True;
   TSForeignKeys.TabVisible := Assigned(Table);
   TSTriggers.TabVisible := Assigned(Table) and Assigned(Database.Triggers);
-  {$IFDEF Debug}
-  TSReferenced.TabVisible := Assigned(Table);
-  {$ELSE}
-  TSReferenced.TabVisible := False;
-  {$ENDIF}
   TSPartitions.TabVisible := Assigned(Table) and Assigned(Table.Partitions);
   TSExtras.TabVisible := Assigned(Table);
   TSSource.TabVisible := Assigned(Table);
@@ -1037,12 +1032,13 @@ begin
   else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is fSession.TSTable)) then
     ModalResult := mrOk;
 
-  if ((Event.EventType = etDependenciesAdded) and (Event.SItem is TSDBObject)) then
-    FReferencedItemAdd(TSDBObject(Event.SItem));
-
   if (Event.EventType = etAfterExecuteSQL) then
   begin
-    FReferenced.Cursor := crDefault;
+    if (FReferenced.Cursor = crSQLWait) then
+    begin
+      FReferencedBuild();
+      FReferenced.Cursor := crDefault;
+    end;
 
     PageControl.Visible := True;
     PSQLWait.Visible := not PageControl.Visible;
@@ -1187,11 +1183,7 @@ begin
   TSFields.TabVisible := True;
   TSForeignKeys.TabVisible := Assigned(Table);
   TSTriggers.TabVisible := Assigned(Table) and Assigned(Database.Triggers);
-  {$IFDEF Debug}
-  TSReferenced.TabVisible := Assigned(Table) and Assigned(NewTable.Engine);
-  {$ELSE}
-  TSReferenced.TabVisible := False;
-  {$ENDIF}
+  TSReferenced.TabVisible := Assigned(Table);
   TSPartitions.TabVisible := Assigned(Table) and Assigned(NewTable.Partitions);
   TSExtras.TabVisible := Assigned(Table);
   TSSource.TabVisible := Assigned(Table);
@@ -1305,111 +1297,142 @@ begin
   FBOkCheckEnabled(Sender);
 end;
 
-procedure TDTable.FReferencedItemAdd(const SDBObject: TSDBObject);
-const
-  coTable = 1;
-  coRoutine = 2;
-  coEvent = 3;
-var
-  ClassOrderDBObject: Integer;
-  Compare: Integer;
-  Index: Integer;
-  I: Integer;
-  ClassOrderListItem: Integer;
-  J: Integer;
-  Item: TListItem;
-  TempOnChange: TLVChangeEvent;
-begin
-  TempOnChange := FReferenced.OnChange;
-  FReferenced.OnChange := nil;
-  FReferenced.Items.BeginUpdate();
+procedure TDTable.FReferencedBuild();
 
-  if (Assigned(SDBObject.Dependencies)) then
+  procedure AddDBObject(const DBObject: TSDBObject);
+  const
+    coTable = 1;
+    coRoutine = 2;
+    coTrigger = 3;
+    coEvent = 4;
+  var
+    ClassOrderDBObject: Integer;
+    Compare: Integer;
+    Index: Integer;
+    I: Integer;
+    ClassOrderListItem: Integer;
+    J: Integer;
+    Item: TListItem;
+    TempOnChange: TLVChangeEvent;
   begin
-    if (SDBObject is TSTable) then
-      ClassOrderDBObject := coTable
-    else if (SDBObject is TSRoutine) then
-      ClassOrderDbObject := coRoutine
-    else if (SDBObject is TSEvent) then
-      ClassOrderDbObject := coEvent
-    else
-      raise ERangeError.Create(SRangeError);
-    for I := 0 to SDBObject.Dependencies.Count - 1 do
-      if (SDBObject.Dependencies[I].DBObject = Table) then
-      begin
-        Index := FReferenced.Items.Count;
-        for J := 0 to FReferenced.Items.Count - 1 do
-        begin
-          if (TSDBObject(FReferenced.Items[J].Data) is TSTable) then
-            ClassOrderListItem := coTable
-          else if (TSDBObject(FReferenced.Items[J].Data) is TSRoutine) then
-            ClassOrderListItem := coRoutine
-          else if (TSDBObject(FReferenced.Items[J].Data) is TSEvent) then
-            ClassOrderListItem := coEvent
-          else
-            raise ERangeError.Create(SRangeError);
-          if (ClassOrderListItem <> ClassOrderDBObject) then
-            Compare := ClassOrderDBObject - ClassOrderListItem
-          else
-            Compare := SDBObject.Index - TSDBObject(FReferenced.Items[J].Data).Index;
-          if (Compare < 1) then
-            Index := J
-          else if (Compare = 0) then
-            Index := -1;
-        end;
+    TempOnChange := FReferenced.OnChange;
+    FReferenced.OnChange := nil;
+    FReferenced.Items.BeginUpdate();
 
-        if (Index >= 0) then
+    if (Assigned(DBObject.References)) then
+    begin
+      if (DBObject is TSTable) then
+        ClassOrderDBObject := coTable
+      else if (DBObject is TSTrigger) then
+        ClassOrderDbObject := coTrigger
+      else if (DBObject is TSRoutine) then
+        ClassOrderDbObject := coRoutine
+      else if (DBObject is TSEvent) then
+        ClassOrderDbObject := coEvent
+      else
+        raise ERangeError.Create(SRangeError);
+      for I := 0 to DBObject.References.Count - 1 do
+        if (DBObject.References[I].DBObject = Table) then
         begin
-          if (Index < FReferenced.Items.Count) then
-            Item := FReferenced.Items.Insert(Index)
-          else
-            Item := FReferenced.Items.Add();
+          Index := FReferenced.Items.Count;
+          for J := 0 to FReferenced.Items.Count - 1 do
+          begin
+            if (TSDBObject(FReferenced.Items[J].Data) is TSTable) then
+              ClassOrderListItem := coTable
+            else if (TSDBObject(FReferenced.Items[J].Data) is TSRoutine) then
+              ClassOrderListItem := coRoutine
+            else if (TSDBObject(FReferenced.Items[J].Data) is TSEvent) then
+              ClassOrderListItem := coEvent
+            else
+              raise ERangeError.Create(SRangeError);
+            if (ClassOrderListItem <> ClassOrderDBObject) then
+              Compare := ClassOrderDBObject - ClassOrderListItem
+            else
+              Compare := DBObject.Index - TSDBObject(FReferenced.Items[J].Data).Index;
+            if (Compare < 1) then
+              Index := J
+            else if (Compare = 0) then
+              Index := -1;
+          end;
 
-          if (SDBObject is TSBaseTable) then
+          if (Index >= 0) then
           begin
-            Item.ImageIndex := iiBaseTable;
-            Item.Caption := SDBObject.Caption;
-            Item.SubItems.Add(Preferences.LoadStr(302));
-          end
-          else if (SDBObject is TSView) then
-          begin
-            Item.ImageIndex := iiView;
-            Item.Caption := SDBObject.Caption;
-            Item.SubItems.Add(Preferences.LoadStr(738));
-          end
-          else if (SDBObject is TSProcedure) then
-          begin
-            Item.ImageIndex := iiProcedure;
-            Item.Caption := SDBObject.Caption;
-            Item.SubItems.Add(Preferences.LoadStr(768));
-          end
-          else if (SDBObject is TSFunction) then
-          begin
-            Item.ImageIndex := iiFunction;
-            Item.Caption := SDBObject.Caption;
-            Item.SubItems.Add(Preferences.LoadStr(769));
-          end
-          else if (SDBObject is TSTrigger) then
-          begin
-            Item.ImageIndex := iiTrigger;
-            Item.Caption := SDBObject.Caption;
-            Item.SubItems.Add(Preferences.LoadStr(923, TSTrigger(SDBObject).TableName));
-          end
-          else if (SDBObject is TSEvent) then
-          begin
-            Item.ImageIndex := iiEvent;
-            Item.Caption := SDBObject.Caption;
-            Item.SubItems.Add(Preferences.LoadStr(812));
-          end
-          else
-            raise ERangeError.Create(SRangeError);
-          Item.Data := SDBObject;
+            if (Index < FReferenced.Items.Count) then
+              Item := FReferenced.Items.Insert(Index)
+            else
+              Item := FReferenced.Items.Add();
+
+            if (DBObject is TSBaseTable) then
+            begin
+              Item.ImageIndex := iiBaseTable;
+              Item.Caption := DBObject.Caption;
+              Item.SubItems.Add(Preferences.LoadStr(302));
+            end
+            else if (DBObject is TSView) then
+            begin
+              Item.ImageIndex := iiView;
+              Item.Caption := DBObject.Caption;
+              Item.SubItems.Add(Preferences.LoadStr(738));
+            end
+            else if (DBObject is TSProcedure) then
+            begin
+              Item.ImageIndex := iiProcedure;
+              Item.Caption := DBObject.Caption;
+              Item.SubItems.Add(Preferences.LoadStr(768));
+            end
+            else if (DBObject is TSFunction) then
+            begin
+              Item.ImageIndex := iiFunction;
+              Item.Caption := DBObject.Caption;
+              Item.SubItems.Add(Preferences.LoadStr(769));
+            end
+            else if (DBObject is TSTrigger) then
+            begin
+              Item.ImageIndex := iiTrigger;
+              Item.Caption := DBObject.Caption;
+              Item.SubItems.Add(Preferences.LoadStr(923, TSTrigger(DBObject).TableName));
+            end
+            else if (DBObject is TSEvent) then
+            begin
+              Item.ImageIndex := iiEvent;
+              Item.Caption := DBObject.Caption;
+              Item.SubItems.Add(Preferences.LoadStr(812));
+            end
+            else
+              raise ERangeError.Create(SRangeError);
+            Item.Data := DBObject;
+          end;
         end;
-      end;
+    end;
+
+    FReferenced.Items.EndUpdate();
+    FReferenced.OnChange := TempOnChange;
   end;
 
+var
+  I: Integer;
+begin
+  FReferenced.Items.BeginUpdate();
+  FReferenced.Items.Clear();
+
+  for I := 0 to Database.Tables.Count - 1 do
+    if (Database.Tables[I] <> Table) then
+      AddDBObject(Database.Tables[I]);
+
+  if (Assigned(Database.Routines)) then
+    for I := 0 to Database.Routines.Count - 1 do
+      AddDBObject(Database.Routines[I]);
+
+  if (Assigned(Database.Triggers)) then
+    for I := 0 to Database.Triggers.Count - 1 do
+      if (Database.Triggers[I].Table <> Table) then
+        AddDBObject(Database.Triggers[I]);
+
+  if (Assigned(Database.Events)) then
+    for I := 0 to Database.Events.Count - 1 do
+      AddDBObject(Database.Events[I]);
+
   FReferenced.Items.EndUpdate();
-  FReferenced.OnChange := TempOnChange;
 end;
 
 procedure TDTable.FTriggersChange(Sender: TObject; Item: TListItem;
@@ -1643,51 +1666,18 @@ end;
 
 procedure TDTable.TSReferencedShow(Sender: TObject);
 var
-  I: Integer;
   List: TList;
 begin
-  mlDCreate.Action := aPCreateForeignKey;
-  mlDDelete.Action := aPDeleteForeignKey;
-  mlDProperties.Action := aPEditForeignKey;
-
-  mlDCreate.Caption := Preferences.LoadStr(26) + '...';
-  mlDDelete.Caption := Preferences.LoadStr(28);
-
-  mlDCreate.ShortCut := VK_INSERT;
-  mlDDelete.ShortCut := VK_DELETE;
-
   if (FReferenced.Items.Count = 0) then
   begin
-    FReferenced.Items.BeginUpdate();
-    FReferenced.Items.Clear();
-
-    for I := 0 to Database.Tables.Count - 1 do
-      if ((Database.Tables[I] <> Table) and Database.Tables[I].Dependencies.Valid) then
-        FReferencedItemAdd(Database.Tables[I]);
-
-    if (Assigned(Database.Routines)) then
-      for I := 0 to Database.Routines.Count - 1 do
-        if (Database.Routines[I].Dependencies.Valid) then
-          FReferencedItemAdd(Database.Routines[I]);
-
-    if (Assigned(Database.Triggers)) then
-      for I := 0 to Database.Triggers.Count - 1 do
-        if ((Database.Triggers[I].Table <> Table) and Database.Triggers[I].Dependencies.Valid) then
-          FReferencedItemAdd(Database.Triggers[I]);
-
-    if (Assigned(Database.Events)) then
-      for I := 0 to Database.Events.Count - 1 do
-        if (Database.Events[I].Dependencies.Valid) then
-          FReferencedItemAdd(Database.Events[I]);
-
-    FReferenced.Items.EndUpdate();
+    List := TList.Create();
+    List.Add(Table.ReferencedRequester);
+    if (not Database.Session.Update(List, False, True)) then
+      FReferenced.Cursor := crSQLWait
+    else
+      FReferencedBuild();
+    List.Free();
   end;
-
-  List := TList.Create();
-  List.Add(Table.ReferencedRequester);
-  if (not Database.Session.Update(List, False, True)) then
-    FReferenced.Cursor := crSQLWait;
-  List.Free();
 end;
 
 procedure TDTable.TSSourceShow(Sender: TObject);

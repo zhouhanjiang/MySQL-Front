@@ -3676,8 +3676,6 @@ begin
       LibRow := nil
     else
     begin
-if (not Assigned(SyncThread.ResHandle)) then
-  Write;
       LibRow := Lib.mysql_fetch_row(SyncThread.ResHandle);
       SyncThread.Success := Lib.mysql_errno(SyncThread.LibHandle) = 0;
       if (not SyncThread.Success) then

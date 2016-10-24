@@ -30,6 +30,7 @@ type
     FLStmt: TLabel;
     FName: TEdit;
     FRecordCount: TLabel;
+    FReferenced: TListView;
     FSecurityDefiner: TRadioButton;
     FSecurityInvoker: TRadioButton;
     FSource: TSynMemo;
@@ -52,6 +53,7 @@ type
     TSInformations: TTabSheet;
     TSSource: TTabSheet;
     TSFields: TTabSheet;
+    TSReferenced: TTabSheet;
     procedure FAlgorithmSelect(Sender: TObject);
     procedure FBHelpClick(Sender: TObject);
     procedure FCheckOptionCascadeClick(Sender: TObject);
@@ -72,10 +74,12 @@ type
     procedure FStmtChange(Sender: TObject);
     procedure TSInformationsShow(Sender: TObject);
     procedure FSourceChange(Sender: TObject);
+    procedure TSReferencedShow(Sender: TObject);
   private
     RecordCount: Integer;
     procedure Built();
     procedure FBOkCheckEnabled(Sender: TObject);
+    procedure FReferencedBuild();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
@@ -91,7 +95,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  StrUtils,
+  StrUtils, SysConst,
   fPreferences, SQLUtils;
 
 var
@@ -134,7 +138,7 @@ begin
   FCheckOptionCascade.Checked := View.CheckOption = voCascaded;
   FCheckOptionLocal.Checked := View.CheckOption = voLocal;
 
-  FStmt.Lines.Text := Trim(SQLWrapStmt(View.Stmt, ['from', 'where', 'group by', 'having', 'order by', 'limit'], 0)) + #13#10;
+  FStmt.Lines.Text := View.Stmt;
 
   FDefiner.Caption := View.Definer;
 
@@ -307,25 +311,12 @@ begin
   end;
 end;
 
-procedure TDView.FormSessionEvent(const Event: TSSession.TEvent);
-begin
-  if ((Event.EventType = etItemValid) and (Event.SItem = View)) then
-    Built()
-  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is TSView)) then
-    Close();
-
-  if (Event.EventType = etAfterExecuteSQL) then
-  begin
-    PageControl.Visible := True;
-    PSQLWait.Visible := not PageControl.Visible;
-  end;
-end;
-
 procedure TDView.FormCreate(Sender: TObject);
 begin
   FFields.SmallImages := Preferences.Images;
 
   FStmt.Highlighter := MainHighlighter;
+  FReferenced.SmallImages := Preferences.Images;
   FSource.Highlighter := MainHighlighter;
 
   Constraints.MinWidth := Width;
@@ -341,6 +332,8 @@ begin
   msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;
 
   PageControl.ActivePage := TSBasics;
+
+  FReferenced.RowSelect := CheckWin32Version(6);
 end;
 
 procedure TDView.FormHide(Sender: TObject);
@@ -355,9 +348,32 @@ begin
   FFields.Items.BeginUpdate();
   FFields.Items.Clear();
   FFields.Items.EndUpdate();
+  FReferenced.Items.BeginUpdate();
+  FReferenced.Items.Clear();
+  FReferenced.Items.EndUpdate();
 
   FSource.Lines.Clear();
   PageControl.ActivePage := TSBasics;
+end;
+
+procedure TDView.FormSessionEvent(const Event: TSSession.TEvent);
+begin
+  if ((Event.EventType = etItemValid) and (Event.SItem = View)) then
+    Built()
+  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is TSView)) then
+    Close();
+
+  if (Event.EventType = etAfterExecuteSQL) then
+  begin
+    if (FReferenced.Cursor = crSQLWait) then
+    begin
+      FReferencedBuild();
+      FReferenced.Cursor := crDefault;
+    end;
+
+    PageControl.Visible := True;
+    PSQLWait.Visible := not PageControl.Visible;
+  end;
 end;
 
 procedure TDView.FormShow(Sender: TObject);
@@ -426,14 +442,154 @@ begin
       Built();
   end;
 
+  FReferenced.Cursor := crDefault;
+
   TSInformations.TabVisible := Assigned(View);
   TSFields.TabVisible := Assigned(View);
+  TSReferenced.TabVisible := Assigned(View);
 
   FBOk.Enabled := PageControl.Visible and not Assigned(View);
 
   ActiveControl := FBCancel;
   if (PageControl.Visible) then
     ActiveControl := FName;
+end;
+
+procedure TDView.FReferencedBuild();
+
+  procedure AddDBObject(const DBObject: TSDBObject);
+  const
+    coTable = 1;
+    coTrigger = 2;
+    coRoutine = 3;
+    coEvent = 4;
+  var
+    ClassOrderDBObject: Integer;
+    Compare: Integer;
+    Index: Integer;
+    I: Integer;
+    ClassOrderListItem: Integer;
+    J: Integer;
+    Item: TListItem;
+    TempOnChange: TLVChangeEvent;
+  begin
+    TempOnChange := FReferenced.OnChange;
+    FReferenced.OnChange := nil;
+    FReferenced.Items.BeginUpdate();
+
+    if (Assigned(DBObject.References)) then
+    begin
+      if (DBObject is TSTable) then
+        ClassOrderDBObject := coTable
+      else if (DBObject is TSRoutine) then
+        ClassOrderDbObject := coRoutine
+      else if (DBObject is TSTrigger) then
+        ClassOrderDbObject := coTrigger
+      else if (DBObject is TSEvent) then
+        ClassOrderDbObject := coEvent
+      else
+        raise ERangeError.Create(SRangeError);
+      for I := 0 to DBObject.References.Count - 1 do
+        if (DBObject.References[I].DBObject = View) then
+        begin
+          Index := FReferenced.Items.Count;
+          for J := 0 to FReferenced.Items.Count - 1 do
+          begin
+            if (TSDBObject(FReferenced.Items[J].Data) is TSTable) then
+              ClassOrderListItem := coTable
+            else if (TSDBObject(FReferenced.Items[J].Data) is TSRoutine) then
+              ClassOrderListItem := coRoutine
+            else if (TSDBObject(FReferenced.Items[J].Data) is TSEvent) then
+              ClassOrderListItem := coEvent
+            else
+              raise ERangeError.Create(SRangeError);
+            if (ClassOrderListItem <> ClassOrderDBObject) then
+              Compare := ClassOrderDBObject - ClassOrderListItem
+            else
+              Compare := DBObject.Index - TSDBObject(FReferenced.Items[J].Data).Index;
+            if (Compare < 1) then
+              Index := J
+            else if (Compare = 0) then
+              Index := -1;
+          end;
+
+          if (Index >= 0) then
+          begin
+            if (Index < FReferenced.Items.Count) then
+              Item := FReferenced.Items.Insert(Index)
+            else
+              Item := FReferenced.Items.Add();
+
+            if (DBObject is TSBaseTable) then
+            begin
+              Item.ImageIndex := iiBaseTable;
+              Item.Caption := DBObject.Caption;
+              Item.SubItems.Add(Preferences.LoadStr(302));
+            end
+            else if (DBObject is TSView) then
+            begin
+              Item.ImageIndex := iiView;
+              Item.Caption := DBObject.Caption;
+              Item.SubItems.Add(Preferences.LoadStr(738));
+            end
+            else if (DBObject is TSProcedure) then
+            begin
+              Item.ImageIndex := iiProcedure;
+              Item.Caption := DBObject.Caption;
+              Item.SubItems.Add(Preferences.LoadStr(768));
+            end
+            else if (DBObject is TSFunction) then
+            begin
+              Item.ImageIndex := iiFunction;
+              Item.Caption := DBObject.Caption;
+              Item.SubItems.Add(Preferences.LoadStr(769));
+            end
+            else if (DBObject is TSTrigger) then
+            begin
+              Item.ImageIndex := iiTrigger;
+              Item.Caption := DBObject.Caption;
+              Item.SubItems.Add(Preferences.LoadStr(923, TSTrigger(DBObject).TableName));
+            end
+            else if (DBObject is TSEvent) then
+            begin
+              Item.ImageIndex := iiEvent;
+              Item.Caption := DBObject.Caption;
+              Item.SubItems.Add(Preferences.LoadStr(812));
+            end
+            else
+              raise ERangeError.Create(SRangeError);
+            Item.Data := DBObject;
+          end;
+        end;
+    end;
+
+    FReferenced.Items.EndUpdate();
+    FReferenced.OnChange := TempOnChange;
+  end;
+
+var
+  I: Integer;
+begin
+  FReferenced.Items.BeginUpdate();
+  FReferenced.Items.Clear();
+
+  for I := 0 to Database.Tables.Count - 1 do
+    if (Database.Tables[I] <> View) then
+      AddDBObject(Database.Tables[I]);
+
+  if (Assigned(Database.Routines)) then
+    for I := 0 to Database.Routines.Count - 1 do
+      AddDBObject(Database.Routines[I]);
+
+  if (Assigned(Database.Triggers)) then
+    for I := 0 to Database.Triggers.Count - 1 do
+      AddDBObject(Database.Triggers[I]);
+
+  if (Assigned(Database.Events)) then
+    for I := 0 to Database.Events.Count - 1 do
+      AddDBObject(Database.Events[I]);
+
+  FReferenced.Items.EndUpdate();
 end;
 
 procedure TDView.FSecurityClick(Sender: TObject);
@@ -473,6 +629,22 @@ begin
     RecordCount := View.CountRecords;
 
   FRecordCount.Caption := FormatFloat('#,##0', RecordCount, LocaleFormatSettings);
+end;
+
+procedure TDView.TSReferencedShow(Sender: TObject);
+var
+  List: TList;
+begin
+  if (FReferenced.Items.Count = 0) then
+  begin
+    List := TList.Create();
+    List.Add(View.ReferencedRequester);
+    if (not Database.Session.Update(List, False, True)) then
+      FReferenced.Cursor := crSQLWait
+    else
+      FReferencedBuild();
+    List.Free();
+  end;
 end;
 
 procedure TDView.UMChangePreferences(var Message: TMessage);
@@ -529,6 +701,10 @@ begin
   FFields.Column[3].Caption := Preferences.LoadStr(72);
   FFields.Column[4].Caption := Preferences.LoadStr(73);
   FFields.Column[5].Caption := Preferences.LoadStr(111);
+
+  TSReferenced.Caption := Preferences.LoadStr(782);
+  FReferenced.Column[0].Caption := Preferences.LoadStr(35);
+  FReferenced.Column[1].Caption := Preferences.LoadStr(69);
 
   TSSource.Caption := Preferences.LoadStr(198);
   FSource.Font.Name := Preferences.SQLFontName;

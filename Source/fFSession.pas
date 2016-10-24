@@ -1735,7 +1735,7 @@ begin
   if (not Assigned(SynMemo) and TSView(SObject).Valid) then
   begin
     SynMemo := FSession.CreateSynMemo(SObject);
-    SynMemo.Text := TSView(SObject).Stmt;
+    SynMemo.Text := TSView(SObject).Stmt + #13#10;
   end;
 
   Result := SynMemo;
@@ -12013,13 +12013,6 @@ begin
     else
       Result := False;
   end;
-
-  if (Result and Assigned(ActiveSynMemo)) then
-  begin
-    GetActiveIDEInputDataSet();
-    ActiveSynMemo.Modified := False;
-    SynMemoStatusChange(ActiveSynMemo, []);
-  end;
 end;
 
 procedure TFSession.PropertiesServerExecute(Sender: TObject);
@@ -12376,12 +12369,23 @@ begin
       end;
     end;
 
-    if (SessionEvent.EventType in [etItemValid]) then
+    if ((SessionEvent.EventType = etItemValid)) then
       if ((SessionEvent.SItem is TSView) and Assigned(Desktop(TSView(SessionEvent.SItem)).SynMemo)) then
-        Desktop(TSView(SessionEvent.SItem)).SynMemo.Text := Trim(SQLWrapStmt(TSView(SessionEvent.SItem).Stmt, ['from', 'where', 'group by', 'having', 'order by', 'limit'], 0)) + #13#10
+        Desktop(TSView(SessionEvent.SItem)).SynMemo.Text := TSView(SessionEvent.SItem).Stmt + #13#10
       else if ((SessionEvent.SItem is TSRoutine) and Assigned(Desktop(TSRoutine(SessionEvent.SItem)).SynMemo)) then
       begin
         Desktop(TSRoutine(SessionEvent.SItem)).SynMemo.Text := TSRoutine(SessionEvent.SItem).Source + #13#10;
+        PContentChange(nil);
+      end
+      else if ((SessionEvent.SItem is TSTrigger) and Assigned(Desktop(TSTrigger(SessionEvent.SItem)).SynMemo)) then
+      begin
+        Desktop(TSTrigger(SessionEvent.SItem)).SynMemo.Text := TSTrigger(SessionEvent.SItem).Source + #13#10;
+        PContentChange(nil);
+      end
+      else if ((SessionEvent.SItem is TSEvent) and Assigned(Desktop(TSEvent(SessionEvent.SItem)).SynMemo)) then
+      begin
+        Desktop(TSEvent(SessionEvent.SItem)).SynMemo.Text := TSEvent(SessionEvent.SItem).Stmt + #13#10;
+        Desktop(TSEvent(SessionEvent.SItem)).SynMemo.Modified := False;
         PContentChange(nil);
       end;
 
@@ -12397,25 +12401,13 @@ begin
         end;
       end;
       if (SessionEvent.SItem is TSView) then
-      begin
-        Desktop(TSView(SessionEvent.SItem)).SynMemo.Modified := Desktop(TSView(SessionEvent.SItem)).SynMemoTextAtUpdate <> Desktop(TSView(SessionEvent.SItem)).SynMemo.Text;
-        Desktop(TSView(SessionEvent.SItem)).SynMemoTextAtUpdate := '';
-      end
+        Desktop(TSView(SessionEvent.SItem)).SynMemo.Modified := Desktop(TSView(SessionEvent.SItem)).SynMemoTextAtUpdate <> Desktop(TSView(SessionEvent.SItem)).SynMemo.Text
       else if (SessionEvent.SItem is TSRoutine) then
-      begin
-        Desktop(TSRoutine(SessionEvent.SItem)).SynMemo.Modified := Desktop(TSRoutine(SessionEvent.SItem)).SynMemoTextAtUpdate <> Desktop(TSRoutine(SessionEvent.SItem)).SynMemo.Text;
-        Desktop(TSRoutine(SessionEvent.SItem)).SynMemoTextAtUpdate := '';
-      end
+        Desktop(TSRoutine(SessionEvent.SItem)).SynMemo.Modified := Desktop(TSRoutine(SessionEvent.SItem)).SynMemoTextAtUpdate <> Desktop(TSRoutine(SessionEvent.SItem)).SynMemo.Text
       else if (SessionEvent.SItem is TSEvent) then
-      begin
-        Desktop(TSEvent(SessionEvent.SItem)).SynMemo.Modified := Desktop(TSEvent(SessionEvent.SItem)).SynMemoTextAtUpdate <> Desktop(TSEvent(SessionEvent.SItem)).SynMemo.Text;
-        Desktop(TSEvent(SessionEvent.SItem)).SynMemoTextAtUpdate := '';
-      end
+        Desktop(TSEvent(SessionEvent.SItem)).SynMemo.Modified := Desktop(TSEvent(SessionEvent.SItem)).SynMemoTextAtUpdate <> Desktop(TSEvent(SessionEvent.SItem)).SynMemo.Text
       else if (SessionEvent.SItem is TSTrigger) then
-      begin
         Desktop(TSTrigger(SessionEvent.SItem)).SynMemo.Modified := Desktop(TSTrigger(SessionEvent.SItem)).SynMemoTextAtUpdate <> Desktop(TSTrigger(SessionEvent.SItem)).SynMemo.Text;
-        Desktop(TSTrigger(SessionEvent.SItem)).SynMemoTextAtUpdate := '';
-      end;
     end;
   end;
 
