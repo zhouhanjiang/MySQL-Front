@@ -2531,7 +2531,8 @@ begin
     and (StrIComp(PChar(Name), 'execute_prepared_stmt') <> 0)
     and (StrLIComp(PChar(Name), 'ps_', 3) <> 0)) then
   begin
-    if (not Session.SQLParser.ParseSQL(Source)) then
+    if (not Session.SQLParser.ParseSQL(Source)
+      and (Now() <= Session.ParseEndDate)) then
       Session.UnparsableSQL := Session.UnparsableSQL
         + '# SetSource()' + #13#10
         + '# Error: ' + Session.SQLParser.ErrorMessage + #13#10
@@ -11771,7 +11772,7 @@ var
   User: TSUser;
   Variable: TSVariable;
 begin
-  if ((Now() <= ParseEndDate) and (Trim(SQL) <> '')) then
+  if (Now() <= ParseEndDate) then
   begin
     SetString(SQL, Text, Len);
     if ((Connection.ErrorCode = ER_PARSE_ERROR) and SQLParser.ParseSQL(SQL)) then

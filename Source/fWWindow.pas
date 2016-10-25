@@ -1389,10 +1389,10 @@ begin
   tbPostRecord.Action := ActiveTab.DataSetPost;
   tbCancelRecord.Action := ActiveTab.DataSetCancel;
 
-  tbDBPrev.Hint := ActiveTab.aDPrev.Caption + ' (' + ShortCutToText(VK_UP) + ')';
+  tbDBPrev.Hint := ActiveTab.aDPrev.Caption + ' (' + ShortCutToText(VK_PRIOR) + ')';
   tbDBFirst.Hint := ActiveTab.DataSetFirst.Caption + ' (' + ShortCutToText(scCtrl + VK_HOME) + ')';
   tbDBLast.Hint := ActiveTab.DataSetLast.Caption + ' (' + ShortCutToText(scCtrl + VK_END) + ')';
-  tbDBNext.Hint := ActiveTab.aDNext.Caption + ' (' + ShortCutToText(VK_DOWN) + ')';
+  tbDBNext.Hint := ActiveTab.aDNext.Caption + ' (' + ShortCutToText(VK_NEXT) + ')';
 
   aFClose.Enabled := True;
 

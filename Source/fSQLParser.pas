@@ -14220,7 +14220,7 @@ begin
       or (TokenBuffer.Count = Index + 1)
       or (TokenBuffer.Count = System.Length(TokenBuffer.Items)));
 
-  if ((Index = TokenBuffer.Count) or (TokenBuffer.Count = System.Length(TokenBuffer.Items))) then
+  if ((Index >= TokenBuffer.Count) or (TokenBuffer.Count = System.Length(TokenBuffer.Items))) then
     Result := 0
   else
     Result := TokenBuffer.Items[Index].Token;
@@ -22748,7 +22748,7 @@ begin
 
   Found := True;
   while (not ErrorFound and Found) do
-    if ((Nodes.WithConsistentSnapshotTag = 0) and IsTag(kiWRITE, kiCONSISTENT, kiSNAPSHOT)) then
+    if ((Nodes.WithConsistentSnapshotTag = 0) and IsTag(kiWITH, kiCONSISTENT, kiSNAPSHOT)) then
       Nodes.WithConsistentSnapshotTag := ParseTag(kiWITH, kiCONSISTENT, kiSNAPSHOT)
     else if ((Nodes.ReadWriteTag = 0) and IsTag(kiREAD, kiWRITE)) then
       Nodes.RealOnlyTag := ParseTag(kiREAD, kiWRITE)
