@@ -44,23 +44,29 @@ object DView: TDView
     ActivePage = TSReferenced
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
+    MultiLine = True
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
-        297)
+        279)
       object GBasics: TGroupBox_Ext
         Left = 8
         Top = 4
         Width = 297
-        Height = 277
+        Height = 259
         Anchors = [akLeft, akTop, akRight, akBottom]
         Caption = 'GBasics'
         TabOrder = 0
+        ExplicitHeight = 277
         DesignSize = (
           297
-          277)
+          259)
         object FLAlgorithm: TLabel
           Left = 8
           Top = 67
@@ -111,7 +117,7 @@ object DView: TDView
           Left = 8
           Top = 224
           Width = 281
-          Height = 45
+          Height = 27
           Anchors = [akLeft, akTop, akRight, akBottom]
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
@@ -131,6 +137,7 @@ object DView: TDView
           ScrollHintFormat = shfTopToBottom
           OnChange = FStmtChange
           FontSmoothing = fsmNone
+          ExplicitHeight = 45
         end
         object FCheckOptionCascade: TCheckBox
           Left = 136
@@ -202,9 +209,13 @@ object DView: TDView
     object TSInformations: TTabSheet
       Caption = 'TSInformations'
       OnShow = TSInformationsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
-        297)
+        279)
       object GDefiner: TGroupBox_Ext
         Left = 8
         Top = 8
@@ -264,14 +275,18 @@ object DView: TDView
     end
     object TSFields: TTabSheet
       Caption = 'TSFields'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
-        297)
+        279)
       object FFields: TListView
         Left = 8
         Top = 8
         Width = 297
-        Height = 273
+        Height = 255
         Anchors = [akLeft, akTop, akRight, akBottom]
         Columns = <
           item
@@ -304,6 +319,7 @@ object DView: TDView
         ReadOnly = True
         TabOrder = 0
         ViewStyle = vsReport
+        ExplicitHeight = 273
       end
     end
     object TSReferenced: TTabSheet
@@ -312,12 +328,12 @@ object DView: TDView
       OnShow = TSReferencedShow
       DesignSize = (
         313
-        297)
+        279)
       object FReferenced: TListView
         Left = 8
         Top = 8
         Width = 297
-        Height = 273
+        Height = 255
         Anchors = [akLeft, akTop, akRight, akBottom]
         Columns = <
           item
@@ -337,14 +353,18 @@ object DView: TDView
     end
     object TSSource: TTabSheet
       Caption = 'TSSource'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
-        297)
+        279)
       object FSource: TSynMemo
         Left = 8
         Top = 8
         Width = 297
-        Height = 273
+        Height = 255
         Anchors = [akLeft, akTop, akRight, akBottom]
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText
@@ -368,6 +388,7 @@ object DView: TDView
         OnChange = FSourceChange
         OnStatusChange = FSourceStatusChange
         FontSmoothing = fsmNone
+        ExplicitHeight = 273
       end
     end
   end

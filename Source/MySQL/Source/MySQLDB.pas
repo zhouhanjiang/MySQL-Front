@@ -2002,10 +2002,15 @@ var
   StartingCommentLength: Integer;
   StmtLength: Integer;
 begin
-  StmtLength := SQLTrimStmt(PChar(@SQL[SQLIndex]), Integer(StmtLengths[StmtIndex]), Connection.MySQLVersion, StartingCommentLength, EndingCommentLength);
-  if (SQL[SQLIndex + StartingCommentLength + StmtLength - 1] = ';') then
-    Dec(StmtLength);
-  SetString(Result, PChar(@SQL[SQLIndex + StartingCommentLength]), StmtLength);
+  if (StmtIndex = StmtLengths.Count) then
+    Result := ''
+  else
+  begin
+    StmtLength := SQLTrimStmt(PChar(@SQL[SQLIndex]), Integer(StmtLengths[StmtIndex]), Connection.MySQLVersion, StartingCommentLength, EndingCommentLength);
+    if (SQL[SQLIndex + StartingCommentLength + StmtLength - 1] = ';') then
+      Dec(StmtLength);
+    SetString(Result, PChar(@SQL[SQLIndex + StartingCommentLength]), StmtLength);
+  end;
 end;
 
 function TMySQLConnection.TSyncThread.GetIsRunning(): Boolean;
@@ -2055,7 +2060,6 @@ begin
         end;
       ssExecutingFirst:
         begin
-          Connection.SyncBeforeExecuteSQL(Self);
           case (Mode) of
             smSQL,
             smDataSet:
@@ -3415,7 +3419,8 @@ begin
 
   SyncThread.State := ssResult;
 
-  WriteMonitor(@SyncThread.SQL[SyncThread.SQLIndex], Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]), ttResult);
+  if (SyncThread.StmtIndex < SyncThread.StmtLengths.Count) then
+    WriteMonitor(@SyncThread.SQL[SyncThread.SQLIndex], Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]), ttResult);
 
   if (not Assigned(SyncThread.OnResult)) then
   begin
@@ -3621,10 +3626,13 @@ begin
     end;
 
 
-    if (SyncThread.ErrorCode = 0) then
-      FSuccessfullExecutedSQLLength := SyncThread.SQLIndex - 1;
-    Inc(SyncThread.SQLIndex, Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]));
-    Inc(SyncThread.StmtIndex);
+    if (SyncThread.StmtIndex < SyncThread.StmtLengths.Count) then
+    begin
+      if (SyncThread.ErrorCode = 0) then
+        FSuccessfullExecutedSQLLength := SyncThread.SQLIndex - 1;
+      Inc(SyncThread.SQLIndex, Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]));
+      Inc(SyncThread.StmtIndex);
+    end;
 
 
     if (SyncThread.State = ssReady) then
@@ -3633,8 +3641,11 @@ begin
       SyncThread.State := ssReady
     else if (MultiStatements and (Lib.mysql_more_results(SyncThread.LibHandle) = 1)) then
     begin
-      StmtLength := Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]);
-      WriteMonitor(@SyncThread.SQL[SyncThread.SQLIndex], StmtLength, ttRequest);
+      if (SyncThread.StmtIndex < SyncThread.StmtLengths.Count) then
+      begin
+        StmtLength := Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]);
+        WriteMonitor(@SyncThread.SQL[SyncThread.SQLIndex], StmtLength, ttRequest);
+      end;
 
       SyncThread.State := ssExecutingNext;
     end

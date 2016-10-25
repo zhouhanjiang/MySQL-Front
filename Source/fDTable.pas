@@ -1300,113 +1300,55 @@ end;
 procedure TDTable.FReferencedBuild();
 
   procedure AddDBObject(const DBObject: TSDBObject);
-  const
-    coTable = 1;
-    coRoutine = 2;
-    coTrigger = 3;
-    coEvent = 4;
   var
-    ClassOrderDBObject: Integer;
-    Compare: Integer;
-    Index: Integer;
     I: Integer;
-    ClassOrderListItem: Integer;
-    J: Integer;
     Item: TListItem;
-    TempOnChange: TLVChangeEvent;
   begin
-    TempOnChange := FReferenced.OnChange;
-    FReferenced.OnChange := nil;
-    FReferenced.Items.BeginUpdate();
+    for I := 0 to DBObject.References.Count - 1 do
+      if (DBObject.References[I].DBObject = Table) then
+      begin
+        Item := FReferenced.Items.Add();
 
-    if (Assigned(DBObject.References)) then
-    begin
-      if (DBObject is TSTable) then
-        ClassOrderDBObject := coTable
-      else if (DBObject is TSTrigger) then
-        ClassOrderDbObject := coTrigger
-      else if (DBObject is TSRoutine) then
-        ClassOrderDbObject := coRoutine
-      else if (DBObject is TSEvent) then
-        ClassOrderDbObject := coEvent
-      else
-        raise ERangeError.Create(SRangeError);
-      for I := 0 to DBObject.References.Count - 1 do
-        if (DBObject.References[I].DBObject = Table) then
+        if (DBObject is TSBaseTable) then
         begin
-          Index := FReferenced.Items.Count;
-          for J := 0 to FReferenced.Items.Count - 1 do
-          begin
-            if (TSDBObject(FReferenced.Items[J].Data) is TSTable) then
-              ClassOrderListItem := coTable
-            else if (TSDBObject(FReferenced.Items[J].Data) is TSRoutine) then
-              ClassOrderListItem := coRoutine
-            else if (TSDBObject(FReferenced.Items[J].Data) is TSEvent) then
-              ClassOrderListItem := coEvent
-            else
-              raise ERangeError.Create(SRangeError);
-            if (ClassOrderListItem <> ClassOrderDBObject) then
-              Compare := ClassOrderDBObject - ClassOrderListItem
-            else
-              Compare := DBObject.Index - TSDBObject(FReferenced.Items[J].Data).Index;
-            if (Compare < 1) then
-              Index := J
-            else if (Compare = 0) then
-              Index := -1;
-          end;
-
-          if (Index >= 0) then
-          begin
-            if (Index < FReferenced.Items.Count) then
-              Item := FReferenced.Items.Insert(Index)
-            else
-              Item := FReferenced.Items.Add();
-
-            if (DBObject is TSBaseTable) then
-            begin
-              Item.ImageIndex := iiBaseTable;
-              Item.Caption := DBObject.Caption;
-              Item.SubItems.Add(Preferences.LoadStr(302));
-            end
-            else if (DBObject is TSView) then
-            begin
-              Item.ImageIndex := iiView;
-              Item.Caption := DBObject.Caption;
-              Item.SubItems.Add(Preferences.LoadStr(738));
-            end
-            else if (DBObject is TSProcedure) then
-            begin
-              Item.ImageIndex := iiProcedure;
-              Item.Caption := DBObject.Caption;
-              Item.SubItems.Add(Preferences.LoadStr(768));
-            end
-            else if (DBObject is TSFunction) then
-            begin
-              Item.ImageIndex := iiFunction;
-              Item.Caption := DBObject.Caption;
-              Item.SubItems.Add(Preferences.LoadStr(769));
-            end
-            else if (DBObject is TSTrigger) then
-            begin
-              Item.ImageIndex := iiTrigger;
-              Item.Caption := DBObject.Caption;
-              Item.SubItems.Add(Preferences.LoadStr(923, TSTrigger(DBObject).TableName));
-            end
-            else if (DBObject is TSEvent) then
-            begin
-              Item.ImageIndex := iiEvent;
-              Item.Caption := DBObject.Caption;
-              Item.SubItems.Add(Preferences.LoadStr(812));
-            end
-            else
-              raise ERangeError.Create(SRangeError);
-            Item.Data := DBObject;
-          end;
-        end;
-    end;
-
-    FReferenced.Items.EndUpdate();
-    FReferenced.OnChange := TempOnChange;
+          Item.ImageIndex := iiBaseTable;
+          Item.Caption := DBObject.Caption;
+          Item.SubItems.Add(Preferences.LoadStr(302));
+        end
+        else if (DBObject is TSView) then
+        begin
+          Item.ImageIndex := iiView;
+          Item.Caption := DBObject.Caption;
+          Item.SubItems.Add(Preferences.LoadStr(738));
+        end
+        else if (DBObject is TSProcedure) then
+        begin
+          Item.ImageIndex := iiProcedure;
+          Item.Caption := DBObject.Caption;
+          Item.SubItems.Add(Preferences.LoadStr(768));
+        end
+        else if (DBObject is TSFunction) then
+        begin
+          Item.ImageIndex := iiFunction;
+          Item.Caption := DBObject.Caption;
+          Item.SubItems.Add(Preferences.LoadStr(769));
+        end
+        else if (DBObject is TSTrigger) then
+        begin
+          Item.ImageIndex := iiTrigger;
+          Item.Caption := DBObject.Caption;
+          Item.SubItems.Add(Preferences.LoadStr(923, TSTrigger(DBObject).TableName));
+        end
+        else if (DBObject is TSEvent) then
+        begin
+          Item.ImageIndex := iiEvent;
+          Item.Caption := DBObject.Caption;
+          Item.SubItems.Add(Preferences.LoadStr(812));
+        end
+        else
+          raise ERangeError.Create(SRangeError);
+        Item.Data := DBObject;
+      end;
   end;
 
 var

@@ -1552,8 +1552,8 @@ begin
         CMP ECX,0                        // End of SQL?
         JE Finish                        // Yes!
         MOV EAX,[KOrReplace]
-        CALL CompareKeyword              // Set over 'OR REPLACE'?
-        JNE Temporary
+        CALL CompareKeyword              // 'OR REPLACE'?
+        JNE Temporary                    // No!
         MOV BYTE PTR [EBX + 0],dtAlter
         JMP Temporary
       Drop:

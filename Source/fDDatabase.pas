@@ -512,8 +512,7 @@ begin
     FSource.Gutter.Color := Preferences.Editor.LineNumbersBackground;
   FSource.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
 
-  msCopy.Caption := Preferences.LoadStr(64) + #9 + ShortCutToText(scCtrl + Ord('C'));
-
+  msCopy.Action := MainAction('aECopy');
   msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;
 
   FBHelp.Caption := Preferences.LoadStr(167);
