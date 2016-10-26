@@ -546,7 +546,6 @@ type
     procedure Assign(const Source: TSTable); reintroduce; virtual;
     function CountRecords(): Integer; virtual;
     constructor Create(const ASDBObjects: TSDBObjects; const AName: string = ''); reintroduce; virtual;
-    function DeleteRecords(const Field: TSTableField; const Values: TStringList): Boolean; virtual;
     destructor Destroy(); override;
     function FieldByName(const FieldName: string): TSTableField; virtual;
     function GetSourceEx(const DropBeforeCreate: Boolean = False): string; override;
@@ -648,6 +647,7 @@ type
     procedure ParseCreateTable(const SQL: string); virtual;
     procedure SetSource(const Field: TField); override;
     procedure SetSource(const DataSet: TMySQLQuery); override;
+    procedure SetSource(const ASource: string); override;
     function SQLGetSource(): string; override;
     property MergeSourceTables: TSMergeSourceTables read FMergeSourceTables;
   public
@@ -668,7 +668,6 @@ type
     procedure InvalidateStatus(); virtual;
     function PartitionByName(const PartitionName: string): TSPartition; virtual;
     procedure PushBuildEvent(const SItemsEvents: Boolean = True); override;
-    function Repair(): Boolean; virtual;
     property AutoIncrement: LargeInt read FAutoIncrement write FAutoIncrement;
     property AutoIncrementField: TSBaseTableField read GetAutoIncrementField;
     property AvgRowLength: LargeInt read FAvgRowLength;
@@ -989,10 +988,11 @@ type
     function CheckTableEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
       const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
     function GetCount(): Integer;
+    function GetChecked(): TDateTime;
     function GetDatabases(): TSDatabases; inline;
     function GetDataSize(): Int64;
     function GetIndexSize(): Int64;
-    function GetMaxDataSize(): Int64;
+    function GetUnusedSize(): Int64;
     function GetUpdated(): TDateTime;
     function GetValidSources(): Boolean;
     procedure ParseCreateDatabase(const SQL: string);
@@ -1053,13 +1053,14 @@ type
     property Created: TDateTime read GetCreated;
     property DataSize: Int64 read GetDataSize;
     property Charset: string read FCharset write FCharset;
+    property Checked: TDateTime read GetChecked;
     property Databases: TSDatabases read GetDatabases;
     property Events: TSEvents read FEvents;
     property IndexSize: Int64 read GetIndexSize;
-    property MaxDataSize: Int64 read GetMaxDataSize;
     property Routines: TSRoutines read FRoutines;
     property Tables: TSTables read FTables;
     property Triggers: TSTriggers read FTriggers;
+    property UnusedSize: Int64 read GetUnusedSize;
     property Updated: TDateTime read GetUpdated;
   end;
 
@@ -3780,26 +3781,6 @@ begin
     raise Exception.Create(sUnknownToType);
 end;
 
-function TSTable.DeleteRecords(const Field: TSTableField; const Values: TStringList): Boolean;
-var
-  I: Integer;
-  SQL: string;
-begin
-  SQL := 'DELETE FROM ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name) + #13#10;
-  SQL := SQL + '  WHERE ' + Session.Connection.EscapeIdentifier(Field.Name) + ' IN (';
-  for I := 0 to Values.Count - 1 do
-  begin
-    if (I > 0) then SQL := SQL + ',';
-    SQL := SQL + Field.EscapeValue(Values.Strings[I]);
-  end;
-  SQL := SQL + ');';
-
-  Result := Session.Connection.ExecuteSQL(SQL);
-
-  if (Result) then
-    InvalidateData();
-end;
-
 destructor TSTable.Destroy();
 begin
   inherited;
@@ -4303,8 +4284,6 @@ var
   I: Integer;
   SQL: string;
 begin
-  Result := True;
-
   SQL := '';
   for I := 0 to Fields.Count - 1 do
   begin
@@ -4312,15 +4291,15 @@ begin
     if (TSBaseTableField(Fields[I]).NullAllowed) then
       SQL := SQL + Session.Connection.EscapeIdentifier(TSBaseTableField(Fields[I]).Name) + '=NULL';
   end;
-  if (Result and (SQL <> '')) then
-  begin
-    SQL := 'UPDATE ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name) + ' SET ' + SQL + ';';
 
-    Result := Session.Connection.ExecuteSQL(SQL);
+  SQL := 'UPDATE ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name) + ' SET ' + SQL + ';';
 
-    if (Result) then
-      InvalidateData();
-  end;
+  if (Session.Connection.DatabaseName <> Name) then
+    SQL := Database.SQLUse() + SQL;
+
+  Result := Session.Connection.SendSQL(SQL);
+
+  InvalidateData();
 end;
 
 function TSBaseTable.FieldByName(const FieldName: string): TSBaseTableField;
@@ -4803,7 +4782,8 @@ begin
             NewKeyColumn.Length := StrToInt(SQLParseValue(Parse));
             SQLParseChar(Parse, ')')
           end;
-          NewKey.Columns.AddColumn(NewKeyColumn);
+          if (Assigned(NewKeyColumn.Field)) then
+            NewKey.Columns.AddColumn(NewKeyColumn);
           FreeAndNil(NewKeyColumn);
 
           SQLParseChar(Parse, ',');
@@ -5136,15 +5116,10 @@ begin
   end;
 end;
 
-function TSBaseTable.Repair(): Boolean;
-begin
-  Result := Session.Connection.ExecuteSQL('REPAIR TABLE ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name) + ';');
-end;
-
 procedure TSBaseTable.PushBuildEvent(const SItemsEvents: Boolean = True);
 begin
   if (ValidSource and SItemsEvents) then
-    Session.ExecuteEvent(etItemsValid, Self);
+    Session.ExecuteEvent(etItemsValid, Tables);
   if (ValidSource or ValidStatus) then
     Session.ExecuteEvent(etItemValid, Database, Tables, Self);
 end;
@@ -5163,14 +5138,19 @@ begin
       DataSet.LibLengths^[Field.FieldNo - 1]);
     SetSource(string(RBS));
   end;
-
-  ParseCreateTable(Source);
-  PushBuildEvent();
 end;
 
 procedure TSBaseTable.SetSource(const DataSet: TMySQLQuery);
 begin
   SetSource(DataSet.FindField('Create Table'));
+end;
+
+procedure TSBaseTable.SetSource(const ASource: string);
+begin
+  inherited;
+
+  ParseCreateTable(Source);
+  PushBuildEvent();
 end;
 
 function TSBaseTable.SQLGetSource(): string;
@@ -5854,6 +5834,7 @@ begin
   end;
   FRoutineType := Source.RoutineType;
   FSecurity := Source.Security;
+  FSource := Source.Source;
   FValidSource := Source.ValidSource;
 end;
 
@@ -7266,8 +7247,7 @@ begin
       Result := RepairTables(RepairTableList);
     RepairTableList.Free();
 
-
-    SQL := SQL + Self.Tables.SQLGetStatus(Tables);
+    SQL := Self.Tables.SQLGetStatus(Tables);
 
     Session.Connection.SendSQL(SQL, Session.SessionResult);
   end;
@@ -7304,42 +7284,58 @@ end;
 function TSDatabase.CloneRoutine(const Routine: TSRoutine; const NewRoutineName: string): Boolean;
 var
   DatabaseName: string;
+  NewRoutine: TSRoutine;
   Parse: TSQLParse;
   RoutineName: string;
   SQL: string;
 begin
+  Session.Connection.BeginSynchron();
+  Routine.Update();
+  Session.Connection.EndSynchron();
+
+  SQL := '';
   if (not SQLCreateParse(Parse, PChar(Routine.Source), Length(Routine.Source), Session.Connection.MySQLVersion)) then
-    Result := False
+    raise EConvertError.CreateFmt(SSourceParseError, [Routine.Database.Name + '.' + Routine.Name, Routine.Source])
   else
   begin
-    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Name + '.' + Routine.Name, SQL]);
+    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Routine.Database.Name + '.' + Routine.Name, Routine.Source]);
 
     if (SQLParseKeyword(Parse, 'DEFINER')) then
     begin
-      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, SQL]);
+      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Routine.Database.Name + '.' + Routine.Name, Routine.Source]);
       SQLParseValue(Parse);
     end;
 
-    if (not SQLParseKeyword(Parse, 'PROCEDURE') and not SQLParseKeyword(Parse, 'FUNCTION')) then
-      raise EConvertError.CreateFmt(SSourceParseError, [Name + '.' + Routine.Name, SQL]);
-
-    SQL := LeftStr(Routine.Source, SQLParseGetIndex(Parse) - 1);
+    if (not SQLParseKeyword(Parse, 'PROCEDURE') and not SQLParseKeyword(Parse, 'FUNCTION')) then raise EConvertError.CreateFmt(SSourceParseError, [Routine.Database.Name + '.' + Routine.Name, Routine.Source]);
 
     DatabaseName := Name;
-    if (not SQLParseObjectName(Parse, DatabaseName, RoutineName)) then
-      raise EConvertError.CreateFmt(SSourceParseError, [Name + '.' + Routine.Name, SQL]);
+    if (not SQLParseObjectName(Parse, DatabaseName, RoutineName)) then raise EConvertError.CreateFmt(SSourceParseError, [Routine.Database.Name + '.' + Routine.Name, Routine.Source]);
 
+    if (Routine.RoutineType = rtProcedure) then
+      SQL := 'CREATE PROCEDURE '
+    else
+      SQL := 'CREATE FUNCTION ';
     SQL := SQL + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(NewRoutineName);
     SQL := SQL + RightStr(Routine.Source, Length(Routine.Source) - (SQLParseGetIndex(Parse) - 1));
-    SQL := SQL + #13#10;
-
-    if ((Routine.RoutineType = rtProcedure) and Assigned(ProcedureByName(NewRoutineName))) then
-      SQL := 'DROP PROCEDURE ' + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(Routine.Name) + ';' + #13#10
-    else if ((Routine.RoutineType = rtFunction) and Assigned(FunctionByName(NewRoutineName))) then
-      SQL := 'DROP FUNCTION ' + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(Routine.Name) + ';' + #13#10;
-
-    Result := Session.Connection.ExecuteSQL(SQL);
   end;
+
+  if (Routine.RoutineType = rtProcedure) then
+    NewRoutine := TSProcedure.Create(Routines, NewRoutineName)
+  else
+    NewRoutine := TSFunction.Create(Routines, NewRoutineName);
+  SQL := SQL
+    + NewRoutine.SQLGetSource();
+  NewRoutine.Free();
+
+  if ((Routine.RoutineType = rtProcedure) and Assigned(ProcedureByName(NewRoutineName))) then
+    SQL := 'DROP PROCEDURE ' + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(NewRoutineName) + ';' + #13#10 + SQL
+  else if ((Routine.RoutineType = rtFunction) and Assigned(FunctionByName(NewRoutineName))) then
+    SQL := 'DROP FUNCTION ' + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(NewRoutineName) + ';' + #13#10 + SQL;
+
+  if (Session.Connection.DatabaseName <> Name) then
+    SQL := SQLUse() + SQL;
+
+  Result := Session.Connection.SendSQL(SQL, Session.SessionResult);
 end;
 
 function TSDatabase.CloneTable(const Table: TSTable; const NewTableName: string; const Data: Boolean): Boolean;
@@ -7349,9 +7345,7 @@ var
   NewView: TSView;
   SQL: string;
 begin
-  if (not Assigned(Table)) then
-    Result := False
-  else if (Table is TSBaseTable) then
+  if (Table is TSBaseTable) then
   begin
     Session.Connection.BeginSynchron();
     Table.Update();
@@ -7377,6 +7371,19 @@ begin
       SQL := SQL + ' SELECT * FROM ' + Session.Connection.EscapeIdentifier(Table.Database.Name) + '.' + Session.Connection.EscapeIdentifier(Table.Name) + ';' + #13#10;
     end;
 
+    if (Data and (Session.Connection.MySQLVersion < 40100) and Assigned(TSBaseTable(Table).AutoIncrementField)) then
+    begin
+      SQL := SQL + 'ALTER TABLE ' + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(NewTableName) + #13#10;
+      SQL := SQL + '  CHANGE COLUMN ' + Session.Connection.EscapeIdentifier(TSBaseTable(Table).AutoIncrementField.Name)
+        + ' ' + Session.Connection.EscapeIdentifier(TSBaseTable(Table).AutoIncrementField.Name)
+        + ' ' + TSBaseTable(Table).AutoIncrementField.DBTypeStr();
+      if (not TSBaseTable(Table).AutoIncrementField.NullAllowed) then
+        SQL := SQL + ' NOT NULL'
+      else
+        SQL := SQL + ' NULL';
+      SQL := SQL + ' AUTO_INCREMENT;' + #13#10;
+    end;
+
     List := TList.Create();
     List.Add(NewBaseTable);
 
@@ -7384,16 +7391,12 @@ begin
       + NewBaseTable.SQLGetSource()
       + Tables.SQLGetStatus(List);
 
-    if (Session.Connection.DatabaseName <> Name) then
-      SQL := SQLUse() + SQL;
-
     List.Free();
+
     NewBaseTable.Free();
 
-    if ((Session.Connection.MySQLVersion >= 40100) or not Assigned(TSBaseTable(Table).AutoIncrementField)) then
-      Result := Session.Connection.SendSQL(SQL, Session.SessionResult)
-    else
-      Result := Session.Connection.ExecuteSQL(SQL, Session.SessionResult);
+    if (Session.Connection.DatabaseName <> Name) then
+      SQL := SQLUse() + SQL;
   end
   else if (Table is TSView) then
   begin
@@ -7417,26 +7420,11 @@ begin
 
     if (Session.Connection.DatabaseName <> Name) then
       SQL := SQLUse() + SQL;
-
-    Result := Session.Connection.SendSQL(SQL, Session.SessionResult)
   end
   else
-    Result := False;
+    SQL := '';
 
-  if (Result and (Session.Connection.MySQLVersion < 40100) and Assigned(TSBaseTable(Table).AutoIncrementField)) then
-  begin
-    Session.Connection.BeginSynchron();
-    BaseTableByName(NewTableName).Update();
-    Session.Connection.EndSynchron();
-
-    NewBaseTable := TSBaseTable.Create(Tables);
-    NewBaseTable.Assign(BaseTableByName(NewTableName));
-    NewBaseTable.FieldByName(TSBaseTable(Table).AutoIncrementField.Name).AutoIncrement := True;
-    Session.Connection.BeginSynchron();
-    Result := UpdateTable(BaseTableByName(NewTableName), NewBaseTable);
-    Session.Connection.EndSynchron();
-    NewBaseTable.Free();
-  end;
+  Result := (SQL <> '') and Session.Connection.SendSQL(SQL, Session.SessionResult);
 end;
 
 constructor TSDatabase.Create(const ADatabases: TSDatabases; const AName: string = '');
@@ -7565,6 +7553,17 @@ begin
       Result := TSFunction(Routines[I]);
 end;
 
+function TSDatabase.GetChecked(): TDateTime;
+var
+  I: Integer;
+begin
+  Result := Now();
+  for I := 0 to Tables.Count - 1 do
+    if (Tables[I] is TSBaseTable) then
+      if ((Result = 0) or (TSBaseTable(Tables[I]).Checked < Result)) then
+        Result := TSBaseTable(Tables[I]).Checked;
+end;
+
 function TSDatabase.GetCount(): Integer;
 begin
   if (Tables.Valid or Assigned(Routines) and Routines.Valid or Assigned(Events) and Events.Valid) then
@@ -7600,15 +7599,10 @@ function TSDatabase.GetDataSize(): Int64;
 var
   I: Integer;
 begin
-  if (not Tables.Valid) then
-    Result := -1
-  else
-  begin
-    Result := 0;
-    for I := 0 to Tables.Count - 1 do
-      if ((Tables[I] is TSBaseTable) and TSBaseTable(Tables[I]).ValidStatus) then
-        Inc(Result, TSBaseTable(Tables[I]).DataSize);
-  end;
+  Result := 0;
+  for I := 0 to Tables.Count - 1 do
+    if ((Tables[I] is TSBaseTable) and TSBaseTable(Tables[I]).ValidStatus) then
+      Inc(Result, TSBaseTable(Tables[I]).DataSize);
 end;
 
 function TSDatabase.GetIndexSize(): Int64;
@@ -7627,20 +7621,14 @@ begin
   end;
 end;
 
-function TSDatabase.GetMaxDataSize(): Int64;
-// Result in Byte
+function TSDatabase.GetUnusedSize(): Int64;
 var
   I: Integer;
 begin
-  if (not Tables.Valid) then
-    Result := -1
-  else
-  begin
-    Result := 0;
-    for I := 0 to Tables.Count - 1 do
-      if ((Tables[I] is TSBaseTable) and TSBaseTable(Tables[I]).ValidStatus) then
-        Inc(Result, TSBaseTable(Tables[I]).MaxDataSize);
-  end;
+  Result := 0;
+  for I := 0 to Tables.Count - 1 do
+    if ((Tables[I] is TSBaseTable) and TSBaseTable(Tables[I]).ValidStatus) then
+      Inc(Result, TSBaseTable(Tables[I]).UnusedSize);
 end;
 
 function TSDatabase.GetSource(): string;
@@ -11886,6 +11874,7 @@ begin
                       Index := Database.Tables.Add(TSView.Create(Database.Tables, DDLStmt.ObjectName));
                     SetString(SQL, Text, Len);
                     Database.Tables[Index].SetSource(SQL);
+                    ExecuteEvent(etItemCreated, Database, Database.Tables, Database.Tables[Index]);
                   end;
                 dtRename:
                   if (SQLParseKeyword(Parse, 'RENAME')
@@ -11989,6 +11978,7 @@ begin
                       Index := Database.Routines.Add(TSFunction.Create(Database.Routines, DDLStmt.ObjectName), True);
                     SetString(SQL, Text, Len);
                     Database.Routines[Index].SetSource(SQL);
+                    ExecuteEvent(etItemCreated, Database, Database.Routines, Database.Routines[Index]);
                   end;
                 dtAlter,
                 dtAlterRename:
@@ -12033,6 +12023,7 @@ begin
                       Index := Database.Triggers.Add(TSTrigger.Create(Database.Triggers, DDLStmt.ObjectName));
                     SetString(SQL, Text, Len);
                     Database.Triggers[Index].SetSource(SQL);
+                    ExecuteEvent(etItemCreated, Database, Database.Triggers, Database.Triggers[Index]);
                   end;
                 dtDrop:
                   begin
@@ -12057,6 +12048,7 @@ begin
                       Index := Database.Events.Add(TSEvent.Create(Database.Events, DDLStmt.ObjectName));
                     SetString(SQL, Text, Len);
                     Database.Events[Index].SetSource(SQL);
+                    ExecuteEvent(etItemCreated, Database, Database.Events, Database.Events[Index]);
                   end;
                 dtAlter,
                 dtAlterRename:

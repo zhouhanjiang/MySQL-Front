@@ -78,7 +78,6 @@ type
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
-    Database: TSDatabase;
     Key: TSKey;
     Table: TSBaseTable;
     function Execute(): Boolean;
@@ -322,45 +321,31 @@ begin
     NewKey.Unique := FUnique.Checked;
     NewKey.Fulltext := FFulltext.Checked;
 
-    if (not Assigned(Database)) then
-    begin
-      if (not Assigned(Key)) then
-        Table.Keys.AddKey(NewKey)
-      else
-        Table.Keys[Key.Index].Assign(NewKey);
+    NewTable := TSBaseTable.Create(Table.Database.Tables);
+    NewTable.Assign(Table);
 
-      GBasics.Visible := True;
-      GAttributes.Visible := GBasics.Visible;
-      PSQLWait.Visible := not GBasics.Visible;
-    end
+    if (not Assigned(Key)) then
+      NewTable.Keys.AddKey(NewKey)
     else
     begin
-      NewTable := TSBaseTable.Create(Database.Tables);
-      NewTable.Assign(Table);
-
-      if (not Assigned(Key)) then
-        NewTable.Keys.AddKey(NewKey)
-      else
-      begin
-        NewTable.Keys[Key.Index].Assign(NewKey);
-        if (Key.PrimaryKey and not NewKey.PrimaryKey) then
-          for I := 0 to NewTable.Fields.Count - 1 do
-            NewTable.Fields[I].AutoIncrement := False;
-      end;
-
-      CanClose := Database.UpdateTable(Table, NewTable);
-
-      NewTable.Free();
-
-      if (not CanClose) then
-      begin
-        GBasics.Visible := CanClose;
-        GAttributes.Visible := GBasics.Visible;
-        PSQLWait.Visible := not GBasics.Visible;
-      end;
-
-      FBOk.Enabled := False;
+      NewTable.Keys[Key.Index].Assign(NewKey);
+      if (Key.PrimaryKey and not NewKey.PrimaryKey) then
+        for I := 0 to NewTable.Fields.Count - 1 do
+          NewTable.Fields[I].AutoIncrement := False;
     end;
+
+    CanClose := Table.Database.UpdateTable(Table, NewTable);
+
+    NewTable.Free();
+
+    if (not CanClose) then
+    begin
+      GBasics.Visible := CanClose;
+      GAttributes.Visible := GBasics.Visible;
+      PSQLWait.Visible := not GBasics.Visible;
+    end;
+
+    FBOk.Enabled := False;
 
     NewKey.Free();
   end;
@@ -423,6 +408,8 @@ begin
     GBasics.Visible := True;
     GAttributes.Visible := GBasics.Visible;
     PSQLWait.Visible := not GBasics.Visible;
+
+    ActiveControl := FLName.FocusControl;
     FBOkCheckEnabled(nil);
   end;
 end;
@@ -519,14 +506,16 @@ begin
   FIndexedFieldsExit(Sender);
   FAvailableFieldsExit(Sender);
 
-  GBasics.Visible := True;
+  GBasics.Visible := Table.Update();
   GAttributes.Visible := GBasics.Visible;
   PSQLWait.Visible := not GBasics.Visible;
 
   FBOk.Enabled := False;
 
   ActiveControl := FBCancel;
-  ActiveControl := FLName.FocusControl;
+
+  if (GBasics.Visible) then
+    ActiveControl := FLName.FocusControl;
 end;
 
 procedure TDKey.FUniqueClick(Sender: TObject);

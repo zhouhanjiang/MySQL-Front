@@ -270,7 +270,6 @@ end;
 
 procedure TDTable.aPCreateKeyExecute(Sender: TObject);
 begin
-  DKey.Database := nil;
   DKey.Table := NewTable;
   DKey.Key := nil;
   if (DKey.Execute()) then
@@ -467,7 +466,6 @@ end;
 
 procedure TDTable.aPEditKeyExecute(Sender: TObject);
 begin
-  DKey.Database := nil;
   DKey.Table := NewTable;
   DKey.Key := NewTable.Keys[FKeys.ItemIndex];
   if (DKey.Execute()) then

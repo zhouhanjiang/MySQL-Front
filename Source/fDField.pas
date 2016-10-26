@@ -744,6 +744,8 @@ begin
     GBasics.Visible := True;
     GAttributes.Visible := GBasics.Visible;
     PSQLWait.Visible := not GBasics.Visible;
+
+    ActiveControl := FName;
     FBOkCheckEnabled(nil);
   end;
 end;
@@ -921,7 +923,7 @@ begin
 
   FComment.Visible := Table.Session.Connection.MySQLVersion >= 40100; FLComment.Visible := FComment.Visible;
 
-  GBasics.Visible := True;
+  GBasics.Visible := Table.Update();
   GAttributes.Visible := GBasics.Visible;
   PSQLWait.Visible := not GBasics.Visible;
 

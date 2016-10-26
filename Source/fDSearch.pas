@@ -112,12 +112,7 @@ type
     procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
   public
-    Session: TSSession;
-    DatabaseName: string;
-    FieldName: string;
-    Frame: TFSession;
     SearchOnly: Boolean;
-    TableName: string;
     function Execute(): Boolean;
   end;
 
@@ -272,8 +267,7 @@ begin
     if (Assigned(Sessions[I])) then
     begin
       Sessions[I].UnRegisterEventProc(FormSessionEvent);
-      if (Sessions[I] <> Session) then
-        FreeAndNil(Sessions[I]);
+      Sessions[I].Free();
     end;
   SetLength(Sessions, 0);
 
@@ -297,16 +291,8 @@ end;
 
 procedure TDSearch.FormShow(Sender: TObject);
 var
-  DatabaseNames: TStringList;
-  DatabaseNode: TTreeNode;
-  FieldNames: TStringList;
-  FieldNode: TTreeNode;
   I: Integer;
   Node: TTreeNode;
-  SelectedNodes: TList;
-  AccountNode: TTreeNode;
-  TableNames: TStringList;
-  TableNode: TTreeNode;
 begin
   if (SearchOnly) then
   begin
@@ -364,93 +350,14 @@ begin
   FFFindTextChange(Sender);
 
   SetLength(Sessions, Accounts.Count);
+  for I := 0 to Length(Sessions) - 1 do
+    Sessions[I] := nil;
 
   for I := 0 to Accounts.Count - 1 do
   begin
-    if (Assigned(Session) and (Accounts[I] = Session.Account)) then
-      Sessions[I] := Session
-    else
-      Sessions[I] := nil;
-
     Node := FSelect.Items.Add(nil, Accounts[I].Name);
     Node.ImageIndex := iiServer;
     Node.HasChildren := True;
-  end;
-
-  if (Assigned(Session)) then
-  begin
-    Session.Connection.BeginSynchron();
-
-    SelectedNodes := TList.Create();
-    DatabaseNames := TStringList.Create();
-    TableNames := TStringList.Create();
-    FieldNames := TStringList.Create();
-
-    DatabaseNames.Text := ReplaceStr(DatabaseName, ',', #13#10);
-    TableNames.Text := ReplaceStr(TableName, ',', #13#10);
-    FieldNames.Text := ReplaceStr(FieldName, ',', #13#10);
-
-    AccountNode := FSelect.TopItem;
-    while (Assigned(AccountNode)) do
-    begin
-      if (AccountNode.Text = Session.Account.Name) then
-      begin
-        if (DatabaseNames.Count = 0) then
-          AccountNode.Selected := True
-        else
-        begin
-          AccountNode.Expand(False);
-          DatabaseNode := AccountNode.getFirstChild();
-          while (Assigned(DatabaseNode)) do
-          begin
-            if (TableNames.Count = 0) then
-            begin
-              if (DatabaseNames.IndexOf(DatabaseNode.Text) >= 0) then
-                SelectedNodes.Add(DatabaseNode);
-            end
-            else if (DatabaseNames.IndexOf(DatabaseNode.Text) >= 0) then
-            begin
-              DatabaseNode.Expand(False);
-              TableNode := DatabaseNode.getFirstChild();
-              while (Assigned(TableNode)) do
-              begin
-                if (FieldNames.Count = 0) then
-                begin
-                  if (TableNames.IndexOf(TableNode.Text) >= 0) then
-                    SelectedNodes.Add(TableNode);
-                end
-                else if (TableNames.IndexOf(TableNode.Text) >= 0) then
-                begin
-                  TableNode.Expand(False);
-                  FieldNode := TableNode.getFirstChild();
-                  while (Assigned(FieldNode)) do
-                  begin
-                    if (FieldNames.IndexOf(FieldNode.Text) >= 0) then
-                      SelectedNodes.Add(FieldNode);
-                    FieldNode := FieldNode.getNextSibling();
-                  end;
-                end;
-                TableNode := TableNode.getNextSibling();
-              end;
-            end;
-            DatabaseNode := DatabaseNode.getNextSibling();
-          end;
-        end;
-        break;
-      end;
-      AccountNode := AccountNode.getNextSibling();
-    end;
-    if (SelectedNodes.Count > 0) then
-      FSelect.Select(SelectedNodes)
-    else if (Assigned(AccountNode)) then
-      AccountNode.Selected := True;
-
-    SelectedNodes.Free();
-    DatabaseNames.Free();
-    TableNames.Free();
-    FieldNames.Free();
-
-    Session.Connection.EndSynchron();
   end;
 
   FFFindText.Text := '';
@@ -608,10 +515,7 @@ begin
     URI.Table := Tables[FTables.Selected.Index].TableName;
     URI.Param['view'] := 'browser';
 
-    if (Assigned(Frame)) then
-      ViewFrame := Frame
-    else
-      ViewFrame := TFSession(Tables[FTables.Selected.Index].Account.Frame());
+    ViewFrame := TFSession(Tables[FTables.Selected.Index].Account.Frame());
 
     Result := True;
     if (Assigned(ViewFrame)) then
@@ -677,7 +581,7 @@ begin
     TE_Database:
       begin
         Msg := Preferences.LoadStr(165, IntToStr(Error.Session.Connection.ErrorCode), Error.Session.Connection.ErrorMessage);
-        ErrorMsg := SQLUnwrapStmt(Error.Session.Connection.ErrorMessage, Session.Connection.MySQLVersion);
+        ErrorMsg := SQLUnwrapStmt(Error.Session.Connection.ErrorMessage, Error.Session.Connection.MySQLVersion);
         if (Error.Session.Connection.ErrorCode > 0) then
           ErrorMsg := ErrorMsg + ' (#' + IntToStr(Error.Session.Connection.ErrorCode) + ')';
       end;

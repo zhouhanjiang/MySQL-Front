@@ -973,8 +973,6 @@ type
     function GetActiveSynMemo(): TSynMemo;
     function GetActiveWorkbench(): TWWorkbench;
     function GetFocusedSItem(): TSItem;
-    function GetFocusedDatabaseNames(): string;
-    function GetFocusedTableName(): string;
     function GetPath(): TFileName; inline;
     function GetMenuDatabase(): TSDatabase;
     function GetSelectedDatabase(): string;
@@ -1040,8 +1038,6 @@ type
     procedure WMTimer(var Message: TWMTimer); message WM_TIMER;
     property ActiveSynMemo: TSynMemo read GetActiveSynMemo;
     property FocusedSItem: TSItem read GetFocusedSItem;
-    property FocusedDatabaseNames: string read GetFocusedDatabaseNames;
-    property FocusedTableNames: string read GetFocusedTableName;
     property MenuDatabase: TSDatabase read GetMenuDatabase;
     property SelectedImageIndex: Integer read GetSelectedImageIndex;
     property SQLEditors[View: TView]: TSQLEditor read GetSQLEditors;
@@ -1055,8 +1051,6 @@ type
     constructor Create(const AOwner: TComponent; const AParent: TWinControl; const ASession: TSSession; const AParam: string); reintroduce;
     destructor Destroy(); override;
     function AddressToCaption(const AAddress: string): string;
-    procedure aEFindExecute(Sender: TObject);
-    procedure aEReplaceExecute(Sender: TObject);
     procedure CrashRescue();
     procedure OpenDiagram();
     procedure OpenSQLFile(const AFilename: TFileName; const CodePage: Cardinal = 0; const Insert: Boolean = False);
@@ -2019,8 +2013,7 @@ begin
 
   DDatabase.Session := Session;
   DDatabase.Database := nil;
-  if (DDatabase.Execute()) then
-    Wanted.Update := Session.Update;
+  DDatabase.Execute();
 end;
 
 procedure TFSession.aDCreateEventExecute(Sender: TObject);
@@ -2031,8 +2024,7 @@ begin
   begin
     DEvent.Database := TSDatabase(FocusedSItem);
     DEvent.Event := nil;
-    if (DEvent.Execute()) then
-      Wanted.Update := Session.Update;
+    DEvent.Execute();
   end;
 end;
 
@@ -2064,16 +2056,10 @@ begin
   begin
     Table := TSBaseTable(FocusedSItem);
 
-    DExecutingSQL.Session := Session;
-    DExecutingSQL.Update := Table.Update;
-    if (Table.Valid or DExecutingSQL.Execute()) then
-    begin
-      DField.Table := Table;
-      DField.Database := DField.Table.Database;
-      DField.Field := nil;
-      if (DField.Execute()) then
-        Wanted.Update := Session.Update;
-    end;
+    DField.Table := Table;
+    DField.Database := DField.Table.Database;
+    DField.Field := nil;
+    DField.Execute();
   end;
 end;
 
@@ -2087,17 +2073,11 @@ begin
   begin
     Table := TSBaseTable(FocusedSItem);
 
-    DExecutingSQL.Session := Session;
-    DExecutingSQL.Update := Table.Update;
-    if (Table.Valid or DExecutingSQL.Execute()) then
-    begin
-      DForeignKey.Table := Table;
-      DForeignKey.Database := DForeignKey.Table.Database;
-      DForeignKey.ParentTable := nil;
-      DForeignKey.ForeignKey := nil;
-      if (DForeignKey.Execute()) then
-        Wanted.Update := Session.Update;
-    end;
+    DForeignKey.Table := Table;
+    DForeignKey.Database := DForeignKey.Table.Database;
+    DForeignKey.ParentTable := nil;
+    DForeignKey.ForeignKey := nil;
+    DForeignKey.Execute();
   end;
 end;
 
@@ -2111,16 +2091,9 @@ begin
   begin
     Table := TSBaseTable(FocusedSItem);
 
-    DExecutingSQL.Session := Session;
-    DExecutingSQL.Update := Table.Update;
-    if (Table.Valid or DExecutingSQL.Execute()) then
-    begin
-      DKey.Table := Table;
-      DKey.Database := DKey.Table.Database;
-      DKey.Key := nil;
-      if (DKey.Execute()) then
-        Wanted.Update := Session.Update;
-    end;
+    DKey.Table := Table;
+    DKey.Key := nil;
+    DKey.Execute();
   end;
 end;
 
@@ -2138,8 +2111,7 @@ begin
     else
       DRoutine.RoutineType := TSRoutine.TRoutineType.rtUnknown;
     DRoutine.Routine := nil;
-    if (DRoutine.Execute()) then
-      Wanted.Update := Session.Update;
+    DRoutine.Execute();
   end;
 end;
 
@@ -2153,8 +2125,7 @@ begin
   begin
     DTable.Database := TSDatabase(FocusedSItem);
     DTable.Table := nil;
-    if (DTable.Execute()) then
-      Wanted.Update := Session.Update;
+    DTable.Execute();
   end;
 end;
 
@@ -2166,8 +2137,7 @@ begin
   begin
     DTrigger.Table := TSBaseTable(FocusedSItem);
     DTrigger.Trigger := nil;
-    if (DTrigger.Execute()) then
-      Wanted.Update := Session.Update;
+    DTrigger.Execute();
   end;
 end;
 
@@ -2177,8 +2147,7 @@ begin
 
   DUser.Session := Session;
   DUser.User := nil;
-  if (DUser.Execute()) then
-    Wanted.Update := Session.Update;
+  DUser.Execute();
 end;
 
 procedure TFSession.aDCreateViewExecute(Sender: TObject);
@@ -2189,8 +2158,7 @@ begin
   begin
     DView.Database := TSDatabase(FocusedSItem);
     DView.View := nil;
-    if (DView.Execute()) then
-      Wanted.Update := Session.Update;
+    DView.Execute();
   end;
 end;
 
@@ -2821,7 +2789,6 @@ begin
     end
     else if (SItem is TSKey) then
     begin
-      DKey.Database := TSKey(SItem).Table.Database;
       DKey.Table := TSKey(SItem).Table;
       DKey.Key := TSKey(SItem);
       Execute := DKey.Execute;
@@ -2874,8 +2841,8 @@ begin
     else
       Execute := nil;
 
-    if (Assigned(Execute) and Execute()) then
-      Wanted.Update := Session.Update;
+    if (Assigned(Execute)) then
+      Execute();
   end;
 end;
 
@@ -3152,46 +3119,6 @@ begin
   end;
 end;
 
-procedure TFSession.aEFindExecute(Sender: TObject);
-var
-  I: Integer;
-begin
-  Wanted.Clear();
-
-  DSearch.Session := Session;
-  if ((SelectedImageIndex in [iiBaseTable, iiSystemView, iiView]) and (Window.ActiveControl = ActiveListView)) then
-  begin
-    DSearch.DatabaseName := FNavigator.Selected.Parent.Text;
-    DSearch.TableName := FNavigator.Selected.Text;
-    DSearch.FieldName := '';
-    for I := 0 to ActiveListView.Items.Count - 1 do
-      if (ActiveListView.Items[I].Selected and (ActiveListView.Items[I].ImageIndex in [iiField, iiVirtualField, iiSystemViewField, iiViewField])) then
-      begin
-        if (DSearch.FieldName <> '') then
-          DSearch.FieldName := DSearch.FieldName + ',';
-        DSearch.FieldName := DSearch.FieldName + ActiveListView.Items[I].Caption;
-      end;
-  end
-  else
-  begin
-    DSearch.DatabaseName := FocusedDatabaseNames;
-    if (DSearch.DatabaseName = '') then
-    begin
-      DSearch.TableName := '';
-      DSearch.FieldName := '';
-    end
-    else
-    begin
-      DSearch.DatabaseName := SelectedDatabase;
-      DSearch.TableName := FocusedTableNames;
-      DSearch.FieldName := '';
-    end;
-  end;
-  DSearch.SearchOnly := True;
-  DSearch.Frame := Self;
-  DSearch.Execute();
-end;
-
 procedure TFSession.aEPasteExecute(Sender: TObject);
 var
   B: Boolean;
@@ -3396,47 +3323,6 @@ begin
     FNavigatorMenuNode.EditText()
   else if (Window.ActiveControl = ActiveListView) then
     ActiveListView.Selected.EditCaption();
-end;
-
-procedure TFSession.aEReplaceExecute(Sender: TObject);
-var
-  I: Integer;
-begin
-  Wanted.Clear();
-
-  DSearch.Session := Session;
-  if ((SelectedImageIndex in [iiBaseTable, iiSystemView, iiView]) and (Window.ActiveControl = ActiveListView)) then
-  begin
-    DSearch.DatabaseName := FNavigator.Selected.Parent.Text;
-    DSearch.TableName := FNavigator.Selected.Text;
-    DSearch.FieldName := '';
-    for I := 0 to ActiveListView.Items.Count - 1 do
-      if (ActiveListView.Items[I].Selected and (ActiveListView.Items[I].ImageIndex in [iiField, iiVirtualField, iiSystemViewField, iiViewField])) then
-      begin
-        if (DSearch.FieldName <> '') then
-          DSearch.FieldName := DSearch.FieldName + ',';
-        DSearch.FieldName := DSearch.FieldName + ActiveListView.Items[I].Caption;
-      end;
-  end
-  else
-  begin
-    DSearch.DatabaseName := FocusedDatabaseNames;
-    if (DSearch.DatabaseName = '') then
-    begin
-      DSearch.TableName := '';
-      DSearch.FieldName := '';
-    end
-    else
-    begin
-      DSearch.DatabaseName := SelectedDatabase;
-      DSearch.TableName := FocusedTableNames;
-      DSearch.FieldName := '';
-    end;
-  end;
-  DSearch.SearchOnly := False;
-  DSearch.Frame := Self;
-  DSearch.Execute();
-  Wanted.Update := Session.Update;
 end;
 
 procedure TFSession.aESelectAllExecute(Sender: TObject);
@@ -8361,50 +8247,6 @@ begin
     Result := nil;
 end;
 
-function TFSession.GetFocusedDatabaseNames(): string;
-var
-  I: Integer;
-begin
-  if ((Window.ActiveControl = ActiveListView) and (SelectedImageIndex = iiServer)) then
-  begin
-    Result := '';
-    for I := 0 to ActiveListView.Items.Count - 1 do
-      if ((ActiveListView.Items[I].Selected) and (ActiveListView.Items[I].ImageIndex in [iiDatabase, iiSystemDatabase])) then
-      begin
-        if (Result <> '') then
-          Result := Result + ',';
-        Result := Result + ActiveListView.Items[I].Caption;
-      end;
-  end
-  else
-    Result := SelectedDatabase;
-end;
-
-function TFSession.GetFocusedTableName(): string;
-var
-  I: Integer;
-  URI: TUURI;
-begin
-  if ((Window.ActiveControl = ActiveListView) and Assigned(ActiveListView) and (SelectedImageIndex in [iiDatabase, iiSystemDatabase])) then
-  begin
-    Result := '';
-    for I := 0 to ActiveListView.Items.Count - 1 do
-      if ((ActiveListView.Items[I].Selected) and (ActiveListView.Items[I].ImageIndex in [iiTable, iiBaseTable, iiSystemView, iiView])) then
-      begin
-        if (Result <> '') then Result := Result + ',';
-        Result := Result + ActiveListView.Items[I].Caption;
-      end;
-  end
-  else if ((Window.ActiveControl is TWWorkbench) and Assigned(ActiveWorkbench.Selected) and (ActiveWorkbench.Selected is TWTable)) then
-    Result := TWTable(ActiveWorkbench.Selected).Caption
-  else
-  begin
-    URI := TUURI.Create(Address);
-    Result := URI.Table;
-    URI.Free();
-  end;
-end;
-
 function TFSession.GetPath(): TFileName;
 begin
   Result := ExcludeTrailingPathDelimiter(Preferences.Path);
@@ -11367,9 +11209,7 @@ begin
                           begin
                             Name := Session.TableName(CopyName(SourceTable.Name, Database.Tables));
 
-                            Session.Connection.BeginSynchron();
                             Success := Database.CloneTable(SourceTable, Name, DPaste.Data);
-                            Session.Connection.EndSynchron();
                           end;
                         end;
                   for I := 1 to StringList.Count - 1 do
@@ -11386,9 +11226,7 @@ begin
                           if (Session.LowerCaseTableNames = 1) then
                             Name := LowerCase(Name);
 
-                          Session.Connection.BeginSynchron();
                           Success := Database.CloneTable(SourceView, Name, False);
-                          Session.Connection.EndSynchron();
                         end;
                       end;
                   for I := 1 to StringList.Count - 1 do
@@ -11413,9 +11251,7 @@ begin
                             Inc(J);
                           end;
 
-                          Session.Connection.BeginSynchron();
                           Success := Database.CloneRoutine(SourceRoutine, Name);
-                          Session.Connection.EndSynchron();
                         end;
                       end
                       else if (StringList.Names[I] = 'Function') then
@@ -11438,9 +11274,7 @@ begin
                             Inc(J);
                           end;
 
-                          Session.Connection.BeginSynchron();
                           Success := Database.CloneRoutine(SourceRoutine, Name);
-                          Session.Connection.EndSynchron();
                         end;
                       end;
                 end;
@@ -11508,6 +11342,10 @@ begin
                     NewForeignKey.Free();
                   end;
 
+                Session.Connection.BeginSynchron();
+                Database.UpdateTable(Table, NewTable);
+                Session.Connection.EndSynchron();
+
                 for I := 1 to StringList.Count - 1 do
                   if (StringList.Names[I] = 'Trigger') then
                   begin
@@ -11517,15 +11355,9 @@ begin
                     NewTrigger.Assign(SourceDatabase.TriggerByName(StringList.ValueFromIndex[I]));
                     NewTrigger.Name := Name;
                     NewTrigger.TableName := NewTable.Name;
-                    Session.Connection.BeginSynchron();
                     Database.AddTrigger(NewTrigger);
-                    Session.Connection.EndSynchron();
                     NewTrigger.Free();
                   end;
-
-                Session.Connection.BeginSynchron();
-                Database.UpdateTable(Table, NewTable);
-                Session.Connection.EndSynchron();
 
                 NewTable.Free();
               end;
@@ -12346,13 +12178,13 @@ begin
           FFilterEnabled.Down := False;
         end;
       end;
-      if (SessionEvent.SItem is TSView) then
+      if ((SessionEvent.SItem is TSView) and Assigned(Desktop(TSView(SessionEvent.SItem)).SynMemo)) then
         Desktop(TSView(SessionEvent.SItem)).SynMemo.Modified := Desktop(TSView(SessionEvent.SItem)).SynMemoTextAtUpdate <> Desktop(TSView(SessionEvent.SItem)).SynMemo.Text
-      else if (SessionEvent.SItem is TSRoutine) then
+      else if ((SessionEvent.SItem is TSRoutine) and Assigned(Desktop(TSRoutine(SessionEvent.SItem)).SynMemo)) then
         Desktop(TSRoutine(SessionEvent.SItem)).SynMemo.Modified := Desktop(TSRoutine(SessionEvent.SItem)).SynMemoTextAtUpdate <> Desktop(TSRoutine(SessionEvent.SItem)).SynMemo.Text
-      else if (SessionEvent.SItem is TSEvent) then
+      else if ((SessionEvent.SItem is TSEvent) and Assigned(Desktop(TSEvent(SessionEvent.SItem)).SynMemo)) then
         Desktop(TSEvent(SessionEvent.SItem)).SynMemo.Modified := Desktop(TSEvent(SessionEvent.SItem)).SynMemoTextAtUpdate <> Desktop(TSEvent(SessionEvent.SItem)).SynMemo.Text
-      else if (SessionEvent.SItem is TSTrigger) then
+      else if ((SessionEvent.SItem is TSTrigger) and Assigned(Desktop(TSTrigger(SessionEvent.SItem)).SynMemo)) then
         Desktop(TSTrigger(SessionEvent.SItem)).SynMemo.Modified := Desktop(TSTrigger(SessionEvent.SItem)).SynMemoTextAtUpdate <> Desktop(TSTrigger(SessionEvent.SItem)).SynMemo.Text;
     end;
   end;

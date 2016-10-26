@@ -75,6 +75,7 @@ type
     procedure Built();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     function GetName(): string;
+    procedure StatusBuilt();
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Session: TSSession;
@@ -312,7 +313,10 @@ begin
     if (not PageControl.Visible) then
       Built()
     else
-      TSExtrasShow(nil)
+    begin
+      StatusBuilt();
+      TSExtrasShow(nil);
+    end
   else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is TSDatabase)) then
     ModalResult := mrOk;
 
@@ -419,45 +423,61 @@ begin
   Result := FName.Text;
 end;
 
-procedure TDDatabase.TSExtrasShow(Sender: TObject);
-var
-  DateTime: TDateTime;
-  I: Integer;
-  Size: Int64;
+procedure TDDatabase.StatusBuilt();
 begin
-  Size := 0;
-  for I := 0 to Database.Tables.Count - 1 do
-    if (Database.Tables[I] is TSBaseTable) then
-      Inc(Size, TSBaseTable(Database.Tables[I]).UnusedSize);
-  FUnusedSize.Caption := SizeToStr(Size);
-
-  DateTime := Now();
-  for I := 0 to Database.Tables.Count - 1 do
-    if ((Database.Tables[I] is TSBaseTable) and (TSBaseTable(Database.Tables[I]).Checked < DateTime)) then
-      DateTime := TSBaseTable(Database.Tables[I]).Checked;
-  if (DateTime <= 0) then
-    FChecked.Caption := '???'
-  else
-    FChecked.Caption := SysUtils.DateTimeToStr(DateTime, LocaleFormatSettings);
-end;
-
-procedure TDDatabase.TSInformationsShow(Sender: TObject);
-begin
-  Session.Connection.BeginSynchron();
-  Database.Update(True);
-  Session.Connection.EndSynchron();
-
-  FCreated.Caption := '???';
-  FUpdated.Caption := '???';
-  FIndexSize.Caption := '???';
-  FDataSize.Caption := '???';
-  FUnusedSize.Caption := '???';
-
   if (Database.Created = 0) then FCreated.Caption := '???' else FCreated.Caption := SysUtils.DateTimeToStr(Database.Created, LocaleFormatSettings);
   if (Database.Updated = 0) then FUpdated.Caption := '???' else FUpdated.Caption := SysUtils.DateTimeToStr(Database.Updated, LocaleFormatSettings);
 
   FIndexSize.Caption := SizeToStr(Database.IndexSize);
   FDataSize.Caption := SizeToStr(Database.DataSize);
+
+  FUnusedSize.Caption := SizeToStr(Database.UnusedSize);
+  FChecked.Caption := SysUtils.DateTimeToStr(Database.Checked, LocaleFormatSettings);
+
+
+  GDates.Cursor := crDefault;
+  FLCreated.Cursor := crDefault;
+  FCreated.Cursor := crDefault;
+  FLUpdated.Cursor := crDefault;
+  FUpdated.Cursor := crDefault;
+  GSize.Cursor := crDefault;
+  FIndexSize.Cursor := crDefault;
+  FDataSize.Cursor := crDefault;
+
+  GOptimize.Cursor := crDefault;
+  FUnusedSize.Cursor := crDefault;
+  GCheck.Cursor := crDefault;
+  FChecked.Cursor := crDefault;
+end;
+
+procedure TDDatabase.TSExtrasShow(Sender: TObject);
+begin
+  if (not Database.Update(True)) then
+    StatusBuilt()
+  else
+  begin
+    GOptimize.Cursor := crSQLWait;
+    FUnusedSize.Cursor := crSQLWait;
+    GCheck.Cursor := crSQLWait;
+    FChecked.Cursor := crSQLWait;
+  end;
+end;
+
+procedure TDDatabase.TSInformationsShow(Sender: TObject);
+begin
+  if (not Database.Update(True)) then
+    StatusBuilt()
+  else
+  begin
+    GDates.Cursor := crSQLWait;
+    FLCreated.Cursor := crSQLWait;
+    FCreated.Cursor := crSQLWait;
+    FLUpdated.Cursor := crSQLWait;
+    FUpdated.Cursor := crSQLWait;
+    GSize.Cursor := crSQLWait;
+    FIndexSize.Cursor := crSQLWait;
+    FDataSize.Cursor := crSQLWait;
+  end;
 end;
 
 procedure TDDatabase.TSSourceShow(Sender: TObject);

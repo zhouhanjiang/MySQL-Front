@@ -74,16 +74,12 @@ object DDatabase: TDDatabase
     Top = 8
     Width = 321
     Height = 325
-    ActivePage = TSBasics
+    ActivePage = TSExtras
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     TabOrder = 3
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -158,10 +154,6 @@ object DDatabase: TDDatabase
     object TSInformations: TTabSheet
       Caption = 'TSInformations'
       OnShow = TSInformationsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -257,10 +249,6 @@ object DDatabase: TDDatabase
     object TSExtras: TTabSheet
       Caption = 'TSExtras'
       OnShow = TSExtrasShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -366,10 +354,6 @@ object DDatabase: TDDatabase
     object TSSource: TTabSheet
       Caption = 'TSSource'
       OnShow = TSSourceShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)

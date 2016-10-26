@@ -2107,7 +2107,7 @@ begin
           if (Mode in [smSQL, smDataSet]) then
             if (State in [ssExecutingNext, ssExecutingFirst]) then
               RunExecute.SetEvent()
-            else if (State = ssReady) then
+            else if (State <> ssReceivingResult) then
               Connection.SyncAfterExecuteSQL(Self);
         end;
 	    ssReceivingResult:
@@ -2122,7 +2122,7 @@ begin
           if (Mode in [smSQL, smDataSet]) then
             if (State in [ssExecutingNext, ssExecutingFirst]) then
               RunExecute.SetEvent()
-            else if (State = ssReady) then
+            else
               Connection.SyncAfterExecuteSQL(Self);
         end;
       ssCancel:

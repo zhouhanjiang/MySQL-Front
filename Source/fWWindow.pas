@@ -474,28 +474,14 @@ end;
 
 procedure TWWindow.aEFindExecute(Sender: TObject);
 begin
-  if (Assigned(ActiveTab) and (ActiveTab is TFSession)) then
-    TFSession(ActiveTab).aEFindExecute(Sender)
-  else
-  begin
-    DSearch.Session := nil;
-    DSearch.SearchOnly := True;
-    DSearch.Frame := nil;
-    DSearch.Execute();
-  end;
+  DSearch.SearchOnly := True;
+  DSearch.Execute();
 end;
 
 procedure TWWindow.aEReplaceExecute(Sender: TObject);
 begin
-  if (Assigned(ActiveTab) and (ActiveTab is TFSession)) then
-    TFSession(ActiveTab).aEReplaceExecute(Sender)
-  else
-  begin
-    DSearch.Session := nil;
-    DSearch.SearchOnly := False;
-    DSearch.Frame := nil;
-    DSearch.Execute();
-  end;
+  DSearch.SearchOnly := False;
+  DSearch.Execute();
 end;
 
 procedure TWWindow.aETransferExecute(Sender: TObject);
@@ -1154,7 +1140,7 @@ begin
     CR_SERVER_GONE_ERROR: if (Connection.Port = MYSQL_PORT) then Msg := Preferences.LoadStr(881, Connection.Host) else Msg := Preferences.LoadStr(881, Connection.Host + ':' + IntToStr(Connection.Port));
     CR_UNKNOWN_HOST: if (ErrorMessage <> '') then Msg := ErrorMessage else if (Connection.Host <> '') then Msg := Preferences.LoadStr(706, Connection.Host) else Msg := Preferences.LoadStr(706);
     CR_OUT_OF_MEMORY: Msg := Preferences.LoadStr(733);
-    CR_SERVER_LOST: Msg := Preferences.LoadStr(806, Connection.Host);
+    CR_SERVER_LOST: Msg := Preferences.LoadStr(806, TSConnection(Connection).Session.Caption);
     CR_HTTPTUNNEL_UNKNOWN_ERROR: Msg := ErrorMessage + #10#10 + Preferences.LoadStr(652) + ': ' + Connection.LibraryName;
     CR_HTTPTUNNEL_OLD: Msg := Preferences.LoadStr(659, Connection.LibraryName);
     CR_HTTPTUNNEL_CONN_ERROR: Msg := ErrorMessage;

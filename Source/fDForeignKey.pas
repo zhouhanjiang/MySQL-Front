@@ -101,27 +101,6 @@ begin
     and (not Assigned(Table.ForeignKeyByName(FName.Text)) or (Assigned(ForeignKey) and (Table.ForeignKeys.NameCmp(FName.Text, ForeignKey.Name) = 0)));
 end;
 
-procedure TDForeignKey.FormSessionEvent(const Event: TSSession.TEvent);
-begin
-  if ((Event.EventType = etItemsValid) and (Event.Sender = Table.Session.Databases)) then
-    FParentDatabaseChange(Event.Sender)
-  else if ((Event.EventType = etItemValid) and (Event.SItem = SelectedParentTable)) then
-    FParentTableChange(Event.Sender)
-  else if ((Event.EventType = etItemAltered) and (Event.SItem = Table)) then
-    ModalResult := mrOk;
-
-  if (Event.EventType = etAfterExecuteSQL) then
-  begin
-    GBasics.Visible := True;
-    GAttributes.Visible := GBasics.Visible;
-    PSQLWait.Visible := not GBasics.Visible;
-    FBOkCheckEnabled(nil);
-
-    FParentTable.Cursor := crDefault;
-    FParentFields.Cursor := crDefault;
-  end;
-end;
-
 procedure TDForeignKey.FormCloseQuery(Sender: TObject;
   var CanClose: Boolean);
 var
@@ -257,6 +236,29 @@ begin
   FParentFields.Width := FDatabase.Width;
 end;
 
+procedure TDForeignKey.FormSessionEvent(const Event: TSSession.TEvent);
+begin
+  if ((Event.EventType = etItemsValid) and (Event.Sender = Table.Session.Databases)) then
+    FParentDatabaseChange(Event.Sender)
+  else if ((Event.EventType = etItemValid) and (Event.SItem = SelectedParentTable)) then
+    FParentTableChange(Event.Sender)
+  else if ((Event.EventType = etItemAltered) and (Event.SItem = Table)) then
+    ModalResult := mrOk;
+
+  if (Event.EventType = etAfterExecuteSQL) then
+  begin
+    FParentTable.Cursor := crDefault;
+    FParentFields.Cursor := crDefault;
+
+    GBasics.Visible := True;
+    GAttributes.Visible := GBasics.Visible;
+    PSQLWait.Visible := not GBasics.Visible;
+
+    ActiveControl := FName;
+    FBOkCheckEnabled(nil);
+  end;
+end;
+
 procedure TDForeignKey.FormShow(Sender: TObject);
 var
   I: Integer;
@@ -352,7 +354,7 @@ begin
   FOnDelete.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013); FLOnDelete.Enabled := FOnDelete.Enabled;
   FOnUpdate.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013); FLOnUpdate.Enabled := FOnUpdate.Enabled;
 
-  GBasics.Visible := True;
+  GBasics.Visible := Table.Update();
   GAttributes.Visible := GBasics.Visible;
   PSQLWait.Visible := not GBasics.Visible;
 
