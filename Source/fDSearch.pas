@@ -210,10 +210,13 @@ end;
 procedure TDSearch.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if (Event.EventType in [etAfterExecuteSQL]) then
+  begin
+    FSelect.Cursor := crDefault;
     if (Assigned(WantedNodeExpand)) then
       WantedNodeExpand.Expand(False)
     else if (WantedExecute) then
       TSExecuteShow(Event.Sender);
+  end;
 end;
 
 procedure TDSearch.FormCreate(Sender: TObject);
@@ -519,7 +522,10 @@ begin
             Session := GetSession(Node.Index);
             if (Assigned(Session)) then
               if (not Session.Update()) then
-                WantedNodeExpand := Node
+              begin
+                WantedNodeExpand := Node;
+                TreeView.Cursor := crSQLWait;
+              end
               else
               begin
                 for I := 0 to Session.Databases.Count - 1 do
@@ -538,7 +544,10 @@ begin
             Session := GetSession(Node.Parent.Index);
             Database := Session.DatabaseByName(Node.Text);
             if ((not Database.Tables.Update() or not Session.Update(Database.Tables))) then
-              WantedNodeExpand := Node
+            begin
+              WantedNodeExpand := Node;
+              TreeView.Cursor := crSQLWait;
+            end
             else
             begin
               for I := 0 to Database.Tables.Count - 1 do
@@ -558,7 +567,10 @@ begin
             Database := Session.DatabaseByName(Node.Parent.Text);
             Table := Database.BaseTableByName(Node.Text);
             if (not Table.Update()) then
-              WantedNodeExpand := Node
+            begin
+              WantedNodeExpand := Node;
+              TreeView.Cursor := crSQLWait;
+            end
             else
             begin
               for I := 0 to Table.Fields.Count - 1 do

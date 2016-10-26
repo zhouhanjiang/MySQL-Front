@@ -1057,7 +1057,6 @@ type
     function AddressToCaption(const AAddress: string): string;
     procedure aEFindExecute(Sender: TObject);
     procedure aEReplaceExecute(Sender: TObject);
-    procedure aETransferExecute(Sender: TObject);
     procedure CrashRescue();
     procedure OpenDiagram();
     procedure OpenSQLFile(const AFilename: TFileName; const CodePage: Cardinal = 0; const Insert: Boolean = False);
@@ -2609,13 +2608,15 @@ begin
       else if ((ParamToView(URI.Param['view']) <> vObjects) and not Session.Databases.Update()) then
         AllowChange := False
     end
+    else if ((URI.Database <> '') and (not Session.Databases.Valid and not Session.Databases.Update())) then
+      AllowChange := False
     else if (URI.Database <> '') then
     begin
       Database := Session.DatabaseByName(URI.Database);
-      if ((URI.Database <> '') and not Session.Databases.Update()) then
-        AllowChange := False
-      else if (not Assigned(Database)) then
+      if (not Assigned(Database)) then
         NotFound := True
+      else if (not Database.Valid and not Database.Update()) then
+        AllowChange := False
       else if ((ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and not Database.Update((URI.Table = '') and (URI.Param['object'] = Null) and (URI.Param['view'] = NULL)) and ((URI.Table <> '') or (URI.Param['object'] <> Null))) then
         AllowChange := False
       else if ((URI.Table <> '') and not Database.Tables.Update()) then
@@ -2651,7 +2652,7 @@ begin
           else
           begin
             DBObject := Database.TriggerByName(URI.Param['object']);
-            if (DBObject.Invalid or not DBObject.Update()) then
+            if (not DBObject.Valid or not DBObject.Update()) then
               AllowChange := False;
           end;
       end;
@@ -3441,23 +3442,6 @@ end;
 procedure TFSession.aESelectAllExecute(Sender: TObject);
 begin
   ActiveListView.SelectAll();
-end;
-
-procedure TFSession.aETransferExecute(Sender: TObject);
-begin
-  Wanted.Clear();
-
-  DTransfer.SourceSession := Session;
-  DTransfer.SourceDatabaseName := FocusedDatabaseNames;
-  if (DTransfer.SourceDatabaseName = '') then
-    DTransfer.SourceTableName := ''
-  else
-  begin
-    DTransfer.SourceDatabaseName := SelectedDatabase;
-    DTransfer.SourceTableName := FocusedTableNames;
-  end;
-  DTransfer.DestinationSession := nil;
-  DTransfer.Execute();
 end;
 
 procedure TFSession.aFExportAccessExecute(Sender: TObject);
@@ -11344,29 +11328,6 @@ begin
       Success := True;
 
       case (Node.ImageIndex) of
-        iiServer:
-          if (SourceSession <> Session) then
-          begin
-            DTransfer.SourceSession := SourceSession;
-            DTransfer.SourceDatabaseName := '';
-            for I := 1 to StringList.Count - 1 do
-              if (Assigned(SourceSession.DatabaseByName(StringList.ValueFromIndex[I]))) then
-              begin
-                if (DTransfer.SourceDatabaseName <> '') then
-                  DTransfer.SourceDatabaseName := DTransfer.SourceDatabaseName + ',';
-                DTransfer.SourceDatabaseName := DTransfer.SourceDatabaseName + StringList.ValueFromIndex[I];
-              end;
-            if (DTransfer.SourceDatabaseName = '') then
-              MessageBeep(MB_ICONERROR)
-            else
-            begin
-              DTransfer.SourceTableName := '';
-              DTransfer.DestinationSession := Session;
-              DTransfer.DestinationDatabaseName := '';
-              DTransfer.DestinationTableName := '';
-              DTransfer.Execute();
-            end;
-          end;
         iiDatabase:
           begin
             DExecutingSQL.Session := SourceSession;
@@ -11392,22 +11353,7 @@ begin
                 else if (not Found or DPaste.Execute()) then
                 begin
                   if (Found and (SourceSession <> Session)) then
-                  begin
-                    DTransfer.SourceSession := SourceSession;
-                    DTransfer.SourceDatabaseName := SourceURI.Database;
-                    DTransfer.SourceTableName := '';
-                    for I := 1 to StringList.Count - 1 do
-                      if (Assigned(SourceSession.DatabaseByName(SourceURI.Database).TableByName(StringList.ValueFromIndex[I]))) then
-                      begin
-                        if (DTransfer.SourceTableName <> '') then
-                          DTransfer.SourceTableName := DTransfer.SourceTableName + ',';
-                        DTransfer.SourceTableName := DTransfer.SourceTableName + StringList.ValueFromIndex[I];
-                      end;
-                    DTransfer.DestinationSession := Session;
-                    DTransfer.DestinationDatabaseName := SelectedDatabase;
-                    DTransfer.DestinationTableName := '';
-                    DTransfer.Execute();
-                  end
+                    MessageBeep(MB_ICONERROR)
                   else
                     for I := 1 to StringList.Count - 1 do
                       if (Success) then
@@ -14225,7 +14171,7 @@ begin
                 List.Add(Database.Triggers[I]);
 
             for I := List.Count - 1 downto 0 do
-              if ((TObject(List[I]) is TSObject) and TSObject(List[I]).Invalid) then
+              if ((TObject(List[I]) is TSObject) and not TSObject(List[I]).Valid) then
                 List.Delete(I);
 
             Result := not Session.Update(List, True);

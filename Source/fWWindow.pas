@@ -500,14 +500,7 @@ end;
 
 procedure TWWindow.aETransferExecute(Sender: TObject);
 begin
-  if (Assigned(ActiveTab) and (ActiveTab is TFSession)) then
-    TFSession(ActiveTab).aETransferExecute(Sender)
-  else
-  begin
-    DTransfer.SourceSession := nil;
-    DTransfer.DestinationSession := nil;
-    DTransfer.Execute();
-  end;
+  DTransfer.Execute();
 end;
 
 procedure TWWindow.aFCloseAllExecute(Sender: TObject);

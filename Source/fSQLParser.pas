@@ -5541,7 +5541,7 @@ type
       TStartTransactionStmt = packed record
       private type
         TNodes = packed record
-          StartTransactionTag: TOffset;
+          StmtTag: TOffset;
           RealOnlyTag: TOffset;
           ReadWriteTag: TOffset;
           WithConsistentSnapshotTag: TOffset;
@@ -6610,11 +6610,11 @@ type
     function GetFunctions(): string;
     function GetKeywords(): string;
     function GetNextToken(Index: Integer): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
-    function GetToken(const Index: Integer): TOffset;
     function GetInCompound(): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
     function GetInPL_SQL(): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
     function GetReservedWords(): string;
     function GetRoot(): PRoot; {$IFNDEF Debug} inline; {$ENDIF}
+    function GetToken(const Index: Integer): TOffset;
     function IsNextTag(const Index: Integer; const KeywordIndex1: TWordList.TIndex;
       const KeywordIndex2: TWordList.TIndex = -1; const KeywordIndex3: TWordList.TIndex = -1;
       const KeywordIndex4: TWordList.TIndex = -1; const KeywordIndex5: TWordList.TIndex = -1;
@@ -6659,7 +6659,7 @@ type
     function ParseCommitStmt(): TOffset;
     function ParseCompoundStmt(const BeginLabel: TOffset): TOffset;
     function ParseConvertFunc(): TOffset;
-    function ParseCountFunc(const JokerAllowed: Boolean): TOffset;
+    function ParseCountFunc(): TOffset;
     function ParseCreateDatabaseStmt(const CreateTag, OrReplaceTag: TOffset): TOffset;
     function ParseCreateEventStmt(const CreateTag, OrReplaceTag, DefinerValue: TOffset): TOffset;
     function ParseCreateIndexStmt(const CreateTag, OrReplaceTag, KindTag: TOffset): TOffset;
@@ -6922,6 +6922,7 @@ type
     constructor Create(const AMySQLVersion: Integer = 0);
     destructor Destroy(); override;
     function FormatSQL(): string;
+    function GetSQL(): string;
     function LoadFromFile(const Filename: string): Boolean;
     function ParseSQL(const Text: PChar; const Length: Integer; const UseCompletionList: Boolean = False): Boolean; overload;
     function ParseSQL(const Text: string; const AUseCompletionList: Boolean = False): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
@@ -14177,6 +14178,49 @@ begin
   Result := GetToken(Index);
 end;
 
+function TSQLParser.GetReservedWords(): string;
+begin
+  Result := ReservedWordList.Text;
+end;
+
+function TSQLParser.GetRoot(): PRoot;
+begin
+  if (FRoot = 0) then
+    Result := nil
+  else
+    Result := PRoot(NodePtr(FRoot));
+end;
+
+function TSQLParser.GetSQL(): string;
+var
+  Length: Integer;
+  Text: PChar;
+  Token: PToken;
+begin
+  if (not Assigned(Root)) then
+    Result := ''
+  else
+  begin
+    Commands := TFormatBuffer.Create();
+
+    Token := Root^.FirstTokenAll;
+    while (Assigned(Token)) do
+    begin
+      if (not Token^.Hidden) then
+      begin
+        Token^.GetText(Text, Length);
+        Commands.Write(Text, Length);
+      end;
+
+      Token := Token^.NextTokenAll;
+    end;
+
+    Result := Commands.Read();
+
+    Commands.Free(); Commands := nil;
+  end;
+end;
+
 function TSQLParser.GetToken(const Index: Integer): TOffset;
 var
   Error: TError;
@@ -14224,19 +14268,6 @@ begin
     Result := 0
   else
     Result := TokenBuffer.Items[Index].Token;
-end;
-
-function TSQLParser.GetReservedWords(): string;
-begin
-  Result := ReservedWordList.Text;
-end;
-
-function TSQLParser.GetRoot(): PRoot;
-begin
-  if (FRoot = 0) then
-    Result := nil
-  else
-    Result := PRoot(NodePtr(FRoot));
 end;
 
 function TSQLParser.IsChild(const Node: PNode): Boolean;
@@ -16088,7 +16119,7 @@ begin
   Result := TConvertFunc.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseCountFunc(const JokerAllowed: Boolean): TOffset;
+function TSQLParser.ParseCountFunc(): TOffset;
 var
   Nodes: TCountFunc.TNodes;
 begin
@@ -16108,12 +16139,7 @@ begin
         Nodes.ExprNode := ParseList(False, ParseExpr);
     end
     else
-    begin
-      if (not JokerAllowed) then
-        Nodes.ExprNode := ParseExpr([eoIn])
-      else
-        Nodes.ExprNode := ParseExpr([eoIn, eoAllFields]);
-    end;
+      Nodes.ExprNode := ParseExpr([eoIn, eoAllFields]);
 
   if (not ErrorFound) then
     Nodes.CloseBracket := ParseSymbol(ttCloseBracket);
@@ -18747,7 +18773,7 @@ begin
           else if ((Length = 7) and (StrLIComp(Text, 'CONVERT', Length) = 0)) then
             Nodes.Add(ParseConvertFunc())
           else if ((Length = 5) and (StrLIComp(Text, 'COUNT', Length) = 0)) then
-            Nodes.Add(ParseCountFunc(eoAllFields in Options))
+            Nodes.Add(ParseCountFunc())
           else if ((Length = 8) and (StrLIComp(Text, 'DATE_ADD', Length) = 0)) then
             Nodes.Add(ParseDateAddFunc())
           else if ((Length = 8) and (StrLIComp(Text, 'DATE_SUB', Length) = 0)) then
@@ -22744,7 +22770,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.StartTransactionTag := ParseTag(kiSTART, kiTRANSACTION);
+  Nodes.StmtTag := ParseTag(kiSTART, kiTRANSACTION);
 
   Found := True;
   while (not ErrorFound and Found) do
@@ -23073,7 +23099,7 @@ begin
     Result := ParseSignalStmt()
   else if (IsTag(kiSTART, kiSLAVE)) then
     Result := ParseStartSlaveStmt()
-  else if (IsTag(kiSTART)) then
+  else if (IsTag(kiSTART, kiTRANSACTION)) then
     Result := ParseStartTransactionStmt()
   else if (IsTag(kiSTOP, kiSLAVE)) then
     Result := ParseStopSlaveStmt()
@@ -24981,6 +25007,13 @@ begin
   end;
 end;
 
+function TSQLParser.RangePtr(const Node: TOffset): PRange;
+begin
+  Assert((0 < Node) and (Node < Nodes.UsedSize) and IsRange(Node));
+
+  Result := PRange(@Nodes.Mem[Node]);
+end;
+
 procedure TSQLParser.SaveToDebugHTMLFile(const Filename: string);
 var
   G: Integer;
@@ -25460,6 +25493,8 @@ begin
 end;
 
 procedure TSQLParser.SetError(const AErrorCode: Byte; const Node: TOffset = 0);
+const
+  EmptyIndices: TWordList.TIndices = (-1, -1, -1, -1, -1, -1, -1);
 var
   Found: Boolean;
   I: Integer;
@@ -25519,7 +25554,8 @@ begin
         begin
           Found := True;
 
-          Move(CompletionList[J]^.KeywordIndices[MaxTokenCount], CompletionList[J]^.KeywordIndices[0], MaxTokenCount * SizeOf(CompletionList[J]^.KeywordIndices[0]));
+          Move(CompletionList[J]^.KeywordIndices[MaxTokenCount], CompletionList[J]^.KeywordIndices[0], (Length(CompletionList[J]^.KeywordIndices) - MaxTokenCount) * SizeOf(CompletionList[J]^.KeywordIndices[0]));
+          Move(EmptyIndices, CompletionList[J]^.KeywordIndices[Length(CompletionList[J]^.KeywordIndices) - MaxTokenCount], MaxTokenCount * SizeOf(CompletionList[J]^.KeywordIndices[0]));
         end;
 
     if (Found) then
@@ -26090,13 +26126,6 @@ end;
 procedure TSQLParser.SetReservedWords(AReservedWords: string);
 begin
   ReservedWordList.Text := AReservedWords;
-end;
-
-function TSQLParser.RangePtr(const Node: TOffset): PRange;
-begin
-  Assert((0 < Node) and (Node < Nodes.UsedSize) and IsRange(Node));
-
-  Result := PRange(@Nodes.Mem[Node]);
 end;
 
 function TSQLParser.StmtPtr(const Node: TOffset): PStmt;

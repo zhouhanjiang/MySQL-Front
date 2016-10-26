@@ -4767,7 +4767,7 @@ begin
   Content := Content + '# Trigger "' + Trigger.Name + '"' + #13#10;
   Content := Content + '#' + #13#10;
   Content := Content + #13#10;
-  Content := Content + ReplaceStr(Trigger.GetSourceEx(DropStmts), Trigger.Session.Connection.EscapeIdentifier(Trigger.Database.Name) + '.', '');
+  Content := Content + Trigger.GetSourceEx(DropStmts);
 
   WriteContent(Content);
 end;
@@ -7965,7 +7965,6 @@ begin
       begin
         NewTrigger := TSTrigger.Create(DestinationDatabase.Tables);
         NewTrigger.Assign(SourceDatabase.Triggers[I]);
-        NewTrigger.Stmt := ReplaceStr(NewTrigger.Stmt, SourceDatabase.Session.Connection.EscapeIdentifier(SourceDatabase.Name) + '.', '');
         DestinationSession.Connection.BeginSynchron();
         while ((Success <> daAbort) and not DestinationDatabase.AddTrigger(NewTrigger)) do
           DoError(DatabaseError(DestinationSession), Item, True);

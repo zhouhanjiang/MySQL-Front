@@ -132,7 +132,6 @@ type
     function GetObjects(): TSObjects; inline;
   protected
     FDesktop: TDesktop;
-    FInvalid: Boolean;
     FSource: string;
     FValidSource: Boolean;
     procedure FreeDesktop(); virtual;
@@ -151,7 +150,6 @@ type
     procedure Invalidate(); virtual;
     function Update(): Boolean; virtual;
     property Desktop: TDesktop read GetDesktop;
-    property Invalid: Boolean read FInvalid;
     property Objects: TSObjects read GetObjects;
     property Source: string read GetSource;
     property Valid: Boolean read GetValid;
@@ -227,6 +225,7 @@ type
     procedure SetSource(const DataSet: TMySQLQuery); override; abstract;
     function SQLGetSource(): string; virtual; abstract;
   public
+    procedure Assign(const Source: TSObject); override;
     procedure Clear(); virtual;
     constructor Create(const ADBObjects: TSDBObjects; const AName: string = ''); reintroduce; virtual;
     destructor Destroy(); override;
@@ -851,7 +850,6 @@ type
     TTiming = (ttBefore, ttAfter);
   private
     FInputDataSet: TMySQLDataSet;
-    FSourceParsed: Boolean;
     FSourceEx: string;
     function GetInputDataSet(): TMySQLDataSet;
     function GetTable(): TSBaseTable; inline;
@@ -868,7 +866,6 @@ type
     procedure SetSource(const DataSet: TMySQLQuery); overload; override;
     procedure SetSource(const ASource: string); overload; override;
     function SQLGetSource(): string; override;
-    property SourceParsed: Boolean read FSourceParsed;
     property Valid: Boolean read FValid;
   public
     procedure Assign(const Source: TSTrigger); reintroduce; virtual;
@@ -2017,7 +2014,6 @@ begin
 
   inherited Assign(TSItem(Source));
 
-  FInvalid := Source.Invalid;
   FSource := Source.Source;
   FValidSource := Source.ValidSource;
 end;
@@ -2026,7 +2022,6 @@ constructor TSObject.Create(const AItems: TSItems; const AName: string = '');
 begin
   inherited;
 
-  FInvalid := False;
   FSource := '';
   FValidSource := False;
 
@@ -2085,7 +2080,6 @@ begin
   if (Valid and Assigned(Session.InvalidObjects) and (Session.InvalidObjects.IndexOf(Self) < 0)) then
     Session.InvalidObjects.Add(Self);
 
-  FInvalid := False;
   FSource := '';
   FValidSource := False;
 end;
@@ -2389,6 +2383,38 @@ begin
 end;
 
 { TSDBObject ******************************************************************}
+
+procedure TSDBObject.Assign(const Source: TSObject);
+var
+  PreviousToken: TSQLParser.PToken;
+  Token: TSQLParser.PToken;
+begin
+  Assert(Assigned(Source) and (Source is TSDBObject));
+
+  inherited;
+
+  if (Session.SQLParser.ParseSQL(FSource)) then
+  begin
+    Token := Session.SQLParser.Root^.FirstStmt^.FirstToken;
+
+    PreviousToken := nil;
+    while (Assigned(Token)) do
+    begin
+      if (Assigned(PreviousToken) and (PreviousToken^.DbIdentType = ditDatabase) and (Token^.TokenType = ttDot)
+        and (Session.Databases.NameCmp(PreviousToken^.AsString, TSDBObject(Source).Database.Name) = 0)) then
+      begin
+        PreviousToken^.Hidden := True;
+        Token^.Hidden := True;
+      end;
+
+      PreviousToken := Token;
+      Token := Token^.NextToken;
+    end;
+
+    FSource := Session.SQLParser.GetSQL();
+    Session.SQLParser.Clear();
+  end;
+end;
 
 procedure TSDBObject.Clear();
 begin
@@ -5217,7 +5243,7 @@ begin
   SQL := SQL + ';' + #13#10;
 
   if (Session.SQLParser.ParseSQL(SQL)) then
-    SQL := Session.SQLParser.FormatSQL();
+    SQL := Session.SQLParser.FormatSQL() + #13#10;
   Session.SQLParser.Clear();
 
   if (DropBeforeCreate) then
@@ -6021,7 +6047,7 @@ function TSRoutine.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
 var
   SQL: string;
 begin
-  SQL := Trim(FSourceEx) + #13#10;
+  SQL := FSourceEx;
 
   if (DropBeforeCreate) then
     if (RoutineType = rtProcedure) then
@@ -6135,7 +6161,7 @@ begin
 
     FStmt := SQLParseRest(Parse);
 
-    FSourceEx := LeftStr(S, SQLParseGetIndex(Parse) - RemovedLength - 1);
+    FSourceEx := LeftStr(S, SQLParseGetIndex(Parse) - RemovedLength - 1) + #13#10;
   end;
 end;
 
@@ -6346,9 +6372,13 @@ begin
       if (Filtered and SessionEvents) then
         Session.ExecuteEvent(etItemValid, Session, Self, Routine[Index]);
 
-      // Inside Body there are no parameter, but for references we don't need
-      // them, so we can set the references without a SHOW CREATE PROCEDURE / FUNCTION
-      Routine[Index].SetReferences('CREATE ROUTINE ' + Session.Connection.EscapeIdentifier(Name) + ' ' + DataSet.FieldByName('ROUTINE_DEFINITION').AsString);
+      // Inside ROUTINE_DEFINITION there are no parameter, but for references
+      // we don't need them, so we can set the references without a separated
+      // SHOW CREATE PROCEDURE / FUNCTION
+      if (RoutineType = rtProcedure) then
+        Routine[Index].SetReferences('CREATE PROCEDURE ' + Session.Connection.EscapeIdentifier(Name) + '() ' + DataSet.FieldByName('ROUTINE_DEFINITION').AsString)
+      else
+        Routine[Index].SetReferences('CREATE FUNCTION ' + Session.Connection.EscapeIdentifier(Name) + '() RETURNS int ' + DataSet.FieldByName('ROUTINE_DEFINITION').AsString);
     until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('ROUTINE_SCHEMA').AsString, Database.Name) <> 0));
 
   Result := inherited or (Session.Connection.ErrorCode = ER_CANNOT_LOAD_FROM_TABLE);
@@ -6394,7 +6424,6 @@ begin
   FEvent := Source.Event;
   FDatabase := Source.Database;
   FDefiner := Source.Definer;
-  FSourceParsed := Source.SourceParsed;
   FStmt := Source.Stmt;
   FTableName := Source.FTableName;
   FTiming := Source.Timing;
@@ -6407,7 +6436,6 @@ begin
   FEvent := teInsert;
   FCreated := 0;
   FDefiner := '';
-  FSourceParsed := False;
   FStmt := '';
   FTiming := ttAfter;
   FValid := False;
@@ -6477,12 +6505,6 @@ begin
   else
     SQL := FSourceEx;
 
-  if (not Session.SQLParser.ParseSQL(SQL)) then
-    SQL := FSourceEx
-  else
-    SQL := Session.SQLParser.FormatSQL();
-  Session.SQLParser.Clear();
-
   if (DropBeforeCreate) then
     SQL := 'DROP TRIGGER IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
 
@@ -6506,7 +6528,6 @@ begin
   inherited;
 
   FValid := False;
-  FSourceParsed := False;
 end;
 
 procedure TSTrigger.ParseCreateTrigger(const SQL: string);
@@ -6514,8 +6535,10 @@ var
   DatabaseName: string;
   Index: Integer;
   Parse: TSQLParse;
+  PreviousToken: TSQLParser.PToken;
   RemovedLength: Integer;
   S: string;
+  Token: TSQLParser.PToken;
 begin
   S := SQL; RemovedLength := 0;
 
@@ -6569,9 +6592,29 @@ begin
 
     FStmt := SQLParseRest(Parse);
 
-    FSourceEx := LeftStr(S, SQLParseGetIndex(Parse) - RemovedLength - 1);
+    FSourceEx := LeftStr(S, SQLParseGetIndex(Parse) - RemovedLength - 1) + #13#10;
 
-    FSourceParsed := True;
+    if (Session.SQLParser.ParseSQL(FSourceEx)) then
+    begin
+      Token := Session.SQLParser.Root^.FirstStmt^.FirstToken;
+
+      PreviousToken := nil;
+      while (Assigned(Token)) do
+      begin
+        if (Assigned(PreviousToken) and (PreviousToken^.DbIdentType = ditDatabase) and (Token^.TokenType = ttDot)
+          and (Database.Databases.NameCmp(PreviousToken^.AsString, Database.Name) = 0)) then
+        begin
+          PreviousToken^.Hidden := True;
+          Token^.Hidden := True;
+        end;
+
+        PreviousToken := Token;
+        Token := Token^.NextToken;
+      end;
+
+      FSourceEx := Session.SQLParser.GetSQL();
+      Session.SQLParser.Clear();
+    end;
   end;
 end;
 
@@ -6879,11 +6922,7 @@ function TSEvent.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
 var
   SQL: string;
 begin
-  if (not Session.SQLParser.ParseSQL(FSourceEx)) then
-    SQL := FSourceEx
-  else
-    SQL := Session.SQLParser.FormatSQL();
-  Session.SQLParser.Clear();
+  SQL := FSourceEx;
 
   if (DropBeforeCreate) then
     SQL := 'DROP EVENT IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
@@ -6959,7 +6998,7 @@ begin
 
     FStmt := SQLParseRest(Parse);
 
-    FSourceEx := LeftStr(S, SQLParseGetIndex(Parse) - RemovedLength - 1);
+    FSourceEx := LeftStr(S, SQLParseGetIndex(Parse) - RemovedLength - 1) + #13#10;
   end;
 end;
 
@@ -12478,16 +12517,14 @@ begin
             begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then SObject := DatabaseByName(DatabaseName).TriggerByName(ObjectName); end
           else if (SQLParseKeyword(Parse, 'VIEW')) then
           begin
-            if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then SObject := DatabaseByName(DatabaseName).TableByName(ObjectName);
-            Result := Assigned(SObject) and (Connection.ErrorCode = ER_TABLEACCESS_DENIED_ERROR);
-            if (Result) then
+            if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
             begin
-              TSView(SObject).SetSource('');
-              SObject := nil;
+              SObject := DatabaseByName(DatabaseName).TableByName(ObjectName);
+              Result := Assigned(SObject) and (Connection.ErrorCode = ER_TABLEACCESS_DENIED_ERROR);
             end;
           end;
           if (Assigned(SObject)) then
-            SObject.FInvalid := True;
+            SObject.Invalidate();
         end
         else
         begin

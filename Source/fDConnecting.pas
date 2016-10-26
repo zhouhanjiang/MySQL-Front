@@ -18,7 +18,6 @@ type
     procedure FormHide(Sender: TObject);
   private
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
-    procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
   public
     Session: TSSession;
     function Execute(): Boolean;
@@ -76,7 +75,6 @@ end;
 procedure TDConnecting.FormHide(Sender: TObject);
 begin
   Session.Connection.AfterConnect := nil;
-  Session := nil;
 end;
 
 procedure TDConnecting.FormShow(Sender: TObject);
@@ -85,7 +83,7 @@ begin
 
   Session.Connection.AfterConnect := AfterConnect;
 
-  PostMessage(Handle, UM_POST_SHOW, 0, 0);
+  Session.Connection.Connect();
 end;
 
 procedure TDConnecting.UMChangePreferences(var Message: TMessage);
@@ -93,11 +91,6 @@ begin
   FInfo.Caption := Preferences.LoadStr(195) + '...';
 
   FBCancel.Caption := Preferences.LoadStr(30);
-end;
-
-procedure TDConnecting.UMPostShow(var Message: TMessage);
-begin
-  Session.Connection.Connect();
 end;
 
 initialization

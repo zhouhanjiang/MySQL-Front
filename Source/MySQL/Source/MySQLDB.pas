@@ -2037,7 +2037,7 @@ begin
   end;
 
   Connection.TerminateCS.Enter();
-  if (State = ssReceivingResult) then
+  if (not Terminated and (State = ssReceivingResult)) then
     Connection.SyncHandledResult(Self);
   Connection.TerminateCS.Leave();
 end;
@@ -2107,7 +2107,7 @@ begin
           if (Mode in [smSQL, smDataSet]) then
             if (State in [ssExecutingNext, ssExecutingFirst]) then
               RunExecute.SetEvent()
-            else
+            else if (State = ssReady) then
               Connection.SyncAfterExecuteSQL(Self);
         end;
 	    ssReceivingResult:
@@ -2122,7 +2122,7 @@ begin
           if (Mode in [smSQL, smDataSet]) then
             if (State in [ssExecutingNext, ssExecutingFirst]) then
               RunExecute.SetEvent()
-            else
+            else if (State = ssReady) then
               Connection.SyncAfterExecuteSQL(Self);
         end;
       ssCancel:
@@ -2623,7 +2623,7 @@ begin
   begin
     StmtLength := Integer(SyncThread.StmtLengths[SyncThread.StmtIndex + 1]);
     Len := SQLTrimStmt(SyncThread.SQL, SyncThread.SQLIndex, StmtLength, MySQLVersion, StartingCommentLength, EndingCommentLength);
-    Result := copy(SyncThread.SQL, SyncThread.SQLIndex + Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]) + StartingCommentLength, Len);
+    Result := Copy(SyncThread.SQL, SyncThread.SQLIndex + Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]) + StartingCommentLength, Len);
   end;
 end;
 
@@ -2634,9 +2634,9 @@ end;
 
 function TMySQLConnection.InUse(): Boolean;
 begin
-  TerminateCS.Enter(); // Why is this needed here?
+  TerminateCS.Enter();
   Result := Assigned(SyncThread) and SyncThread.IsRunning;
-  TerminateCS.Leave(); // Why is this needed here?
+  TerminateCS.Leave();
 end;
 
 function TMySQLConnection.LibDecode(const Text: my_char; const Length: my_int = -1): string;
@@ -3602,66 +3602,63 @@ var
   S: String;
   StmtLength: Integer;
 begin
-  if (not SyncThread.Terminated) then
+  FErrorCode := SyncThread.ErrorCode;
+  FErrorMessage := SyncThread.ErrorMessage;
+
+  if (Assigned(SyncThread.ResHandle)) then
   begin
-    FErrorCode := SyncThread.ErrorCode;
-    FErrorMessage := SyncThread.ErrorMessage;
+    if (SyncThread.State = ssResult) then
+      while (Assigned(Lib.mysql_fetch_row(SyncThread.ResHandle))) do ;
 
-    if (Assigned(SyncThread.ResHandle)) then
-    begin
-      if (SyncThread.State = ssResult) then
-        while (Assigned(Lib.mysql_fetch_row(SyncThread.ResHandle))) do ;
+    S := '--> ' + IntToStr(Lib.mysql_num_rows(SyncThread.ResHandle)) + ' Record(s) received';
+    WriteMonitor(PChar(S), Length(S), ttInfo);
 
-      S := '--> ' + IntToStr(Lib.mysql_num_rows(SyncThread.ResHandle)) + ' Record(s) received';
-      WriteMonitor(PChar(S), Length(S), ttInfo);
+    Lib.mysql_free_result(SyncThread.ResHandle);
+    SyncThread.ResHandle := nil;
+  end;
 
-      Lib.mysql_free_result(SyncThread.ResHandle);
-      SyncThread.ResHandle := nil;
-    end;
-
-    if ((SyncThread.State = ssReceivingResult) and (SyncThread.ErrorCode > 0)) then
-    begin
-      S := '--> Error #' + IntToStr(FErrorCode) + ': ' + FErrorMessage + ' while receiving Record(s)';
-      WriteMonitor(PChar(S), Length(S), ttInfo);
-    end;
+  if ((SyncThread.State = ssReceivingResult) and (SyncThread.ErrorCode > 0)) then
+  begin
+    S := '--> Error #' + IntToStr(FErrorCode) + ': ' + FErrorMessage + ' while receiving Record(s)';
+    WriteMonitor(PChar(S), Length(S), ttInfo);
+  end;
 
 
+  if (SyncThread.StmtIndex < SyncThread.StmtLengths.Count) then
+  begin
+    if (SyncThread.ErrorCode = 0) then
+      FSuccessfullExecutedSQLLength := SyncThread.SQLIndex - 1;
+    Inc(SyncThread.SQLIndex, Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]));
+    Inc(SyncThread.StmtIndex);
+  end;
+
+
+  if (SyncThread.State = ssReady) then
+    // An error occurred and it was not handled in OnResult
+  else if (SyncThread.ErrorCode = CR_SERVER_GONE_ERROR) then
+    SyncThread.State := ssReady
+  else if (MultiStatements and (Lib.mysql_more_results(SyncThread.LibHandle) = 1)) then
+  begin
     if (SyncThread.StmtIndex < SyncThread.StmtLengths.Count) then
     begin
-      if (SyncThread.ErrorCode = 0) then
-        FSuccessfullExecutedSQLLength := SyncThread.SQLIndex - 1;
-      Inc(SyncThread.SQLIndex, Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]));
-      Inc(SyncThread.StmtIndex);
-    end;
-
-
-    if (SyncThread.State = ssReady) then
-      // An error occurred and it was not handled in OnResult
-    else if (SyncThread.ErrorCode = CR_SERVER_GONE_ERROR) then
-      SyncThread.State := ssReady
-    else if (MultiStatements and (Lib.mysql_more_results(SyncThread.LibHandle) = 1)) then
-    begin
-      if (SyncThread.StmtIndex < SyncThread.StmtLengths.Count) then
-      begin
-        StmtLength := Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]);
-        WriteMonitor(@SyncThread.SQL[SyncThread.SQLIndex], StmtLength, ttRequest);
-      end;
-
-      SyncThread.State := ssExecutingNext;
-    end
-    else if (SyncThread.SQLIndex < Length(SyncThread.SQL)) then
-    begin
-      S := '# ' + SysUtils.DateTimeToStr(Now() + TimeDiff, FormatSettings);
-      WriteMonitor(PChar(S), Length(S), ttTime);
-
       StmtLength := Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]);
       WriteMonitor(@SyncThread.SQL[SyncThread.SQLIndex], StmtLength, ttRequest);
+    end;
 
-      SyncThread.State := ssExecutingFirst;
-    end
-    else
-      SyncThread.State := ssReady;
-  end;
+    SyncThread.State := ssExecutingNext;
+  end
+  else if (SyncThread.SQLIndex < Length(SyncThread.SQL)) then
+  begin
+    S := '# ' + SysUtils.DateTimeToStr(Now() + TimeDiff, FormatSettings);
+    WriteMonitor(PChar(S), Length(S), ttTime);
+
+    StmtLength := Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]);
+    WriteMonitor(@SyncThread.SQL[SyncThread.SQLIndex], StmtLength, ttRequest);
+
+    SyncThread.State := ssExecutingFirst;
+  end
+  else
+    SyncThread.State := ssReady;
 end;
 
 procedure TMySQLConnection.SyncPing(const SyncThread: TSyncThread);
@@ -3699,17 +3696,17 @@ begin
       end;
     end;
 
-    if (SyncThread.Success and Assigned(LibRow)) then
+    TerminateCS.Enter();
+    if (not SyncThread.Terminated and SyncThread.Success and Assigned(LibRow)) then
     begin
-      TerminateCS.Enter();
       SyncThread.Success := DataSet.InternAddRecord(LibRow, Lib.mysql_fetch_lengths(SyncThread.ResHandle));
-      TerminateCS.Leave();
       if (not SyncThread.Success) then
       begin
         SyncThread.ErrorCode := DS_OUT_OF_MEMORY;
         SyncThread.ErrorMessage := StrPas(DATASET_ERRORS[DS_OUT_OF_MEMORY - DS_MIN_ERROR]);
       end;
     end;
+    TerminateCS.Leave();
   until (not SyncThread.Success or not Assigned(LibRow));
 
   DataSet.InternAddRecord(nil, nil);
