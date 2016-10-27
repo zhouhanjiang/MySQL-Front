@@ -41,7 +41,7 @@ object DExport: TDExport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSSQLOptions
+    ActivePage = TSHTMLOptions
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     Style = tsFlatButtons
@@ -51,10 +51,6 @@ object DExport: TDExport
       Caption = 'TSSelect'
       TabVisible = False
       OnShow = TSSelectShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -105,10 +101,6 @@ object DExport: TDExport
       Caption = 'TSJob'
       TabVisible = False
       OnShow = TSJobShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -301,10 +293,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSSQLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -391,10 +379,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSCSVOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -553,10 +537,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSXMLOptionsHide
       OnShow = TSXMLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -872,10 +852,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSHTMLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -922,16 +898,16 @@ object DExport: TDExport
         end
       end
       object GHTMLOptions: TGroupBox_Ext
-        Left = 4
-        Top = 76
+        Left = 5
+        Top = 75
         Width = 325
-        Height = 109
+        Height = 69
         Anchors = [akLeft, akTop, akRight]
         Caption = 'GHTMLOptions'
         TabOrder = 1
         DesignSize = (
           325
-          109)
+          69)
         object FLHTMLNullValues: TLabel
           Left = 8
           Top = 17
@@ -942,17 +918,10 @@ object DExport: TDExport
         end
         object FLHTMLViewDatas: TLabel
           Left = 8
-          Top = 49
+          Top = 41
           Width = 93
           Height = 13
           Caption = 'FLHTMLViewDatas'
-        end
-        object FLHTMLBGColorEnabled: TLabel
-          Left = 9
-          Top = 81
-          Width = 120
-          Height = 13
-          Caption = 'FLHTMLBGColorEnabled'
         end
         object FHTMLNullText: TCheckBox
           Left = 128
@@ -965,21 +934,12 @@ object DExport: TDExport
         end
         object FHTMLMemoContent: TCheckBox
           Left = 128
-          Top = 48
+          Top = 40
           Width = 193
           Height = 17
           Anchors = [akLeft, akTop, akRight]
           Caption = 'FHTMLMemoContent'
           TabOrder = 1
-        end
-        object FHTMLRowBGColor: TCheckBox
-          Left = 129
-          Top = 80
-          Width = 193
-          Height = 17
-          Anchors = [akLeft, akTop, akRight]
-          Caption = 'FHTMLRowBGColor'
-          TabOrder = 2
         end
       end
     end
@@ -987,10 +947,6 @@ object DExport: TDExport
       Caption = 'TSFields'
       TabVisible = False
       OnShow = TSFieldsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -1078,10 +1034,6 @@ object DExport: TDExport
       ImageIndex = 9
       TabVisible = False
       OnShow = TSTaskShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -1181,10 +1133,6 @@ object DExport: TDExport
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)

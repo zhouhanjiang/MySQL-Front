@@ -55,7 +55,6 @@ type
     PSQLWait: TPanel_Ext;
     FLThreadId: TLabel;
     FThreadId: TLabel;
-    procedure FBFlushHostsClick(Sender: TObject);
     procedure FBHelpClick(Sender: TObject);
     procedure FBShutdownClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -115,11 +114,6 @@ function TDServer.Execute(): Boolean;
 begin
   ShowModal();
   Result := ModalResult = mrOk;
-end;
-
-procedure TDServer.FBFlushHostsClick(Sender: TObject);
-begin
-  Session.FlushHosts();
 end;
 
 procedure TDServer.FBHelpClick(Sender: TObject);

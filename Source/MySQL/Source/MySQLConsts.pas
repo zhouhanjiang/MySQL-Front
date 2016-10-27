@@ -358,7 +358,6 @@ type
   Tmysql_get_host_info = function (mysql: MYSQL): my_char; stdcall;
   Tmysql_get_proto_info = function (mysql: MYSQL): my_uint; stdcall;
   Tmysql_get_server_info = function (mysql: MYSQL): my_char; stdcall;
-  Tmysql_get_server_status = function (mysql: MYSQL): my_uint; stdcall;
   Tmysql_get_server_version = function (mysql: MYSQL): my_uint; stdcall;
   Tmysql_info = function (mysql: MYSQL): my_char; stdcall;
   Tmysql_init = function (mysql: MYSQL): MYSQL; stdcall;

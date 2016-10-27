@@ -61,6 +61,7 @@ uses
   fDSQLHelp in 'fDSQLHelp.pas' {DSQLHelp},
   fDStatement in 'fDStatement.pas' {DStatement},
   fDTable in 'fDTable.pas' {DTable},
+  fDTables in 'fDTables.pas' {DTables},
   fDTransfer in 'fDTransfer.pas' {DTransfer},
   fDTrigger in 'fDTrigger.pas' {DTrigger},
   fDUser in 'fDUser.pas' {DUser},

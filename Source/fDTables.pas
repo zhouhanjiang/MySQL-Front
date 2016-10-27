@@ -82,6 +82,7 @@ type
   private
     Database: TSDatabase;
     RecordCount: Integer;
+    WaitingForClose: Boolean;
     procedure Built();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
@@ -232,6 +233,16 @@ begin
     CanClose := Database.UpdateTables(UpdateTableNames, FDefaultCharset.Text, FCollation.Text, FEngine.Text, TSTableField.TRowType(FRowType.ItemIndex));
 
     UpdateTableNames.Free();
+
+    if (not CanClose) then
+    begin
+      PageControl.Visible := CanClose;
+      PSQLWait.Visible := not PageControl.Visible;
+
+      WaitingForClose := True;
+    end;
+
+    FBOk.Enabled := False;
   end;
 end;
 
@@ -281,12 +292,18 @@ begin
     for I := 0 to Tables.Count - 1 do
       Valid := Valid and TSTable(Tables[I]).Valid;
     if (Valid) then
-    begin
       Built();
+  end;
 
-      PageControl.Visible := True;
-      PSQLWait.Visible := not PageControl.Visible;
-    end;
+  if (Event.EventType = etAfterExecuteSQL) then
+  begin
+    PageControl.Visible := True;
+    PSQLWait.Visible := not PageControl.Visible;
+
+    if (WaitingForClose and (Event.Session.Connection.ErrorCode = 0)) then
+      ModalResult := mrOK
+    else
+      FBOkCheckEnabled(nil);
   end;
 end;
 
@@ -301,6 +318,7 @@ begin
   HelpContext := 1054;
 
   RecordCount := -1;
+  WaitingForClose := False;
 
   FTablesCount.Caption := IntToStr(Tables.Count);
 

@@ -145,7 +145,6 @@ type
         Data: Boolean;
         NULLText: Boolean;
         MemoContent: Boolean;
-        RowBGColor: Boolean;
         Structure: Boolean;
       end;
       ODBC: record
@@ -612,7 +611,6 @@ type
         Data: Boolean;
         NULLText: Boolean;
         MemoContent: Boolean;
-        RowBGColor: Boolean;
         Structure: Boolean;
       end;
       Filename: TFileName;
@@ -1568,7 +1566,6 @@ begin
   HTML.Data := True;
   HTML.NULLText := False;
   HTML.MemoContent := False;
-  HTML.RowBGColor := False;
   HTML.Structure := False;
   SQL.Data := True;
   SQL.DropStmts := True;
@@ -1601,7 +1598,6 @@ begin
   if (Assigned(XMLNode(XML, 'html/data'))) then TryStrToBool(XMLNode(XML, 'html/data').Attributes['enabled'], HTML.Data);
   if (Assigned(XMLNode(XML, 'html/memo')) and (XMLNode(XML, 'html/memo').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/memo').Attributes['visible'], HTML.MemoContent);
   if (Assigned(XMLNode(XML, 'html/null')) and (XMLNode(XML, 'html/null').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/null').Attributes['visible'], HTML.NULLText);
-  if (Assigned(XMLNode(XML, 'html/row/background')) and (XMLNode(XML, 'html/row/background').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/row/background').Attributes['visible'], HTML.RowBGColor);
   if (Assigned(XMLNode(XML, 'html/structure'))) then TryStrToBool(XMLNode(XML, 'html/structure').Attributes['enabled'], HTML.Structure);
   if (Assigned(XMLNode(XML, 'odbc/datasource'))) then ODBC.DataSource := XMLNode(XML, 'odbc/datasource').Text;
   if (Assigned(XMLNode(XML, 'sql/data'))) then TryStrToBool(XMLNode(XML, 'sql/data').Attributes['enabled'], SQL.Data);
@@ -1635,7 +1631,6 @@ begin
   XMLNode(XML, 'html/data').Attributes['enabled'] := HTML.Data;
   XMLNode(XML, 'html/memo').Attributes['visible'] := HTML.MemoContent;
   XMLNode(XML, 'html/null').Attributes['visible'] := HTML.NullText;
-  XMLNode(XML, 'grid/row/background').Attributes['visible'] := HTML.RowBGColor;
   XMLNode(XML, 'html/structure').Attributes['enabled'] := HTML.Structure;
   XMLNode(XML, 'odbc/datasource').Text := ODBC.DataSource;
   XMLNode(XML, 'sql/data').Attributes['enabled'] := SQL.Data;
@@ -3216,7 +3211,6 @@ begin
   HTML.Data := TPAccount.TJobExport(Source).HTML.Data;
   HTML.NULLText := TPAccount.TJobExport(Source).HTML.NULLText;
   HTML.MemoContent := TPAccount.TJobExport(Source).HTML.MemoContent;
-  HTML.RowBGColor := TPAccount.TJobExport(Source).HTML.RowBGColor;
   HTML.Structure := TPAccount.TJobExport(Source).HTML.Structure;
   Filename := TPAccount.TJobExport(Source).Filename;
   ClearObjects();
@@ -3294,7 +3288,6 @@ begin
   if (Assigned(XMLNode(XML, 'html/data'))) then TryStrToBool(XMLNode(XML, 'html/data').Attributes['enabled'], HTML.Data);
   if (Assigned(XMLNode(XML, 'html/memo')) and (XMLNode(XML, 'html/memo').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/memo').Attributes['visible'], HTML.MemoContent);
   if (Assigned(XMLNode(XML, 'html/null')) and (XMLNode(XML, 'html/null').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/null').Attributes['visible'], HTML.NULLText);
-  if (Assigned(XMLNode(XML, 'html/row/background')) and (XMLNode(XML, 'html/row/background').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/row/background').Attributes['visible'], HTML.RowBGColor);
   if (Assigned(XMLNode(XML, 'html/structure'))) then TryStrToBool(XMLNode(XML, 'html/structure').Attributes['enabled'], HTML.Structure);
   if (Assigned(XMLNode(XML, 'odbc/datasource'))) then ODBC.DataSource := XMLNode(XML, 'odbc/datasource').Text;
   if (Assigned(XMLNode(XML, 'odbc/password'))) then ODBC.Password := XMLNode(XML, 'odbc/password').Text;
@@ -3355,7 +3348,6 @@ begin
   if (Access.Access2003) then XMLNode(XML, 'access/format').Text := '2003' else XMLNode(XML, 'access/format').Text := '';
   XMLNode(XML, 'filename').Text := Filename;
   if (CodePage = CP_ACP) then XMLNode(XML, 'filename').Attributes['codepage'] := Null else XMLNode(XML, 'filename').Attributes['codepage'] := IntToStr(CodePage);
-  XMLNode(XML, 'grid/row/background').Attributes['visible'] := HTML.RowBGColor;
   XMLNode(XML, 'html/data').Attributes['enabled'] := HTML.Data;
   XMLNode(XML, 'html/memo').Attributes['visible'] := HTML.MemoContent;
   XMLNode(XML, 'html/null').Attributes['visible'] := HTML.NullText;

@@ -2888,8 +2888,8 @@ begin
 
   if (SQL <> '') then
   begin
-    if ((SelectedDatabase <> Session.Connection.DatabaseName) and (SelectedDatabase <> '')) then
-      Session.Connection.ExecuteSQL(Session.Connection.SQLUse(SelectedDatabase));
+    if ((SelectedDatabase <> '') and (SelectedDatabase <> Session.Connection.DatabaseName)) then
+      SQL := Session.Connection.SQLUse(SelectedDatabase) + SQL;
 
     aDRunExecuteSelStart := 0;
     SendQuery(Sender, SQL);
@@ -2923,8 +2923,13 @@ begin
   else
     SQL := Trim(ActiveSynMemo.SelText);
 
-  if ((SQL <> '') and ((SelectedDatabase = '') or (SelectedDatabase = Session.Connection.DatabaseName) or Session.Connection.ExecuteSQL(Session.Connection.SQLUse(SelectedDatabase)))) then
+  if (SQL <> '') then
+  begin
+    if ((SelectedDatabase <> '') and (SelectedDatabase <> Session.Connection.DatabaseName)) then
+      SQL := Session.Connection.SQLUse(SelectedDatabase) + SQL;
+
     SendQuery(Sender, SQL);
+  end;
 end;
 
 procedure TFSession.aEClearAllExecute(Sender: TObject);
@@ -4240,7 +4245,7 @@ begin
     if (SelectedDatabase <> Session.Connection.DatabaseName) then
       SQL := Session.Connection.SQLUse(SelectedDatabase) + SQL;
 
-    Session.Connection.ExecuteSQL(SQL);
+    Session.Connection.SendSQL(SQL);
   end;
 end;
 
@@ -11209,7 +11214,9 @@ begin
                           begin
                             Name := Session.TableName(CopyName(SourceTable.Name, Database.Tables));
 
+                            Session.Connection.BeginSynchron();
                             Success := Database.CloneTable(SourceTable, Name, DPaste.Data);
+                            Session.Connection.EndSynchron();
                           end;
                         end;
                   for I := 1 to StringList.Count - 1 do
@@ -11226,7 +11233,9 @@ begin
                           if (Session.LowerCaseTableNames = 1) then
                             Name := LowerCase(Name);
 
+                          Session.Connection.BeginSynchron();
                           Success := Database.CloneTable(SourceView, Name, False);
+                          Session.Connection.EndSynchron();
                         end;
                       end;
                   for I := 1 to StringList.Count - 1 do
@@ -11251,7 +11260,9 @@ begin
                             Inc(J);
                           end;
 
+                          Session.Connection.BeginSynchron();
                           Success := Database.CloneRoutine(SourceRoutine, Name);
+                          Session.Connection.EndSynchron();
                         end;
                       end
                       else if (StringList.Names[I] = 'Function') then
@@ -11274,7 +11285,9 @@ begin
                             Inc(J);
                           end;
 
+                          Session.Connection.BeginSynchron();
                           Success := Database.CloneRoutine(SourceRoutine, Name);
+                          Session.Connection.EndSynchron();
                         end;
                       end;
                 end;
@@ -11355,7 +11368,9 @@ begin
                     NewTrigger.Assign(SourceDatabase.TriggerByName(StringList.ValueFromIndex[I]));
                     NewTrigger.Name := Name;
                     NewTrigger.TableName := NewTable.Name;
+                    Session.Connection.BeginSynchron();
                     Database.AddTrigger(NewTrigger);
+                    Session.Connection.EndSynchron();
                     NewTrigger.Free();
                   end;
 

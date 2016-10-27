@@ -186,7 +186,7 @@ type
     procedure BeforeExecute(); override;
     procedure BeforeExecuteData(const Item: TItem); virtual;
     procedure Close(); virtual;
-    function DoExecuteSQL(const Item: TItem; var SQL: string): Boolean; virtual;
+    function DoExecuteSQL(var SQL: string): Boolean;
     procedure DoUpdateGUI(); override;
     procedure ExecuteStructure(const Item: TItem); virtual;
     procedure ExecuteTableData(const Item: TItem; const Table: TSTable); virtual;
@@ -472,7 +472,6 @@ type
     FieldOfPrimaryKey: array of Boolean;
     Font: TFont;
     SQLFont: TFont;
-    RowOdd: Boolean;
     function EscapeSQL(const SQL: string): string;
   protected
     procedure ExecuteDatabaseHeader(const Database: TSDatabase); override;
@@ -487,7 +486,6 @@ type
   public
     TextContent: Boolean;
     NULLText: Boolean;
-    RowBackground: Boolean;
     constructor Create(const ASession: TSSession; const AFilename: TFileName);
     destructor Destroy(); override;
   end;
@@ -720,7 +718,7 @@ type
   protected
     procedure AfterExecute(); override;
     procedure BeforeExecute(); override;
-    function DoExecuteSQL(const Session: TSSession; const Item: TItem; var SQL: string): Boolean; virtual;
+    function DoExecuteSQL(const Session: TSSession; var SQL: string): Boolean;
     procedure DoUpdateGUI(); override;
     procedure ExecuteDefault(const Item: TItem; const Table: TSBaseTable); virtual;
     procedure ExecuteMatchCase(const Item: TItem; const Table: TSBaseTable); virtual;
@@ -921,7 +919,7 @@ begin
     end;
     Result := Result + ')' + #13#10;
   end;
-  Result := SysUtils.Trim(Result) + ';' + #13#10;
+  Result := Trim(Result) + ';' + #13#10;
 
   if (((Session.Connection.MySQLVersion < 50038) or (50100 <= Session.Connection.MySQLVersion)) and (Session.Connection.MySQLVersion < 50117) and (FileCharset <> '')) then
     if ((Session.Connection.MySQLVersion < 40100) or not Assigned(Session.VariableByName('character_set_database'))) then
@@ -1800,17 +1798,12 @@ begin
   inherited;
 end;
 
-function TTImport.DoExecuteSQL(const Item: TItem; var SQL: string): Boolean;
+function TTImport.DoExecuteSQL(var SQL: string): Boolean;
 begin
   Result := Session.Connection.ExecuteSQL(SQL);
   Inc(FWarningCount, Session.Connection.WarningCount);
-  if (Result) then
-    SQL := ''
-  else
-  begin
-    Delete(SQL, 1, Session.Connection.SuccessfullExecutedSQLLength);
-    SQL := SysUtils.Trim(SQL);
-  end;
+  Delete(SQL, 1, Session.Connection.SuccessfullExecutedSQLLength);
+  SQL := Trim(SQL);
 end;
 
 procedure TTImport.DoUpdateGUI();
@@ -1976,7 +1969,7 @@ begin
       end;
     end;
     if (SQL <> '') then
-      while ((Success <> daAbort) and not DoExecuteSQL(Item, SQL)) do
+      while ((Success <> daAbort) and not DoExecuteSQL(SQL)) do
         DoError(DatabaseError(Session), Item, True, SQL);
 
     if ((StmtType in [stInsert, stReplace]) and Session.Connection.DataFileAllowed) then
@@ -2168,13 +2161,13 @@ begin
         MoveMemory(@SQL[1 + Len], SQLStmt.Data, SQLStmt.Size);
         SQLStmt.Clear();
 
-        while ((Success <> daAbort) and (SQL <> '') and not DoExecuteSQL(Item, SQL)) do
+        while ((Success <> daAbort) and (SQL <> '') and not DoExecuteSQL(SQL)) do
           DoError(DatabaseError(Session), Item, True, SQL);
 
         Delete(SQL, 1, Session.Connection.SuccessfullExecutedSQLLength);
       end;
 
-      while ((Success <> daAbort) and (SQL <> '') and not DoExecuteSQL(Item, SQL)) do
+      while ((Success <> daAbort) and (SQL <> '') and not DoExecuteSQL(SQL)) do
         DoError(DatabaseError(Session), Item, True, SQL);
 
       if (WarningCount > 0) then
@@ -2202,7 +2195,7 @@ begin
       else
         SQL := SQL + 'COMMIT;' + #13#10;
 
-      if (not DoExecuteSQL(Item, SQL)) then
+      if (not DoExecuteSQL(SQL)) then
         DoError(DatabaseError(Session), Item, True, SQL);
     end;
 
@@ -2503,7 +2496,7 @@ begin
   else if ((Success = daSuccess) and Assigned(Database) and (Session.Databases.NameCmp(Session.Connection.DatabaseName, Database.Name) <> 0)) then
   begin
     SQL := Database.SQLUse();
-    while ((Success <> daAbort) and not DoExecuteSQL(TTImport.TItem(Items[0]), SQL)) do
+    while ((Success <> daAbort) and not DoExecuteSQL(SQL)) do
       DoError(DatabaseError(Session), Items[0], True, SQL);
   end;
 
@@ -2558,7 +2551,7 @@ begin
       else
       begin
         SQL := Copy(FileContent.Str, 1, Index - 1);
-        while ((Success <> daAbort) and not DoExecuteSQL(TTImport.TItem(Items[0]), SQL)) do
+        while ((Success <> daAbort) and not DoExecuteSQL(SQL)) do
           DoError(DatabaseError(Session), Items[0], True, SQL);
       end;
       Delete(FileContent.Str, 1, Index - 1); Index := 1;
@@ -2590,7 +2583,7 @@ begin
     else
     begin
       SQL := FileContent.Str;
-      while ((SQL <> '') and (Success <> daAbort) and not DoExecuteSQL(TTImport.TItem(Items[0]), SQL)) do
+      while ((SQL <> '') and (Success <> daAbort) and not DoExecuteSQL(SQL)) do
         DoError(DatabaseError(Session), Items[0], True, SQL);
     end;
 
@@ -5101,7 +5094,6 @@ begin
 
   TextContent := False;
   NULLText := True;
-  RowBackground := True;
 
   Font := TFont.Create();
   Font.Name := Preferences.GridFontName;
@@ -5246,11 +5238,6 @@ begin
   Content := Content + #9#9 + '.TableHeader {border-color: #000000; text-decoration: bold; background-color: #e0e0e0;}' + #13#10;
   Content := Content + #9#9 + '.StructureHeader {padding-left: 5px; text-align: left; border-color: #000000; text-decoration: bold;}' + #13#10;
   Content := Content + #9#9 + '.Structure {text-align: left; border-color: #aaaaaa;}' + #13#10;
-  Content := Content + #9#9 + '.odd {}' + #13#10;
-  if (RowBackground) then
-    Content := Content + #9#9 + '.even {background-color: #f0f0f0;}' + #13#10
-  else
-    Content := Content + #9#9 + '.even {}' + #13#10;
   Content := Content + #9#9 + '.DataHeader {padding-left: 5px; text-align: left; border-color: #000000; background-color: #e0e0e0;}' + #13#10;
   Content := Content + #9#9 + '.Null {color: #999999;}' + #13#10;
   Content := Content + #9#9 + '.PrimaryKey {font-weight: bold;}' + #13#10;
@@ -5490,8 +5477,6 @@ begin
       if (Fields[I].Alignment = taRightJustify) then
         FieldOpenTags[I] := FieldOpenTags[I] + ' RightAlign';
       FieldOpenTags[I] := Trim(FieldOpenTags[I]);
-
-      RowOdd := True;
     end;
   end;
 
@@ -5505,11 +5490,7 @@ var
   Len: Integer;
   LenEscaped: Integer;
 begin
-  if (RowOdd) then
-    Values.Write(#9 + '<tr class="Data odd">')
-  else
-    Values.Write(#9 + '<tr class="Data even">');
-  RowOdd := not RowOdd;
+  Values.Write(#9 + '<tr class="Data">');
 
   for I := 0 to Length(Fields) - 1 do
   begin
@@ -7806,9 +7787,9 @@ end;
 
 function TTTransfer.DoExecuteSQL(const Session: TSSession; var SQL: string): Boolean;
 begin
-  Result := (Success = daSuccess) and Session.Connection.ExecuteSQL(SQL);
+  Result := Session.Connection.ExecuteSQL(SQL);
   Delete(SQL, 1, Session.Connection.SuccessfullExecutedSQLLength);
-  SQL := SysUtils.Trim(SQL);
+  SQL := Trim(SQL);
 end;
 
 procedure TTTransfer.ExecuteEvent(const Item: TTool.TDBObjectItem);
@@ -8433,11 +8414,11 @@ begin
   FOnSearched := nil;
 end;
 
-function TTSearch.DoExecuteSQL(const Session: TSSession; const Item: TItem; var SQL: string): Boolean;
+function TTSearch.DoExecuteSQL(const Session: TSSession; var SQL: string): Boolean;
 begin
-  Result := (Success = daSuccess) and Session.Connection.ExecuteSQL(SQL);
+  Result := Session.Connection.ExecuteSQL(SQL);
   Delete(SQL, 1, Session.Connection.SuccessfullExecutedSQLLength);
-  SQL := SysUtils.Trim(SQL);
+  SQL := Trim(SQL);
 end;
 
 procedure TTSearch.Execute();
@@ -8609,7 +8590,15 @@ begin
           Buffer := nil
         else
         begin
-          TTReplace(Self).ReplaceSession.Connection.StartTransaction();
+          if (TTReplace(Self).ReplaceSession.Connection.LibraryType <> ltHTTP) then
+          begin
+            if (TTReplace(Self).ReplaceSession.Connection.MySQLVersion < 40011) then
+              SQL := 'BEGIN;' + #13#10
+            else
+              SQL := 'START TRANSACTION;' + #13#10;
+            while ((Success <> daAbort) and not DoExecuteSQL(TTReplace(Self).ReplaceSession, SQL)) do
+              DoError(DatabaseError(TTReplace(Self).ReplaceSession), Item, True, SQL);
+          end;
 
           Buffer := TStringBuffer.Create(SQLPacketSize);
 
@@ -8704,7 +8693,8 @@ begin
               if ((Buffer.Size > 0) and (not Session.Connection.MultiStatements or (Buffer.Size >= SQLPacketSize))) then
               begin
                 SQL := Buffer.Read();
-                DoExecuteSQL(TTReplace(Self).ReplaceSession, Item, SQL);
+                while ((Success <> daAbort) and not DoExecuteSQL(TTReplace(Self).ReplaceSession, SQL)) do
+                  DoError(DatabaseError(TTReplace(Self).ReplaceSession), Item, True, SQL);
                 Buffer.Write(SQL);
               end;
             end;
@@ -8722,19 +8712,23 @@ begin
           if (Buffer.Size > 0) then
           begin
             SQL := Buffer.Read();
-            DoExecuteSQL(TTReplace(Self).ReplaceSession, Item, SQL);
+            while ((Success <> daAbort) and not DoExecuteSQL(TTReplace(Self).ReplaceSession, SQL)) do
+              DoError(DatabaseError(TTReplace(Self).ReplaceSession), Item, True, SQL);
           end;
 
           Buffer.Free();
         end;
 
         if (Self is TTReplace) then
-        begin
-          if (Success = daSuccess) then
-            TTReplace(Self).ReplaceSession.Connection.CommitTransaction()
-          else
-            TTReplace(Self).ReplaceSession.Connection.RollbackTransaction();
-        end;
+          if (TTReplace(Self).ReplaceSession.Connection.LibraryType <> ltHTTP) then
+          begin
+            if (Success = daSuccess) then
+              SQL := 'COMMIT;' + #13#10
+            else
+              SQL := 'ROLLBACK;' + #13#10;
+            while ((Success <> daAbort) and not DoExecuteSQL(TTReplace(Self).ReplaceSession, SQL)) do
+              DoError(DatabaseError(TTReplace(Self).ReplaceSession), Item, True, SQL);
+          end;
 
         if (Assigned(PerlRegEx)) then
           PerlRegEx.Free();
@@ -8825,14 +8819,8 @@ begin
       SQL := SQL + ';' + #13#10;
     end;
 
-    while ((Success <> daAbort) and not DoExecuteSQL(TTReplace(Self).ReplaceSession, Item, SQL)) do
-      if (Session.Connection.ErrorCode = ER_TRUNCATED_WRONG_VALUE) then
-      begin
-        Delete(SQL, 1, Length(Session.Connection.CommandText));
-        Success := daSuccess;
-      end
-      else
-        DoError(DatabaseError(Session), Item, True, SQL);
+    while ((Success <> daAbort) and not DoExecuteSQL(TTReplace(Self).ReplaceSession, SQL)) do
+      DoError(DatabaseError(TTReplace(Self).ReplaceSession), Item, True, SQL);
 
     Item.RecordsDone := Item.RecordsSum;
   end;

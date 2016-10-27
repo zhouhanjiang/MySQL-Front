@@ -1033,11 +1033,9 @@ type
     procedure PushBuildEvents(); virtual;
     function ProcedureByName(const ProcedureName: string): TSProcedure;
     function RenameTable(const Table: TSTable; const NewTableName: string): Boolean; virtual;
-    function RepairTables(const Tables: TList): Boolean; virtual;
     function SQLUse(): string; virtual;
     function TableByName(const TableName: string): TSTable; overload; virtual;
     function TriggerByName(const TriggerName: string): TSTrigger; virtual;
-    function Unlock(): Boolean; virtual;
     function Update(): Boolean; overload; override;
     function Update(const Status: Boolean): Boolean; reintroduce; overload; virtual;
     function UpdateEvent(const Event, NewEvent: TSEvent): Boolean; virtual;
@@ -1412,26 +1410,20 @@ type
 
   TSConnection = class(TMySQLConnection)
   private
-    AutoCommitBeforeTransaction: Boolean;
     FSession: TSSession;
   protected
     FMaxAllowedPacket: Integer;
     procedure DoAfterExecuteSQL(); override;
     procedure DoBeforeExecuteSQL(); override;
-    function GetAutoCommit(): Boolean; override;
     function GetDataFileAllowed(): Boolean; override;
     function GetMaxAllowedPacket(): Integer; override;
     procedure SetAnsiQuotes(const AAnsiQuotes: Boolean); override;
-    procedure SetAutoCommit(const AAutoCommit: Boolean); override;
     procedure SetCharset(const ACharset: string); override;
   public
-    procedure CommitTransaction(); override;
     constructor Create(const ASession: TSSession); reintroduce; virtual;
     procedure Connect(); overload;
     procedure Connect(const AConnectionType: Integer; const ALibraryName: string; const AHost, AUser, APassword, ADatabase: string; const APort: Integer; const AAsynchron: Boolean); overload;
-    procedure RollbackTransaction(); override;
     function SQLUse(const DatabaseName: string): string; override;
-    procedure StartTransaction(); override;
     property Session: TSSession read FSession;
   end;
 
@@ -1536,7 +1528,6 @@ type
     function EscapeUser(const User: string; const IdentifierQuoting: Boolean = False): string;
     function FieldTypeByCaption(const Caption: string): TSFieldType;
     function FieldTypeByMySQLFieldType(const MySQLFieldType: TSField.TFieldType): TSFieldType;
-    function FlushHosts(): Boolean;
     procedure UpdateIndexDefs(const DataSet: TMySQLQuery; const IndexDefs: TIndexDefs);
     procedure Invalidate();
     function PluginByName(const PluginName: string): TSPlugin;
@@ -2496,8 +2487,7 @@ begin
 
   if (not Session.SQLParser.ParseSQL(SQL)) then
   begin
-    if (not (Self is TSRoutine)
-      and (Now() <= Session.ParseEndDate)
+    if ((Now() <= Session.ParseEndDate)
       and (StrIComp(PChar(Name), 'create_synonym_db') <> 0)
       and (StrIComp(PChar(Name), 'diagnostics') <> 0)
       and (StrIComp(PChar(Name), 'execute_prepared_stmt') <> 0)
@@ -2551,23 +2541,7 @@ begin
   inherited;
 
   if (not (Self is TSBaseTable)) then
-    SetReferences(Source)
-  else if ((Now() <= Session.ParseEndDate)
-    and (StrIComp(PChar(Name), 'create_synonym_db') <> 0)
-    and (StrIComp(PChar(Name), 'diagnostics') <> 0)
-    and (StrIComp(PChar(Name), 'execute_prepared_stmt') <> 0)
-    and (StrLIComp(PChar(Name), 'ps_', 3) <> 0)) then
-  begin
-    if (not Session.SQLParser.ParseSQL(Source)
-      and (Now() <= Session.ParseEndDate)) then
-      Session.UnparsableSQL := Session.UnparsableSQL
-        + '# SetSource()' + #13#10
-        + '# Error: ' + Session.SQLParser.ErrorMessage + #13#10
-        + '# Hex: ' + SQLEscapeBin(TMySQLQuery(Field.DataSet).LibRow^[Field.FieldNo - 1], TMySQLQuery(Field.DataSet).LibLengths^[Field.FieldNo - 1], True) + #13#10
-        + '# CodePage: ' + IntToStr(Session.Connection.CodePage) + #13#10
-        + Source + #13#10 + #13#10;
-    Session.SQLParser.Clear();
-  end;
+    SetReferences(Source);
 end;
 
 function TSDBObject.Update(): Boolean;
@@ -5131,12 +5105,22 @@ begin
   try
     inherited SetSource(Field);
   except
-    // Sometimes, the MySQL server sends wrong encoded field comments
+    // Sometimes, the MySQL server sends wrong encoded field comments.
     // This code allow the user to handle this table - but the comments are wrong.
-    SetString(RBS,
-      DataSet.LibRow^[Field.FieldNo - 1],
-      DataSet.LibLengths^[Field.FieldNo - 1]);
+    SetString(RBS, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1]);
     SetSource(string(RBS));
+  end;
+
+  if (Now() <= Session.ParseEndDate) then
+  begin
+    if (not Session.SQLParser.ParseSQL(Source)) then
+      Session.UnparsableSQL := Session.UnparsableSQL
+        + '# SetSource()' + #13#10
+        + '# Error: ' + Session.SQLParser.ErrorMessage + #13#10
+        + '# Hex: ' + SQLEscapeBin(DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], True) + #13#10
+        + '# CodePage: ' + IntToStr(Session.Connection.CodePage) + #13#10
+        + Source + #13#10 + #13#10;
+    Session.SQLParser.Clear();
   end;
 end;
 
@@ -7236,15 +7220,29 @@ begin
   Result := SQL <> '';
   if (Result) then
   begin
+    RepairTableList := TList.Create();
+
     SQL := 'CHECK TABLE ' + SQL + ';' + #13#10;
 
     if (Session.Connection.DatabaseName <> Name) then
       SQL := SQLUse() + SQL;
 
-    RepairTableList := TList.Create();
     Result := Session.Connection.ExecuteSQL(SQL, CheckTableEvent);
+
     if (Result and (RepairTableList.Count > 0)) then
-      Result := RepairTables(RepairTableList);
+    begin
+      SQL := '';
+      for I := 0 to RepairTableList.Count - 1 do
+        if (TObject(RepairTableList[I]) is TSBaseTable) then
+        begin
+          if (SQL <> '') then SQL := SQL + ',';
+          SQL := SQL + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(TSBaseTable(RepairTableList[I]).Name);
+        end;
+      SQL := 'REPAIR TABLE ' + SQL + ';' + #13#10;
+
+      Result := Session.Connection.ExecuteSQL(SQL);
+    end;
+
     RepairTableList.Free();
 
     SQL := Self.Tables.SQLGetStatus(Tables);
@@ -7424,7 +7422,7 @@ begin
   else
     SQL := '';
 
-  Result := (SQL <> '') and Session.Connection.SendSQL(SQL, Session.SessionResult);
+  Result := (SQL = '') or Session.Connection.SendSQL(SQL, Session.SessionResult);
 end;
 
 constructor TSDatabase.Create(const ADatabases: TSDatabases; const AName: string = '');
@@ -7823,28 +7821,6 @@ begin
       Result := Session.Connection.SendSQL(SQL, Session.SessionResult);
     end;
   end;
-end;
-
-function TSDatabase.RepairTables(const Tables: TList): Boolean;
-var
-  I: Integer;
-  SQL: string;
-begin
-  SQL := '';
-  for I := 0 to Tables.Count - 1 do
-    if (TObject(Tables[I]) is TSBaseTable) then
-    begin
-      if (SQL <> '') then SQL := SQL + ',';
-      SQL := SQL + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(TSBaseTable(Tables[I]).Name);
-    end;
-  SQL := 'REPAIR TABLE ' + SQL + ';' + #13#10;
-
-  SQL := SQL + Self.Tables.SQLGetStatus(Tables);
-
-  if (Session.Connection.DatabaseName <> Name) then
-    SQL := SQLUse() + SQL;
-
-  Result := Session.Connection.ExecuteSQL(SQL);
 end;
 
 procedure TSDatabase.SetName(const AName: string);
@@ -8395,18 +8371,6 @@ begin
     Result := Triggers[Index];
 end;
 
-function TSDatabase.Unlock(): Boolean;
-var
-  SQL: string;
-begin
-  SQL := 'UNLOCK TABLES;' + #13#10;
-
-  if (Session.Connection.DatabaseName <> Name) then
-    SQL := SQLUse() + SQL;
-
-  Result := Session.Connection.ExecuteSQL(SQL);
-end;
-
 function TSDatabase.Update(): Boolean;
 begin
   Result := Update(False);
@@ -8535,8 +8499,8 @@ begin
 
   // Warum verliert die MySQL Datenbank den Multi Stmt Status ??? (Fixed in 5.0.67 - auch schon vorher?)
   if (not Result
-    and Session.Connection.MultiStatements
     and (Session.Connection.MySQLVersion < 50067)
+    and Session.Connection.MultiStatements
     and Assigned(Session.Connection.Lib.mysql_set_server_option)) then
     Session.Connection.Lib.mysql_set_server_option(Session.Connection.Handle, MYSQL_OPTION_MULTI_STATEMENTS_ON);
 
@@ -8587,18 +8551,19 @@ var
   SQL: string;
   Table: TSBaseTable;
 begin
-  Result := True; SQL := '';
+  SQL := '';
 
   NewTable := TSBaseTable.Create(Tables);
 
   for I := 0 to TableNames.Count - 1 do
-  begin
-    Result := Result and (TableByName(TableNames.Strings[I]) is TSBaseTable);
-    if (Result) then
+    if (TableByName(TableNames.Strings[I]) is TSBaseTable) then
     begin
       Table := BaseTableByName(TableNames.Strings[I]);
 
-      if (Assigned(Table) and ((lstrcmpi(PChar(ACharset), PChar(Table.Charset)) = 0) or (lstrcmpi(PChar(ACollation), PChar(Table.Collation)) <> 0) or (Session.EngineByName(AEngine) <> Table.Engine) or (ARowType <> Table.RowType))) then
+      if ((lstrcmpi(PChar(ACharset), PChar(Table.Charset)) = 0)
+        or (lstrcmpi(PChar(ACollation), PChar(Table.Collation)) <> 0)
+        or (Session.EngineByName(AEngine) <> Table.Engine)
+        or (ARowType <> Table.RowType)) then
       begin
         NewTable.Assign(Table);
         if (ACharset <> '') then
@@ -8624,11 +8589,10 @@ begin
           SQL := SQLUse() + SQL;
       end;
     end;
-  end;
 
   NewTable.Free();
 
-  Result := Result and ((SQL = '') or Session.Connection.ExecuteSQL(SQL));
+  Result := (SQL = '') or Session.Connection.SendSQL(SQL, Session.SessionResult);
 end;
 
 function TSDatabase.UpdateTrigger(const Trigger, NewTrigger: TSTrigger): Boolean;
@@ -8651,7 +8615,7 @@ begin
   Result := Session.Connection.ExecuteSQL(SQL, Session.SessionResult);
 
   // Warum verliert die MySQL Datenbank den Multi Stmt Status ??? (Fixed in 5.0.67 - auch schon vorher?)
-  if (Session.Connection.Connected
+  if (Result
     and (Session.Connection.MySQLVersion < 50067)
     and Session.Connection.MultiStatements
     and Assigned(Session.Connection.Lib.mysql_set_server_option)) then
@@ -10547,12 +10511,6 @@ end;
 
 { TSConnection ****************************************************************}
 
-procedure TSConnection.CommitTransaction();
-begin
-  inherited;
-  AutoCommit := AutoCommitBeforeTransaction;
-end;
-
 constructor TSConnection.Create(const ASession: TSSession);
 begin
   inherited Create(nil);
@@ -10626,14 +10584,6 @@ begin
   Asynchron := AAsynchron;
 end;
 
-function TSConnection.GetAutoCommit(): Boolean;
-begin
-  if (Assigned(Lib.mysql_get_server_status) or not Session.Variables.Valid or not Assigned(Session.VariableByName('autocommit'))) then
-    Result := inherited GetAutoCommit()
-  else
-    Result := Session.VariableByName('autocommit').AsBoolean;
-end;
-
 function TSConnection.GetDataFileAllowed(): Boolean;
 begin
   Result := inherited GetDataFileAllowed() and ((MySQLVersion < 40003) or Session.VariableByName('local_infile').AsBoolean);
@@ -10647,54 +10597,11 @@ begin
     Result := FMaxAllowedPacket;
 end;
 
-procedure TSConnection.RollbackTransaction();
-begin
-  inherited;
-  AutoCommit := AutoCommitBeforeTransaction;
-
-  Session.Invalidate();
-end;
-
 procedure TSConnection.SetAnsiQuotes(const AAnsiQuotes: Boolean);
 begin
   inherited;
 
   Session.SQLParser.AnsiQuotes := AnsiQuotes;
-end;
-
-procedure TSConnection.SetAutoCommit(const AAutoCommit: Boolean);
-var
-  DataSet: TMySQLQuery;
-  Index: Integer;
-  SQL: string;
-begin
-  if (AAutoCommit <> AutoCommit) then
-  begin
-    Index := Session.Variables.IndexByName('autocommit');
-    if (Index >= 0) then
-    begin
-      if (AAutoCommit) then
-        SQL := 'SET AUTOCOMMIT=1'
-      else
-        SQL := 'SET AUTOCOMMIT=0';
-
-      BeginSilent();
-      if (ExecuteSQL(SQL)) then
-      begin
-        DataSet := TMySQLQuery.Create(nil);
-        DataSet.Connection := Self;
-        DataSet.CommandText := 'SELECT @@AUTOCOMMIT';
-        DataSet.Open();
-        if (DataSet.Active and (DataSet.FieldCount = 1)) then
-        begin
-          Session.Variables[Index].Value := DataSet.Fields[0].AsString;
-          inherited SetAutoCommit(Session.Variables[Index].AsBoolean);
-        end;
-        DataSet.Free();
-      end;
-      EndSilent();
-    end;
-  end;
 end;
 
 procedure TSConnection.SetCharset(const ACharset: string);
@@ -10715,15 +10622,6 @@ end;
 function TSConnection.SQLUse(const DatabaseName: string): string;
 begin
   Result := inherited;
-end;
-
-procedure TSConnection.StartTransaction();
-begin
-  AutoCommitBeforeTransaction := AutoCommit;
-
-  AutoCommit := False;
-
-  inherited;
 end;
 
 { TSSession.TEvent ************************************************************}
@@ -11066,7 +10964,7 @@ begin
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.MySQLVersion;
   FUser := nil;
-  ParseEndDate := EncodeDate(2016, 10, 28);
+  ParseEndDate := EncodeDate(2016, 11, 07);
   FSQLParser := nil;
   UnparsableSQL := '';
 
@@ -11557,11 +11455,6 @@ begin
   for I := 0 to FieldTypes.Count - 1 do
     if (FieldTypes[I].MySQLFieldType = MySQLFieldType) then
       Result := FieldTypes[I];
-end;
-
-function TSSession.FlushHosts(): Boolean;
-begin
-  Result := Connection.ExecuteSQL('FLUSH HOSTS;');
 end;
 
 function TSSession.GetCaption(): string;

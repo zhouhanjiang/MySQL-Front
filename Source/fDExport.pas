@@ -50,7 +50,6 @@ type
     FHTMLFile: TRadioButton;
     FHTMLMemoContent: TCheckBox;
     FHTMLNullText: TCheckBox;
-    FHTMLRowBGColor: TCheckBox;
     FHTMLStructure: TCheckBox;
     FL1DatabaseTagFree: TLabel;
     FL1FieldNodeCustom: TLabel;
@@ -76,7 +75,6 @@ type
     FLFieldNode: TLabel;
     FLSourceFields: TLabel;
     FLFilename: TLabel;
-    FLHTMLBGColorEnabled: TLabel;
     FLHTMLNullValues: TLabel;
     FLHTMLViewDatas: TLabel;
     FLHTMLWhat: TLabel;
@@ -589,8 +587,6 @@ begin
   FHTMLNullText.Enabled := FHTMLData.Checked;
   FLHTMLViewDatas.Enabled := FHTMLData.Checked;
   FHTMLMemoContent.Enabled := FHTMLData.Checked;
-  FLHTMLBGColorEnabled.Enabled := FHTMLData.Checked;
-  FHTMLRowBGColor.Enabled := FHTMLData.Checked;
 
   TabSheet.Enabled := FHTMLStructure.Checked or FHTMLData.Checked;
   CheckActivePageChange(TSHTMLOptions.PageIndex);
@@ -708,7 +704,6 @@ begin
   FHTMLData.Checked := Preferences.Export.HTML.Data;
   FHTMLNullText.Checked := Preferences.Export.HTML.NULLText;
   FHTMLMemoContent.Checked := Preferences.Export.HTML.MemoContent;
-  FHTMLRowBGColor.Checked := Preferences.Export.HTML.RowBGColor;
 
   FRootNodeText.Text := Preferences.Export.XML.Root.NodeText;
   case (Preferences.Export.XML.Database.NodeType) of
@@ -811,7 +806,6 @@ begin
             Preferences.Export.HTML.Data := FHTMLData.Checked;
             Preferences.Export.HTML.MemoContent := FHTMLMemoContent.Checked;
             Preferences.Export.HTML.NULLText := FHTMLNullText.Checked;
-            Preferences.Export.HTML.RowBGColor := FHTMLRowBGColor.Checked;
             Preferences.Export.HTML.Structure := FHTMLStructure.Checked;
           end;
         etXMLFile:
@@ -888,7 +882,6 @@ begin
             NewJob.HTML.Data := FHTMLData.Checked;
             NewJob.HTML.MemoContent := FHTMLMemoContent.Checked;
             NewJob.HTML.NULLText := FHTMLNullText.Checked;
-            NewJob.HTML.RowBGColor := FHTMLRowBGColor.Checked;
             NewJob.HTML.Structure := FHTMLStructure.Checked;
           end;
         etXMLFile:
@@ -1097,7 +1090,6 @@ begin
     FHTMLData.Checked := Job.HTML.Data;
     FHTMLNullText.Checked := Job.HTML.NULLText;
     FHTMLMemoContent.Checked := Job.HTML.MemoContent;
-    FHTMLRowBGColor.Checked := Job.HTML.RowBGColor;
 
     FRootNodeText.Text := Job.XML.Root.NodeText;
     case (Job.XML.Database.NodeType) of
@@ -1899,7 +1891,6 @@ begin
         TTExportHTML(Export).Data := FHTMLData.Checked;
         TTExportHTML(Export).TextContent := FHTMLMemoContent.Checked;
         TTExportHTML(Export).NULLText := FHTMLNullText.Checked;
-        TTExportHTML(Export).RowBackground := FHTMLRowBGColor.Checked;
         TTExportHTML(Export).Structure := FHTMLStructure.Checked;
       end;
     etXMLFile:
@@ -2035,7 +2026,6 @@ begin
   FHTMLDataClick(Sender);
 
   FHTMLMemoContent.Visible := not (ExportType in [etPrinter, etPDFFile]); FLHTMLViewDatas.Visible := FHTMLMemoContent.Visible;
-  FHTMLRowBGColor.Visible := not (ExportType in [etPrinter, etPDFFile]); FLHTMLBGColorEnabled.Visible := FHTMLRowBGColor.Visible;
 end;
 
 procedure TDExport.TSJobShow(Sender: TObject);
@@ -2217,8 +2207,6 @@ begin
   FHTMLNullText.Caption := Preferences.LoadStr(499);
   FLHTMLViewDatas.Caption := Preferences.LoadStr(574) + ':';
   FHTMLMemoContent.Caption := Preferences.LoadStr(575);
-  FLHTMLBGColorEnabled.Caption := Preferences.LoadStr(740) + ':';
-  FHTMLRowBGColor.Caption := Preferences.LoadStr(600);
 
   GFields.Caption := Preferences.LoadStr(253);
   FLSourceFields.Caption := Preferences.LoadStr(401) + ':';

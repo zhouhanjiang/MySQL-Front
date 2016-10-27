@@ -224,8 +224,8 @@ begin
     end;
 
 // UpdateRoutine uses ExecuteSQL (not SendSQL). Because of this,
-// FormSessionEvent will be called inside UpdateRoutine - and this code is
-// hided the PageControl permanentely
+// FormSessionEvent will be called inside UpdateRoutine - and this code
+// whould hide PageControl permanentely
 //    if (not CanClose) then
 //    begin
 //      PageControl.Visible := CanClose;

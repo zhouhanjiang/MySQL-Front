@@ -183,7 +183,6 @@ type
     function get_client_version(): my_uint; virtual;
     function get_host_info(): my_char; virtual;
     function get_server_info(): my_char; virtual;
-    function get_server_status(): my_uint; virtual;
     function get_server_version(): my_int; virtual;
     function info(): my_char; virtual;
     function insert_id(): my_ulonglong; virtual;
@@ -238,7 +237,6 @@ function mysql_get_client_version: my_uint; stdcall;
 function mysql_get_host_info(mysql: MYSQL): my_char; stdcall;
 function mysql_get_proto_info(mysql: MYSQL): my_uint; stdcall;
 function mysql_get_server_info(mysql: MYSQL): my_char; stdcall;
-function mysql_get_server_status(mysql: MYSQL): my_uint; stdcall;
 function mysql_get_server_version(mysql: MYSQL): my_uint; stdcall;
 function mysql_info(mysql: MYSQL): my_char; stdcall;
 function mysql_init(mysql: MYSQL): MYSQL; stdcall;
@@ -703,11 +701,6 @@ end;
 function mysql_get_server_info(mysql: MYSQL): my_char; stdcall;
 begin
   Result := mysql.get_server_info();
-end;
-
-function mysql_get_server_status(mysql: MYSQL): my_uint; stdcall;
-begin
-  Result := mysql.get_server_status();
 end;
 
 function mysql_get_server_version(mysql: MYSQL): my_uint; stdcall;
@@ -1929,11 +1922,6 @@ end;
 function MYSQL.get_server_info(): my_char;
 begin
   Result := fserver_info;
-end;
-
-function MYSQL.get_server_status(): my_uint;
-begin
-  Result := fserver_status;
 end;
 
 function MYSQL.get_server_version(): my_int;

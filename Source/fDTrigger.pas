@@ -208,9 +208,9 @@ begin
 
     NewTrigger.Free();
 
-// UpdateRoutine uses ExecuteSQL (not SendSQL). Because of this,
-// FormSessionEvent will be called inside UpdateRoutine - and this code is
-// hided the PageControl permanentely
+// UpdateTrigger uses ExecuteSQL (not SendSQL). Because of this,
+// FormSessionEvent will be called inside UpdateTrigger - and this code
+// whould hide PageControl permanentely
 //    if (not CanClose) then
 //    begin
 //      PageControl.Visible := CanClose;

@@ -166,7 +166,6 @@ begin
           TTExportHTML(Export).Data := Job.HTML.Data;
           TTExportHTML(Export).TextContent := Job.HTML.MemoContent;
           TTExportHTML(Export).NULLText := Job.HTML.NULLText;
-          TTExportHTML(Export).RowBackground := Job.HTML.RowBGColor;
           TTExportHTML(Export).Structure := Job.HTML.Structure
         end;
       etXMLFile:
