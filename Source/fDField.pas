@@ -105,6 +105,7 @@ type
       Shift: TShiftState);
     procedure FUDClick(Sender: TObject; Button: TUDBtnType);
   private
+    procedure Built();
     function GetDefault(): string;
     function GetDefaultDecimals(): Integer;
     function GetDefaultSize(): Integer;
@@ -176,6 +177,146 @@ begin
     if (Result[I] <> '0') then
       Insert('\', Result, I);
     Dec(I);
+  end;
+end;
+
+procedure TDField.Built();
+var
+  DefaultList: TStringList;
+  I: Integer;
+  S: string;
+begin
+  FPosition.Items.Add(Preferences.LoadStr(95));
+  for I := 0 to Table.Fields.Count - 1 do
+    if (not Assigned(Field) or (Table.Fields[I].Name <> Field.Name)) then
+      FPosition.Items.Add(Preferences.LoadStr(96) + ' "' + Table.Fields[I].Name + '"');
+
+  if (not Assigned(Field)) then
+  begin
+    FPosition.ItemIndex := FPosition.Items.Count - 1;
+
+    FName.Text := Preferences.LoadStr(105);
+    while (Assigned(Table.FieldByName(FName.Text))) do
+    begin
+      S := FName.Text;
+      Delete(S, 1, Length(Preferences.LoadStr(105)));
+      if (S = '') then S := '1';
+      S := Preferences.LoadStr(105) + IntToStr(StrToInt(S) + 1);
+      FName.Text := S;
+    end;
+
+    FKindReal.Checked := True;
+
+    FFieldType.ItemIndex := FFieldType.Items.IndexOf(Table.Session.FieldTypeByMySQLFieldType(mfVarChar).Caption); FFieldTypeChange(nil); FFieldTypeExit(nil);
+    FUDFormatSize.Position := 255; FFormatSizeChange(nil);
+
+    FFormatUnion.Text := '';
+
+    FRDefaultNull.Checked := True;
+    FDefault.Text := ''; FRDefaultClick(nil);
+
+    FCharset.ItemIndex := FCharset.Items.IndexOf(Table.Charset); FCharsetChange(nil);
+    FCollation.ItemIndex := FCollation.Items.IndexOf(Table.Collation);
+
+    FExpression.Text := '1';
+    FStoredStored.Checked := False;
+    FStoredVirtual.Checked := True;
+
+    FComment.Text := '';
+
+    FFlagBinary.Checked := False; FFlagCharClick(nil);
+    FFlagNullAllowed.Checked := True; FFlagNullAllowedClick(nil);
+    FFlagNational.Checked := Table.Session.Connection.MySQLVersion < 40101;
+    FFlagAscii.Checked := False; FFlagCharClick(nil);
+    FFlagUnicode.Checked := False; FFlagCharClick(nil);
+  end
+  else
+  begin
+    if (Assigned(Field.FieldBefore)) then
+      FPosition.ItemIndex := Table.Fields.IndexOf(Field.FieldBefore) + 1
+    else
+      FPosition.ItemIndex := 0;
+
+    FName.Text := Field.Name;
+
+    FKindReal.Checked := Field.FieldKind <> mkVirtual;
+    FKindVirtual.Checked := Field.FieldKind = mkVirtual;
+
+    FFieldType.ItemIndex := FFieldType.Items.IndexOf(Table.Session.FieldTypeByMySQLFieldType(Field.FieldType).Caption); FFieldTypeChange(nil); FFieldTypeExit(nil);
+    if (Field.Size >= 0) then FUDFormatSize.Position := Field.Size; FFormatSizeChange(nil);
+    if (Field.Decimals >= 0) then FUDFormatDecimals.Position := Field.Decimals; FFormatDecimalsChange(nil);
+
+    FFormatUnion.Text := '';
+    for I := 0 to Length(Field.Items) - 1 do
+    begin
+      if (I > 0) then FFormatUnion.Text := FFormatUnion.Text + ',';
+      FFormatUnion.Text := FFormatUnion.Text + Field.Items[I];
+    end;
+    FFormatTimestamp.ItemIndex := 0;
+    for I := 0 to FFormatTimestamp.Items.Count - 1 do
+      if (FUDFormatSize.Position = Length(FFormatTimestamp.Items.Strings[I])) then
+        FFormatTimestamp.ItemIndex := I;
+    FFormatYear.ItemIndex := 0;
+    for I := 0 to FFormatYear.Items.Count - 1 do
+      if (FUDFormatSize.Position = Length(FFormatYear.Items.Strings[I])) then
+        FFormatYear.ItemIndex := I;
+
+    if (Field.Charset <> '') then
+      FCharset.ItemIndex := FCharset.Items.IndexOf(Field.Charset)
+    else if (Table.Charset <> '') then
+      FCharset.ItemIndex := FCharset.Items.IndexOf(Table.Charset)
+    else
+      FCharset.ItemIndex := -1;
+    FCharsetChange(nil);
+    if (Field.Collation <> '') then
+      FCollation.ItemIndex := FCollation.Items.IndexOf(Field.Collation)
+    else if (Table.Collation <> '') then
+      FCollation.ItemIndex := FCollation.Items.IndexOf(Table.Collation)
+    else
+      FCollation.ItemIndex := -1;
+
+    FExpression.Text := Field.Expression;
+    FStoredStored.Checked := Field.Stored <> msVirtual;
+    FStoredVirtual.Checked := Field.Stored = msVirtual;
+
+    FFlagUnsigned.Checked := Field.Unsigned;
+    FFlagZerofill.Checked := Field.Zerofill;
+    FFlagBinary.Checked := Field.Binary; FFlagCharClick(nil);
+    FFlagNullAllowed.Checked := Field.NullAllowed; FFlagNullAllowedClick(nil);
+    FFlagNational.Checked := Field.National;
+    FFlagAscii.Checked := Field.Ascii; FFlagCharClick(nil);
+    FFlagUnicode.Checked := Field.Unicode; FFlagCharClick(nil);
+
+    FDefault.Text := '';
+    if (Field.AutoIncrement) then
+      FRDefaultAutoIncrement.Checked := True
+    else if (GetType() = mfEnum) then
+    begin
+      if (Field.Default = 'NULL') then
+        FDefaultEnum.ItemIndex := 0
+      else
+        FDefaultEnum.ItemIndex := FDefaultEnum.Items.IndexOf(Field.UnescapeValue(Field.Default));
+    end
+    else if (GetType() = mfSet) then
+    begin
+      DefaultList := TStringList.Create();
+      DefaultList.Text := ReplaceStr(Field.UnescapeValue(Field.Default), ',', #13#10);
+      for I := 0 to DefaultList.Count - 1 do
+        FDefaultSet.Selected[FDefaultSet.Items.IndexOf(DefaultList.Strings[I])] := True;
+      FreeAndNil(DefaultList);
+    end
+    else
+    begin
+      FRDefaultNull.Checked := Field.Default = 'NULL';
+      FRDefaultInsertTime.Checked := UpperCase(Field.Default) = 'CURRENT_TIMESTAMP';
+      FUpdateTime.Checked := UpperCase(Field.OnUpdate) = 'CURRENT_TIMESTAMP';
+      FRDefault.Checked := not FRDefaultNull.Checked and not FRDefaultInsertTime.Checked;
+      if (not FRDefaultNull.Checked and not FRDefaultInsertTime.Checked) then
+        FDefault.Text := Field.UnescapeValue(Field.Default);
+    end;
+    FRDefaultClick(nil);
+
+    FComment.Text := SQLUnwrapStmt(Field.Comment, Table.Session.Connection.MySQLVersion);
   end;
 end;
 
@@ -366,9 +507,12 @@ end;
 
 procedure TDField.FFlagCharClick(Sender: TObject);
 begin
-  if ((Sender <> FFlagBinary) and TCheckBox(Sender).Checked) then FFlagBinary.Checked := False;
-  if ((Sender <> FFlagAscii) and TCheckBox(Sender).Checked) then FFlagAscii.Checked := False;
-  if ((Sender <> FFlagUnicode) and TCheckBox(Sender).Checked) then FFlagUnicode.Checked := False;
+  if (Assigned(Sender)) then
+  begin
+    if ((Sender <> FFlagBinary) and TCheckBox(Sender).Checked) then FFlagBinary.Checked := False;
+    if ((Sender <> FFlagAscii) and TCheckBox(Sender).Checked) then FFlagAscii.Checked := False;
+    if ((Sender <> FFlagUnicode) and TCheckBox(Sender).Checked) then FFlagUnicode.Checked := False;
+  end;
 
   FBOkCheckEnabled(Sender);
 end;
@@ -736,7 +880,9 @@ end;
 
 procedure TDField.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = etItemAltered) and (Event.SItem = Table)) then
+  if ((Event.EventType = etItemValid) and (Event.SItem = Table)) then
+    Built()
+  else if ((Event.EventType = etItemAltered) and (Event.SItem = Table)) then
     ModalResult := mrOk;
 
   if (Event.EventType = etAfterExecuteSQL) then
@@ -752,9 +898,7 @@ end;
 
 procedure TDField.FormShow(Sender: TObject);
 var
-  DefaultList: TStringList;
   I: Integer;
-  S: string;
 begin
   Table.Session.RegisterEventProc(FormSessionEvent);
 
@@ -775,157 +919,28 @@ begin
     HelpContext := 1056;
   end;
 
+  FPosition.Items.Clear();
+  FPosition.Enabled := not Assigned(Field) or (Table.Session.Connection.MySQLVersion >= 40001);
+
   FFieldType.Clear();
   for I := 0 to Table.Session.FieldTypes.Count - 1 do
     if (not Assigned(Table.Engine) or Table.Engine.FieldAvailable(Table.Session.FieldTypes[I].MySQLFieldType)) then
       FFieldType.Items.Add(Table.Session.FieldTypes[I].Caption);
 
-  FPosition.Items.Clear();
-  FPosition.Items.Add(Preferences.LoadStr(95));
-  for I := 0 to Table.Fields.Count - 1 do
-    if (not Assigned(Field) or (Table.Fields[I].Name <> Field.Name)) then
-      FPosition.Items.Add(Preferences.LoadStr(96) + ' "' + Table.Fields[I].Name + '"');
-  FPosition.Enabled := not Assigned(Field) or (Table.Session.Connection.MySQLVersion >= 40001);
-
   FCharset.Items.Clear();
   for I := 0 to Table.Session.Charsets.Count - 1 do
     FCharset.Items.Add(Table.Session.Charsets[I].Name);
 
-  if (not Assigned(Field)) then
-    FPosition.ItemIndex := FPosition.Items.Count - 1
-  else if (Assigned(Field.FieldBefore)) then
-    FPosition.ItemIndex := Table.Fields.IndexOf(Field.FieldBefore) + 1
-  else
-    FPosition.ItemIndex := 0;
-
   FKind.Visible := Table.Session.Connection.MySQLVersion >= 50706; FLKind.Visible := FKind.Visible;
-
-  if (not Assigned(Field)) then
-  begin
-    FName.Text := Preferences.LoadStr(105);
-    while (Assigned(Table.FieldByName(FName.Text))) do
-    begin
-      S := FName.Text;
-      Delete(S, 1, Length(Preferences.LoadStr(105)));
-      if (S = '') then S := '1';
-      S := Preferences.LoadStr(105) + IntToStr(StrToInt(S) + 1);
-      FName.Text := S;
-    end;
-
-    FKindReal.Checked := True;
-
-    FFieldType.ItemIndex := FFieldType.Items.IndexOf(Table.Session.FieldTypeByMySQLFieldType(mfVarChar).Caption); FFieldTypeChange(Sender); FFieldTypeExit(Sender);
-    FUDFormatSize.Position := 255; FFormatSizeChange(Sender);
-
-    FFormatUnion.Text := '';
-
-    FRDefaultNull.Checked := True;
-    FDefault.Text := ''; FRDefaultClick(Sender);
-
-    FCharset.ItemIndex := FCharset.Items.IndexOf(Table.Charset); FCharsetChange(Sender);
-    FCollation.ItemIndex := FCollation.Items.IndexOf(Table.Collation);
-
-    FExpression.Text := '1';
-    FStoredStored.Checked := False;
-    FStoredVirtual.Checked := True;
-
-    FComment.Text := '';
-
-    FFlagBinary.Checked := False; FFlagCharClick(Sender);
-    FFlagNullAllowed.Checked := True; FFlagNullAllowedClick(Sender);
-    FFlagNational.Checked := Table.Session.Connection.MySQLVersion < 40101;
-    FFlagAscii.Checked := False; FFlagCharClick(Sender);
-    FFlagUnicode.Checked := False; FFlagCharClick(Sender);
-  end
-  else
-  begin
-    FName.Text := Field.Name;
-
-    FKindReal.Checked := Field.FieldKind <> mkVirtual;
-    FKindVirtual.Checked := Field.FieldKind = mkVirtual;
-
-    FFieldType.ItemIndex := FFieldType.Items.IndexOf(Table.Session.FieldTypeByMySQLFieldType(Field.FieldType).Caption); FFieldTypeChange(Sender); FFieldTypeExit(Sender);
-    if (Field.Size >= 0) then FUDFormatSize.Position := Field.Size; FFormatSizeChange(Sender);
-    if (Field.Decimals >= 0) then FUDFormatDecimals.Position := Field.Decimals; FFormatDecimalsChange(Sender);
-
-    FFormatUnion.Text := '';
-    for I := 0 to Length(Field.Items) - 1 do
-    begin
-      if (I > 0) then FFormatUnion.Text := FFormatUnion.Text + ',';
-      FFormatUnion.Text := FFormatUnion.Text + Field.Items[I];
-    end;
-    FFormatTimestamp.ItemIndex := 0;
-    for I := 0 to FFormatTimestamp.Items.Count - 1 do
-      if (FUDFormatSize.Position = Length(FFormatTimestamp.Items.Strings[I])) then
-        FFormatTimestamp.ItemIndex := I;
-    FFormatYear.ItemIndex := 0;
-    for I := 0 to FFormatYear.Items.Count - 1 do
-      if (FUDFormatSize.Position = Length(FFormatYear.Items.Strings[I])) then
-        FFormatYear.ItemIndex := I;
-
-    if (Field.Charset <> '') then
-      FCharset.ItemIndex := FCharset.Items.IndexOf(Field.Charset)
-    else if (Table.Charset <> '') then
-      FCharset.ItemIndex := FCharset.Items.IndexOf(Table.Charset)
-    else
-      FCharset.ItemIndex := -1;
-    FCharsetChange(Sender);
-    if (Field.Collation <> '') then
-      FCollation.ItemIndex := FCollation.Items.IndexOf(Field.Collation)
-    else if (Table.Collation <> '') then
-      FCollation.ItemIndex := FCollation.Items.IndexOf(Table.Collation)
-    else
-      FCollation.ItemIndex := -1;
-
-    FExpression.Text := Field.Expression;
-    FStoredStored.Checked := Field.Stored <> msVirtual;
-    FStoredVirtual.Checked := Field.Stored = msVirtual;
-
-    FFlagUnsigned.Checked := Field.Unsigned;
-    FFlagZerofill.Checked := Field.Zerofill;
-    FFlagBinary.Checked := Field.Binary; FFlagCharClick(Sender);
-    FFlagNullAllowed.Checked := Field.NullAllowed; FFlagNullAllowedClick(Sender);
-    FFlagNational.Checked := Field.National;
-    FFlagAscii.Checked := Field.Ascii; FFlagCharClick(Sender);
-    FFlagUnicode.Checked := Field.Unicode; FFlagCharClick(Sender);
-
-    FDefault.Text := '';
-    if (Field.AutoIncrement) then
-      FRDefaultAutoIncrement.Checked := True
-    else if (GetType() = mfEnum) then
-    begin
-      if (Field.Default = 'NULL') then
-        FDefaultEnum.ItemIndex := 0
-      else
-        FDefaultEnum.ItemIndex := FDefaultEnum.Items.IndexOf(Field.UnescapeValue(Field.Default));
-    end
-    else if (GetType() = mfSet) then
-    begin
-      DefaultList := TStringList.Create();
-      DefaultList.Text := ReplaceStr(Field.UnescapeValue(Field.Default), ',', #13#10);
-      for I := 0 to DefaultList.Count - 1 do
-        FDefaultSet.Selected[FDefaultSet.Items.IndexOf(DefaultList.Strings[I])] := True;
-      FreeAndNil(DefaultList);
-    end
-    else
-    begin
-      FRDefaultNull.Checked := Field.Default = 'NULL';
-      FRDefaultInsertTime.Checked := UpperCase(Field.Default) = 'CURRENT_TIMESTAMP';
-      FUpdateTime.Checked := UpperCase(Field.OnUpdate) = 'CURRENT_TIMESTAMP';
-      FRDefault.Checked := not FRDefaultNull.Checked and not FRDefaultInsertTime.Checked;
-      if (not FRDefaultNull.Checked and not FRDefaultInsertTime.Checked) then
-        FDefault.Text := Field.UnescapeValue(Field.Default);
-    end;
-    FRDefaultClick(Sender);
-
-    FComment.Text := SQLUnwrapStmt(Field.Comment, Table.Session.Connection.MySQLVersion);
-  end;
 
   FComment.Visible := Table.Session.Connection.MySQLVersion >= 40100; FLComment.Visible := FComment.Visible;
 
   GBasics.Visible := Table.Update();
   GAttributes.Visible := GBasics.Visible;
   PSQLWait.Visible := not GBasics.Visible;
+
+  if (GBasics.Visible) then
+    Built();
 
   FBOk.Enabled := GBasics.Visible and not Assigned(Field);
 

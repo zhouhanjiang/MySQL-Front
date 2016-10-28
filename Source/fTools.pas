@@ -1708,8 +1708,9 @@ begin
   if (Data and (Session.Connection.MySQLVersion >= 40014)) then
   begin
     SQL := 'SET UNIQUE_CHECKS=' + OLD_UNIQUE_CHECKS + ',FOREIGN_KEY_CHECKS=' + OLD_FOREIGN_KEY_CHECKS + ';' + #13#10;
-    while (not Session.Connection.ExecuteSQL(SQL) and (Success = daSuccess)) do
+    while ((Success = daSuccess) and not Session.Connection.ExecuteSQL(SQL)) do
       DoError(DatabaseError(Session), nil, True, SQL);
+    if (Success = daFail) then Success := daSuccess;
   end;
 
   Session.Connection.EndSilent();
@@ -1747,7 +1748,7 @@ begin
       DataSet.Connection := Session.Connection;
       DataSet.CommandText := 'SELECT @@UNIQUE_CHECKS,@@FOREIGN_KEY_CHECKS';
 
-      while ((Success <> daAbort) and not DataSet.Active) do
+      while ((Success = daSuccess) and not DataSet.Active) do
       begin
         DataSet.Open();
         if (Session.Connection.ErrorCode > 0) then
@@ -1762,11 +1763,14 @@ begin
       end;
 
       DataSet.Free();
+
+      if (Success = daFail) then Success := daSuccess;
     end;
 
     SQL := 'SET UNIQUE_CHECKS=OFF,FOREIGN_KEY_CHECKS=OFF;';
-    while ((Success <> daAbort) and not Session.Connection.ExecuteSQL(SQL)) do
+    while ((Success = daSuccess) and not Session.Connection.ExecuteSQL(SQL)) do
       DoError(DatabaseError(Session), nil, True, SQL);
+    if (Success = daFail) then Success := daSuccess;
   end;
 end;
 
@@ -1882,9 +1886,10 @@ begin
         if (Assigned(Table)) then
         begin
           Session.Connection.BeginSynchron();
-          while ((Success <> daAbort) and not Database.DeleteObject(Table)) do
+          while ((Success = daSuccess) and not Database.DeleteObject(Table)) do
             DoError(DatabaseError(Session), Items[I], True);
           Session.Connection.EndSynchron();
+          if (Success = daFail) then Success := daSuccess;
         end;
         if (Success = daSuccess) then
         begin
@@ -1969,8 +1974,11 @@ begin
       end;
     end;
     if (SQL <> '') then
-      while ((Success <> daAbort) and not DoExecuteSQL(SQL)) do
+    begin
+      while ((Success = daSuccess) and not DoExecuteSQL(SQL)) do
         DoError(DatabaseError(Session), Item, True, SQL);
+      if (Success = daFail) then Success := daSuccess;
+    end;
 
     if ((StmtType in [stInsert, stReplace]) and Session.Connection.DataFileAllowed) then
     begin
@@ -2161,13 +2169,13 @@ begin
         MoveMemory(@SQL[1 + Len], SQLStmt.Data, SQLStmt.Size);
         SQLStmt.Clear();
 
-        while ((Success <> daAbort) and (SQL <> '') and not DoExecuteSQL(SQL)) do
+        while ((Success = daSuccess) and (SQL <> '') and not DoExecuteSQL(SQL)) do
           DoError(DatabaseError(Session), Item, True, SQL);
 
         Delete(SQL, 1, Session.Connection.SuccessfullExecutedSQLLength);
       end;
 
-      while ((Success <> daAbort) and (SQL <> '') and not DoExecuteSQL(SQL)) do
+      while ((Success = daSuccess) and (SQL <> '') and not DoExecuteSQL(SQL)) do
         DoError(DatabaseError(Session), Item, True, SQL);
 
       if (WarningCount > 0) then
@@ -2180,6 +2188,7 @@ begin
 
       SQLStmt.Free();
     end;
+    if (Success = daFail) then Success := daSuccess;
 
     if (Session.Connection.Lib.LibraryType <> ltHTTP) then
     begin
@@ -2196,7 +2205,7 @@ begin
         SQL := SQL + 'COMMIT;' + #13#10;
 
       if (not DoExecuteSQL(SQL)) then
-        DoError(DatabaseError(Session), Item, True, SQL);
+        DoError(DatabaseError(Session), Item, False, SQL);
     end;
 
     SQLExecuted.Free();
@@ -2496,8 +2505,8 @@ begin
   else if ((Success = daSuccess) and Assigned(Database) and (Session.Databases.NameCmp(Session.Connection.DatabaseName, Database.Name) <> 0)) then
   begin
     SQL := Database.SQLUse();
-    while ((Success <> daAbort) and not DoExecuteSQL(SQL)) do
-      DoError(DatabaseError(Session), Items[0], True, SQL);
+    if ((Success = daSuccess) and not DoExecuteSQL(SQL)) then
+      DoError(DatabaseError(Session), Items[0], False, SQL);
   end;
 
   Index := 1; Eof := False; SQLFilePos := BOMLength;
@@ -2551,7 +2560,7 @@ begin
       else
       begin
         SQL := Copy(FileContent.Str, 1, Index - 1);
-        while ((Success <> daAbort) and not DoExecuteSQL(SQL)) do
+        while ((Success = daSuccess) and not DoExecuteSQL(SQL)) do
           DoError(DatabaseError(Session), Items[0], True, SQL);
       end;
       Delete(FileContent.Str, 1, Index - 1); Index := 1;
@@ -2583,9 +2592,11 @@ begin
     else
     begin
       SQL := FileContent.Str;
-      while ((SQL <> '') and (Success <> daAbort) and not DoExecuteSQL(SQL)) do
+      while ((Success = daSuccess) and not DoExecuteSQL(SQL)) do
         DoError(DatabaseError(Session), Items[0], True, SQL);
     end;
+
+  if (Success = daFail) then Success := daSuccess;
 
   if (not Assigned(Text)) then
     AfterExecute();
@@ -2689,7 +2700,7 @@ begin
   NewTable.Name := Session.ApplyIdentifierName(Item.DestinationTableName);
 
   Session.Connection.BeginSynchron();
-  while ((Success <> daAbort) and not Database.AddBaseTable(NewTable)) do
+  while ((Success = daSuccess) and not Database.AddBaseTable(NewTable)) do
     DoError(DatabaseError(Session), Item, True);
   Session.Connection.EndSynchron();
 
@@ -2706,6 +2717,8 @@ begin
     for I := 0 to HeadlineNameCount - 1 do
       AddField(NewTable.Fields[I], HeadlineNames[I]);
   end;
+
+  if (Success = daFail) then Success := daSuccess;
 end;
 
 function TTImportText.GetHeadlineNameCount(): Integer;
@@ -3031,7 +3044,7 @@ begin
       end;
     SQL := 'SELECT ' + SQL + ' FROM "' + Item.SourceTableName + '"';
 
-    while ((Success <> daAbort) and not SQL_SUCCEEDED(SQLExecDirect(Stmt, PSQLTCHAR(SQL), SQL_NTS))) do
+    while ((Success = daSuccess) and not SQL_SUCCEEDED(SQLExecDirect(Stmt, PSQLTCHAR(SQL), SQL_NTS))) do
       DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, True);
 
     if (Success = daSuccess) then
@@ -3374,7 +3387,7 @@ begin
     NewTable.Name := Session.ApplyIdentifierName(Item.DestinationTableName);
 
     Session.Connection.BeginSynchron();
-    while ((Success <> daAbort) and not Database.AddBaseTable(NewTable)) do
+    while ((Success = daSuccess) and not Database.AddBaseTable(NewTable)) do
       DoError(DatabaseError(Session), Item, True);
     Session.Connection.EndSynchron();
   end;
@@ -3385,6 +3398,8 @@ begin
   if (Assigned(Table)) then
     for I := 0 to Table.Fields.Count - 1 do
       AddField(Table.Fields[I], SourceFieldNames[I]);
+
+  if (Success = daFail) then Success := daSuccess;
 end;
 
 function TTImportBaseODBC.GetFieldNames(const TableName: string; const FieldNames: TStrings): Boolean;
@@ -3403,7 +3418,7 @@ begin
     if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, DBC, @Stmt))) then
       raise ERangeError.Create(SRangeError)
     else if (not SQL_SUCCEEDED(SQLColumns(Stmt, nil, 0, nil, 0, PSQLTCHAR(TableName), SQL_NTS, nil, 0))) then
-      DoError(ODBCError(SQL_HANDLE_STMT, Stmt), nil, True)
+      DoError(ODBCError(SQL_HANDLE_STMT, Stmt), nil, False)
     else
     begin
       ODBCException(DBC, SQLBindCol(Stmt, 4, SQL_C_WCHAR, @COLUMN_NAME, SizeOf(COLUMN_NAME), @cbCOLUMN_NAME));
@@ -3750,8 +3765,8 @@ begin
     if ((Success = daSuccess) and not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @DBC))) then
       DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False);
 
-    while ((Success <> daAbort) and not SQL_SUCCEEDED(SQLConnect(DBC, PSQLTCHAR(PChar(FDataSource)), SQL_NTS, PSQLTCHAR(PChar(FUsername)), SQL_NTS, PSQLTCHAR(PChar(FPassword)), SQL_NTS))) do
-      DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, True);
+    if ((Success = daSuccess) and not SQL_SUCCEEDED(SQLConnect(DBC, PSQLTCHAR(PChar(FDataSource)), SQL_NTS, PSQLTCHAR(PChar(FUsername)), SQL_NTS, PSQLTCHAR(PChar(FPassword)), SQL_NTS))) then
+      DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False);
   end;
 end;
 
@@ -3785,7 +3800,7 @@ begin
         ConnStrIn := 'Driver={' + DriverAccess + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
       Connected := SQL_SUCCEEDED(SQLDriverConnect(DBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE));
       if (not Connected) then
-        DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, True);
+        DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False);
     end;
   end;
 end;
@@ -3820,7 +3835,7 @@ begin
         ConnStrIn := 'Driver={' + DriverExcel + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
       Connected := SQL_SUCCEEDED(SQLDriverConnect(DBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE));
       if (not Connected) then
-        DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, True);
+        DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False);
     end;
   end;
 end;
@@ -4063,8 +4078,8 @@ begin
             case (DataTablesIndex) of
               -1: ;
               0:
-                while ((Success = daSuccess) and not Session.Connection.FirstResult(DataHandle, SQL)) do
-                  DoError(DatabaseError(Session), nil, True, SQL);
+                if ((Success = daSuccess) and not Session.Connection.FirstResult(DataHandle, SQL)) then
+                  DoError(DatabaseError(Session), nil, False, SQL);
               else
                 if ((Success = daSuccess) and not Session.Connection.NextResult(DataHandle)) then
                   DoError(DatabaseError(Session), nil, False);
@@ -4341,8 +4356,8 @@ procedure TTExportFile.BeforeExecute();
 begin
   inherited;
 
-  while (FileExists(Filename) and not DeleteFile(Filename)) do
-    DoError(SysError(), nil, True);
+  if (FileExists(Filename) and not DeleteFile(Filename)) then
+    DoError(SysError(), nil, False);
 end;
 
 constructor TTExportFile.Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
@@ -4384,8 +4399,8 @@ procedure TTExportFile.DoFileCreate(const Filename: TFileName);
 var
   Error: TTool.TError;
 begin
-  while ((Success <> daAbort) and not FileCreate(Filename, Error)) do
-    DoError(Error, nil, True);
+  if (not FileCreate(Filename, Error)) then
+    DoError(Error, nil, False);
 end;
 
 function TTExportFile.FileCreate(const Filename: TFileName; out Error: TTool.TError): Boolean;
@@ -6097,11 +6112,11 @@ begin
     if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, DBC, @FStmt))) then
       DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False);
 
-    while ((Success <> daAbort) and not SQL_SUCCEEDED(SQLExecDirect(Stmt, PSQLTCHAR(SQL), Length(SQL)))) do
+    if ((Success = daAbort) and not SQL_SUCCEEDED(SQLExecDirect(Stmt, PSQLTCHAR(SQL), Length(SQL)))) then
     begin
       Error := ODBCError(SQL_HANDLE_STMT, Stmt);
       Error.ErrorMessage := Error.ErrorMessage + ' - ' + SQL;
-      DoError(Error, nil, True);
+      DoError(Error, nil, False);
     end;
   end;
 
@@ -6349,7 +6364,7 @@ begin
     begin
       Error := ODBCError(SQL_HANDLE_STMT, Stmt);
       Error.ErrorMessage := Error.ErrorMessage;
-      DoError(Error, nil, True);
+      DoError(Error, nil, False);
     end;
   until ((Success = daAbort) or SQL_SUCCEEDED(ReturnCode) or (ReturnCode = SQL_NEED_DATA));
 
@@ -6401,8 +6416,7 @@ end;
 
 procedure TTExportODBC.ExecuteFooter();
 begin
-  if (not SQL_SUCCEEDED(SQLEndTran(SQL_HANDLE_DBC, DBC, SQL_COMMIT))
-    and (Success = daSuccess)) then
+  if ((Success = daSuccess) and not SQL_SUCCEEDED(SQLEndTran(SQL_HANDLE_DBC, DBC, SQL_COMMIT))) then
     DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False);
 
   inherited;
@@ -6434,8 +6448,8 @@ procedure TTExportAccess.BeforeExecute();
 begin
   inherited;
 
-  while (FileExists(Filename) and not DeleteFile(Filename)) do
-    DoError(SysError(), nil, True);
+  if (FileExists(Filename) and not DeleteFile(Filename)) then
+    DoError(SysError(), nil, False);
 end;
 
 constructor TTExportAccess.Create(const ASession: TSSession; const AFilename: TFileName);
@@ -6519,8 +6533,8 @@ procedure TTExportExcel.BeforeExecute();
 begin
   inherited;
 
-  while (FileExists(Filename) and not DeleteFile(Filename)) do
-    DoError(SysError(), nil, True);
+  if (FileExists(Filename) and not DeleteFile(Filename)) then
+    DoError(SysError(), nil, False);
 end;
 
 constructor TTExportExcel.Create(const ASession: TSSession; const AFilename: TFileName);
@@ -6616,11 +6630,11 @@ begin
   end;
   SQL := SQL + ')';
 
-  while ((Success <> daAbort) and not SQL_SUCCEEDED(SQLExecDirect(Stmt, PSQLTCHAR(SQL), SQL_NTS))) do
+  if ((Success = daSuccess) and not SQL_SUCCEEDED(SQLExecDirect(Stmt, PSQLTCHAR(SQL), SQL_NTS))) then
   begin
     Error := ODBCError(SQL_HANDLE_STMT, Stmt);
     Error.ErrorMessage := Error.ErrorMessage + ' - ' + SQL;
-    DoError(Error, nil, True);
+    DoError(Error, nil, False);
   end;
 
   if (Success = daSuccess) then
@@ -6688,8 +6702,8 @@ begin
         if (Success = daSuccess) then
         begin
           if (J = 0) then
-            while ((Success <> daAbort) and not Session.Connection.FirstResult(DataHandle, SQL)) do
-              DoError(DatabaseError(Session), nil, True, SQL)
+            if ((Success = daAbort) and not Session.Connection.FirstResult(DataHandle, SQL)) then
+              DoError(DatabaseError(Session), nil, False, SQL)
           else
             if ((Success = daSuccess) and not Session.Connection.NextResult(DataHandle)) then
               DoError(DatabaseError(Session), nil, False);
@@ -7622,8 +7636,9 @@ end;
 
 procedure TTExportPDF.AfterExecute();
 begin
-  while ((Success <> daAbort) and not PDF.SaveToFile(Filename)) do
+  while ((Success = daSuccess) and not PDF.SaveToFile(Filename)) do
     DoError(SysError(), nil, True);
+  if (Success = daFail) then Success := daSuccess;
 
   PDF.Free();
 
@@ -7693,9 +7708,12 @@ begin
   if (Data and (DestinationSession.Connection.MySQLVersion >= 40014)) then
   begin
     SQL := 'SET UNIQUE_CHECKS=' + OLD_UNIQUE_CHECKS + ', FOREIGN_KEY_CHECKS=' + OLD_FOREIGN_KEY_CHECKS + ';' + #13#10;
-    while ((Success <> daRetry) and not DestinationSession.Connection.ExecuteSQL(SQL)) do
+    while ((Success = daRetry) and not DestinationSession.Connection.ExecuteSQL(SQL)) do
       DoError(DatabaseError(DestinationSession), nil, True, SQL);
+    if (Success = daFail) then Success := daSuccess;
   end;
+
+  DestinationSession.Connection.EndSilent();
 
   inherited;
 end;
@@ -7712,6 +7730,8 @@ var
   SQL: string;
 begin
   inherited;
+
+  DestinationSession.Connection.BeginSilent();
 
   I := 0; CycleProtection := Items.Count - 1;
   while (I < Items.Count) do
@@ -7755,7 +7775,7 @@ begin
       DataSet.Connection := DestinationSession.Connection;
       DataSet.CommandText := 'SELECT @@UNIQUE_CHECKS, @@FOREIGN_KEY_CHECKS';
 
-      while ((Success <> daAbort) and not DataSet.Active) do
+      while ((Success = daSuccess) and not DataSet.Active) do
       begin
         DataSet.Open();
         if (DestinationSession.Connection.ErrorCode > 0) then
@@ -7773,8 +7793,10 @@ begin
     end;
 
     SQL := 'SET UNIQUE_CHECKS=OFF, FOREIGN_KEY_CHECKS=OFF;';
-    while ((Success <> daAbort) and not DestinationSession.Connection.ExecuteSQL(SQL)) do
+    while ((Success = daSuccess) and not DestinationSession.Connection.ExecuteSQL(SQL)) do
       DoError(DatabaseError(DestinationSession), nil, True, SQL);
+
+    if (Success = daFail) then Success := daSuccess;
   end;
 end;
 
@@ -7806,7 +7828,7 @@ begin
   if (Assigned(DestinationEvent)) then
   begin
     DestinationSession.Connection.BeginSynchron();
-    while ((Success <> daAbort) and not DestinationDatabase.DeleteObject(DestinationEvent)) do
+    while ((Success = daSuccess) and not DestinationDatabase.DeleteObject(DestinationEvent)) do
       DoError(DatabaseError(DestinationSession), Item, True);
     DestinationSession.Connection.EndSynchron();
   end;
@@ -7816,11 +7838,13 @@ begin
   NewDestinationEvent.Assign(SourceEvent);
 
   DestinationSession.Connection.BeginSynchron();
-  while ((Success <> daAbort) and not DestinationDatabase.AddEvent(NewDestinationEvent)) do
+  while ((Success = daSuccess) and not DestinationDatabase.AddEvent(NewDestinationEvent)) do
     DoError(DatabaseError(DestinationSession), Item, True);
   DestinationSession.Connection.EndSynchron();
 
   NewDestinationEvent.Free();
+
+  if (Success = daFail) then Success := daSuccess;
 end;
 
 procedure TTTransfer.ExecuteRoutine(const Item: TTool.TDBObjectItem);
@@ -7840,7 +7864,7 @@ begin
   if (Assigned(DestinationRoutine)) then
   begin
     DestinationSession.Connection.BeginSynchron();
-    while ((Success <> daAbort) and not DestinationDatabase.DeleteObject(DestinationRoutine)) do
+    while ((Success = daSuccess) and not DestinationDatabase.DeleteObject(DestinationRoutine)) do
       DoError(DatabaseError(DestinationSession), Item, True);
     DestinationSession.Connection.EndSynchron();
   end;
@@ -7853,11 +7877,13 @@ begin
   NewDestinationRoutine.Assign(SourceRoutine);
 
   DestinationSession.Connection.BeginSynchron();
-  while ((Success <> daAbort) and not DestinationDatabase.AddRoutine(NewDestinationRoutine)) do
+  while ((Success = daSuccess) and not DestinationDatabase.AddRoutine(NewDestinationRoutine)) do
     DoError(DatabaseError(DestinationSession), Item, True);
   DestinationSession.Connection.EndSynchron();
 
   NewDestinationRoutine.Free();
+
+  if (Success = daFail) then Success := daSuccess;
 end;
 
 procedure TTTransfer.ExecuteTable(const Item: TTool.TDBObjectItem; const DataHandle: TMySQLConnection.TDataResult);
@@ -7874,7 +7900,7 @@ begin
   if (Session = DestinationSession) then
   begin
     DestinationSession.Connection.BeginSynchron();
-    while ((Success <> daAbort) and not DestinationDatabase.CloneTable(TSTable(Item.DBObject), Item.DBObject.Name, Data)) do
+    while ((Success = daSuccess) and not DestinationDatabase.CloneTable(TSTable(Item.DBObject), Item.DBObject.Name, Data)) do
       DoError(DatabaseError(Session), Item, True);
     DestinationSession.Connection.EndSynchron();
 
@@ -7890,7 +7916,7 @@ begin
     begin
       DestinationDatabase := TSDatabase.Create(DestinationSession.Databases, TItem(Item).DestinationDatabaseName);
       DestinationSession.Connection.BeginSynchron();
-      while ((Success <> daAbort) and not DestinationSession.AddDatabase(DestinationDatabase)) do
+      while ((Success = daSuccess) and not DestinationSession.AddDatabase(DestinationDatabase)) do
         DoError(DatabaseError(DestinationSession), Item, True);
       DestinationSession.Connection.EndSynchron();
       DestinationDatabase.Free();
@@ -7906,7 +7932,7 @@ begin
       if (Structure and Data and not Assigned(DestinationTable) and (Session = DestinationSession)) then
       begin
         DestinationSession.Connection.BeginSynchron();
-        while ((Success <> daAbort) and not DestinationDatabase.CloneTable(SourceTable, SourceTable.Name, True)) do
+        while ((Success = daSuccess) and not DestinationDatabase.CloneTable(SourceTable, SourceTable.Name, True)) do
           DoError(DatabaseError(DestinationSession), Item, True);
         DestinationSession.Connection.EndSynchron();
 
@@ -7947,7 +7973,7 @@ begin
         NewTrigger := TSTrigger.Create(DestinationDatabase.Tables);
         NewTrigger.Assign(SourceDatabase.Triggers[I]);
         DestinationSession.Connection.BeginSynchron();
-        while ((Success <> daAbort) and not DestinationDatabase.AddTrigger(NewTrigger)) do
+        while ((Success = daSuccess) and not DestinationDatabase.AddTrigger(NewTrigger)) do
           DoError(DatabaseError(DestinationSession), Item, True);
         DestinationSession.Connection.EndSynchron();
         NewTrigger.Free();
@@ -7955,6 +7981,8 @@ begin
 
   Item.Done := Success = daSuccess;
   DoUpdateGUI();
+
+  if (Success = daFail) then Success := daSuccess;
 end;
 
 procedure TTTransfer.ExecuteTableData(const Item: TItem; const DataHandle: TMySQLConnection.TDataResult);
@@ -8252,7 +8280,7 @@ begin
         if (DestinationSession.Connection.Lib.LibraryType <> ltHTTP) then
           SQL := SQL + 'COMMIT;' + #13#10;
 
-        while ((Success <> daAbort) and not DoExecuteSQL(DestinationSession, SQL)) do
+        while ((Success = daSuccess) and not DoExecuteSQL(DestinationSession, SQL)) do
           DoError(DatabaseError(DestinationSession), Item, True, SQL);
 
         if (Assigned(ValueBuffer.Mem)) then
@@ -8300,7 +8328,7 @@ begin
   if (Assigned(DestinationTable)) then
   begin
     DestinationSession.Connection.BeginSynchron();
-    while ((Success <> daAbort) and not DestinationDatabase.DeleteObject(DestinationTable)) do
+    while ((Success = daSuccess) and not DestinationDatabase.DeleteObject(DestinationTable)) do
       DoError(DatabaseError(DestinationSession), Item, True);
     DestinationSession.Connection.EndSynchron();
   end;
@@ -8321,7 +8349,7 @@ begin
     NewDestinationBaseTable.AutoIncrement := 0;
 
     DestinationSession.Connection.BeginSynchron();
-    while ((Success <> daAbort) and not DestinationDatabase.AddBaseTable(NewDestinationBaseTable)) do
+    while ((Success = daSuccess) and not DestinationDatabase.AddBaseTable(NewDestinationBaseTable)) do
       DoError(DatabaseError(DestinationSession), Item, True);
     DestinationSession.Connection.EndSynchron();
 
@@ -8334,7 +8362,7 @@ begin
     NewDestinationView.Name := DestinationSession.ApplyIdentifierName(NewDestinationView.Name);
 
     DestinationSession.Connection.BeginSynchron();
-    while ((Success <> daAbort) and not DestinationDatabase.AddView(NewDestinationView)) do
+    while ((Success = daSuccess) and not DestinationDatabase.AddView(NewDestinationView)) do
       DoError(DatabaseError(DestinationSession), Item, True);
     DestinationSession.Connection.EndSynchron();
 

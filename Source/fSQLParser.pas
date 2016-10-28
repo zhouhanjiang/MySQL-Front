@@ -556,6 +556,7 @@ type
 
         otInterval,               // "INTERVAL"
 
+        otBinary,                 // "BINARY"
         otCollate,                // "COLLATE"
         otDistinct,               // "DISTINCT"
 
@@ -1058,6 +1059,7 @@ type
 
         'otInterval',
 
+        'otBinary',
         'otCollate',
         'otDistinct',
 
@@ -1139,6 +1141,7 @@ type
 
         2,   // otInterval
 
+        3,   // otBinary
         3,   // otCollate
         3,   // otDistinct
 
@@ -4328,7 +4331,7 @@ type
         TNodes = packed record
           AtValue: TOffset;
           EveryTag: TOffset;
-          QuantityInt: TOffset;
+          QuantityExpr: TOffset;
           UnitTag: TOffset;
           StartsValue: TOffset;
           EndsValue: TOffset;
@@ -13347,7 +13350,7 @@ begin
   else
   begin
     FormatNode(Nodes.EveryTag);
-    FormatNode(Nodes.QuantityInt, stSpaceBefore);
+    FormatNode(Nodes.QuantityExpr, stSpaceBefore);
     FormatNode(Nodes.UnitTag, stSpaceBefore);
 
     if (Nodes.StartsValue > 0) then
@@ -18721,6 +18724,12 @@ begin
           Nodes.Add(ParseList(True, ParseExpr))
         else
           Nodes.Add(ParseSubArea(ParseExpr))
+      else if (TokenPtr(CurrentToken)^.KeywordIndex = kiBINARY) then
+        // BINARY is operator and function, so we have to handle it separately
+        if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.TokenType = ttOpenBracket)) then
+          Nodes.Add(ParseFunctionCall())
+        else
+          Nodes.Add(ApplyCurrentToken(utOperator))
       else if (TokenPtr(CurrentToken)^.KeywordIndex = kiMOD) then
         // MOD is operator and function, so we have to handle it separately
         if ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1])) then
@@ -18849,6 +18858,7 @@ begin
             otCase,
             otDot:
               SetError(PE_UnexpectedToken, Nodes[NodeIndex]);
+            otBinary,
             otInvertBits,
             otDistinct,
             otUnaryMinus,
@@ -20916,7 +20926,7 @@ begin
     Nodes.EveryTag := ParseTag(kiEVERY);
 
     if (not ErrorFound) then
-      Nodes.QuantityInt := ParseInteger();
+      Nodes.QuantityExpr := ParseExpr();
 
     if (not ErrorFound) then
       Nodes.UnitTag := ParseIntervalUnitTag();
@@ -25554,8 +25564,11 @@ begin
         begin
           Found := True;
 
-          Move(CompletionList[J]^.KeywordIndices[MaxTokenCount], CompletionList[J]^.KeywordIndices[0], (Length(CompletionList[J]^.KeywordIndices) - MaxTokenCount) * SizeOf(CompletionList[J]^.KeywordIndices[0]));
-          Move(EmptyIndices, CompletionList[J]^.KeywordIndices[Length(CompletionList[J]^.KeywordIndices) - MaxTokenCount], MaxTokenCount * SizeOf(CompletionList[J]^.KeywordIndices[0]));
+          if (MaxTokenCount > 0) then
+          begin
+            Move(CompletionList[J]^.KeywordIndices[MaxTokenCount], CompletionList[J]^.KeywordIndices[0], (Length(CompletionList[J]^.KeywordIndices) - MaxTokenCount) * SizeOf(CompletionList[J]^.KeywordIndices[0]));
+            Move(EmptyIndices, CompletionList[J]^.KeywordIndices[Length(CompletionList[J]^.KeywordIndices) - MaxTokenCount], MaxTokenCount * SizeOf(CompletionList[J]^.KeywordIndices[0]));
+          end;
         end;
 
     if (Found) then
@@ -26105,6 +26118,7 @@ begin
     OperatorTypeByKeywordIndex[kiAND]      := otAnd;
     OperatorTypeByKeywordIndex[kiCASE]     := otCase;
     OperatorTypeByKeywordIndex[kiBETWEEN]  := otBetween;
+    OperatorTypeByKeywordIndex[kiBINARY]   := otBinary;
     OperatorTypeByKeywordIndex[kiCOLLATE]  := otCollate;
     OperatorTypeByKeywordIndex[kiDISTINCT] := otDistinct;
     OperatorTypeByKeywordIndex[kiDIV]      := otDiv;

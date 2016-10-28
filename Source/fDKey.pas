@@ -74,6 +74,7 @@ type
     procedure tbUpDownClick(Sender: TObject);
   private
     Lengths: array of Integer;
+    procedure Built();
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
@@ -108,6 +109,77 @@ begin
 end;
 
 { TDIndex *********************************************************************}
+
+procedure TDKey.Built();
+var
+  Found: Boolean;
+  I: Integer;
+  J: Integer;
+begin
+  SetLength(Lengths, Table.Fields.Count);
+  for I := 0 to Length(Lengths) - 1 do
+    if (Table.Fields[I].FieldType in [mfChar, mfVarChar]) then
+      Lengths[I] := Table.Fields[I].Size
+    else if (Table.Fields[I].FieldType in [mfTinyText, mfText, mfMediumText, mfLongText, mfTinyBlob, mfBlob, mfMediumBlob, mfLongBlob]) then
+      Lengths[I] := 10
+    else
+      Lengths[I] := 0;
+
+  if (not Assigned(Key)) then
+  begin
+    FPrimary.Enabled := (Table.Keys.Count = 0) or not Table.Keys[0].PrimaryKey;
+    FPrimary.Checked := FPrimary.Enabled;
+    FOther.Checked := not FPrimary.Checked;
+
+    FName.Text := '';
+    FLength.Text := '';
+    FComment.Text := '';
+
+    FUnique.Checked := False;
+    FFulltext.Checked := False;
+  end
+  else
+  begin
+    FPrimary.Enabled := Key.PrimaryKey or (Table.Keys.Count = 0) or not Table.Keys[0].PrimaryKey;
+    FPrimary.Checked := Key.PrimaryKey;
+    FOther.Checked := not FPrimary.Checked;
+    if (FOther.Checked) then FName.Text := Key.Name else FName.Text := '';
+
+    for I := 0 to Key.Columns.Count - 1 do
+      if (Key.Columns.Column[I].Length > 0) then
+        Lengths[Table.Fields.IndexOf(Key.Columns.Column[I].Field)] := Key.Columns.Column[I].Length
+      else if (Key.Columns.Column[I].Field.FieldType in [mfChar, mfVarChar]) then
+        Lengths[Table.Fields.IndexOf(Key.Columns.Column[I].Field)] := Key.Columns.Column[I].Field.Size;
+
+    for I := 0 to Key.Columns.Count - 1 do
+      FIndexedFields.Items.Add().Caption := Key.Columns.Column[I].Field.Name;
+    FIndexedFields.Selected := FIndexedFields.Items[0];
+
+    FComment.Text := Key.Comment;
+
+    FUnique.Checked := Key.Unique;
+    FFulltext.Checked := Key.Fulltext;
+  end;
+
+  FAvailableFields.Items.Clear();
+  for I := 0 to Table.Fields.Count - 1 do
+  begin
+    Found := False;
+    if (Assigned(Key)) then
+      for J := 0 to Key.Columns.Count - 1 do
+        if ((Key.Columns.Column[J].Field = Table.Fields[I])) then
+          Found := True;
+    if (not Found and ((Table.Fields[I].FieldKind <> mkVirtual) or (Table.Fields[I].Stored = msStored))) then
+      FAvailableFields.Items.Add().Caption := Table.Fields[I].Name;
+  end;
+  if (Assigned(FAvailableFields.Items[0])) then
+    FAvailableFields.Items[0].Selected := True;
+
+  FIndexedFieldsChange(nil, nil, ctState);
+  IndexTypeChange(nil);
+  FIndexedFieldsExit(nil);
+  FAvailableFieldsExit(nil);
+end;
 
 procedure TDKey.CMSysFontChanged(var Message: TMessage);
 
@@ -400,7 +472,9 @@ end;
 
 procedure TDKey.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = etItemAltered) and (Event.SItem = Table)) then
+  if ((Event.EventType = etItemValid) and (Event.SItem = Table)) then
+    Built()
+  else if ((Event.EventType = etItemAltered) and (Event.SItem = Table)) then
     ModalResult := mrOk;
 
   if (Event.EventType = etAfterExecuteSQL) then
@@ -415,10 +489,6 @@ begin
 end;
 
 procedure TDKey.FormShow(Sender: TObject);
-var
-  Found: Boolean;
-  I: Integer;
-  J: Integer;
 begin
   Table.Session.RegisterEventProc(FormSessionEvent);
 
@@ -442,73 +512,12 @@ begin
   FIndexedFields.Items.Clear();
   FComment.Visible := Table.Session.Connection.MySQLVersion >= 50503; FLComment.Visible := FComment.Visible;
 
-  SetLength(Lengths, Table.Fields.Count);
-  for I := 0 to Length(Lengths) - 1 do
-    if (Table.Fields[I].FieldType in [mfChar, mfVarChar]) then
-      Lengths[I] := Table.Fields[I].Size
-    else if (Table.Fields[I].FieldType in [mfTinyText, mfText, mfMediumText, mfLongText, mfTinyBlob, mfBlob, mfMediumBlob, mfLongBlob]) then
-      Lengths[I] := 10
-    else
-      Lengths[I] := 0;
-
-  if (not Assigned(Key)) then
-  begin
-    FPrimary.Enabled := (Table.Keys.Count = 0) or not Table.Keys[0].PrimaryKey;
-    FPrimary.Checked := FPrimary.Enabled;
-    FOther.Checked := not FPrimary.Checked;
-
-    FName.Text := '';
-    FLength.Text := '';
-    FComment.Text := '';
-
-    FUnique.Checked := False;
-    FFulltext.Checked := False;
-  end
-  else
-  begin
-    FPrimary.Enabled := Key.PrimaryKey or (Table.Keys.Count = 0) or not Table.Keys[0].PrimaryKey;
-    FPrimary.Checked := Key.PrimaryKey;
-    FOther.Checked := not FPrimary.Checked;
-    if (FOther.Checked) then FName.Text := Key.Name else FName.Text := '';
-
-    for I := 0 to Key.Columns.Count - 1 do
-      if (Key.Columns.Column[I].Length > 0) then
-        Lengths[Table.Fields.IndexOf(Key.Columns.Column[I].Field)] := Key.Columns.Column[I].Length
-      else if (Key.Columns.Column[I].Field.FieldType in [mfChar, mfVarChar]) then
-        Lengths[Table.Fields.IndexOf(Key.Columns.Column[I].Field)] := Key.Columns.Column[I].Field.Size;
-
-    for I := 0 to Key.Columns.Count - 1 do
-      FIndexedFields.Items.Add().Caption := Key.Columns.Column[I].Field.Name;
-    FIndexedFields.Selected := FIndexedFields.Items[0];
-
-    FComment.Text := Key.Comment;
-
-    FUnique.Checked := Key.Unique;
-    FFulltext.Checked := Key.Fulltext;
-  end;
-
-  FAvailableFields.Items.Clear();
-  for I := 0 to Table.Fields.Count - 1 do
-  begin
-    Found := False;
-    if (Assigned(Key)) then
-      for J := 0 to Key.Columns.Count - 1 do
-        if ((Key.Columns.Column[J].Field = Table.Fields[I])) then
-          Found := True;
-    if (not Found and ((Table.Fields[I].FieldKind <> mkVirtual) or (Table.Fields[I].Stored = msStored))) then
-      FAvailableFields.Items.Add().Caption := Table.Fields[I].Name;
-  end;
-  if (Assigned(FAvailableFields.Items[0])) then
-    FAvailableFields.Items[0].Selected := True;
-
-  FIndexedFieldsChange(Sender, nil, ctState);
-  IndexTypeChange(Sender);
-  FIndexedFieldsExit(Sender);
-  FAvailableFieldsExit(Sender);
-
   GBasics.Visible := Table.Update();
   GAttributes.Visible := GBasics.Visible;
   PSQLWait.Visible := not GBasics.Visible;
+
+  if (GBasics.Visible) then
+    Built();
 
   FBOk.Enabled := False;
 

@@ -5093,8 +5093,8 @@ end;
 procedure TSBaseTable.PushBuildEvent(const SItemsEvents: Boolean = True);
 begin
   if (ValidSource and SItemsEvents) then
-    Session.ExecuteEvent(etItemsValid, Tables);
-  if (ValidSource or ValidStatus) then
+    Session.ExecuteEvent(etItemsValid, Self);
+  if (Valid or ValidSource) then
     Session.ExecuteEvent(etItemValid, Database, Tables, Self);
 end;
 
@@ -6448,12 +6448,10 @@ begin
   if (FSourceEx = '') then
   begin
     SQL := 'CREATE';
-    if (Definer <> '') then
-      SQL := SQL + ' DEFINER=' + Session.EscapeUser(Definer, True);
-    SQL := SQL + ' TRIGGER ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name) + ' ';
+    SQL := SQL + ' TRIGGER ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name) + #13#10;
     case (Timing) of
-      ttBefore: SQL := SQL + 'BEFORE';
-      ttAfter: SQL := SQL + 'AFTER';
+      ttBefore: SQL := SQL + '  BEFORE';
+      ttAfter: SQL := SQL + '  AFTER';
     end;
     SQL := SQL + ' ';
     case (Event) of
@@ -6463,7 +6461,7 @@ begin
     end;
     SQL := SQL + ' ON ';
     SQL := SQL + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(FTableName) + #13#10;
-    SQL := SQL + '  FOR EACH ROW ' + #13#10 + Stmt;
+    SQL := SQL + '  FOR EACH ROW' + #13#10 + Stmt;
     if (RightStr(SQL, 1) <> ';') then SQL := SQL + ';';
     SQL := Trim(SQL) + #13#10;
   end
@@ -11822,6 +11820,7 @@ begin
                         SetString(SQL, Text, Len);
                         TSView(Table).SetSource(SQL);
                       end;
+                      ExecuteEvent(etItemAltered, Database, Database.Tables, Table);
                     end;
                   end;
                 dtDrop:
@@ -11880,11 +11879,8 @@ begin
                       Routine := Database.ProcedureByName(DDLStmt.ObjectName)
                     else
                       Routine := Database.FunctionByName(DDLStmt.ObjectName);
-                    if (Routine.ValidSource) then
-                    begin
-                      Routine.Invalidate();
-                      ExecuteEvent(etItemAltered, Database, Database.Routines, Routine);
-                    end;
+                    Routine.Invalidate();
+                    ExecuteEvent(etItemAltered, Database, Database.Routines, Routine);
                   end;
                 dtDrop:
                   begin
@@ -11953,16 +11949,15 @@ begin
                         ExecuteEvent(etItemDropped, Event.Database, Event.Events, Event);
                       Event.SetDatabase(DatabaseByName(DDLStmt.NewDatabaseName));
                       Event.Name := DDLStmt.NewObjectName;
-                      if (Databases.NameCmp(DDLStmt.NewDatabaseName, Database.Name) <> 0) then
-                        ExecuteEvent(etItemDropped, Event.Database, Event.Events, Event)
-                      else
-                        ExecuteEvent(etItemAltered, Database, Database.Events, Event);
                     end;
-
                     if (Event.Database <> Database) then
                       Event.Database.Invalidate()
                     else
                       Event.Invalidate();
+                    if (Databases.NameCmp(DDLStmt.NewDatabaseName, Database.Name) <> 0) then
+                      ExecuteEvent(etItemDropped, Event.Database, Event.Events, Event)
+                    else
+                      ExecuteEvent(etItemAltered, Database, Database.Events, Event);
                   end;
                 dtDrop:
                   begin

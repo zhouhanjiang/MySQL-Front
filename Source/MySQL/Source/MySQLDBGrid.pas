@@ -692,9 +692,9 @@ begin
   for Index := LeftCol to FHeaderControl.Sections.Count - 1 do
     if ((FHeaderControl.Sections[Index - LeftCol].Left <= X) and (X <= FHeaderControl.Sections[Index - LeftCol].Right)) then
     begin
-      if (Columns[Index].Field.IsIndexField) then
+      if (Columns[Index].Field.IsIndexField and Assigned(TitleBoldFont)) then
         Canvas.Font := TitleBoldFont
-      else
+      else if (Assigned(TitleFont)) then
         Canvas.Font := TitleFont;
       NeededWidth := Canvas.TextWidth(Columns[Index].DisplayName) + FHeaderControl.Height;
       Canvas.Font := Font;

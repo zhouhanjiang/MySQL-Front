@@ -41,7 +41,7 @@ object DExport: TDExport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSHTMLOptions
+    ActivePage = TSExecute
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     Style = tsFlatButtons
@@ -1294,12 +1294,6 @@ object DExport: TDExport
             TabStop = False
             Align = alClient
             BorderStyle = bsNone
-            Font.Charset = ANSI_CHARSET
-            Font.Color = clWindowText
-            Font.Height = -12
-            Font.Name = 'MS Sans Serif'
-            Font.Style = []
-            ParentFont = False
             ReadOnly = True
             ScrollBars = ssBoth
             TabOrder = 0

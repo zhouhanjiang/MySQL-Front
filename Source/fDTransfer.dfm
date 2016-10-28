@@ -48,7 +48,7 @@ object DTransfer: TDTransfer
     Top = 0
     Width = 444
     Height = 289
-    ActivePage = TSSelect
+    ActivePage = TSExecute
     Anchors = [akLeft, akTop, akRight, akBottom]
     Style = tsFlatButtons
     TabOrder = 0
@@ -357,15 +357,9 @@ object DTransfer: TDTransfer
             Align = alClient
             BorderStyle = bsNone
             Ctl3D = True
-            Font.Charset = ANSI_CHARSET
-            Font.Color = clWindowText
-            Font.Height = -11
-            Font.Name = 'MS Sans Serif'
-            Font.Style = []
             Lines.Strings = (
               'FErrorMessages')
             ParentCtl3D = False
-            ParentFont = False
             ReadOnly = True
             ScrollBars = ssBoth
             TabOrder = 0
