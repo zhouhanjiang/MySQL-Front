@@ -6,7 +6,7 @@ uses
   ComCtrls, Forms, Menus, ActnList, Classes, Controls, Windows, ExtCtrls,
   SysUtils, Messages, Dialogs, Graphics,
   MySQLDB,
-  fPreferences, fSession;
+  fPreferences;
 
 const
   iiODBC = 16;
@@ -103,7 +103,8 @@ implementation {***************************************************************}
 
 uses
   ShlObj, ActiveX, CommCtrl, RichEdit,
-  StdActns, DB, StrUtils, StdCtrls, Math, Registry, DBCommon, DBCommonTypes;
+  StdActns, DB, StrUtils, StdCtrls, Math, Registry, DBCommon, DBCommonTypes,
+  fSession;
 
 var
   CBTHook: HHOOK;

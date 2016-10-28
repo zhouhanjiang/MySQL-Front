@@ -4797,7 +4797,7 @@ type
       private type
         TNodes = packed record
           StmtTag: TOffset;
-          CountFunctionCall: TOffset;
+          CountFuncCall: TOffset;
         end;
       private
         Heritage: TStmt;
@@ -4813,7 +4813,7 @@ type
       private type
         TNodes = packed record
           StmtTag: TOffset;
-          CountFunctionCall: TOffset;
+          CountFuncCall: TOffset;
         end;
       private
         Heritage: TStmt;
@@ -18727,7 +18727,10 @@ begin
       else if (TokenPtr(CurrentToken)^.KeywordIndex = kiBINARY) then
         // BINARY is operator and function, so we have to handle it separately
         if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.TokenType = ttOpenBracket)) then
-          Nodes.Add(ParseFunctionCall())
+        begin
+          TokenPtr(CurrentToken)^.FOperatorType := otNone;
+          Nodes.Add(ParseFunctionCall());
+        end
         else
           Nodes.Add(ApplyCurrentToken(utOperator))
       else if (TokenPtr(CurrentToken)^.KeywordIndex = kiMOD) then
@@ -21937,7 +21940,7 @@ begin
     else if (TokenPtr(NextToken[3])^.TokenType <> ttCloseBracket) then
       SetError(PE_UnexpectedToken, NextToken[3])
     else
-      Nodes.CountFunctionCall := ParseFunctionCall();
+      Nodes.CountFuncCall := ParseCountFunc();
 
   Result := TShowCountErrorsStmt.Create(Self, Nodes);
 end;
@@ -21962,7 +21965,7 @@ begin
     else if (TokenPtr(NextToken[3])^.TokenType <> ttCloseBracket) then
       SetError(PE_UnexpectedToken, NextToken[3])
     else
-      Nodes.CountFunctionCall := ParseFunctionCall();
+      Nodes.CountFuncCall := ParseCountFunc();
 
   Result := TShowCountWarningsStmt.Create(Self, Nodes);
 end;

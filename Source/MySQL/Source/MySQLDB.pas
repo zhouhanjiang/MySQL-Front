@@ -317,7 +317,7 @@ type
     procedure SyncExecutingNext(const SyncThread: TSyncThread); virtual;
     procedure SyncHandledResult(const SyncThread: TSyncThread); virtual;
     procedure SyncPing(const SyncThread: TSyncThread); virtual;
-    procedure SyncReceivingResult(SyncThread: TSyncThread); virtual;
+    procedure SyncReceivingResult(const SyncThread: TSyncThread); virtual;
     procedure UnRegisterSQLMonitor(const AMySQLMonitor: TMySQLMonitor); virtual;
     procedure WriteMonitor(const AText: PChar; const Length: Integer; const ATraceType: TMySQLMonitor.TTraceType); virtual;
     property CharsetNr: Byte read FCharsetNr;
@@ -1936,7 +1936,7 @@ begin
     if (not Terminated) then
       if (WaitResult = wrTimeout) then
       begin
-        if (not Assigned(DataSet) and (State = ssReady) and (not Assigned(Connection.Lib.mysql_more_results) or (Connection.Lib.mysql_more_results(LibHandle) = 0))) then
+        if (State = ssReady) then
           Connection.SyncPing(Self);
       end
       else
@@ -1958,14 +1958,9 @@ begin
 
         Connection.TerminateCS.Enter();
         RunExecute.ResetEvent();
-        if (Terminated or (Mode in [smDataHandle]) and (State = ssReceivingResult)) then
-          WaitForSynchronizeStarted := False
-        else
-        begin
-          if ((State <> ssReceivingResult) or (DataSet is TMySQLDataSet)) then
-            MySQLConnectionSynchronizeRequest(Self);
-          WaitForSynchronizeStarted := True;
-        end;
+        WaitForSynchronizeStarted := not Terminated;
+        if (WaitForSynchronizeStarted) then
+          MySQLConnectionSynchronizeRequest(Self);
         Connection.TerminateCS.Leave();
 
         if (WaitForSynchronizeStarted) then
@@ -2057,7 +2052,8 @@ begin
                 end;
               until (State <> ssExecutingFirst);
           end;
-          Connection.SyncAfterExecuteSQL(Self);
+          if (State = ssReady) then
+            Connection.SyncAfterExecuteSQL(Self);
         end;
       ssDisconnecting:
         begin
@@ -2126,13 +2122,13 @@ begin
   if (Assigned(RunExecute) and (RunExecute.WaitFor(IGNORE) <> wrSignaled)) then
   begin
     Connection.TerminatedThreads.Add(Self);
-    inherited Terminate();
+    inherited;
     RunExecute.SetEvent();
   end
   else
   begin
     Connection.TerminatedThreads.Add(Self);
-    inherited Terminate();
+    inherited;
     SynchronizeStarted.SetEvent();
   end;
 end;
@@ -2990,13 +2986,13 @@ end;
 
 procedure TMySQLConnection.SyncAfterExecuteSQL(const SyncThread: TSyncThread);
 begin
+  if (SyncThread.State <> ssReady) then
+    Write;
+
   FExecutionTime := SyncThread.ExecutionTime;
 
   if (FErrorCode = 0) then
     SyncThread.SQL := '';
-
-  if ((FErrorCode = CR_SERVER_HANDSHAKE_ERR)) then
-    SyncDisconnecting(SyncThread);
 
   DoAfterExecuteSQL();
 
@@ -3023,8 +3019,6 @@ var
   ClientFlag: my_uint;
   SQL: string;
 begin
-  Assert(SyncThread.State = ssConnecting);
-
   if (not Assigned(SyncThread.LibHandle)) then
   begin
     if (Assigned(Lib.my_init)) then
@@ -3403,7 +3397,7 @@ begin
       Dec(LibLength);
 
   if (LibLength = 0) then
-    ERangeError.CreateFmt(SPropertyOutOfRange, ['LibLength']);
+    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['LibLength']);
 
   Retry := 0; NeedReconnect := not Assigned(SyncThread.LibHandle);
   repeat
@@ -3547,7 +3541,7 @@ begin
     Lib.mysql_ping(SyncThread.LibHandle);
 end;
 
-procedure TMySQLConnection.SyncReceivingResult(SyncThread: TSyncThread);
+procedure TMySQLConnection.SyncReceivingResult(const SyncThread: TSyncThread);
 var
   DataSet: TMySQLDataSet;
   LibRow: MYSQL_ROW;
@@ -7237,7 +7231,7 @@ initialization
 //  RBS := HexToStr('416E61646F6C75204D65736C656B2050726F6772616DFD');
 //  SetLength(S, Length(RBS));
 //  Len := AnsiCharToWideChar(65001, PAnsiChar(RBS), Length(RBS), PChar(S), Length(S));
-//
+
   MySQLConnectionOnSynchronize := nil;
   SynchronizingThreads := TList.Create();
   SynchronizingThreadsCS := TCriticalSection.Create();
@@ -7250,8 +7244,4 @@ finalization
 
   FreeMySQLLibraries();
 end.
-// SyncDisconnecting in TMySQLConnection.SyncAfterExecuteSQL?
-// TMySQLConnection.Shutdown in SyncThread verlagern?
-// Wo wird "utf8" als Character Set gesetzt? Nicht in SyncConnecting... Dort wird aber auf "utf8mb4" umgeschaltet...
-// DataSet.SyncThread := nil  ... mit in ReleaseDataSet?
-// Was ist ReleaseDataSet? Ein Teil von Syncronize?
+

@@ -512,7 +512,7 @@ begin
   FIndexedFields.Items.Clear();
   FComment.Visible := Table.Session.Connection.MySQLVersion >= 50503; FLComment.Visible := FComment.Visible;
 
-  GBasics.Visible := Table.Update();
+  GBasics.Visible := (Table.Fields.Count > 0) or Table.Update();
   GAttributes.Visible := GBasics.Visible;
   PSQLWait.Visible := not GBasics.Visible;
 

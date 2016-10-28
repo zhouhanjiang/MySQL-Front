@@ -75,7 +75,7 @@ type
     procedure Built();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     function GetName(): string;
-    procedure StatusBuilt();
+    procedure BuiltStatus();
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Session: TSSession;
@@ -314,7 +314,7 @@ begin
       Built()
     else
     begin
-      StatusBuilt();
+      BuiltStatus();
       TSExtrasShow(nil);
     end
   else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is TSDatabase)) then
@@ -423,7 +423,7 @@ begin
   Result := FName.Text;
 end;
 
-procedure TDDatabase.StatusBuilt();
+procedure TDDatabase.BuiltStatus();
 begin
   if (Database.Created = 0) then FCreated.Caption := '???' else FCreated.Caption := SysUtils.DateTimeToStr(Database.Created, LocaleFormatSettings);
   if (Database.Updated = 0) then FUpdated.Caption := '???' else FUpdated.Caption := SysUtils.DateTimeToStr(Database.Updated, LocaleFormatSettings);
@@ -432,7 +432,7 @@ begin
   FDataSize.Caption := SizeToStr(Database.DataSize);
 
   FUnusedSize.Caption := SizeToStr(Database.UnusedSize);
-  FChecked.Caption := SysUtils.DateTimeToStr(Database.Checked, LocaleFormatSettings);
+  if (Database.Checked = 0) then FChecked.Caption := '???' else FChecked.Caption := SysUtils.DateTimeToStr(Database.Checked, LocaleFormatSettings);
 
 
   GDates.Cursor := crDefault;
@@ -453,21 +453,19 @@ end;
 procedure TDDatabase.TSExtrasShow(Sender: TObject);
 begin
   if (not Database.Update(True)) then
-    StatusBuilt()
-  else
   begin
     GOptimize.Cursor := crSQLWait;
     FUnusedSize.Cursor := crSQLWait;
     GCheck.Cursor := crSQLWait;
     FChecked.Cursor := crSQLWait;
-  end;
+  end
+  else
+    BuiltStatus();
 end;
 
 procedure TDDatabase.TSInformationsShow(Sender: TObject);
 begin
   if (not Database.Update(True)) then
-    StatusBuilt()
-  else
   begin
     GDates.Cursor := crSQLWait;
     FLCreated.Cursor := crSQLWait;
@@ -477,7 +475,9 @@ begin
     GSize.Cursor := crSQLWait;
     FIndexSize.Cursor := crSQLWait;
     FDataSize.Cursor := crSQLWait;
-  end;
+  end
+  else
+    BuiltStatus();
 end;
 
 procedure TDDatabase.TSSourceShow(Sender: TObject);

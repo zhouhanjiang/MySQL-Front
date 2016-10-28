@@ -7658,7 +7658,7 @@ var
 begin
   Result := 0;
   for I := 0 to Tables.Count - 1 do
-    if ((Tables[I] is TSBaseTable) and ((Result = 0) or (Result < TSBaseTable(Tables[I]).Updated))) then
+    if ((Tables[I] is TSBaseTable) and ((Result = 0) or (TSBaseTable(Tables[I]).Updated < Result))) then
       Result := TSBaseTable(Tables[I]).Updated;
 end;
 

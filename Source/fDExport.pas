@@ -978,7 +978,10 @@ end;
 procedure TDExport.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if (Event.EventType = etAfterExecuteSQL) then
+  begin
+    FSelect.Cursor := crDefault;
     PostMessage(Handle, UM_POST_AFTEREXECUTESQL, 0, 0);
+  end;
 end;
 
 procedure TDExport.FormShow(Sender: TObject);
@@ -1219,8 +1222,7 @@ var
 begin
   TreeView := TTreeView_Ext(Sender);
 
-  if (Assigned(WantedNodeExpand)) then
-    WantedNodeExpand := nil;
+  WantedNodeExpand := nil;
 
   if (Assigned(Node)) then
     if (Node.HasChildren and not Assigned(Node.getFirstChild())) then
@@ -1229,7 +1231,10 @@ begin
         iiServer:
           begin
             if (not Session.Databases.Update()) then
-              WantedNodeExpand := Node
+            begin
+              WantedNodeExpand := Node;
+              TreeView.Cursor := crSQLWait;
+            end
             else
             begin
               for I := 0 to Session.Databases.Count - 1 do
@@ -1247,7 +1252,10 @@ begin
           begin
             Database := Session.DatabaseByName(Node.Text);
             if (not Database.Tables.Update()) then
-              WantedNodeExpand := Node
+            begin
+              WantedNodeExpand := Node;
+              TreeView.Cursor := crSQLWait;
+            end
             else
             begin
               for I := 0 to Database.Tables.Count - 1 do
@@ -1285,7 +1293,10 @@ begin
             Database := Session.DatabaseByName(Node.Parent.Text);
             Table := Database.BaseTableByName(Node.Text);
             if (not Database.Triggers.Update()) then
-              WantedNodeExpand := Node
+            begin
+              WantedNodeExpand := Node;
+              TreeView.Cursor := crSQLWait;
+            end
             else
             begin
               for I := 0 to Table.TriggerCount - 1 do

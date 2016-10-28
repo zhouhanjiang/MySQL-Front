@@ -215,6 +215,7 @@ begin
   TSSlowSQLLog.TabVisible := Session.SlowLogActive;
   TSStartup.TabVisible := Assigned(Session.VariableByName('init_connect')) and (Session.VariableByName('init_connect').Value <> '');
   TSPlugins.TabVisible := Assigned(Session.Plugins);
+  TSExtras.TabVisible := {$IFDEF Debug} True; {$ELSE} False; {$ENDIF}
 
   PageControl.ActivePage := TSBasics;
 
