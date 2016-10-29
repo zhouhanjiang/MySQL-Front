@@ -48,7 +48,7 @@ object DTransfer: TDTransfer
     Top = 0
     Width = 444
     Height = 289
-    ActivePage = TSExecute
+    ActivePage = TSSelect
     Anchors = [akLeft, akTop, akRight, akBottom]
     Style = tsFlatButtons
     TabOrder = 0
@@ -94,7 +94,6 @@ object DTransfer: TDTransfer
             Indent = 19
             MultiSelect = True
             MultiSelectStyle = [msControlSelect, msShiftSelect, msSiblingOnly]
-            PopupMenu = MSource
             ReadOnly = True
             ShowLines = False
             TabOrder = 0
@@ -102,7 +101,6 @@ object DTransfer: TDTransfer
             OnChanging = FSourceChanging
             OnExpanding = TreeViewExpanding
             OnGetSelectedIndex = TreeViewGetSelectedIndex
-            OnMouseDown = TreeViewMouseDown
           end
         end
       end
@@ -142,7 +140,6 @@ object DTransfer: TDTransfer
             OnChange = TreeViewChange
             OnExpanding = TreeViewExpanding
             OnGetSelectedIndex = TreeViewGetSelectedIndex
-            OnMouseDown = TreeViewMouseDown
           end
         end
       end
@@ -357,9 +354,15 @@ object DTransfer: TDTransfer
             Align = alClient
             BorderStyle = bsNone
             Ctl3D = True
+            Font.Charset = ANSI_CHARSET
+            Font.Color = clWindowText
+            Font.Height = -12
+            Font.Name = 'MS Sans Serif'
+            Font.Style = []
             Lines.Strings = (
               'FErrorMessages')
             ParentCtl3D = False
+            ParentFont = False
             ReadOnly = True
             ScrollBars = ssBoth
             TabOrder = 0
@@ -391,14 +394,5 @@ object DTransfer: TDTransfer
     ModalResult = 2
     TabOrder = 4
     OnClick = FBCancelClick
-  end
-  object MSource: TPopupMenu
-    OnPopup = MSourcePopup
-    Left = 112
-    Top = 296
-    object miSelectAll: TMenuItem
-      Caption = 'miSelectAll'
-      OnClick = miSelectAllClick
-    end
   end
 end

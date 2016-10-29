@@ -41,8 +41,6 @@ type
     GProgress: TGroupBox;
     GSource: TGroupBox_Ext;
     GWhat: TGroupBox;
-    miSelectAll: TMenuItem;
-    MSource: TPopupMenu;
     PageControl: TPageControl;
     PDestination: TPanel_Ext;
     PErrorMessages: TPanel_Ext;
@@ -61,14 +59,10 @@ type
     procedure FormShow(Sender: TObject);
     procedure FStructureClick(Sender: TObject);
     procedure FStructureKeyPress(Sender: TObject; var Key: Char);
-    procedure miSelectAllClick(Sender: TObject);
-    procedure MSourcePopup(Sender: TObject);
     procedure TreeViewChange(Sender: TObject; Node: TTreeNode);
     procedure TreeViewExpanding(Sender: TObject; Node: TTreeNode;
       var AllowExpansion: Boolean);
     procedure TreeViewGetSelectedIndex(Sender: TObject; Node: TTreeNode);
-    procedure TreeViewMouseDown(Sender: TObject; Button: TMouseButton;
-      Shift: TShiftState; X, Y: Integer);
     procedure TSExecuteShow(Sender: TObject);
     procedure TSSelectResize(Sender: TObject);
     procedure TSSelectShow(Sender: TObject);
@@ -76,7 +70,6 @@ type
     procedure FSourceChanging(Sender: TObject; Node: TTreeNode;
       var AllowChange: Boolean);
   private
-    MouseDownNode: TTreeNode;
     ProgressInfos: TTool.TProgressInfos;
     Sessions: array of TSSession;
     Transfer: TTTransfer;
@@ -318,7 +311,7 @@ end;
 procedure TDTransfer.FSourceChanging(Sender: TObject; Node: TTreeNode;
   var AllowChange: Boolean);
 begin
-  AllowChange := Node.ImageIndex <> iiServer;
+  AllowChange := Assigned(Node) and (Node.ImageIndex <> iiServer);
 end;
 
 procedure TDTransfer.FStructureClick(Sender: TObject);
@@ -349,26 +342,6 @@ begin
 
   if (Assigned(Result)) then
     Result.RegisterEventProc(FormSessionEvent);
-end;
-
-procedure TDTransfer.miSelectAllClick(Sender: TObject);
-var
-  I: Integer;
-  Nodes: TList;
-begin
-  Nodes := TList.Create();
-  if (Assigned(MouseDownNode)) then
-    for I := 0 to MouseDownNode.Count - 1 do
-      Nodes.Add(MouseDownNode.Item[I]);
-  FSource.Select(Nodes);
-  Nodes.Free();
-end;
-
-procedure TDTransfer.MSourcePopup(Sender: TObject);
-begin
-  miSelectAll.Enabled := FSource.MultiSelect and Assigned(MouseDownNode) and (MouseDownNode.ImageIndex <> iiBaseTable);
-
-  ShowEnabledItems(MSource.Items);
 end;
 
 procedure TDTransfer.OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
@@ -425,7 +398,8 @@ end;
 
 procedure TDTransfer.OnTerminate(Sender: TObject);
 begin
-  PostMessage(Handle, UM_TERMINATE, WPARAM(not Transfer.Terminated), 0);
+  if (Assigned(Transfer)) then
+    PostMessage(Handle, UM_TERMINATE, WPARAM(not Transfer.Terminated), 0);
 end;
 
 procedure TDTransfer.OnUpdate(const AProgressInfos: TTool.TProgressInfos);
@@ -461,6 +435,9 @@ var
   TreeView: TTreeView_Ext;
 begin
   TreeView := TTreeView_Ext(Sender);
+
+  if (not Assigned(TreeView.Selected)) then
+    TreeView.Selected := Node;
 
   if (Assigned(WantedNodeExpand)) then
   begin
@@ -552,15 +529,6 @@ begin
   Node.SelectedIndex := Node.ImageIndex;
 end;
 
-procedure TDTransfer.TreeViewMouseDown(Sender: TObject;
-  Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
-begin
-  if (Sender is TTreeView_Ext) then
-    MouseDownNode := TTreeView_Ext(Sender).GetNodeAt(X, Y)
-  else
-    MouseDownNode := nil;
-end;
-
 procedure TDTransfer.TSExecuteShow(Sender: TObject);
 var
   Answer: Integer;
@@ -607,6 +575,7 @@ begin
   FProgressBar.Position := 0;
   FErrors.Caption := '0';
   FErrorMessages.Lines.Clear();
+FErrorMessages.Text := 'Hallo';
 
   FBBack.Enabled := False;
   FBForward.Enabled := False;
@@ -803,8 +772,6 @@ procedure TDTransfer.UMChangePreferences(var Message: TMessage);
 begin
   Preferences.Images.GetIcon(iiTransfer, Icon);
 
-  miSelectAll.Caption := Preferences.LoadStr(572);
-
   Caption := Preferences.LoadStr(753);;
 
   GSource.Caption := Preferences.LoadStr(754);
@@ -843,7 +810,6 @@ begin
   FDestination.Items.EndUpdate();
 
   TSWhat.Enabled := False;
-  TSExecute.Enabled := False;
 
   FBBack.Enabled := True;
   FBCancel.Enabled := True;

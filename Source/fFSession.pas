@@ -1670,7 +1670,7 @@ function TFSession.TTableDesktop.GetLimited(): Boolean;
 begin
   Result := True;
   if ((Table is TSBaseTable) and TSBaseTable(Table).ValidStatus) then
-    Result := TSBaseTable(Table).Rows >= Limit
+    Result := TSBaseTable(Table).RecordCount >= Limit
   else if (Assigned(XML) and Assigned(XMLNode(XML, 'limit'))) then
     TryStrToBool(XMLNode(XML, 'limit').Attributes['used'], Result);
 end;
@@ -2576,7 +2576,7 @@ begin
       else if ((ParamToView(URI.Param['view']) <> vObjects) and not Session.Databases.Update()) then
         AllowChange := False
     end
-    else if ((URI.Database <> '') and (not Session.Databases.Valid and not Session.Databases.Update())) then
+    else if ((URI.Database <> '') and not Session.Databases.Update()) then
       AllowChange := False
     else if (URI.Database <> '') then
     begin
@@ -8609,7 +8609,6 @@ begin
                 if (String1 = '') then String1 := '0';
                 if (String2 = '') then String2 := '0';
 
-                String1 := ReplaceStr(String1, '~', '');            String2 := ReplaceStr(String2, '~', '');
                 String1 := ReplaceStr(String1, '???', '0');         String2 := ReplaceStr(String2, '???', '0');
 
                 String1 := ReplaceStr(String1, LocaleFormatSettings.ThousandSeparator, '');
@@ -9216,12 +9215,10 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         Item.SubItems.Add('');
       if ((TSTable(Data) is TSBaseTable) and not TSBaseTable(Data).ValidStatus) then
         Item.SubItems.Add('')
-      else if ((TSTable(Data) is TSBaseTable) and (TSBaseTable(Data).Rows < 0)) then
+      else if ((TSTable(Data) is TSBaseTable) and (TSBaseTable(Data).RecordCount < 0)) then
         Item.SubItems.Add('')
-      else if ((TSTable(Data) is TSBaseTable) and Assigned(TSBaseTable(Data).Engine) and TSBaseTable(Data).Engine.IsInnoDB) then
-        Item.SubItems.Add('~' + FormatFloat('#,##0', TSBaseTable(Data).Rows, LocaleFormatSettings))
       else if ((TSTable(Data) is TSBaseTable)) then
-        Item.SubItems.Add(FormatFloat('#,##0', TSBaseTable(Data).Rows, LocaleFormatSettings))
+        Item.SubItems.Add(FormatFloat('#,##0', TSBaseTable(Data).RecordCount, LocaleFormatSettings))
       else
         Item.SubItems.Add('');
       if ((TSTable(Data) is TSBaseTable) and not TSBaseTable(Data).ValidStatus or (TSTable(Data) is TSView)) then
@@ -9596,7 +9593,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
 
           for I := ListView.Items.Count - 1 downto 0 do
             if ((ListView.Items[I].GroupID = GroupID) and (SItems.IndexOf(ListView.Items[I].Data) < 0)) then
-              begin ListView.Items[I].Data := nil; ListView.Items.Delete(I); end;
+              ListView.Items.Delete(I);
 
           Add := (ListView.Items.Count = 0) and (ListViewSortData[Kind].Index = 0) and (ListViewSortData[Kind].Order = 1);
           for I := 0 to SItems.Count - 1 do
@@ -12592,13 +12589,8 @@ begin
     begin
       if (SelCount > 0) then
         StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(888, IntToStr(SelCount))
-      else if ((View = vBrowser) and (SelectedImageIndex in [iiBaseTable, iiSystemView]) and not Session.Connection.InUse() and TSBaseTable(FNavigator.Selected.Data).ValidData and TSBaseTable(FNavigator.Selected.Data).DataSet.LimitedDataReceived and (TSBaseTable(FNavigator.Selected.Data).Rows >= 0)) then
-      begin
-        if (Assigned(TSBaseTable(FNavigator.Selected.Data).Engine) and TSBaseTable(FNavigator.Selected.Data).Engine.IsInnoDB) then
-          StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(889, FormatFloat('#,##0', Count, LocaleFormatSettings), FormatFloat('#,##0', TSBaseTable(FNavigator.Selected.Data).Rows, LocaleFormatSettings))
-        else
-          StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(889, FormatFloat('#,##0', Count, LocaleFormatSettings), '~' + FormatFloat('#,##0', TSBaseTable(FNavigator.Selected.Data).Rows, LocaleFormatSettings))
-      end
+      else if ((View = vBrowser) and (SelectedImageIndex in [iiBaseTable, iiSystemView]) and not Session.Connection.InUse() and TSBaseTable(FNavigator.Selected.Data).ValidData and TSBaseTable(FNavigator.Selected.Data).DataSet.LimitedDataReceived and (TSBaseTable(FNavigator.Selected.Data).RecordCount >= 0)) then
+        StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(889, FormatFloat('#,##0', Count, LocaleFormatSettings), FormatFloat('#,##0', TSBaseTable(FNavigator.Selected.Data).RecordCount, LocaleFormatSettings))
       else if (Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet)) then
         StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(887, FormatFloat('#,##0', ActiveDBGrid.DataSource.DataSet.RecordCount, LocaleFormatSettings));
     end

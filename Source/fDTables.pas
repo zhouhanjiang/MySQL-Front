@@ -454,7 +454,7 @@ begin
   begin
     RecordCount := 0;
     for I := 0 to Tables.Count - 1 do
-      Inc(RecordCount, TSBaseTable(Tables[I]).CountRecords());
+      Inc(RecordCount, TSBaseTable(Tables[I]).RecordCount);
   end;
   FRecordCount.Caption := FormatFloat('#,##0', RecordCount, LocaleFormatSettings);
 end;

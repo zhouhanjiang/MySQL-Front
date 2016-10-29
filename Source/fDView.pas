@@ -25,11 +25,9 @@ type
     FLCheckOption: TLabel;
     FLDefiner: TLabel;
     FLName: TLabel;
-    FLRecordCount: TLabel;
     FLSecurity: TLabel;
     FLStmt: TLabel;
     FName: TEdit;
-    FRecordCount: TLabel;
     FReferenced: TListView;
     FSecurityDefiner: TRadioButton;
     FSecurityInvoker: TRadioButton;
@@ -37,7 +35,6 @@ type
     FStmt: TSynMemo;
     GBasics: TGroupBox_Ext;
     GDefiner: TGroupBox_Ext;
-    GRecordCount: TGroupBox_Ext;
     msCopy: TMenuItem;
     msCut: TMenuItem;
     msDelete: TMenuItem;
@@ -72,7 +69,6 @@ type
     procedure FSourceStatusChange(Sender: TObject;
       Changes: TSynStatusChanges);
     procedure FStmtChange(Sender: TObject);
-    procedure TSInformationsShow(Sender: TObject);
     procedure FSourceChange(Sender: TObject);
     procedure TSReferencedShow(Sender: TObject);
   private
@@ -557,16 +553,6 @@ begin
   TSSource.TabVisible := False;
 end;
 
-procedure TDView.TSInformationsShow(Sender: TObject);
-begin
-  FRecordCount.Caption := '???';
-
-  if (RecordCount < 0) then
-    RecordCount := View.CountRecords;
-
-  FRecordCount.Caption := FormatFloat('#,##0', RecordCount, LocaleFormatSettings);
-end;
-
 procedure TDView.TSReferencedShow(Sender: TObject);
 var
   List: TList;
@@ -627,8 +613,6 @@ begin
   TSInformations.Caption := Preferences.LoadStr(121);
   GDefiner.Caption := Preferences.LoadStr(561);
   FLDefiner.Caption := Preferences.LoadStr(799) + ':';
-  GRecordCount.Caption := Preferences.LoadStr(170);
-  FLRecordCount.Caption := Preferences.LoadStr(116) + ':';
 
   TSFields.Caption := Preferences.LoadStr(253);
   FFields.Column[0].Caption := Preferences.LoadStr(35);

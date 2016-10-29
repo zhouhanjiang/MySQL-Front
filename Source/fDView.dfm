@@ -41,17 +41,13 @@ object DView: TDView
     Top = 8
     Width = 321
     Height = 325
-    ActivePage = TSReferenced
+    ActivePage = TSInformations
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         279)
@@ -63,7 +59,6 @@ object DView: TDView
         Anchors = [akLeft, akTop, akRight, akBottom]
         Caption = 'GBasics'
         TabOrder = 0
-        ExplicitHeight = 277
         DesignSize = (
           297
           259)
@@ -137,7 +132,6 @@ object DView: TDView
           ScrollHintFormat = shfTopToBottom
           OnChange = FStmtChange
           FontSmoothing = fsmNone
-          ExplicitHeight = 45
         end
         object FCheckOptionCascade: TCheckBox
           Left = 136
@@ -208,11 +202,6 @@ object DView: TDView
     end
     object TSInformations: TTabSheet
       Caption = 'TSInformations'
-      OnShow = TSInformationsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         279)
@@ -244,41 +233,9 @@ object DView: TDView
           Caption = 'FDefiner'
         end
       end
-      object GRecordCount: TGroupBox_Ext
-        Left = 8
-        Top = 64
-        Width = 297
-        Height = 49
-        Anchors = [akLeft, akTop, akRight]
-        Caption = 'GRecordCount'
-        TabOrder = 1
-        DesignSize = (
-          297
-          49)
-        object FLRecordCount: TLabel
-          Left = 8
-          Top = 20
-          Width = 75
-          Height = 13
-          Caption = 'FLRecordCount'
-        end
-        object FRecordCount: TLabel
-          Left = 220
-          Top = 20
-          Width = 69
-          Height = 13
-          Alignment = taRightJustify
-          Anchors = [akTop, akRight]
-          Caption = 'FRecordCount'
-        end
-      end
     end
     object TSFields: TTabSheet
       Caption = 'TSFields'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         279)
@@ -319,7 +276,6 @@ object DView: TDView
         ReadOnly = True
         TabOrder = 0
         ViewStyle = vsReport
-        ExplicitHeight = 273
       end
     end
     object TSReferenced: TTabSheet
@@ -353,10 +309,6 @@ object DView: TDView
     end
     object TSSource: TTabSheet
       Caption = 'TSSource'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         279)
@@ -388,7 +340,6 @@ object DView: TDView
         OnChange = FSourceChange
         OnStatusChange = FSourceStatusChange
         FontSmoothing = fsmNone
-        ExplicitHeight = 273
       end
     end
   end

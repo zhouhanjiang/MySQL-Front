@@ -148,7 +148,7 @@ type
     constructor Create(const AItems: TSItems; const AName: string = ''); reintroduce; virtual;
     destructor Destroy(); override;
     procedure Invalidate(); virtual;
-    function Update(): Boolean; virtual;
+    function Update(): Boolean; overload; virtual;
     property Desktop: TDesktop read GetDesktop;
     property Objects: TSObjects read GetObjects;
     property Source: string read GetSource;
@@ -544,7 +544,6 @@ type
     procedure SetName(const AName: string); override;
   public
     procedure Assign(const Source: TSTable); reintroduce; virtual;
-    function CountRecords(): Integer; virtual;
     constructor Create(const ASDBObjects: TSDBObjects; const AName: string = ''); reintroduce; virtual;
     destructor Destroy(); override;
     function FieldByName(const FieldName: string): TSTableField; virtual;
@@ -629,7 +628,7 @@ type
     FMinRows: Int64;
     FPackKeys: TPackKeys;
     FPartitions: TSPartitions;
-    FRows: Int64;
+    FRecordCount: Int64;
     FRowType: TSTableField.TRowType;
     FTemporary: Boolean;
     FUnusedSize: Int64;
@@ -654,7 +653,6 @@ type
     procedure Assign(const Source: TSTable); override;
     function FieldByName(const FieldName: string): TSBaseTableField; reintroduce; virtual;
     function ForeignKeyByName(const ForeignKeyName: string): TSForeignKey; virtual;
-    function CountRecords(): Integer; override;
     constructor Create(const ASDBObjects: TSDBObjects; const AName: string = ''; const ASystemTable: Boolean = False); reintroduce; virtual;
     destructor Destroy(); override;
     function DBRowTypeStr(): string; virtual;
@@ -668,6 +666,7 @@ type
     procedure InvalidateStatus(); virtual;
     function PartitionByName(const PartitionName: string): TSPartition; virtual;
     procedure PushBuildEvent(const SItemsEvents: Boolean = True); override;
+    function Update(const Status: Boolean): Boolean; reintroduce; overload; virtual;
     property AutoIncrement: LargeInt read FAutoIncrement write FAutoIncrement;
     property AutoIncrementField: TSBaseTableField read GetAutoIncrementField;
     property AvgRowLength: LargeInt read FAvgRowLength;
@@ -692,7 +691,7 @@ type
     property PackKeys: TPackKeys read FPackKeys write FPackKeys;
     property Partitions: TSPartitions read FPartitions;
     property PrimaryKey: TSKey read GetPrimaryKey;
-    property Rows: Int64 read FRows;
+    property RecordCount: Int64 read FRecordCount;
     property RowType: TSTableField.TRowType read FRowType write FRowType;
     property Temporary: Boolean read FTemporary write FTemporary;
     property TriggerCount: Integer read GetTriggerCount;
@@ -1037,7 +1036,7 @@ type
     function TableByName(const TableName: string): TSTable; overload; virtual;
     function TriggerByName(const TriggerName: string): TSTrigger; virtual;
     function Update(): Boolean; overload; override;
-    function Update(const Status: Boolean): Boolean; reintroduce; overload; virtual;
+    function Update(const Status: Boolean): Boolean; overload; virtual;
     function UpdateEvent(const Event, NewEvent: TSEvent): Boolean; virtual;
     function UpdateRoutine(const Routine: TSRoutine; const NewRoutine: TSRoutine): Boolean; overload; virtual;
     function UpdateTable(const Table, NewTable: TSBaseTable): Boolean; virtual;
@@ -1416,7 +1415,7 @@ type
     procedure DoAfterExecuteSQL(); override;
     procedure DoBeforeExecuteSQL(); override;
     function GetDataFileAllowed(): Boolean; override;
-    function GetMaxAllowedPacket(): Integer; override;
+    function GetMaxAllowedServerPacket(): Integer; override;
     procedure SetAnsiQuotes(const AAnsiQuotes: Boolean); override;
     procedure SetCharset(const ACharset: string); override;
   public
@@ -1471,10 +1470,6 @@ type
     FUsers: TSUsers;
     FVariables: TSVariables;
     StmtMonitor: TMySQLMonitor;
-    function BuildEvents(const DataSet: TMySQLQuery): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
-    function BuildRoutines(const DataSet: TMySQLQuery): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
-    function BuildTables(const DataSet: TMySQLQuery): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
-    function BuildTriggers(const DataSet: TMySQLQuery): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
     procedure ConnectChange(Sender: TObject; Connecting: Boolean);
     procedure DoExecuteEvent(const AEvent: TEvent);
     function GetCaption(): string;
@@ -2387,7 +2382,7 @@ begin
 
   if (Session.SQLParser.ParseSQL(FSource)) then
   begin
-    Token := Session.SQLParser.Root^.FirstStmt^.FirstToken;
+    Token := Session.SQLParser.FirstStmt^.FirstToken;
 
     PreviousToken := nil;
     while (Assigned(Token)) do
@@ -2400,7 +2395,10 @@ begin
       end;
 
       PreviousToken := Token;
-      Token := Token^.NextToken;
+      if (Token = Session.SQLParser.FirstStmt^.LastToken) then
+        Token := nil
+      else
+        Token := Token^.NextToken;
     end;
 
     FSource := Session.SQLParser.GetSQL();
@@ -2500,7 +2498,7 @@ begin
   else
   begin
     PreviousToken1 := nil; PreviousToken2 := nil;
-    Token := Session.SQLParser.Root^.FirstTokenAll;
+    Token := Session.SQLParser.FirstTokenAll;
     while (Assigned(Token)) do
     begin
       if (Token^.DbIdentType = ditTable) then
@@ -2530,7 +2528,10 @@ begin
 
       PreviousToken2 := PreviousToken1;
       PreviousToken1 := Token;
-      Token := Token^.NextToken;
+      if (Token = Session.SQLParser.FirstStmt^.LastToken) then
+        Token := nil
+      else
+        Token := Token^.NextToken;
     end;
   end;
   Session.SQLParser.Clear();
@@ -3727,21 +3728,6 @@ begin
   FFields.Assign(Source.Fields);
 end;
 
-function TSTable.CountRecords(): Integer;
-var
-  DataSet: TMySQLQuery;
-begin
-  Result := -1;
-
-  DataSet := TMySQLQuery.Create(nil);
-  DataSet.Connection := Session.Connection;
-  DataSet.CommandText := 'SELECT COUNT(*) FROM '+ Session.Connection.EscapeIdentifier(Database.Name) +'.' + Session.Connection.EscapeIdentifier(Name);
-  DataSet.Open();
-  if (DataSet.Active and not DataSet.IsEmpty()) then
-    Result := DataSet.Fields[0].AsInteger;
-  DataSet.Free();
-end;
-
 constructor TSTable.Create(const ASDBObjects: TSDBObjects; const AName: string = '');
 begin
   inherited Create(ASDBObjects, AName);
@@ -4049,7 +4035,7 @@ begin
   FMaxRows := TSBaseTable(Source).MaxRows;
   FMinRows := TSBaseTable(Source).MinRows;
   FPackKeys := TSBaseTable(Source).PackKeys;
-  FRows := TSBaseTable(Source).Rows;
+  FRecordCount := TSBaseTable(Source).RecordCount;
   FRowType := TSBaseTable(Source).RowType;
   FUnusedSize := TSBaseTable(Source).UnusedSize;
   FUpdated := TSBaseTable(Source).Updated;
@@ -4113,9 +4099,9 @@ begin
       FEngine := Session.EngineByName(DataSet.FieldByName('Engine').AsString);
     FRowType := StrToMySQLRowType(DataSet.FieldByName('Row_format').AsString);
     if (Self is TSSystemView) then
-      FRows := -1
+      FRecordCount := -1
     else
-      if (not TryStrToInt64(DataSet.FieldByName('Rows').AsString, FRows)) then FRows := 0;
+      if (not TryStrToInt64(DataSet.FieldByName('Rows').AsString, FRecordCount)) then FRecordCount := 0;
     FAvgRowLength := DataSet.FieldByName('Avg_row_length').AsLargeInt;
     if (not TryStrToInt64(DataSet.FieldByName('Data_length').AsString, FDataSize)) then FDataSize := 0;
     if (not TryStrToInt64(DataSet.FieldByName('Index_length').AsString, FIndexSize)) then FIndexSize := 0;
@@ -4132,9 +4118,9 @@ begin
     FEngine := Session.EngineByName(DataSet.FieldByName('ENGINE').AsString);
     RowType := StrToMySQLRowType(DataSet.FieldByName('ROW_FORMAT').AsString);
     if (Self is TSSystemView) then
-      FRows := -1
+      FRecordCount := -1
     else
-      if (not TryStrToInt64(DataSet.FieldByName('TABLE_ROWS').AsString, FRows)) then FRows := 0;
+      if (not TryStrToInt64(DataSet.FieldByName('TABLE_ROWS').AsString, FRecordCount)) then FRecordCount := 0;
     FAvgRowLength := DataSet.FieldByName('AVG_ROW_LENGTH').AsInteger;
     if (not TryStrToInt64(DataSet.FieldByName('DATA_LENGTH').AsString, FDataSize)) then FDataSize := 0;
     if (not TryStrToInt64(DataSet.FieldByName('MAX_DATA_LENGTH').AsString, FMaxDataSize)) then FMaxDataSize := 0;
@@ -4174,14 +4160,6 @@ begin
   FValidStatus := True;
 end;
 
-function TSBaseTable.CountRecords(): Integer;
-begin
-  if (Assigned(Engine) and Engine.IsInnoDB) then
-    Result := Rows
-  else
-    Result := inherited CountRecords();
-end;
-
 constructor TSBaseTable.Create(const ASDBObjects: TSDBObjects; const AName: string = ''; const ASystemTable: Boolean = False);
 begin
   inherited Create(ASDBObjects, AName);
@@ -4214,7 +4192,7 @@ begin
   FMergeSourceTables := TSMergeSourceTables.Create();
   FMinRows := -1;
   FPackKeys := piDefault;
-  FRows := -1;
+  FRecordCount := -1;
   FRowType := mrUnknown;
   FUnusedSize := -1;
   FUpdated := -1;
@@ -5142,6 +5120,16 @@ begin
   Result := 'SHOW CREATE TABLE ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10
 end;
 
+function TSBaseTable.Update(const Status: Boolean): Boolean;
+var
+  List: TList;
+begin
+  List := TList.Create();
+  List.Add(Self);
+  Result := Session.Update(List, True);
+  List.Free();
+end;
+
 { TSSystemView ****************************************************************}
 
 { TSViewField *****************************************************************}
@@ -5312,7 +5300,7 @@ begin
     begin
       TableCount := 0; TableName := '';
       PreviousToken := nil;
-      Token := Session.SQLParser.Root^.FirstStmt^.FirstToken;
+      Token := Session.SQLParser.FirstStmt^.FirstToken;
       while (Assigned(Token)) do
       begin
         if (Assigned(PreviousToken) and (PreviousToken^.DbIdentType = ditDatabase) and (Token^.TokenType = ttDot)
@@ -5334,7 +5322,7 @@ begin
         end;
 
         PreviousToken := Token;
-        if (Token = Session.SQLParser.Root^.FirstStmt^.LastToken) then
+        if (Token = Session.SQLParser.FirstStmt^.LastToken) then
           Token := nil
         else
           Token := Token^.NextToken;
@@ -5343,7 +5331,7 @@ begin
       if (TableCount = 1) then
       begin
         PreviousToken := nil;
-        Token := Session.SQLParser.Root^.FirstStmt^.FirstToken;
+        Token := Session.SQLParser.FirstStmt^.FirstToken;
         while (Assigned(Token)) do
         begin
           if (Assigned(PreviousToken) and (PreviousToken^.DbIdentType = ditTable) and (Token^.TokenType = ttDot)
@@ -5354,7 +5342,7 @@ begin
           end;
 
           PreviousToken := Token;
-          if (Token = Session.SQLParser.Root^.FirstStmt^.LastToken) then
+          if (Token = Session.SQLParser.FirstStmt^.LastToken) then
             Token := nil
           else
             Token := Token^.NextToken;
@@ -5744,11 +5732,13 @@ begin
       if (Result <> '') then
         Result := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('TABLES')
           + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name)
-          + ' AND ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ' IN (' + Result + ');' + #13#10;
+          + ' AND ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ' IN (' + Result + ')'
+          + ' AND ' + Session.Connection.EscapeIdentifier('TABLE_TYPE') + ' = ''BASE TABLE'';' + #13#10;
     end
     else
       Result := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('TABLES')
-        + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ' AND ' + Session.Connection.EscapeIdentifier('TABLE_TYPE') + ' = ''BASE TABLE'';' + #13#10;
+        + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name)
+        + ' AND ' + Session.Connection.EscapeIdentifier('TABLE_TYPE') + ' = ''BASE TABLE'';' + #13#10;
   end;
 end;
 
@@ -6559,7 +6549,7 @@ begin
 
     if (Session.SQLParser.ParseSQL(FSourceEx)) then
     begin
-      Token := Session.SQLParser.Root^.FirstStmt^.FirstToken;
+      Token := Session.SQLParser.FirstStmt^.FirstToken;
 
       PreviousToken := nil;
       while (Assigned(Token)) do
@@ -6572,7 +6562,10 @@ begin
         end;
 
         PreviousToken := Token;
-        Token := Token^.NextToken;
+        if (Token = Session.SQLParser.FirstStmt^.LastToken) then
+          Token := nil
+        else
+          Token := Token^.NextToken;
       end;
 
       FSourceEx := Session.SQLParser.GetSQL();
@@ -10587,7 +10580,7 @@ begin
   Result := inherited GetDataFileAllowed() and ((MySQLVersion < 40003) or Session.VariableByName('local_infile').AsBoolean);
 end;
 
-function TSConnection.GetMaxAllowedPacket(): Integer;
+function TSConnection.GetMaxAllowedServerPacket(): Integer;
 begin
   if (FMaxAllowedPacket = 0) then
     Result := inherited
@@ -10701,97 +10694,6 @@ begin
     Result := ReplaceStr(Result, '\', '_');
     Result := ReplaceStr(Result, '.', '_');
   end;
-end;
-
-function TSSession.BuildEvents(const DataSet: TMySQLQuery): Boolean;
-var
-  Database: TSDatabase;
-  I: Integer;
-begin
-  if (not DataSet.IsEmpty()) then
-    repeat
-      Database := DatabaseByName(DataSet.FindField('EVENT_SCHEMA').AsString);
-      if (Assigned(Database)) then
-        Database.Events.Build(DataSet, True, False, False)
-      else
-        DataSet.FindNext();
-    until (DataSet.Eof);
-
-  for I := 0 to Databases.Count - 1 do
-    if (Assigned(Databases[I].Events)) then
-      Databases[I].Events.FValid := True;
-
-  ExecuteEvent(etItemsValid, Self, Databases);
-
-  Result := False;
-end;
-
-function TSSession.BuildRoutines(const DataSet: TMySQLQuery): Boolean;
-var
-  Database: TSDatabase;
-  I: Integer;
-begin
-  if (not DataSet.IsEmpty()) then
-    repeat
-      Database := DatabaseByName(DataSet.FindField('ROUTINE_SCHEMA').AsString);
-      if (Assigned(Database) and Assigned(Database.Routines)) then
-        Database.Routines.Build(DataSet, True, False, False)
-      else
-        DataSet.FindNext();
-    until (DataSet.Eof);
-
-  for I := 0 to Databases.Count - 1 do
-    if (Assigned(Databases[I].Routines)) then
-      Databases[I].Routines.FValid := True;
-
-  ExecuteEvent(etItemsValid, Self, Databases);
-
-  Result := False;
-end;
-
-function TSSession.BuildTables(const DataSet: TMySQLQuery): Boolean;
-var
-  Database: TSDatabase;
-  I: Integer;
-begin
-  if (not DataSet.IsEmpty()) then
-    repeat
-      Database := DatabaseByName(DataSet.FindField('TABLE_SCHEMA').AsString);
-      if (Assigned(Database)) then
-        Database.Tables.Build(DataSet, True, False, False)
-      else
-        DataSet.FindNext();
-    until (DataSet.Eof);
-
-  for I := 0 to Databases.Count - 1 do
-    Databases[I].Tables.FValid := True;
-
-  ExecuteEvent(etItemsValid, Self, Databases);
-
-  Result := False;
-end;
-
-function TSSession.BuildTriggers(const DataSet: TMySQLQuery): Boolean;
-var
-  Database: TSDatabase;
-  I: Integer;
-begin
-  if (not DataSet.IsEmpty()) then
-    repeat
-      Database := DatabaseByName(DataSet.FindField('TRIGGER_SCHEMA').AsString);
-      if (Assigned(Database)) then
-        Database.Triggers.Build(DataSet, True, False, False)
-      else
-        DataSet.FindNext();
-    until (DataSet.Eof);
-
-  for I := 0 to Databases.Count - 1 do
-    if (Assigned(Databases[I].Triggers)) then
-      Databases[I].Triggers.FValid := True;
-
-  ExecuteEvent(etItemsValid, Self, Databases);
-
-  Result := False;
 end;
 
 procedure TSSession.BuildUser(const DataSet: TMySQLQuery);
@@ -12205,6 +12107,8 @@ begin
           + 'Content-Transfer-Encoding: binary' + #10
           + 'MySQL: ' + Self.Connection.ServerVersionStr + #10
           + 'MySQL-Front: ' + Preferences.VersionStr + #10;
+        if (not HttpSendRequest(Request, PChar(Headers), Length(Headers), @Body[1], Length(Body))) then
+          Write;
 
         InternetCloseHandle(Request);
       end;
@@ -12250,8 +12154,6 @@ begin
             DatabaseByName(SQLParseValue(Parse)).Tables.BuildViewFields(DataSet, True)
           else if (TableNameCmp(ObjectName, 'ENGINES') = 0) then
             Result := Engines.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
-          else if ((TableNameCmp(ObjectName, 'EVENTS') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
-            Result := BuildEvents(DataSet)
           else if ((TableNameCmp(ObjectName, 'EVENTS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'EVENT_SCHEMA') = 0) and SQLParseChar(Parse, '=')) then
           begin
             Database := DatabaseByName(SQLParseValue(Parse));
@@ -12274,8 +12176,6 @@ begin
                 Result := Table.ReferencedRequester.BuildBaseTableReferences(DataSet);
             end;
           end
-          else if ((TableNameCmp(ObjectName, 'ROUTINES') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
-            Result := BuildRoutines(DataSet)
           else if ((TableNameCmp(ObjectName, 'ROUTINES') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'ROUTINE_SCHEMA') = 0) and SQLParseChar(Parse, '=')) then
           begin
             Database := DatabaseByName(SQLParseValue(Parse));
@@ -12289,15 +12189,11 @@ begin
             Result := Databases.Build(DataSet, True, False)
           else if ((TableNameCmp(ObjectName, 'SCHEMATA') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'SCHEMA_NAME') = 0)) then
             Result := Databases.Build(DataSet, True, False)
-          else if ((TableNameCmp(ObjectName, 'TABLES') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
-            Result := BuildTables(DataSet)
           else if ((TableNameCmp(ObjectName, 'TABLES') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'TABLE_SCHEMA') = 0) and SQLParseChar(Parse, '=')) then
           begin
             Database := DatabaseByName(SQLParseValue(Parse));
-            Result := Database.Tables.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'));
+            Result := Database.Tables.Build(DataSet, True, SQLParseKeyword(Parse, 'AND') and SQLParseValue(Parse, 'TABLE_NAME'));
           end
-          else if ((TableNameCmp(ObjectName, 'TRIGGERS') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
-            Result := BuildTriggers(DataSet)
           else if ((TableNameCmp(ObjectName, 'TRIGGERS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'EVENT_OBJECT_SCHEMA') = 0) and SQLParseChar(Parse, '=')) then
           begin
             Database := DatabaseByName(SQLParseValue(Parse));

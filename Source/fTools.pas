@@ -4005,7 +4005,7 @@ begin
         if (DataTable) then
         begin
           if (TDBObjectItem(Items[I]).DBObject is TSBaseTable) then
-            TDBObjectItem(Items[I]).RecordsSum := TSBaseTable(TDBObjectItem(Items[I]).DBObject).Rows
+            TDBObjectItem(Items[I]).RecordsSum := TSBaseTable(TDBObjectItem(Items[I]).DBObject).RecordCount
           else
             TDBObjectItem(Items[I]).RecordsSum := -1;
           DataTables.Add(TSBaseTable(TDBObjectItem(Items[I]).DBObject));
@@ -4149,7 +4149,6 @@ end;
 
 procedure TTExport.ExecuteDataDBGrid(const Item: TDBGridItem);
 var
-  Database: TSDatabase;
   DataSet: TMySQLDataSet;
   I: Integer;
   OldBookmark: TBookmark;
@@ -4158,18 +4157,9 @@ var
 begin
   DataSet := TMySQLDataSet(TDBGridItem(Item).DBGrid.DataSource.DataSet);
   if (DataSet is TMySQLTable) then
-  begin
-    Database := Session.DatabaseByName(TMySQLTable(DataSet).DatabaseName);
-    Table := Database.BaseTableByName(TMySQLTable(DataSet).TableName);
-  end
+    Table := Session.DatabaseByName(TMySQLTable(DataSet).DatabaseName).BaseTableByName(TMySQLTable(DataSet).CommandText)
   else
-  begin
-    Database := Session.DatabaseByName(DataSet.DatabaseName);
-    if (not Assigned(Database) or not DataSet.CanModify) then
-      Table := nil
-    else
-      Table := Database.TableByName(DataSet.TableName);
-  end;
+    Table := nil;
 
   OldLoadNextRecords := False;
   if (DataSet is TMySQLTable) then
@@ -7906,7 +7896,7 @@ begin
 
     if ((Success = daSuccess) and Data) then
     begin
-      Item.RecordsSum := TSBaseTable(Item.DBObject).CountRecords();
+      Item.RecordsSum := TSBaseTable(Item.DBObject).RecordCount;
       Item.RecordsDone := Item.RecordsSum;
     end;
   end
@@ -7941,7 +7931,7 @@ begin
           DestinationTable := DestinationDatabase.TableByName(SourceTable.Name);
 
           if (DestinationTable is TSBaseTable) then
-            Item.RecordsDone := TSBaseTable(DestinationTable).Rows;
+            Item.RecordsDone := TSBaseTable(DestinationTable).RecordCount;
         end;
       end
       else
@@ -8474,10 +8464,7 @@ begin
           TItem(Items[I]).FieldNames[J] := Table.Fields[J].Name;
       end;
 
-      if (Table.Rows >= 0) then
-        TItem(Items[I]).RecordsSum := Table.Rows
-      else
-        TItem(Items[I]).RecordsSum := Table.CountRecords();
+      TItem(Items[I]).RecordsSum := Table.RecordCount;
 
       DoUpdateGUI();
     end;

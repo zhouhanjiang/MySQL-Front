@@ -192,8 +192,8 @@ type
   private
     FCreatedName: string;
     NewTable: TSBaseTable;
-    RecordCount: Integer;
     procedure Built();
+    procedure BuiltStatus();
     procedure FFieldsRefresh(Sender: TObject);
     procedure FForeignKeysRefresh(Sender: TObject);
     procedure FIndicesRefresh(Sender: TObject);
@@ -621,6 +621,39 @@ begin
   ActiveControl := FName;
 end;
 
+procedure TDTable.BuiltStatus();
+begin
+  GDates.Cursor := crDefault;
+  FLCreated.Cursor := crDefault;
+  FLUpdated.Cursor := crDefault;
+  GSize.Cursor := crDefault;
+  FLIndexSize.Cursor := crDefault;
+  FLDataSize.Cursor := crDefault;
+  GRecordCount.Cursor := crDefault;
+
+  GOptimize.Cursor := crDefault;
+  FLUnusedSize.Cursor := crDefault;
+  GCheck.Cursor := crDefault;
+  FLChecked.Cursor := crDefault;
+
+
+  if (Table.Created = 0) then FCreated.Caption := '???' else FCreated.Caption := SysUtils.DateTimeToStr(Table.Created, LocaleFormatSettings);
+  if (Table.Updated = 0) then FUpdated.Caption := '???' else FUpdated.Caption := SysUtils.DateTimeToStr(Table.Updated, LocaleFormatSettings);
+
+  FIndexSize.Caption := SizeToStr(Table.IndexSize);
+  FDataSize.Caption := SizeToStr(Table.DataSize);
+
+  FRecordCount.Caption := FormatFloat('#,##0', Table.RecordCount, LocaleFormatSettings);
+
+
+  FUnusedSize.Caption := SizeToStr(Table.UnusedSize);
+
+  if (Table.Checked <= 0) then
+    FChecked.Caption := '???'
+  else
+    FChecked.Caption := SysUtils.DateTimeToStr(Table.Checked, LocaleFormatSettings);
+end;
+
 function TDTable.Execute(): Boolean;
 begin
   ShowModal();
@@ -1016,18 +1049,12 @@ end;
 
 procedure TDTable.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = etItemValid)
-    or (Event.EventType = etAfterExecuteSQL) and (Event.Session.Connection.ErrorCode <> 0)) then
-  begin
-    if (not PageControl.Visible
-      and (Event.SItem = Table)) then
-    begin
-      NewTable.Assign(Table);
-      TSExtrasShow(nil);
-      Built();
-    end;
-  end
-  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is fSession.TSTable)) then
+  if ((Event.EventType = etItemValid) and (Event.SItem = Table)) then
+    if (not PageControl.Visible) then
+      Built()
+    else
+      BuiltStatus()
+  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem = Table)) then
     ModalResult := mrOk;
 
   if (Event.EventType = etAfterExecuteSQL) then
@@ -1070,8 +1097,6 @@ begin
     Caption := Preferences.LoadStr(842, Table.Name);
     HelpContext := 1054;
   end;
-
-  RecordCount := -1;
 
   if (not Assigned(Table) and (Database.Session.LowerCaseTableNames = 1)) then
     FName.CharCase := ecLowerCase
@@ -1394,12 +1419,17 @@ end;
 
 procedure TDTable.TSExtrasShow(Sender: TObject);
 begin
-  FUnusedSize.Caption := SizeToStr(NewTable.UnusedSize);
-
-  if (NewTable.Checked <= 0) then
-    FChecked.Caption := '???'
+  if (not Table.Update(True)) then
+  begin
+    GOptimize.Cursor := crSQLWait;
+    FLUnusedSize.Cursor := crSQLWait;
+    FUnusedSize.Caption := '';
+    GCheck.Cursor := crSQLWait;
+    FLChecked.Cursor := crSQLWait;
+    FChecked.Caption := '';
+  end
   else
-    FChecked.Caption := SysUtils.DateTimeToStr(NewTable.Checked, LocaleFormatSettings);
+    BuiltStatus();
 end;
 
 procedure TDTable.TSFieldsShow(Sender: TObject);
@@ -1573,21 +1603,23 @@ end;
 
 procedure TDTable.TSInformationsShow(Sender: TObject);
 begin
-  FCreated.Caption := '???';
-  FUpdated.Caption := '???';
-  FIndexSize.Caption := '???';
-  FDataSize.Caption := '???';
-  FRecordCount.Caption := '???';
-
-  if (NewTable.Created = 0) then FCreated.Caption := '???' else FCreated.Caption := SysUtils.DateTimeToStr(NewTable.Created, LocaleFormatSettings);
-  if (NewTable.Updated = 0) then FUpdated.Caption := '???' else FUpdated.Caption := SysUtils.DateTimeToStr(NewTable.Updated, LocaleFormatSettings);
-
-  FIndexSize.Caption := SizeToStr(NewTable.IndexSize);
-  FDataSize.Caption := SizeToStr(NewTable.DataSize);
-
-  if (RecordCount < 0) then RecordCount := NewTable.CountRecords();
-
-  FRecordCount.Caption := FormatFloat('#,##0', RecordCount, LocaleFormatSettings);
+  if (not Table.Update(True)) then
+  begin
+    GDates.Cursor := crSQLWait;
+    FLCreated.Cursor := crSQLWait;
+    FCreated.Caption := '';
+    FLUpdated.Cursor := crSQLWait;
+    FUpdated.Caption := '';
+    GSize.Cursor := crSQLWait;
+    FLIndexSize.Cursor := crSQLWait;
+    FIndexSize.Caption := '';
+    FLDataSize.Cursor := crSQLWait;
+    FDataSize.Caption := '';
+    GRecordCount.Cursor := crSQLWait;
+    FRecordCount.Caption := '';
+  end
+  else
+    BuiltStatus();
 end;
 
 procedure TDTable.TSPartitionsShow(Sender: TObject);

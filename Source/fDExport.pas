@@ -2062,7 +2062,7 @@ end;
 
 procedure TDExport.TSSQLOptionsShow(Sender: TObject);
 begin
-  FSQLStructure.Enabled := not Assigned(DBGrid) or (TMySQLDataSet(DBGrid.DataSource.DataSet).TableName <> '');
+  FSQLStructure.Enabled := not Assigned(DBGrid) or (DBGrid.DataSource.DataSet is TMySQLTable) and (TMySQLTable(DBGrid.DataSource.DataSet).CommandText <> '');
   FSQLData.Enabled := not Assigned(DBGrid);
 
   FSQLStructure.Checked := FSQLStructure.Checked and FSQLStructure.Enabled;
