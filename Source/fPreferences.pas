@@ -4163,8 +4163,6 @@ begin
 end;
 
 procedure TPAccount.Save();
-var
-  S: string;
 begin
   if (Assigned(XML)) then
   begin

@@ -3293,6 +3293,8 @@ begin
 
     if (AlterTableAfterCreateTable) then
       PacketComplete := pcExclusiveStmt
+    else if ((StmtLength = 8) and (StrLIComp(SQL, 'SHUTDOWN', 8) = 0)) then
+      PacketComplete := pcExclusiveStmt
     else if ((SizeOf(COM_QUERY) + SQLIndex - 1 + StmtLength > MaxAllowedServerPacket)
       and (SizeOf(COM_QUERY) + WideCharToAnsiChar(CodePage, PChar(@SyncThread.SQL[SQLIndex]), StmtLength, nil, 0) > MaxAllowedServerPacket)) then
       PacketComplete := pcExclusiveStmt
@@ -3303,7 +3305,7 @@ begin
     else
       PacketComplete := pcNo;
 
-    if (PacketComplete in [pcNo, pcInclusiveStmt]) then
+    if ((PacketLength = 0) or (PacketComplete in [pcNo, pcInclusiveStmt])) then
       Inc(PacketLength, StmtLength);
 
     Inc(StmtIndex);
@@ -3334,9 +3336,14 @@ begin
 
     if (not SyncThread.Terminated and Success) then
     begin
-      StartTime := Now();
-      Lib.mysql_real_query(SyncThread.LibHandle, my_char(LibSQL), LibLength);
-      SyncThread.ExecutionTime := SyncThread.ExecutionTime + Now() - StartTime;
+      if ((LibLength = 8) and (StrLIComp(my_char(LibSQL), 'SHUTDOWN', 8) = 0)) then
+        Lib.mysql_shutdown(SyncThread.LibHandle, SHUTDOWN_DEFAULT)
+      else
+      begin
+        StartTime := Now();
+        Lib.mysql_real_query(SyncThread.LibHandle, my_char(LibSQL), LibLength);
+        SyncThread.ExecutionTime := SyncThread.ExecutionTime + Now() - StartTime;
+      end;
 
       if (Lib.mysql_errno(SyncThread.LibHandle) = ER_MUST_CHANGE_PASSWORD) then
       begin

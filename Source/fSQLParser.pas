@@ -5667,7 +5667,7 @@ type
         TNodes = packed record
           IdentToken: TOffset;
           OpenBracket: TOffset;
-          DirectionTag: TOffset;
+          LocationTag: TOffset;
           RemoveStr: TOffset;
           FromTag: TOffset;
           Str: TOffset;
@@ -13982,7 +13982,7 @@ procedure TSQLParser.FormatTrimFunc(const Nodes: TTrimFunc.TNodes);
 begin
   FormatNode(Nodes.IdentToken);
   FormatNode(Nodes.OpenBracket);
-  FormatNode(Nodes.DirectionTag, stSpaceAfter);
+  FormatNode(Nodes.LocationTag, stSpaceAfter);
   FormatNode(Nodes.RemoveStr, stSpaceAfter);
   FormatNode(Nodes.FromTag, stSpaceAfter);
   FormatNode(Nodes.Str);
@@ -23685,7 +23685,7 @@ begin
         JB MLComment                     // No!
         CMP WORD PTR [ESI + 4],'!'       // "/*!" ?
         JNE MLComment                    // No!
-        JMP MySQLCondStart                // MySQL Code!
+        JMP MySQLCondStart               // MySQL Code!
       SelDiv:
         MOV OperatorType,otDivision
         JMP SingleChar
@@ -24046,15 +24046,15 @@ begin
         JNE QuotedL2                     // No!
         INC NewLines                     // One new line
       QuotedL2:
-        CMP AX,'\'                       // Escaper?
-        JNE QuotedLE                     // No!
-        CMP ECX,0                        // End of SQL?
-        JE IncompleteToken               // Yes!
-        ADD ESI,2                        // Next character in SQL
-        DEC ECX                          // One character handled
-        MOV AX,[ESI]                     // One character from SQL to AX
-        CMP AX,DX                        // Escaped End Quoter?
-        JE Quoted                        // Yes!
+//        CMP AX,'\'                       // Escaper?
+//        JNE QuotedLE                     // No!
+//        CMP ECX,0                        // End of SQL?
+//        JE IncompleteToken               // Yes!
+//        ADD ESI,2                        // Next character in SQL
+//        DEC ECX                          // One character handled
+//        MOV AX,[ESI]                     // One character from SQL to AX
+//        CMP AX,DX                        // Escaped End Quoter?
+//        JE Quoted                        // Yes!
       QuotedLE:
         CMP AX,DX                        // End Quoter (unescaped)?
         JE QuotedE                       // Yes!
@@ -24086,7 +24086,7 @@ begin
         JNE Finish                       // No!
         ADD ESI,2                        // Step over second End Quoter in SQL
         DEC ECX
-        JNC QuotedL                      // Handle further characters
+        JNZ QuotedL                      // Handle further characters
         JMP Finish
 
       QuotedSecondQuoter:
@@ -24459,25 +24459,41 @@ begin
   if (not ErrorFound) then
     Nodes.OpenBracket := ParseSymbol(ttOpenBracket);
 
-  if (not ErrorFound and not EndOfStmt(CurrentToken)) then
+  if (not ErrorFound) then
     if (IsTag(kiBOTH)) then
-      Nodes.DirectionTag := ParseTag(kiBOTH)
+      Nodes.LocationTag := ParseTag(kiBOTH)
     else if (IsTag(kiLEADING)) then
-      Nodes.DirectionTag := ParseTag(kiLEADING)
+      Nodes.LocationTag := ParseTag(kiLEADING)
     else if (IsTag(kiTRAILING)) then
-      Nodes.DirectionTag := ParseTag(kiTRAILING);
+      Nodes.LocationTag := ParseTag(kiTRAILING);
 
-  if (Nodes.DirectionTag > 0) then
+  if (Nodes.LocationTag > 0) then
   begin
-    if (not ErrorFound and not IsTag(kiFROM)) then
+    if (not ErrorFound) then
       Nodes.RemoveStr := ParseExpr();
 
     if (not ErrorFound) then
-      Nodes.FromTag := ParseTag(kiFROM)
-  end;
+      Nodes.FromTag := ParseTag(kiFROM);
 
-  if (not ErrorFound) then
-    Nodes.Str := ParseExpr();
+    if (not ErrorFound) then
+      Nodes.Str := ParseExpr();
+  end
+  else
+  begin
+    if (not ErrorFound) then
+      Nodes.Str := ParseExpr();
+
+    if (IsTag(kiFROM)) then
+    begin
+      Nodes.RemoveStr := Nodes.Str;
+      Nodes.Str := 0;
+
+      Nodes.FromTag := ParseTag(kiFROM);
+
+      if (not ErrorFound) then
+        Nodes.Str := ParseExpr();
+    end;
+  end;
 
   if (not ErrorFound and (Nodes.OpenBracket > 0)) then
     Nodes.CloseBracket := ParseSymbol(ttCloseBracket);

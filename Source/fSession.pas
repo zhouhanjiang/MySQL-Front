@@ -1473,6 +1473,10 @@ type
     ManualURL: string;
     StmtMonitor: TMySQLMonitor;
     procedure BuildManualURL(const DataSet: TMySQLQuery);
+    function BuildEvents(const DataSet: TMySQLQuery): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
+    function BuildRoutines(const DataSet: TMySQLQuery): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
+    function BuildTables(const DataSet: TMySQLQuery): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
+    function BuildTriggers(const DataSet: TMySQLQuery): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
     procedure BuildUser(const DataSet: TMySQLQuery);
     procedure ConnectChange(Sender: TObject; Connecting: Boolean);
     procedure DoExecuteEvent(const AEvent: TEvent);
@@ -10709,6 +10713,97 @@ begin
   end;
 end;
 
+function TSSession.BuildEvents(const DataSet: TMySQLQuery): Boolean;
+var
+  Database: TSDatabase;
+  I: Integer;
+begin
+  if (not DataSet.IsEmpty()) then
+    repeat
+      Database := DatabaseByName(DataSet.FindField('EVENT_SCHEMA').AsString);
+      if (Assigned(Database)) then
+        Database.Events.Build(DataSet, True, False, False)
+      else
+        DataSet.FindNext();
+    until (DataSet.Eof);
+
+  for I := 0 to Databases.Count - 1 do
+    if (Assigned(Databases[I].Events)) then
+      Databases[I].Events.FValid := True;
+
+  ExecuteEvent(etItemsValid, Self, Databases);
+
+  Result := False;
+end;
+
+function TSSession.BuildRoutines(const DataSet: TMySQLQuery): Boolean;
+var
+  Database: TSDatabase;
+  I: Integer;
+begin
+  if (not DataSet.IsEmpty()) then
+    repeat
+      Database := DatabaseByName(DataSet.FindField('ROUTINE_SCHEMA').AsString);
+      if (Assigned(Database) and Assigned(Database.Routines)) then
+        Database.Routines.Build(DataSet, True, False, False)
+      else
+        DataSet.FindNext();
+    until (DataSet.Eof);
+
+  for I := 0 to Databases.Count - 1 do
+    if (Assigned(Databases[I].Routines)) then
+      Databases[I].Routines.FValid := True;
+
+  ExecuteEvent(etItemsValid, Self, Databases);
+
+  Result := False;
+end;
+
+function TSSession.BuildTables(const DataSet: TMySQLQuery): Boolean;
+var
+  Database: TSDatabase;
+  I: Integer;
+begin
+  if (not DataSet.IsEmpty()) then
+    repeat
+      Database := DatabaseByName(DataSet.FindField('TABLE_SCHEMA').AsString);
+      if (Assigned(Database)) then
+        Database.Tables.Build(DataSet, True, False, False)
+      else
+        DataSet.FindNext();
+    until (DataSet.Eof);
+
+  for I := 0 to Databases.Count - 1 do
+    Databases[I].Tables.FValid := True;
+
+  ExecuteEvent(etItemsValid, Self, Databases);
+
+  Result := False;
+end;
+
+function TSSession.BuildTriggers(const DataSet: TMySQLQuery): Boolean;
+var
+  Database: TSDatabase;
+  I: Integer;
+begin
+  if (not DataSet.IsEmpty()) then
+    repeat
+      Database := DatabaseByName(DataSet.FindField('TRIGGER_SCHEMA').AsString);
+      if (Assigned(Database)) then
+        Database.Triggers.Build(DataSet, True, False, False)
+      else
+        DataSet.FindNext();
+    until (DataSet.Eof);
+
+  for I := 0 to Databases.Count - 1 do
+    if (Assigned(Databases[I].Triggers)) then
+      Databases[I].Triggers.FValid := True;
+
+  ExecuteEvent(etItemsValid, Self, Databases);
+
+  Result := False;
+end;
+
 procedure TSSession.BuildManualURL(const DataSet: TMySQLQuery);
 var
   Equal: Integer;
@@ -12139,6 +12234,8 @@ begin
             DatabaseByName(SQLParseValue(Parse)).Tables.BuildViewFields(DataSet, True)
           else if (TableNameCmp(ObjectName, 'ENGINES') = 0) then
             Result := Engines.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
+          else if ((TableNameCmp(ObjectName, 'EVENTS') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
+            Result := BuildEvents(DataSet)
           else if ((TableNameCmp(ObjectName, 'EVENTS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'EVENT_SCHEMA') = 0) and SQLParseChar(Parse, '=')) then
           begin
             Database := DatabaseByName(SQLParseValue(Parse));
@@ -12161,6 +12258,8 @@ begin
                 Result := Table.ReferencedRequester.BuildBaseTableReferences(DataSet);
             end;
           end
+          else if ((TableNameCmp(ObjectName, 'ROUTINES') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
+            Result := BuildRoutines(DataSet)
           else if ((TableNameCmp(ObjectName, 'ROUTINES') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'ROUTINE_SCHEMA') = 0) and SQLParseChar(Parse, '=')) then
           begin
             Database := DatabaseByName(SQLParseValue(Parse));
@@ -12174,11 +12273,15 @@ begin
             Result := Databases.Build(DataSet, True, False)
           else if ((TableNameCmp(ObjectName, 'SCHEMATA') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'SCHEMA_NAME') = 0)) then
             Result := Databases.Build(DataSet, True, False)
+          else if ((TableNameCmp(ObjectName, 'TABLES') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
+            Result := BuildTables(DataSet)
           else if ((TableNameCmp(ObjectName, 'TABLES') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'TABLE_SCHEMA') = 0) and SQLParseChar(Parse, '=')) then
           begin
             Database := DatabaseByName(SQLParseValue(Parse));
             Result := Database.Tables.Build(DataSet, True, SQLParseKeyword(Parse, 'AND') and SQLParseValue(Parse, 'TABLE_NAME'));
           end
+          else if ((TableNameCmp(ObjectName, 'TRIGGERS') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
+            Result := BuildTriggers(DataSet)
           else if ((TableNameCmp(ObjectName, 'TRIGGERS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'EVENT_OBJECT_SCHEMA') = 0) and SQLParseChar(Parse, '=')) then
           begin
             Database := DatabaseByName(SQLParseValue(Parse));
