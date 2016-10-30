@@ -92,6 +92,8 @@ type
     procedure TSROptionsShow(Sender: TObject);
     procedure TSSelectShow(Sender: TObject);
     procedure FSelectGetImageIndex(Sender: TObject; Node: TTreeNode);
+    procedure FSelectChanging(Sender: TObject; Node: TTreeNode;
+      var AllowChange: Boolean);
   private
     Sessions: array of TSSession;
     ExecuteSession: TSSession;
@@ -112,6 +114,9 @@ type
     procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
   public
+    Session: TSSession;
+    Database: TSDatabase;
+    Frame: TFSession;
     SearchOnly: Boolean;
     function Execute(): Boolean;
   end;
@@ -267,7 +272,8 @@ begin
     if (Assigned(Sessions[I])) then
     begin
       Sessions[I].UnRegisterEventProc(FormSessionEvent);
-      Sessions[I].Free();
+      if (Sessions[I] <> Session) then
+        Sessions[I].Free();
     end;
   SetLength(Sessions, 0);
 
@@ -292,6 +298,7 @@ end;
 procedure TDSearch.FormShow(Sender: TObject);
 var
   I: Integer;
+  J: Integer;
   Node: TTreeNode;
 begin
   if (SearchOnly) then
@@ -351,13 +358,29 @@ begin
 
   SetLength(Sessions, Accounts.Count);
   for I := 0 to Length(Sessions) - 1 do
-    Sessions[I] := nil;
+    if (Assigned(Session) and (Accounts[I] = Session.Account)) then
+      Sessions[I] := Session
+    else
+      Sessions[I] := nil;
 
   for I := 0 to Accounts.Count - 1 do
   begin
     Node := FSelect.Items.Add(nil, Accounts[I].Name);
     Node.ImageIndex := iiServer;
     Node.HasChildren := True;
+
+    if (Assigned(Session) and (Accounts[I] = Session.Account) and Session.Databases.Valid) then
+    begin
+      FSelect.Selected := Node;
+      Node.Expand(False);
+      if (Assigned(Database)) then
+        for J := 0 to Node.Count - 1 do
+          if (Node[J].Data = Database) then
+          begin
+            FSelect.Selected := Node[J];
+            Node[J].Expand(False);
+          end;
+    end;
   end;
 
   FFFindText.Text := '';
@@ -398,6 +421,12 @@ begin
     FSelect.MultiSelect := Assigned(Node.Parent);
 
   FBForward.Enabled := Assigned(FSelect.Selected);
+end;
+
+procedure TDSearch.FSelectChanging(Sender: TObject; Node: TTreeNode;
+  var AllowChange: Boolean);
+begin
+  AllowChange := not Assigned(Node) or (Node.ImageIndex <> iiServer);
 end;
 
 procedure TDSearch.FSelectExpanding(Sender: TObject; Node: TTreeNode;
@@ -515,7 +544,10 @@ begin
     URI.Table := Tables[FTables.Selected.Index].TableName;
     URI.Param['view'] := 'browser';
 
-    ViewFrame := TFSession(Tables[FTables.Selected.Index].Account.Frame());
+    if (Assigned(Frame)) then
+      ViewFrame := Frame
+    else
+      ViewFrame := TFSession(Tables[FTables.Selected.Index].Account.Tab());
 
     Result := True;
     if (Assigned(ViewFrame)) then

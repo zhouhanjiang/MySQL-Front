@@ -181,6 +181,7 @@ object DAccount: TDAccount
       TabOrder = 4
       Text = 'FLibraryFilename'
       Visible = False
+      OnEnter = FLibraryFilenameEnter
     end
     object FUDPort: TUpDown
       Left = 169

@@ -82,9 +82,12 @@ type
     procedure OnTerminate(Sender: TObject);
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPostAfterExecuteSQL(var Message: TMessage); message UM_POST_AFTEREXECUTESQL;
     procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
   public
+    SourceSession: TSSession;
+    SourceDatabase: TSDatabase;
     function Execute(): Boolean;
   end;
 
@@ -223,7 +226,7 @@ begin
     if (Assigned(WantedNodeExpand)) then
       WantedNodeExpand.Expand(False)
     else if (WantedExecute) then
-      TSExecuteShow(Event.Sender);
+      PostMessage(Handle, UM_POST_AFTEREXECUTESQL, 0, 0);
   end;
 end;
 
@@ -257,7 +260,8 @@ begin
     if (Assigned(Sessions[I])) then
     begin
       Sessions[I].UnRegisterEventProc(FormSessionEvent);
-      Sessions[I].Free();
+      if (Assigned(Sessions[I]) and (Sessions[I] <> SourceSession)) then
+        Sessions[I].Free();
     end;
   SetLength(Sessions, 0);
 
@@ -289,7 +293,13 @@ begin
 
   SetLength(Sessions, Accounts.Count);
   for I := 0 to Length(Sessions) - 1 do
-    Sessions[I] := nil;
+  begin
+    if (Assigned(SourceSession) and (Accounts[I] = SourceSession.Account)) then
+      Sessions[I] := SourceSession
+    else
+      Sessions[I] := nil;
+  end;
+
 
   TSSelect.Enabled := True;
   TSWhat.Enabled := False;
@@ -305,7 +315,10 @@ begin
   FBCancel.ModalResult := mrCancel;
   FBCancel.Default := False;
 
-  ActiveControl := FSource;
+  if (Assigned(SourceSession)) then
+    ActiveControl := FSource
+  else
+    ActiveControl := FBCancel;
 end;
 
 procedure TDTransfer.FSourceChanging(Sender: TObject; Node: TTreeNode;
@@ -575,7 +588,6 @@ begin
   FProgressBar.Position := 0;
   FErrors.Caption := '0';
   FErrorMessages.Lines.Clear();
-FErrorMessages.Text := 'Hallo';
 
   FBBack.Enabled := False;
   FBForward.Enabled := False;
@@ -711,9 +723,9 @@ var
 begin
   if (not (PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (Msg.wParam = MK_LBUTTON))) then
   begin
-    GSource.Width := PageControl.Width div 2 - 3 * GSource.Left;
+    GSource.Width := TSSelect.Width div 2 - 3 * GSource.Left;
     GDestination.Width := GSource.Width;
-    GDestination.Left := PageControl.Width - GDestination.Width - 3 * GSource.Left;
+    GDestination.Left := TSSelect.Width - GDestination.Width - 3 * GSource.Left;
   end;
 end;
 
@@ -722,6 +734,7 @@ var
   FSourceOnChange: TTVChangedEvent;
   FDestinationOnChange: TTVChangedEvent;
   I: Integer;
+  J: Integer;
   Node: TTreeNode;
 begin
   FSourceOnChange := FSource.OnChange;
@@ -741,6 +754,18 @@ begin
     Node := FSource.Items.Add(nil, Accounts[I].Name);
     Node.ImageIndex := iiServer;
     Node.HasChildren := True;
+    if (Assigned(SourceSession) and (Accounts[I] = SourceSession.Account) and SourceSession.Databases.Valid) then
+    begin
+      FSource.Selected := Node;
+      Node.Expand(False);
+      if (Assigned(SourceDatabase)) then
+        for J := 0 to Node.Count - 1 do
+          if (Node[J].Data = SourceDatabase) then
+          begin
+            FSource.Selected := Node;
+            Node[J].Expand(False);
+          end;
+    end;
 
     Node := FDestination.Items.Add(nil, Accounts[I].Name);
     Node.ImageIndex := iiServer;
@@ -794,6 +819,11 @@ begin
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBBack.Caption := '< ' + Preferences.LoadStr(228);
+end;
+
+procedure TDTransfer.UMPostAfterExecuteSQL(var Message: TMessage);
+begin
+  TSExecuteShow(nil);
 end;
 
 procedure TDTransfer.UMTerminate(var Message: TMessage);

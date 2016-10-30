@@ -1414,6 +1414,7 @@ type
     FMaxAllowedPacket: Integer;
     procedure DoAfterExecuteSQL(); override;
     procedure DoBeforeExecuteSQL(); override;
+    procedure DoError(const AErrorCode: Integer; const AErrorMessage: string); override;
     function GetDataFileAllowed(): Boolean; override;
     function GetMaxAllowedServerPacket(): Integer; override;
     procedure SetAnsiQuotes(const AAnsiQuotes: Boolean); override;
@@ -1469,7 +1470,10 @@ type
     FUser: TSUser;
     FUsers: TSUsers;
     FVariables: TSVariables;
+    ManualURL: string;
     StmtMonitor: TMySQLMonitor;
+    procedure BuildManualURL(const DataSet: TMySQLQuery);
+    procedure BuildUser(const DataSet: TMySQLQuery);
     procedure ConnectChange(Sender: TObject; Connecting: Boolean);
     procedure DoExecuteEvent(const AEvent: TEvent);
     function GetCaption(): string;
@@ -1486,7 +1490,6 @@ type
     FSQLParser: TSQLParser;
     ParseEndDate: TDateTime;
     UnparsableSQL: string;
-    procedure BuildUser(const DataSet: TMySQLQuery);
     procedure ExecuteEvent(const EventType: TEvent.TEventType); overload;
     procedure ExecuteEvent(const EventType: TEvent.TEventType; const Sender: TObject; const SItems: TSItems = nil; const SItem: TSItem = nil); overload;
     function GetLog(): string;
@@ -1534,7 +1537,7 @@ type
     function UnescapeValue(const Value: string; const FieldType: TSField.TFieldType = mfVarChar): string; overload;
     function UnecapeRightIdentifier(const Identifier: string): string;
     function Update(): Boolean; overload;
-    function Update(const Objects: TList; const Status: Boolean = False; const ExecuteCompletely: Boolean = False): Boolean; overload;
+    function Update(const Objects: TList; const Status: Boolean = False): Boolean; overload;
     function UpdateDatabase(const Database, NewDatabase: TSDatabase): Boolean;
     function UpdateUser(const User, NewUser: TSUser): Boolean;
     function UpdateVariable(const Variable, NewVariable: TSVariable; const UpdateModes: TSVariable.TUpdateModes): Boolean;
@@ -5064,7 +5067,9 @@ begin
       References.Add(TSReference.Create(References, MergeSourceTables[I].DatabaseName, TSTable, MergeSourceTables[I].TableName));
 
     for I := 0 to ForeignKeys.Count - 1 do
-      References.Add(TSReference.Create(References, ForeignKeys[I].Parent.DatabaseName, TSTable, ForeignKeys[I].Parent.TableName));
+      if (Assigned(Session.DatabaseByName(ForeignKeys[I].Parent.DatabaseName))
+        and Assigned(Session.DatabaseByName(ForeignKeys[I].Parent.DatabaseName).TableByName(ForeignKeys[I].Parent.TableName))) then
+        References.Add(TSReference.Create(References, ForeignKeys[I].Parent.DatabaseName, TSTable, ForeignKeys[I].Parent.TableName));
   end;
 end;
 
@@ -5085,7 +5090,7 @@ begin
   except
     // Sometimes, the MySQL server sends wrong encoded field comments.
     // This code allow the user to handle this table - but the comments are wrong.
-    SetString(RBS, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1]);
+    SetString(RBS, TMySQLQuery(Field.DataSet).LibRow^[Field.FieldNo - 1], TMySQLQuery(Field.DataSet).LibLengths^[Field.FieldNo - 1]);
     SetSource(string(RBS));
   end;
 
@@ -6139,12 +6144,12 @@ end;
 
 function TSRoutine.SQLGetSource(): string;
 begin
-  Result := '';
+  raise EAbstractError.Create(SAbstractError);
 end;
 
 function TSRoutine.SQLRun(): string;
 begin
-  Result := '';
+  raise EAbstractError.Create(SAbstractError);
 end;
 
 { TSProcedure *****************************************************************}
@@ -10524,6 +10529,13 @@ begin
   inherited;
 end;
 
+procedure TSConnection.DoError(const AErrorCode: Integer; const AErrorMessage: string);
+begin
+  Session.ExecuteEvent(etError);
+
+  inherited;
+end;
+
 procedure TSConnection.Connect();
 begin
   Connected := False;
@@ -10648,11 +10660,12 @@ function Compare(Item1, Item2: Pointer): Integer;
     else if (Item is TSRoutines) then Result := 12
     else if (Item is TSEvents) then Result := 13
     else if (Item is TSTriggers) then Result := 14
-    else if (Item is TSTable) then Result := 15
-    else if (Item is TSProcedure) then Result := 16
-    else if (Item is TSFunction) then Result := 17
-    else if (Item is TSTrigger) then Result := 18
-    else if (Item is TSEvent) then Result := 19
+    else if (Item is TSColumns) then Result := 15
+    else if (Item is TSTable) then Result := 16
+    else if (Item is TSProcedure) then Result := 17
+    else if (Item is TSFunction) then Result := 18
+    else if (Item is TSTrigger) then Result := 19
+    else if (Item is TSEvent) then Result := 20
     else Result := -1;
   end;
 
@@ -10696,6 +10709,36 @@ begin
   end;
 end;
 
+procedure TSSession.BuildManualURL(const DataSet: TMySQLQuery);
+var
+  Equal: Integer;
+  I: Integer;
+  URL: string;
+begin
+  if (not DataSet.IsEmpty() and Assigned(DataSet.FindField('description'))) then
+  begin
+    URL := DataSet.FieldByName('description').AsString;
+    while (Pos('URL:', URL) > 1) do Delete(URL, 1, Pos('URL:', URL) - 1);
+    if (Pos('URL:', URL) = 1) then Delete(URL, 1, Length('URL:'));
+    URL := Trim(URL);
+
+    if (ManualURL = '') then
+      ManualURL := URL
+    else
+    begin
+      Equal := 0;
+      for I := 1 to Min(Length(ManualURL), Length(URL)) - 1 do
+        if (ManualURL[I] = URL[I]) then
+          Equal := I
+        else
+          break;
+
+      if (Copy(ManualURL, 1, 7) = 'http://') then
+        Account.ManualURL := Copy(ManualURL, 1, Equal);
+    end;
+  end;
+end;
+
 procedure TSSession.BuildUser(const DataSet: TMySQLQuery);
 var
   Index: Integer;
@@ -10731,14 +10774,6 @@ begin
 end;
 
 procedure TSSession.ConnectChange(Sender: TObject; Connecting: Boolean);
-const
-  BufferSize = 10240;
-var
-  DataSet: TMySQLQuery;
-  Equal: Integer;
-  I: Integer;
-  URL1: string;
-  URL2: string;
 begin
   if (not Assigned(FEngines) and Connecting) then
   begin
@@ -10754,58 +10789,7 @@ begin
     if (not Assigned(FUsers)) then FUsers := TSUsers.Create(Self);
 
     if (Assigned(Account)) then
-    begin
       Account.LastLogin := Now();
-
-      if ((Connection.MySQLVersion > 40100) and not Account.ManualURLFetched) then
-      begin
-        Connection.BeginSilent();
-
-        try
-          DataSet := TMySQLQuery.Create(nil);
-          DataSet.Connection := Connection;
-          DataSet.CommandText := 'HELP ' + SQLEscape('SELECT');
-          DataSet.Open();
-          if (not DataSet.Active or not Assigned(DataSet.FindField('name')) or DataSet.IsEmpty()) then
-            URL1 := ''
-          else
-          begin
-            URL1 := DataSet.FieldByName('description').AsString;
-            while (Pos('URL:', URL1) > 1) do Delete(URL1, 1, Pos('URL:', URL1) - 1);
-            if (Pos('URL:', URL1) = 1) then Delete(URL1, 1, Length('URL:'));
-            URL1 := Trim(URL1);
-          end;
-          DataSet.Free();
-
-          DataSet := TMySQLQuery.Create(nil);
-          DataSet.Connection := Connection;
-          DataSet.CommandText := 'HELP ' + SQLEscape('VERSION');
-          DataSet.Open();
-          if (not DataSet.Active or not Assigned(DataSet.FindField('name')) or DataSet.IsEmpty()) then
-            URL2 := ''
-          else
-          begin
-            URL2 := DataSet.FieldByName('description').AsString;
-            while (Pos('URL:', URL2) > 1) do Delete(URL2, 1, Pos('URL:', URL2) - 1);
-            if (Pos('URL:', URL2) = 1) then Delete(URL2, 1, Length('URL:'));
-            URL2 := Trim(URL2);
-          end;
-          DataSet.Free();
-
-          Connection.EndSilent();
-
-          Equal := 0;
-          for I := 1 to Min(Length(URL1), Length(URL2)) - 1 do
-            if ((URL1[I] = URL2[I]) and (Equal = I - 1)) then
-              Equal := I + 1;
-
-          if (Copy(URL1, 1, 7) = 'http://') then
-            Account.ManualURL := Copy(URL1, 1, Equal - 1);
-        except
-        end;
-        Account.ManualURLFetched := True;
-      end;
-    end;
   end;
 end;
 
@@ -10861,11 +10845,12 @@ begin
   FLowerCaseTableNames := 0;
   FMetadataProvider := TacEventMetadataProvider.Create(nil);
   FPerformanceSchema := nil;
+  FSQLParser := nil;
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.MySQLVersion;
   FUser := nil;
+  ManualURL := '';
   ParseEndDate := EncodeDate(2016, 11, 07);
-  FSQLParser := nil;
   UnparsableSQL := '';
 
   if (not Assigned(AAccount)) then
@@ -11088,7 +11073,7 @@ begin
   if (FlushPrivileges) then
     SQL := SQL + 'FLUSH PRIVILEGES;' + #13#10;
 
-  Result := Connection.SendSQL(SQL);
+  Result := (SQL = '') or Connection.SendSQL(SQL, SessionResult);
 end;
 
 function TSSession.DeleteProcess(const Process: TSProcess): Boolean;
@@ -12218,7 +12203,7 @@ begin
           if (TableNameCmp(ObjectName, 'user') = 0) then
             Result := Users.Build(DataSet, False, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'));
         end
-        else if (DataHandle.Connection.ErrorCode = 0) then
+        else if (ErrorCode = 0) then
         begin
           Database := DatabaseByName(DatabaseName);
           if (Assigned(Database)) then
@@ -12393,6 +12378,12 @@ begin
       end
       else
         raise EConvertError.CreateFmt(SUnknownSQLStmt, [Connection.CommandText]);
+    end
+    else if (SQLParseKeyword(Parse, 'HELP')) then
+    begin
+      DataSet.Open(DataHandle);
+      BuildManualURL(DataSet);
+      Account.ManualURLVersion := Connection.ServerVersionStr;
     end;
 
   DataSet.Free();
@@ -12481,7 +12472,7 @@ begin
   List.Free();
 end;
 
-function TSSession.Update(const Objects: TList; const Status: Boolean = False; const ExecuteCompletely: Boolean = False): Boolean;
+function TSSession.Update(const Objects: TList; const Status: Boolean = False): Boolean;
 var
   BaseTableInTables: Boolean;
   Database: TSDatabase;
@@ -12505,6 +12496,11 @@ begin
     else
       SQL := SQL + 'SHOW GRANTS FOR CURRENT_USER();' + #13#10;
 
+  if ((Connection.MySQLVersion > 40100) and (Account.ManualURLVersion <> Connection.ServerVersionStr)) then
+  begin
+    SQL := SQL + 'HELP ' + SQLEscape('SELECT') + ';' + #13#10;
+    SQL := SQL + 'HELP ' + SQLEscape('VERSION') + ';' + #13#10;
+  end;
 
   List := TList.Create();
 
@@ -12532,16 +12528,19 @@ begin
       SQL := SQL + TSEntities(List[I]).SQLGetItems()
     else if (TObject(List[I]) is TSDatabase) then
     begin
-      if (not TSDatabase(List[I]).ValidSource and not (TObject(List[I]) is TSSystemDatabase)) then
-        SQL := SQL + TSDatabase(List[I]).SQLGetSource();
-      if (not TSDatabase(List[I]).Tables.Valid) then
-        SQL := SQL + TSDatabase(List[I]).Tables.SQLGetItems();
-      if (Assigned(TSDatabase(List[I]).Routines) and not TSDatabase(List[I]).Routines.Valid) then
-        SQL := SQL + TSDatabase(List[I]).Routines.SQLGetItems();
-      if (Assigned(TSDatabase(List[I]).Triggers) and not TSDatabase(List[I]).Triggers.Valid) then
-        SQL := SQL + TSDatabase(List[I]).Triggers.SQLGetItems();
-      if (Assigned(TSDatabase(List[I]).Events) and not TSDatabase(List[I]).Events.Valid) then
-        SQL := SQL + TSDatabase(List[I]).Events.SQLGetItems();
+      Database := TSDatabase(List[I]);
+      if (not Database.ValidSource and not (TObject(List[I]) is TSSystemDatabase)) then
+        SQL := SQL + Database.SQLGetSource();
+      if (not Database.Tables.Valid) then
+        SQL := SQL + Database.Tables.SQLGetItems();
+      if (Assigned(Database.Routines) and not Database.Routines.Valid) then
+        SQL := SQL + Database.Routines.SQLGetItems();
+      if (Assigned(Database.Triggers) and not Database.Triggers.Valid) then
+        SQL := SQL + Database.Triggers.SQLGetItems();
+      if (Assigned(Database.Events) and not Database.Events.Valid) then
+        SQL := SQL + Database.Events.SQLGetItems();
+      if (Status and not Database.Tables.Valid) then
+        SQL := SQL + Database.Tables.SQLGetStatus(Tables);
     end
     else if (TObject(List[I]) is TSDBObject) then
     begin

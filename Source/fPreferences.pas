@@ -713,15 +713,15 @@ type
     DesktopXMLDocument: IXMLDocument;
     FAccounts: TPAccounts;
     FDesktop: TDesktop;
-    FDesktops: array of record Control: Pointer; AccountEventProc: TEventProc; end;
     FHistoryXMLDocument: IXMLDocument;
     FJobs: TJobs;
     FLastLogin: TDateTime;
     FName: string;
+    FTabs: array of record Control: Pointer; AccountEventProc: TEventProc; end;
     FXML: IXMLNode;
     Modified: Boolean;
     function GetDataPath(): TFileName;
-    function GetDesktopCount(): Integer;
+    function GetTabCount(): Integer;
     function GetDesktopFilename(): TFileName;
     function GetDesktopXML(): IXMLNode;
     function GetHistoryFilename(): TFileName;
@@ -743,21 +743,21 @@ type
   public
     Connection: TConnection;
     ManualURL: string;
-    ManualURLFetched: Boolean;
+    ManualURLVersion: string;
     procedure Assign(const Source: TPAccount); virtual;
     constructor Create(const AAccounts: TPAccounts; const AXML: IXMLNode = nil); virtual;
     destructor Destroy(); override;
     function ExtractPath(const AAddress: string): string; virtual;
     function ExpandAddress(const APath: string): string; virtual;
-    function Frame(): Pointer; virtual;
+    function Tab(): Pointer; virtual;
     function GetDefaultDatabase(): string; virtual;
     function JobByName(const Name: string): TJob; virtual;
-    procedure RegisterDesktop(const AControl: Pointer; const AEventProc: TEventProc); virtual;
-    procedure UnRegisterDesktop(const AControl: Pointer); virtual;
+    procedure RegisterTab(const AControl: Pointer; const AEventProc: TEventProc); virtual;
+    procedure UnRegisterTab(const AControl: Pointer); virtual;
     property Accounts: TPAccounts read FAccounts;
     property DataPath: TFileName read GetDataPath;
     property Desktop: TDesktop read FDesktop;
-    property DesktopCount: Integer read GetDesktopCount;
+    property DesktopCount: Integer read GetTabCount;
     property DesktopXML: IXMLNode read GetDesktopXML;
     property HistoryXML: IXMLNode read GetHistoryXML;
     property Index: Integer read GetIndex;
@@ -3856,9 +3856,9 @@ procedure TPAccount.AccountEvent(const ClassType: TClass);
 var
   I: Integer;
 begin
-  for I := 0 to Length(FDesktops) - 1 do
-    if (Assigned(FDesktops[I].AccountEventProc)) then
-      FDesktops[I].AccountEventProc(ClassType);
+  for I := 0 to Length(FTabs) - 1 do
+    if (Assigned(FTabs[I].AccountEventProc)) then
+      FTabs[I].AccountEventProc(ClassType);
 end;
 
 procedure TPAccount.Assign(const Source: TPAccount);
@@ -3867,7 +3867,7 @@ begin
 
   FLastLogin := Source.LastLogin;
   ManualURL := Source.ManualURL;
-  ManualURLFetched := Source.ManualURLFetched;
+  ManualURLVersion := Source.ManualURLVersion;
   Name := Source.Name;
 
   Modified := True;
@@ -3887,7 +3887,7 @@ begin
   FHistoryXMLDocument := nil;
   FLastLogin := 0;
   ManualURL := '';
-  ManualURLFetched := False;
+  ManualURLVersion := '';
   Modified := False;
 
   Connection := TConnection.Create();
@@ -3986,12 +3986,12 @@ begin
     SetString(Result, PChar(@URL), Len);
 end;
 
-function TPAccount.Frame(): Pointer;
+function TPAccount.Tab(): Pointer;
 begin
-  if (Length(FDesktops) = 0) then
+  if (Length(FTabs) = 0) then
     Result := nil
   else
-    Result := FDesktops[0].Control;
+    Result := FTabs[0].Control;
 end;
 
 function TPAccount.GetDataPath(): TFileName;
@@ -4049,9 +4049,9 @@ begin
   end;
 end;
 
-function TPAccount.GetDesktopCount(): Integer;
+function TPAccount.GetTabCount(): Integer;
 begin
-  Result := Length(FDesktops);
+  Result := Length(FTabs);
 end;
 
 function TPAccount.GetDesktopXML(): IXMLNode;
@@ -4145,7 +4145,7 @@ begin
     if (Assigned(XMLNode(XML, 'lastlogin'))) then
       TryStrToFloat(ReplaceStr(XMLNode(XML, 'lastlogin').Text, '.', FormatSettings.DecimalSeparator), Double(FLastLogin));
     if (Assigned(XMLNode(XML, 'manualurl'))) then ManualURL := XMLNode(XML, 'manualurl').Text;
-    if (Assigned(XMLNode(XML, 'manualurlfetched'))) then TryStrToBool(XMLNode(XML, 'manualurlfetched').Text, ManualURLFetched);
+    if (Assigned(XMLNode(XML, 'manualurl'))) then ManualURLVersion := XMLNode(XML, 'manualurl').Attributes['version'];
 
     Modified := False;
 
@@ -4155,14 +4155,16 @@ begin
   end;
 end;
 
-procedure TPAccount.RegisterDesktop(const AControl: Pointer; const AEventProc: TEventProc);
+procedure TPAccount.RegisterTab(const AControl: Pointer; const AEventProc: TEventProc);
 begin
-  SetLength(FDesktops, Length(FDesktops) + 1);
-  FDesktops[Length(FDesktops) - 1].Control := AControl;
-  FDesktops[Length(FDesktops) - 1].AccountEventProc := AEventProc;
+  SetLength(FTabs, Length(FTabs) + 1);
+  FTabs[Length(FTabs) - 1].Control := AControl;
+  FTabs[Length(FTabs) - 1].AccountEventProc := AEventProc;
 end;
 
 procedure TPAccount.Save();
+var
+  S: string;
 begin
   if (Assigned(XML)) then
   begin
@@ -4170,7 +4172,7 @@ begin
 
     XMLNode(XML, 'lastlogin').Text := FloatToStr(LastLogin);
     XMLNode(XML, 'manualurl').Text := ManualURL;
-    XMLNode(XML, 'manualurlfetched').Text := BoolToStr(ManualURLFetched, True);
+    XMLNode(XML, 'manualurl').Attributes['version'] := ManualURLVersion;
 
     Connection.SaveToXML(XMLNode(XML, 'connection', True));
 
@@ -4202,20 +4204,20 @@ begin
   Modified := True;
 end;
 
-procedure TPAccount.UnRegisterDesktop(const AControl: Pointer);
+procedure TPAccount.UnRegisterTab(const AControl: Pointer);
 var
   I: Integer;
   J: Integer;
 begin
   I := 0;
-  while (I < Length(FDesktops)) do
-    if (FDesktops[I].Control <> AControl) then
+  while (I < Length(FTabs)) do
+    if (FTabs[I].Control <> AControl) then
       Inc(I)
     else
     begin
-      for J := I to Length(FDesktops) - 2 do
-        FDesktops[J] := FDesktops[J + 1];
-      SetLength(FDesktops, Length(FDesktops) - 1);
+      for J := I to Length(FTabs) - 2 do
+        FTabs[J] := FTabs[J + 1];
+      SetLength(FTabs, Length(FTabs) - 1);
     end;
 end;
 

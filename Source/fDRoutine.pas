@@ -498,7 +498,7 @@ begin
   begin
     List := TList.Create();
     List.Add(Routine.ReferencedRequester);
-    if (not Database.Session.Update(List, False, True)) then
+    if (not Database.Session.Update(List)) then
       FReferenced.Cursor := crSQLWait
     else
       FReferencedBuild();

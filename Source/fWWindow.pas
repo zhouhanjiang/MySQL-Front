@@ -474,19 +474,39 @@ end;
 
 procedure TWWindow.aEFindExecute(Sender: TObject);
 begin
-  DSearch.SearchOnly := True;
-  DSearch.Execute();
+  if (Assigned(ActiveTab) and (ActiveTab is TFSession)) then
+    TFSession(ActiveTab).aEFindExecute(Sender)
+  else
+  begin
+    DSearch.Session := nil;
+    DSearch.SearchOnly := True;
+    DSearch.Frame := nil;
+    DSearch.Execute();
+  end;
 end;
 
 procedure TWWindow.aEReplaceExecute(Sender: TObject);
 begin
-  DSearch.SearchOnly := False;
-  DSearch.Execute();
+  if (Assigned(ActiveTab) and (ActiveTab is TFSession)) then
+    TFSession(ActiveTab).aEReplaceExecute(Sender)
+  else
+  begin
+    DSearch.Session := nil;
+    DSearch.SearchOnly := False;
+    DSearch.Frame := nil;
+    DSearch.Execute();
+  end;
 end;
 
 procedure TWWindow.aETransferExecute(Sender: TObject);
 begin
-  DTransfer.Execute();
+  if (Assigned(ActiveTab) and (ActiveTab is TFSession)) then
+    TFSession(ActiveTab).aETransferExecute(Sender)
+  else
+  begin
+    DTransfer.SourceSession := nil;
+    DTransfer.Execute();
+  end;
 end;
 
 procedure TWWindow.aFCloseAllExecute(Sender: TObject);
@@ -1135,7 +1155,7 @@ begin
     ER_DBACCESS_DENIED_ERROR: Msg := Preferences.LoadStr(165, IntToStr(ErrorCode), ErrorMessage);
     ER_ACCESS_DENIED_ERROR: Msg := Preferences.LoadStr(165, IntToStr(ErrorCode), ErrorMessage);
     ER_CANT_OPEN_LIBRARY: Msg := Preferences.LoadStr(570, Connection.LibraryName, ExtractFilePath(Application.ExeName));
-    CR_COMMANDS_OUT_OF_SYNC: Msg := 'Internal bug: ' + ErrorMessage;
+    CR_COMMANDS_OUT_OF_SYNC: Msg := 'Internal Program Bug #' + IntToStr(ErrorCode) + ': ' + ErrorMessage;
     CR_CONN_HOST_ERROR: if (Connection.Port = MYSQL_PORT) then Msg := Preferences.LoadStr(495, Connection.Host) else Msg := Preferences.LoadStr(495, Connection.Host + ':' + IntToStr(Connection.Port));
     CR_SERVER_GONE_ERROR: if (Connection.Port = MYSQL_PORT) then Msg := Preferences.LoadStr(881, Connection.Host) else Msg := Preferences.LoadStr(881, Connection.Host + ':' + IntToStr(Connection.Port));
     CR_UNKNOWN_HOST: if (ErrorMessage <> '') then Msg := ErrorMessage else if (Connection.Host <> '') then Msg := Preferences.LoadStr(706, Connection.Host) else Msg := Preferences.LoadStr(706);
@@ -1180,7 +1200,7 @@ begin
 
   if ((ErrorCode = CR_SERVER_GONE_ERROR) and (Connection is TSConnection)) then
   begin
-    Tab := TFSession(TSConnection(Connection).Session.Account.Frame);
+    Tab := TFSession(TSConnection(Connection).Session.Account.Tab());
     if (Boolean(SendMessage(Tab.Handle, UM_CLOSE_TAB_QUERY, 0, 0))) then
       Perform(UM_CLOSE_TAB, 0, LPARAM(Tab));
   end;

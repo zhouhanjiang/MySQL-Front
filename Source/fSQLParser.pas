@@ -19136,8 +19136,8 @@ begin
       begin
         for I := 0 to FunctionList.Count - 1 do
           CompletionList.AddText(FunctionList[I]);
-        CompletionList.AddList(ditFunction);
         CompletionList.AddList(ditDatabase);
+        CompletionList.AddList(ditFunction);
         CompletionList.AddList(ditTable);
         CompletionList.AddList(ditField);
       end;
@@ -19733,7 +19733,14 @@ begin
   Nodes.StmtTag := ParseTag(kiHELP);
 
   if (not ErrorFound) then
-    Nodes.HelpString := ParseString();
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if ((TokenPtr(CurrentToken)^.TokenType = ttString) or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and not AnsiQuotes) then
+      Nodes.HelpString := ApplyCurrentToken(utString)
+    else if ((TokenPtr(CurrentToken)^.TokenType = ttIdent) and (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0)) then
+      Nodes.HelpString := ApplyCurrentToken(utDbIdent)
+    else
+      SetError(PE_UnexpectedToken);
 
   Result := THelpStmt.Create(Self, Nodes);
 end;

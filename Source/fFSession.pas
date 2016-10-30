@@ -476,9 +476,6 @@ type
     procedure FLogEnter(Sender: TObject);
     procedure FLogExit(Sender: TObject);
     procedure FLogSelectionChange(Sender: TObject);
-    procedure FNavigatorAdvancedCustomDrawItem(Sender: TCustomTreeView;
-      Node: TTreeNode; State: TCustomDrawState; Stage: TCustomDrawStage;
-      var PaintImages, DefaultDraw: Boolean);
     procedure FNavigatorChange(Sender: TObject; Node: TTreeNode);
     procedure FNavigatorChange2(Sender: TObject; Node: TTreeNode);
     procedure FNavigatorChanging(Sender: TObject; Node: TTreeNode;
@@ -1051,6 +1048,9 @@ type
     constructor Create(const AOwner: TComponent; const AParent: TWinControl; const ASession: TSSession; const AParam: string); reintroduce;
     destructor Destroy(); override;
     function AddressToCaption(const AAddress: string): string;
+    procedure aEFindExecute(Sender: TObject);
+    procedure aEReplaceExecute(Sender: TObject);
+    procedure aETransferExecute(Sender: TObject);
     procedure CrashRescue();
     procedure OpenDiagram();
     procedure OpenSQLFile(const AFilename: TFileName; const CodePage: Cardinal = 0; const Insert: Boolean = False);
@@ -2571,9 +2571,9 @@ begin
       AllowChange := False
     else if (URI.Database = '') then
     begin
-      if ((ParamToView(URI.Param['view']) = vObjects) and (not Session.Valid and not Session.Update(nil, True))) then
+      if ((ParamToView(URI.Param['view']) = vObjects) and not Session.Update(nil, True)) then
         AllowChange := False
-      else if ((ParamToView(URI.Param['view']) <> vObjects) and not Session.Databases.Update()) then
+      else if ((ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and not Session.Databases.Update()) then
         AllowChange := False
     end
     else if ((URI.Database <> '') and not Session.Databases.Update()) then
@@ -2583,9 +2583,7 @@ begin
       Database := Session.DatabaseByName(URI.Database);
       if (not Assigned(Database)) then
         NotFound := True
-      else if (not Database.Valid and not Database.Update()) then
-        AllowChange := False
-      else if ((ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and not Database.Update((URI.Table = '') and (URI.Param['object'] = Null) and (URI.Param['view'] = NULL)) and ((URI.Table <> '') or (URI.Param['object'] <> Null))) then
+      else if (not (ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and not Database.Update(URI.Param['view'] = Null) and ((URI.Table <> '') or (URI.Param['objecttype'] <> Null))) then
         AllowChange := False
       else if ((URI.Table <> '') and not Database.Tables.Update()) then
         AllowChange := False
@@ -2612,17 +2610,10 @@ begin
 
         if (not Assigned(DBObject)) then
           NotFound := True
-        else if (not DBObject.Valid and not DBObject.Update()) then
+        else if (not DBObject.Update() and (URI.Param['objecttype'] = 'trigger')) then
           AllowChange := False
-        else if (URI.Param['objecttype'] = 'trigger') then
-          if (URI.Param['object'] = Null) or not Assigned(Database.TriggerByName(URI.Param['object'])) then
-            NotFound := True
-          else
-          begin
-            DBObject := Database.TriggerByName(URI.Param['object']);
-            if (not DBObject.Valid or not DBObject.Update()) then
-              AllowChange := False;
-          end;
+        else if (URI.Param['objecttype'] = 'trigger') and ((URI.Param['object'] = Null) or not Assigned(Database.TriggerByName(URI.Param['object']))) then
+          NotFound := True;
       end;
     end;
 
@@ -3124,6 +3115,17 @@ begin
   end;
 end;
 
+procedure TFSession.aEFindExecute(Sender: TObject);
+begin
+  Wanted.Clear();
+
+  DSearch.Session := Session;
+  DSearch.Database := Session.DatabaseByName(SelectedDatabase);
+  DSearch.SearchOnly := True;
+  DSearch.Frame := Self;
+  DSearch.Execute();
+end;
+
 procedure TFSession.aEPasteExecute(Sender: TObject);
 var
   B: Boolean;
@@ -3330,9 +3332,30 @@ begin
     ActiveListView.Selected.EditCaption();
 end;
 
+procedure TFSession.aEReplaceExecute(Sender: TObject);
+begin
+  Wanted.Clear();
+
+  DSearch.Session := Session;
+  DSearch.Database := Session.DatabaseByName(SelectedDatabase);
+  DSearch.SearchOnly := False;
+  DSearch.Frame := Self;
+  DSearch.Execute();
+  Wanted.Update := Session.Update;
+end;
+
 procedure TFSession.aESelectAllExecute(Sender: TObject);
 begin
   ActiveListView.SelectAll();
+end;
+
+procedure TFSession.aETransferExecute(Sender: TObject);
+begin
+  Wanted.Clear();
+
+  DTransfer.SourceSession := Session;
+  DTransfer.SourceDatabase := Session.DatabaseByName(SelectedDatabase);
+  DTransfer.Execute();
 end;
 
 procedure TFSession.aFExportAccessExecute(Sender: TObject);
@@ -4576,7 +4599,7 @@ begin
   Session.CreateDesktop := CreateDesktop;
   Session.RegisterEventProc(FormSessionEvent);
 
-  Session.Account.RegisterDesktop(Self, FormAccountEvent);
+  Session.Account.RegisterTab(Self, FormAccountEvent);
 
   Wanted := TWanted.Create(Self);
 
@@ -5869,7 +5892,7 @@ begin
           DatabasesXML.ChildNodes.Delete(I);
   end;
 
-  Session.Account.UnRegisterDesktop(Self);
+  Session.Account.UnRegisterTab(Self);
 
   FServerListView.OnChanging := nil;
   FServerListView.Items.BeginUpdate();
@@ -6250,17 +6273,6 @@ begin
     MainAction('aECopyToFile').Enabled := FLog.SelText <> '';
 
   StatusBarRefresh();
-end;
-
-procedure TFSession.FNavigatorAdvancedCustomDrawItem(Sender: TCustomTreeView;
-  Node: TTreeNode; State: TCustomDrawState; Stage: TCustomDrawStage;
-  var PaintImages, DefaultDraw: Boolean);
-begin
-//  if ((Stage = cdPrePaint) and Assigned(Node)
-//    and ((Node.ImageIndex = iiKey) and TSKey(Node.Data).PrimaryKey or (Node.ImageIndex = iiField) and TSTableField(Node.Data).InPrimaryKey)) then
-//    Sender.Canvas.Font.Style := Sender.Canvas.Font.Style + [fsBold]
-//  else
-//    Sender.Canvas.Font.Style := Sender.Canvas.Font.Style - [fsBold];
 end;
 
 procedure TFSession.FNavigatorChange(Sender: TObject; Node: TTreeNode);
@@ -7295,6 +7307,8 @@ begin
         BeforeExecuteSQL(Event);
       etAfterExecuteSQL:
         AfterExecuteSQL(Event);
+      etError:
+        Wanted.Clear();
     end;
 end;
 
@@ -11597,7 +11611,6 @@ begin
     if ((View in [vEditor, vEditor2, vEditor3]) and (SelectedImageIndex in [iiServer, iiDatabase, iiSystemDatabase])
       or (View = vIDE) and (SelectedImageIndex in [iiView, iiFunction, iiProcedure, iiEvent, iiTrigger])) then
     begin
-//      PSynMemoUpdate();
       if (Assigned(ActiveSynMemo)) then ActiveSynMemo.BringToFront();
       PSynMemo.Align := alClient;
       PSynMemo.Visible := True;
@@ -11609,7 +11622,6 @@ begin
     begin
       PListView.Align := alClient;
       PListView.Visible := True;
-      PListView.BringToFront();
     end
     else
       PListView.Visible := False;
@@ -12072,43 +12084,38 @@ end;
 
 procedure TFSession.SendQuery(Sender: TObject; const SQL: string);
 begin
-  Wanted.Action := nil;
-
-  if ((Sender is TAction) and Assigned(Session.DatabaseByName(SelectedDatabase)) and not Session.DatabaseByName(SelectedDatabase).Update()) then
-    Wanted.Action := TAction(Sender)
-  else
-    case (View) of
-      vIDE:
-        case (FNavigator.Selected.ImageIndex) of
-          iiProcedure,
-          iiFunction:
-            begin
-              Desktop(TSRoutine(FNavigator.Selected.Data)).CloseIDEResult();
-              PContentChange(Sender);
-              Session.Connection.SendSQL(SQL, Desktop(TSRoutine(FNavigator.Selected.Data)).IDEResultEvent);
-            end;
-          iiEvent:
-            Session.Connection.SendSQL(SQL);
-        end;
-      vBuilder:
-        case (FNavigator.Selected.ImageIndex) of
-          iiDatabase,
-          iiSystemDatabase:
-            begin
-              Desktop(TSDatabase(FNavigator.Selected.Data)).CloseBuilderResult();
-              PContentChange(Sender);
-              Session.Connection.SendSQL(SQL, Desktop(TSDatabase(FNavigator.Selected.Data)).BuilderResultEvent);
-            end;
-        end;
-      vEditor,
-      vEditor2,
-      vEditor3:
-        begin
-          SQLEditors[View].CloseResult();
-          PContentChange(Sender);
-          Session.Connection.SendSQL(SQL, SQLEditors[View].ResultEvent);
-        end;
-    end;
+  case (View) of
+    vIDE:
+      case (FNavigator.Selected.ImageIndex) of
+        iiProcedure,
+        iiFunction:
+          begin
+            Desktop(TSRoutine(FNavigator.Selected.Data)).CloseIDEResult();
+            PContentChange(Sender);
+            Session.Connection.SendSQL(SQL, Desktop(TSRoutine(FNavigator.Selected.Data)).IDEResultEvent);
+          end;
+        iiEvent:
+          Session.Connection.SendSQL(SQL);
+      end;
+    vBuilder:
+      case (FNavigator.Selected.ImageIndex) of
+        iiDatabase,
+        iiSystemDatabase:
+          begin
+            Desktop(TSDatabase(FNavigator.Selected.Data)).CloseBuilderResult();
+            PContentChange(Sender);
+            Session.Connection.SendSQL(SQL, Desktop(TSDatabase(FNavigator.Selected.Data)).BuilderResultEvent);
+          end;
+      end;
+    vEditor,
+    vEditor2,
+    vEditor3:
+      begin
+        SQLEditors[View].CloseResult();
+        PContentChange(Sender);
+        Session.Connection.SendSQL(SQL, SQLEditors[View].ResultEvent);
+      end;
+  end;
 end;
 
 procedure TFSession.SessionUpdate(const SessionEvent: TSSession.TEvent);
@@ -12557,7 +12564,7 @@ begin
       vObjects:
         if (Assigned(ActiveListView)) then Count := ActiveListView.Items.Count;
       vBrowser:
-        if (Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then Count := ActiveDBGrid.DataSource.DataSet.RecordCount + 1;
+        if (Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then Count := ActiveDBGrid.DataSource.DataSet.RecordCount;
       vIDE,
       vBuilder:
         if (Assigned(FQueryBuilderEditorPageControl())) then

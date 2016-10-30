@@ -506,7 +506,7 @@ procedure UnescapeString();
 // EAX Updated quoted string length
 // EBX Updated needed length of text buffer
 // EDX Updated unused length of text buffer
-// ZF if no text buffer too small or unterminated string
+// ZF if no text buffer or text buffer too small or unterminated string
 label
   StringL, String1, String2, String3, String4, String5, StringLE, StringLE2, StringE,
   Hex, Hex1S, Hex1E, Hex2, Hex2C, Hex2S, HexE,
@@ -631,6 +631,9 @@ asm
 
       Finish:
         MOV EAX,ECX
+
+      // ECX will be restored by POP of the Delphi compiler, since we use
+      // a local variable. Because of this, ECX will be returned in EAX.
 end;
 
 {******************************************************************************}

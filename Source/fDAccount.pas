@@ -56,6 +56,7 @@ type
     procedure FormCanResize(Sender: TObject; var NewWidth, NewHeight: Integer;
       var Resize: Boolean);
     procedure FHostChange(Sender: TObject);
+    procedure FLibraryFilenameEnter(Sender: TObject);
   private
     function CheckConnectInfos(): Boolean;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
@@ -224,6 +225,12 @@ procedure TDAccount.FHTTPTunnelURIEnter(Sender: TObject);
 begin
   if ((FHTTPTunnelURI.Text = '') and (Trim(FHost.Text) <> '') and (lstrcmpi(PChar(Trim(FHost.Text)), LOCAL_HOST) <> 0)) then
     FHTTPTunnelURI.Text := 'http://' + Trim(FHost.Text) + '/libMySQL.php';
+end;
+
+procedure TDAccount.FLibraryFilenameEnter(Sender: TObject);
+begin
+  if (FLibraryFilename.Text = '') then
+    FLibraryFilename.Text := 'libMySQL.dll';
 end;
 
 procedure TDAccount.FormCanResize(Sender: TObject; var NewWidth,

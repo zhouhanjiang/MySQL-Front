@@ -219,7 +219,6 @@ object FSession: TFSession
         ShowLines = False
         ShowRoot = False
         TabOrder = 0
-        OnAdvancedCustomDrawItem = FNavigatorAdvancedCustomDrawItem
         OnChange = FNavigatorChange
         OnChanging = FNavigatorChanging
         OnCollapsed = TreeViewCollapsed

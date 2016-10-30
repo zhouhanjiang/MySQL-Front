@@ -4249,7 +4249,7 @@ begin
   else
   begin
     DataSet := TMySQLQuery.Create(nil);
-    while ((Success <> daAbort) and not DataSet.Active) do
+    while ((Success = daSuccess) and not DataSet.Active) do
     begin
       DataSet.Open(DataHandle);
       if (not DataSet.Active) then
@@ -7885,20 +7885,25 @@ var
   SourceDatabase: TSDatabase;
   SourceTable: TSTable;
 begin
+  SourceDatabase := Item.DBObject.Database;
+  SourceTable := TSTable(Item.DBObject);
   DestinationDatabase := DestinationSession.DatabaseByName(TItem(Item).DestinationDatabaseName);
 
   if (Session = DestinationSession) then
   begin
     DestinationSession.Connection.BeginSynchron();
-    while ((Success = daSuccess) and not DestinationDatabase.CloneTable(TSTable(Item.DBObject), Item.DBObject.Name, Data)) do
+    while ((Success = daSuccess) and not DestinationDatabase.CloneTable(SourceTable, Item.DBObject.Name, Data)) do
       DoError(DatabaseError(Session), Item, True);
     DestinationSession.Connection.EndSynchron();
 
-    if ((Success = daSuccess) and Data) then
-    begin
-      Item.RecordsSum := TSBaseTable(Item.DBObject).RecordCount;
+
+    DestinationTable := DestinationDatabase.TableByName(Item.DBObject.Name);
+    if (DestinationTable is TSBaseTable) then
+      Item.RecordsSum := TSBaseTable(DestinationTable).RecordCount
+    else
+      Item.RecordsSum := 0;
+    if (Data) then
       Item.RecordsDone := Item.RecordsSum;
-    end;
   end
   else
   begin
@@ -7916,46 +7921,22 @@ begin
 
     if (Success = daSuccess) then
     begin
-      SourceTable := TSBaseTable(Item.DBObject);
-      DestinationTable := DestinationDatabase.BaseTableByName(SourceTable.Name);
-
-      if (Structure and Data and not Assigned(DestinationTable) and (Session = DestinationSession)) then
+      if (Structure) then
       begin
-        DestinationSession.Connection.BeginSynchron();
-        while ((Success = daSuccess) and not DestinationDatabase.CloneTable(SourceTable, SourceTable.Name, True)) do
-          DoError(DatabaseError(DestinationSession), Item, True);
-        DestinationSession.Connection.EndSynchron();
-
-        if (Success = daSuccess) then
-        begin
-          DestinationTable := DestinationDatabase.TableByName(SourceTable.Name);
-
-          if (DestinationTable is TSBaseTable) then
-            Item.RecordsDone := TSBaseTable(DestinationTable).RecordCount;
-        end;
-      end
-      else
-      begin
-        if ((Success = daSuccess) and Structure) then
-        begin
-          ExecuteTableStructure(TItem(Item));
-          DestinationTable := DestinationDatabase.TableByName(SourceTable.Name);
-
-          if (Terminated) then
-            Success := daAbort;
-        end;
-
-        if ((Success = daSuccess) and Data and (DestinationTable is TSBaseTable) and (DestinationTable.Source <> '')) then
-          ExecuteTableData(TItem(Item), DataHandle);
+        ExecuteTableStructure(TItem(Item));
+        if (Terminated) then Success := daAbort;
       end;
 
-      if (Success = daSuccess) then
-        Item.RecordsSum := Item.RecordsDone;
+      if ((Success = daSuccess) and Data and (SourceTable is TSBaseTable)) then
+      begin
+        ExecuteTableData(TItem(Item), DataHandle);
+        if (Terminated) then Success := daAbort;
+      end;
+
+      Item.RecordsSum := Item.RecordsDone;
     end;
   end;
 
-  SourceDatabase := Item.DBObject.Database;
-  SourceTable := TSTable(Item.DBObject);
   if ((SourceTable is TSBaseTable) and Assigned(SourceDatabase.Triggers) and Assigned(DestinationDatabase.Triggers)) then
     for I := 0 to SourceDatabase.Triggers.Count - 1 do
       if ((Success = daSuccess) and (SourceDatabase.Triggers[I].Table = SourceTable) and not Assigned(DestinationDatabase.TriggerByName(SourceDatabase.Triggers[I].Name))) then
@@ -8028,7 +8009,7 @@ begin
   if ((Success = daSuccess) and (FieldCount > 0)) then
   begin
     DataSet := TMySQLQuery.Create(nil);
-    while ((Success <> daAbort) and not DataSet.Active) do
+    while ((Success = daSuccess) and not DataSet.Active) do
     begin
       DataSet.Open(DataHandle);
       if (not DataSet.Active) then
@@ -8562,7 +8543,7 @@ begin
     DataSet.Connection := Session.Connection;
     DataSet.CommandText := SQL;
 
-    while ((Success <> daAbort) and not DataSet.Active) do
+    while ((Success = daSuccess) and not DataSet.Active) do
     begin
       DataSet.Open();
       if (not DataSet.Active) then
@@ -8771,7 +8752,7 @@ begin
   DataSet := TMySQLQuery.Create(nil);
   DataSet.Connection := Session.Connection;
   DataSet.CommandText := SQL;
-  while ((Success <> daAbort) and not DataSet.Active) do
+  while ((Success = daSuccess) and not DataSet.Active) do
   begin
     DataSet.Open();
     if (Session.Connection.ErrorCode > 0) then
@@ -8805,7 +8786,7 @@ begin
   DataSet.Connection := Session.Connection;
   DataSet.CommandText := SQL;
 
-  while ((Success <> daAbort) and not DataSet.Active) do
+  while ((Success = daSuccess) and not DataSet.Active) do
   begin
     DataSet.Open();
     if (Session.Connection.ErrorCode > 0) then

@@ -122,7 +122,6 @@ type
   private const
     SQLSTATE_LENGTH = 5;
   private
-    CriticalSection: TCriticalSection;
     FieldCount: my_uint;
     FSQLState: array [0 .. SQLSTATE_LENGTH - 1] of AnsiChar;
     UseNamedPipe: Boolean;
@@ -170,7 +169,6 @@ type
     procedure ReadRows(const Ares: MYSQL_RES); virtual;
     function ServerError(): Boolean; virtual;
     function Seterror(const AErrNo: my_uint; const AError: RawByteString = ''): my_uint; override;
-    property ClientStatus: TMySQL_Packet.TClientStatus read fclient_status;
     property CodePage: Cardinal read GetCodePage;
   public
     constructor Create(); override;
@@ -1187,8 +1185,8 @@ begin
     raise Exception.Create(DecodeString(error()));
 
   {$IFDEF EurekaLog}
-    if ((AErrNo = CR_COMMANDS_OUT_OF_SYNC)) then
-      raise Exception.Create(DecodeString(error()));
+    if ((AErrNo = CR_COMMANDS_OUT_OF_SYNC) and (Self is MYSQL)) then
+      raise Exception.CreateFMT(DecodeString(error() + ' (fclient_status: %d)'), [Ord(MYSQL(Self).fclient_status)]);
   {$ENDIF}
 
   Result := FErrNo;
@@ -1767,8 +1765,6 @@ end;
 
 procedure MYSQL.ClosePacket();
 begin
-  CriticalSection.Enter();
-
   if (Assigned(fres)) then
     FreeAndNil(fres);
 
@@ -1783,8 +1779,6 @@ begin
   fserver_status := 0;
   FillChar(FSQLState, SizeOf(FSQLState), #0);
   fthread_id := 0;
-
-  CriticalSection.Leave();
 end;
 
 constructor MYSQL.Create();
@@ -1792,7 +1786,6 @@ begin
   inherited;
 
   fclient_status := MYSQL_STATUS_READY;
-  CriticalSection := TCriticalSection.Create();;
   fres := nil;
   UseNamedPipe := False;
 
@@ -1827,18 +1820,12 @@ destructor MYSQL.Destroy();
 begin
   ClosePacket();
 
-  CriticalSection.Free();
-
   inherited;
 end;
 
 function MYSQL.dump_debug_info(): my_int;
 begin
-  CriticalSection.Enter();
-
   Result := ExecuteCommand(COM_DEBUG, nil, 0, freconnect);
-
-  CriticalSection.Leave();
 end;
 
 function MYSQL.eof(): my_bool;
@@ -1944,11 +1931,7 @@ end;
 
 function MYSQL.kill(pid: my_uint): my_int;
 begin
-  CriticalSection.Enter();
-
   Result := ExecuteCommand(COM_PROCESS_KILL, @pid, SizeOf(pid), freconnect);
-
-  CriticalSection.Leave();
 end;
 
 function MYSQL.more_results(): my_bool;
@@ -2091,11 +2074,7 @@ end;
 
 function MYSQL.ping(): my_int;
 begin
-  CriticalSection.Enter();
-
   Result := ExecuteCommand(COM_PING, nil, 0, False);
-
-  CriticalSection.Leave();
 end;
 
 function MYSQL.ReadRow(var Row: MYSQL_RES.PRow): my_int;
@@ -2263,8 +2242,6 @@ var
   S: string;
   Salt: RawByteString;
 begin
-  CriticalSection.Enter();
-
   if (IOType = itNone) then
   begin
     if (host = '') then
@@ -2454,8 +2431,6 @@ begin
   end
   else
     Result := Self;
-
-  CriticalSection.Leave();
 end;
 
 function MYSQL.real_escape_string(_to: my_char; const from: my_char; length: my_uint): my_uint;
@@ -2475,13 +2450,7 @@ begin
   if (StrLen(query) = 0) then
     Result := -1
   else
-  begin
-    CriticalSection.Enter();
-
     Result := ExecuteCommand(COM_QUERY, query, length, False);
-
-    CriticalSection.Leave();
-  end;
 end;
 
 function MYSQL.Reconnect(): Boolean;
@@ -2497,11 +2466,7 @@ end;
 
 function MYSQL.refresh(options: my_int): my_int;
 begin
-  CriticalSection.Enter();
-
   Result := ExecuteCommand(COM_REFRESH, @options, SizeOf(options), freconnect);
-
-  CriticalSection.Leave();
 end;
 
 function MYSQL.select_db(db: my_char): my_int;
@@ -2510,13 +2475,9 @@ begin
     Result := 1
   else
   begin
-    CriticalSection.Enter();
-
     Result := ExecuteCommand(COM_INIT_DB, db, StrLen(db), freconnect);
     if (Result = 0) then
       fdb := db;
-
-    CriticalSection.Leave();
   end;
 end;
 
@@ -2710,21 +2671,13 @@ function MYSQL.set_server_option(option: enum_mysql_set_option): my_int;
 var
   W: Word;
 begin
-  CriticalSection.Enter();
-
   W := Word(option);
   Result := ExecuteCommand(COM_SET_OPTION, @W, SizeOf(W), freconnect);
-
-  CriticalSection.Leave();
 end;
 
 function MYSQL.shutdown(shutdown_level: mysql_enum_shutdown_level): my_int;
 begin
-  CriticalSection.Enter();
-
   Result := ExecuteCommand(COM_SHUTDOWN, @shutdown_level, SizeOf(shutdown_level), freconnect);
-
-  CriticalSection.Leave();
 end;
 
 function MYSQL.sqlstate(): my_char;
