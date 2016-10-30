@@ -14,7 +14,6 @@ type
   TDServer = class (TForm_Ext)
     FBCancel: TButton;
     FBHelp: TButton;
-    FBShutdown: TButton;
     FCharacterSet: TLabel;
     FComment: TLabel;
     FHost: TLabel;
@@ -23,19 +22,16 @@ type
     FLHost: TLabel;
     FLibVersion: TLabel;
     FLLibVersion: TLabel;
-    FLUptime: TLabel;
     FLUser: TLabel;
     FLVersion: TLabel;
     FPlugins: TListView;
     FSlowSQLLog: TSynMemo;
     FSQLLog: TSynMemo;
     FStartup: TSynMemo;
-    FUptime: TLabel;
     FUser: TLabel;
     FVersion: TLabel;
     GConnection: TGroupBox_Ext;
     GServer: TGroupBox_Ext;
-    GServiceServer: TGroupBox_Ext;
     msCopy: TMenuItem;
     msCut: TMenuItem;
     msDelete: TMenuItem;
@@ -47,7 +43,6 @@ type
     N2: TMenuItem;
     PageControl: TPageControl;
     TSBasics: TTabSheet;
-    TSExtras: TTabSheet;
     TSPlugins: TTabSheet;
     TSSlowSQLLog: TTabSheet;
     TSSQLLog: TTabSheet;
@@ -56,7 +51,6 @@ type
     FLThreadId: TLabel;
     FThreadId: TLabel;
     procedure FBHelpClick(Sender: TObject);
-    procedure FBShutdownClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormHide(Sender: TObject);
     procedure FormShow(Sender: TObject);
@@ -66,7 +60,6 @@ type
     procedure ListViewDblClick(Sender: TObject);
     procedure ListViewKeyPress(Sender: TObject; var Key: Char);
     procedure ListViewResize(Sender: TObject);
-    procedure TSExtrasShow(Sender: TObject);
     procedure TSPluginsShow(Sender: TObject);
     procedure TSSlowSQLLogShow(Sender: TObject);
     procedure TSSQLLogShow(Sender: TObject);
@@ -119,19 +112,6 @@ end;
 procedure TDServer.FBHelpClick(Sender: TObject);
 begin
   Application.HelpContext(HelpContext);
-end;
-
-procedure TDServer.FBShutdownClick(Sender: TObject);
-begin
-  if (MsgBox(Preferences.LoadStr(679, Session.Caption), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES) then
-    if (Boolean(SendMessage(Tab.Handle, UM_CLOSE_TAB_QUERY, 0, 0))) then
-      if (Session.Connection.Shutdown()) then
-      begin
-        PostMessage(TForm(Tab.Owner).Handle, UM_CLOSE_TAB, 0, LPARAM(Tab));
-        FBCancel.Click();
-      end;
-
-  ActiveControl := FBCancel;
 end;
 
 procedure TDServer.FormSessionEvent(const Event: TSSession.TEvent);
@@ -207,7 +187,6 @@ begin
   FThreadId.Visible := Session.Connection.ThreadId > 0;
   FLThreadId.Visible := FThreadId.Visible;
   FThreadId.Caption := IntToStr(Session.Connection.ThreadId);
-  FUptime.Caption := '???';
 
   FStartup.Lines.Clear();
 
@@ -215,7 +194,6 @@ begin
   TSSlowSQLLog.TabVisible := Session.SlowLogActive;
   TSStartup.TabVisible := Assigned(Session.VariableByName('init_connect')) and (Session.VariableByName('init_connect').Value <> '');
   TSPlugins.TabVisible := Assigned(Session.Plugins);
-  TSExtras.TabVisible := {$IFDEF Debug} True; {$ELSE} False; {$ENDIF}
 
   PageControl.ActivePage := TSBasics;
 
@@ -325,13 +303,6 @@ begin
 
   if ((ComCtl32MajorVersion >= 6) and not CheckWin32Version(6, 1)) then
     SendMessage(ListView.Handle, LVM_SETSELECTEDCOLUMN, Column.Index, 0);
-end;
-
-procedure TDServer.TSExtrasShow(Sender: TObject);
-begin
-  FUptime.Caption := SysUtils.DateTimeToStr(Session.StartTime, LocaleFormatSettings);
-
-  FBShutdown.Enabled := Session.Connection.CanShutdown and (not Assigned(Session.UserRights) or Session.UserRights.RShutdown);
 end;
 
 procedure TDServer.TSPluginsShow(Sender: TObject);
@@ -457,11 +428,6 @@ begin
   TSPlugins.Caption := Preferences.LoadStr(811);
   FPlugins.Columns[0].Caption := Preferences.LoadStr(35);
   FPlugins.Columns[1].Caption := Preferences.LoadStr(111);
-
-  TSExtras.Caption := Preferences.LoadStr(73);
-  GServiceServer.Caption := Preferences.LoadStr(37);
-  FLUptime.Caption := Preferences.LoadStr(520) + ':';
-  FBShutdown.Caption := Preferences.LoadStr(323);
 
   msUndo.Action := MainAction('aEUndo'); msCut.ShortCut := 0;
   msCut.Action := MainAction('aECut'); msCut.ShortCut := 0;

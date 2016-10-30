@@ -343,7 +343,6 @@ type
     function NextResult(const DataHandle: TDataResult): Boolean; virtual;
     function SendSQL(const SQL: string; const Done: TEvent): Boolean; overload; virtual;
     function SendSQL(const SQL: string; const OnResult: TResultEvent = nil): Boolean; overload; virtual;
-    function Shutdown(): Boolean; virtual;
     procedure Terminate(); virtual;
     property AnsiQuotes: Boolean read FAnsiQuotes write SetAnsiQuotes;
     property BugMonitor: TMySQLMonitor read FBugMonitor;
@@ -2841,52 +2840,6 @@ begin
   FUserName := AUserName;
 end;
 
-function TMySQLConnection.Shutdown(): Boolean;
-var
-  Retry: Integer;
-begin
-  Assert(Connected and Assigned(Lib.mysql_shutdown));
-
-  if (InOnResult) then
-    raise Exception.Create(SOutOfSync + ' (in OnResult): ' + CommandText);
-  if (InMonitor) then
-    raise Exception.Create(SOutOfSync + ' (in Monitor): ' + CommandText);
-
-  if (Assigned(SyncThread) and (SyncThread.State <> ssReady)) then
-    Terminate();
-
-  if (not Assigned(SyncThread)) then
-    FSyncThread := TSyncThread.Create(Self);
-
-  Retry := 0;
-  while (not Assigned(SyncThread.LibHandle) and (Retry <= RETRY_COUNT)) do
-  begin
-    SyncConnecting(SyncThread);
-    Inc(Retry);
-  end;
-
-  SendConnectEvent(False);
-
-  if (not Assigned(SyncThread.LibHandle)) then
-    Result := False
-  else if (Lib.mysql_shutdown(SyncThread.LibHandle, SHUTDOWN_DEFAULT) <> 0) then
-  begin
-    FErrorCode := Lib.mysql_errno(SyncThread.LibHandle);
-    if (FErrorCode = 0) then
-      FErrorMessage := ''
-    else
-      FErrorMessage := GetErrorMessage(SyncThread.LibHandle);
-    FWarningCount := 0;
-    DoError(FErrorCode, FErrorMessage);
-    Result := False;
-  end
-  else
-  begin
-    SyncDisconnected(SyncThread);
-    Result := True;
-  end;
-end;
-
 function TMySQLConnection.SQLUse(const DatabaseName: string): string;
 begin
   Result := 'USE ' + EscapeIdentifier(DatabaseName) + ';' + #13#10;
@@ -3293,7 +3246,7 @@ begin
 
     if (AlterTableAfterCreateTable) then
       PacketComplete := pcExclusiveStmt
-    else if ((StmtLength = 8) and (StrLIComp(SQL, 'SHUTDOWN', 8) = 0)) then
+    else if ((StmtLength = 8) and (StrLIComp(SQL, 'SHUTDOWN', 8) = 0) and (MySQLVersion < 50709)) then
       PacketComplete := pcExclusiveStmt
     else if ((SizeOf(COM_QUERY) + SQLIndex - 1 + StmtLength > MaxAllowedServerPacket)
       and (SizeOf(COM_QUERY) + WideCharToAnsiChar(CodePage, PChar(@SyncThread.SQL[SQLIndex]), StmtLength, nil, 0) > MaxAllowedServerPacket)) then
@@ -3336,7 +3289,7 @@ begin
 
     if (not SyncThread.Terminated and Success) then
     begin
-      if ((LibLength = 8) and (StrLIComp(my_char(LibSQL), 'SHUTDOWN', 8) = 0)) then
+      if ((LibLength = 8) and (StrLIComp(my_char(LibSQL), 'SHUTDOWN', 8) = 0) and (MySQLVersion < 50709)) then
         Lib.mysql_shutdown(SyncThread.LibHandle, SHUTDOWN_DEFAULT)
       else
       begin
@@ -3364,7 +3317,7 @@ begin
 
   if (Assigned(SyncThread.LibHandle)) then
   begin
-    if ((SyncThread.ErrorCode = 0) and not SyncThread.Terminated) then
+    if ((Lib.mysql_errno(SyncThread.LibHandle) = 0) and not SyncThread.Terminated) then
       SyncThread.ResHandle := Lib.mysql_use_result(SyncThread.LibHandle);
 
     SyncThread.ErrorCode := Lib.mysql_errno(SyncThread.LibHandle);

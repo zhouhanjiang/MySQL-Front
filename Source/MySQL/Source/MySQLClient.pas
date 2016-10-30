@@ -134,7 +134,7 @@ type
     fcert: RawByteString;
     fcharacter_set_name: RawByteString;
     fcipher: RawByteString;
-    fclient_capabilities: my_uint;
+    fcapabilities: my_uint;
     fclient_status: TMySQL_Packet.TClientStatus;
     fcompress: Boolean;
     fdb: RawByteString;
@@ -1790,7 +1790,7 @@ begin
   UseNamedPipe := False;
 
   faffected_rows := 0;
-  fclient_capabilities := CLIENT_CAPABILITIES;
+  fcapabilities := CLIENT_CAPABILITIES;
   fcharacter_set_name := '';
   fcompress := False;
   ftimeout := NET_READ_TIMEOUT;
@@ -1938,7 +1938,7 @@ function MYSQL.more_results(): my_bool;
 //  0  No more results
 //  1  More results
 begin
-  if ((fclient_capabilities and CLIENT_MULTI_RESULTS = 0) or (fserver_status and SERVER_MORE_RESULTS_EXISTS = 0)) then
+  if ((fcapabilities and CLIENT_MULTI_RESULTS = 0) or (fserver_status and SERVER_MORE_RESULTS_EXISTS = 0)) then
     Result := 0
   else
     Result := 1;
@@ -1948,9 +1948,13 @@ function MYSQL.next_result(): my_int;
 // -1  Successful and there are no more results
 //  0  Successful and there are more results
 // >0  An error occurred
+const
+  OK = $00;
+  EOF = $FE;
 var
   FileSent: Boolean;
   RBS: RawByteString;
+  RBS2: RawByteString;
 begin
   if (fclient_status <> MYSQL_STATUS_READY)  then
   begin
@@ -1994,41 +1998,36 @@ begin
         else
           Result := 0;
       end
-      else if ((Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FE) and (PacketBuffer.Size - PacketBuffer.Offset < 9)) then
+      else if ((Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = OK) and (PacketBuffer.Size - PacketBuffer.Offset >= 7)
+        or (Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = EOF) and (PacketBuffer.Size - PacketBuffer.Offset < 9)) then
       begin
-        SetPacketPointer(1, FILE_CURRENT); // $FE
+        SetPacketPointer(1, FILE_CURRENT); // OK or EOF
 
-        if (fclient_capabilities and CLIENT_PROTOCOL_41 <> 0) then
-        begin
-          ReadPacket(fserver_status, 2);
-          ReadPacket(fwarning_count, 2);
-        end;
-
-        Result := 0;
-      end
-      else if (not ReadPacket(FieldCount)) then
-      begin
-        if (errno() = 0) then
-          Seterror(CR_SERVER_HANDSHAKE_ERR);
-        Result := 1;
-      end
-      else if (FieldCount = 0) then
-      begin
         ReadPacket(faffected_rows);
         ReadPacket(finsert_id);
 
-        if (fclient_capabilities and CLIENT_PROTOCOL_41 <> 0) then
+        if (fcapabilities and CLIENT_PROTOCOL_41 <> 0) then
         begin
           ReadPacket(fserver_status, 2);
           ReadPacket(fwarning_count, 2);
         end
-        else if (fserver_capabilities and CLIENT_TRANSACTIONS <> 0) then
+        else if (fcapabilities and CLIENT_TRANSACTIONS <> 0) then
         begin
           ReadPacket(fserver_status, 2);
           fwarning_count := 0;
         end;
 
-        if ((PacketBuffer.Offset < PacketBuffer.Size) and ReadPacket(RBS, False)) then
+        if (fcapabilities and CLIENT_SESSION_TRACK <> 0) then
+        begin
+          ReadPacket(RBS, False);
+
+          if (fserver_status and SERVER_SESSION_STATE_CHANGED <> 0) then
+            ReadPacket(RBS2, False);
+        end
+        else
+          ReadPacket(RBS, True);
+
+        if (Length(RBS) > 0) then
         begin
           GetMem(finfo, Length(RBS) + 1);
           StrPCopy(finfo, RBS);
@@ -2037,6 +2036,12 @@ begin
         fclient_status := MYSQL_STATUS_READY;
 
         Result := 0;
+      end
+      else if (not ReadPacket(FieldCount)) then
+      begin
+        if (errno() = 0) then
+          Seterror(CR_SERVER_HANDSHAKE_ERR);
+        Result := 1;
       end
       else
       begin
@@ -2096,7 +2101,7 @@ begin
   begin
     SetPacketPointer(1, FILE_CURRENT); // $FE
 
-    if (fclient_capabilities and CLIENT_PROTOCOL_41 <> 0) then
+    if (fcapabilities and CLIENT_PROTOCOL_41 <> 0) then
     begin
       ReadPacket(fwarning_count, 2);
       ReadPacket(fserver_status, 2);
@@ -2259,9 +2264,9 @@ begin
       fpipe_name := MYSQL_NAMEDPIPE
     else
       fpipe_name := unix_socket;
-    fclient_capabilities := client_flag or CLIENT_CAPABILITIES or CLIENT_LONG_PASSWORD;
+    fcapabilities := client_flag or CLIENT_CAPABILITIES or CLIENT_LONG_PASSWORD;
     if (fdb = '') then
-      fclient_capabilities := fclient_capabilities and not CLIENT_CONNECT_WITH_DB;
+      fcapabilities := fcapabilities and not CLIENT_CONNECT_WITH_DB;
 
     if (host = LOCAL_HOST_NAMEDPIPE) then
       CreatePacket(itNamedPipe, fhost, fport, ftimeout)
@@ -2318,12 +2323,12 @@ begin
           end;
         end;
 
-        fclient_capabilities := fclient_capabilities and ($FFFF2481 or ($0000DB7E and fserver_capabilities));
+        fcapabilities := fcapabilities and ($FFFF2481 or ($0000DB7E and fserver_capabilities));
         if (get_server_version() < 40101) then
-          fclient_capabilities := fclient_capabilities and $FFFFF
+          fcapabilities := fcapabilities and $FFFFF
         else if ((fserver_capabilities and CLIENT_RESERVED <> 0) and (get_server_version() < 50000)) then
-          fclient_capabilities := fclient_capabilities or CLIENT_PROTOCOL_41 or CLIENT_RESERVED; //  CLIENT_PROTOCOL_41 has in some older 4.1.xx versions the value $04000 instead of $00200
-        fclient_capabilities := fclient_capabilities and not CLIENT_SSL;
+          fcapabilities := fcapabilities or CLIENT_PROTOCOL_41 or CLIENT_RESERVED; //  CLIENT_PROTOCOL_41 has in some older 4.1.xx versions the value $04000 instead of $00200
+        fcapabilities := fcapabilities and not CLIENT_SSL;
 
         if (fcharacter_set_name = '') then
         begin
@@ -2334,7 +2339,7 @@ begin
               if (MySQL_Collations[I].CharsetNr = CharsetNr) then
                 fcharacter_set_name := MySQL_Collations[I].CharsetName;
         end
-        else if (fclient_capabilities and CLIENT_PROTOCOL_41 <> 0) then
+        else if (fcapabilities and CLIENT_PROTOCOL_41 <> 0) then
         begin
           CharsetNr := 0;
           for I := 0 to Length(MySQL_Collations) - 1 do
@@ -2349,14 +2354,14 @@ begin
         end;
 
         Direction := idWrite;
-        if (fclient_capabilities and CLIENT_PROTOCOL_41 = 0) then
+        if (fcapabilities and CLIENT_PROTOCOL_41 = 0) then
         begin
-          WritePacket(fclient_capabilities and $FFFF, 2);
+          WritePacket(fcapabilities and $FFFF, 2);
           WritePacket(MAX_ALLOWED_PACKET, 3); // Max allowed packet size (Client)
         end
         else
         begin
-          WritePacket(fclient_capabilities, 4);
+          WritePacket(fcapabilities, 4);
           WritePacket($40000000, 4); // Max allowed packet size (Client)
           WritePacket(CharsetNr, 1);
           WritePacket(RawByteString(StringOfChar(#0, 22))); // unused space
@@ -2371,7 +2376,7 @@ begin
             WritePacket(Scramble(my_char(fpasswd), my_char(Salt)))
           else
             WritePacket(SecureScramble(my_char(fpasswd), my_char(Salt)), False);
-          if (fclient_capabilities and CLIENT_CONNECT_WITH_DB <> 0) then
+          if (fcapabilities and CLIENT_CONNECT_WITH_DB <> 0) then
             WritePacket(fdb);
           FlushPacketBuffers();
 
@@ -2401,7 +2406,7 @@ begin
                 ReadPacket(faffected_rows);
                 ReadPacket(finsert_id);
 
-                if (fclient_capabilities and CLIENT_PROTOCOL_41 <> 0) then
+                if (fcapabilities and CLIENT_PROTOCOL_41 <> 0) then
                 begin
                   ReadPacket(fserver_status, 2);
                   ReadPacket(fwarning_count, 2);
@@ -2412,7 +2417,7 @@ begin
                   fwarning_count := 0;
                 end;
 
-                UseCompression := fclient_capabilities and CLIENT_COMPRESS <> 0;
+                UseCompression := fcapabilities and CLIENT_COMPRESS <> 0;
               end;
           end;
         end;
@@ -2461,7 +2466,7 @@ begin
     Result := False;
   end
   else
-    Result := Assigned(real_connect(my_char(fhost), my_char(fuser), my_char(fpasswd), my_char(fdb), fport, my_char(fpipe_name), fclient_capabilities));
+    Result := Assigned(real_connect(my_char(fhost), my_char(fuser), my_char(fpasswd), my_char(fdb), fport, my_char(fpipe_name), fcapabilities));
 end;
 
 function MYSQL.refresh(options: my_int): my_int;
@@ -2778,7 +2783,7 @@ begin
       else
       begin
         MemSize := SizeOf(Field^);
-        if (mysql.fclient_capabilities and CLIENT_PROTOCOL_41 = 0) then
+        if (mysql.fcapabilities and CLIENT_PROTOCOL_41 = 0) then
           if (ItemCount < 5) then
             mysql.Seterror(CR_SERVER_HANDSHAKE_ERR)
           else
@@ -2811,7 +2816,7 @@ begin
         if (mysql.errno() = 0) then
         begin
           Index := SizeOf(Field^);
-          if (mysql.fclient_capabilities and CLIENT_PROTOCOL_41 = 0) then
+          if (mysql.fcapabilities and CLIENT_PROTOCOL_41 = 0) then
           begin
             if (Assigned(Row^.Row^[0])) then begin Field^.table := @PAnsiChar(Field)[Index]; MoveMemory(Field^.table, Row^.Row^[0], Row^.Lengths^[0]); end; Inc(Index, Row^.Lengths^[0] + 1);
             Field^.table_length := Row^.Lengths^[0];

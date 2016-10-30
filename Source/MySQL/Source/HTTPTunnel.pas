@@ -400,7 +400,7 @@ begin
           WritePacket(RawByteString(fdb));
           WritePacket(RawByteString(fcharacter_set_name));
           WritePacket(fport, 2);
-          WritePacket(fclient_capabilities, 4);
+          WritePacket(fcapabilities, 4);
           WritePacket(ftimeout, 2);
           FlushPacketBuffers();
 

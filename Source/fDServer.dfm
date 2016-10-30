@@ -52,17 +52,13 @@ object DServer: TDServer
     Top = 8
     Width = 321
     Height = 321
-    ActivePage = TSSlowSQLLog
+    ActivePage = TSPlugins
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         275)
@@ -198,10 +194,6 @@ object DServer: TDServer
     object TSSQLLog: TTabSheet
       Caption = 'TSSQLLog'
       OnShow = TSSQLLogShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         275)
@@ -270,10 +262,6 @@ object DServer: TDServer
     object TSStartup: TTabSheet
       Caption = 'TSStartup'
       OnShow = TSStartupShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         275)
@@ -312,10 +300,6 @@ object DServer: TDServer
     object TSPlugins: TTabSheet
       Caption = 'TSPlugins'
       OnShow = TSPluginsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         275)
@@ -336,55 +320,6 @@ object DServer: TDServer
         RowSelect = True
         TabOrder = 0
         ViewStyle = vsReport
-      end
-    end
-    object TSExtras: TTabSheet
-      Caption = 'TSExtras'
-      OnShow = TSExtrasShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
-      DesignSize = (
-        313
-        275)
-      object GServiceServer: TGroupBox_Ext
-        Left = 8
-        Top = 8
-        Width = 296
-        Height = 75
-        Anchors = [akLeft, akTop, akRight]
-        Caption = 'GServiceServer'
-        TabOrder = 0
-        DesignSize = (
-          296
-          75)
-        object FLUptime: TLabel
-          Left = 8
-          Top = 20
-          Width = 45
-          Height = 13
-          Caption = 'FLUptime'
-        end
-        object FUptime: TLabel
-          Left = 248
-          Top = 20
-          Width = 39
-          Height = 13
-          Alignment = taRightJustify
-          Anchors = [akTop, akRight]
-          Caption = 'FUptime'
-        end
-        object FBShutdown: TButton
-          Left = 168
-          Top = 40
-          Width = 122
-          Height = 25
-          Anchors = [akTop, akRight]
-          Caption = 'FBShutdown'
-          TabOrder = 0
-          OnClick = FBShutdownClick
-        end
       end
     end
   end
