@@ -24046,15 +24046,15 @@ begin
         JNE QuotedL2                     // No!
         INC NewLines                     // One new line
       QuotedL2:
-//        CMP AX,'\'                       // Escaper?
-//        JNE QuotedLE                     // No!
-//        CMP ECX,0                        // End of SQL?
-//        JE IncompleteToken               // Yes!
-//        ADD ESI,2                        // Next character in SQL
-//        DEC ECX                          // One character handled
-//        MOV AX,[ESI]                     // One character from SQL to AX
-//        CMP AX,DX                        // Escaped End Quoter?
-//        JE Quoted                        // Yes!
+        CMP AX,'\'                       // Escaper?
+        JNE QuotedLE                     // No!
+        CMP ECX,0                        // End of SQL?
+        JE IncompleteToken               // Yes!
+        ADD ESI,2                        // Next character in SQL
+        DEC ECX                          // One character handled
+        MOV AX,[ESI]                     // One character from SQL to AX
+        CMP AX,DX                        // Escaped End Quoter?
+        JE Quoted                        // Yes!
       QuotedLE:
         CMP AX,DX                        // End Quoter (unescaped)?
         JE QuotedE                       // Yes!

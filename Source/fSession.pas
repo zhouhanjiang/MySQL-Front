@@ -2493,10 +2493,7 @@ begin
   if (not Session.SQLParser.ParseSQL(SQL)) then
   begin
     if ((Now() <= Session.ParseEndDate)
-      and (StrIComp(PChar(Name), 'create_synonym_db') <> 0)
-      and (StrIComp(PChar(Name), 'diagnostics') <> 0)
-      and (StrIComp(PChar(Name), 'execute_prepared_stmt') <> 0)
-      and (StrLIComp(PChar(Name), 'ps_', 3) <> 0)) then
+      and (Session.Databases.NameCmp(Database.Name, 'sys') <> 0)) then
       Session.UnparsableSQL := Session.UnparsableSQL
         + '# SetReferences()' + #13#10
         + '# Error: ' + Session.SQLParser.ErrorMessage + #13#10
@@ -4477,10 +4474,14 @@ begin
     if (not SQLParseKeyword(Parse, 'CREATE')) then
       raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
+    SQLParseKeyword(Parse, 'OR REPLACE');
+
     Temporary := SQLParseKeyword(Parse, 'TEMPORARY');
 
     if (not SQLParseKeyword(Parse, 'TABLE')) then
       raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+
+    SQLParseKeyword(Parse, 'IF NOT EXISTS');
 
     NewName := SQLParseValue(Parse);
     if (SQLParseChar(Parse, '.')) then
@@ -5079,9 +5080,9 @@ end;
 
 procedure TSBaseTable.PushBuildEvent(const SItemsEvents: Boolean = True);
 begin
-  if (ValidSource and SItemsEvents) then
+  if ((ValidSource or ValidStatus) and SItemsEvents) then
     Session.ExecuteEvent(etItemsValid, Self);
-  if (Valid or ValidSource) then
+  if (Valid or ValidSource or ValidStatus) then
     Session.ExecuteEvent(etItemValid, Database, Tables, Self);
 end;
 
@@ -5238,6 +5239,10 @@ begin
     if (not SQLParseKeyword(Parse, 'CREATE')
       and not SQLParseKeyword(Parse, 'ALTER')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
+    if (SQLParseKeyword(Parse, 'OR')) then
+      if (not SQLParseKeyword(Parse, 'REPLACE')) then
+        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+
     if (not SQLParseKeyword(Parse, 'ALGORITHM')) then
       Algorithm := vaUndefined
     else
@@ -5266,6 +5271,14 @@ begin
       FSecurity := seInvoker;
 
     if (not SQLParseKeyword(Parse, 'VIEW')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+
+    if (SQLParseKeyword(Parse, 'IF')) then
+    begin
+      if (not SQLParseKeyword(Parse, 'NOT')) then
+        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+      if (not SQLParseKeyword(Parse, 'EXISTS')) then
+        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+    end;
 
     FName := SQLParseValue(Parse);
     if (SQLParseChar(Parse, '.')) then
@@ -5712,13 +5725,13 @@ begin
     if (Assigned(List)) then
     begin
       for I := 0 to List.Count - 1 do
-        if (TSDBObject(List[I]) is TSBaseTable) then
+        if ((TObject(List[I]) is TSBaseTable) and not TSBaseTable(List[I]).ValidStatus) then
           Result := Result + 'SHOW TABLE STATUS FROM ' + Session.Connection.EscapeIdentifier(Database.Name) + ' LIKE ' + SQLEscape(TSTable(List[I]).Name) + ';' + #13#10;
     end
     else
     begin
       for I := 0 to Count - 1 do
-        if (Table[I] is TSBaseTable) then
+        if ((Table[I] is TSBaseTable) and not TSBaseTable(Table[I]).ValidStatus) then
           Result := Result + 'SHOW TABLE STATUS FROM ' + Session.Connection.EscapeIdentifier(Database.Name) + ' LIKE ' + SQLEscape(Table[I].Name) + ';' + #13#10;
     end
   end
@@ -5745,13 +5758,11 @@ begin
       if (Result <> '') then
         Result := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('TABLES')
           + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name)
-          + ' AND ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ' IN (' + Result + ')'
-          + ' AND ' + Session.Connection.EscapeIdentifier('TABLE_TYPE') + ' = ''BASE TABLE'';' + #13#10;
+          + ' AND ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ' IN (' + Result + ');' + #13#10;
     end
     else
       Result := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('TABLES')
-        + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name)
-        + ' AND ' + Session.Connection.EscapeIdentifier('TABLE_TYPE') + ' = ''BASE TABLE'';' + #13#10;
+        + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ';' + #13#10;
   end;
 end;
 
@@ -6048,6 +6059,13 @@ begin
 
     if (not SQLParseKeyword(Parse, 'CREATE')) then
       raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
+
+    Index := SQLParseGetIndex(Parse);
+    if (SQLParseKeyword(Parse, 'OR REPLACE')) then
+    begin
+      Delete(S, Index - RemovedLength, SQLParseGetIndex(Parse) - Index);
+      Inc(RemovedLength, SQLParseGetIndex(Parse) - Index);
+    end;
 
     Index := SQLParseGetIndex(Parse);
     if (SQLParseKeyword(Parse, 'DEFINER')) then
@@ -6516,6 +6534,13 @@ begin
       raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
 
     Index := SQLParseGetIndex(Parse);
+    if (SQLParseKeyword(Parse, 'OR REPLACE')) then
+    begin
+      Delete(S, Index - RemovedLength, SQLParseGetIndex(Parse) - Index);
+      Inc(RemovedLength, SQLParseGetIndex(Parse) - Index);
+    end;
+
+    Index := SQLParseGetIndex(Parse);
     if (SQLParseKeyword(Parse, 'DEFINER')) then
     begin
       if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
@@ -6526,6 +6551,13 @@ begin
 
     if (not SQLParseKeyword(Parse, 'TRIGGER')) then
       raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
+
+    Index := SQLParseGetIndex(Parse);
+    if (SQLParseKeyword(Parse, 'IF NOT EXISTS')) then
+    begin
+      Delete(S, Index - RemovedLength, SQLParseGetIndex(Parse) - Index);
+      Inc(RemovedLength, SQLParseGetIndex(Parse) - Index);
+    end;
 
     DatabaseName := Database.Name;
     if (not SQLParseObjectName(Parse, DatabaseName, FName)) then
@@ -6913,6 +6945,13 @@ begin
     if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
 
     Index := SQLParseGetIndex(Parse);
+    if (SQLParseKeyword(Parse, 'OR REPLACE')) then
+    begin
+      Delete(S, Index - RemovedLength, SQLParseGetIndex(Parse) - Index);
+      Inc(RemovedLength, SQLParseGetIndex(Parse) - Index);
+    end;
+
+    Index := SQLParseGetIndex(Parse);
     if (SQLParseKeyword(Parse, 'DEFINER')) then
     begin
       if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
@@ -6922,6 +6961,13 @@ begin
     end;
 
     if (not SQLParseKeyword(Parse, 'EVENT')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
+
+    Index := SQLParseGetIndex(Parse);
+    if (SQLParseKeyword(Parse, 'IF NOT EXISTS')) then
+    begin
+      Delete(S, Index - RemovedLength, SQLParseGetIndex(Parse) - Index);
+      Inc(RemovedLength, SQLParseGetIndex(Parse) - Index);
+    end;
 
     FName := SQLParseValue(Parse);
     if (SQLParseChar(Parse, '.')) then
@@ -7761,7 +7807,13 @@ var
 begin
   if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion)) then
   begin
-    if (not SQLParseKeyword(Parse, 'CREATE DATABASE')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, SQL]);
+    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, SQL]);
+
+    SQLParseKeyword(Parse, 'OR REPLACE');
+
+    if (not SQLParseKeyword(Parse, 'DATABASE')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, SQL]);
+
+    SQLParseKeyword(Parse, 'IF NOT EXISTS');
 
     FName := SQLParseValue(Parse);
 
@@ -12639,15 +12691,16 @@ begin
       if (not Database.ValidSource and not (TObject(List[I]) is TSSystemDatabase)) then
         SQL := SQL + Database.SQLGetSource();
       if (not Database.Tables.Valid) then
-        SQL := SQL + Database.Tables.SQLGetItems();
+        if (Connection.MySQLVersion < 50003) then
+          SQL := SQL + Database.Tables.SQLGetItems()
+        else
+          SQL := SQL + Database.Tables.SQLGetStatus();
       if (Assigned(Database.Routines) and not Database.Routines.Valid) then
         SQL := SQL + Database.Routines.SQLGetItems();
       if (Assigned(Database.Triggers) and not Database.Triggers.Valid) then
         SQL := SQL + Database.Triggers.SQLGetItems();
       if (Assigned(Database.Events) and not Database.Events.Valid) then
         SQL := SQL + Database.Events.SQLGetItems();
-      if (Status and not Database.Tables.Valid and (Connection.MySQLVersion >= 50003)) then
-        SQL := SQL + Database.Tables.SQLGetStatus();
     end
     else if (TObject(List[I]) is TSDBObject) then
     begin

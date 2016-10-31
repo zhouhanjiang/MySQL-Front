@@ -1460,7 +1460,7 @@ begin
       Shutdown:
         MOV EAX,[KShutdown]
         CALL CompareKeyword              // 'SHUTDOWN'?
-        JNE Finish                       // No!
+        JNE Use                          // No!
         MOV BYTE PTR [EBX + 0],ctShutdown
 
       Use:
