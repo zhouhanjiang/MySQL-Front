@@ -47,7 +47,7 @@ type
     PageControl: TPageControl;
     PSQLWait: TPanel;
     TSBasics: TTabSheet;
-    TSInformations: TTabSheet;
+    TSInformation: TTabSheet;
     TSSource: TTabSheet;
     TSFields: TTabSheet;
     TSReferenced: TTabSheet;
@@ -440,7 +440,7 @@ begin
 
   FReferenced.Cursor := crDefault;
 
-  TSInformations.TabVisible := Assigned(View);
+  TSInformation.TabVisible := Assigned(View);
   TSFields.TabVisible := Assigned(View);
   TSReferenced.TabVisible := Assigned(View);
 
@@ -610,7 +610,7 @@ begin
   else
     FStmt.ActiveLineColor := Preferences.Editor.CurrRowBGColor;
 
-  TSInformations.Caption := Preferences.LoadStr(121);
+  TSInformation.Caption := Preferences.LoadStr(121);
   GDefiner.Caption := Preferences.LoadStr(561);
   FLDefiner.Caption := Preferences.LoadStr(799) + ':';
 

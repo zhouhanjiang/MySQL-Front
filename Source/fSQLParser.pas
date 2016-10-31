@@ -21481,8 +21481,7 @@ function TSQLParser.ParseSelectStmtTableReference(): TOffset;
   begin
     if (IsTag(kiDUAL)) then
       Result := ParseTag(kiDUAL)
-    else if (IsSymbol(ttOpenBracket)
-      and IsNextTag(1, kiSELECT)) then
+    else if (IsTag(kiSELECT)) then
       Result := ParseSelectStmtTableFactorSubquery()
     else if (IsSymbol(ttOpenBracket)) then
       Result := ParseList(True, ParseSelectStmtTableEscapedReference)

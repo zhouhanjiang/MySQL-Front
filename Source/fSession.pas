@@ -2362,6 +2362,11 @@ begin
       and not Database.Tables[I].ValidSource) then
       SQL := SQL + Database.Tables[I].SQLGetSource();
 
+  if (Assigned(Database.Routines)) then
+    for I := 0 to Database.Routines.Count - 1 do
+      if (not Database.Routines[I].ValidSource) then
+        SQL := SQL + Database.Routines[I].SQLGetSource();
+
   if (Assigned(Database.Triggers)) then
     for I := 0 to Database.Triggers.Count - 1 do
       if ((not (DBObject is TSBaseTable) or (Database.Tables.NameCmp(Database.Triggers[I].TableName, DBObject.Name) <> 0))
@@ -2493,7 +2498,10 @@ begin
   if (not Session.SQLParser.ParseSQL(SQL)) then
   begin
     if ((Now() <= Session.ParseEndDate)
-      and (Session.Databases.NameCmp(Database.Name, 'sys') <> 0)) then
+      and (StrIComp(PChar(Name), 'create_synonym_db') <> 0)
+      and (StrIComp(PChar(Name), 'diagnostics') <> 0)
+      and (StrIComp(PChar(Name), 'execute_prepared_stmt') <> 0)
+      and (StrLIComp(PChar(Name), 'ps_', 3) <> 0)) then
       Session.UnparsableSQL := Session.UnparsableSQL
         + '# SetReferences()' + #13#10
         + '# Error: ' + Session.SQLParser.ErrorMessage + #13#10
@@ -2501,41 +2509,46 @@ begin
   end
   else
   begin
-    PreviousToken1 := nil; PreviousToken2 := nil;
-    Token := Session.SQLParser.FirstTokenAll;
-    while (Assigned(Token)) do
-    begin
-      if (Token^.DbIdentType = ditTable) then
+    try
+      PreviousToken1 := nil; PreviousToken2 := nil;
+      Token := Session.SQLParser.FirstTokenAll;
+      while (Assigned(Token)) do
       begin
-        if ((PreviousToken1^.OperatorType <> otDot) or (PreviousToken2^.DbIdentType <> ditDatabase)) then
-          DatabaseName := Database.Name
-        else
-          DatabaseName := PreviousToken2^.AsString;
-        References.Add(TSReference.Create(References, DatabaseName, TSTable, Token^.AsString));
-      end
-      else if ((Token^.DbIdentType = ditProcedure)) then
-      begin
-        if ((PreviousToken1^.OperatorType <> otDot) or (PreviousToken2^.DbIdentType <> ditDatabase)) then
-          DatabaseName := Database.Name
-        else
-          DatabaseName := PreviousToken2^.AsString;
-        References.Add(TSReference.Create(References, DatabaseName, TSProcedure, Token^.AsString));
-      end
-      else if (Token^.DbIdentType = ditFunction) then
-      begin
-        if ((PreviousToken1^.OperatorType <> otDot) or (PreviousToken2^.DbIdentType <> ditDatabase)) then
-          DatabaseName := Database.Name
-        else
-          DatabaseName := PreviousToken2^.AsString;
-        References.Add(TSReference.Create(References, DatabaseName, TSFunction, Token^.AsString));
-      end;
+        if (Token^.DbIdentType = ditTable) then
+        begin
+          if ((PreviousToken1^.OperatorType <> otDot) or (PreviousToken2^.DbIdentType <> ditDatabase)) then
+            DatabaseName := Database.Name
+          else
+            DatabaseName := PreviousToken2^.AsString;
+          References.Add(TSReference.Create(References, DatabaseName, TSTable, Token^.AsString));
+        end
+        else if ((Token^.DbIdentType = ditProcedure)) then
+        begin
+          if ((PreviousToken1^.OperatorType <> otDot) or (PreviousToken2^.DbIdentType <> ditDatabase)) then
+            DatabaseName := Database.Name
+          else
+            DatabaseName := PreviousToken2^.AsString;
+          References.Add(TSReference.Create(References, DatabaseName, TSProcedure, Token^.AsString));
+        end
+        else if (Token^.DbIdentType = ditFunction) then
+        begin
+          if ((PreviousToken1^.OperatorType <> otDot) or (PreviousToken2^.DbIdentType <> ditDatabase)) then
+            DatabaseName := Database.Name
+          else
+            DatabaseName := PreviousToken2^.AsString;
+          References.Add(TSReference.Create(References, DatabaseName, TSFunction, Token^.AsString));
+        end;
 
-      PreviousToken2 := PreviousToken1;
-      PreviousToken1 := Token;
-      if (Token = Session.SQLParser.FirstStmt^.LastToken) then
-        Token := nil
-      else
-        Token := Token^.NextToken;
+        PreviousToken2 := PreviousToken1;
+        PreviousToken1 := Token;
+        if (Token = Session.SQLParser.FirstStmt^.LastToken) then
+          Token := nil
+        else
+          Token := Token^.NextToken;
+      end;
+    except
+      on E: Exception do
+        raise Exception.CreateFMT(E.Message + ' (Database: %s, Source: %s)', [Database.Name, SQL]);
     end;
   end;
   Session.SQLParser.Clear();
@@ -6361,10 +6374,8 @@ begin
       // Inside ROUTINE_DEFINITION there are no parameter, but for references
       // we don't need them, so we can set the references without a separated
       // SHOW CREATE PROCEDURE / FUNCTION
-      if (RoutineType = rtProcedure) then
-        Routine[Index].SetReferences('CREATE PROCEDURE ' + Session.Connection.EscapeIdentifier(Name) + '() ' + DataSet.FieldByName('ROUTINE_DEFINITION').AsString)
-      else
-        Routine[Index].SetReferences('CREATE FUNCTION ' + Session.Connection.EscapeIdentifier(Name) + '() RETURNS int ' + DataSet.FieldByName('ROUTINE_DEFINITION').AsString);
+      // But in MySQL 5.7.14 the ROUTINE_DEFINITION does not escape strings
+      // correctly like "'\\'". It will be shown as "'\'" ... and is not usable.
     until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('ROUTINE_SCHEMA').AsString, Database.Name) <> 0));
 
   Result := inherited or (Session.Connection.ErrorCode = ER_CANNOT_LOAD_FROM_TABLE);
@@ -11738,7 +11749,7 @@ begin
         + '# Error: ' + Connection.ErrorMessage + #13#10
         + Trim(SQL) + #13#10 + #13#10 + #13#10;
     end
-    else if ((Connection.ErrorCode <> ER_PARSE_ERROR) and (Connection.ErrorCode < ER_ERROR_LAST) and not SQLParser.ParseSQL(SQL)) then
+    else if ((Connection.ErrorCode = 0) and not SQLParser.ParseSQL(SQL)) then
     begin
       UnparsableSQL := UnparsableSQL
         + '# MonitorExecutedStmts()' + #13#10

@@ -48,7 +48,7 @@ type
     PSQLWait: TPanel;
     PTiming: TPanel_Ext;
     TSBasics: TTabSheet;
-    TSInformations: TTabSheet;
+    TSInformation: TTabSheet;
     TSSource: TTabSheet;
     procedure FBHelpClick(Sender: TObject);
     procedure FEventClick(Sender: TObject);
@@ -304,7 +304,7 @@ begin
       Built();
   end;
 
-  TSInformations.TabVisible := Assigned(Trigger);
+  TSInformation.TabVisible := Assigned(Trigger);
 
   FBOk.Enabled := PageControl.Visible and not Assigned(Trigger);
 
@@ -373,7 +373,7 @@ begin
   else
     FStatement.ActiveLineColor := Preferences.Editor.CurrRowBGColor;
 
-  TSInformations.Caption := Preferences.LoadStr(121);
+  TSInformation.Caption := Preferences.LoadStr(121);
   GDefiner.Caption := Preferences.LoadStr(561);
   FLDefiner.Caption := Preferences.LoadStr(799) + ':';
   GSize.Caption := Preferences.LoadStr(67);

@@ -48,7 +48,7 @@ type
     PageControl: TPageControl;
     PSQLWait: TPanel;
     TSBasics: TTabSheet;
-    TSInformations: TTabSheet;
+    TSInformation: TTabSheet;
     TSSource: TTabSheet;
     TSReferenced: TTabSheet;
     procedure FBHelpClick(Sender: TObject);
@@ -156,8 +156,6 @@ begin
   FBOk.Enabled := (not Assigned(Routine) or Assigned(Routine) and (Routine.Source <> ''))
     and (not TSBasics.Visible or not Assigned(Routine) or (FName.Text <> '') and ((lstrcmpi(PChar(FName.Text), PChar(Routine.Name)) = 0) or ((Routine.RoutineType = rtProcedure) and not Assigned(Database.ProcedureByName(FName.Text)) or ((Routine.RoutineType = rtFunction) and not Assigned(Database.FunctionByName(FName.Text))))))
     and (not TSSource.Visible or SQLSingleStmt(FSource.Text) and SQLParseDDLStmt(DDLStmt, PChar(FSource.Text), Length(FSource.Text), Database.Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction]) and ((DDLStmt.DatabaseName = '') or (Database.Session.DatabaseByName(DDLStmt.DatabaseName) = Database)));
-
-  TSInformations.TabVisible := False;
 end;
 
 procedure TDRoutine.FCommentChange(Sender: TObject);
@@ -371,7 +369,7 @@ begin
   FReferenced.Cursor := crDefault;
 
   TSBasics.TabVisible := Assigned(Routine);
-  TSInformations.TabVisible := Assigned(Routine);
+  TSInformation.TabVisible := Assigned(Routine);
   TSReferenced.TabVisible := Assigned(Routine);
 
   FBOk.Enabled := PageControl.Visible and not Assigned(Routine);
@@ -485,7 +483,7 @@ begin
   FComment.Enabled := False; FLComment.Enabled := FComment.Enabled;
 
   TSBasics.TabVisible := False;
-  TSInformations.TabVisible := False;
+  TSInformation.TabVisible := False;
 
   FBOkCheckEnabled(Sender);
 end;
@@ -518,7 +516,7 @@ begin
   FSecurityInvoker.Caption := Preferences.LoadStr(561);
   FLComment.Caption := Preferences.LoadStr(111) + ':';
 
-  TSInformations.Caption := Preferences.LoadStr(121);
+  TSInformation.Caption := Preferences.LoadStr(121);
   GDates.Caption := Preferences.LoadStr(122);
   FLCreated.Caption := Preferences.LoadStr(118) + ':';
   FLUpdated.Caption := Preferences.LoadStr(119) + ':';

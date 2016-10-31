@@ -44,7 +44,7 @@ type
     msSelectAll: TMenuItem;
     N1: TMenuItem;
     PageControl: TPageControl;
-    TSInformations: TTabSheet;
+    TSInformation: TTabSheet;
     TSSource: TTabSheet;
     procedure FormCreate(Sender: TObject);
     procedure FormHide(Sender: TObject);
@@ -178,13 +178,13 @@ begin
     FSource.ReadOnly := True;
   end;
 
-  PageControl.ActivePage := TSInformations;
+  PageControl.ActivePage := TSInformation;
   ActiveControl := FBClose;
 end;
 
 procedure TDStatement.UMChangePreferences(var Message: TMessage);
 begin
-  TSInformations.Caption := Preferences.LoadStr(121);
+  TSInformation.Caption := Preferences.LoadStr(121);
   GBasics.Caption := Preferences.LoadStr(85);
   FLExecutionTime.Caption := Preferences.LoadStr(520) + ':';
   FLDatabase.Caption := Preferences.LoadStr(38) + ':';

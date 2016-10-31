@@ -72,16 +72,12 @@ object DEvent: TDEvent
     Top = 8
     Width = 381
     Height = 483
-    ActivePage = TSBasics
+    ActivePage = TSInformation
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         373
         455)
@@ -517,12 +513,8 @@ object DEvent: TDEvent
         end
       end
     end
-    object TSInformations: TTabSheet
-      Caption = 'TSInformations'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+    object TSInformation: TTabSheet
+      Caption = 'TSInformation'
       DesignSize = (
         373
         455)
@@ -602,10 +594,6 @@ object DEvent: TDEvent
     object TSSource: TTabSheet
       Caption = 'TSSource'
       OnShow = TSSourceShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         373
         455)

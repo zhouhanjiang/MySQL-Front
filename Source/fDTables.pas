@@ -273,7 +273,7 @@ begin
   Preferences.Table.Width := Width;
   Preferences.Table.Height := Height;
 
-  PageControl.ActivePage := nil; // TSInformationsShow soll beim nächsten Öffnen nicht vorzeitig aufgerufen werden
+  PageControl.ActivePage := nil; // TSInformationShow should not be called previously while the next showing
 
   FSource.Lines.Clear();
 

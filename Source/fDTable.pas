@@ -64,7 +64,7 @@ type
     FCharset: TComboBox_Ext;
     FComment: TEdit;
     FCollation: TComboBox_Ext;
-    TSInformations: TTabSheet;
+    TSInformation: TTabSheet;
     GDates: TGroupBox_Ext;
     FLCreated: TLabel;
     FLUpdated: TLabel;
@@ -183,7 +183,7 @@ type
     procedure TSFieldsShow(Sender: TObject);
     procedure TSForeignKeysShow(Sender: TObject);
     procedure TSKeysShow(Sender: TObject);
-    procedure TSInformationsShow(Sender: TObject);
+    procedure TSInformationShow(Sender: TObject);
     procedure TSPartitionsShow(Sender: TObject);
     procedure TSReferencedShow(Sender: TObject);
     procedure TSSourceShow(Sender: TObject);
@@ -604,7 +604,7 @@ begin
   end;
 
 
-  TSInformations.TabVisible := Assigned(Table);
+  TSInformation.TabVisible := Assigned(Table);
   TSKeys.TabVisible := True;
   TSFields.TabVisible := True;
   TSForeignKeys.TabVisible := Assigned(Table);
@@ -1001,7 +1001,7 @@ begin
 
   BorderStyle := bsSizeable;
 
-  PageControl.ActivePage := nil; // TSInformationsShow should not be called previously while the next showing
+  PageControl.ActivePage := nil; // TSInformationShow should not be called previously while the next showing
 
   SetWindowLong(FAutoIncrement.Handle, GWL_STYLE, GetWindowLong(FAutoIncrement.Handle, GWL_STYLE) or ES_NUMBER);
   FFields.RowSelect := CheckWin32Version(6);
@@ -1020,7 +1020,7 @@ procedure TDTable.FormHide(Sender: TObject);
 begin
   Database.Session.UnRegisterEventProc(FormSessionEvent);
 
-  PageControl.ActivePage := nil; // TSInformationsShow should not be called previously while the next showing
+  PageControl.ActivePage := nil; // TSInformationShow should not be called previously while the next showing
 
   if (Assigned(NewTable)) then
     FreeAndNil(NewTable);
@@ -1201,7 +1201,7 @@ begin
 
   FReferenced.Cursor := crDefault;
 
-  TSInformations.TabVisible := Assigned(Table);
+  TSInformation.TabVisible := Assigned(Table);
   TSKeys.TabVisible := True;
   TSFields.TabVisible := True;
   TSForeignKeys.TabVisible := Assigned(Table);
@@ -1601,7 +1601,7 @@ begin
   FKeys.OnChange := TempOnChange;
 end;
 
-procedure TDTable.TSInformationsShow(Sender: TObject);
+procedure TDTable.TSInformationShow(Sender: TObject);
 begin
   if (not Table.Update(True)) then
   begin
@@ -1723,7 +1723,7 @@ begin
   FLAutoIncrement.Caption := Preferences.LoadStr(117) + ':';
   FLRowType.Caption := Preferences.LoadStr(129) + ':';
 
-  TSInformations.Caption := Preferences.LoadStr(121);
+  TSInformation.Caption := Preferences.LoadStr(121);
   GDates.Caption := Preferences.LoadStr(122);
   FLCreated.Caption := Preferences.LoadStr(118) + ':';
   FLUpdated.Caption := Preferences.LoadStr(119) + ':';

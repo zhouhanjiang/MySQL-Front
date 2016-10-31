@@ -38,15 +38,12 @@ object DStatement: TDStatement
     Top = 8
     Width = 321
     Height = 255
-    ActivePage = TSInformations
+    ActivePage = TSInformation
     Anchors = [akLeft, akTop, akRight, akBottom]
     TabOrder = 0
-    object TSInformations: TTabSheet
-      Caption = 'TSInformations'
+    object TSInformation: TTabSheet
+      Caption = 'TSInformation'
       ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         227)
@@ -231,10 +228,6 @@ object DStatement: TDStatement
       Caption = 'TSSource'
       ParentShowHint = False
       ShowHint = True
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         227)

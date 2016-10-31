@@ -41,17 +41,13 @@ object DView: TDView
     Top = 8
     Width = 321
     Height = 325
-    ActivePage = TSInformations
+    ActivePage = TSInformation
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         279)
@@ -204,12 +200,8 @@ object DView: TDView
         end
       end
     end
-    object TSInformations: TTabSheet
-      Caption = 'TSInformations'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+    object TSInformation: TTabSheet
+      Caption = 'TSInformation'
       DesignSize = (
         313
         279)
@@ -244,10 +236,6 @@ object DView: TDView
     end
     object TSFields: TTabSheet
       Caption = 'TSFields'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         279)
@@ -294,10 +282,6 @@ object DView: TDView
       Caption = 'TSReferenced'
       ImageIndex = 4
       OnShow = TSReferencedShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         279)
@@ -325,10 +309,6 @@ object DView: TDView
     end
     object TSSource: TTabSheet
       Caption = 'TSSource'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         279)

@@ -72,7 +72,7 @@ object DRoutine: TDRoutine
     Top = 8
     Width = 321
     Height = 325
-    ActivePage = TSReferenced
+    ActivePage = TSInformation
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     TabOrder = 1
@@ -163,12 +163,8 @@ object DRoutine: TDRoutine
         end
       end
     end
-    object TSInformations: TTabSheet
-      Caption = 'TSInformations'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+    object TSInformation: TTabSheet
+      Caption = 'TSInformation'
       DesignSize = (
         313
         297)

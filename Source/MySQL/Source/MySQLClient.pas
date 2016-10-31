@@ -140,7 +140,7 @@ type
     fdb: RawByteString;
     fhost: RawByteString;
     fhost_info: RawByteString;
-    finfo: my_char;
+    finfo: RawByteString;
     finsert_id: my_ulonglong;
     fkey: RawByteString;
     flocal_infile_end: Tlocal_infile_end;
@@ -1771,8 +1771,7 @@ begin
   inherited;
 
   fclient_status := MYSQL_STATUS_READY;
-  if (Assigned(finfo)) then
-    begin FreeMem(finfo); finfo := nil; end;
+  finfo := '';
   fserver_capabilities := 0;
   if (Assigned(fserver_info)) then
     begin FreeMem(fserver_info); fserver_info := nil; end;
@@ -1797,7 +1796,7 @@ begin
   fdb := '';
   fhost := '';
   fhost_info := '';
-  finfo := nil;
+  finfo := '';
   finsert_id := 0;
   flocal_infile_end := nil;
   flocal_infile_error := nil;
@@ -1921,7 +1920,7 @@ end;
 
 function MYSQL.info(): my_char;
 begin
-  Result := finfo;
+  Result := my_char(finfo);
 end;
 
 function MYSQL.insert_id(): my_ulonglong;
@@ -1948,9 +1947,6 @@ function MYSQL.next_result(): my_int;
 // -1  Successful and there are no more results
 //  0  Successful and there are more results
 // >0  An error occurred
-const
-  OK = $00;
-  EOF = $FE;
 var
   FileSent: Boolean;
   RBS: RawByteString;
@@ -1964,8 +1960,7 @@ begin
   else
   begin
     faffected_rows := -1;
-    if (Assigned(finfo)) then
-      begin FreeMem(finfo); finfo := nil; end;
+    finfo := '';
     finsert_id := -1;
     fwarning_count := 0;
     fres := nil;
@@ -1988,20 +1983,9 @@ begin
       end
       else if (ServerError()) then
         Result := 1
-      else if (Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FB) then // NULL_LENGTH
+      else if ((Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $00) and (PacketBuffer.Size - PacketBuffer.Offset + 1 > 7)) then
       begin
-        SetPacketPointer(1, FILE_CURRENT); // $FB
-
-        FileSent := True;
-        if (not ReadPacket(RBS) or not SendFile(RBS)) then
-          Result := 1
-        else
-          Result := 0;
-      end
-      else if ((Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = OK) and (PacketBuffer.Size - PacketBuffer.Offset >= 7)
-        or (Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = EOF) and (PacketBuffer.Size - PacketBuffer.Offset < 9)) then
-      begin
-        SetPacketPointer(1, FILE_CURRENT); // OK or EOF
+        SetPacketPointer(1, FILE_CURRENT); // $00
 
         ReadPacket(faffected_rows);
         ReadPacket(finsert_id);
@@ -2014,26 +1998,44 @@ begin
         else if (fcapabilities and CLIENT_TRANSACTIONS <> 0) then
         begin
           ReadPacket(fserver_status, 2);
-          fwarning_count := 0;
         end;
 
         if (fcapabilities and CLIENT_SESSION_TRACK <> 0) then
         begin
-          ReadPacket(RBS, False);
+          ReadPacket(finfo, False);
 
           if (fserver_status and SERVER_SESSION_STATE_CHANGED <> 0) then
             ReadPacket(RBS2, False);
         end
         else
-          ReadPacket(RBS, True);
-
-        if (Length(RBS) > 0) then
-        begin
-          GetMem(finfo, Length(RBS) + 1);
-          StrPCopy(finfo, RBS);
-        end;
+          ReadPacket(finfo, True);
 
         fclient_status := MYSQL_STATUS_READY;
+
+        Result := 0;
+      end
+      else if (Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FB) then // NULL_LENGTH
+      begin
+        SetPacketPointer(1, FILE_CURRENT); // $FB
+
+        FileSent := True;
+        if (not ReadPacket(RBS) or not SendFile(RBS)) then
+          Result := 1
+        else
+          Result := 0;
+      end
+      else if ((Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FE) and (PacketBuffer.Size - PacketBuffer.Offset + 1 < 9)) then
+      begin
+        SetPacketPointer(1, FILE_CURRENT); // $FE
+
+        ReadPacket(faffected_rows);
+        ReadPacket(finsert_id);
+
+        if (fcapabilities and CLIENT_PROTOCOL_41 <> 0) then
+        begin
+          ReadPacket(fserver_status, 2);
+          ReadPacket(fwarning_count, 2);
+        end;
 
         Result := 0;
       end
@@ -2045,13 +2047,9 @@ begin
       end
       else
       begin
-        faffected_rows := 0;
-        finsert_id := 0;
-
         // we can switch the server in transaction
         if (fserver_status and SERVER_STATUS_AUTOCOMMIT = 0) then
           fserver_status := fserver_status or SERVER_STATUS_IN_TRANS;
-        fwarning_count := 0;
 
         fclient_status := MYSQL_STATUS_GET_RESULT;
 
@@ -2619,16 +2617,19 @@ begin
 
   if (Result) then
   begin
-    SetPacketPointer(1, FILE_CURRENT);
+    SetPacketPointer(1, FILE_CURRENT); // $FF
+
     ReadPacket(ErrorCode, 2);
-    ReadPacket(ErrorMessage);
-    if ((Length(ErrorMessage) < 6) or (ErrorMessage[1] <> '#')) then
-      Seterror(ErrorCode, ErrorMessage)
-    else
+
+    if (fcapabilities and CLIENT_PROTOCOL_41 <> 0) then
     begin
-      Move(PAnsiChar(RawByteString(Copy(ErrorMessage, 2, SQLSTATE_LENGTH)))^, FSQLState, SQLSTATE_LENGTH);
-      Seterror(ErrorCode, Copy(ErrorMessage, 7, Length(ErrorMessage) - SQLSTATE_LENGTH - 1));
+      SetPacketPointer(1, FILE_CURRENT); // '#'
+      ReadPacket(@FSQLState, 5);
     end;
+
+    ReadPacket(ErrorMessage);
+
+    Seterror(ErrorCode, ErrorMessage);
 
     fserver_status := fserver_status and not SERVER_MORE_RESULTS_EXISTS;
   end;

@@ -81,7 +81,7 @@ type
     PageControl: TPageControl;
     PSQLWait: TPanel;
     TSBasics: TTabSheet;
-    TSInformations: TTabSheet;
+    TSInformation: TTabSheet;
     TSSource: TTabSheet;
     procedure FBHelpClick(Sender: TObject);
     procedure FBOkCheckEnabled(Sender: TObject);
@@ -441,7 +441,7 @@ begin
 
   FSource.Lines.Clear();
 
-  TSInformations.TabVisible := Assigned(Event);
+  TSInformation.TabVisible := Assigned(Event);
   TSSource.TabVisible := Assigned(Event);
 
   FBOk.Enabled := PageControl.Visible and not Assigned(Event);
@@ -515,7 +515,7 @@ begin
   else
     FStatement.ActiveLineColor := Preferences.Editor.CurrRowBGColor;
 
-  TSInformations.Caption := Preferences.LoadStr(121);
+  TSInformation.Caption := Preferences.LoadStr(121);
   GDefiner.Caption := Preferences.LoadStr(561);
   FLDefiner.Caption := Preferences.LoadStr(799) + ':';
   GDates.Caption := Preferences.LoadStr(122);

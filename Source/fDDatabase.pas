@@ -50,7 +50,7 @@ type
     PSQLWait: TPanel;
     TSBasics: TTabSheet;
     TSExtras: TTabSheet;
-    TSInformations: TTabSheet;
+    TSInformation: TTabSheet;
     TSSource: TTabSheet;
     procedure FBHelpClick(Sender: TObject);
     procedure FBOkCheckEnabled(Sender: TObject);
@@ -65,7 +65,7 @@ type
     procedure FormHide(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure FSourceChange(Sender: TObject);
-    procedure TSInformationsShow(Sender: TObject);
+    procedure TSInformationShow(Sender: TObject);
     procedure TSSourceShow(Sender: TObject);
     procedure FBOptimizeClick(Sender: TObject);
     procedure TSExtrasShow(Sender: TObject);
@@ -317,7 +317,7 @@ begin
 
   FSource.Highlighter := MainHighlighter;
 
-  PageControl.ActivePage := TSBasics; // TSInformationsShow should not be called previously while the next showing
+  PageControl.ActivePage := TSBasics; // TSInformationShow should not be called previously while the next showing
 end;
 
 procedure TDDatabase.FormHide(Sender: TObject);
@@ -329,7 +329,7 @@ begin
 
   FSource.Lines.Clear();
 
-  PageControl.ActivePage := TSBasics; // TSInformationsShow should not be called previously while the next showing
+  PageControl.ActivePage := TSBasics; // TSInformationShow should not be called previously while the next showing
 end;
 
 procedure TDDatabase.FormSessionEvent(const Event: TSSession.TEvent);
@@ -418,7 +418,7 @@ begin
   FBCheck.Enabled := True;
   FBFlush.Enabled := True;
 
-  TSInformations.TabVisible := not FName.Enabled;
+  TSInformation.TabVisible := not FName.Enabled;
   TSExtras.TabVisible := Assigned(Database);
 
   FName.SelectAll();
@@ -460,7 +460,7 @@ begin
     BuiltStatus();
 end;
 
-procedure TDDatabase.TSInformationsShow(Sender: TObject);
+procedure TDDatabase.TSInformationShow(Sender: TObject);
 begin
   if (not Database.Update(True)) then
   begin
@@ -497,7 +497,7 @@ begin
   FLCharset.Caption := Preferences.LoadStr(682) + ':';
   FLCollation.Caption := Preferences.LoadStr(702) + ':';
 
-  TSInformations.Caption := Preferences.LoadStr(121);
+  TSInformation.Caption := Preferences.LoadStr(121);
   GDates.Caption := Preferences.LoadStr(122);
   FLCreated.Caption := Preferences.LoadStr(118) + ':';
   FLUpdated.Caption := Preferences.LoadStr(119) + ':';

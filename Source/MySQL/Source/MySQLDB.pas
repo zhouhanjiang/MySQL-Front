@@ -2251,16 +2251,19 @@ begin
   FErrorMessage := '';
   FWarningCount := 0;
 
-  SyncThread.State := ssDisconnecting;
   if (not Assigned(SyncThread)) then
     SyncDisconnected(nil)
-  else if (not UseSyncThread()) then
-  begin
-    SyncDisconnecting(SyncThread);
-    SyncDisconnected(SyncThread);
-  end
   else
-    SyncThread.RunExecute.SetEvent();
+  begin
+    SyncThread.State := ssDisconnecting;
+    if (not UseSyncThread()) then
+    begin
+      SyncDisconnecting(SyncThread);
+      SyncDisconnected(SyncThread);
+    end
+    else
+      SyncThread.RunExecute.SetEvent();
+  end;
 end;
 
 procedure TMySQLConnection.DoError(const AErrorCode: Integer; const AErrorMessage: string);
