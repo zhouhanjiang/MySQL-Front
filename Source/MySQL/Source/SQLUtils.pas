@@ -9,7 +9,7 @@ type
   TSQLStrings = array of string;
 
   TSQLCLStmt = packed record // must be "packed", since asm code address it as packed
-    CommandType: (ctDropDatabase, ctSetNames, ctSetCharacterSet, ctSetCharset, ctUse);
+    CommandType: (ctDropDatabase, ctSetNames, ctSetCharacterSet, ctSetCharset, ctShutdown, ctUse);
     ObjectName: string;
   end;
 
@@ -137,6 +137,7 @@ const
   KSetCharacterSet: PChar = 'SET CHARACTER SET';
   KSetCharset: PChar = 'SET CHARSET';
   KShow: PChar = 'SHOW';
+  KShutdown: PChar = 'SHUTDOWN';
   KSQLSecurityDefiner: PChar = 'SQL SECURITY DEFINER';
   KSQLSecurityInvoker: PChar = 'SQL SECURITY INVOKER';
   KTable: PChar = 'TABLE';
@@ -1387,7 +1388,7 @@ end;
 
 function SQLParseCLStmt(out CLStmt: TSQLCLStmt; const SQL: PChar; const Len: Integer; const Version: Integer): Boolean;
 label
-  Commands, DropDatabase, DropSchema, SetNames, SetCharacterSet, SetCharset, Use,
+  Commands, DropDatabase, DropSchema, SetNames, SetCharacterSet, SetCharset, Shutdown, Use,
   Found, FoundL, FoundE,
   Finish, FinishE;
 var
@@ -1452,9 +1453,15 @@ begin
       SetCharset:
         MOV EAX,[KSetCharset]
         CALL CompareKeyword              // 'SET CHARSET'?
-        JNE Use                          // No!
+        JNE Shutdown                     // No!
         MOV BYTE PTR [EBX + 0],ctSetCharset
         JMP Found
+
+      Shutdown:
+        MOV EAX,[KShutdown]
+        CALL CompareKeyword              // 'SHUTDOWN'?
+        JNE Finish                       // No!
+        MOV BYTE PTR [EBX + 0],ctShutdown
 
       Use:
         MOV EAX,[KUse]

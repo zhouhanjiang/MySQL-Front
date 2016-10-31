@@ -327,7 +327,6 @@ type
   public
     procedure BeginSilent(); virtual;
     procedure BeginSynchron(); virtual;
-    function CanShutdown(): Boolean; virtual;
     function CharsetToCharsetNr(const Charset: string): Byte; virtual;
     function CharsetToCodePage(const Charset: string): Cardinal; overload; virtual;
     procedure CloseResult(const DataHandle: TDataResult); virtual;
@@ -2044,11 +2043,6 @@ begin
   Inc(SynchronCount);
 end;
 
-function TMySQLConnection.CanShutdown(): Boolean;
-begin
-  Result := Assigned(Lib.mysql_shutdown) and not InUse();
-end;
-
 function TMySQLConnection.CharsetToCharsetNr(const Charset: string): Byte;
 var
   I: Integer;
@@ -3289,7 +3283,7 @@ begin
 
     if (not SyncThread.Terminated and Success) then
     begin
-      if ((LibLength = 8) and (StrLIComp(my_char(LibSQL), 'SHUTDOWN', 8) = 0) and (MySQLVersion < 50709)) then
+      if ((LibLength = 8) and (StrLIComp(my_char(LibSQL), 'SHUTDOWN', 8) = 0) and (MySQLVersion < 50709) and Assigned(Lib.mysql_shutdown)) then
         Lib.mysql_shutdown(SyncThread.LibHandle, SHUTDOWN_DEFAULT)
       else
       begin

@@ -5716,7 +5716,11 @@ begin
           Result := Result + 'SHOW TABLE STATUS FROM ' + Session.Connection.EscapeIdentifier(Database.Name) + ' LIKE ' + SQLEscape(TSTable(List[I]).Name) + ';' + #13#10;
     end
     else
-      Result := 'SHOW TABLE STATUS FROM ' + Session.Connection.EscapeIdentifier(Database.Name) + ';' + #13#10
+    begin
+      for I := 0 to Count - 1 do
+        if (Table[I] is TSBaseTable) then
+          Result := Result + 'SHOW TABLE STATUS FROM ' + Session.Connection.EscapeIdentifier(Database.Name) + ' LIKE ' + SQLEscape(Table[I].Name) + ';' + #13#10;
+    end
   end
   else
   begin
@@ -7102,7 +7106,7 @@ end;
 
 function TSEvents.SQLGetItems(const Name: string = ''): string;
 begin
-  Result := 'xSELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('EVENTS')
+  Result := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('EVENTS')
     + ' WHERE ' + Session.Connection.EscapeIdentifier('EVENT_SCHEMA') + '=' + SQLEscape(Database.Name) + ';' + #13#10;
 end;
 
@@ -12642,8 +12646,8 @@ begin
         SQL := SQL + Database.Triggers.SQLGetItems();
       if (Assigned(Database.Events) and not Database.Events.Valid) then
         SQL := SQL + Database.Events.SQLGetItems();
-      if (Status and not Database.Tables.Valid) then
-        SQL := SQL + Database.Tables.SQLGetStatus(Tables);
+      if (Status and not Database.Tables.Valid and (Connection.MySQLVersion >= 50003)) then
+        SQL := SQL + Database.Tables.SQLGetStatus();
     end
     else if (TObject(List[I]) is TSDBObject) then
     begin
