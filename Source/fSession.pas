@@ -5444,9 +5444,7 @@ var
   Name: string;
   NewTable: TSTable;
 begin
-  if (DataSet.FieldCount = 0) then
-    Result := inherited
-  else if (DataSet.FieldCount <= 2) then // SHOW [FULL] TABLES
+  if (DataSet.FieldCount <= 2) then // SHOW [FULL] TABLES
   begin
     DeleteList := TList.Create();
     DeleteList.Assign(Self);
@@ -5479,7 +5477,6 @@ begin
         if (Filtered and SessionEvents) then
           Session.ExecuteEvent(etItemValid, Database, Self, Table[Index]);
       until (not DataSet.FindNext());
-    FValid := True;
 
     if (not Filtered) then
       while (DeleteList.Count > 0) do
@@ -5491,16 +5488,18 @@ begin
       end;
     DeleteList.Free();
 
-    Result := inherited;
-
     if (not Filtered and SessionEvents) then
     begin
+      FValid := True;
       Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
       Session.ExecuteEvent(etItemsValid, Database, Self);
     end;
   end
   else
   begin
+    DeleteList := TList.Create();
+    DeleteList.Assign(Self);
+
     if (not DataSet.IsEmpty()) then
       repeat
         if (not UseInformationSchema) then
@@ -5534,6 +5533,16 @@ begin
           Table[Index].PushBuildEvent(Filtered);
       until (not DataSet.FindNext() or (UseInformationSchema and (Session.Databases.NameCmp(DataSet.FieldByName('TABLE_SCHEMA').AsString, Database.Name) <> 0)));
 
+    if (not Filtered) then
+      while (DeleteList.Count > 0) do
+      begin
+        Index := IndexOf(DeleteList.Items[0]);
+        Item[Index].Free();
+        Delete(Index);
+        DeleteList.Delete(0);
+      end;
+    DeleteList.Free();
+
     if (not Filtered and SessionEvents) then
     begin
       FValid := True;
@@ -5542,9 +5551,9 @@ begin
     end;
     if (Database.Valid and SessionEvents) then
       Session.ExecuteEvent(etItemValid, Session, Session.Databases, Database);
-
-    Result := True;
   end;
+
+  Result := True;
 end;
 
 procedure TSTables.BuildViewFields(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean);
@@ -6358,8 +6367,6 @@ begin
       // correctly like "'\\'". It will be shown as "'\'" ... and is not usable.
     until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('ROUTINE_SCHEMA').AsString, Database.Name) <> 0));
 
-  Result := inherited and (Session.Connection.ErrorCode <> ER_CANNOT_LOAD_FROM_TABLE);
-
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
@@ -6372,11 +6379,14 @@ begin
 
   if (not Filtered and SessionEvents) then
   begin
+    FValid := True;
     Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
     Session.ExecuteEvent(etItemsValid, Database, Self);
   end;
   if (Database.Valid and SessionEvents) then
     Session.ExecuteEvent(etItemValid, Session, Session.Databases, Database);
+
+  Result := (Session.Connection.ErrorCode = 0) or (Session.Connection.ErrorCode = ER_CANNOT_LOAD_FROM_TABLE);
 end;
 
 function TSRoutines.GetRoutine(Index: Integer): TSRoutine;
@@ -6784,8 +6794,6 @@ begin
       end;
     until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('TRIGGER_SCHEMA').AsString, Database.Name) <> 0));
 
-  Result := inherited;
-
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
@@ -6798,11 +6806,14 @@ begin
 
   if (not Filtered and SessionEvents) then
   begin
+    FValid := True;
     Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
     Session.ExecuteEvent(etItemsValid, Database, Self);
   end;
   if (Database.Valid and SessionEvents) then
     Session.ExecuteEvent(etItemValid, Session, Session.Databases, Database);
+
+  Result := True;
 end;
 
 procedure TSTriggers.Delete(const AEntity: TSEntity);
@@ -7087,8 +7098,6 @@ begin
       end;
     until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('EVENT_SCHEMA').AsString, Database.Name) <> 0));
 
-  Result := inherited or (Session.Connection.ErrorCode = ER_EVENTS_DB_ERROR);
-
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
@@ -7106,6 +7115,8 @@ begin
   end;
   if (Database.Valid and SessionEvents) then
     Session.ExecuteEvent(etItemValid, Session, Session.Databases, Database);
+
+  Result := (Session.Connection.ErrorCode = 0) or (Session.Connection.ErrorCode = ER_EVENTS_DB_ERROR);
 end;
 
 function TSEvents.GetEvent(Index: Integer): TSEvent;
@@ -11842,7 +11853,7 @@ begin
                       if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
                       begin
                         Database := DatabaseByName(DatabaseName);
-                        Table := Database.TableByName(DDLStmt.ObjectName);
+                        Table := Database.TableByName(ObjectName);
                         if (Assigned(Table)) then
                         begin
                           NextSQL := Connection.NextCommandText;

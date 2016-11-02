@@ -18856,10 +18856,8 @@ begin
       else if (TokenPtr(CurrentToken)^.TokenType = ttOpenBracket) then
         if (IsNextTag(1, kiSELECT)) then
           Nodes.Add(ParseSubSelectStmt())
-        else if ((Nodes.Count > 0) and IsToken(Nodes[Nodes.Count - 1]) and (TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType = otIn)) then
-          Nodes.Add(ParseList(True, ParseExpr))
         else
-          Nodes.Add(ParseSubArea(ParseExpr))
+          Nodes.Add(ParseList(True, ParseExpr))
       else if (TokenPtr(CurrentToken)^.KeywordIndex = kiBINARY) then
         // BINARY is operator and function, so we have to handle it separately
         if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.TokenType = ttOpenBracket)) then
@@ -21379,7 +21377,7 @@ begin
           Nodes.LockInShareMode := ParseTag(kiLOCK, kiIN, kiSHARE, kiMODE);
     end;
 
-  if (not ErrorFound and (Nodes.OpenBracket = 0)) then
+  if (not ErrorFound) then
   begin
     if (IsTag(kiUNION, kiALL)) then
       Nodes.Union1.Tag := ParseTag(kiUNION, kiALL)
@@ -22167,7 +22165,10 @@ begin
       Nodes.FullTag := ParseTag(kiFULL);
 
   if (not ErrorFound) then
-    Nodes.ColumnsTag := ParseTag(kiCOLUMNS);
+    if (IsTag(kiCOLUMNS)) then
+      Nodes.ColumnsTag := ParseTag(kiCOLUMNS)
+    else
+      Nodes.ColumnsTag := ParseTag(kiFIELDS);
 
   if (not ErrorFound) then
     if (IsTag(kiFROM)) then
@@ -23285,10 +23286,10 @@ begin
     Result := ParseShowCollationStmt()
   else if (IsTag(kiSHOW, kiCOLUMNS)) then
     Result := ParseShowColumnsStmt()
-  else if (IsTag(kiSHOW, kiFULL, kiCOLUMNS)) then
-    Result := ParseShowColumnsStmt()
   else if (IsTag(kiSHOW) and IsNextTag(5, kiERRORS)) then // SHOW COUNT(*) ERRORS
     Result := ParseShowCountErrorsStmt()
+  else if (IsTag(kiSHOW, kiFIELDS)) then
+    Result := ParseShowColumnsStmt()
   else if (IsTag(kiSHOW) and IsNextTag(5, kiWARNINGS)) then // SHOW COUNT(*) WARINGS
     Result := ParseShowCountWarningsStmt()
   else if (IsTag(kiSHOW, kiCREATE, kiDATABASE)) then
@@ -23321,6 +23322,10 @@ begin
     Result := ParseShowErrorsStmt()
   else if (IsTag(kiSHOW, kiEVENTS)) then
     Result := ParseShowEventsStmt()
+  else if (IsTag(kiSHOW, kiFULL, kiCOLUMNS)) then
+    Result := ParseShowColumnsStmt()
+  else if (IsTag(kiSHOW, kiFULL, kiFIELDS)) then
+    Result := ParseShowColumnsStmt()
   else if (IsTag(kiSHOW, kiFULL, kiTABLES)) then
     Result := ParseShowTablesStmt()
   else if (IsTag(kiSHOW, kiFULL, kiPROCESSLIST)) then

@@ -3559,7 +3559,7 @@ end;
 
 function TMySQLBitField.GetIsNull(): Boolean;
 begin
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLBitField.GetText(var Text: string; DisplayText: Boolean);
@@ -3615,7 +3615,7 @@ end;
 
 function TMySQLBlobField.GetIsNull(): Boolean;
 begin
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLBlobField.GetText(var Text: string; DisplayText: Boolean);
@@ -3648,7 +3648,7 @@ end;
 
 function TMySQLByteField.GetIsNull(): Boolean;
 begin
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLByteField.GetText(var Text: string; DisplayText: Boolean);
@@ -3668,7 +3668,7 @@ end;
 
 function TMySQLDateField.GetIsNull(): Boolean;
 begin
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLDateField.GetText(var Text: string; DisplayText: Boolean);
@@ -3710,7 +3710,7 @@ end;
 
 function TMySQLDateTimeField.GetIsNull(): Boolean;
 begin
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLDateTimeField.GetText(var Text: string; DisplayText: Boolean);
@@ -3750,7 +3750,7 @@ end;
 
 function TMySQLExtendedField.GetIsNull(): Boolean;
 begin
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLExtendedField.GetText(var Text: string; DisplayText: Boolean);
@@ -3770,7 +3770,7 @@ end;
 
 function TMySQLFloatField.GetIsNull(): Boolean;
 begin
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLFloatField.GetText(var Text: string; DisplayText: Boolean);
@@ -3790,7 +3790,7 @@ end;
 
 function TMySQLIntegerField.GetIsNull(): Boolean;
 begin
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLIntegerField.GetText(var Text: string; DisplayText: Boolean);
@@ -3820,7 +3820,7 @@ end;
 
 function TMySQLLargeWordField.GetIsNull(): Boolean;
 begin
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLLargeWordField.GetText(var Text: string; DisplayText: Boolean);
@@ -3855,7 +3855,7 @@ end;
 
 function TMySQLLongWordField.GetIsNull(): Boolean;
 begin
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLLongWordField.GetText(var Text: string; DisplayText: Boolean);
@@ -3875,7 +3875,7 @@ end;
 
 function TMySQLShortIntField.GetIsNull(): Boolean;
 begin
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLShortIntField.GetText(var Text: string; DisplayText: Boolean);
@@ -3895,7 +3895,7 @@ end;
 
 function TMySQLSingleField.GetIsNull(): Boolean;
 begin
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLSingleField.GetText(var Text: string; DisplayText: Boolean);
@@ -3915,7 +3915,7 @@ end;
 
 function TMySQLSmallIntField.GetIsNull(): Boolean;
 begin
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLSmallIntField.GetText(var Text: string; DisplayText: Boolean);
@@ -3940,7 +3940,7 @@ end;
 
 function TMySQLStringField.GetIsNull(): Boolean;
 begin
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLStringField.GetText(var Text: string; DisplayText: Boolean);
@@ -4006,7 +4006,7 @@ end;
 
 function TMySQLTimeField.GetIsNull(): Boolean;
 begin
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLTimeField.GetText(var Text: string; DisplayText: Boolean);
@@ -4075,7 +4075,7 @@ end;
 
 function TMySQLTimeStampField.GetIsNull(): Boolean;
 begin
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 function TMySQLTimeStampField.GetOldValue: Variant;
@@ -4157,7 +4157,7 @@ end;
 
 function TMySQLWideMemoField.GetIsNull(): Boolean;
 begin
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLWideMemoField.GetText(var Text: string; DisplayText: Boolean);
@@ -4195,7 +4195,7 @@ end;
 
 function TMySQLWideStringField.GetIsNull(): Boolean;
 begin
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLWideStringField.GetText(var Text: string; DisplayText: Boolean);
@@ -4220,7 +4220,7 @@ end;
 
 function TMySQLWordField.GetIsNull(): Boolean;
 begin
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLWordField.GetText(var Text: string; DisplayText: Boolean);
@@ -5136,13 +5136,13 @@ function TMySQLDataSet.AllocRecordBuffer(): TRecordBuffer;
 begin
   try
     New(PExternRecordBuffer(Result));
+
+    PExternRecordBuffer(Result)^.InternRecordBuffer := nil;
+    PExternRecordBuffer(Result)^.Index := -1;
+    PExternRecordBuffer(Result)^.BookmarkFlag := bfInserted;
   except
     Result := nil;
   end;
-
-  PExternRecordBuffer(Result)^.InternRecordBuffer := nil;
-  PExternRecordBuffer(Result)^.Index := -1;
-  PExternRecordBuffer(Result)^.BookmarkFlag := bfInserted;
 end;
 
 function TMySQLDataSet.BookmarkToInternBufferIndex(const Bookmark: TBookmark): Integer;
@@ -5342,7 +5342,7 @@ end;
 
 function TMySQLDataSet.GetLibRow(): MYSQL_ROW;
 begin
-  if (not Active) then
+  if (not Active or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
     Result := nil
   else
     Result := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow;

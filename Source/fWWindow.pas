@@ -864,7 +864,9 @@ var
   ClipboardData: HGLOBAL;
   S: string;
 begin
-  if (OpenClipboard(Handle)) then
+  if (not OpenClipboard(Handle)) then
+    MessageBox(0, PChar(SysErrorMessage(GetLastError())), 'Error', MB_OK)
+  else
   begin
     S := string(EurekaExceptionRecord.LogText);
 
@@ -874,6 +876,8 @@ begin
     SetClipboardData(CF_UNICODETEXT, ClipboardData);
     GlobalUnlock(ClipboardData);
     CloseClipboard();
+
+    CloseDialog := True;
   end;
 end;
 
@@ -887,9 +891,9 @@ begin
   for I := 0 to Sessions.Count - 1 do
     if (Sessions[I].Connection.Connected) then
       if (Assigned(ActiveTab) and (Sessions[I] = ActiveTab.Session)) then
-        DataFields.Add('MySQL Version=' + Sessions[I].Connection.ServerVersionStr + ' (Id*: ' + IntToStr(Sessions[I].Connection.ThreadId) + ')')
+        DataFields.Add('_=MySQL Version ' + Sessions[I].Connection.ServerVersionStr + ' (Id*: ' + IntToStr(Sessions[I].Connection.ThreadId) + ')')
       else
-        DataFields.Add('MySQL Version=' + Sessions[I].Connection.ServerVersionStr + ' (Id: ' + IntToStr(Sessions[I].Connection.ThreadId) + ')');
+        DataFields.Add('_=MySQL Version ' + Sessions[I].Connection.ServerVersionStr + ' (Id: ' + IntToStr(Sessions[I].Connection.ThreadId) + ')');
 
   if (Assigned(ActiveTab)) then
   begin
@@ -897,7 +901,7 @@ begin
     Log.Text := ActiveTab.Session.Connection.BugMonitor.CacheText;
     if (Log.Count < 10) then Start := 0 else Start := Log.Count - 10;
     for I := Start to Log.Count - 1 do
-      DataFields.Add(Log[I]);
+      DataFields.Add('_=' + Log[I]);
     Log.Free();
   end;
 

@@ -846,7 +846,7 @@ begin
 
     if (not BitBlt(Canvas.Handle, 0, 0, ClientWidth, ClientHeight,
       DoubleBuffer.Canvas.Handle, 0, 0, SRCCOPY)) then
-      RaiseLastOSError()
+      RaiseLastOSError();
   end;
 end;
 

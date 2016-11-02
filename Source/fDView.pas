@@ -357,7 +357,7 @@ begin
   if ((Event.EventType = etItemValid) and (Event.SItem = View)) then
     Built()
   else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is TSView)) then
-    Close();
+    ModalResult := mrOK;
 
   if (Event.EventType = etAfterExecuteSQL) then
   begin

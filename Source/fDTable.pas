@@ -1054,7 +1054,7 @@ begin
       Built()
     else
       BuiltStatus()
-  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem = Table)) then
+  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is TSTable)) then
     ModalResult := mrOk;
 
   if (Event.EventType = etAfterExecuteSQL) then
