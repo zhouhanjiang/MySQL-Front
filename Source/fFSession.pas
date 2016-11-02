@@ -1271,7 +1271,7 @@ begin
       SQL := DataHandle.Connection.CommandText;
       Len := SQLStmtLength(PChar(SQL), Length(SQL));
       SQLTrimStmt(SQL, 1, Len, FSession.Session.Connection.MySQLVersion, StartingCommentLength, EndingCommentLength);
-      FSynMemo.SelStart := FSession.aDRunExecuteSelStart + DataHandle.Connection.SuccessfullExecutedSQLLength + StartingCommentLength;
+      FSynMemo.SelStart := FSession.aDRunExecuteSelStart + DataHandle.Connection.SuccessfullExecutedSQLLength + StartingCommentLength - 1;
       FSynMemo.SelLength := Len - StartingCommentLength - EndingCommentLength;
     end
   end
@@ -1332,7 +1332,7 @@ begin
     end;
   end;
 
-  Result := True;
+  Result := False;
 end;
 
 procedure TFSession.TSQLEditor.TCResultChange(Sender: TObject);
@@ -1382,7 +1382,7 @@ begin
     DataSet.Open(DataHandle);
   end;
 
-  Result := True;
+  Result := False;
 end;
 
 procedure TFSession.TDatabaseDesktop.CloseBuilderResult();
@@ -1836,7 +1836,7 @@ begin
     TResult(Item^).DataSet.Open(DataHandle);
   end;
 
-  Result := True;
+  Result := False;
 end;
 
 procedure TFSession.TRoutineDesktop.TCResultChange(Sender: TObject);

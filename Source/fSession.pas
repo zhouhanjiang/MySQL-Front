@@ -744,7 +744,7 @@ type
   protected
     function Add(const AEntity: TSEntity; const ExecuteEvent: Boolean = False): Integer; override;
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; overload; override;
-    procedure BuildViewFields(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean);
+    function BuildViewFields(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean): Boolean;
     procedure Delete(const AEntity: TSEntity); override;
     function SQLGetItems(const Name: string = ''): string; override;
     function SQLGetStatus(const List: TList = nil): string;
@@ -1935,7 +1935,7 @@ function TSEntities.Build(const DataSet: TMySQLQuery; const UseInformationSchema
 begin
   FValid := True;
 
-  Result := True;
+  Result := False;
 end;
 
 procedure TSEntities.Clear();
@@ -2264,7 +2264,7 @@ begin
         Database.BaseTableByName(TableName).AddReference(TSBaseTable(DBObject));
     until (not DataSet.FindNext());
 
-  Result := True;
+  Result := False;
 end;
 
 constructor TSReferencedRequester.Create(const ADBObject: TSDBObject);
@@ -3848,7 +3848,7 @@ function TSTable.OpenEvent(const ErrorCode: Integer; const ErrorMessage: string;
 begin
   DataSet.Open(DataHandle);
 
-  Result := True;
+  Result := False;
 end;
 
 procedure TSTable.SetName(const AName: string);
@@ -5553,10 +5553,10 @@ begin
       Session.ExecuteEvent(etItemValid, Session, Session.Databases, Database);
   end;
 
-  Result := True;
+  Result := False;
 end;
 
-procedure TSTables.BuildViewFields(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean);
+function TSTables.BuildViewFields(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean): Boolean;
 var
   I: Integer;
   Index: Integer;
@@ -5670,6 +5670,8 @@ begin
   Session.ExecuteEvent(etItemsValid, Database, Self);
   if (Database.Valid) then
     Session.ExecuteEvent(etItemValid, Session, Session.Databases, Database);
+
+  Result := False;
 end;
 
 procedure TSTables.Delete(const AEntity: TSEntity);
@@ -6386,7 +6388,7 @@ begin
   if (Database.Valid and SessionEvents) then
     Session.ExecuteEvent(etItemValid, Session, Session.Databases, Database);
 
-  Result := (Session.Connection.ErrorCode = 0) or (Session.Connection.ErrorCode = ER_CANNOT_LOAD_FROM_TABLE);
+  Result := Session.Connection.ErrorCode = ER_CANNOT_LOAD_FROM_TABLE;
 end;
 
 function TSRoutines.GetRoutine(Index: Integer): TSRoutine;
@@ -6813,7 +6815,7 @@ begin
   if (Database.Valid and SessionEvents) then
     Session.ExecuteEvent(etItemValid, Session, Session.Databases, Database);
 
-  Result := True;
+  Result := False;
 end;
 
 procedure TSTriggers.Delete(const AEntity: TSEntity);
@@ -7116,7 +7118,7 @@ begin
   if (Database.Valid and SessionEvents) then
     Session.ExecuteEvent(etItemValid, Session, Session.Databases, Database);
 
-  Result := (Session.Connection.ErrorCode = 0) or (Session.Connection.ErrorCode = ER_EVENTS_DB_ERROR);
+  Result := Session.Connection.ErrorCode = ER_EVENTS_DB_ERROR;
 end;
 
 function TSEvents.GetEvent(Index: Integer): TSEvent;
@@ -7300,7 +7302,7 @@ begin
     DataSet.Free();
   end;
 
-  Result := True;
+  Result := False;
 end;
 
 function TSDatabase.CloneRoutine(const Routine: TSRoutine; const NewRoutineName: string): Boolean;
@@ -8828,8 +8830,6 @@ begin
     end;
   end;
 
-  Result := inherited;
-
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
@@ -8842,6 +8842,8 @@ begin
 
   if (not Filtered and SessionEvents) then
     Session.ExecuteEvent(etItemsValid, Session, Self);
+
+  Result := inherited;
 end;
 
 procedure TSDatabases.Delete(const AEntity: TSEntity);
@@ -9042,8 +9044,6 @@ begin
         Session.ExecuteEvent(etItemValid, Session, Self, Variable[Index]);
     until (not DataSet.FindNext());
 
-  Result := inherited;
-
   if (Count > 0) then
   begin
     if (Assigned(Session.VariableByName('character_set'))) then
@@ -9090,8 +9090,14 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered and SessionEvents) then
-    Session.ExecuteEvent(etItemsValid, Session, Self);
+  if (not Filtered) then
+  begin
+    FValid := True;
+    if (SessionEvents) then
+      Session.ExecuteEvent(etItemsValid, Session, Self);
+  end;
+
+  Result := False;
 end;
 
 function TSVariables.GetVariable(Index: Integer): TSVariable;
@@ -9101,17 +9107,35 @@ end;
 
 function TSVariables.SQLGetItems(const Name: string = ''): string;
 begin
-  // In 5.7.8 INFORMATION_SCHEMA.SESSION_VARIABLES is empty. Instead of it,
-  // PERFORMANCE_SCHEMA.SESSION_VARIABLES shows the variables. But only,
-  // if SHOW_COMPATIBILITY_56 = OFF.
-
-  if (Session.Connection.MySQLVersion < 40003) then
-    Result := 'SHOW VARIABLES;' + #13#10
-  else
+  if (Session.Connection.MySQLVersion < 50112) then
+  begin
+    if (Session.Connection.MySQLVersion < 40003) then
+      Result := 'SHOW VARIABLES'
+    else
+      Result := 'SHOW SESSION VARIABLES';
+    if (Name <> '') then
+      Result := Result + ' LIKE ' + SQLEscape(Name);
+    Result := Result + ';' + #13#10;
+  end
+  else if (Session.Connection.MySQLVersion < 50706) then
+  begin
+    Result := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('SESSION_VARIABLES');
+    if (Name <> '') then
+      Result := Result + ' WHERE ' + Session.Connection.EscapeIdentifier('VARIABLE_NAME') + '=' + SQLEscape(Name);
+    Result := Result + ';' + #13#10;
+  end
+  else if (Session.Connection.MySQLVersion < 50708) then
   begin
     Result := 'SHOW SESSION VARIABLES';
     if (Name <> '') then
       Result := Result + ' LIKE ' + SQLEscape(Name);
+    Result := Result + ';' + #13#10;
+  end
+  else
+  begin
+    Result := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(PERFORMANCE_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('SESSION_VARIABLES');
+    if (Name <> '') then
+      Result := Result + ' WHERE ' + Session.Connection.EscapeIdentifier('VARIABLE_NAME') + '=' + SQLEscape(Name);
     Result := Result + ';' + #13#10;
   end;
 end;
@@ -9163,8 +9187,6 @@ begin
     Session.FStartTime := Session.FStartTime - Seconds;
   end;
 
-  Result := inherited;
-
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
@@ -9177,6 +9199,8 @@ begin
 
   if (not Filtered and SessionEvents) then
     Session.ExecuteEvent(etItemsValid, Session, Self);
+
+  Result := inherited;
 end;
 
 function TSStati.GetStatus(Index: Integer): TSStatus;
@@ -9186,12 +9210,37 @@ end;
 
 function TSStati.SQLGetItems(const Name: string = ''): string;
 begin
-  // See comment in TSVariables.SQLGetItems.
-
-  if (Session.Connection.MySQLVersion < 50002) then
-    Result := 'SHOW STATUS;' + #13#10
+  if (Session.Connection.MySQLVersion < 50112) then
+  begin
+    if (Session.Connection.MySQLVersion < 50002) then
+      Result := 'SHOW STATUS'
+    else
+      Result := 'SHOW SESSION STATUS';
+    if (Name <> '') then
+      Result := Result + ' LIKE ' + SQLEscape(Name);
+    Result := Result + ';' + #13#10;
+  end
+  else if (Session.Connection.MySQLVersion < 50706) then
+  begin
+    Result := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('SESSION_STATUS');
+    if (Name <> '') then
+      Result := Result + ' WHERE ' + Session.Connection.EscapeIdentifier('VARIABLE_NAME') + '=' + SQLEscape(Name);
+    Result := Result + ';' + #13#10;
+  end
+  else if (Session.Connection.MySQLVersion < 50708) then
+  begin
+    Result := 'SHOW SESSION STATUS';
+    if (Name <> '') then
+      Result := Result + ' LIKE ' + SQLEscape(Name);
+    Result := Result + ';' + #13#10;
+  end
   else
-    Result := 'SHOW SESSION STATUS;' + #13#10
+  begin
+    Result := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(PERFORMANCE_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('SESSION_STATUS');
+    if (Name <> '') then
+      Result := Result + ' WHERE ' + Session.Connection.EscapeIdentifier('VARIABLE_NAME') + '=' + SQLEscape(Name);
+    Result := Result + ';' + #13#10;
+  end;
 end;
 
 { TSEngine ********************************************************************}
@@ -9328,8 +9377,6 @@ begin
       end;
     until (not DataSet.FindNext());
 
-  Result := inherited;
-
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
@@ -9339,6 +9386,8 @@ begin
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
+
+  Result := inherited;
 end;
 
 function TSEngines.GetDefaultEngine(): TSEngine;
@@ -9417,8 +9466,6 @@ begin
         Session.ExecuteEvent(etItemValid, Session, Self, Plugin[Index]);
     until (not DataSet.FindNext());
 
-  Result := inherited;
-
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
@@ -9431,6 +9478,8 @@ begin
 
   if (not Filtered and SessionEvents) then
     Session.ExecuteEvent(etItemsValid, Session, Self);
+
+  Result := inherited;
 end;
 
 function TSPlugins.GetPlugin(Index: Integer): TSPlugin;
@@ -9665,8 +9714,6 @@ begin
       end;
     until (not DataSet.FindNext());
 
-  Result := inherited;
-
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
@@ -9676,6 +9723,8 @@ begin
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
+
+  Result := inherited;
 end;
 
 function TSCharsets.GetCharset(Index: Integer): TSCharset;
@@ -9754,8 +9803,6 @@ begin
       end;
     until (not DataSet.FindNext());
 
-  Result := inherited;
-
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
@@ -9765,6 +9812,8 @@ begin
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
+
+  Result := inherited;
 end;
 
 function TSCollations.GetCollation(Index: Integer): TSCollation;
@@ -9864,8 +9913,6 @@ begin
         Session.ExecuteEvent(etItemValid, Session, Self, Process[Index]);
     until (not DataSet.FindNext());
 
-  Result := inherited;
-
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
@@ -9878,6 +9925,8 @@ begin
 
   if (not Filtered) then
     Session.ExecuteEvent(etItemsValid, Session, Self);
+
+  Result := inherited;
 end;
 
 procedure TSProcesses.Delete(const AEntity: TSEntity);
@@ -10499,11 +10548,7 @@ begin
         Session.ExecuteEvent(etItemValid, Session, Self, User[Index]);
     until (not DataSet.FindNext());
 
-  Result := inherited
-    and (Session.Connection.ErrorCode <> ER_DBACCESS_DENIED_ERROR)
-    and (Session.Connection.ErrorCode <> ER_TABLEACCESS_DENIED_ERROR);
-
-  if (not Result and (Session.Connection.ErrorCode = 0) and not Filtered) then
+  if ((Session.Connection.ErrorCode = 0) and not Filtered) then
     while (DeleteList.Count > 0) do
     begin
       if (Items[0] = Session.User) then
@@ -10515,8 +10560,15 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered and SessionEvents) then
-    Session.ExecuteEvent(etItemsValid, Session, Self);
+  if (not Filtered) then
+  begin
+    FValid := True;
+    if (SessionEvents) then
+      Session.ExecuteEvent(etItemsValid, Session, Self);
+  end;
+
+  Result := (Session.Connection.ErrorCode = ER_DBACCESS_DENIED_ERROR)
+    or (Session.Connection.ErrorCode = ER_TABLEACCESS_DENIED_ERROR);
 end;
 
 function TSUsers.GetUser(Index: Integer): TSUser;
@@ -10765,7 +10817,7 @@ begin
 
   ExecuteEvent(etItemsValid, Self, Databases);
 
-  Result := (Connection.ErrorCode = 0) or (Connection.ErrorCode = ER_EVENTS_DB_ERROR);
+  Result := Connection.ErrorCode = ER_EVENTS_DB_ERROR;
 end;
 
 function TSSession.BuildRoutines(const DataSet: TMySQLQuery): Boolean;
@@ -10788,7 +10840,7 @@ begin
 
   ExecuteEvent(etItemsValid, Self, Databases);
 
-  Result := True;
+  Result := False;
 end;
 
 function TSSession.BuildTables(const DataSet: TMySQLQuery): Boolean;
@@ -10810,7 +10862,7 @@ begin
 
   ExecuteEvent(etItemsValid, Self, Databases);
 
-  Result := True;
+  Result := False;
 end;
 
 function TSSession.BuildTriggers(const DataSet: TMySQLQuery): Boolean;
@@ -10833,7 +10885,7 @@ begin
 
   ExecuteEvent(etItemsValid, Self, Databases);
 
-  Result := True;
+  Result := False;
 end;
 
 procedure TSSession.BuildManualURL(const DataSet: TMySQLQuery);
@@ -11711,7 +11763,6 @@ begin
     begin
       UnparsableSQL := UnparsableSQL
         + '# MonitorExecutedStmts() - ER_PARSE_ERROR' + #13#10
-        + '# ErrorCode: ' + IntToStr(Connection.ErrorCode) + #13#10
         + '# ErrorMessage: ' + Connection.ErrorMessage + #13#10
         + Trim(SQL) + #13#10 + #13#10 + #13#10;
     end
@@ -12241,7 +12292,7 @@ var
   SObject: TSObject;
   Table: TSTable;
 begin
-  Result := True;
+  Result := False;
 
   DataSet := TMySQLQuery.Create(nil);
 
@@ -12259,7 +12310,7 @@ begin
           else if (TableNameCmp(ObjectName, 'COLLATIONS') = 0) then
             Result := Collations.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
           else if ((TableNameCmp(ObjectName, 'COLUMNS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'TABLE_SCHEMA') = 0) and SQLParseChar(Parse, '=')) then
-            DatabaseByName(SQLParseValue(Parse)).Tables.BuildViewFields(DataSet, True)
+            Result := DatabaseByName(SQLParseValue(Parse)).Tables.BuildViewFields(DataSet, True)
           else if (TableNameCmp(ObjectName, 'ENGINES') = 0) then
             Result := Engines.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
           else if ((TableNameCmp(ObjectName, 'EVENTS') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
@@ -12299,10 +12350,8 @@ begin
             Result := Stati.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
           else if (TableNameCmp(ObjectName, 'SESSION_VARIABLES') = 0) then
             Result := Variables.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
-          else if ((TableNameCmp(ObjectName, 'SCHEMATA') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
-            Result := Databases.Build(DataSet, True, False)
-          else if ((TableNameCmp(ObjectName, 'SCHEMATA') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'SCHEMA_NAME') = 0)) then
-            Result := Databases.Build(DataSet, True, False)
+          else if (TableNameCmp(ObjectName, 'SCHEMATA') = 0) then
+            Result := Databases.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
           else if ((TableNameCmp(ObjectName, 'TABLES') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
             Result := BuildTables(DataSet)
           else if ((TableNameCmp(ObjectName, 'TABLES') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'TABLE_SCHEMA') = 0) and SQLParseChar(Parse, '=')) then
@@ -12412,7 +12461,7 @@ begin
           else if (SQLParseKeyword(Parse, 'VIEW')) then
           begin
             if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then SObject := DatabaseByName(DatabaseName).TableByName(ObjectName);
-            Result := (Connection.ErrorCode = 0) or (Connection.ErrorCode = ER_TABLEACCESS_DENIED_ERROR);
+            Result := Connection.ErrorCode = ER_TABLEACCESS_DENIED_ERROR;
           end;
           if (Assigned(SObject)) then
             SObject.Invalidate();
@@ -12488,7 +12537,8 @@ begin
           DatabaseName := Connection.DatabaseName
         else
           DatabaseName := SQLParseValue(Parse);
-        Result := Assigned(DatabaseByName(DatabaseName)) and DatabaseByName(DatabaseName).Tables.Build(DataSet, False, not SQLParseChar(Parse, ';') and not SQLParseEnd(Parse));
+        if (Assigned(DatabaseByName(DatabaseName))) then
+          Result := DatabaseByName(DatabaseName).Tables.Build(DataSet, False, not SQLParseChar(Parse, ';') and not SQLParseEnd(Parse));
       end
       else if (SQLParseKeyword(Parse, 'TABLE STATUS')) then
       begin

@@ -891,9 +891,9 @@ begin
   for I := 0 to Sessions.Count - 1 do
     if (Sessions[I].Connection.Connected) then
       if (Assigned(ActiveTab) and (Sessions[I] = ActiveTab.Session)) then
-        DataFields.Add('_=MySQL Version ' + Sessions[I].Connection.ServerVersionStr + ' (Id*: ' + IntToStr(Sessions[I].Connection.ThreadId) + ')')
+        DataFields.Add(IntToStr(I) + '=MySQL Version ' + Sessions[I].Connection.ServerVersionStr + ' (Id*: ' + IntToStr(Sessions[I].Connection.ThreadId) + ')')
       else
-        DataFields.Add('_=MySQL Version ' + Sessions[I].Connection.ServerVersionStr + ' (Id: ' + IntToStr(Sessions[I].Connection.ThreadId) + ')');
+        DataFields.Add(IntToStr(I) + '=MySQL Version ' + Sessions[I].Connection.ServerVersionStr + ' (Id: ' + IntToStr(Sessions[I].Connection.ThreadId) + ')');
 
   if (Assigned(ActiveTab)) then
   begin
@@ -901,7 +901,7 @@ begin
     Log.Text := ActiveTab.Session.Connection.BugMonitor.CacheText;
     if (Log.Count < 10) then Start := 0 else Start := Log.Count - 10;
     for I := Start to Log.Count - 1 do
-      DataFields.Add('_=' + Log[I]);
+      DataFields.Add(IntToStr(DataFields.Count) + '=' + Log[I]);
     Log.Free();
   end;
 

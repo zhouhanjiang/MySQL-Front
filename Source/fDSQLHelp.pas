@@ -164,7 +164,7 @@ begin
     DataSet.Free();
   end;
 
-  Result := True;
+  Result := False;
 end;
 
 procedure TDSQLHelp.CreateParams(var Params: TCreateParams);

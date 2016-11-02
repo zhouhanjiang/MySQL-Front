@@ -2573,7 +2573,10 @@ type
             Ident: TOffset;
             Datatype: TOffset;
             Real: packed record
-              DefaultValue: TOffset;
+              Default: packed record
+                Tag: TOffset;
+                Expr: TOffset;
+              end;
               OnUpdateTag: TOffset;
               AutoIncrementTag: TOffset;
               ColumnFormat: TOffset;
@@ -6824,7 +6827,6 @@ type
     function ParseLockStmtItem(): TOffset;
     function ParseLoopStmt(const BeginLabel: TOffset): TOffset;
     function ParseMatchFunc(): TOffset;
-    function ParseNull(): TOffset;
     function ParseOpenStmt(): TOffset;
     function ParseOptimizeTableStmt(): TOffset;
     function ParsePartitionIdent(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
@@ -6924,10 +6926,11 @@ type
     function ParseStmt(): TOffset;
     function ParseSymbol(const TokenType: TTokenType): TOffset;
     function ParseTableIdent(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
+    function ParseTag(): TOffset; overload;
     function ParseTag(const KeywordIndex1: TWordList.TIndex;
       const KeywordIndex2: TWordList.TIndex = -1; const KeywordIndex3: TWordList.TIndex = -1;
       const KeywordIndex4: TWordList.TIndex = -1; const KeywordIndex5: TWordList.TIndex = -1;
-      const KeywordIndex6: TWordList.TIndex = -1; const KeywordIndex7: TWordList.TIndex = -1): TOffset;
+      const KeywordIndex6: TWordList.TIndex = -1; const KeywordIndex7: TWordList.TIndex = -1): TOffset; overload;
     function ParseToken(out Error: TError): TOffset;
     function ParseTriggerIdent(): TOffset;
     function ParseTrimFunc(): TOffset;
@@ -12278,7 +12281,8 @@ begin
   if (Nodes.Virtual.AsTag = 0) then
   begin // Real field
     FormatNode(Nodes.NullTag, stSpaceBefore);
-    FormatNode(Nodes.Real.DefaultValue, stSpaceBefore);
+    FormatNode(Nodes.Real.Default.Tag, stSpaceBefore);
+    FormatNode(Nodes.Real.Default.Expr, stSpaceBefore);
     FormatNode(Nodes.Real.AutoIncrementTag, stSpaceBefore);
     FormatNode(Nodes.KeyTag, stSpaceBefore);
     FormatNode(Nodes.CommentValue, stSpaceBefore);
@@ -17047,11 +17051,19 @@ begin
           Nodes.NullTag := ParseTag(kiNOT, kiNULL)
         else if ((Nodes.NullTag = 0) and IsTag(kiNULL)) then
           Nodes.NullTag := ParseTag(kiNULL)
-        else if ((Nodes.Real.DefaultValue = 0) and IsTag(kiDEFAULT)) then
-          if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiNULL)) then
-            Nodes.Real.DefaultValue := ParseValue(kiDEFAULT, vaNo, ParseNull)
-          else
-            Nodes.Real.DefaultValue := ParseValue(kiDEFAULT, vaNo, ParseString)
+        else if ((Nodes.Real.Default.Tag = 0) and IsTag(kiDEFAULT)) then
+        begin
+          Nodes.Real.Default.Tag := ParseTag(kiDEFAULT);
+
+          if (not ErrorFound) then
+            if (IsTag(kiCURRENT_TIMESTAMP)
+              or IsTag(kiNULL)) then
+              Nodes.Real.Default.Expr := ParseTag(TokenPtr(CurrentToken)^.KeywordIndex)
+            else if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType = ttInteger)) then
+              Nodes.Real.Default.Expr := ParseInteger()
+            else
+              Nodes.Real.Default.Expr := ParseString();
+        end
         else if ((Nodes.Real.OnUpdateTag = 0) and IsTag(kiON, kiUPDATE)
           and (not EndOfStmt(NextToken[2]) and ((TokenPtr(NextToken[2])^.KeywordIndex = kiCURRENT_TIMESTAMP) or (TokenPtr(NextToken[2])^.KeywordIndex = kiCURRENT_TIME) or (TokenPtr(NextToken[2])^.KeywordIndex = kiCURRENT_DATE)))) then
           if (EndOfStmt(NextToken[3]) or (TokenPtr(NextToken[3])^.TokenType <> ttOpenBracket)) then
@@ -20561,17 +20573,6 @@ begin
   Result := TMatchFunc.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseNull(): TOffset;
-begin
-  Result := 0;
-  if (EndOfStmt(CurrentToken)) then
-    SetError(PE_IncompleteStmt)
-  else if (TokenPtr(CurrentToken)^.KeywordIndex <> kiNULL) then
-    SetError(PE_UnexpectedToken)
-  else
-    Result := ApplyCurrentToken(utDbIdent);
-end;
-
 function TSQLParser.ParseProcedureIdent(): TOffset;
 begin
   Result := ParseDbIdent(ditProcedure);
@@ -23596,6 +23597,17 @@ begin
     SetError(PE_UnexpectedToken)
   else
     Result := ApplyCurrentToken(utSymbol);
+end;
+
+function TSQLParser.ParseTag(): TOffset;
+begin
+  Result := 0;
+  if (EndOfStmt(CurrentToken)) then
+    SetError(PE_IncompleteStmt)
+  else if (TokenPtr(CurrentToken)^.KeywordIndex < 0) then
+    SetError(PE_UnexpectedToken)
+  else
+    Result := ParseTag(TokenPtr(CurrentToken)^.KeywordIndex);
 end;
 
 function TSQLParser.ParseTag(const KeywordIndex1: TWordList.TIndex;

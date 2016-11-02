@@ -3077,11 +3077,8 @@ procedure TMySQLConnection.SyncDisconnecting(const SyncThread: TSyncThread);
 begin
   Assert(Assigned(SyncThread.LibHandle));
 
-  if (Assigned(SyncThread.LibHandle)) then
-  begin
-    Lib.mysql_close(SyncThread.LibHandle);
-    SyncThread.LibHandle := nil;
-  end;
+  Lib.mysql_close(SyncThread.LibHandle);
+  SyncThread.LibHandle := nil;
 end;
 
 procedure TMySQLConnection.SyncDisconnected(const SyncThread: TSyncThread);
@@ -3215,10 +3212,10 @@ begin
     InOnResult := True;
     try
       if (not SyncThread.OnResult(SyncThread.ErrorCode, SyncThread.ErrorMessage, SyncThread.WarningCount,
-        SyncThread.CommandText, SyncThread, Assigned(SyncThread.ResHandle))) then
+        SyncThread.CommandText, SyncThread, Assigned(SyncThread.ResHandle))
+        and (SyncThread.ErrorCode > 0)) then
       begin
-        if (SyncThread.ErrorCode > 0) then
-          DoError(SyncThread.ErrorCode, SyncThread.ErrorMessage);
+        DoError(SyncThread.ErrorCode, SyncThread.ErrorMessage);
         SyncThread.State := ssReady;
         SyncHandledResult(SyncThread);
       end;
@@ -3307,8 +3304,8 @@ begin
     else
     begin
       SyncConnecting(SyncThread);
-      Success := Lib.mysql_errno(SyncThread.LibHandle) = 0;
-      NeedReconnect := Lib.mysql_errno(SyncThread.LibHandle) = CR_SERVER_LOST;
+      Success := Assigned(SyncThread.LibHandle) and (SyncThread.ErrorCode = 0);
+      NeedReconnect := not Assigned(SyncThread.LibHandle) or (SyncThread.ErrorCode = CR_SERVER_LOST);
     end;
     ResetPassword := False;
 
@@ -4925,7 +4922,7 @@ begin
     OpenCursorComplete();
   end;
 
-  Result := True;
+  Result := False;
 end;
 
 procedure TMySQLQuery.SetCommandText(const ACommandText: string);
