@@ -1933,7 +1933,7 @@ end;
 
 function TSEntities.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
 begin
-  FValid := True;
+  FValid := not Filtered;
 
   Result := False;
 end;
@@ -5543,11 +5543,14 @@ begin
       end;
     DeleteList.Free();
 
-    if (not Filtered and SessionEvents) then
+    if (not Filtered) then
     begin
       FValid := True;
-      Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
-      Session.ExecuteEvent(etItemsValid, Database, Self);
+      if (SessionEvents) then
+      begin
+        Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
+        Session.ExecuteEvent(etItemsValid, Database, Self);
+      end;
     end;
     if (Database.Valid and SessionEvents) then
       Session.ExecuteEvent(etItemValid, Session, Session.Databases, Database);
@@ -6379,16 +6382,15 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered and SessionEvents) then
+  if (not Filtered and (SessionEvents)) then
   begin
-    FValid := True;
     Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
     Session.ExecuteEvent(etItemsValid, Database, Self);
   end;
   if (Database.Valid and SessionEvents) then
     Session.ExecuteEvent(etItemValid, Session, Session.Databases, Database);
 
-  Result := Session.Connection.ErrorCode = ER_CANNOT_LOAD_FROM_TABLE;
+  Result := inherited or (Session.Connection.ErrorCode = ER_CANNOT_LOAD_FROM_TABLE);
 end;
 
 function TSRoutines.GetRoutine(Index: Integer): TSRoutine;
@@ -6808,14 +6810,13 @@ begin
 
   if (not Filtered and SessionEvents) then
   begin
-    FValid := True;
     Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
     Session.ExecuteEvent(etItemsValid, Database, Self);
   end;
   if (Database.Valid and SessionEvents) then
     Session.ExecuteEvent(etItemValid, Session, Session.Databases, Database);
 
-  Result := False;
+  Result := inherited;
 end;
 
 procedure TSTriggers.Delete(const AEntity: TSEntity);
@@ -7110,7 +7111,7 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered and SessionEvents) then
+  if (not Filtered and (SessionEvents)) then
   begin
     Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
     Session.ExecuteEvent(etItemsValid, Database, Self);
@@ -7118,7 +7119,7 @@ begin
   if (Database.Valid and SessionEvents) then
     Session.ExecuteEvent(etItemValid, Session, Session.Databases, Database);
 
-  Result := Session.Connection.ErrorCode = ER_EVENTS_DB_ERROR;
+  Result := inherited or (Session.Connection.ErrorCode = ER_EVENTS_DB_ERROR);
 end;
 
 function TSEvents.GetEvent(Index: Integer): TSEvent;
@@ -9090,14 +9091,10 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered) then
-  begin
-    FValid := True;
-    if (SessionEvents) then
-      Session.ExecuteEvent(etItemsValid, Session, Self);
-  end;
+  if (not Filtered and SessionEvents) then
+    Session.ExecuteEvent(etItemsValid, Session, Self);
 
-  Result := False;
+  Result := inherited;
 end;
 
 function TSVariables.GetVariable(Index: Integer): TSVariable;
@@ -9197,8 +9194,12 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered and SessionEvents) then
-    Session.ExecuteEvent(etItemsValid, Session, Self);
+  if (not Filtered) then
+  begin
+    FValid := True;
+    if (SessionEvents) then
+      Session.ExecuteEvent(etItemsValid, Session, Self);
+  end;
 
   Result := inherited;
 end;
@@ -9386,6 +9387,9 @@ begin
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
+
+  if (not Filtered and SessionEvents) then
+    Session.ExecuteEvent(etItemsValid, Session, Self);
 
   Result := inherited;
 end;
@@ -9724,6 +9728,9 @@ begin
     end;
   DeleteList.Free();
 
+  if (not Filtered and SessionEvents) then
+    Session.ExecuteEvent(etItemsValid, Session, Self);
+
   Result := inherited;
 end;
 
@@ -9812,6 +9819,9 @@ begin
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
+
+  if (not Filtered and SessionEvents) then
+    Session.ExecuteEvent(etItemsValid, Session, Self);
 
   Result := inherited;
 end;
@@ -9923,7 +9933,7 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered) then
+  if (not Filtered and SessionEvents) then
     Session.ExecuteEvent(etItemsValid, Session, Self);
 
   Result := inherited;
@@ -10560,14 +10570,11 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered) then
-  begin
-    FValid := True;
-    if (SessionEvents) then
-      Session.ExecuteEvent(etItemsValid, Session, Self);
-  end;
+  if (not Filtered and SessionEvents) then
+    Session.ExecuteEvent(etItemsValid, Session, Self);
 
-  Result := (Session.Connection.ErrorCode = ER_DBACCESS_DENIED_ERROR)
+  Result := inherited
+    or (Session.Connection.ErrorCode = ER_DBACCESS_DENIED_ERROR)
     or (Session.Connection.ErrorCode = ER_TABLEACCESS_DENIED_ERROR);
 end;
 
