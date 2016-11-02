@@ -4704,7 +4704,7 @@ begin
     if (not (Table is TSBaseTable) or not Field.ReadOnly) then
     begin
       if (Values.Length > 1) then Values.Write(',');
-      if (not Assigned(DataSet.LibRow^[Field.FieldNo - 1])) then
+      if (Field.IsNull) then
         Values.Write('NULL')
       else if (BitField(Field)) then
         Values.Write('b''' + Field.AsString + '''')
@@ -4855,7 +4855,7 @@ begin
   for Field in Fields do
   begin
     if (Field <> Fields[0]) then Values.Write(Delimiter);
-    if (not Assigned(DataSet.LibRow^[Field.FieldNo - 1])) then
+    if (Field.IsNull) then
       // NULL values are empty in MS Text files
     else if (BitField(Field)) then
       Values.Write(CSVEscape(Field.AsString, Quoter, QuoteValues <> qtNone))
@@ -5501,7 +5501,7 @@ begin
   begin
     Field := Fields[I];
 
-    if (not Assigned(DataSet.LibRow^[Field.FieldNo - 1])) then
+    if (Field.IsNull) then
       if (NULLText) then
         Values.Write('<td class="Null">&lt;NULL&gt;</td>')
       else
@@ -5908,7 +5908,7 @@ begin
   begin
     Field := Fields[I];
 
-    if (DataSet.LibRow[Field.FieldNo - 1] = nil) then
+    if (Field.IsNull) then
       Values.Write(FieldNulls[I])
     else
     begin
@@ -6282,7 +6282,7 @@ var
   Size: Integer;
 begin
   for I := 0 to Length(Fields) - 1 do
-    if (not Assigned(DataSet.LibRow^[I])) then
+    if (Fields[I].IsNull) then
       Parameter[I].Size := SQL_NULL_DATA
     else if (BitField(Fields[I])) then
       begin
@@ -7145,7 +7145,7 @@ procedure TTExportCanvas.ExecuteTableRecord(const Table: TSTable; const Fields: 
 
   function FieldText(const Field: TField): string;
   begin
-    if (not Assigned(DataSet.LibRow^[Field.FieldNo - 1]) and NULLText) then
+    if (Field.IsNull and NULLText) then
       Result := '<NULL>'
     else if (GeometryField(Field)) then
       Result := '<GEO>'
@@ -8165,7 +8165,7 @@ begin
           for I := 0 to Length(Fields) - 1 do
           begin
             if (I > 0) then ValuesBuffer.Write(',');
-            if (not Assigned(DataSet.LibRow^[Fields[I].FieldNo - 1])) then
+            if (Fields[I].IsNull) then
               ValuesBuffer.Write('NULL')
             else if (BitField(Fields[I])) then
               ValuesBuffer.Write('b''' + Fields[I].AsString + '''')
@@ -8608,7 +8608,7 @@ begin
         repeat
           Found := False; SQL := '';
           for I := 0 to Length(Fields) - 1 do
-            if (Assigned(DataSet.LibRow^[Fields[I].FieldNo - 1])) then
+            if (not Fields[I].IsNull) then
             begin
               Value := Fields[I].AsString;
 
@@ -8670,7 +8670,7 @@ begin
                 begin
                   if (Found) then SQL := SQL + ' AND ';
                   SQL := SQL + Session.Connection.EscapeIdentifier(Fields[I].FieldName) + '=';
-                  if (not Assigned(DataSet.LibRow^[I])) then
+                  if (Fields[I].IsNull) then
                     SQL := SQL + 'NULL'
                   else if (BitField(Fields[I])) then
                     SQL := SQL + 'b''' + Fields[I].AsString + ''''

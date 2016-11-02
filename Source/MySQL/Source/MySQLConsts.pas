@@ -3,24 +3,31 @@ unit MySQLConsts;
 interface {********************************************************************}
 
 const
-  LOCAL_HOST            = 'localhost';
-  MYSQL_PORT            = 3306;
-  LOCAL_HOST_NAMEDPIPE  = '.';
-  MYSQL_NAMEDPIPE       = 'MySQL';
-  NET_READ_TIMEOUT      = 30;
-  NET_WRITE_TIMEOUT     = 60;
-  NET_WAIT_TIMEOUT      = 8*60*60;
-  NULL_LENGTH           = -1;
-  NAME_LEN              = 64;
+  COLUMN_COMMENT_MAXLEN = 1024;
   HOSTNAME_LENGTH       = 60;
-  USERNAME_LENGTH       = 16;
-  MYSQL_ERRMSG_SIZE     = 512;
-  MAX_PACKET_LENGTH     = $FFFFFE;
+  INDEX_COMMENT_MAXLEN  = 1024;
+  LOCAL_HOST            = 'localhost';
+  LOCAL_HOST_NAMEDPIPE  = '.';
   MAX_ALLOWED_PACKET    = $1000000;
+  MAX_PACKET_LENGTH     = $FFFFFE;
+  MYSQL_ERRMSG_SIZE     = 512;
+  MYSQL_NAMEDPIPE       = 'MySQL';
+  MYSQL_PORT            = 3306;
+  NAME_CHAR_LEN         = 64;
   NET_BUFFER_LENGTH     = $8000;
-  SERVER_VERSION_LENGTH = 60;
-  RETRY_COUNT           = 2;
+  NET_READ_TIMEOUT      = 30;
+  NET_WAIT_TIMEOUT      = 8*60*60;
+  NET_WRITE_TIMEOUT     = 60;
+  NULL_LENGTH           = -1;
   PACKET_ERROR          = -1;
+  RETRY_COUNT           = 2;
+  SERVER_VERSION_LENGTH = 60;
+  SCRAMBLE_LENGTH       = 20;
+  SCRAMBLE_LENGTH_323   = 8;
+  SQLSTATE_LENGTH       = 5;
+  TABLE_COMMENT_MAXLEN  = 2048;
+  TABLE_PARTITION_COMMENT_MAXLEN = 1024;
+  USERNAME_LENGTH       = 16;
 
   // Server Status Flags
   SERVER_STATUS_IN_TRANS             = $0001;   // Transaction has started
@@ -69,28 +76,34 @@ const
   CLIENT_REMEMBER_OPTIONS               = $80000000;
 
   //field flags
-  NOT_NULL_FLAG            = $000001;   // Field can't be NULL
-  PRI_KEY_FLAG             = $000002;   // Field is part of a primary key
-  UNIQUE_KEY_FLAG          = $000004;   // Field is part of a unique key
-  MULTIPLE_KEY_FLAG        = $000008;   // Field is part of a key
-  BLOB_FLAG                = $000010;   // Field is a blob
-  UNSIGNED_FLAG            = $000020;   // Field is unsigned
-  ZEROFILL_FLAG            = $000040;   // Field is zerofill
-  BINARY_FLAG              = $000080;   // Field is binary
-  ENUM_FLAG                = $000100;   // Field is an enum
-  AUTO_INCREMENT_FLAG      = $000200;   // Field is a autoincrement field
-  TIMESTAMP_FLAG           = $000400;   // Field is a timestamp
-  SET_FLAG                 = $000800;   // field is a set
-  NO_DEFAULT_VALUE_FLAG    = $001000;   // Field doesn't have default value
-  NUM_FLAG                 = $002000;   // Field is num (for clients)
-  PART_KEY_FLAG            = $004000;   // Intern; Part of some key
-  GROUP_FLAG               = $008000;   // Intern: Group field
-  UNIQUE_FLAG              = $010000;   // Intern: Used by sql_yacc
-  BINCMP_FLAG              = $020000;   // Intern: Used by sql_yacc
-  GET_FIXED_FIELDS_FLAG    = $040000;   // Used to get fields in item tree
-  FIELD_IN_PART_FUNC_FLAG  = $080000;   // Field part of partition func
-  FIELD_IN_ADD_INDEX       = $100000;   // Intern: Field used in ADD INDEX
-  FIELD_IS_RENAMED         = $200000;   // Intern: Field is being renamed
+  NOT_NULL_FLAG                  = $00000001;   // Field can't be NULL
+  PRI_KEY_FLAG                   = $00000002;   // Field is part of a primary key
+  UNIQUE_KEY_FLAG                = $00000004;   // Field is part of a unique key
+  MULTIPLE_KEY_FLAG              = $00000008;   // Field is part of a key
+  BLOB_FLAG                      = $00000010;   // Field is a blob
+  UNSIGNED_FLAG                  = $00000020;   // Field is unsigned
+  ZEROFILL_FLAG                  = $00000040;   // Field is zerofill
+  BINARY_FLAG                    = $00000080;   // Field is binary
+  ENUM_FLAG                      = $00000100;   // Field is an enum
+  AUTO_INCREMENT_FLAG            = $00000200;   // Field is a autoincrement field
+  TIMESTAMP_FLAG                 = $00000400;   // Field is a timestamp
+  SET_FLAG                       = $00000800;   // field is a set
+  NO_DEFAULT_VALUE_FLAG          = $00001000;   // Field doesn't have default value
+  NUM_FLAG                       = $00002000;   // Field is num (for clients)
+  PART_KEY_FLAG                  = $00004000;   // Intern; Part of some key
+  GROUP_FLAG                     = $00008000;   // Intern: Group field
+  UNIQUE_FLAG                    = $00010000;   // Intern: Used by sql_yacc
+  BINCMP_FLAG                    = $00020000;   // Intern: Used by sql_yacc
+  GET_FIXED_FIELDS_FLAG          = $00040000;   // Used to get fields in item tree
+  FIELD_IN_PART_FUNC_FLAG        = $00080000;   // Field part of partition func
+  FIELD_IN_ADD_INDEX             = $00100000;   // Intern: Field used in ADD INDEX
+  FIELD_IS_RENAMED               = $00200000;   // Intern: Field is being renamed
+  FIELD_FLAGS_STORAGE_MEDIA      = 22;          // Field storage media, bit 22-23
+  FIELD_FLAGS_STORAGE_MEDIA_MASK = $00C00000;   // (3 shl FIELD_FLAGS_STORAGE_MEDIA)
+  FIELD_FLAGS_COLUMN_FORMAT      = 24;          // Field column format, bit 24-25
+  FIELD_FLAGS_COLUMN_FORMAT_MASK = $03000000;   // (3 shl FIELD_FLAGS_COLUMN_FORMAT)
+  FIELD_IS_DROPPED               = $04000000;   // Intern: Field is being dropped
+  EXPLICIT_NULL_FLAG             = $08000000;   // Field is explicitly specified as NULL by the user
 
   MAX_TINYINT_WIDTH        = 3;         // Max width for a TINY w.o. sign
   MAX_SMALLINT_WIDTH       = 5;         // Max width for a SHORT w.o. sign
@@ -99,7 +112,36 @@ const
   MAX_BIGINT_WIDTH         = 20;        // Max width for a LONGLONG
   MAX_FLOAT_WIDTH          = 53;        // Max width for a FLOAT
   MAX_CHAR_WIDTH           = 255;       // Max length for a CHAR colum
-  MAX_BLOB_WIDTH           = 8192;      // Default width for blob
+  MAX_BLOB_WIDTH           = 16777216;  // Default width for blob
+
+  REFRESH_GRANT            = $000001;  // Refresh grant tables
+  REFRESH_LOG              = $000002;  // Start on new log file
+  REFRESH_TABLES           = $000004;  // close all tables
+  REFRESH_HOSTS            = $000008;  // Flush host cache
+  REFRESH_STATUS           = $000010;  // Flush status variables
+  REFRESH_THREADS          = $000020;  // Flush thread cache
+  REFRESH_SLAVE            = $000040;  // Reset master info and restart slave thread
+  REFRESH_MASTER           = $000080;  // Remove all bin logs in the in and truncate the index
+  REFRESH_ERROR_LOG        = $000100;  // Rotate only the erorr log
+  REFRESH_ENGINE_LOG       = $000200;  // Flush all storage engine logs
+  REFRESH_BINARY_LOG       = $000400;  // Flush the binary log
+  REFRESH_RELAY_LOG        = $000800;  // Flush the relay log
+  REFRESH_GENERAL_LOG      = $001000;  // Flush the general log
+  REFRESH_SLOW_LOG         = $002000;  // Flush the slow query log
+  // The following can't be set with mysql_refresh()
+  REFRESH_READ_LOCK        = $004000;  // Lock tables for read
+  REFRESH_FAST             = $008000;  // Intern flag
+  // RESET (remove all queries) from query cache
+  REFRESH_QUERY_CACHE      = $010000;
+  REFRESH_QUERY_CACHE_FREE = $020000;  // pack query cache
+  REFRESH_DES_KEY_FILE     = $040000;
+  REFRESH_USER_RESOURCES   = $080000;
+  REFRESH_FOR_EXPORT       = $100000;  // FLUSH TABLES ... FOR EXPORT
+
+  MYSQL_SHUTDOWN_KILLABLE_CONNECT    = $0;
+  MYSQL_SHUTDOWN_KILLABLE_TRANS      = $1;
+  MYSQL_SHUTDOWN_KILLABLE_LOCK_TABLE = $2;
+  MYSQL_SHUTDOWN_KILLABLE_UPDATE     = $4;
 
 type
   my_ulonglong = Int64;
@@ -145,9 +187,10 @@ type
     COM_STMT_CLOSE          = $19,  // new, for closing statement
     COM_STMT_RESET          = $1A,  //
     COM_SET_OPTION          = $1B,  // mysql_set_option
-    COM_STMT_FETCH          = $1C   //
-//    COM_DAEMON
-//    COM_ERROR
+    COM_STMT_FETCH          = $1C,  //
+    COM_DAEMON              = $1D,
+    COM_BINLOG_DUMP_GTID    = $1E,
+    COM_RESET_CONNECTION    = $1F
   );
 
   enum_field_types = (
@@ -225,16 +268,39 @@ type
     MYSQL_PROGRESS_CALLBACK                = 5999,
     MYSQL_OPT_NONBLOCK                     = 6000,
     MYSQL_OPT_USE_THREAD_SPECIFIC_MEMORY   = 6001
-);
+  );
 
   enum_mysql_set_option = (
     MYSQL_OPTION_MULTI_STATEMENTS_ON  = 0,
     MYSQL_OPTION_MULTI_STATEMENTS_OFF = 1
   );
 
-  mysql_enum_shutdown_level = (
-    SHUTDOWN_DEFAULT = 0
+  enum_session_state_type = (
+    SESSION_TRACK_SYSTEM_VARIABLES,    // Session system variables
+    SESSION_TRACK_SCHEMA,              // Current schema
+    SESSION_TRACK_STATE_CHANGE         // track session state changes
   );
+  // SESSION_TRACK_BEGIN = SESSION_TRACK_SYSTEM_VARIABLES;
+  // SESSION_TRACK_END = SESSION_TRACK_STATE_CHANGE;
+
+  mysql_enum_shutdown_level = (
+    SHUTDOWN_DEFAULT               = 0,                                            // wait for existing connections to finish
+    SHUTDOWN_WAIT_CONNECTIONS      = MYSQL_SHUTDOWN_KILLABLE_CONNECT,              // wait for existing trans to finish
+    SHUTDOWN_WAIT_TRANSACTIONS     = MYSQL_SHUTDOWN_KILLABLE_TRANS,                // wait for existing updates to finish (=> no partial MyISAM update)
+    SHUTDOWN_WAIT_UPDATES          = MYSQL_SHUTDOWN_KILLABLE_UPDATE,               // flush InnoDB buffers and other storage engines' buffers
+    SHUTDOWN_WAIT_ALL_BUFFERS      = (MYSQL_SHUTDOWN_KILLABLE_UPDATE shl 1),       // don't flush InnoDB buffers, flush other storage engines' buffers
+    SHUTDOWN_WAIT_CRITICAL_BUFFERS = (MYSQL_SHUTDOWN_KILLABLE_UPDATE shl 1) + 1,   // Now the 2 levels of the KILL command
+    KILL_QUERY                     = 254,
+    KILL_CONNECTION                = 255
+  );
+
+  enum_cursor_type = (
+    CURSOR_TYPE_NO_CURSOR   = 0,
+    CURSOR_TYPE_READ_ONLY   = 1,
+    CURSOR_TYPE_FOR_UPDATE  = 2,
+    CURSOR_TYPE_SCROLLABLE  = 4
+  );
+
 
   MYSQL_FIELD_32300 = ^TMYSQL_FIELD_32300;  // MySQL 3.23.0 and higher
   TMYSQL_FIELD_32300 = record
@@ -1735,9 +1801,9 @@ var
     'Lost connection to MySQL server during query',
     'Commands out of sync; you can''t run this command now',
     'Named pipe: %s',
-    'Can''t wait for named pipe to host: %s pipe: %s (%lu)',
-    'Can''t open named pipe to host: %s pipe: %s (%lu)',
-    'Can''t set state of named pipe to host: %s pipe: %s (%lu)',
+    'Can''t wait for named pipe to host: %s pipe: %s (%d)',
+    'Can''t open named pipe to host: %s pipe: %s (%d)',
+    'Can''t set state of named pipe to host: %s pipe: %s (%d)',
     'Can''t initialize character set %s (path: %s)',
     'Got packet bigger than ''max_allowed_packet'' bytes',
     'Embedded server',

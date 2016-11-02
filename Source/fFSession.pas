@@ -252,7 +252,6 @@ type
     mwDProperties: TMenuItem;
     mwECopy: TMenuItem;
     mwEDelete: TMenuItem;
-    mwEPaste: TMenuItem;
     mwFExport: TMenuItem;
     mwFExportAccess: TMenuItem;
     mwFExportBitmap: TMenuItem;
@@ -374,6 +373,7 @@ type
     tmEPaste: TMenuItem;
     tmESelectAll: TMenuItem;
     ToolBar: TToolBar;
+    aSynCompletionExecute: TAction;
     procedure aDCreateDatabaseExecute(Sender: TObject);
     procedure aDCreateEventExecute(Sender: TObject);
     procedure aDCreateExecute(Sender: TObject);
@@ -419,6 +419,7 @@ type
     procedure aPObjectBrowserTableExecute(Sender: TObject);
     procedure aPResultExecute(Sender: TObject);
     procedure aSSearchFindNotFound(Sender: TObject);
+    procedure aSynCompletionExecuteExecute(Sender: TObject);
     procedure aTBFilterExecute(Sender: TObject);
     procedure aTBLimitExecute(Sender: TObject);
     procedure aTBOffsetExecute(Sender: TObject);
@@ -480,10 +481,6 @@ type
     procedure FNavigatorChange2(Sender: TObject; Node: TTreeNode);
     procedure FNavigatorChanging(Sender: TObject; Node: TTreeNode;
       var AllowChange: Boolean);
-    procedure FNavigatorDragDrop(Sender, Source: TObject; X,
-      Y: Integer);
-    procedure FNavigatorDragOver(Sender, Source: TObject; X,
-      Y: Integer; State: TDragState; var Accept: Boolean);
     procedure FNavigatorEdited(Sender: TObject; Node: TTreeNode; var S: string);
     procedure FNavigatorEditing(Sender: TObject; Node: TTreeNode;
       var AllowEdit: Boolean);
@@ -520,6 +517,7 @@ type
     procedure FRTFChange(Sender: TObject);
     procedure FRTFEnter(Sender: TObject);
     procedure FRTFExit(Sender: TObject);
+    procedure FSQLEditorSynMemoKeyPress(Sender: TObject; var Key: Char);
     procedure FSQLHistoryChange(Sender: TObject; Node: TTreeNode);
     procedure FSQLHistoryChanging(Sender: TObject; Node: TTreeNode;
       var AllowChange: Boolean);
@@ -540,6 +538,8 @@ type
     procedure FTextKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure FTextMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
+    procedure ghmCopyClick(Sender: TObject);
+    procedure ghmGotoClick(Sender: TObject);
     procedure ListViewAdvancedCustomDrawItem(Sender: TCustomListView;
       Item: TListItem; State: TCustomDrawState; Stage: TCustomDrawStage;
       var DefaultDraw: Boolean);
@@ -550,8 +550,6 @@ type
     procedure ListViewCompare(Sender: TObject; Item1: TListItem;
       Item2: TListItem; Data: Integer; var Compare: Integer);
     procedure ListViewDblClick(Sender: TObject);
-    procedure ListViewDragOver(Sender, Source: TObject; X, Y: Integer;
-      State: TDragState; var Accept: Boolean);
     procedure ListViewEdited(Sender: TObject; Item: TListItem;
       var S: string);
     procedure ListViewEditing(Sender: TObject; Item: TListItem;
@@ -576,6 +574,7 @@ type
     procedure mfRenameClick(Sender: TObject);
     procedure mfPropertiesClick(Sender: TObject);
     procedure MFilesPopup(Sender: TObject);
+    procedure MGridHeaderPopup(Sender: TObject);
     procedure MGridPopup(Sender: TObject);
     procedure miHOpenClick(Sender: TObject);
     procedure miHPropertiesClick(Sender: TObject);
@@ -594,7 +593,6 @@ type
     procedure mwCreateSectionClick(Sender: TObject);
     procedure mwDCreateForeignKeyClick(Sender: TObject);
     procedure mwDCreateTableClick(Sender: TObject);
-    procedure mwEPasteClick(Sender: TObject);
     procedure mwEDeleteClick(Sender: TObject);
     procedure MWorkbenchPopup(Sender: TObject);
     procedure PanelMouseDown(Sender: TObject;
@@ -623,6 +621,8 @@ type
     procedure SSideBarCanResize(Sender: TObject; var NewSize: Integer;
       var Accept: Boolean);
     procedure SSideBarMoved(Sender: TObject);
+    procedure SynCompletionChange(Sender: TObject; AIndex: Integer);
+    procedure SynCompletionClose(Sender: TObject);
     procedure SynCompletionExecute(Kind: SynCompletionType; Sender: TObject;
       var CurrentInput: string; var x, y: Integer; var CanExecute: Boolean);
     procedure SynCompletionCancelled(Sender: TObject);
@@ -647,12 +647,6 @@ type
       Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure TreeViewMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
-    procedure SynCompletionClose(Sender: TObject);
-    procedure FSQLEditorSynMemoKeyPress(Sender: TObject; var Key: Char);
-    procedure SynCompletionChange(Sender: TObject; AIndex: Integer);
-    procedure ghmCopyClick(Sender: TObject);
-    procedure ghmGotoClick(Sender: TObject);
-    procedure MGridHeaderPopup(Sender: TObject);
   type
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
     TTabState = set of (tsLoading, tsActive);
@@ -971,7 +965,6 @@ type
     function GetActiveWorkbench(): TWWorkbench;
     function GetFocusedSItem(): TSItem;
     function GetPath(): TFileName; inline;
-    function GetMenuDatabase(): TSDatabase;
     function GetSelectedDatabase(): string;
     function GetSelectedImageIndex(): Integer;
     function GetSQLEditors(View: TView): TSQLEditor;
@@ -987,7 +980,6 @@ type
     function NavigatorNodeToAddress(const Node: TTreeNode): string;
     procedure OnConvertError(Sender: TObject; Text: string);
     function ParamToView(const AParam: Variant): TView;
-    procedure PasteExecute(const Node: TTreeNode; const Objects: string);
     procedure PContentChange(Sender: TObject);
     function PostObject(Sender: TObject): Boolean;
     procedure PropertiesServerExecute(Sender: TObject);
@@ -1028,14 +1020,12 @@ type
     procedure WorkbenchEmptyExecute(Sender: TObject);
     procedure WorkbenchEnter(Sender: TObject);
     procedure WorkbenchExit(Sender: TObject);
-    procedure WorkbenchPasteExecute(Sender: TObject);
     function WorkbenchValidateControl(Sender: TObject; Control: TWControl): Boolean;
     procedure WMNotify(var Message: TWMNotify); message WM_NOTIFY;
     procedure WMParentNotify(var Message: TWMParentNotify); message WM_PARENTNOTIFY;
     procedure WMTimer(var Message: TWMTimer); message WM_TIMER;
     property ActiveSynMemo: TSynMemo read GetActiveSynMemo;
     property FocusedSItem: TSItem read GetFocusedSItem;
-    property MenuDatabase: TSDatabase read GetMenuDatabase;
     property SelectedImageIndex: Integer read GetSelectedImageIndex;
     property SQLEditors[View: TView]: TSQLEditor read GetSQLEditors;
   protected
@@ -1280,7 +1270,7 @@ begin
     begin
       SQL := DataHandle.Connection.CommandText;
       Len := SQLStmtLength(PChar(SQL), Length(SQL));
-      SQLTrimStmt(DataHandle.Connection.CommandText, 1, Len, FSession.Session.Connection.MySQLVersion, StartingCommentLength, EndingCommentLength);
+      SQLTrimStmt(SQL, 1, Len, FSession.Session.Connection.MySQLVersion, StartingCommentLength, EndingCommentLength);
       FSynMemo.SelStart := FSession.aDRunExecuteSelStart + DataHandle.Connection.SuccessfullExecutedSQLLength + StartingCommentLength;
       FSynMemo.SelLength := Len - StartingCommentLength - EndingCommentLength;
     end
@@ -1342,7 +1332,7 @@ begin
     end;
   end;
 
-  Result := False;
+  Result := True;
 end;
 
 procedure TFSession.TSQLEditor.TCResultChange(Sender: TObject);
@@ -1392,7 +1382,7 @@ begin
     DataSet.Open(DataHandle);
   end;
 
-  Result := False;
+  Result := True;
 end;
 
 procedure TFSession.TDatabaseDesktop.CloseBuilderResult();
@@ -1846,7 +1836,7 @@ begin
     TResult(Item^).DataSet.Open(DataHandle);
   end;
 
-  Result := False;
+  Result := True;
 end;
 
 procedure TFSession.TRoutineDesktop.TCResultChange(Sender: TObject);
@@ -2849,6 +2839,7 @@ begin
   if (Assigned(FQueryBuilderActiveSelectList())) then
     FQueryBuilderActiveSelectList().EditorMode := False;
 
+  aDRunExecuteSelStart := 0;
   SQL := '';
   if (View in [vBuilder, vEditor, vEditor2, vEditor3]) then
     SQL := Trim(ActiveSynMemo.Text)
@@ -2880,9 +2871,11 @@ begin
   if (SQL <> '') then
   begin
     if ((SelectedDatabase <> '') and (SelectedDatabase <> Session.Connection.DatabaseName)) then
+    begin
+      Dec(aDRunExecuteSelStart, Length(Session.Connection.SQLUse(SelectedDatabase)));
       SQL := Session.Connection.SQLUse(SelectedDatabase) + SQL;
+    end;
 
-    aDRunExecuteSelStart := 0;
     SendQuery(Sender, SQL);
   end;
 end;
@@ -2917,7 +2910,10 @@ begin
   if (SQL <> '') then
   begin
     if ((SelectedDatabase <> '') and (SelectedDatabase <> Session.Connection.DatabaseName)) then
+    begin
+      Dec(aDRunExecuteSelStart, Length(Session.Connection.SQLUse(SelectedDatabase)));
       SQL := Session.Connection.SQLUse(SelectedDatabase) + SQL;
+    end;
 
     SendQuery(Sender, SQL);
   end;
@@ -2944,67 +2940,47 @@ var
   ClipboardData: HGLOBAL;
   Data: string;
   I: Integer;
-  ImageIndex: Integer;
   S: string;
-  StringList: TStringList;
 begin
-  Data := '';
-
   if (Window.ActiveControl = FNavigator) then
   begin
-    if (not Assigned(FNavigatorMenuNode.Parent)) then
-      ImageIndex := -1
-    else
+    S := FNavigatorMenuNode.Text;
+
+    if (OpenClipboard(Handle)) then
     begin
-      ImageIndex := FNavigatorMenuNode.Parent.ImageIndex;
-      case (FNavigatorMenuNode.ImageIndex) of
-        iiDatabase,
-        iiSystemView: Data := Data + 'Database='    + FNavigatorMenuNode.Text + #13#10;
-        iiBaseTable:  Data := Data + 'Table='       + FNavigatorMenuNode.Text + #13#10;
-        iiView:       Data := Data + 'View='        + FNavigatorMenuNode.Text + #13#10;
-        iiProcedure:  Data := Data + 'Procedure='   + FNavigatorMenuNode.Text + #13#10;
-        iiFunction:   Data := Data + 'Function='    + FNavigatorMenuNode.Text + #13#10;
-        iiEvent:      Data := Data + 'Event='       + FNavigatorMenuNode.Text + #13#10;
-        iiKey:        Data := Data + 'Index='       + FNavigatorMenuNode.Text + #13#10;
-        iiSystemViewField,
-        iiField,
-        iiVirtualField,
-        iiViewField:  Data := Data + 'Field='       + FNavigatorMenuNode.Text + #13#10;
-        iiForeignKey: Data := Data + 'ForeignKey='  + FNavigatorMenuNode.Text + #13#10;
-        iiTrigger:    Data := Data + 'Trigger='     + FNavigatorMenuNode.Text + #13#10;
-        iiUser:       Data := Data + 'User='        + FNavigatorMenuNode.Text + #13#10;
-      end;
-      if (Data <> '') then
-        Data := 'Address=' + NavigatorNodeToAddress(FNavigatorMenuNode.Parent) + #13#10 + Data;
+      EmptyClipboard();
+      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Length(S) + 1) * SizeOf(S[1]));
+      StrPCopy(GlobalLock(ClipboardData), S);
+      SetClipboardData(CF_UNICODETEXT, ClipboardData);
+      GlobalUnlock(ClipboardData);
+      CloseClipboard();
     end;
   end
   else if (Window.ActiveControl = ActiveListView) then
   begin
-    ImageIndex := SelectedImageIndex;
+    S := '';
     for I := 0 to ActiveListView.Items.Count - 1 do
       if (ActiveListView.Items[I].Selected) then
-        case (ActiveListView.Items[I].ImageIndex) of
-          iiDatabase,
-          iiSystemView: Data := Data + 'Database='   + ActiveListView.Items[I].Caption + #13#10;
-          iiBaseTable:  Data := Data + 'Table='      + ActiveListView.Items[I].Caption + #13#10;
-          iiView:       Data := Data + 'View='       + ActiveListView.Items[I].Caption + #13#10;
-          iiProcedure:  Data := Data + 'Procedure='  + ActiveListView.Items[I].Caption + #13#10;
-          iiFunction:   Data := Data + 'Function='   + ActiveListView.Items[I].Caption + #13#10;
-          iiEvent:      Data := Data + 'Event='      + ActiveListView.Items[I].Caption + #13#10;
-          iiKey:        Data := Data + 'Key='        + TSKey(ActiveListView.Items[I].Data).Name + #13#10;
-          iiField,
-          iiVirtualField,
-          iiViewField:  Data := Data + 'Field='      + ActiveListView.Items[I].Caption + #13#10;
-          iiForeignKey: Data := Data + 'ForeignKey=' + ActiveListView.Items[I].Caption + #13#10;
-          iiTrigger:    Data := Data + 'Trigger='    + ActiveListView.Items[I].Caption + #13#10;
-          iiUser:       Data := Data + 'User='       + ActiveListView.Items[I].Caption + #13#10;
-        end;
-    if (Data <> '') then
-      Data := 'Address=' + NavigatorNodeToAddress(FNavigator.Selected) + #13#10 + Data;
+      begin
+        if (S <> '') then S := S + ',';
+        if (ActiveListView.Items[I].ImageIndex = iiKey) then
+          S := S + TSKey(ActiveListView.Items[I].Data).Name
+        else
+          S := S + ActiveListView.Items[I].Caption;
+      end;
+
+    if (OpenClipboard(Handle)) then
+    begin
+      EmptyClipboard();
+      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Length(S) + 1) * SizeOf(S[1]));
+      StrPCopy(GlobalLock(ClipboardData), S);
+      SetClipboardData(CF_UNICODETEXT, ClipboardData);
+      GlobalUnlock(ClipboardData);
+      CloseClipboard();
+    end;
   end
   else if (Assigned(ActiveDBGrid) and (Window.ActiveControl = ActiveDBGrid)) then
   begin
-    ImageIndex := 8;
     if (not Assigned(EditorField)) then
       ActiveDBGrid.CopyToClipboard()
     else if (FText.Visible) then
@@ -3025,12 +3001,9 @@ begin
       GlobalUnlock(ClipboardData);
 
       CloseClipboard();
-
-      Exit;
     end
     else
     begin
-      ImageIndex := SelectedImageIndex;
       if (Assigned(ActiveWorkbench)) then
       begin
         Data := 'Address=' + NavigatorNodeToAddress(FNavigator.Selected);
@@ -3048,7 +3021,6 @@ begin
   else if (Window.ActiveControl = ActiveDBGrid) then
   begin
     ActiveDBGrid.CopyToClipboard();
-    Exit;
   end
   else if (Window.ActiveControl = FSQLHistory) then
   begin
@@ -3057,61 +3029,22 @@ begin
       EmptyClipboard();
 
       S := XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'sql').Text;
-      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(S[1]) * (Length(S) + 1));
+      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Length(S) + 1) * SizeOf(S[1]));
       StrPCopy(GlobalLock(ClipboardData), S);
       SetClipboardData(CF_UNICODETEXT, ClipboardData);
       GlobalUnlock(ClipboardData);
 
       CloseClipboard();
     end;
-    Exit;
   end
   else if (Window.ActiveControl = FHexEditor) then
   begin
     FHexEditor.ExecuteAction(MainAction('aECopy'));
-    Exit;
   end
   else
   begin
     if (Assigned(Window.ActiveControl)) then
       SendMessage(Window.ActiveControl.Handle, WM_COPY, 0, 0);
-    Exit;
-  end;
-
-  if ((Data <> '') and OpenClipboard(Handle)) then
-  begin
-    EmptyClipboard();
-
-    ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(Char) * (Length(Data) + 1));
-    StrPCopy(GlobalLock(ClipboardData), Data);
-    case (ImageIndex) of
-      iiServer: SetClipboardData(CF_MYSQLSERVER, ClipboardData);
-      iiDatabase,
-      iiSystemDatabase: SetClipboardData(CF_MYSQLDATABASE, ClipboardData);
-      iiTable,
-      iiBaseTable,
-      iiSystemView: SetClipboardData(CF_MYSQLTABLE, ClipboardData);
-      iiView: SetClipboardData(CF_MYSQLVIEW, ClipboardData);
-      iiUsers: SetClipboardData(CF_MYSQLUSERS, ClipboardData);
-    end;
-    GlobalUnlock(ClipboardData);
-
-    StringList := TStringList.Create();
-    StringList.Text := Trim(Data);
-    for I := 1 to StringList.Count - 1 do
-      if (StringList.ValueFromIndex[I] <> '') then
-      begin
-        if (S <> '') then S := S + ',';
-        S := S + StringList.ValueFromIndex[I];
-      end;
-    StringList.Free();
-
-    ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(S[1]) * (Length(S) + 1));
-    StrPCopy(GlobalLock(ClipboardData), S);
-    SetClipboardData(CF_UNICODETEXT, ClipboardData);
-    GlobalUnlock(ClipboardData);
-
-    CloseClipboard();
   end;
 end;
 
@@ -3127,12 +3060,6 @@ begin
 end;
 
 procedure TFSession.aEPasteExecute(Sender: TObject);
-var
-  B: Boolean;
-  ClipboardData: HGLOBAL;
-  I: Integer;
-  Node: TTreeNode;
-  S: string;
 begin
   if (Session.Connection.InUse()) then
     MessageBeep(MB_ICONERROR)
@@ -3150,54 +3077,8 @@ begin
     ActiveDBGrid.DataSource.DataSet.Edit();
     ActiveDBGrid.InplaceEditor.PasteFromClipboard()
   end
-  else if ((Window.ActiveControl = FNavigator) or Assigned(ActiveListView) and (Window.ActiveControl = ActiveListView)) then
-  begin
-    if (Window.ActiveControl = FNavigator) then
-      Node := FNavigatorMenuNode
-    else if ((Window.ActiveControl = ActiveListView) and Assigned(ActiveListView.Selected)) then
-    begin
-      Node := nil;
-      FNavigatorExpanding(Sender, FNavigator.Selected, B);
-      for I := 0 to FNavigator.Selected.Count - 1 do
-        if ((FNavigator.Selected[I].ImageIndex = ActiveListView.Selected.ImageIndex)
-          and (FNavigator.Selected[I].Text = ActiveListView.Selected.Caption)) then
-          Node := FNavigator.Selected[I];
-    end
-    else
-      Node := FNavigator.Selected;
-
-    if (not Assigned(Node)) then
-      MessageBeep(MB_ICONERROR)
-    else if ((Node.ImageIndex > 0) and OpenClipboard(Handle)) then
-    begin
-      case (Node.ImageIndex) of
-        iiServer: ClipboardData := GetClipboardData(CF_MYSQLSERVER);
-        iiDatabase: ClipboardData := GetClipboardData(CF_MYSQLDATABASE);
-        iiBaseTable: ClipboardData := GetClipboardData(CF_MYSQLTABLE);
-        iiView: ClipboardData := GetClipboardData(CF_MYSQLVIEW);
-        iiUsers: ClipboardData := GetClipboardData(CF_MYSQLUSERS);
-        else ClipboardData := 0;
-      end;
-
-      if (ClipboardData = 0) then
-      begin
-        CloseClipboard();
-        MessageBeep(MB_ICONERROR);
-      end
-      else
-      begin
-        SetString(S, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(S[1]));
-        GlobalUnlock(ClipboardData);
-        CloseClipboard();
-
-        PasteExecute(Node, S);
-      end;
-    end;
-  end
   else if (Window.ActiveControl = ActiveSynMemo) then
     ActiveSynMemo.PasteFromClipboard()
-  else if (Assigned(ActiveWorkbench) and (Window.ActiveControl = ActiveWorkbench)) then
-    WorkbenchPasteExecute(Sender)
   else if (Window.ActiveControl = FFilter) then
     FFilter.PasteFromClipboard()
   else if (Window.ActiveControl = FQuickSearch) then
@@ -3902,6 +3783,13 @@ begin
   MsgBox(Preferences.LoadStr(533, TSearchFind(Sender).Dialog.FindText), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
 end;
 
+procedure TFSession.aSynCompletionExecuteExecute(Sender: TObject);
+begin
+  with SynCompletionPending do
+    SynCompletion.Execute(CurrentInput, X, Y);
+  SynCompletionPending.Active := False;
+end;
+
 procedure TFSession.aTBFilterExecute(Sender: TObject);
 begin
   if (View = vBrowser) then
@@ -4294,7 +4182,7 @@ var
   View: TView;
 begin
   for View in [vEditor, vEditor2, vEditor3] do
-    if (Assigned(SQLEditors[View]) and (SQLEditors[View].Filename <> '') and not SQLEditors[View].SynMemo.Modified) then
+    if (not Assigned(SQLEditors[View]) or (SQLEditors[View].Filename <> '') and not SQLEditors[View].SynMemo.Modified) then
       Session.Account.Desktop.EditorContent[ToolbarTabByView[View]] := ''
     else
       Session.Account.Desktop.EditorContent[ToolbarTabByView[View]] := SQLEditors[View].SynMemo.Text;
@@ -6320,116 +6208,6 @@ begin
     end;
 end;
 
-procedure TFSession.FNavigatorDragDrop(Sender, Source: TObject; X, Y: Integer);
-var
-  I: Integer;
-  List: TList;
-  Objects: string;
-  SourceNode: TTreeNode;
-  TargetNode: TTreeNode;
-begin
-  if (Sender = FNavigator) then
-    TargetNode := FNavigator.GetNodeAt(X, Y)
-  else if (Sender = ActiveListView) then
-    TargetNode := FNavigator.Selected
-  else
-    TargetNode := nil;
-
-  List := TList.Create();
-
-  if ((Source is TTreeView_Ext) and (TTreeView_Ext(Source).Name = FNavigator.Name)) then
-  begin
-    SourceNode := TFSession(TTreeView_Ext(Source).Owner).MouseDownNode;
-
-    case (SourceNode.ImageIndex) of
-      iiDatabase,
-      iiSystemView: Objects := Objects + 'Database='    + SourceNode.Text + #13#10;
-      iiBaseTable:  Objects := Objects + 'Table='       + SourceNode.Text + #13#10;
-      iiView:       Objects := Objects + 'View='        + SourceNode.Text + #13#10;
-      iiProcedure:  Objects := Objects + 'Procedure='   + SourceNode.Text + #13#10;
-      iiFunction:   Objects := Objects + 'Function='    + SourceNode.Text + #13#10;
-      iiEvent:      Objects := Objects + 'Event='       + SourceNode.Text + #13#10;
-      iiKey:        Objects := Objects + 'Index='       + SourceNode.Text + #13#10;
-      iiField,
-      iiVirtualField,
-      iiViewField:  Objects := Objects + 'Field='       + SourceNode.Text + #13#10;
-      iiForeignKey: Objects := Objects + 'ForeignKey='  + SourceNode.Text + #13#10;
-      iiTrigger:    Objects := Objects + 'Trigger='     + SourceNode.Text + #13#10;
-      iiUser:       Objects := Objects + 'User='        + SourceNode.Text + #13#10;
-    end;
-    if (Objects <> '') then
-      Objects := 'Address=' + NavigatorNodeToAddress(SourceNode) + #13#10 + Objects;
-  end
-  else if ((Source is TListView) and (TListView(Source).Parent.Name = 'PListView')) then
-  begin
-    SourceNode := TFSession(TComponent(TListView(Source).Owner)).FNavigator.Selected;
-
-    for I := 0 to TListView(Source).Items.Count - 1 do
-      if (TListView(Source).Items[I].Selected) then
-        case (TListView(Source).Items[I].ImageIndex) of
-          iiDatabase,
-          iiSystemView: Objects := Objects + 'Database='   + TListView(Source).Items[I].Caption + #13#10;
-          iiBaseTable:  Objects := Objects + 'Table='      + TListView(Source).Items[I].Caption + #13#10;
-          iiView:       Objects := Objects + 'View='       + TListView(Source).Items[I].Caption + #13#10;
-          iiProcedure:  Objects := Objects + 'Procedure='  + TListView(Source).Items[I].Caption + #13#10;
-          iiFunction:   Objects := Objects + 'Function='   + TListView(Source).Items[I].Caption + #13#10;
-          iiEvent:      Objects := Objects + 'Event='      + TListView(Source).Items[I].Caption + #13#10;
-          iiKey:        Objects := Objects + 'Key='        + TSKey(TListView(Source).Items[I].Data).Name + #13#10;
-          iiField,
-          iiVirtualField,
-          iiViewField:  Objects := Objects + 'Field='      + TListView(Source).Items[I].Caption + #13#10;
-          iiForeignKey: Objects := Objects + 'ForeignKey=' + TListView(Source).Items[I].Caption + #13#10;
-          iiTrigger:    Objects := Objects + 'Trigger='    + TListView(Source).Items[I].Caption + #13#10;
-          iiUser:       Objects := Objects + 'User='       + TListView(Source).Items[I].Caption + #13#10;
-        end;
-    if (Objects <> '') then
-      Objects := 'Address=' + NavigatorNodeToAddress(SourceNode) + #13#10 + Objects;
-  end;
-
-  List.Free();
-
-  if (Objects <> '') then
-    PasteExecute(TargetNode, Objects);
-end;
-
-procedure TFSession.FNavigatorDragOver(Sender, Source: TObject; X, Y: Integer;
-  State: TDragState; var Accept: Boolean);
-var
-  SourceItem: TListItem;
-  SourceNode: TTreeNode;
-  TargetNode: TTreeNode;
-begin
-  Accept := False;
-
-  TargetNode := TTreeView(Sender).GetNodeAt(X, Y);
-
-  if (Source is TTreeView and (TTreeView(Source).Name = FNavigator.Name)) then
-  begin
-    SourceNode := TFSession(TTreeView(Source).Owner).MouseDownNode;
-    if (Assigned(TargetNode) and (TargetNode <> SourceNode)) then
-      case (SourceNode.ImageIndex) of
-        iiDatabase: Accept := (TargetNode = TTreeView(Sender).Items.getFirstNode()) and (TargetNode <> SourceNode.Parent);
-        iiBaseTable: Accept := (TargetNode.ImageIndex = iiDatabase) and (TargetNode <> SourceNode.Parent);
-        iiProcedure,
-        iiFunction: Accept := (TargetNode.ImageIndex = iiDatabase) and (TargetNode <> SourceNode.Parent);
-        iiField,
-        iiVirtualField: Accept := (TargetNode.ImageIndex = iiBaseTable) and (TargetNode <> SourceNode.Parent);
-      end;
-  end
-  else if ((Source is TListView) and (TListView(Source).Parent.Name = PListView.Name) and Assigned(TargetNode)) then
-  begin
-    SourceItem := TListView(Source).Selected;
-    case (SourceItem.ImageIndex) of
-      iiDatabase: Accept := (TargetNode = TTreeView(Sender).Items.getFirstNode()) and (TargetNode <> TFSession(TListView(Source).Owner).FNavigator.Selected);
-      iiBaseTable: Accept := (TargetNode.ImageIndex = iiDatabase) and (TargetNode <> TFSession(TListView(Source).Owner).FNavigator.Selected);
-      iiProcedure,
-      iiFunction: Accept := (TargetNode.ImageIndex = iiDatabase) and (TargetNode <> TFSession(TListView(Source).Owner).FNavigator.Selected);
-      iiField,
-      iiVirtualField: Accept := (TargetNode.ImageIndex = iiBaseTable) and (TargetNode <> TFSession(TListView(Source).Owner).FNavigator.Selected);
-    end;
-  end;
-end;
-
 procedure TFSession.FNavigatorEdited(Sender: TObject; Node: TTreeNode; var S: string);
 begin
   if (not RenameSItem(FocusedSItem, S)) then
@@ -6482,6 +6260,8 @@ end;
 
 procedure TFSession.FNavigatorEnter(Sender: TObject);
 begin
+  MainAction('aEPaste').Enabled := False;
+
   MainAction('aDEmpty').OnExecute := FNavigatorEmptyExecute;
 
   aDDelete.ShortCut := VK_DELETE;
@@ -7152,7 +6932,6 @@ begin
   MainAction('aFExportHTML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
   MainAction('aFExportPDF').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
   MainAction('aECopy').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiField, iiVirtualField, iiSystemViewField, iiViewField]);
-  MainAction('aEPaste').Enabled := Assigned(Node) and ((Node.ImageIndex = iiServer) and Clipboard.HasFormat(CF_MYSQLSERVER) or (Node.ImageIndex = iiDatabase) and Clipboard.HasFormat(CF_MYSQLDATABASE) or (Node.ImageIndex = iiBaseTable) and Clipboard.HasFormat(CF_MYSQLTABLE) or (Node.ImageIndex = iiUsers) and Clipboard.HasFormat(CF_MYSQLUSERS));
   MainAction('aERename').Enabled := Assigned(Node) and ((Node.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013) or (Node.ImageIndex in [iiBaseTable, iiView, iiEvent, iiTrigger, iiField, iiVirtualField]));
   MainAction('aDCreateDatabase').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer]) and (not Assigned(Session.UserRights) or Session.UserRights.RCreate);
   MainAction('aDCreateTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
@@ -8271,24 +8050,6 @@ begin
   Result := ExcludeTrailingPathDelimiter(Preferences.Path);
 end;
 
-function TFSession.GetMenuDatabase(): TSDatabase;
-var
-  Node: TTreeNode;
-begin
-  if (Window.ActiveControl = FNavigator) then
-    Node := FNavigatorMenuNode
-  else
-    Node := FNavigator.Selected;
-
-  while (Assigned(Node) and Assigned(Node.Parent) and Assigned(Node.Parent.Parent)) do
-    Node := Node.Parent;
-
-  if (Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiSystemDatabase])) then
-    Result := TSDatabase(Node.Data)
-  else
-    Result := nil;
-end;
-
 function TFSession.GetSelectedDatabase(): string;
 var
   URI: TUURI;
@@ -8707,60 +8468,6 @@ begin
   if (Assigned(MenuItem)) then MenuItem.Click();
 end;
 
-procedure TFSession.ListViewDragOver(Sender, Source: TObject; X, Y: Integer;
-  State: TDragState; var Accept: Boolean);
-var
-  SourceSession: TSSession;
-  SourceDatabase: TSDatabase;
-  SourceItem: TListItem;
-  SourceNode: TTreeNode;
-  TargetItem: TListItem;
-begin
-  Accept := False;
-
-  TargetItem := TListView(Sender).GetItemAt(X, Y);
-
-  if ((Source is TTreeView) and (TTreeView(Source).Name = FNavigator.Name)) then
-  begin
-    SourceNode := TFSession(TTreeView(Source).Owner).MouseDownNode;
-
-    if (not Assigned(TargetItem)) then
-      case (SourceNode.ImageIndex) of
-        iiBaseTable,
-        iiProcedure,
-        iiFunction,
-        iiField,
-        iiVirtualField: Accept := (SourceNode.Parent.ImageIndex = SelectedImageIndex) and (SourceNode.Parent <> FNavigator.Selected);
-      end
-    else if (((TargetItem.Caption <> SourceNode.Text) or (SourceNode.Parent <> FNavigator.Selected)) and (SourceNode.Parent.Text <> TargetItem.Caption)) then
-      case (TargetItem.ImageIndex) of
-        iiDatabase: Accept := (SourceNode.ImageIndex in [iiDatabase, iiBaseTable, iiProcedure, iiFunction]);
-        iiBaseTable: Accept := SourceNode.ImageIndex in [iiField, iiVirtualField];
-      end;
-  end
-  else if ((Source is TListView) and (TListView(Source).SelCount = 1) and (TListView(Source).Parent.Name = PListView.Name)) then
-  begin
-    SourceItem := TListView(Source).Selected;
-    SourceSession := TFSession(TTreeView_Ext(Source).Owner).Session;
-    SourceDatabase := TFSession(TTreeView_Ext(Source).Owner).MenuDatabase;
-
-    if (not Assigned(TargetItem)) then
-      case (SourceItem.ImageIndex) of
-        iiBaseTable,
-        iiProcedure,
-        iiFunction: Accept := (SelectedImageIndex = iiDatabase) and (not Assigned(TargetItem) and (Session.DatabaseByName(SelectedDatabase) <> SourceDatabase));
-      end
-    else if ((TargetItem <> SourceItem) and (TargetItem.ImageIndex = SourceItem.ImageIndex)) then
-      case (SourceItem.ImageIndex) of
-        iiBaseTable: Accept := (SelectedImageIndex = iiDatabase);
-      end
-    else if ((TargetItem <> SourceItem) and (SourceSession <> Session)) then
-      case (SourceItem.ImageIndex) of
-        iiBaseTable: Accept := (SelectedImageIndex = iiServer);
-      end;
-  end;
-end;
-
 procedure TFSession.ListViewEdited(Sender: TObject; Item: TListItem;
   var S: string);
 begin
@@ -9071,6 +8778,8 @@ end;
 
 procedure TFSession.ListViewEnter(Sender: TObject);
 begin
+  MainAction('aEPaste').Enabled := False;
+
   MainAction('aESelectAll').OnExecute := aESelectAllExecute;
   MainAction('aDEmpty').OnExecute := ListViewEmpty;
 
@@ -9893,7 +9602,6 @@ begin
             MainAction('aFExportHTML').Enabled := (ListView.SelCount = 0) or Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFExportPDF').Enabled := (ListView.SelCount = 0) or Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aECopy').Enabled := ListView.SelCount >= 1;
-            MainAction('aEPaste').Enabled := (not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLSERVER) or Assigned(Item) and (Item.ImageIndex = iiDatabase) and Clipboard.HasFormat(CF_MYSQLDATABASE));
             MainAction('aDCreateDatabase').Enabled := (ListView.SelCount = 0) and (not Assigned(Session.UserRights) or Session.UserRights.RCreate);
             MainAction('aDCreateTable').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aDCreateView').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and (Session.Connection.MySQLVersion >= 50001);
@@ -9949,7 +9657,6 @@ begin
             MainAction('aFExportHTML').Enabled := SelectedImageIndex = iiDatabase;
             MainAction('aFExportPDF').Enabled := SelectedImageIndex = iiDatabase;
             MainAction('aECopy').Enabled := ListView.SelCount >= 1;
-            MainAction('aEPaste').Enabled := (not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLDATABASE) or Assigned(Item) and ((Item.ImageIndex = iiBaseTable) and Clipboard.HasFormat(CF_MYSQLTABLE) or (Item.ImageIndex = iiView) and Clipboard.HasFormat(CF_MYSQLVIEW)));
             MainAction('aERename').Enabled := Assigned(Item) and (ListView.SelCount = 1) and (Item.ImageIndex in [iiBaseTable, iiView, iiEvent]);
             MainAction('aDCreateTable').Enabled := (ListView.SelCount = 0) and (SelectedImageIndex = iiDatabase);
             MainAction('aDCreateView').Enabled := (ListView.SelCount = 0) and (Session.Connection.MySQLVersion >= 50001) and (SelectedImageIndex = iiDatabase);
@@ -10028,7 +9735,6 @@ begin
             MainAction('aFExportHTML').Enabled := (ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiTrigger]);
             MainAction('aFExportPDF').Enabled := (ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiTrigger]);
             MainAction('aECopy').Enabled := (ListView.SelCount >= 1);
-            MainAction('aEPaste').Enabled := not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLTABLE);
             MainAction('aERename').Enabled := Assigned(Item) and (ListView.SelCount = 1) and ((Item.ImageIndex in [iiField, iiVirtualField, iiTrigger]) or (Item.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013));
             MainAction('aDCreateKey').Enabled := (ListView.SelCount = 0);
             MainAction('aDCreateField').Enabled := (ListView.SelCount = 0);
@@ -10088,7 +9794,6 @@ begin
             MainAction('aFExportHTML').Enabled := (ListView.SelCount = 0);
             MainAction('aFExportPDF').Enabled := (ListView.SelCount = 0);
             MainAction('aECopy').Enabled := (ListView.SelCount >= 1);
-            MainAction('aEPaste').Enabled := not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLVIEW);
             MainAction('aDEditView').Enabled := (ListView.SelCount = 0);
 
             mlEProperties.Action := MainAction('aDEditView');
@@ -10103,7 +9808,6 @@ begin
           end;
         iiUsers:
           begin
-            MainAction('aEPaste').Enabled := not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLUSERS);
             MainAction('aDCreateUser').Enabled := (ListView.SelCount = 0);
             MainAction('aDDeleteUser').Enabled := (ListView.SelCount >= 1);
             MainAction('aDEditUser').Enabled := (ListView.SelCount = 1);
@@ -10729,18 +10433,12 @@ begin
   MainAction('aEDelete').Execute();
 end;
 
-procedure TFSession.mwEPasteClick(Sender: TObject);
-begin
-  WorkbenchPasteExecute(Sender);
-end;
-
 procedure TFSession.MWorkbenchPopup(Sender: TObject);
 var
   I: Integer;
   MenuItem: TMenuItem;
 begin
   mwAddTable.Clear();
-  mwEPaste.Enabled := MainAction('aEPaste').Enabled;
 
   ActiveWorkbench.UpdateAction(MainAction('aEDelete'));
   mwEDelete.Enabled := not (ActiveWorkbench.Selected is TWForeignKey);
@@ -11141,260 +10839,6 @@ begin
     Result := vEditor3
   else
     Result := vObjects;
-end;
-
-procedure TFSession.PasteExecute(const Node: TTreeNode; const Objects: string);
-var
-  Database: TSDatabase;
-  Found: Boolean;
-  I: Integer;
-  J: Integer;
-  Name: string;
-  NewField: TSTableField;
-  NewForeignKey: TSForeignKey;
-  NewKey: TSKey;
-  NewTable: TSBaseTable;
-  NewTrigger: TSTrigger;
-  SourceSession: TSSession;
-  SourceDatabase: TSDatabase;
-  SourceRoutine: TSRoutine;
-  SourceTable: TSBaseTable;
-  SourceURI: TUURI;
-  SourceUser: TSUser;
-  SourceView: TSView;
-  StringList: TStringList;
-  Success: Boolean;
-  Table: TSBaseTable;
-begin
-  StringList := TStringList.Create();
-  StringList.Text := Objects;
-
-  if (StringList.Count > 0) then
-  begin
-    SourceURI := TUURI.Create(StringList.Values['Address']);
-    SourceSession := Sessions.SessionByAccount(Accounts.AccountByURI(SourceURI.Address, Session.Account), SourceURI.Database);
-    if (not Assigned(SourceSession) and Assigned(Accounts.AccountByURI(SourceURI.Address))) then
-    begin
-      SourceSession := TSSession.Create(Sessions, Accounts.AccountByURI(SourceURI.Address));
-      DConnecting.Session := SourceSession;
-      if (not DConnecting.Execute()) then
-        FreeAndNil(SourceSession);
-    end;
-
-    if (Assigned(SourceSession)) then
-    begin
-      Success := True;
-
-      case (Node.ImageIndex) of
-        iiDatabase:
-          begin
-            DExecutingSQL.Session := SourceSession;
-            DExecutingSQL.Update := SourceSession.Databases.Update;
-
-            if (SourceSession.Databases.Valid or DExecutingSQL.Execute()) then
-            begin
-              SourceDatabase := SourceSession.DatabaseByName(SourceURI.Database);
-
-              if (not Assigned(SourceDatabase)) then
-                MessageBeep(MB_ICONERROR)
-              else
-              begin
-                Database := TSDatabase(Node.Data);
-
-                Found := False;
-                for I := 1 to StringList.Count - 1 do
-                  Found := Found or (StringList.Names[I] = 'Table');
-
-                DExecutingSQL.Update := SourceDatabase.Tables.Update;
-                if (not Assigned(Database) or not SourceDatabase.Tables.Valid and not DExecutingSQL.Execute()) then
-                  MessageBeep(MB_ICONERROR)
-                else if (not Found or DPaste.Execute()) then
-                begin
-                  if (Found and (SourceSession <> Session)) then
-                    MessageBeep(MB_ICONERROR)
-                  else
-                    for I := 1 to StringList.Count - 1 do
-                      if (Success) then
-                        if (StringList.Names[I] = 'Table') then
-                        begin
-                          SourceTable := SourceDatabase.BaseTableByName(StringList.ValueFromIndex[I]);
-
-                          if (not Assigned(SourceTable)) then
-                            MessageBeep(MB_ICONERROR)
-                          else
-                          begin
-                            Name := Session.TableName(CopyName(SourceTable.Name, Database.Tables));
-
-                            Session.Connection.BeginSynchron();
-                            Success := Database.CloneTable(SourceTable, Name, DPaste.Data);
-                            Session.Connection.EndSynchron();
-                          end;
-                        end;
-                  for I := 1 to StringList.Count - 1 do
-                    if (Success) then
-                      if (StringList.Names[I] = 'View') then
-                      begin
-                        SourceView := SourceDatabase.ViewByName(StringList.ValueFromIndex[I]);
-
-                        if (not Assigned(SourceView)) then
-                          MessageBeep(MB_ICONERROR)
-                        else
-                        begin
-                          Name := CopyName(SourceView.Name, Database.Tables);
-                          if (Session.LowerCaseTableNames = 1) then
-                            Name := LowerCase(Name);
-
-                          Session.Connection.BeginSynchron();
-                          Success := Database.CloneTable(SourceView, Name, False);
-                          Session.Connection.EndSynchron();
-                        end;
-                      end;
-                  for I := 1 to StringList.Count - 1 do
-                    if (Success) then
-                      if (StringList.Names[I] = 'Procedure') then
-                      begin
-                        SourceRoutine := SourceDatabase.ProcedureByName(StringList.ValueFromIndex[I]);
-
-                        if (not Assigned(SourceRoutine)) then
-                          MessageBeep(MB_ICONERROR)
-                        else
-                        begin
-                          Name := SourceRoutine.Name;
-                          J := 1;
-                          while (Assigned(Database.ProcedureByName(Name))) do
-                          begin
-                            if (J = 1) then
-                              Name := Preferences.LoadStr(680, SourceRoutine.Name)
-                            else
-                              Name := Preferences.LoadStr(681, SourceRoutine.Name, IntToStr(J));
-                            Name := ReplaceStr(Name, ' ', '_');
-                            Inc(J);
-                          end;
-
-                          Session.Connection.BeginSynchron();
-                          Success := Database.CloneRoutine(SourceRoutine, Name);
-                          Session.Connection.EndSynchron();
-                        end;
-                      end
-                      else if (StringList.Names[I] = 'Function') then
-                      begin
-                        SourceRoutine := SourceDatabase.FunctionByName(StringList.ValueFromIndex[I]);
-
-                        if (not Assigned(SourceRoutine)) then
-                          MessageBeep(MB_ICONERROR)
-                        else
-                        begin
-                          Name := SourceRoutine.Name;
-                          J := 1;
-                          while (Assigned(Database.FunctionByName(Name))) do
-                          begin
-                            if (J = 1) then
-                              Name := Preferences.LoadStr(680, SourceRoutine.Name)
-                            else
-                              Name := Preferences.LoadStr(681, SourceRoutine.Name, IntToStr(J));
-                            Name := ReplaceStr(Name, ' ', '_');
-                            Inc(J);
-                          end;
-
-                          Session.Connection.BeginSynchron();
-                          Success := Database.CloneRoutine(SourceRoutine, Name);
-                          Session.Connection.EndSynchron();
-                        end;
-                      end;
-                end;
-              end;
-            end;
-          end;
-        iiBaseTable:
-          begin
-            SourceDatabase := SourceSession.DatabaseByName(SourceURI.Database);
-
-            DExecutingSQL.Session := SourceSession;
-            DExecutingSQL.Update := SourceDatabase.Tables.Update;
-            if (not Assigned(SourceDatabase) or not SourceDatabase.Tables.Valid and not DExecutingSQL.Execute()) then
-              SourceTable := nil
-            else
-              SourceTable := SourceDatabase.BaseTableByName(SourceURI.Table);
-
-            DExecutingSQL.Update := SourceTable.Update;
-            if (not Assigned(SourceTable) or not SourceTable.Valid and not DExecutingSQL.Execute()) then
-              MessageBeep(MB_ICONERROR)
-            else
-            begin
-              Database := Session.DatabaseByName(Node.Parent.Text);
-              Table := Database.BaseTableByName(Node.Text);
-
-              DExecutingSQL.Update := Table.Update;
-              if (Table.Valid or DExecutingSQL.Execute()) then
-              begin
-                NewTable := TSBaseTable.Create(Database.Tables);
-                NewTable.Assign(Table);
-
-                for I := 1 to StringList.Count - 1 do
-                  if (StringList.Names[I] = 'Field') then
-                  begin
-                    Name := CopyName(StringList.ValueFromIndex[I], NewTable.Fields);
-
-                    NewField := TSBaseTableField.Create(NewTable.Fields);
-                    NewField.Assign(SourceTable.FieldByName(StringList.ValueFromIndex[I]));
-                    TSBaseTableField(NewField).OriginalName := '';
-                    NewField.Name := Name;
-                    NewField.FieldBefore := NewTable.Fields[NewTable.Fields.Count - 1];
-                    NewTable.Fields.AddField(NewField);
-                    NewField.Free();
-                  end;
-
-                for I := 1 to StringList.Count - 1 do
-                  if (StringList.Names[I] = 'Key') then
-                  begin
-                    Name := CopyName(StringList.ValueFromIndex[I], NewTable.Keys);
-
-                    NewKey := TSKey.Create(NewTable.Keys);
-                    NewKey.Assign(SourceTable.IndexByName(StringList.ValueFromIndex[I]));
-                    NewKey.Name := Name;
-                    NewTable.Keys.AddKey(NewKey);
-                    NewKey.Free();
-                  end
-                  else if (StringList.Names[I] = 'ForeignKey') then
-                  begin
-                    Name := CopyName(StringList.ValueFromIndex[I], NewTable.ForeignKeys);
-
-                    NewForeignKey := TSForeignKey.Create(NewTable.ForeignKeys);
-                    NewForeignKey.Assign(SourceTable.ForeignKeyByName(StringList.ValueFromIndex[I]));
-                    NewForeignKey.Name := Name;
-                    NewTable.ForeignKeys.AddForeignKey(NewForeignKey);
-                    NewForeignKey.Free();
-                  end;
-
-                Session.Connection.BeginSynchron();
-                Database.UpdateTable(Table, NewTable);
-                Session.Connection.EndSynchron();
-
-                for I := 1 to StringList.Count - 1 do
-                  if (StringList.Names[I] = 'Trigger') then
-                  begin
-                    Name := CopyName(StringList.ValueFromIndex[I], Database.Triggers);
-
-                    NewTrigger := TSTrigger.Create(Database.Triggers);
-                    NewTrigger.Assign(SourceDatabase.TriggerByName(StringList.ValueFromIndex[I]));
-                    NewTrigger.Name := Name;
-                    NewTrigger.TableName := NewTable.Name;
-                    Session.Connection.BeginSynchron();
-                    Database.AddTrigger(NewTrigger);
-                    Session.Connection.EndSynchron();
-                    NewTrigger.Free();
-                  end;
-
-                NewTable.Free();
-              end;
-            end;
-          end;
-      end;
-
-      SourceURI.Free();
-    end;
-  end;
-  StringList.Free();
 end;
 
 procedure TFSession.PContentChange(Sender: TObject);
@@ -12971,10 +12415,8 @@ procedure TFSession.SynCompletionEvent(const Event: TSSession.TEvent);
 begin
   if (Event.EventType = etAfterExecuteSQL) then
   begin
-    with SynCompletionPending do
-      SynCompletion.Execute(CurrentInput, X, Y);
+    Wanted.Action := aSynCompletionExecute;
     Session.UnRegisterEventProc(SynCompletionEvent);
-    SynCompletionPending.Active := False;
   end;
 end;
 
@@ -13451,7 +12893,6 @@ begin
   mwFImport.Caption := Preferences.LoadStr(371);
   mwFExport.Caption := Preferences.LoadStr(200);
   mwAddTable.Caption := Preferences.LoadStr(383);
-  mwEPaste.Caption := MainAction('aEPaste').Caption;
   mwDCreate.Caption := Preferences.LoadStr(26);
   mwDProperties.Caption := Preferences.LoadStr(97) + '...';
 
@@ -14155,66 +13596,8 @@ end;
 
 procedure TFSession.WorkbenchChange(Sender: TObject; Control: TWControl);
 var
-  aEPasteEnabled: Boolean;
-  ClipboardData: HGLOBAL;
   Database: TSDatabase;
-  DatabaseName: string;
-  Index: Integer;
-  S: string;
-  AccountName: string;
-  Table: TSBaseTable;
-  TableName: string;
-  Values: TStringList;
 begin
-  if (not Clipboard.HasFormat(CF_MYSQLTABLE) or not OpenClipboard(Handle)) then
-    aEPasteEnabled := False
-  else
-  begin
-    ClipboardData := GetClipboardData(CF_MYSQLTABLE);
-    SetString(S, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(S[1]));
-    GlobalUnlock(ClipboardData);
-    CloseClipboard();
-
-    Values := TStringList.Create();
-    Values.Text := ReplaceStr(Trim(S), ',', #13#10);
-
-    aEPasteEnabled := Values.Count = 1;
-
-    if (aEPasteEnabled) then
-    begin
-      S := Values[0];
-
-      if (Pos('.', S) = 0) then
-        AccountName := ''
-      else
-      begin
-        Index := Pos('.', S);
-        while ((Index > 1) and (S[Index - 1] = '\')) do
-          Inc(Index, Pos('.', Copy(S, Index + 1, Length(S) - Index)));
-        AccountName := ReplaceStr(Copy(S, 1, Index - 1), '\.', '.');
-        Delete(S, 1, Index);
-      end;
-      if (Pos('.', S) = 0) then
-        DatabaseName := ''
-      else
-      begin
-        DatabaseName := Copy(S, 1, Pos('.', S) - 1);
-        Delete(S, 1, Length(DatabaseName) + 1);
-      end;
-      if (Pos('.', S) = 0) then
-        TableName := S
-      else
-        TableName := '';
-
-      Table := Session.DatabaseByName(SelectedDatabase).BaseTableByName(TableName);
-
-      aEPasteEnabled := (AccountName = Session.Account.Name) and (DatabaseName = SelectedDatabase)
-        and Assigned(Table) and not Assigned(ActiveWorkbench.TableByCaption(Table.Name));
-    end;
-
-    Values.Free();
-  end;
-
   Database := Session.DatabaseByName(SelectedDatabase);
 
   MainAction('aFExportSQL').Enabled := not Assigned(Control) or (Control is TWTable);
@@ -14227,7 +13610,6 @@ begin
   MainAction('aFExportPDF').Enabled := not Assigned(Control) or (Control is TWTable);
   MainAction('aFExportBitmap').Enabled := not Assigned(Control) and Assigned(ActiveWorkbench) and (ActiveWorkbench.ControlCount > 0);
   MainAction('aECopy').Enabled := Assigned(Control) and (not (Control is TWLink) or (Control is TWForeignKey));
-  MainAction('aEPaste').Enabled := aEPasteEnabled;
   MainAction('aDCreateTable').Enabled := not Assigned(Control) or (Control is TWSection);
   mwDCreateTable.Enabled := MainAction('aDCreateTable').Enabled;
   MainAction('aDCreateKey').Enabled := Control is TWTable;
@@ -14323,79 +13705,6 @@ begin
   mwCreateSection.Enabled := False;
   mwCreateLink.Enabled := False;
   MainAction('aDEmpty').Enabled := False;
-end;
-
-procedure TFSession.WorkbenchPasteExecute(Sender: TObject);
-var
-  aEPasteEnabled: Boolean;
-  ClipboardData: HGLOBAL;
-  DatabaseName: string;
-  Index: Integer;
-  MenuItem: TMenuItem;
-  P: TPoint;
-  S: string;
-  AccountName: string;
-  BaseTable: TSBaseTable;
-  TableName: string;
-  Values: TStringList;
-begin
-  Wanted.Clear();
-
-  if (not Clipboard.HasFormat(CF_MYSQLTABLE) or not OpenClipboard(Handle)) then
-    MessageBeep(MB_ICONERROR)
-  else
-  begin
-    ClipboardData := GetClipboardData(CF_MYSQLTABLE);
-    SetString(S, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(S[1]));
-    GlobalUnlock(ClipboardData);
-    CloseClipboard();
-
-    Values := TStringList.Create();
-    Values.Text := ReplaceStr(Trim(S), ',', #13#10);
-
-    aEPasteEnabled := Values.Count = 1;
-
-    if (aEPasteEnabled) then
-    begin
-      S := Values[0];
-
-      if (Pos('.', S) = 0) then
-        AccountName := ''
-      else
-      begin
-        Index := Pos('.', S);
-        while ((Index > 1) and (S[Index - 1] = '\')) do
-          Inc(Index, Pos('.', Copy(S, Index + 1, Length(S) - Index)));
-        AccountName := ReplaceStr(Copy(S, 1, Index - 1), '\.', '.');
-        Delete(S, 1, Index);
-      end;
-      if (Pos('.', S) = 0) then
-        DatabaseName := ''
-      else
-      begin
-        DatabaseName := Copy(S, 1, Pos('.', S) - 1);
-        Delete(S, 1, Length(DatabaseName) + 1);
-      end;
-      if (Pos('.', S) = 0) then
-        TableName := S
-      else
-        TableName := '';
-
-      P := Point(0, 0);
-      if (Sender is TMenuItem) then
-      begin
-        MenuItem := TMenuItem(Sender);
-
-        if ((MenuItem.GetParentMenu() is TPopupMenu)) then
-          P := ActiveWorkbench.ScreenToClient(TPopupMenu(MenuItem.GetParentMenu()).PopupPoint);
-      end;
-      BaseTable := Session.DatabaseByName(SelectedDatabase).BaseTableByName(TableName);
-
-      ActiveWorkbench.AddExistingTable(P.X, P.Y, BaseTable);
-    end;
-
-    Values.Free();
-  end;
 end;
 
 function TFSession.WorkbenchValidateControl(Sender: TObject; Control: TWControl): Boolean;

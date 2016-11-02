@@ -1462,6 +1462,7 @@ begin
         CALL CompareKeyword              // 'SHUTDOWN'?
         JNE Use                          // No!
         MOV BYTE PTR [EBX + 0],ctShutdown
+        JMP Found
 
       Use:
         MOV EAX,[KUse]

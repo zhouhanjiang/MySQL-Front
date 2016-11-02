@@ -253,10 +253,9 @@ object DField: TDField
       Width = 16
       Height = 21
       Associate = FFormatSize
-      Max = 30
       TabOrder = 5
-      Thousands = False
-      OnClick = FUDClick
+      TabStop = True
+      OnMouseDown = FUDMouseDown
     end
     object FFormatDecimals: TEdit
       Left = 184
@@ -276,7 +275,7 @@ object DField: TDField
       Max = 10
       TabOrder = 7
       Thousands = False
-      OnClick = FUDClick
+      OnMouseDown = FUDMouseDown
     end
     object FFieldType: TComboBox_Ext
       Left = 120
@@ -353,7 +352,7 @@ object DField: TDField
       Width = 189
       Height = 21
       Anchors = [akLeft, akTop, akRight]
-      MaxLength = 256
+      MaxLength = 1024
       TabOrder = 23
       Text = 'FComment'
       OnChange = FBOkCheckEnabled

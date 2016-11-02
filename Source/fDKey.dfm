@@ -325,6 +325,7 @@ object DKey: TDKey
       Width = 173
       Height = 21
       Anchors = [akLeft, akBottom]
+      MaxLength = 1024
       TabOrder = 8
       Text = 'FComment'
       OnChange = FBOkCheckEnabled

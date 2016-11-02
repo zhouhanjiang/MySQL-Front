@@ -223,8 +223,6 @@ object FSession: TFSession
         OnChanging = FNavigatorChanging
         OnCollapsed = TreeViewCollapsed
         OnCollapsing = TreeViewCollapsing
-        OnDragDrop = FNavigatorDragDrop
-        OnDragOver = FNavigatorDragOver
         OnEdited = FNavigatorEdited
         OnEditing = FNavigatorEditing
         OnEndDrag = TreeViewEndDrag
@@ -368,7 +366,6 @@ object FSession: TFSession
         Align = alClient
         BorderStyle = bsNone
         Columns = <>
-        DragMode = dmAutomatic
         HideSelection = False
         MultiSelect = True
         GroupView = True
@@ -382,8 +379,6 @@ object FSession: TFSession
         OnEditing = ListViewEditing
         OnEnter = ListViewEnter
         OnExit = ListViewExit
-        OnDragDrop = FNavigatorDragDrop
-        OnDragOver = ListViewDragOver
         OnKeyDown = ListViewKeyDown
         OnSelectItem = ListViewSelectItem
       end
@@ -1595,6 +1590,10 @@ object FSession: TFSession
       Caption = 'aHRun'
       OnExecute = aHRunExecute
     end
+    object aSynCompletionExecute: TAction
+      Caption = 'aSynCompletionExecute'
+      OnExecute = aSynCompletionExecuteExecute
+    end
   end
   object MNavigator: TPopupMenu
     OnPopup = MNavigatorPopup
@@ -2188,10 +2187,6 @@ object FSession: TFSession
     end
     object mwECopy: TMenuItem
       Caption = 'mwECopy'
-    end
-    object mwEPaste: TMenuItem
-      Caption = 'mwEPaste'
-      OnClick = mwEPasteClick
     end
     object mwEDelete: TMenuItem
       Caption = 'mwEDelete'

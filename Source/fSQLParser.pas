@@ -250,6 +250,7 @@ type
         ntInsertStmt,
         ntInsertStmtSetItem,
         ntIntervalOp,
+        ntIsOp,
         ntIterateStmt,
         ntKillStmt,
         ntLeaveStmt,
@@ -565,7 +566,9 @@ type
         otUnaryPlus,              // "+"
         otInvertBits,             // "~"
 
-        otHat,                    // "^"
+        otExtract,                // "->"
+
+        otBitXOR,                    // "^"
 
         otMulti,                  // "*"
         otDivision,               // "/"
@@ -589,7 +592,7 @@ type
         otLessEqual,              // "<=", "!>"
         otLess,                   // "<"
         otNotEqual,               // "!=", "<>"
-        otIS,                     // "IS"
+        otIs,                     // "IS"
         otSounds,                 // "SOUNDS"
         otLike,                   // "LIKE"
         otEscape,                 // "ESCAPE"
@@ -750,6 +753,7 @@ type
         'ntInsertStmt',
         'ntInsertStmtSetItem',
         'ntIntervalOp',
+        'ntIsOp',
         'ntIterateStmt',
         'ntKillStmt',
         'ntLeaveStmt',
@@ -1065,6 +1069,8 @@ type
         'otUnaryPlus',
         'otInvertBits',
 
+        'otExtract',
+
         'otBitXOR',
 
         'otMulti',
@@ -1089,7 +1095,7 @@ type
         'otLessEqual',
         'otLess',
         'otNotEqual',
-        'otIS',
+        'otIs',
         'otSounds',
         'otLike',
         'otEscape',
@@ -1321,51 +1327,53 @@ type
         5,   // otUnaryPlus
         5,   // otInvertBits
 
-        6,   // otHat
+        6,   // otExtract
 
-        7,   // otMulti
-        7,   // otDivision
-        7,   // otDiv
-        7,   // otMod
+        7,   // otBitXOR
 
-        8,   // otMinus
-        8,   // otPlus
+        8,   // otMulti
+        8,   // otDivision
+        8,   // otDiv
+        8,   // otMod
 
-        9,   // otShiftLeft
-        9,   // otShiftRight
+        9,   // otMinus
+        9,   // otPlus
 
-        10,  // otBitAND
+        10,   // otShiftLeft
+        10,   // otShiftRight
 
-        11,  // otBitOR
+        11,  // otBitAND
 
-        12,  // otEqual
-        12,  // otNullSaveEqual
-        12,  // otGreaterEqual
-        12,  // otGreater
-        12,  // otLessEqual
-        12,  // otLess
-        12,  // otNotEqual
-        12,  // otIS
-        12,  // otSounds
-        12,  // otLike
-        12,  // otEscape
-        12,  // otRegExp
-        12,  // otIn
+        12,  // otBitOR
 
-        13,  // otBetween
-        13,  // otCase
+        13,  // otEqual
+        13,  // otNullSaveEqual
+        13,  // otGreaterEqual
+        13,  // otGreater
+        13,  // otLessEqual
+        13,  // otLess
+        13,  // otNotEqual
+        13,  // otIs
+        13,  // otSounds
+        13,  // otLike
+        13,  // otEscape
+        13,  // otRegExp
+        13,  // otIn
 
-        14,  // otNot
+        14,  // otBetween
+        14,  // otCase
 
-        15,  // otAnd
+        15,  // otNot
 
-        16,  // otXOr
+        16,  // otAnd
 
-        17,  // otOr
+        17,  // otXOr
 
-        18   // otAssign
+        18,  // otOr
+
+        19   // otAssign
       );
-      MaxOperatorPrecedence = 18;
+      MaxOperatorPrecedence = 19;
 
       NodeTypeByStmtType: array [TStmtType] of TNodeType = (
         ntAnalyzeTableStmt,
@@ -1925,8 +1933,8 @@ type
         TOrderBy = packed record
         private type
           TNodes = packed record
-            OrderByTag: TOffset;
-            KeyColumnList: TOffset;
+            Tag: TOffset;
+            List: TOffset;
           end;
         private
           Heritage: TRange;
@@ -3068,7 +3076,7 @@ type
           end;
           OrderBy: packed record
             Tag: TOffset;
-            Expr: TOffset;
+            List: TOffset;
           end;
           Limit: packed record
             Tag: TOffset;
@@ -3588,8 +3596,10 @@ type
           OpenBracket: TOffset;
           DistinctTag: TOffset;
           ExprList: TOffset;
-          OrderByTag: TOffset;
-          OrderByExprList: TOffset;
+          OrderBy: packed record
+            Tag: TOffset;
+            Expr: TOffset;
+          end;
           SeparatorValue: TOffset;
           CloseBracket: TOffset;
         end;
@@ -3737,6 +3747,24 @@ type
       private
         Nodes: TNodes;
         class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
+      end;
+
+      PIsOp = ^TIsOp;
+      TIsOp = packed record
+      private type
+        TNodes = packed record
+          Operand1: TOffset;
+          IsToken: TOffset;
+          NotToken: TOffset;
+          Operand2: TOffset;
+        end;
+      private
+        Heritage: TRange;
+      private
+        Nodes: TNodes;
+        class function Create(const AParser: TSQLParser; const AOperand1, AIsToken, ANotToken, AOperand2: TOffset): TOffset; static;
+      public
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PIterateStmt = ^TIterateStmt;
@@ -4250,7 +4278,8 @@ type
           GrantOptionTag: TOffset;
           OnTag: TOffset;
           OnUser: TOffset;
-          ObjectValue: TOffset;
+          ObjectTypeTag: TOffset;
+          PrivLevelIdent: TOffset;
           FromTag: TOffset;
           UserIdentList: TOffset;
         end;
@@ -4567,7 +4596,7 @@ type
           end;
           OrderBy: packed record
             Tag: TOffset;
-            Expr: TOffset;
+            List: TOffset;
           end;
           Limit: packed record
             Tag: TOffset;
@@ -4587,11 +4616,33 @@ type
           Union1: packed record
             Tag: TOffset;
             SelectStmt: TOffset;
+            OrderBy: packed record
+              Tag: TOffset;
+              List: TOffset;
+            end;
+            Limit: packed record
+              Tag: TOffset;
+              OffsetTag: TOffset;
+              OffsetToken: TOffset;
+              CommaToken: TOffset;
+              RowCountToken: TOffset;
+            end;
           end;
           CloseBracket: TOffset;
           Union2: packed record
             Tag: TOffset;
             SelectStmt: TOffset;
+            OrderBy: packed record
+              Tag: TOffset;
+              List: TOffset;
+            end;
+            Limit: packed record
+              Tag: TOffset;
+              OffsetTag: TOffset;
+              OffsetToken: TOffset;
+              CommaToken: TOffset;
+              RowCountToken: TOffset;
+            end;
           end;
         end;
       private
@@ -5740,7 +5791,7 @@ type
           end;
           OrderBy: packed record
             Tag: TOffset;
-            Expr: TOffset;
+            List: TOffset;
           end;
           Limit: packed record
             Tag: TOffset;
@@ -6764,7 +6815,8 @@ type
     function ParseKillStmt(): TOffset;
     function ParseLeaveStmt(): TOffset;
     function ParseList(const Brackets: Boolean; const ParseElement: TParseFunction;
-      const DelimiterType: TTokenType = ttComma; const RootStmtList: Boolean = False): TOffset; overload;
+      const DelimiterType: TTokenType = ttComma; const CanEmpty: Boolean = True;
+      const RootStmtList: Boolean = False): TOffset; overload;
     function ParseLoadDataStmt(): TOffset;
     function ParseLoadStmt(): TOffset;
     function ParseLoadXMLStmt(): TOffset;
@@ -6772,6 +6824,7 @@ type
     function ParseLockStmtItem(): TOffset;
     function ParseLoopStmt(const BeginLabel: TOffset): TOffset;
     function ParseMatchFunc(): TOffset;
+    function ParseNull(): TOffset;
     function ParseOpenStmt(): TOffset;
     function ParseOptimizeTableStmt(): TOffset;
     function ParsePartitionIdent(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
@@ -8022,7 +8075,9 @@ begin
     ttMLComment:
       begin
         Text := @Text[2]; // Step over "/*"
-        Dec(Length, 4); // Remove "/*" and "*/"
+        Dec(Length, 2); // Remove "/*"
+        if ((Length >= 2) and (Text[Length - 2] = '*') and (Text[Length - 1] = '/')) then
+          Dec(Length, 2); // Remove "*/"
         while (CharInSet(Text[0], [#9, #10, #13, ' '])) do
         begin
           Text := @Text[1];
@@ -9766,6 +9821,23 @@ begin
   with PIntervalOp(AParser.NodePtr(Result))^ do
   begin
     Nodes := ANodes;
+
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
+  end;
+end;
+
+{ TSQLParser.TIsOp ************************************************************}
+
+class function TSQLParser.TIsOp.Create(const AParser: TSQLParser; const AOperand1, AIsToken, ANotToken, AOperand2: TOffset): TOffset;
+begin
+  Result := TRange.Create(AParser, ntIsOp);
+
+  with PIsOp(AParser.NodePtr(Result))^ do
+  begin
+    Nodes.Operand1 := AOperand1;
+    Nodes.IsToken := AIsToken;
+    Nodes.NotToken := ANotToken;
+    Nodes.Operand2 := AOperand2;
 
     Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
@@ -12670,12 +12742,12 @@ begin
   begin
     FormatNode(Nodes.Partition.Tag, Separator);
     if (Separator = stSpaceBefore) then
-      FormatNode(Nodes.OrderBy.Expr, stSpaceBefore)
+      FormatNode(Nodes.OrderBy.List, stSpaceBefore)
     else
     begin
       Commands.WriteReturn();
       Commands.IncreaseIndent();
-      FormatList(Nodes.OrderBy.Expr, Spacer);
+      FormatList(Nodes.OrderBy.List, Spacer);
       Commands.DecreaseIndent();
     end;
   end;
@@ -12734,10 +12806,10 @@ begin
   FormatNode(Nodes.DistinctTag, stSpaceAfter);
   FormatNode(Nodes.ExprList);
   Commands.IncreaseIndent();
-  if (Nodes.OrderByTag > 0) then
+  if (Nodes.OrderBy.Tag > 0) then
   begin
-    FormatNode(Nodes.OrderByTag, stSpaceBefore);
-    FormatNode(Nodes.OrderByExprList, stSpaceBefore);
+    FormatNode(Nodes.OrderBy.Tag, stSpaceBefore);
+    FormatNode(Nodes.OrderBy.Expr, stSpaceBefore);
   end;
   FormatNode(Nodes.SeparatorValue, stSpaceBefore);
   Commands.DecreaseIndent();
@@ -13188,6 +13260,7 @@ begin
       ntInsertStmt: FormatInsertStmt(PInsertStmt(Node)^.Nodes);
       ntInsertStmtSetItem: DefaultFormatNode(@TInsertStmt.PSetItem(Node)^.Nodes, SizeOf(TInsertStmt.TSetItem.TNodes));
       ntIntervalOp: DefaultFormatNode(@PIntervalOp(Node)^.Nodes, SizeOf(TIntervalOp.TNodes));
+      ntIsOp: DefaultFormatNode(@PIsOp(Node)^.Nodes, SizeOf(TIsOp.TNodes));
       ntIterateStmt: DefaultFormatNode(@PIterateStmt(Node)^.Nodes, SizeOf(TIterateStmt.TNodes));
       ntKillStmt: DefaultFormatNode(@PKillStmt(Node)^.Nodes, SizeOf(TKillStmt.TNodes));
       ntLeaveStmt: DefaultFormatNode(@PLeaveStmt(Node)^.Nodes, SizeOf(TLeaveStmt.TNodes));
@@ -13460,7 +13533,9 @@ begin
     and ((Nodes.Where.Expr = 0)
       or (NodePtr(Nodes.Where.Expr)^.NodeType <> ntList)
       or (PList(NodePtr(Nodes.Where.Expr))^.ChildCount <= 3))
-    and (ElementCount <= 4)) then
+    and (ElementCount <= 4)
+    and (Nodes.Union1.Tag = 0)
+    and (Nodes.Union2.Tag = 0)) then
   begin
     Separator := stSpaceBefore;
     Spacer := sSpace;
@@ -13546,7 +13621,7 @@ begin
   begin
     FormatNode(Nodes.OrderBy.Tag, Separator);
     Commands.IncreaseIndent();
-    FormatNode(Nodes.OrderBy.Expr, Separator);
+    FormatNode(Nodes.OrderBy.List, Separator);
     Commands.DecreaseIndent();
   end;
   if (Nodes.Limit.Tag > 0) then
@@ -13576,8 +13651,22 @@ begin
   FormatInto(Nodes.Into2);
   FormatNode(Nodes.ForUpdatesTag, Separator);
   FormatNode(Nodes.LockInShareMode, Separator);
-  FormatNode(Nodes.Union1.Tag, stReturnBefore);
-  FormatNode(Nodes.Union1.SelectStmt, stReturnBefore);
+  if (Nodes.Union1.Tag > 0) then
+  begin
+    FormatNode(Nodes.Union1.Tag, stReturnBefore);
+    FormatNode(Nodes.Union1.SelectStmt, stReturnBefore);
+    if (Nodes.Union1.OrderBy.Tag > 0) then
+    begin
+      FormatNode(Nodes.Union1.OrderBy.Tag, stReturnBefore);
+      Commands.IncreaseIndent();
+      if (Separator = stSpaceBefore) then
+        Commands.WriteSpace()
+      else
+        Commands.WriteReturn();
+      FormatList(Nodes.Union1.OrderBy.List, Spacer);
+      Commands.DecreaseIndent();
+    end;
+  end;
   if (Nodes.CloseBracket > 0) then
   begin
     if (Separator = stReturnBefore) then
@@ -13585,8 +13674,22 @@ begin
     Commands.DecreaseIndent();
     FormatNode(Nodes.CloseBracket);
   end;
-  FormatNode(Nodes.Union2.Tag, stReturnBefore);
-  FormatNode(Nodes.Union2.SelectStmt, stReturnBefore);
+  if (Nodes.Union2.Tag > 0) then
+  begin
+    FormatNode(Nodes.Union2.Tag, stReturnBefore);
+    FormatNode(Nodes.Union2.SelectStmt, stReturnBefore);
+    if (Nodes.Union2.OrderBy.Tag > 0) then
+    begin
+      FormatNode(Nodes.Union2.OrderBy.Tag, stReturnBefore);
+      Commands.IncreaseIndent();
+      if (Separator = stSpaceBefore) then
+        Commands.WriteSpace()
+      else
+        Commands.WriteReturn();
+      FormatList(Nodes.Union2.OrderBy.List, Spacer);
+      Commands.DecreaseIndent();
+    end;
+  end;
 end;
 
 procedure TSQLParser.FormatSelectStmtColumn(const Nodes: TSelectStmt.TColumn.TNodes);
@@ -14626,6 +14729,7 @@ begin
     ntInOp: Result := SizeOf(TInOp);
     ntInsertStmt: Result := SizeOf(TInsertStmt);
     ntIntervalOp: Result := SizeOf(TIntervalOp);
+    ntIsOp: Result := SizeOf(TIsOp);
     ntIterateStmt: Result := SizeOf(TIterateStmt);
     ntKillStmt: Result := SizeOf(TKillStmt);
     ntLeaveStmt: Result := SizeOf(TLeaveStmt);
@@ -15521,10 +15625,10 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.OrderByTag := ParseTag(kiORDER, kiBY);
+  Nodes.Tag := ParseTag(kiORDER, kiBY);
 
   if (not ErrorFound) then
-    Nodes.KeyColumnList := ParseList(False, ParseCreateTableStmtKeyColumn);
+    Nodes.List := ParseList(False, ParseCreateTableStmtKeyColumn);
 
   Result := TAlterTableStmt.TOrderBy.Create(Self, Nodes);
 end;
@@ -16683,7 +16787,7 @@ begin
     end
     else if (IsSymbol(ttOpenBracket)) then
     begin
-      Nodes.DefinitionList := ParseList(True, ParseCreateTableStmtDefinition);
+      Nodes.DefinitionList := ParseList(True, ParseCreateTableStmtDefinition, ttComma, False);
     end;
 
   if (not ErrorFound and (Nodes.Like.Tag = 0)) then
@@ -16944,7 +17048,10 @@ begin
         else if ((Nodes.NullTag = 0) and IsTag(kiNULL)) then
           Nodes.NullTag := ParseTag(kiNULL)
         else if ((Nodes.Real.DefaultValue = 0) and IsTag(kiDEFAULT)) then
-          Nodes.Real.DefaultValue := ParseValue(kiDEFAULT, vaNo, ParseExpr)
+          if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiNULL)) then
+            Nodes.Real.DefaultValue := ParseValue(kiDEFAULT, vaNo, ParseNull)
+          else
+            Nodes.Real.DefaultValue := ParseValue(kiDEFAULT, vaNo, ParseString)
         else if ((Nodes.Real.OnUpdateTag = 0) and IsTag(kiON, kiUPDATE)
           and (not EndOfStmt(NextToken[2]) and ((TokenPtr(NextToken[2])^.KeywordIndex = kiCURRENT_TIMESTAMP) or (TokenPtr(NextToken[2])^.KeywordIndex = kiCURRENT_TIME) or (TokenPtr(NextToken[2])^.KeywordIndex = kiCURRENT_DATE)))) then
           if (EndOfStmt(NextToken[3]) or (TokenPtr(NextToken[3])^.TokenType <> ttOpenBracket)) then
@@ -17184,10 +17291,6 @@ begin
       Nodes.CommentValue := ParseValue(kiCOMMENT, vaNo, ParseString)
     else if ((Nodes.KeyBlockSizeValue = 0) and IsTag(kiKEY_BLOCK_SIZE)) then
       Nodes.KeyBlockSizeValue := ParseValue(kiKEY_BLOCK_SIZE, vaAuto, ParseInteger)
-    else if ((Nodes.IndexTypeTag = 0) and IsTag(kiUSING, kiBTREE)) then
-      Nodes.IndexTypeTag := ParseTag(kiUSING, kiBTREE)
-    else if ((Nodes.IndexTypeTag = 0) and IsTag(kiUSING, kiHASH)) then
-      Nodes.IndexTypeTag := ParseTag(kiUSING, kiHASH)
     else if ((Nodes.WithParserValue = 0) and IsTag(kiWITH, kiPARSER)) then
       Nodes.WithParserValue := ParseValue(WordIndices(kiWITH, kiPARSER), vaNo, ParseDbIdent)
     else
@@ -17828,12 +17931,18 @@ begin
 
       if (not ErrorFound) then
         Nodes.CloseBracket := ParseSymbol(ttCloseBracket);
-    end;
+    end
+    else if ((DatatypeIndex = diVARBINARY)
+      or (DatatypeIndex = diVARCHAR)) then
+      if (EndOfStmt(CurrentToken)) then
+        SetError(PE_IncompleteStmt)
+      else
+        SetError(PE_UnexpectedToken);
 
   if (not ErrorFound
     and ((DatatypeIndex = diENUM)
       or (DatatypeIndex = diSET))) then
-    Nodes.ItemList := ParseList(True, ParseString);
+    Nodes.ItemList := ParseList(True, ParseString, ttComma, False);
 
   if (not ErrorFound) then
     if (IsTag(kiSIGNED)) then
@@ -17949,7 +18058,7 @@ function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
       or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and (AnsiQuotes or (ADbIdentType in [ditAlias]))
       or (TokenPtr(CurrentToken)^.OperatorType = otMulti) and JokerAllowed and (ADbIdentType in [ditDatabase, ditTable, ditProcedure, ditFunction, ditField])
       or (TokenPtr(CurrentToken)^.TokenType = ttIdent)
-        and ((ADbIdentType in [ditUnknown, ditEngine, ditCharset, ditCollation])
+        and ((ADbIdentType in [ditEngine, ditCharset, ditCollation])
           or QualifiedIdentifier
           or (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0))) then
     begin
@@ -17972,7 +18081,9 @@ begin
   FillChar(Nodes, SizeOf(Nodes), 0);
   DbIdentType := ADbIdentType;
 
-  if (EndOfStmt(CurrentToken)) then
+  if (not EndOfStmt(CurrentToken)) then
+    Nodes.Ident := ParseDbIdentToken(False)
+  else
   begin
     case (ADbIdentType) of
       ditDatabase:
@@ -18002,12 +18113,6 @@ begin
         raise ERangeError.Create(SRangeError);
     end;
     SetError(PE_IncompleteStmt);
-  end
-  else
-  begin
-    if (TokenPtr(CurrentToken)^.OperatorType = otMulti) then
-      DbIdentType := ditUnknown;
-    Nodes.Ident := ParseDbIdentToken(False);
   end;
 
   if (not ErrorFound
@@ -18029,11 +18134,7 @@ begin
             Nodes.Ident := 0;
           end
           else
-          begin
-            if (TokenPtr(CurrentToken)^.OperatorType = otMulti) then
-              DbIdentType := ditUnknown;
             Nodes.Ident := ParseDbIdentToken(True);
-          end;
         end;
       ditKey,
       ditField,
@@ -18070,11 +18171,7 @@ begin
                 Nodes.Ident := 0;
               end
               else
-              begin
-                if (TokenPtr(CurrentToken)^.OperatorType = otMulti) then
-                  DbIdentType := ditUnknown;
                 Nodes.Ident := ParseDbIdentToken(True);
-              end;
             end;
           end;
         end;
@@ -18361,7 +18458,7 @@ begin
       Nodes.OrderBy.Tag := ParseTag(kiORDER, kiBY);
 
       if (not ErrorFound) then
-        Nodes.OrderBy.Expr := ParseList(False, ParseSelectStmtOrderBy);
+        Nodes.OrderBy.List := ParseList(False, ParseSelectStmtOrderBy);
     end;
 
   if (not ErrorFound and (TableCount = 1)) then
@@ -18795,12 +18892,7 @@ begin
           TokenPtr(CurrentToken)^.FOperatorType := otUnaryPlus;
           Nodes.Add(ApplyCurrentToken(utOperator));
         end
-        else if ((TokenPtr(CurrentToken)^.OperatorType = otNot) and ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1]))) then
-        begin
-          TokenPtr(CurrentToken)^.FOperatorType := otUnaryNot;
-          Nodes.Add(ApplyCurrentToken(utOperator));
-        end
-        else if ((TokenPtr(CurrentToken)^.OperatorType = otUnaryNot) and ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1]))) then
+        else if ((TokenPtr(CurrentToken)^.OperatorType in [otUnaryNot, otNot]) and ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1]))) then
           Nodes.Add(ApplyCurrentToken(utOperator))
         else if (TokenPtr(CurrentToken)^.OperatorType = otInterval) then
           Nodes.Add(ParseInterval())
@@ -18914,14 +19006,14 @@ begin
             otAssign,
             otBitAND,
             otBitOR,
+            otBitXOR,
             otCollate,
             otDiv,
             otDivision,
             otEqual,
+            otExtract,
             otGreater,
             otGreaterEqual,
-            otHat,
-            otIs,
             otLess,
             otLessEqual,
             otMinus,
@@ -18934,7 +19026,7 @@ begin
             otShiftLeft,
             otShiftRight,
             otXOr:
-              if ((NodeIndex < 1) or IsOperator(Nodes[NodeIndex - 1])) then
+              if ((NodeIndex = 0) or IsOperator(Nodes[NodeIndex - 1])) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else
               begin
@@ -18956,6 +19048,37 @@ begin
                 Nodes[NodeIndex - 1] := TList.Create(Self, ListNodes, ttUnknown, @Operands);
                 Dec(NodeIndex);
               end;
+            otIs:
+              if (NodeIndex = 0) then
+                SetError(PE_UnexpectedToken, Nodes[NodeIndex])
+              else if (NodeIndex + 1 = Nodes.Count) then
+                SetError(PE_IncompleteStmt)
+              else if (IsToken(Nodes[NodeIndex + 1])
+                and ((TokenPtr(Nodes[NodeIndex + 1])^.KeywordIndex = kiFALSE)
+                  or (TokenPtr(Nodes[NodeIndex + 1])^.KeywordIndex = kiNULL)
+                  or (TokenPtr(Nodes[NodeIndex + 1])^.KeywordIndex = kiTRUE)
+                  or (TokenPtr(Nodes[NodeIndex + 1])^.KeywordIndex = kiUNKNOWN))) then
+              begin // ... IS ...
+                Nodes[NodeIndex - 1] := TIsOp.Create(Self, Nodes[NodeIndex - 1], Nodes[NodeIndex], 0, Nodes[NodeIndex + 1]);
+                Nodes.Delete(NodeIndex, 2);
+                Dec(NodeIndex);
+              end
+              else if (not IsToken(Nodes[NodeIndex + 1]) or (TokenPtr(Nodes[NodeIndex + 1])^.KeywordIndex <> kiNOT)) then
+                SetError(PE_UnexpectedToken, Nodes[NodeIndex + 1])
+              else if (NodeIndex + 2 = Nodes.Count) then
+                SetError(PE_IncompleteStmt)
+              else if (IsToken(Nodes[NodeIndex + 2])
+                and ((TokenPtr(Nodes[NodeIndex + 2])^.KeywordIndex = kiFALSE)
+                  or (TokenPtr(Nodes[NodeIndex + 2])^.KeywordIndex = kiNULL)
+                  or (TokenPtr(Nodes[NodeIndex + 2])^.KeywordIndex = kiTRUE)
+                  or (TokenPtr(Nodes[NodeIndex + 2])^.KeywordIndex = kiUNKNOWN))) then
+              begin // ... IS NOT ...
+                Nodes[NodeIndex - 1] := TIsOp.Create(Self, Nodes[NodeIndex - 1], Nodes[NodeIndex], Nodes[NodeIndex + 1], Nodes[NodeIndex + 2]);
+                Nodes.Delete(NodeIndex, 3);
+                Dec(NodeIndex);
+              end
+              else
+                SetError(PE_UnexpectedToken, Nodes[NodeIndex + 2]);
             otBetween:
               if (NodeIndex = 0) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
@@ -18989,7 +19112,7 @@ begin
                 Dec(NodeIndex);
               end;
             otIn:
-              if (NodeIndex < 1) then
+              if (NodeIndex = 0) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)
                 and ((NodeIndex < 2) or IsOperator(Nodes[NodeIndex - 2]))) then
@@ -19015,7 +19138,7 @@ begin
                 Dec(NodeIndex);
               end;
             otLike:
-              if (NodeIndex < 1) then
+              if (NodeIndex = 0) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)
                 and ((NodeIndex < 2) or IsOperator(Nodes[NodeIndex - 2]))) then
@@ -19066,7 +19189,7 @@ begin
                 end
               end;
             otRegExp:
-              if (NodeIndex < 1) then
+              if (NodeIndex = 0) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)
                 and ((NodeIndex < 2) or IsOperator(Nodes[NodeIndex - 2]))) then
@@ -19091,7 +19214,7 @@ begin
                 Dec(NodeIndex);
               end;
             otSounds:
-              if (NodeIndex < 1) then
+              if (NodeIndex = 0) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)
                 and ((NodeIndex < 2) or IsOperator(Nodes[NodeIndex - 2]))) then
@@ -19691,10 +19814,10 @@ begin
   if (not ErrorFound) then
     if (IsTag(kiORDER, kiBY)) then
     begin
-      Nodes.OrderByTag := ParseTag(kiORDER, kiBY);
+      Nodes.OrderBy.Tag := ParseTag(kiORDER, kiBY);
 
       if (not ErrorFound) then
-        Nodes.OrderByExprList := ParseList(False, ParseGroupConcatFuncExpr);
+        Nodes.OrderBy.Expr := ParseList(False, ParseGroupConcatFuncExpr);
     end;
 
   if (not ErrorFound) then
@@ -20087,7 +20210,8 @@ begin
 end;
 
 function TSQLParser.ParseList(const Brackets: Boolean; const ParseElement: TParseFunction;
-  const DelimiterType: TTokenType = ttComma; const RootStmtList: Boolean = False): TOffset;
+  const DelimiterType: TTokenType = ttComma; const CanEmpty: Boolean = True;
+  const RootStmtList: Boolean = False): TOffset;
 var
   Children: TOffsetList;
   DelimiterFound: Boolean;
@@ -20099,6 +20223,7 @@ begin
     Nodes.OpenBracket := ParseSymbol(ttOpenBracket);
 
   Children.Init();
+  DelimiterFound := False;
   if (not ErrorFound and (not Brackets or not IsSymbol(ttCloseBracket))) then
     repeat
       if (RootStmtList) then
@@ -20117,7 +20242,25 @@ begin
     until (ErrorFound and not RootStmtList
       or (DelimiterType <> ttUnknown) and not DelimiterFound
       or (DelimiterType <> ttSemicolon) and (ErrorFound or EndOfStmt(CurrentToken))
-      or (DelimiterType = ttSemicolon) and InPL_SQL and (IsTag(kiELSE) or IsTag(kiELSEIF) or IsTag(kiUNTIL) or IsTag(kiWHEN) or IsTag(kiEND)));
+      or (DelimiterType = ttSemicolon)
+        and InPL_SQL
+        and ((TokenPtr(CurrentToken)^.KeywordIndex = kiELSE)
+          or (TokenPtr(CurrentToken)^.KeywordIndex = kiELSEIF)
+          or (TokenPtr(CurrentToken)^.KeywordIndex = kiEND)
+          or (TokenPtr(CurrentToken)^.KeywordIndex = kiUNTIL)
+          or (TokenPtr(CurrentToken)^.KeywordIndex = kiWHEN)));
+
+  if (not ErrorFound) then
+    if (not (DelimiterType in [ttUnknown, ttSemicolon])
+      and DelimiterFound
+      and EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (not CanEmpty
+      and (Children.Count = 0)) then
+      if (EndOfStmt(CurrentToken)) then
+        SetError(PE_IncompleteStmt)
+      else
+        SetError(PE_UnexpectedToken);
 
   if (not ErrorFound and Brackets) then
     Nodes.CloseBracket := ParseSymbol(ttCloseBracket);
@@ -20418,6 +20561,17 @@ begin
     Nodes.CloseBracket := ParseSymbol(ttCloseBracket);
 
   Result := TMatchFunc.Create(Self, Nodes);
+end;
+
+function TSQLParser.ParseNull(): TOffset;
+begin
+  Result := 0;
+  if (EndOfStmt(CurrentToken)) then
+    SetError(PE_IncompleteStmt)
+  else if (TokenPtr(CurrentToken)^.KeywordIndex <> kiNULL) then
+    SetError(PE_UnexpectedToken)
+  else
+    Result := ApplyCurrentToken(utDbIdent);
 end;
 
 function TSQLParser.ParseProcedureIdent(): TOffset;
@@ -20737,13 +20891,28 @@ begin
 
       if (not ErrorFound) then
         if (IsTag(kiTABLE)) then
-          Nodes.ObjectValue := ParseValue(kiTABLE, vaNo, ParseTableIdent)
-        else if (IsTag(kiFUNCTION)) then
-          Nodes.ObjectValue := ParseValue(kiFUNCTION, vaNo, ParseFunctionIdent)
+        begin
+          Nodes.ObjectTypeTag := ParseTag(kiTABLE);
+
+          if (not ErrorFound) then
+            Nodes.PrivLevelIdent := ParseDbIdent(ditTable, True, True);
+        end
         else if (IsTag(kiPROCEDURE)) then
-          Nodes.ObjectValue := ParseValue(kiFUNCTION, vaNo, ParseProcedureIdent)
+        begin
+          Nodes.ObjectTypeTag := ParseTag(kiPROCEDURE);
+
+          if (not ErrorFound) then
+            Nodes.PrivLevelIdent := ParseDbIdent(ditProcedure, True, True);
+        end
+        else if (IsTag(kiFUNCTION)) then
+        begin
+          Nodes.ObjectTypeTag := ParseTag(kiFUNCTION);
+
+          if (not ErrorFound) then
+            Nodes.PrivLevelIdent := ParseDbIdent(ditFunction, True, True);
+        end
         else
-          Nodes.ObjectValue := ParseTableIdent();
+          Nodes.PrivLevelIdent := ParseDbIdent(ditTable, True, True);
 
       if (not ErrorFound) then
         Nodes.FromTag := ParseTag(kiFROM);
@@ -20921,7 +21090,7 @@ begin
 
   CurrentToken := GetToken(0); // Cache for speeding
 
-  StmtList := ParseList(False, ParseStmt, ttSemicolon, True);
+  StmtList := ParseList(False, ParseStmt, ttSemicolon, True, True);
 
   Result := TRoot.Create(Self, FirstTokenAll, StmtList);
 
@@ -21153,7 +21322,7 @@ begin
           Nodes.OrderBy.Tag := ParseTag(kiORDER, kiBY);
 
           if (not ErrorFound) then
-            Nodes.OrderBy.Expr := ParseList(False, ParseSelectStmtOrderBy);
+            Nodes.OrderBy.List := ParseList(False, ParseSelectStmtOrderBy);
         end;
 
       if (not ErrorFound) then
@@ -21210,7 +21379,7 @@ begin
           Nodes.LockInShareMode := ParseTag(kiLOCK, kiIN, kiSHARE, kiMODE);
     end;
 
-  if (not ErrorFound) then
+  if (not ErrorFound and (Nodes.OpenBracket = 0)) then
   begin
     if (IsTag(kiUNION, kiALL)) then
       Nodes.Union1.Tag := ParseTag(kiUNION, kiALL)
@@ -21220,7 +21389,45 @@ begin
       Nodes.Union1.Tag := ParseTag(kiUNION);
 
     if (not ErrorFound and (Nodes.Union1.Tag > 0)) then
+    begin
       Nodes.Union1.SelectStmt := ParseSelectStmt(False);
+
+      if (IsTag(kiORDER, kiBY)) then
+      begin
+        Nodes.Union1.OrderBy.Tag := ParseTag(kiORDER, kiBY);
+
+        if (not ErrorFound) then
+          Nodes.Union1.OrderBy.List := ParseList(False, ParseSelectStmtOrderBy);
+      end;
+
+      if (not ErrorFound) then
+        if (IsTag(kiLIMIT)) then
+        begin
+          Nodes.Union1.Limit.Tag := ParseTag(kiLIMIT);
+
+          if (not ErrorFound) then
+            Nodes.Union1.Limit.RowCountToken := ParseExpr();
+
+          if (not ErrorFound) then
+            if (IsSymbol(ttComma)) then
+            begin
+              Nodes.Union1.Limit.CommaToken := ParseSymbol(ttComma);
+
+              if (not ErrorFound) then
+              begin
+                Nodes.Union1.Limit.OffsetToken := Nodes.Limit.RowCountToken;
+                Nodes.Union1.Limit.RowCountToken := ParseExpr();
+              end;
+            end
+            else if (IsTag(kiOFFSET)) then
+            begin
+              Nodes.Union1.Limit.OffsetTag := ParseTag(kiOFFSET);
+
+              if (not ErrorFound) then
+                Nodes.Union1.Limit.OffsetToken := ParseExpr();
+            end;
+        end;
+    end;
   end;
 
   if (not ErrorFound and (Nodes.OpenBracket > 0)) then
@@ -21237,7 +21444,45 @@ begin
         Nodes.Union2.Tag := ParseTag(kiUNION);
 
       if (not ErrorFound and (Nodes.Union2.Tag > 0)) then
+      begin
         Nodes.Union2.SelectStmt := ParseSelectStmt(False);
+
+        if (IsTag(kiORDER, kiBY)) then
+        begin
+          Nodes.Union2.OrderBy.Tag := ParseTag(kiORDER, kiBY);
+
+          if (not ErrorFound) then
+            Nodes.Union2.OrderBy.List := ParseList(False, ParseSelectStmtOrderBy);
+        end;
+
+        if (not ErrorFound) then
+          if (IsTag(kiLIMIT)) then
+          begin
+            Nodes.Union2.Limit.Tag := ParseTag(kiLIMIT);
+
+            if (not ErrorFound) then
+              Nodes.Union2.Limit.RowCountToken := ParseExpr();
+
+            if (not ErrorFound) then
+              if (IsSymbol(ttComma)) then
+              begin
+                Nodes.Union2.Limit.CommaToken := ParseSymbol(ttComma);
+
+                if (not ErrorFound) then
+                begin
+                  Nodes.Union2.Limit.OffsetToken := Nodes.Limit.RowCountToken;
+                  Nodes.Union2.Limit.RowCountToken := ParseExpr();
+                end;
+              end
+              else if (IsTag(kiOFFSET)) then
+              begin
+                Nodes.Union2.Limit.OffsetTag := ParseTag(kiOFFSET);
+
+                if (not ErrorFound) then
+                  Nodes.Union2.Limit.OffsetToken := ParseExpr();
+              end;
+          end;
+      end;
     end;
   end;
 
@@ -21253,6 +21498,8 @@ begin
   Nodes.Expr := ParseExpr([eoIn, eoAllFields]);
 
   if ((Nodes.Expr > 0)
+    and ((NodePtr(Nodes.Expr)^.NodeType <> ntToken)
+      or (TokenPtr(Nodes.Expr)^.TokenType <> ttOperator))
     and ((NodePtr(Nodes.Expr)^.NodeType <> ntDbIdent)
       or (PDbIdent(NodePtr(Nodes.Expr))^.DbIdentType <> ditField)
       or not Assigned(PDbIdent(NodePtr(Nodes.Expr))^.Ident)
@@ -21481,7 +21728,8 @@ function TSQLParser.ParseSelectStmtTableReference(): TOffset;
   begin
     if (IsTag(kiDUAL)) then
       Result := ParseTag(kiDUAL)
-    else if (IsTag(kiSELECT)) then
+    else if (IsTag(kiSELECT)
+      or IsSymbol(ttOpenBracket) and IsNextTag(1, kiSELECT)) then
       Result := ParseSelectStmtTableFactorSubquery()
     else if (IsSymbol(ttOpenBracket)) then
       Result := ParseList(True, ParseSelectStmtTableEscapedReference)
@@ -23162,7 +23410,7 @@ begin
     Result := 0;
   end;
 
-  if (Result = 0) then
+  if ((Result = 0) and not EndOfStmt(FirstToken)) then
     Result := ParseUnknownStmt(FirstToken);
 
   if (IsStmt(Result)) then
@@ -23466,7 +23714,7 @@ label
     SelNot1, SelDoubleQuote, SelComment, SelModulo, SelDollar, SelAmpersand2,
     SelBitAND, SelSingleQuote, SelOpenBracket, SelCloseBracket, SelMySQLCondEnd,
     SelMulti, SelComma, SelDot, SelMySQLCode,
-    SelDiv, SelHexODBCHigh, SelHexODBCLow, SelDigit, SelSLComment, SelMinus, SelPlus, SelAssign,
+    SelDiv, SelHexODBCHigh, SelHexODBCLow, SelDigit, SelSLComment, SelExtract, SelMinus, SelPlus, SelAssign,
     SelColon, SelDelimiter, SelNULLSaveEqual, SelLessEqual, SelShiftLeft,
     SelNotEqual2, SelLess, SelEqual, SelGreaterEqual, SelShiftRight, SelGreater,
     SelAt, SelQuestionMark, SelBitLiteral, SelNatStringHigh, SelNatStringLow, SelHexLiteral,
@@ -23476,7 +23724,7 @@ label
     SelUnquotedIdentLower, SelOpenCurlyBracket, SelPipe,
     SelBitOR, SelCloseCurlyBracket, SelTilde, SelE,
   SLComment, SLCommentL,
-  MLComment, MLCommentL, MLCommentL2, MLCommentL3,
+  MLComment, MLCommentL, MLCommentLE,
   Ident, IdentL, IdentL2, IdentLE, IdentCharset, IdentCharsetL, IdentCharsetLE,
     IdentString, IdentString2, IdentStringE,
   Quoted, QuotedL, QuotedL2, QuotedLE, QuotedE, QuotedE2, QuotedE3,
@@ -23650,9 +23898,9 @@ begin
         JMP SingleChar
       SelSLComment:
         CMP AX,'-'                       // "-" ?
-        JNE SelDot                 // No!
+        JNE SelDot                       // No!
         CMP EAX,$002D002D                // "--" ?
-        JNE SelMinus                     // No!
+        JNE SelExtract                   // No!
         CMP ECX,3                        // Three characters in SQL?
         JB DoubleChar                    // No!
         CMP WORD PTR [ESI + 4],9         // "--<Tab>" ?
@@ -23666,6 +23914,11 @@ begin
         ADD ESI,4                        // Step over "--"
         SUB ECX,2                        // Two characters handled
         JMP UnexpectedChar
+      SelExtract:
+        CMP EAX,$003E002D                // "->" ?
+        JNE SelMinus                     // No!
+        MOV OperatorType,otExtract
+        JMP DoubleChar
       SelMinus:
         MOV OperatorType,otMinus
         JMP SingleChar
@@ -23674,7 +23927,12 @@ begin
         JNE SelMySQLCode                 // No!
         MOV TokenType,ttDot
         MOV OperatorType,otDot
-        JMP SingleChar
+        CMP EAX,$0030002E                // ".0" ?
+        JB SingleChar                    // Before!
+        CMP EAX,$0039002E                // ".9" ?
+        JA SingleChar                    // After!
+        MOV OperatorType,otNone
+        JMP Numeric
       SelMySQLCode:
         CMP AX,'/'                       // "/" ?
         JNE SelHexODBCHigh               // No!
@@ -23828,7 +24086,7 @@ begin
       SelHat:
         CMP AX,'^'                       // "^" ?
         JNE SelUnderscore                // No!
-        MOV OperatorType,otHat
+        MOV OperatorType,otBitXOR
         JMP SingleChar
       SelUnderscore:
         CMP AX,'_'                       // "_" ?
@@ -23892,20 +24150,14 @@ begin
         ADD ESI,4                        // Step over "/*" in SQL
         SUB ECX,2                        // Two characters handled
       MLCommentL:
-        CMP ECX,2                        // Two characters left in SQL?
-        JAE MLCommentL2                  // Yes!
-        JMP IncompleteToken
-      MLCommentL2:
-        MOV EAX,[ESI]                    // Load two character from SQL
-        CMP AX,10                        // <NewLine>?
-        JNE MLCommentL3                  // No!
-        INC NewLines                     // One new line
-      MLCommentL3:
+        CMP ECX,1                        // Last characters in SQL?
+        JE MLCommentLE
         CMP EAX,$002F002A
         JE DoubleChar
+      MLCommentLE:
         ADD ESI,2                        // Next character in SQL
-        DEC ECX                          // One character handled
-        JMP MLCommentL
+        LOOP MLCommentL
+        JMP IncompleteToken
 
       // ------------------------------
 
@@ -24291,24 +24543,12 @@ begin
 
       Return:
         MOV TokenType,ttReturn
-        MOV EDX,EAX                      // Remember first character
-        ADD ESI,2                        // Next character in SQL
-        DEC ECX                          // One character handled
-        JZ Finish                        // End of SQL!
-        MOV AX,[ESI]                     // One character from SQL to AX
-        CMP AX,DX                        // Same character like before?
-        JE Finish                        // Yes!
-        CMP AX,10                        // <NewLine> ?
-        JNE Return2                      // No!
         INC NewLines                     // One new line
-        JMP ReturnE
-      Return2:
-        CMP AX,13                        // <CarriadgeReturn> ?
-        JNE Finish                       // No!
-      ReturnE:
-        ADD ESI,2                        // Next character in SQL
-        DEC ECX                          // One character handled
-        JMP Finish
+        CMP EAX,$00100013                // <CarriadgeReturn><NewLine>?
+        JE DoubleChar                    // Yes!
+        CMP EAX,$00130010                // <NewLine><CarriadgeReturn>?
+        JE DoubleChar                    // Yes!
+        JMP SingleChar
 
       // ------------------------------
 
@@ -24412,10 +24652,13 @@ begin
         POP ES
     end;
 
-    Assert((TokenLength > 0) or (ErrorCode <> PE_Success));
-
-    if (TokenLength = 0) then
+    if ((TokenLength = 0) and (ErrorCode = PE_Success)) then
       raise Exception.Create(SUnknownError);
+
+    if ((TokenType = ttUnknown) and (OperatorType <> otNone)) then
+      TokenType := ttOperator;
+
+    Assert((ErrorCode <> PE_Success) or (TokenType <> ttUnknown));
 
     if (TokenType <> ttIdent) then
       KeywordIndex := -1
@@ -24600,7 +24843,7 @@ begin
       Nodes.OrderBy.Tag := ParseTag(kiORDER, kiBY);
 
       if (not ErrorFound) then
-        Nodes.OrderBy.Expr := ParseList(False, ParseSelectStmtOrderBy);
+        Nodes.OrderBy.List := ParseList(False, ParseSelectStmtOrderBy);
     end;
 
     if (not ErrorFound) then
@@ -24839,7 +25082,7 @@ begin
   if (not ErrorFound) then
     if (EndOfStmt(CurrentToken)) then
       SetError(PE_IncompleteStmt)
-    else if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.TokenType = ttDot)) then
+    else if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.OperatorType = otDot)) then
       Nodes.Ident := ParseList(False, ParseDbIdent, ttDot)
     else
       Nodes.Ident := ApplyCurrentToken(utDbIdent);

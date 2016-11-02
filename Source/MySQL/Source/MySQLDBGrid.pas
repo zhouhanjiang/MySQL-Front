@@ -10,7 +10,6 @@ uses
 type
   TMySQLDBGrid = class(TDBGrid)
   type
-    TSearchNotFoundEvent = procedure(Sender: TObject; FindText: string) of object;
     TFilterChange = procedure(Sender: TObject; Index: Integer) of object;
 
     TDBMySQLInplaceEdit = class(TInplaceEditList)
@@ -32,7 +31,6 @@ type
     CF_MYSQLRECORD = CF_PRIVATEFIRST + 80;
   private
     FIgnoreKeyPress: Boolean;
-    FindNext: Boolean;
     FHeaderControl: THeaderControl;
     FHintWindow: THintWindow;
     FKeyDownShiftState: TShiftState;
@@ -44,26 +42,20 @@ type
     FOnCanEditShowExecuted: Boolean;
     FOnFilterChange: TFilterChange;
     FOnSelect: TNotifyEvent;
-    FSearchNotFound: TSearchNotFoundEvent;
     IgnoreTitleClick: Boolean;
     IgnoreTitleChange: Boolean;
-    SearchFindDialogOnCloseBeforeSearch: TNotifyEvent;
-    SearchFindDialogOnFindBeforeSearch: TNotifyEvent;
-    SearchFindDialogOnShowBeforeSearch: TNotifyEvent;
     TitleBoldFont: TFont;
     procedure ActivateHint();
+    function CanvasTextWidth(const Text: string): Integer; inline;
     function EditCopyExecute(): Boolean;
     function EditCutExecute(): Boolean;
     function EditDeleteExecute(): Boolean;
-    procedure FindDialogClose(Sender: TObject);
-    procedure FindDialogFind(Sender: TObject);
     function GetCurrentRow(): Boolean;
     function GetHeader(): HWND;
     procedure HeaderMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
     procedure HeaderSectionClick(HeaderControl: THeaderControl; Section: THeaderSection);
     procedure HeaderSectionDrag(Sender: TObject; FromSection, ToSection: THeaderSection; var AllowDrag: Boolean);
     procedure HeaderSectionResize(HeaderControl: THeaderControl; Section: THeaderSection);
-    procedure SearchFindExecute(const Action: TSearchFind);
     procedure SetHeaderColumnArrows();
     procedure CMFontChanged(var Message); message CM_FONTCHANGED;
     procedure WMNotify(var Message: TWMNotify); message WM_NOTIFY;
@@ -118,7 +110,6 @@ type
   published
     property OnCanEditShow: TNotifyEvent read FOnCanEditShow write FOnCanEditShow;
     property OnFilterChange: TFilterChange read FOnFilterChange write FOnFilterChange;
-    property OnSearchNotFound: TSearchNotFoundEvent read FSearchNotFound write FSearchNotFound;
     property OnSelect: TNotifyEvent read FOnSelect write FOnSelect;
   end;
 
@@ -286,6 +277,11 @@ begin
     and not ((SelectedField = Columns[Columns.Count - 1].Field) and (Key in [VK_TAB]) and not (ssShift in Shift));
 end;
 
+function TMySQLDBGrid.CanvasTextWidth(const Text: string): Integer;
+begin
+  Result := Canvas.TextWidth(Text);
+end;
+
 procedure TMySQLDBGrid.CMFontChanged(var Message);
 begin
   inherited;
@@ -443,6 +439,7 @@ begin
 
   if (Assigned(FHeaderControl)) then FHeaderControl.Free();
   FHeaderControl := THeaderControl.Create(Self);
+  FHeaderControl.ControlStyle := FHeaderControl.ControlStyle + [csDoubleClicks];
   FHeaderControl.DoubleBuffered := True;
   FHeaderControl.NoSizing := not (dgColumnResize in Options);
   FHeaderControl.OnMouseMove := HeaderMouseMove;
@@ -553,43 +550,8 @@ begin
     Result := EditDeleteExecute()
   else if (Action is TEditSelectAll) then
     begin Result := True; SelectAll(); end
-  else if ((Action is TSearchFindFirst) or (Action is TSearchFind_Ext)) then
-  begin
-    SearchFindExecute(TSearchFind_Ext(Action));
-    Result := True;
-  end
-  else if (Action is TSearchFindNext) then
-  begin
-    if (Assigned(TSearchFindNext(Action).SearchFind) and Assigned(TSearchFindNext(Action).SearchFind.Dialog) and Assigned(TSearchFindNext(Action).SearchFind.Dialog)) then
-      FindDialogFind(TSearchFindNext(Action).SearchFind.Dialog);
-    Result := True;
-  end
   else
     Result := inherited ExecuteAction(Action);
-end;
-
-procedure TMySQLDBGrid.FindDialogClose(Sender: TObject);
-begin
-  TFindDialog(Sender).OnClose := SearchFindDialogOnCloseBeforeSearch;
-  TFindDialog(Sender).OnFind := SearchFindDialogOnFindBeforeSearch;
-  TFindDialog(Sender).OnShow := SearchFindDialogOnShowBeforeSearch;
-end;
-
-procedure TMySQLDBGrid.FindDialogFind(Sender: TObject);
-var
-  LocateOptions: TLocateOptions;
-begin
-  LocateOptions := [loPartialKey];
-  if (not (frMatchCase in TFindDialog(Sender).Options)) then
-    LocateOptions := LocateOptions + [loCaseInsensitive];
-  TMySQLDataSet(DataLink.DataSet).LocateNext := FindNext;
-  if (TMySQLDataSet(DataLink.DataSet).Locate(SelectedField.FieldName, TFindDialog(Sender).FindText, LocateOptions)) then
-    FindNext := True
-  else
-    if (Assigned(FSearchNotFound)) then
-      FSearchNotFound(Sender, TFindDialog(Sender).FindText)
-    else
-      ShowMessage(Format(STextNotFound, [TFindDialog(Sender).FindText]));
 end;
 
 function TMySQLDBGrid.GetCurrentRow(): Boolean;
@@ -1084,27 +1046,6 @@ begin
   end;
 end;
 
-procedure TMySQLDBGrid.SearchFindExecute(const Action: TSearchFind);
-begin
-  if (Assigned(Action.Dialog)) then
-  begin
-    FindNext := not (Action is TSearchFindFirst) and (Action.Dialog.FindText <> '');
-
-    SearchFindDialogOnCloseBeforeSearch := Action.Dialog.OnClose;
-    SearchFindDialogOnFindBeforeSearch := Action.Dialog.OnFind;
-    SearchFindDialogOnShowBeforeSearch := Action.Dialog.OnShow;
-
-    if (Assigned(Action.BeforeExecute)) then
-      Action.BeforeExecute(Action);
-
-    Action.Dialog.OnShow := nil;
-    Action.Dialog.OnFind := FindDialogFind;
-    Action.Dialog.OnClose := FindDialogClose;
-
-    TSearchFind_Ext(Action).Dialog.Execute();
-  end;
-end;
-
 procedure TMySQLDBGrid.SelectAll();
 var
   OldActive: Boolean;
@@ -1260,23 +1201,6 @@ begin
       else
         Result := False;
   end
-  else if ((Action is TSearchAction) or (Action is TSearchFindNext)) then
-  begin
-    Result := Focused();
-    if (Action is TSearchFindFirst) then
-      TSearchAction(Action).Enabled :=
-        Result and Assigned(SelectedField) and not (SelectedField.DataType in [ftBlob, ftUnknown]) and (SelectedRows.Count <= 1)
-    else if (Action is TSearchFind_Ext) then
-      TSearchAction(Action).Enabled :=
-        Result and Assigned(SelectedField) and not (SelectedField.DataType in [ftBlob, ftUnknown]) and (SelectedRows.Count <= 1)
-    else if (Action is TSearchReplace) then
-      TSearchReplace(Action).Enabled := False
-    else if (Action is TSearchFindNext) then
-      TSearchFindNext(Action).Enabled :=
-        Result
-          and (Assigned(TSearchFindNext(Action).SearchFind))
-          and (TSearchFindNext(Action).SearchFind.Dialog.FindText <> '');
-  end
   else
     Result := inherited UpdateAction(Action);
 end;
@@ -1288,15 +1212,47 @@ end;
 
 procedure TMySQLDBGrid.WMNotify(var Message: TWMNotify);
 var
+  Column: TColumn;
+  HDItem: THDItem;
   HDNotify: PHDNotify;
   HDCustomDraw: PNMCustomDraw;
   LogFont: TLogFont;
+  NewWidth: Integer;
 begin
   HDNotify := PHDNotify(Message.NMHdr);
   if (not Assigned(FHeaderControl) or not Assigned(FHeaderControl.Parent) or (HDNotify^.Hdr.hwndFrom <> FHeaderControl.Handle)) then
     inherited
   else
     case (HDNotify^.Hdr.code) of
+      HDN_DIVIDERDBLCLICK:
+        begin
+          Column := Columns[LeftCol + HDNotify^.Item];
+          if ((DataLink.DataSet is TMySQLDataSet) and not (Column.Field is TBlobField)) then
+          begin
+            HDItem.Mask := HDI_WIDTH;
+            if (BOOL(SendMessage(Header, HDM_GETITEM, HDNotify^.Item, LPARAM(@HDItem)))) then
+            begin
+              IgnoreTitleChange := True;
+
+              Canvas.Font := Column.Font;
+              NewWidth := TMySQLDataSet(DataLink.DataSet).GetMaxTextWidth(Column.Field, CanvasTextWidth) + 4 + GridLineWidth;
+              if (NewWidth < FHeaderControl.Sections[LeftCol + HDNotify^.Item].MinWidth) then
+                NewWidth := FHeaderControl.Sections[LeftCol + HDNotify^.Item].MinWidth;
+              if (NewWidth > Width - RowHeights[0]) then
+                NewWidth := Width - RowHeights[0];
+
+              HDItem.cxy := NewWidth;
+              if (dgColLines in Options) then
+                Inc(HDItem.cxy, GridLineWidth);
+              while (not BOOL(SendMessage(Header, HDM_SETITEM, HDNotify^.Item, LPARAM(@HDItem)))) do
+                Inc(HDItem.cxy, GridLineWidth);
+
+              IgnoreTitleChange := False;
+
+              Resize();
+            end;
+          end;
+        end;
       NM_CUSTOMDRAW:
         begin
           HDCustomDraw := PNMCustomDraw(HDNotify);

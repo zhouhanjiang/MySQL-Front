@@ -413,6 +413,8 @@ type
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure EmptyWorkingMem();
     {$IFDEF EurekaLog}
+    procedure EurekaLogCustomButtonClickNotify(
+      EurekaExceptionRecord: TEurekaExceptionRecord; var CloseDialog: Boolean);
     procedure EurekaLogCustomDataRequest(
       EurekaExceptionRecord: TEurekaExceptionRecord; DataFields: TStrings);
     procedure EurekaLogExceptionNotify(
@@ -856,6 +858,25 @@ begin
 end;
 
 {$IFDEF EurekaLog}
+procedure TWWindow.EurekaLogCustomButtonClickNotify(
+  EurekaExceptionRecord: TEurekaExceptionRecord; var CloseDialog: Boolean);
+var
+  ClipboardData: HGLOBAL;
+  S: string;
+begin
+  if (OpenClipboard(Handle)) then
+  begin
+    S := string(EurekaExceptionRecord.LogText);
+
+    EmptyClipboard();
+    ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Length(S) + 1) * SizeOf(S[1]));
+    StrPCopy(GlobalLock(ClipboardData), S);
+    SetClipboardData(CF_UNICODETEXT, ClipboardData);
+    GlobalUnlock(ClipboardData);
+    CloseClipboard();
+  end;
+end;
+
 procedure TWWindow.EurekaLogCustomDataRequest(
   EurekaExceptionRecord: TEurekaExceptionRecord; DataFields: TStrings);
 var
@@ -876,7 +897,7 @@ begin
     Log.Text := ActiveTab.Session.Connection.BugMonitor.CacheText;
     if (Log.Count < 10) then Start := 0 else Start := Log.Count - 10;
     for I := Start to Log.Count - 1 do
-      DataFields.Add('Log_' + IntToStr(I - Start + 1) + '=' + Log[I]);
+      DataFields.Add(Log[I]);
     Log.Free();
   end;
 
@@ -897,7 +918,7 @@ begin
 
   try Accounts.Save(); except end;
 
-  if ((0 < AvailableUpdate) and (AvailableUpdate < Preferences.Version) or not IsConnectedToInternet()) then
+  if ((0 < AvailableUpdate) and (AvailableUpdate < Preferences.Version)) then
     Handled := False
   else
   begin
@@ -951,6 +972,7 @@ begin
   {$IFDEF EurekaLog}
     EurekaLog := TEurekaLog.Create(Self);
     EurekaLog.OnExceptionNotify := EurekaLogExceptionNotify;
+    EurekaLog.OnCustomButtonClickNotify := EurekaLogCustomButtonClickNotify;
     EurekaLog.OnCustomDataRequest := EurekaLogCustomDataRequest;
   {$ENDIF}
 
@@ -1148,7 +1170,6 @@ procedure TWWindow.SQLError(const Connection: TMySQLConnection; const ErrorCode:
 var
   Flags: Longint;
   Msg: string;
-  Tab: TFSession;
 begin
   case (ErrorCode) of
     EE_READ: Msg := ErrorMessage;
@@ -1196,13 +1217,6 @@ begin
     DisableApplicationActivate := True;
     MsgBox(Msg, Preferences.LoadStr(45), Flags);
     DisableApplicationActivate := False;
-  end;
-
-  if ((ErrorCode = CR_SERVER_GONE_ERROR) and (Connection is TSConnection)) then
-  begin
-    Tab := TFSession(TSConnection(Connection).Session.Account.Tab());
-    if (Boolean(SendMessage(Tab.Handle, UM_CLOSE_TAB_QUERY, 0, 0))) then
-      Perform(UM_CLOSE_TAB, 0, LPARAM(Tab));
   end;
 end;
 

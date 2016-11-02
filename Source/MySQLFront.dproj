@@ -149,6 +149,9 @@
 			<DCCReference Include="fDTable.pas">
 				<Form>DTable</Form>
 			</DCCReference>
+			<DCCReference Include="fDTables.pas">
+				<Form>DTables</Form>
+			</DCCReference>
 			<DCCReference Include="fDTransfer.pas">
 				<Form>DTransfer</Form>
 			</DCCReference>

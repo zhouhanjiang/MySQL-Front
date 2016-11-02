@@ -73,10 +73,6 @@ object DImport: TDImport
       Caption = 'TSJob'
       TabVisible = False
       OnShow = TSJobShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -231,10 +227,6 @@ object DImport: TDImport
       TabVisible = False
       OnHide = TSTablesHide
       OnShow = TSTablesShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -344,10 +336,6 @@ object DImport: TDImport
       TabVisible = False
       OnHide = TSCSVOptionsHide
       OnShow = FCSVPreviewUpdate
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -663,10 +651,6 @@ object DImport: TDImport
       Caption = 'TSFields'
       TabVisible = False
       OnShow = TSFieldsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -751,10 +735,6 @@ object DImport: TDImport
       Caption = 'TSStmtType'
       TabVisible = False
       OnShow = TSStmtTypeShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -947,6 +927,10 @@ object DImport: TDImport
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)

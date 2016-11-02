@@ -17,7 +17,7 @@ type
     TDirection = (idRead, idWrite);
   private
     FErrNo: my_uint;
-    FError: RawByteString;
+    FError: array[0 .. MYSQL_ERRMSG_SIZE] of AnsiChar;
     FDirection: TDirection;
     Pipe: THandle;
     Socket: TSocket;
@@ -32,14 +32,14 @@ type
       const Port, Timeout: my_uint): Boolean; virtual;
     function Receive(var Buffer; const BytesToRead: my_uint): Boolean; virtual;
     function Send(const Buffer; const BytesToWrite: my_uint): Boolean; virtual;
-    function Seterror(const AErrNo: my_uint; const AError: RawByteString = ''): my_uint; virtual;
+    function Seterror(const AErrNo: my_uint; const AError: my_char = nil): my_uint; virtual;
     property CodePage: Cardinal read GetCodePage;
     property Direction: TDirection read FDirection write SetDirection;
   public
     constructor Create(); virtual;
     destructor Destroy(); override;
     function errno(): my_uint; inline;
-    function error(): RawByteString; inline;
+    function error(): my_char; inline;
   end;
 
   TMySQL_Packet = class(TMySQL_IO)
@@ -69,6 +69,7 @@ type
     procedure next_command(); virtual;
     function next_result(): my_int; virtual;
     function ReadPacket(const Buffer: my_char; const Size: my_uint): Boolean; overload; virtual;
+    function ReadPacket(const Buffer: my_char; const NTS: Boolean = True; const Size: Byte = 0): Boolean; overload; virtual;
     function ReadPacket(out Value: my_int; const Size: Byte = 0): Boolean; overload; virtual;
     function ReadPacket(out Value: my_uint; const Size: Byte = 0): Boolean; overload; virtual;
     function ReadPacket(out Value: my_ulonglong; const Size: Byte = 0): Boolean; overload; virtual;
@@ -119,22 +120,20 @@ type
   end;
 
   MYSQL = class(TMySQL_Packet)
-  private const
-    SQLSTATE_LENGTH = 5;
   private
     FieldCount: my_uint;
     FSQLState: array [0 .. SQLSTATE_LENGTH - 1] of AnsiChar;
     UseNamedPipe: Boolean;
     function Reconnect(): Boolean;
-    function SendFile(const Filename: RawByteString): Boolean;
+    function SendDataFile(const Filename: RawByteString): Boolean;
   protected
+    CAPABILITIES: my_uint;
     faffected_rows: my_ulonglong;
     fca: RawByteString;
     fca_path: RawByteString;
     fcert: RawByteString;
     fcharacter_set_name: RawByteString;
     fcipher: RawByteString;
-    fcapabilities: my_uint;
     fclient_status: TMySQL_Packet.TClientStatus;
     fcompress: Boolean;
     fdb: RawByteString;
@@ -155,21 +154,20 @@ type
     fres: MYSQL_RES;
     fserver_capabilities: my_uint;
     fserver_info: my_char;
-    fserver_status: my_int;
     fserver_version: my_uint;
     fstat: RawByteString;
     fthread_id: my_uint;
     ftimeout: my_uint;
     fuser: RawByteString;
     fwarning_count: my_uint;
+    SERVER_STATUS: my_int;
     procedure ClosePacket(); override;
     function ExecuteCommand(const Command: enum_server_command; const Bin: my_char; const Size: my_int; const Retry: Boolean): my_int; virtual;
     function GetCodePage(): Cardinal; override;
     function ReadRow(var Row: MYSQL_RES.PRow): my_int; virtual;
     procedure ReadRows(const Ares: MYSQL_RES); virtual;
     function ServerError(): Boolean; virtual;
-    function Seterror(const AErrNo: my_uint; const AError: RawByteString = ''): my_uint; override;
-    property CodePage: Cardinal read GetCodePage;
+    function Seterror(const AErrNo: my_uint; const AError: my_char = nil): my_uint; override;
   public
     constructor Create(); override;
     destructor Destroy(); override;
@@ -292,8 +290,6 @@ const
   MYSQL_CLIENT_VERSION  = 40101;
   NET_HEADER_SIZE       = 4;
   PROTOCOL_VERSION      = 10;
-  SCRAMBLE_LENGTH       = 20;
-  SCRAMBLE_LENGTH_323   = 8;
 
   CLIENT_CAPABILITIES  = CLIENT_LONG_PASSWORD or
                          CLIENT_LONG_FLAG or
@@ -635,7 +631,7 @@ end;
 
 function mysql_error(mysql: MYSQL): my_char; stdcall;
 begin
-  Result := my_char(mysql.error());
+  Result := mysql.error();
 end;
 
 // function mysql_escape_string(_to: my_char; const from: my_char; from_length: my_uint): my_uint; stdcall;
@@ -871,7 +867,7 @@ end;
 
 constructor TMySQL_IO.Create();
 begin
-  FError := '';
+  FError[0] := #0;
   FErrno := 0;
   FDirection := idRead;
   Pipe := INVALID_HANDLE_VALUE;
@@ -892,9 +888,9 @@ begin
   Result := FErrNo;
 end;
 
-function TMySQL_IO.error(): RawByteString;
+function TMySQL_IO.error(): my_char;
 begin
-  Result := FError;
+  Result := @FError[0];
 end;
 
 function TMySQL_IO.GetCodePage(): Cardinal;
@@ -954,17 +950,17 @@ begin
           Filename := DecodeString('\\' + Host + '\pipe\' + MYSQL_NAMEDPIPE);
         if (not WaitNamedPipe(PChar(Filename), Timeout * 1000)) then
           if (GetLastError() = 2) then
-            Seterror(CR_NAMEDPIPEOPEN_ERROR, EncodeString(Format(CLIENT_ERRORS[CR_NAMEDPIPEOPEN_ERROR - CR_MIN_ERROR], [LOCAL_HOST, MYSQL_NAMEDPIPE, GetLastError()])))
+            Seterror(CR_NAMEDPIPEOPEN_ERROR, my_char(EncodeString(Format(CLIENT_ERRORS[CR_NAMEDPIPEOPEN_ERROR - CR_MIN_ERROR], [LOCAL_HOST, MYSQL_NAMEDPIPE, GetLastError()]))))
           else
-            Seterror(CR_NAMEDPIPEWAIT_ERROR, EncodeString(Format(CLIENT_ERRORS[CR_NAMEDPIPEWAIT_ERROR - CR_MIN_ERROR], [LOCAL_HOST, MYSQL_NAMEDPIPE, GetLastError()])))
+            Seterror(CR_NAMEDPIPEWAIT_ERROR, my_char(EncodeString(Format(CLIENT_ERRORS[CR_NAMEDPIPEWAIT_ERROR - CR_MIN_ERROR], [LOCAL_HOST, MYSQL_NAMEDPIPE, GetLastError()]))))
         else
         begin
           Pipe := CreateFile(PChar(Filename), GENERIC_READ or GENERIC_WRITE, 0, nil, OPEN_EXISTING, FILE_FLAG_WRITE_THROUGH, 0);
           if (Pipe = INVALID_HANDLE_VALUE) then
             if (GetLastError() = ERROR_PIPE_BUSY) then
-              Seterror(CR_NAMEDPIPEWAIT_ERROR, EncodeString(Format(CLIENT_ERRORS[CR_NAMEDPIPEWAIT_ERROR - CR_MIN_ERROR], [LOCAL_HOST, MYSQL_NAMEDPIPE, GetLastError()])))
+              Seterror(CR_NAMEDPIPEWAIT_ERROR, my_char(EncodeString(Format(CLIENT_ERRORS[CR_NAMEDPIPEWAIT_ERROR - CR_MIN_ERROR], [LOCAL_HOST, MYSQL_NAMEDPIPE, GetLastError()]))))
             else
-              Seterror(CR_NAMEDPIPEOPEN_ERROR, EncodeString(Format(CLIENT_ERRORS[CR_NAMEDPIPEOPEN_ERROR - CR_MIN_ERROR], [LOCAL_HOST, MYSQL_NAMEDPIPE, GetLastError()])))
+              Seterror(CR_NAMEDPIPEOPEN_ERROR, my_char(EncodeString(Format(CLIENT_ERRORS[CR_NAMEDPIPEOPEN_ERROR - CR_MIN_ERROR], [LOCAL_HOST, MYSQL_NAMEDPIPE, GetLastError()]))))
           else
           begin
             Mode := PIPE_READMODE_BYTE or PIPE_WAIT;
@@ -972,7 +968,7 @@ begin
             begin
               CloseHandle(Pipe); Pipe := INVALID_HANDLE_VALUE;
 
-              Seterror(CR_NAMEDPIPESETSTATE_ERROR, EncodeString(Format(CLIENT_ERRORS[CR_NAMEDPIPESETSTATE_ERROR - CR_MIN_ERROR], [Host, MYSQL_NAMEDPIPE, GetLastError()])));
+              Seterror(CR_NAMEDPIPESETSTATE_ERROR, my_char(EncodeString(Format(CLIENT_ERRORS[CR_NAMEDPIPESETSTATE_ERROR - CR_MIN_ERROR], [Host, MYSQL_NAMEDPIPE, GetLastError()]))));
             end
             else
               IOType := itNamedPipe;
@@ -995,7 +991,7 @@ begin
         end;
 
         if (ip_addr = u_long(INADDR_NONE)) then
-          Seterror(CR_UNKNOWN_HOST, EncodeString(Format(CLIENT_ERRORS[CR_UNKNOWN_HOST - CR_MIN_ERROR], [Host, WSAGetLastError()])))
+          Seterror(CR_UNKNOWN_HOST, my_char(EncodeString(Format(CLIENT_ERRORS[CR_UNKNOWN_HOST - CR_MIN_ERROR], [Host, WSAGetLastError()]))))
         else
         begin
           FillChar(sock_addr, SizeOf(sock_addr), #0);
@@ -1005,10 +1001,10 @@ begin
 
           Socket := WinSock.socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
           if (Socket = INVALID_SOCKET) then
-            Seterror(CR_IPSOCK_ERROR, EncodeString(Format(CLIENT_ERRORS[CR_IPSOCK_ERROR - CR_MIN_ERROR], [WSAGetLastError()])))
+            Seterror(CR_IPSOCK_ERROR, my_char(EncodeString(Format(CLIENT_ERRORS[CR_IPSOCK_ERROR - CR_MIN_ERROR], [WSAGetLastError()]))))
           else if (connect(Socket, sock_addr, SizeOf(sock_addr)) = SOCKET_ERROR) then
           begin
-            Seterror(CR_CONN_HOST_ERROR, EncodeString(Format(CLIENT_ERRORS[CR_CONN_HOST_ERROR - CR_MIN_ERROR], [Host, WSAGetLastError()])));
+            Seterror(CR_CONN_HOST_ERROR, my_char(EncodeString(Format(CLIENT_ERRORS[CR_CONN_HOST_ERROR - CR_MIN_ERROR], [Host, WSAGetLastError()]))));
 
             closesocket(Socket); Socket := INVALID_SOCKET;
           end;
@@ -1025,7 +1021,7 @@ begin
             begin
               Socket := WinSock.socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
               if (Socket = INVALID_SOCKET) then
-                Seterror(CR_IPSOCK_ERROR, EncodeString(Format(CLIENT_ERRORS[CR_IPSOCK_ERROR - CR_MIN_ERROR], [WSAGetLastError()])))
+                Seterror(CR_IPSOCK_ERROR, my_char(EncodeString(Format(CLIENT_ERRORS[CR_IPSOCK_ERROR - CR_MIN_ERROR], [WSAGetLastError()]))))
               else
               begin
                 Time.tv_sec := Timeout; Time.tv_usec := Time.tv_sec * 1000;
@@ -1054,7 +1050,7 @@ begin
           Time.tv_sec := Timeout; Time.tv_usec := Time.tv_sec * 1000;
           if (select(0, @ReadFDS, nil, nil, @Time) <> 1) then
           begin
-            Seterror(CR_CONN_HOST_ERROR, EncodeString(Format(CLIENT_ERRORS[CR_CONN_HOST_ERROR - CR_MIN_ERROR], [Host, WSAGetLastError()])));
+            Seterror(CR_CONN_HOST_ERROR, my_char(EncodeString(Format(CLIENT_ERRORS[CR_CONN_HOST_ERROR - CR_MIN_ERROR], [Host, WSAGetLastError()]))));
 
             shutdown(Socket, SD_BOTH);
             closesocket(Socket); Socket := INVALID_SOCKET;
@@ -1170,16 +1166,16 @@ begin
     Seterror(CR_SERVER_GONE_ERROR);
 end;
 
-function TMySQL_IO.Seterror(const AErrNo: my_uint; const AError: RawByteString = ''): my_uint;
+function TMySQL_IO.Seterror(const AErrNo: my_uint; const AError: my_char = nil): my_uint;
 begin
   FErrNo := AErrNo;
 
   if (AError <> '') then
-    FError := AError
+    StrCopy(FError, AError)
   else if ((CR_MIN_ERROR <= FErrNo) and (FErrNo <= CR_MIN_ERROR + Length(CLIENT_ERRORS))) then
-    FError := EncodeString(CLIENT_ERRORS[FErrNo - CR_MIN_ERROR])
+    StrCopy(FError, my_char(EncodeString(CLIENT_ERRORS[FErrNo - CR_MIN_ERROR])))
   else
-    FError := '';
+    FError[0] := #0;
 
   if ((AErrNo = CR_UNKNOWN_ERROR) or (AErrNo = CR_SERVER_HANDSHAKE_ERR)) then
     raise Exception.Create(DecodeString(error()));
@@ -1351,7 +1347,6 @@ end;
 function TMySQL_Packet.ReadPacket(const Buffer: my_char; const Size: my_uint): Boolean;
 begin
   Assert(Direction = idRead);
-  
 
   Result := PacketBuffer.Offset + Size <= PacketBuffer.Size;
   if (not Result) then
@@ -1361,6 +1356,45 @@ begin
     Move(PacketBuffer.Mem[PacketBuffer.Offset], Buffer^, Size);
     Inc(PacketBuffer.Offset, Size);
   end;
+end;
+
+function TMySQL_Packet.ReadPacket(const Buffer: my_char; const NTS: Boolean = True; const Size: Byte = 0): Boolean;
+var
+  Len: my_ulonglong;
+begin
+  if ((errno() <> 0) and (errno() <> CR_SERVER_GONE_ERROR)) then
+    Result := False
+  else if (not NTS and (Size > 0)) then
+    if (PacketBuffer.Offset + Size > PacketBuffer.Size) then
+      Result := False
+    else
+    begin
+      StrLCopy(Buffer, @PacketBuffer.Mem[PacketBuffer.Offset], Size);
+      Inc(PacketBuffer.Offset, Size);
+      Result := True;
+    end
+  else if (not NTS and ReadPacket(Len)) then
+    if ((Len = NULL_LENGTH) or (PacketBuffer.Offset + Len > PacketBuffer.Size)) then
+      Result := False
+    else
+    begin
+      StrLCopy(Buffer, @PacketBuffer.Mem[PacketBuffer.Offset], Len);
+      Inc(PacketBuffer.Offset, Len);
+      Result := True;
+    end
+  else if (NTS and (PacketBuffer.Offset + 1 <= PacketBuffer.Size)) then
+  begin
+    Len := 0;
+    while ((PacketBuffer.Offset + Len < PacketBuffer.Size) and (PacketBuffer.Mem[PacketBuffer.Offset + Len] <> #0)) do
+      Inc(Len);
+    StrLCopy(Buffer, @PacketBuffer.Mem[PacketBuffer.Offset], Len);
+    Inc(PacketBuffer.Offset, Len);
+    if (Size = 0) then
+      Inc(PacketBuffer.Offset);
+    Result := True;
+  end
+  else
+    Result := False;
 end;
 
 function TMySQL_Packet.ReadPacket(out Value: my_int; const Size: Byte = 0): Boolean;
@@ -1775,7 +1809,7 @@ begin
   fserver_capabilities := 0;
   if (Assigned(fserver_info)) then
     begin FreeMem(fserver_info); fserver_info := nil; end;
-  fserver_status := 0;
+  SERVER_STATUS := 0;
   FillChar(FSQLState, SizeOf(FSQLState), #0);
   fthread_id := 0;
 end;
@@ -1789,7 +1823,7 @@ begin
   UseNamedPipe := False;
 
   faffected_rows := 0;
-  fcapabilities := CLIENT_CAPABILITIES;
+  CAPABILITIES := CLIENT_CAPABILITIES;
   fcharacter_set_name := '';
   fcompress := False;
   ftimeout := NET_READ_TIMEOUT;
@@ -1809,7 +1843,7 @@ begin
   fserver_capabilities := 0;
   fserver_info := nil;
   fthread_id := 0;
-  fserver_status := 0;
+  SERVER_STATUS := 0;
   fuser := '';
   fpipe_name := '';
   fwarning_count := 0;
@@ -1881,7 +1915,7 @@ begin
       Result := MySQL_Collations[I].CodePage;
 
   if (Result = 0) then
-    inherited GetCodePage();
+    Result := inherited GetCodePage();
 end;
 
 function MYSQL.get_client_info(): my_char;
@@ -1898,7 +1932,7 @@ function MYSQL.get_host_info(): my_char;
 begin
   if (fhost_info = '') then
     case (IOType) of
-      itNamedPipe: fhost_info := RawByteString(Format(CLIENT_ERRORS[CR_NAMEDPIPE_CONNECTION - CR_MIN_ERROR], [LOCAL_HOST]));
+      itNamedPipe: fhost_info := RawByteString(Format(CLIENT_ERRORS[CR_NAMEDPIPE_CONNECTION - CR_MIN_ERROR], [MYSQL_NAMEDPIPE]));
       itTCPIP: fhost_info := RawByteString(Format(CLIENT_ERRORS[CR_TCP_CONNECTION - CR_MIN_ERROR], [fhost]));
     end;
 
@@ -1937,7 +1971,7 @@ function MYSQL.more_results(): my_bool;
 //  0  No more results
 //  1  More results
 begin
-  if ((fcapabilities and CLIENT_MULTI_RESULTS = 0) or (fserver_status and SERVER_MORE_RESULTS_EXISTS = 0)) then
+  if ((CAPABILITIES and CLIENT_MULTI_RESULTS = 0) or (SERVER_STATUS and SERVER_MORE_RESULTS_EXISTS = 0)) then
     Result := 0
   else
     Result := 1;
@@ -1950,7 +1984,7 @@ function MYSQL.next_result(): my_int;
 var
   FileSent: Boolean;
   RBS: RawByteString;
-  RBS2: RawByteString;
+  StateChange: RawByteString;
 begin
   if (fclient_status <> MYSQL_STATUS_READY)  then
   begin
@@ -1968,7 +2002,7 @@ begin
     repeat
       FileSent := False;
 
-      if ((Direction = idRead) and (fserver_status and SERVER_MORE_RESULTS_EXISTS = 0)) then
+      if ((Direction = idRead) and (SERVER_STATUS and SERVER_MORE_RESULTS_EXISTS = 0)) then
         Result := -1
       else if ((inherited next_result() <> 0) or (SetPacketPointer(1, PACKET_CURRENT) < 0)) then
       begin
@@ -1990,22 +2024,22 @@ begin
         ReadPacket(faffected_rows);
         ReadPacket(finsert_id);
 
-        if (fcapabilities and CLIENT_PROTOCOL_41 <> 0) then
+        if (CAPABILITIES and CLIENT_PROTOCOL_41 <> 0) then
         begin
-          ReadPacket(fserver_status, 2);
+          ReadPacket(SERVER_STATUS, 2);
           ReadPacket(fwarning_count, 2);
         end
-        else if (fcapabilities and CLIENT_TRANSACTIONS <> 0) then
+        else if (CAPABILITIES and CLIENT_TRANSACTIONS <> 0) then
         begin
-          ReadPacket(fserver_status, 2);
+          ReadPacket(SERVER_STATUS, 2);
         end;
 
-        if (fcapabilities and CLIENT_SESSION_TRACK <> 0) then
+        if (CAPABILITIES and CLIENT_SESSION_TRACK <> 0) then
         begin
           ReadPacket(finfo, False);
 
-          if (fserver_status and SERVER_SESSION_STATE_CHANGED <> 0) then
-            ReadPacket(RBS2, False);
+          if (SERVER_STATUS and SERVER_SESSION_STATE_CHANGED <> 0) then
+            ReadPacket(StateChange, False);
         end
         else
           ReadPacket(finfo, True);
@@ -2019,7 +2053,7 @@ begin
         SetPacketPointer(1, FILE_CURRENT); // $FB
 
         FileSent := True;
-        if (not ReadPacket(RBS) or not SendFile(RBS)) then
+        if (not ReadPacket(RBS) or not SendDataFile(RBS)) then
           Result := 1
         else
           Result := 0;
@@ -2031,9 +2065,9 @@ begin
         ReadPacket(faffected_rows);
         ReadPacket(finsert_id);
 
-        if (fcapabilities and CLIENT_PROTOCOL_41 <> 0) then
+        if (CAPABILITIES and CLIENT_PROTOCOL_41 <> 0) then
         begin
-          ReadPacket(fserver_status, 2);
+          ReadPacket(SERVER_STATUS, 2);
           ReadPacket(fwarning_count, 2);
         end;
 
@@ -2048,8 +2082,8 @@ begin
       else
       begin
         // we can switch the server in transaction
-        if (fserver_status and SERVER_STATUS_AUTOCOMMIT = 0) then
-          fserver_status := fserver_status or SERVER_STATUS_IN_TRANS;
+        if (SERVER_STATUS and SERVER_STATUS_AUTOCOMMIT = 0) then
+          SERVER_STATUS := SERVER_STATUS or SERVER_STATUS_IN_TRANS;
 
         fclient_status := MYSQL_STATUS_GET_RESULT;
 
@@ -2068,7 +2102,7 @@ begin
     MYSQL_OPT_COMPRESS: fcompress := True;
     MYSQL_OPT_NAMED_PIPE: UseNamedPipe := True;
     MYSQL_OPT_PROTOCOL: if (TryStrToInt(string(arg), I)) then UseNamedPipe := I = Ord(MYSQL_PROTOCOL_PIPE);
-    MYSQL_SET_CHARSET_NAME: fcharacter_set_name := RawByteString(arg);
+    MYSQL_SET_CHARSET_NAME: fcharacter_set_name := StrPas(arg);
     MYSQL_OPT_RECONNECT: freconnect := my_bool(arg) = 0;
   end;
 
@@ -2099,10 +2133,10 @@ begin
   begin
     SetPacketPointer(1, FILE_CURRENT); // $FE
 
-    if (fcapabilities and CLIENT_PROTOCOL_41 <> 0) then
+    if (CAPABILITIES and CLIENT_PROTOCOL_41 <> 0) then
     begin
       ReadPacket(fwarning_count, 2);
-      ReadPacket(fserver_status, 2);
+      ReadPacket(SERVER_STATUS, 2);
     end;
 
     if (fclient_status = MYSQL_STATUS_GET_RESULT) then
@@ -2262,11 +2296,11 @@ begin
       fpipe_name := MYSQL_NAMEDPIPE
     else
       fpipe_name := unix_socket;
-    fcapabilities := client_flag or CLIENT_CAPABILITIES or CLIENT_LONG_PASSWORD;
+    CAPABILITIES := client_flag or CLIENT_CAPABILITIES or CLIENT_LONG_PASSWORD;
     if (fdb = '') then
-      fcapabilities := fcapabilities and not CLIENT_CONNECT_WITH_DB;
+      CAPABILITIES := CAPABILITIES and not CLIENT_CONNECT_WITH_DB;
 
-    if (host = LOCAL_HOST_NAMEDPIPE) then
+    if (UseNamedPipe or (host = LOCAL_HOST_NAMEDPIPE)) then
       CreatePacket(itNamedPipe, fhost, fport, ftimeout)
     else if (unix_socket = LOCAL_HOST_NAMEDPIPE) then
       CreatePacket(itTCPIP, LOCAL_HOST_NAMEDPIPE, fport, ftimeout)
@@ -2283,7 +2317,7 @@ begin
     else if (not ReadPacket(ProtocolVersion, 1)) then
       // errno() has been set by ReadFile()
     else if (ProtocolVersion <> PROTOCOL_VERSION) then
-      Seterror(CR_VERSION_ERROR, EncodeString(Format(CLIENT_ERRORS[CR_VERSION_ERROR - CR_MIN_ERROR], [ProtocolVersion, PROTOCOL_VERSION])))
+      Seterror(CR_VERSION_ERROR, my_char(EncodeString(Format(CLIENT_ERRORS[CR_VERSION_ERROR - CR_MIN_ERROR], [ProtocolVersion, PROTOCOL_VERSION]))))
     else
     begin
       ReadPacket(RBS); ReallocMem(fserver_info, Length(RBS) + 1); StrPCopy(fserver_info, RBS);
@@ -2291,7 +2325,7 @@ begin
       ReadPacket(Salt);
       ReadPacket(fserver_capabilities, 2);
       ReadPacket(CharsetNr, 1);
-      ReadPacket(fserver_status, 2);
+      ReadPacket(SERVER_STATUS, 2);
 
       if ((SetPacketPointer(13, FILE_CURRENT) + 1 < GetPacketSize()) and ReadPacket(RBS)) then
         Salt := Salt + RBS
@@ -2321,12 +2355,12 @@ begin
           end;
         end;
 
-        fcapabilities := fcapabilities and ($FFFF2481 or ($0000DB7E and fserver_capabilities));
+        CAPABILITIES := CAPABILITIES and ($FFFF2481 or ($0000DB7E and fserver_capabilities));
         if (get_server_version() < 40101) then
-          fcapabilities := fcapabilities and $FFFFF
+          CAPABILITIES := CAPABILITIES and $FFFFF
         else if ((fserver_capabilities and CLIENT_RESERVED <> 0) and (get_server_version() < 50000)) then
-          fcapabilities := fcapabilities or CLIENT_PROTOCOL_41 or CLIENT_RESERVED; //  CLIENT_PROTOCOL_41 has in some older 4.1.xx versions the value $04000 instead of $00200
-        fcapabilities := fcapabilities and not CLIENT_SSL;
+          CAPABILITIES := CAPABILITIES or CLIENT_PROTOCOL_41 or CLIENT_RESERVED; //  CLIENT_PROTOCOL_41 has in some older 4.1.xx versions the value $04000 instead of $00200
+        CAPABILITIES := CAPABILITIES and not CLIENT_SSL;
 
         if (fcharacter_set_name = '') then
         begin
@@ -2337,14 +2371,14 @@ begin
               if (MySQL_Collations[I].CharsetNr = CharsetNr) then
                 fcharacter_set_name := MySQL_Collations[I].CharsetName;
         end
-        else if (fcapabilities and CLIENT_PROTOCOL_41 <> 0) then
+        else if (CAPABILITIES and CLIENT_PROTOCOL_41 <> 0) then
         begin
           CharsetNr := 0;
           for I := 0 to Length(MySQL_Collations) - 1 do
             if ((lstrcmpiA(MySQL_Collations[I].CharsetName, PAnsiChar(fcharacter_set_name)) = 0) and MySQL_Collations[I].Default) then
               CharsetNr := MySQL_Collations[I].CharsetNr;
           if (CharsetNr = 0) then
-            Seterror(CR_CANT_READ_CHARSET, EncodeString(Format(CLIENT_ERRORS[CR_CANT_READ_CHARSET - CR_MIN_ERROR], [fcharacter_set_name])))
+            Seterror(CR_CANT_READ_CHARSET, my_char(EncodeString(Format(CLIENT_ERRORS[CR_CANT_READ_CHARSET - CR_MIN_ERROR], [fcharacter_set_name]))))
           else
             for I := 0 to Length(MySQL_Collations) - 1 do
               if (MySQL_Collations[I].CharsetNr = CharsetNr) then
@@ -2352,14 +2386,14 @@ begin
         end;
 
         Direction := idWrite;
-        if (fcapabilities and CLIENT_PROTOCOL_41 = 0) then
+        if (CAPABILITIES and CLIENT_PROTOCOL_41 = 0) then
         begin
-          WritePacket(fcapabilities and $FFFF, 2);
+          WritePacket(CAPABILITIES and $FFFF, 2);
           WritePacket(MAX_ALLOWED_PACKET, 3); // Max allowed packet size (Client)
         end
         else
         begin
-          WritePacket(fcapabilities, 4);
+          WritePacket(CAPABILITIES, 4);
           WritePacket($40000000, 4); // Max allowed packet size (Client)
           WritePacket(CharsetNr, 1);
           WritePacket(RawByteString(StringOfChar(#0, 22))); // unused space
@@ -2374,7 +2408,7 @@ begin
             WritePacket(Scramble(my_char(fpasswd), my_char(Salt)))
           else
             WritePacket(SecureScramble(my_char(fpasswd), my_char(Salt)), False);
-          if (fcapabilities and CLIENT_CONNECT_WITH_DB <> 0) then
+          if (CAPABILITIES and CLIENT_CONNECT_WITH_DB <> 0) then
             WritePacket(fdb);
           FlushPacketBuffers();
 
@@ -2404,18 +2438,18 @@ begin
                 ReadPacket(faffected_rows);
                 ReadPacket(finsert_id);
 
-                if (fcapabilities and CLIENT_PROTOCOL_41 <> 0) then
+                if (CAPABILITIES and CLIENT_PROTOCOL_41 <> 0) then
                 begin
-                  ReadPacket(fserver_status, 2);
+                  ReadPacket(SERVER_STATUS, 2);
                   ReadPacket(fwarning_count, 2);
                 end
                 else if (fserver_capabilities and CLIENT_TRANSACTIONS <> 0) then
                 begin
-                  ReadPacket(fserver_status, 2);
+                  ReadPacket(SERVER_STATUS, 2);
                   fwarning_count := 0;
                 end;
 
-                UseCompression := fcapabilities and CLIENT_COMPRESS <> 0;
+                UseCompression := CAPABILITIES and CLIENT_COMPRESS <> 0;
               end;
           end;
         end;
@@ -2458,13 +2492,13 @@ end;
 
 function MYSQL.Reconnect(): Boolean;
 begin
-  if (fserver_status and SERVER_STATUS_IN_TRANS <> 0) then
+  if (SERVER_STATUS and SERVER_STATUS_IN_TRANS <> 0) then
   begin
-    fserver_status := fserver_status and not SERVER_STATUS_IN_TRANS;
+    SERVER_STATUS := SERVER_STATUS and not SERVER_STATUS_IN_TRANS;
     Result := False;
   end
   else
-    Result := Assigned(real_connect(my_char(fhost), my_char(fuser), my_char(fpasswd), my_char(fdb), fport, my_char(fpipe_name), fcapabilities));
+    Result := Assigned(real_connect(my_char(fhost), my_char(fuser), my_char(fpasswd), my_char(fdb), fport, my_char(fpipe_name), CAPABILITIES));
 end;
 
 function MYSQL.refresh(options: my_int): my_int;
@@ -2484,7 +2518,7 @@ begin
   end;
 end;
 
-function MYSQL.SendFile(const Filename: RawByteString): Boolean;
+function MYSQL.SendDataFile(const Filename: RawByteString): Boolean;
 // send file, initiated by LOAD DATA LOCAL INFILE
 const
   MaxFileBufferSize = NET_BUFFER_LENGTH;
@@ -2492,7 +2526,7 @@ var
   Buffer: PAnsiChar;
   BufferSize: DWord;
   BytesPerSector: DWord;
-  ErrMsg: PAnsiChar;
+  ErrMsg: array[0 .. MYSQL_ERRMSG_SIZE] of AnsiChar;
   Handle: THandle;
   NumberofFreeClusters: DWord;
   ptr: Pointer;
@@ -2510,7 +2544,7 @@ begin
 
     Result := Handle <> INVALID_HANDLE_VALUE;
     if (not Result) then
-      Seterror(EE_FILENOTFOUND, EncodeString(Format('%s  (%s)', [SysErrorMessage(GetLastError()), Filename])))
+      Seterror(EE_FILENOTFOUND, my_char(EncodeString(Format('%s  (%s)', [SysErrorMessage(GetLastError()), Filename]))))
     else
     begin
       BufferSize := MaxFileBufferSize;
@@ -2529,7 +2563,7 @@ begin
           repeat
             Result := Windows.ReadFile(Handle, Buffer^, BufferSize, ReadSize, nil);
             if (not Result) then
-              Seterror(EE_READ, EncodeString(Format('%s  (%s)', [SysErrorMessage(GetLastError()), Filename])))
+              Seterror(EE_READ, my_char(EncodeString(Format('%s  (%s)', [SysErrorMessage(GetLastError()), Filename]))))
             else
             begin
               if ((GetPacketSize() > 0) and (GetPacketSize() + Integer(ReadSize) > 2 * NET_BUFFER_LENGTH)) then
@@ -2548,55 +2582,43 @@ begin
   end
   else
   begin
-    try
-      GetMem(ErrMsg, MYSQL_ERRMSG_SIZE);
-    except
-      Seterror(CR_OUT_OF_MEMORY);
-      ErrMsg := nil;
-    end;
     ptr := nil;
-    Result := Assigned(ErrMsg);
-    if (Result) then
+    Result := flocal_infile_init(@ptr, my_char(Filename), flocal_infile_userdata^) = 0;
+    if (not Result) then
+      Seterror(flocal_infile_error(ptr, @ErrMsg, MYSQL_ERRMSG_SIZE), @ErrMsg)
+    else
     begin
-      Result := flocal_infile_init(@ptr, my_char(Filename), flocal_infile_userdata^) = 0;
-      if (not Result) then
-        Seterror(flocal_infile_error(ptr, ErrMsg, MYSQL_ERRMSG_SIZE), RawByteString(ErrMsg))
-      else
-      begin
-        BufferSize := MaxFileBufferSize;
-        try
-          GetMem(Buffer, BufferSize);
-        except
-          Seterror(CR_OUT_OF_MEMORY);
-          Buffer := nil;
-        end;
-
-        Result := Assigned(Buffer);
-        if (Result) then
-        begin
-          Direction := idWrite;
-          repeat
-            Size := flocal_infile_read(ptr, Buffer, BufferSize);
-            Result := Size >= 0;
-
-            if (not Result) then
-              Seterror(flocal_infile_error(ptr, ErrMsg, MYSQL_ERRMSG_SIZE), RawByteString(ErrMsg))
-            else
-            begin
-              if ((GetPacketSize() > 0) and (GetPacketSize() + Size > 2 * NET_BUFFER_LENGTH)) then
-                Result := FlushPacketBuffers();
-              if (Result) then
-                Result := WritePacket(Buffer, Size);
-            end;
-          until (not Result or (Size <= 0));
-
-          FreeMem(Buffer);
-        end;
-
-        flocal_infile_end(ptr);
+      BufferSize := MaxFileBufferSize;
+      try
+        GetMem(Buffer, BufferSize);
+      except
+        Seterror(CR_OUT_OF_MEMORY);
+        Buffer := nil;
       end;
 
-      FreeMem(ErrMsg);
+      Result := Assigned(Buffer);
+      if (Result) then
+      begin
+        Direction := idWrite;
+        repeat
+          Size := flocal_infile_read(ptr, Buffer, BufferSize);
+          Result := Size >= 0;
+
+          if (not Result) then
+            Seterror(flocal_infile_error(ptr, @ErrMsg, MYSQL_ERRMSG_SIZE), @ErrMsg)
+          else
+          begin
+            if ((GetPacketSize() > 0) and (GetPacketSize() + Size > 2 * NET_BUFFER_LENGTH)) then
+              Result := FlushPacketBuffers();
+            if (Result) then
+              Result := WritePacket(Buffer, Size);
+          end;
+        until (not Result or (Size <= 0));
+
+        FreeMem(Buffer);
+      end;
+
+      flocal_infile_end(ptr);
     end;
   end;
 
@@ -2611,7 +2633,7 @@ end;
 function MYSQL.ServerError(): Boolean;
 var
   ErrorCode: my_uint;
-  ErrorMessage: RawByteString;
+  ErrorMessage: array [0 .. MYSQL_ERRMSG_SIZE] of AnsiChar;
 begin
   Result := Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FF;
 
@@ -2621,7 +2643,7 @@ begin
 
     ReadPacket(ErrorCode, 2);
 
-    if (fcapabilities and CLIENT_PROTOCOL_41 <> 0) then
+    if (CAPABILITIES and CLIENT_PROTOCOL_41 <> 0) then
     begin
       SetPacketPointer(1, FILE_CURRENT); // '#'
       ReadPacket(@FSQLState, 5);
@@ -2631,11 +2653,11 @@ begin
 
     Seterror(ErrorCode, ErrorMessage);
 
-    fserver_status := fserver_status and not SERVER_MORE_RESULTS_EXISTS;
+    SERVER_STATUS := SERVER_STATUS and not SERVER_MORE_RESULTS_EXISTS;
   end;
 end;
 
-function MYSQL.Seterror(const AErrNo: my_uint; const AError: RawByteString = ''): my_uint;
+function MYSQL.Seterror(const AErrNo: my_uint; const AError: my_char = nil): my_uint;
 begin
   Result := inherited;
 
@@ -2784,7 +2806,7 @@ begin
       else
       begin
         MemSize := SizeOf(Field^);
-        if (mysql.fcapabilities and CLIENT_PROTOCOL_41 = 0) then
+        if (mysql.CAPABILITIES and CLIENT_PROTOCOL_41 = 0) then
           if (ItemCount < 5) then
             mysql.Seterror(CR_SERVER_HANDSHAKE_ERR)
           else
@@ -2817,7 +2839,7 @@ begin
         if (mysql.errno() = 0) then
         begin
           Index := SizeOf(Field^);
-          if (mysql.fcapabilities and CLIENT_PROTOCOL_41 = 0) then
+          if (mysql.CAPABILITIES and CLIENT_PROTOCOL_41 = 0) then
           begin
             if (Assigned(Row^.Row^[0])) then begin Field^.table := @PAnsiChar(Field)[Index]; MoveMemory(Field^.table, Row^.Row^[0], Row^.Lengths^[0]); end; Inc(Index, Row^.Lengths^[0] + 1);
             Field^.table_length := Row^.Lengths^[0];

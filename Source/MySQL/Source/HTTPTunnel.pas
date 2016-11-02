@@ -188,6 +188,7 @@ var
   HttpRequestError: Longint;
   Index: DWord;
   InternetError: Longint;
+  Len: DWord;
   ObjectName: string;
   pvData: Pointer;
   QueryInfo: array [0..2048] of Char;
@@ -261,16 +262,16 @@ begin
             ZeroMemory(@StatusCode, SizeOf(StatusCode));
             repeat
               ResponseReceived.WaitFor(50);
-              Size := SizeOf(StatusCode); Index := 0;
-            until (HttpQueryInfo(Request, HTTP_QUERY_STATUS_CODE, @StatusCode, Size, Index) or (Size = 0) or (SysUtils.StrToInt(StatusCode) <> 0));
+              Len := Length(StatusCode); Index := 0;
+            until (HttpQueryInfo(Request, HTTP_QUERY_STATUS_CODE, @StatusCode, Len, Index) or (Len = 0) or (SysUtils.StrToInt(StrPas(PChar(@StatusCode))) <> 0));
 
-            case (SysUtils.StrToInt(StatusCode)) of
+            case (SysUtils.StrToInt(StrPas(PChar(@StatusCode)))) of
               HTTP_STATUS_FORBIDDEN:
                 begin
-                  Seterror(CR_HTTPTUNNEL_ACCESS_DENIED_ERROR, RawByteString(StatusCode));
-                  Size := SizeOf(QueryInfo); Index := 0;
-                  if (HttpQueryInfo(Request, HTTP_QUERY_STATUS_TEXT, @QueryInfo, Size, Index)) then
-                    Seterror(CR_HTTPTUNNEL_ACCESS_DENIED_ERROR, error() + ' ' + RawByteString(QueryInfo));
+                  Seterror(CR_HTTPTUNNEL_ACCESS_DENIED_ERROR, my_char(EncodeString(StrPas(PChar(@StatusCode)))));
+                  Len := Length(QueryInfo); Index := 0;
+                  if (HttpQueryInfo(Request, HTTP_QUERY_STATUS_TEXT, @QueryInfo, Len, Index)) then
+                    Seterror(CR_HTTPTUNNEL_ACCESS_DENIED_ERROR, my_char(EncodeString(DecodeString(StrPas(error())) + ' ' + StrPas(PChar(@QueryInfo)))));
                 end;
               HTTP_STATUS_REDIRECT,
               HTTP_STATUS_REDIRECT_METHOD:
@@ -286,23 +287,23 @@ begin
                   end;
                 end;
               HTTP_STATUS_NOT_FOUND:
-                Seterror(CR_HTTPTUNNEL_NOT_FOUND, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_NOT_FOUND - CR_HTTPTUNNEL_UNKNOWN_ERROR], [ObjectName])));
+                Seterror(CR_HTTPTUNNEL_NOT_FOUND, my_char(RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_NOT_FOUND - CR_HTTPTUNNEL_UNKNOWN_ERROR], [ObjectName]))));
               HTTP_STATUS_OK:
                 begin
                   Size := SizeOf(QueryInfo);
                   if (HttpQueryInfo(Request, HTTP_QUERY_CONTENT_TYPE, @QueryInfo, Size, Index) and (LowerCase(QueryInfo) <> 'application/mysql-front')) then
                     if (not ReceiveExitText(RBS)) then
-                      Seterror(CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR - CR_HTTPTUNNEL_UNKNOWN_ERROR], [QueryInfo])))
+                      Seterror(CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR, my_char(RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR - CR_HTTPTUNNEL_UNKNOWN_ERROR], [QueryInfo]))))
                     else
-                      Seterror(CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE - CR_HTTPTUNNEL_UNKNOWN_ERROR], [ObjectName, string(RBS)])));
+                      Seterror(CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE, my_char(RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE - CR_HTTPTUNNEL_UNKNOWN_ERROR], [ObjectName, string(RBS)]))));
                 end;
               else
                 begin
                   Size := SizeOf(QueryInfo); Index := 0;
                   if (not HttpQueryInfo(Request, HTTP_QUERY_STATUS_TEXT, @QueryInfo, Size, Index)) then
-                    Seterror(CR_HTTPTUNNEL_SERVER_ERROR, RawByteString(StatusCode))
+                    Seterror(CR_HTTPTUNNEL_SERVER_ERROR, my_char(EncodeString(StrPas(PChar(@StatusCode)))))
                   else
-                    Seterror(CR_HTTPTUNNEL_SERVER_ERROR, RawByteString(StatusCode) + ' ' + RawByteString(QueryInfo));
+                    Seterror(CR_HTTPTUNNEL_SERVER_ERROR, my_char(EncodeString(StrPas(PChar(@StatusCode)) + ' ' + StrPas(PChar(@QueryInfo)))));
                 end;
             end;
           end;
@@ -311,15 +312,15 @@ begin
         ERROR_INTERNET_CONNECTION_RESET,
         ERROR_INTERNET_TIMEOUT:
           if (IOType = itNone) then
-            Seterror(CR_CONN_HOST_ERROR, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_CONN_ERROR - CR_HTTPTUNNEL_UNKNOWN_ERROR], [ObjectName, GetLastError()])))
+            Seterror(CR_CONN_HOST_ERROR, my_char(RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_CONN_ERROR - CR_HTTPTUNNEL_UNKNOWN_ERROR], [ObjectName, GetLastError()]))))
           else
             Seterror(CR_SERVER_GONE_ERROR);
         ERROR_INTERNET_NAME_NOT_RESOLVED:
-          Seterror(CR_UNKNOWN_HOST, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_UNKNOWN_HOST - CR_HTTPTUNNEL_UNKNOWN_ERROR], [URLComponents.lpszHostName, GetLastError()])));
+          Seterror(CR_UNKNOWN_HOST, my_char(RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_UNKNOWN_HOST - CR_HTTPTUNNEL_UNKNOWN_ERROR], [URLComponents.lpszHostName, GetLastError()]))));
         ERROR_HTTP_INVALID_SERVER_RESPONSE:
           Seterror(CR_SERVER_HANDSHAKE_ERR);
         else
-          Seterror(CR_HTTPTUNNEL_UNKNOWN_ERROR, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_UNKNOWN_ERROR - CR_HTTPTUNNEL_UNKNOWN_ERROR], [HttpRequestError])));
+          Seterror(CR_HTTPTUNNEL_UNKNOWN_ERROR, my_char(RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_UNKNOWN_ERROR - CR_HTTPTUNNEL_UNKNOWN_ERROR], [HttpRequestError]))));
       end;
     end;
 
@@ -384,7 +385,7 @@ begin
 
         Connection := InternetConnect(Handle, URLComponents.lpszHostName, URLComponents.nPort, URLComponents.lpszUserName, URLComponents.lpszPassword, INTERNET_SERVICE_HTTP, 0, Cardinal(Self));
         if (not Assigned(Connection)) then
-          Seterror(CR_HTTPTUNNEL_CONN_ERROR, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_CONN_ERROR - CR_HTTPTUNNEL_UNKNOWN_ERROR], [URL, 0])))
+          Seterror(CR_HTTPTUNNEL_CONN_ERROR, my_char(RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_CONN_ERROR - CR_HTTPTUNNEL_UNKNOWN_ERROR], [URL, 0]))))
         else
         begin
           Direction := idWrite;
@@ -400,7 +401,7 @@ begin
           WritePacket(RawByteString(fdb));
           WritePacket(RawByteString(fcharacter_set_name));
           WritePacket(fport, 2);
-          WritePacket(fcapabilities, 4);
+          WritePacket(CAPABILITIES, 4);
           WritePacket(ftimeout, 2);
           FlushPacketBuffers();
 
@@ -409,7 +410,7 @@ begin
             StrPCopy(@Buffer, 'MF-Version'); Size := SizeOf(Buffer); Index := 0;
             if (not HttpQueryInfo(Request, HTTP_QUERY_CUSTOM, @Buffer, Size, Index)) then
               if (not ReceiveExitText(RBS)) then
-                Seterror(CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR - CR_HTTPTUNNEL_UNKNOWN_ERROR], [QueryInfo])))
+                Seterror(CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR, my_char(RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR - CR_HTTPTUNNEL_UNKNOWN_ERROR], [QueryInfo]))))
               else
               begin
                 ObjectName := '';
@@ -417,10 +418,10 @@ begin
                   ObjectName := ObjectName + URLComponents.lpszUrlPath;
                 if (URLComponents.dwExtraInfoLength > 0) then
                   ObjectName := ObjectName + URLComponents.lpszExtraInfo;
-                Seterror(CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE - CR_HTTPTUNNEL_UNKNOWN_ERROR], [ObjectName, string(RBS)])));
+                Seterror(CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE, my_char(RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE - CR_HTTPTUNNEL_UNKNOWN_ERROR], [ObjectName, string(RBS)]))));
               end
             else if ((StrToInt(StrPas(PChar(@Buffer))) < RequiredMFVersion) or (StrToInt(Buffer) = 17)) then
-              Seterror(CR_HTTPTUNNEL_OLD, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_OLD - CR_HTTPTUNNEL_UNKNOWN_ERROR], [URL])))
+              Seterror(CR_HTTPTUNNEL_OLD, my_char(RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_OLD - CR_HTTPTUNNEL_UNKNOWN_ERROR], [URL]))))
             else
             begin
               Size := SizeOf(Buffer); Index := 0;
@@ -429,7 +430,7 @@ begin
               if (HttpQueryInfo(Request, HTTP_QUERY_CUSTOM, @Buffer, Size, Index)) then
                 SID := PChar(@Buffer)
               else
-                Seterror(CR_HTTPTUNNEL_UNKNOWN_SID, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_UNKNOWN_SID - CR_HTTPTUNNEL_UNKNOWN_ERROR], [])));
+                Seterror(CR_HTTPTUNNEL_UNKNOWN_SID, my_char(RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_UNKNOWN_SID - CR_HTTPTUNNEL_UNKNOWN_ERROR], []))));
 
               Direction := idRead;
 

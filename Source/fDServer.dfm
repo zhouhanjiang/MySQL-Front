@@ -52,7 +52,7 @@ object DServer: TDServer
     Top = 8
     Width = 321
     Height = 321
-    ActivePage = TSPlugins
+    ActivePage = TSBasics
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
@@ -194,6 +194,10 @@ object DServer: TDServer
     object TSSQLLog: TTabSheet
       Caption = 'TSSQLLog'
       OnShow = TSSQLLogShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         275)
@@ -228,6 +232,10 @@ object DServer: TDServer
     object TSSlowSQLLog: TTabSheet
       Caption = 'TSSlowSQLLog'
       OnShow = TSSlowSQLLogShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         275)
@@ -262,6 +270,10 @@ object DServer: TDServer
     object TSStartup: TTabSheet
       Caption = 'TSStartup'
       OnShow = TSStartupShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         275)
