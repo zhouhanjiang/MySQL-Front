@@ -8852,6 +8852,16 @@ begin
     Session.ExecuteEvent(etItemsValid, Session, Self);
 
   Result := inherited;
+
+  if (Filtered and not FValid) then
+  begin
+    Found := True;
+
+    for I := 0 to Length(DatabaseNames) - 1 do
+      Found := Found and (IndexByName(DatabaseNames[I]) >= 0);
+
+    FValid := Found;
+  end;
 end;
 
 procedure TSDatabases.Delete(const AEntity: TSEntity);
