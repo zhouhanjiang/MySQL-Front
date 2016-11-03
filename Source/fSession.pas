@@ -1422,7 +1422,7 @@ type
   public
     constructor Create(const ASession: TSSession); reintroduce; virtual;
     procedure Connect(); overload;
-    procedure Connect(const AConnectionType: Integer; const ALibraryName: string; const AHost, AUser, APassword, ADatabase: string; const APort: Integer; const AAsynchron: Boolean); overload;
+    procedure Connect(const ALibraryType: TMySQLLibrary.TLibraryType; const ALibraryName: string; const AHost, AUser, APassword, ADatabase: string; const APort: Integer; const AAsynchron: Boolean); overload;
     function SQLUse(const DatabaseName: string): string; override;
     property Session: TSSession read FSession;
   end;
@@ -1591,7 +1591,7 @@ type
   public
     function Add(const Session: TSSession): Integer;
     function SessionByAccount(const Account: TPAccount): TSSession;
-    property Session[Index: Integer]: TSSession read GetSession; default;
+    property Sessions[Index: Integer]: TSSession read GetSession; default;
     property OnSQLError: TMySQLConnection.TErrorEvent read FOnSQLError write FOnSQLError;
   end;
 
@@ -5198,29 +5198,34 @@ function TSView.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
 var
   SQL: string;
 begin
-  SQL := 'CREATE ';
-  case (Algorithm) of
-    vaUndefined: SQL := SQL + 'ALGORITHM=UNDEFINED ';
-    vaMerge: SQL := SQL + 'ALGORITHM=MERGE ';
-    vaTemptable: SQL := SQL + 'ALGORITHM=TEMPTABLE ';
-  end;
-  SQL := SQL + 'VIEW ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name);
-  SQL := SQL + ' AS ' + SQLTrimStmt(Stmt, Session.Connection.MySQLVersion);
-  if (SQL[Length(SQL)] = ';') then
-    Delete(SQL, Length(SQL), 1);
-  case (CheckOption) of
-    voDefault: SQL := SQL + ' WITH CHECK OPTION';
-    voCascaded: SQL := SQL + ' WITH CASCADED CHECK OPTION';
-    voLocal: SQL := SQL + ' WITH LOCAL CHECK OPTION';
-  end;
-  SQL := SQL + ';' + #13#10;
+  if (Source = '') then
+    SQL := ''
+  else
+  begin
+    SQL := 'CREATE ';
+    case (Algorithm) of
+      vaUndefined: SQL := SQL + 'ALGORITHM=UNDEFINED ';
+      vaMerge: SQL := SQL + 'ALGORITHM=MERGE ';
+      vaTemptable: SQL := SQL + 'ALGORITHM=TEMPTABLE ';
+    end;
+    SQL := SQL + 'VIEW ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name);
+    SQL := SQL + ' AS ' + SQLTrimStmt(Stmt, Session.Connection.MySQLVersion);
+    if (SQL[Length(SQL)] = ';') then
+      Delete(SQL, Length(SQL), 1);
+    case (CheckOption) of
+      voDefault: SQL := SQL + ' WITH CHECK OPTION';
+      voCascaded: SQL := SQL + ' WITH CASCADED CHECK OPTION';
+      voLocal: SQL := SQL + ' WITH LOCAL CHECK OPTION';
+    end;
+    SQL := SQL + ';' + #13#10;
 
-  if (Session.SQLParser.ParseSQL(SQL)) then
-    SQL := Session.SQLParser.FormatSQL() + #13#10;
-  Session.SQLParser.Clear();
+    if (Session.SQLParser.ParseSQL(SQL)) then
+      SQL := Session.SQLParser.FormatSQL() + #13#10;
+    Session.SQLParser.Clear();
 
-  if (DropBeforeCreate) then
-    SQL := 'DROP VIEW IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
+    if (DropBeforeCreate) then
+      SQL := 'DROP VIEW IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
+  end;
 
   Result := SQL;
 end;
@@ -10644,7 +10649,11 @@ begin
   end;
   Host := Session.Account.Connection.Host;
   HTTPAgent := Preferences.InternetAgent;
-  LibraryType := Session.Account.Connection.LibraryType;
+  case (Session.Account.Connection.LibraryType) of
+    fPreferences.ltDLL: LibraryType := MySQLDB.ltDLL;
+    fPreferences.ltHTTP: LibraryType := MySQLDB.ltHTTP;
+    else LibraryType := MySQLDB.ltBuiltIn;
+  end;
   LoginPrompt := False;
   OnUpdateIndexDefs := Session.UpdateIndexDefs;
   Password := Session.Account.Connection.Password;
@@ -10659,7 +10668,7 @@ begin
   end;
 end;
 
-procedure TSConnection.Connect(const AConnectionType: Integer; const ALibraryName: string; const AHost, AUser, APassword, ADatabase: string; const APort: Integer; const AAsynchron: Boolean);
+procedure TSConnection.Connect(const ALibraryType: TMySQLLibrary.TLibraryType; const ALibraryName: string; const AHost, AUser, APassword, ADatabase: string; const APort: Integer; const AAsynchron: Boolean);
 begin
   Close();
 
@@ -10667,11 +10676,7 @@ begin
   Host := AHost;
   HTTPAgent := Preferences.InternetAgent;
   LibraryName := ALibraryName;
-  case (AConnectionType) of
-    0: LibraryType := ltBuiltIn;
-    1: LibraryType := ltDLL;
-    2: LibraryType := ltHTTP;
-  end;
+  LibraryType := ALibraryType;
   LoginPrompt := False;
   FMultiStatements := True;
   Password := APassword;
@@ -11534,7 +11539,7 @@ var
 begin
   if (Connection.Host <> LOCAL_HOST_NAMEDPIPE) then
     Result := Connection.Host
-  else if (Connection.LibraryType = ltHTTP) then
+  else if (Connection.LibraryType = MySQLDB.ltHTTP) then
   begin
     URI := TUURI.Create(Connection.LibraryName);
     Result := URI.Host;
@@ -11890,13 +11895,8 @@ begin
 
                       if ((Table.Database <> Database) and Table.Database.Valid) then
                         Table.Database.Invalidate()
-                      else if (Table is TSBaseTable) then
-                        Table.Invalidate()
                       else
-                      begin
-                        SetString(SQL, Text, Len);
-                        TSView(Table).SetSource(SQL);
-                      end;
+                        Table.Invalidate();
                       ExecuteEvent(etItemAltered, Database, Database.Tables, Table);
                     end;
                   end;
@@ -12296,7 +12296,7 @@ var
   FunctionName: string;
   ObjectName: string;
   Parse: TSQLParse;
-  SObject: TSObject;
+  DBObject: TSDBObject;
   Table: TSTable;
 begin
   Result := False;
@@ -12452,26 +12452,26 @@ begin
       begin
         if (not DataSet.Active) then
         begin
-          SObject := nil;
+          DBObject := nil;
           if (SQLParseKeyword(Parse, 'DATABASE')) then
-            SObject := DatabaseByName(SQLParseValue(Parse))
+            DatabaseByName(SQLParseValue(Parse)).FValidSource := True
           else if (SQLParseKeyword(Parse, 'EVENT')) then
-            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then SObject := DatabaseByName(DatabaseName).EventByName(ObjectName); end
+            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DBObject := DatabaseByName(DatabaseName).EventByName(ObjectName); end
           else if (SQLParseKeyword(Parse, 'FUNCTION')) then
-            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then SObject := DatabaseByName(DatabaseName).FunctionByName(ObjectName); end
+            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DBObject := DatabaseByName(DatabaseName).FunctionByName(ObjectName); end
           else if (SQLParseKeyword(Parse, 'PROCEDURE')) then
-            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then SObject := DatabaseByName(DatabaseName).ProcedureByName(ObjectName); end
+            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DBObject := DatabaseByName(DatabaseName).ProcedureByName(ObjectName); end
           else if (SQLParseKeyword(Parse, 'TABLE')) then
-            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then SObject := DatabaseByName(DatabaseName).TableByName(ObjectName); end
+            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DBObject := DatabaseByName(DatabaseName).TableByName(ObjectName); end
           else if (SQLParseKeyword(Parse, 'TRIGGER')) then
-            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then SObject := DatabaseByName(DatabaseName).TriggerByName(ObjectName); end
+            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DBObject := DatabaseByName(DatabaseName).TriggerByName(ObjectName); end
           else if (SQLParseKeyword(Parse, 'VIEW')) then
           begin
-            if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then SObject := DatabaseByName(DatabaseName).TableByName(ObjectName);
+            if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DBObject := DatabaseByName(DatabaseName).TableByName(ObjectName);
             Result := Connection.ErrorCode = ER_TABLEACCESS_DENIED_ERROR;
           end;
-          if (Assigned(SObject)) then
-            SObject.Invalidate();
+          if (Assigned(DBObject)) then
+            DBObject.FValidSource := True;
         end
         else
         begin
@@ -12683,7 +12683,7 @@ begin
     else
       SQL := SQL + 'SHOW GRANTS FOR CURRENT_USER();' + #13#10;
 
-  if ((Connection.MySQLVersion > 40100) and (Account.ManualURLVersion <> Connection.ServerVersionStr)) then
+  if ((Connection.MySQLVersion > 40100) and Assigned(Account) and (Account.ManualURLVersion <> Connection.ServerVersionStr)) then
   begin
     SQL := SQL + 'HELP ' + SQLEscape('SELECT') + ';' + #13#10;
     SQL := SQL + 'HELP ' + SQLEscape('VERSION') + ';' + #13#10;

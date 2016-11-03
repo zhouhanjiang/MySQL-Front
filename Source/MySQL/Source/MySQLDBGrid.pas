@@ -442,6 +442,10 @@ begin
   FHeaderControl.ControlStyle := FHeaderControl.ControlStyle + [csDoubleClicks];
   FHeaderControl.DoubleBuffered := True;
   FHeaderControl.NoSizing := not (dgColumnResize in Options);
+  if (not Assigned(OnTitleClick) or not (dgTitleClick in Options)) then
+    FHeaderControl.Style := hsFlat
+  else
+    FHeaderControl.Style := hsButtons;
   FHeaderControl.OnMouseMove := HeaderMouseMove;
   FHeaderControl.OnSectionClick := HeaderSectionClick;
   FHeaderControl.OnSectionDrag := HeaderSectionDrag;
@@ -651,22 +655,22 @@ var
   NeededWidth: Integer;
 begin
   FHeaderControl.Hint := '';
-  for Index := LeftCol to FHeaderControl.Sections.Count - 1 do
-    if ((FHeaderControl.Sections[Index - LeftCol].Left <= X) and (X <= FHeaderControl.Sections[Index - LeftCol].Right)) then
+  for Index := 0 to FHeaderControl.Sections.Count - 1 do
+    if ((FHeaderControl.Sections[Index].Left <= X) and (X <= FHeaderControl.Sections[Index].Right)) then
     begin
-      if (Columns[Index].Field.IsIndexField and Assigned(TitleBoldFont)) then
+      if (Columns[LeftCol + Index].Field.IsIndexField and Assigned(TitleBoldFont)) then
         Canvas.Font := TitleBoldFont
       else if (Assigned(TitleFont)) then
         Canvas.Font := TitleFont;
-      NeededWidth := Canvas.TextWidth(Columns[Index].DisplayName) + FHeaderControl.Height;
+      NeededWidth := Canvas.TextWidth(Columns[LeftCol + Index].DisplayName) + FHeaderControl.Height;
       Canvas.Font := Font;
 
       HDItem.Mask := HDI_FORMAT;
-      if (BOOL(SendMessage(Header, HDM_GETITEM, Index, LParam(@HDItem))) and (HDItem.fmt and (HDF_SORTUP or HDF_SORTUP) <> 0)) then
+      if (BOOL(SendMessage(FHeaderControl.Handle, HDM_GETITEM, Index, LParam(@HDItem))) and (HDItem.fmt and (HDF_SORTUP or HDF_SORTUP) <> 0)) then
         Inc(NeededWidth, 2 * FHeaderControl.Height);
 
       if (FHeaderControl.Sections[Index].Width < NeededWidth) then
-        FHeaderControl.Hint := Columns[Index].DisplayName;
+        FHeaderControl.Hint := Columns[LeftCol + Index].DisplayName;
     end;
 end;
 
@@ -1092,47 +1096,41 @@ var
 begin
   inherited;
 
-  if (Assigned(FHeaderControl)) then
-  begin
-    FHeaderControl.Sections.BeginUpdate();
-
-    if (not IgnoreTitleChange) then
-      FHeaderControl.Sections.Clear();
-
-    for I := 0 to Columns.Count - 1 do
-    begin
-      with Columns[I] do
-        TabStops[I + IndicatorOffset] := Showing and DataLink.Active and
-          Assigned(Field) and not (Field.FieldKind = fkCalculated);
-
-      if (not IgnoreTitleChange and (I >= LeftCol) and Assigned(Columns[I].Field)) then
-      begin
-        Section := FHeaderControl.Sections.Insert(I - LeftCol);
-        Section.MinWidth := FHeaderControl.Height;
-        Section.MaxWidth := Width - FHeaderControl.Height - GetSystemMetrics(SM_CXVSCROLL);
-        Section.Text := Columns[I].Field.DisplayName;
-        if (dgColLines in Options) then
-          Section.Width := Columns[I].Width + GridLineWidth
-        else
-          Section.Width := Columns[I].Width;
-      end;
-
-      if (Assigned(Columns[I].Field) and Columns[I].Field.IsIndexField) then
-        Columns[I].Font.Style := Columns[I].Font.Style + [fsBold]
-      else
-        Columns[I].Font.Style := Columns[I].Font.Style - [fsBold];
-    end;
-
-    FHeaderControl.Sections.EndUpdate();
-
-    if (not Assigned(OnTitleClick) or not (dgTitleClick in Options)) then
-      FHeaderControl.Style := hsFlat
-    else
-      FHeaderControl.Style := hsButtons;
-  end;
-
   if (not IgnoreTitleChange) then
   begin
+    if (Assigned(FHeaderControl)) then
+    begin
+      FHeaderControl.Sections.BeginUpdate();
+      FHeaderControl.Sections.Clear();
+
+      for I := 0 to Columns.Count - 1 do
+      begin
+        with Columns[I] do
+          TabStops[I + IndicatorOffset] := Showing and DataLink.Active and
+            Assigned(Field) and not (Field.FieldKind = fkCalculated);
+
+        if (I >= LeftCol) then
+        begin
+          Section := FHeaderControl.Sections.Insert(I - LeftCol);
+          Section.MinWidth := FHeaderControl.Height;
+          Section.MaxWidth := Width - FHeaderControl.Height - GetSystemMetrics(SM_CXVSCROLL);
+          if (dgColLines in Options) then
+            Section.Width := Columns[I].Width + GridLineWidth
+          else
+            Section.Width := Columns[I].Width;
+          if (Assigned(Columns[I].Field)) then
+            Section.Text := Columns[I].Field.DisplayName;
+        end;
+
+        if (Assigned(Columns[I].Field) and Columns[I].Field.IsIndexField) then
+          Columns[I].Font.Style := Columns[I].Font.Style + [fsBold]
+        else
+          Columns[I].Font.Style := Columns[I].Font.Style - [fsBold];
+      end;
+
+      FHeaderControl.Sections.EndUpdate();
+    end;
+
     SetHeaderColumnArrows();
     Resize();
   end;

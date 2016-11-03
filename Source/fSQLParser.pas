@@ -13955,8 +13955,6 @@ begin
     or (Token.UsageType = utDbIdent) and (Token.KeywordIndex = kiDEFAULT)
     or (Token.UsageType = utDbIdent) and (Token.KeywordIndex = kiFALSE)
     or (Token.UsageType = utDbIdent) and (Token.KeywordIndex = kiNULL)
-    or (Token.UsageType = utDbIdent) and (Token.KeywordIndex = kiOFF)
-    or (Token.UsageType = utDbIdent) and (Token.KeywordIndex = kiON)
     or (Token.UsageType = utDbIdent) and (Token.KeywordIndex = kiTRUE)
     or (Token.UsageType = utDbIdent) and (Token.KeywordIndex = kiUNKNOWN)) then
   begin
@@ -15146,7 +15144,7 @@ begin
   else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (IgnoreTag = 0)
     and IsTag(kiUSER)) then
     Result := ParseCreateUserStmt(AlterTag)
-  else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (IgnoreTag = 0)
+  else if ((DefinerValue = 0) and (SQLSecurityTag = 0) and (IgnoreTag = 0)
     and IsTag(kiVIEW)) then
     Result := ParseAlterViewStmt(AlterTag, AlgorithmValue, DefinerValue, SQLSecurityTag)
   else if (EndOfStmt(CurrentToken)) then
@@ -18964,8 +18962,6 @@ begin
             or (TokenPtr(CurrentToken)^.KeywordIndex = kiLOCALTIME)
             or (TokenPtr(CurrentToken)^.KeywordIndex = kiLOCALTIMESTAMP)
             or (TokenPtr(CurrentToken)^.KeywordIndex = kiNULL)
-            or (TokenPtr(CurrentToken)^.KeywordIndex = kiON)
-            or (TokenPtr(CurrentToken)^.KeywordIndex = kiOFF)
             or (TokenPtr(CurrentToken)^.KeywordIndex = kiTRUE)
             or (TokenPtr(CurrentToken)^.KeywordIndex = kiUNKNOWN))) then
           Nodes.Add(ApplyCurrentToken(utDbIdent))
@@ -19280,8 +19276,6 @@ begin
       CompletionList.AddTag(kiCURRENT_USER);
       CompletionList.AddTag(kiFALSE);
       CompletionList.AddTag(kiNULL);
-      CompletionList.AddTag(kiON);
-      CompletionList.AddTag(kiOFF);
       CompletionList.AddTag(kiTRUE);
       SetError(PE_IncompleteStmt);
     end
@@ -22002,7 +21996,11 @@ begin
     end;
 
   if (not ErrorFound) then
-    Nodes.ValueExpr := ParseExpr();
+    if (IsTag(kiOFF)
+      or IsTag(kiON)) then
+      Nodes.ValueExpr := ApplyCurrentToken(utDbIdent)
+    else
+      Nodes.ValueExpr := ParseExpr();
 
   Result := TSetStmt.TAssignment.Create(Self, Nodes);
 end;

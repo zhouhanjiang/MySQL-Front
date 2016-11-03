@@ -6,8 +6,7 @@ uses
   Controls, Forms, Graphics, Windows, XMLDoc, XMLIntf, Classes, SysUtils,
   Registry, IniFiles, ComCtrls,
   TaskSchd,
-  SynEditHighlighter, SynHighlighterSQL,
-  MySQLDB;
+  SynEditHighlighter, SynHighlighterSQL;
 
 type
   TPAccounts = class;
@@ -701,7 +700,7 @@ type
       Host: string;
       HTTPTunnelURI: string;
       LibraryFilename: TFileName;
-      LibraryType: TMySQLLibrary.TLibraryType;
+      LibraryType: (ltBuiltIn, ltDLL, ltHTTP);
       Password: string;
       Port: Integer;
       Username: string;

@@ -3282,7 +3282,7 @@ begin
   DExport.DialogType := edtNormal;
   DExport.ExportType := ExportType;
   DExport.Job := nil;
-  DExport.SObjects.Clear();
+  DExport.DBObjects.Clear();
   DExport.Window := Window;
 
   if (Window.ActiveControl = ActiveDBGrid) then
@@ -3293,7 +3293,7 @@ begin
     if (((Session.Databases.NameCmp(Database.Name, 'mysql') <> 0) and (Session.Databases.NameCmp(Database.Name, 'sys') <> 0) and (Session.Connection.MySQLVersion >= 50707)) and not (Database is TSSystemDatabase)) then
       for I := 0 to ActiveWorkbench.Tables.Count - 1 do
         if (not Assigned(ActiveWorkbench.Selected) or ActiveWorkbench.Tables[I].Selected) then
-          DExport.SObjects.Add(ActiveWorkbench.Tables[I].BaseTable);
+          DExport.DBObjects.Add(ActiveWorkbench.Tables[I].BaseTable);
   end
   else if ((Window.ActiveControl = ActiveListView) and (ActiveListView.SelCount > 0)) then
   begin
@@ -3304,7 +3304,7 @@ begin
           begin
             Database := TSDatabase(ActiveListView.Items[I].Data);
             if (((Session.Databases.NameCmp(Database.Name, 'mysql') <> 0) and (Session.Databases.NameCmp(Database.Name, 'sys') <> 0) and (Session.Connection.MySQLVersion >= 50707)) and not (Database is TSSystemDatabase)) then
-              DExport.SObjects.Add(Database);
+              DExport.DBObjects.Add(Database);
           end;
 
       iiDatabase:
@@ -3313,7 +3313,7 @@ begin
           if (not (Database is TSSystemDatabase)) then
             for I := 0 to ActiveListView.Items.Count - 1 do
               if (ActiveListView.Items[I].Selected) then
-                DExport.SObjects.Add(TSDBObject(ActiveListView.Items[I].Data));
+                DExport.DBObjects.Add(TSDBObject(ActiveListView.Items[I].Data));
         end;
       iiBaseTable:
         begin
@@ -3321,7 +3321,7 @@ begin
           if (not (Database is TSSystemDatabase)) then
             for I := 0 to ActiveListView.Items.Count - 1 do
               if (ActiveListView.Items[I].Selected and (ActiveListView.Items[I].ImageIndex = iiTrigger)) then
-                DExport.SObjects.Add(TSDBObject(ActiveListView.Items[I].Data));
+                DExport.DBObjects.Add(TSDBObject(ActiveListView.Items[I].Data));
         end;
     end
   end
@@ -3329,13 +3329,13 @@ begin
   begin
     Database := TSDatabase(FocusedSItem);
     if (not (Database is TSSystemDatabase)) then
-      DExport.SObjects.Add(Database);
+      DExport.DBObjects.Add(Database);
   end
   else if (FocusedSItem is TSDBObject) then
   begin
     Database := TSDBObject(FocusedSItem).Database;
     if (not (Database is TSSystemDatabase)) then
-      DExport.SObjects.Add(FocusedSItem);
+      DExport.DBObjects.Add(FocusedSItem);
   end
   else
   begin
@@ -3343,7 +3343,7 @@ begin
       if (((Session.Databases.NameCmp(Session.Databases[I].Name, 'mysql') <> 0)
         and ((Session.Databases.NameCmp(Session.Databases[I].Name, 'sys') <> 0) or (Session.Connection.MySQLVersion < 50707)))
         and not (Session.Databases[I] is TSSystemDatabase)) then
-        DExport.SObjects.Add(Session.Databases[I]);
+        DExport.DBObjects.Add(Session.Databases[I]);
   end;
 
   DExport.Execute();
@@ -3594,7 +3594,7 @@ begin
   DExport.DBGrid := nil;
   DExport.DialogType := edtCreateJob;
   DExport.Job := nil;
-  DExport.SObjects.Clear();
+  DExport.DBObjects.Clear();
   DExport.Window := Window;
   if (DExport.Execute() and not MainAction('aVJobs').Checked) then
   begin
@@ -3646,7 +3646,7 @@ begin
     DExport.DBGrid := nil;
     DExport.DialogType := edtEditJob;
     DExport.Job := TPAccount.TJobExport(Job);
-    DExport.SObjects.Clear();
+    DExport.DBObjects.Clear();
     DExport.Window := Window;
     DExport.Execute();
   end;
@@ -10195,7 +10195,7 @@ begin
     DExport.DBGrid := nil;
     DExport.DialogType := edtExecuteJob;
     DExport.Job := TPAccount.TJobExport(Job);
-    DExport.SObjects.Clear();
+    DExport.DBObjects.Clear();
     DExport.Window := Window;
     DExport.ExportType := etUnknown;
     DExport.Execute();

@@ -6,7 +6,6 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Menus,
   Dialogs, StdCtrls, ComCtrls, DB, ExtCtrls,
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext,
-  MySQLDB,
   fSession, fPreferences, fTools,
   fBase, fFSession;
 
@@ -95,7 +94,10 @@ type
     procedure FSelectChanging(Sender: TObject; Node: TTreeNode;
       var AllowChange: Boolean);
   private
-    Sessions: array of TSSession;
+    Sessions: array of record
+      Created: Boolean;
+      Session: TSSession;
+    end;
     ExecuteSession: TSSession;
     Search: TTSearch;
     ProgressInfos: TTool.TProgressInfos;
@@ -269,11 +271,11 @@ begin
   FSelect.Items.EndUpdate();
 
   for I := 0 to Length(Sessions) - 1 do
-    if (Assigned(Sessions[I])) then
+    if (Assigned(Sessions[I].Session)) then
     begin
-      Sessions[I].UnRegisterEventProc(FormSessionEvent);
-      if (Sessions[I] <> Session) then
-        Sessions[I].Free();
+      Sessions[I].Session.UnRegisterEventProc(FormSessionEvent);
+      if (Sessions[I].Created) then
+        Sessions[I].Session.Free();
     end;
   SetLength(Sessions, 0);
 
@@ -358,10 +360,13 @@ begin
 
   SetLength(Sessions, Accounts.Count);
   for I := 0 to Length(Sessions) - 1 do
+  begin
+    Sessions[I].Created := False;
     if (Assigned(Session) and (Accounts[I] = Session.Account)) then
-      Sessions[I] := Session
+      Sessions[I].Session := Session
     else
-      Sessions[I] := nil;
+      Sessions[I].Session := nil;
+  end;
 
   for I := 0 to Accounts.Count - 1 do
   begin
@@ -444,8 +449,8 @@ begin
   if (Assigned(WantedNodeExpand)) then
   begin
     for I := 0 to Length(Sessions) - 1 do
-      if (Assigned(Sessions[I])) then
-        Sessions[I].UnRegisterEventProc(FormSessionEvent);
+      if (Assigned(Sessions[I].Session)) then
+        Sessions[I].Session.UnRegisterEventProc(FormSessionEvent);
     WantedNodeExpand := nil;
   end;
 
@@ -564,15 +569,22 @@ end;
 
 function TDSearch.GetSession(const Index: Integer): TSSession;
 begin
-  if (not Assigned(Sessions[Index])) then
+  if (not Assigned(Sessions[Index].Session)) then
+    Sessions[Index].Session := fSession.Sessions.SessionByAccount(Accounts[Index]);
+
+  if (not Assigned(Sessions[Index].Session)) then
   begin
-    Sessions[Index] := TSSession.Create(fSession.Sessions, Accounts[Index]);
-    DConnecting.Session := Sessions[Index];
+    DConnecting.Session := TSSession.Create(fSession.Sessions, Accounts[Index]);
     if (not DConnecting.Execute()) then
-      FreeAndNil(Sessions[Index]);
+      DConnecting.Session.Free()
+    else
+    begin
+      Sessions[Index].Created := True;
+      Sessions[Index].Session := DConnecting.Session;
+    end;
   end;
 
-  Result := Sessions[Index];
+  Result := Sessions[Index].Session;
 
   if (Assigned(Result)) then
     Result.RegisterEventProc(FormSessionEvent);

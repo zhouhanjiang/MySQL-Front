@@ -71,7 +71,10 @@ type
       var AllowChange: Boolean);
   private
     ProgressInfos: TTool.TProgressInfos;
-    Sessions: array of TSSession;
+    Sessions: array of record
+      Created: Boolean;
+      Session: TSSession;
+    end;
     Transfer: TTTransfer;
     WantedExecute: Boolean;
     WantedNodeExpand: TTreeNode;
@@ -257,11 +260,11 @@ var
   I: Integer;
 begin
   for I := 0 to Length(Sessions) - 1 do
-    if (Assigned(Sessions[I])) then
+    if (Assigned(Sessions[I].Session)) then
     begin
-      Sessions[I].UnRegisterEventProc(FormSessionEvent);
-      if (Assigned(Sessions[I]) and (Sessions[I] <> SourceSession)) then
-        Sessions[I].Free();
+      Sessions[I].Session.UnRegisterEventProc(FormSessionEvent);
+      if (Sessions[I].Created) then
+        Sessions[I].Session.Free();
     end;
   SetLength(Sessions, 0);
 
@@ -294,10 +297,11 @@ begin
   SetLength(Sessions, Accounts.Count);
   for I := 0 to Length(Sessions) - 1 do
   begin
+    Sessions[I].Created := False;
     if (Assigned(SourceSession) and (Accounts[I] = SourceSession.Account)) then
-      Sessions[I] := SourceSession
+      Sessions[I].Session := SourceSession
     else
-      Sessions[I] := nil;
+      Sessions[I].Session := nil;
   end;
 
 
@@ -342,16 +346,22 @@ end;
 
 function TDTransfer.GetSession(const Index: Integer): TSSession;
 begin
-  if (not Assigned(Sessions[Index])) then
+  if (not Assigned(Sessions[Index].Session)) then
+    Sessions[Index].Session := fSession.Sessions.SessionByAccount(Accounts[Index]);
+
+  if (not Assigned(Sessions[Index].Session)) then
   begin
     DConnecting.Session := TSSession.Create(fSession.Sessions, Accounts[Index]);
     if (not DConnecting.Execute()) then
       DConnecting.Session.Free()
     else
-      Sessions[Index] := DConnecting.Session;
+    begin
+      Sessions[Index].Created := True;
+      Sessions[Index].Session := DConnecting.Session;
+    end;
   end;
 
-  Result := Sessions[Index];
+  Result := Sessions[Index].Session;
 
   if (Assigned(Result)) then
     Result.RegisterEventProc(FormSessionEvent);
@@ -455,8 +465,8 @@ begin
   if (Assigned(WantedNodeExpand)) then
   begin
     for I := 0 to Length(Sessions) - 1 do
-      if (Assigned(Sessions[I])) then
-        Sessions[I].UnRegisterEventProc(FormSessionEvent);
+      if (Assigned(Sessions[I].Session)) then
+        Sessions[I].Session.UnRegisterEventProc(FormSessionEvent);
     WantedNodeExpand := nil;
   end;
 
@@ -712,7 +722,9 @@ begin
               DestinationSession, FDestination.Selected.Text);
         end;
 
-    if (Assigned(Transfer)) then
+    if (not Assigned(Transfer)) then
+      ModalResult := mrCancel
+    else
       Transfer.Start();
   end;
 end;

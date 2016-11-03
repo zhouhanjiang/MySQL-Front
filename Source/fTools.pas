@@ -924,7 +924,7 @@ begin
   if (((Session.Connection.MySQLVersion < 50038) or (50100 <= Session.Connection.MySQLVersion)) and (Session.Connection.MySQLVersion < 50117) and (FileCharset <> '')) then
     if ((Session.Connection.MySQLVersion < 40100) or not Assigned(Session.VariableByName('character_set_database'))) then
       Session.Connection.Charset := FileCharset
-    else if ((Session.VariableByName('character_set_database').Value <> FileCharset) and (Session.Connection.LibraryType <> ltHTTP)) then
+    else if ((Session.VariableByName('character_set_database').Value <> FileCharset) and (Session.Connection.LibraryType <> MySQLDB.ltHTTP)) then
       Result :=
         'SET SESSION character_set_database=' + SQLEscape(FileCharset) + ';' + #13#10
         + Result
@@ -1960,7 +1960,7 @@ begin
     SQL := '';
     if (Session.Databases.NameCmp(Session.Connection.DatabaseName, Database.Name) <> 0) then
       SQL := SQL + Database.SQLUse() + #13#10;
-    if (Session.Connection.Lib.LibraryType <> ltHTTP) then
+    if (Session.Connection.Lib.LibraryType <> MySQLDB.ltHTTP) then
     begin
       if (Session.Connection.MySQLVersion < 40011) then
         SQL := SQL + 'BEGIN;' + #13#10
@@ -2190,7 +2190,7 @@ begin
     end;
     if (Success = daFail) then Success := daSuccess;
 
-    if (Session.Connection.Lib.LibraryType <> ltHTTP) then
+    if (Session.Connection.Lib.LibraryType <> MySQLDB.ltHTTP) then
     begin
       SQL := '';
       if (Structure) then
@@ -8038,7 +8038,7 @@ begin
         else
         begin
           SQL := '';
-          if (DestinationSession.Connection.Lib.LibraryType <> ltHTTP) then
+          if (DestinationSession.Connection.Lib.LibraryType <> MySQLDB.ltHTTP) then
             if (DestinationSession.Connection.MySQLVersion < 40011) then
               SQL := SQL + 'BEGIN;' + #13#10
             else
@@ -8052,7 +8052,7 @@ begin
           SQL := SQL + SQLLoadDataInfile(DestinationDatabase, False, Pipename, DestinationSession.Connection.Charset, DestinationDatabase.Name, DestinationTable.Name, []);
           if ((DestinationSession.Connection.MySQLVersion >= 40000) and DestinationTable.Engine.IsMyISAM and not DataSet.IsEmpty()) then
             SQL := SQL + 'ALTER TABLE ' + DestinationSession.Connection.EscapeIdentifier(DestinationDatabase.Name) + '.' + DestinationSession.Connection.EscapeIdentifier(DestinationTable.Name) + ' ENABLE KEYS;' + #13#10;
-          if (DestinationSession.Connection.Lib.LibraryType <> ltHTTP) then
+          if (DestinationSession.Connection.Lib.LibraryType <> MySQLDB.ltHTTP) then
             SQL := SQL + 'COMMIT;' + #13#10;
 
           DestinationSession.Connection.SendSQL(SQL, SQLExecuted);
@@ -8137,7 +8137,7 @@ begin
         SQLInsertPrefix := 'INSERT INTO ' + EscapedTableName + ' VALUES ';
         SQLInsertPostfix := ';' + #13#10;
 
-        if (DestinationSession.Connection.Lib.LibraryType <> ltHTTP) then
+        if (DestinationSession.Connection.Lib.LibraryType <> MySQLDB.ltHTTP) then
           if (DestinationSession.Connection.MySQLVersion < 40011) then
             SQL := SQL + 'BEGIN;' + #13#10
           else
@@ -8248,7 +8248,7 @@ begin
         if ((DestinationSession.Connection.MySQLVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
           SQL := SQL + 'ALTER TABLE ' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
         SQL := SQL + 'UNLOCK TABLES;' + #13#10;
-        if (DestinationSession.Connection.Lib.LibraryType <> ltHTTP) then
+        if (DestinationSession.Connection.Lib.LibraryType <> MySQLDB.ltHTTP) then
           SQL := SQL + 'COMMIT;' + #13#10;
 
         while ((Success = daSuccess) and not DoExecuteSQL(DestinationSession, SQL)) do
@@ -8265,7 +8265,7 @@ begin
         if ((DestinationSession.Connection.MySQLVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
           SQL := SQL + 'ALTER TABLE ' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
         SQL := SQL + 'UNLOCK TABLES;' + #13#10;
-        if (DestinationSession.Connection.Lib.LibraryType <> ltHTTP) then
+        if (DestinationSession.Connection.Lib.LibraryType <> MySQLDB.ltHTTP) then
           SQL := SQL + 'ROLLBACK;' + #13#10;
         DoExecuteSQL(DestinationSession, SQL);
       end;
@@ -8586,7 +8586,7 @@ begin
           Buffer := nil
         else
         begin
-          if (TTReplace(Self).ReplaceSession.Connection.LibraryType <> ltHTTP) then
+          if (TTReplace(Self).ReplaceSession.Connection.LibraryType <> MySQLDB.ltHTTP) then
           begin
             if (TTReplace(Self).ReplaceSession.Connection.MySQLVersion < 40011) then
               SQL := 'BEGIN;' + #13#10
@@ -8716,7 +8716,7 @@ begin
         end;
 
         if (Self is TTReplace) then
-          if (TTReplace(Self).ReplaceSession.Connection.LibraryType <> ltHTTP) then
+          if (TTReplace(Self).ReplaceSession.Connection.LibraryType <> MySQLDB.ltHTTP) then
           begin
             if (Success = daSuccess) then
               SQL := 'COMMIT;' + #13#10

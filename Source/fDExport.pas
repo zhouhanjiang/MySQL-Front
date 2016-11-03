@@ -245,7 +245,7 @@ type
     Session: TSSession;
     Window: TForm;
     function Execute(): Boolean;
-    property SObjects: TList read FObjects;
+    property DBObjects: TList read FObjects;
   end;
 
 function DExport(): TDExport;
@@ -255,7 +255,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  Registry, Math, StrUtils, RichEdit, DBCommon,
+  Registry, Math, StrUtils, RichEdit, DBCommon, SysConst,
   SQLUtils,
   fDLogin, fDODBC;
 
@@ -280,18 +280,18 @@ var
   I: Integer;
 begin
   Result := nil;
-  for I := 0 to SObjects.Count - 1 do
-    if (TObject(SObjects[I]) is TSDatabase) then
-      if (not Assigned(Result) or (SObjects[I] = Result)) then
-        Result := TSDatabase(SObjects[I])
+  for I := 0 to DBObjects.Count - 1 do
+    if (TObject(DBObjects[I]) is TSDatabase) then
+      if (not Assigned(Result) or (DBObjects[I] = Result)) then
+        Result := TSDatabase(DBObjects[I])
       else
       begin
         Result := nil;
         break;
       end
-    else if (TObject(SObjects[I]) is TSDBObject) then
-      if (not Assigned(Result) or (TSDBObject(SObjects[I]).Database = Result)) then
-        Result := TSDBObject(SObjects[I]).Database
+    else if (TObject(DBObjects[I]) is TSDBObject) then
+      if (not Assigned(Result) or (TSDBObject(DBObjects[I]).Database = Result)) then
+        Result := TSDBObject(DBObjects[I]).Database
       else
       begin
         Result := nil;
@@ -301,7 +301,7 @@ begin
   if (Assigned(DBGrid)) then
     Title := Preferences.LoadStr(362)
   else if (SingleTable) then
-    Title := TSObject(SObjects[0]).Name
+    Title := TSObject(DBObjects[0]).Name
   else if (Assigned(Result)) then
     Title := Result.Name
   else
@@ -394,9 +394,9 @@ begin
 
   Filename := '';
   Title := '';
-  SingleTable := (SObjects.Count = 1) and (TSObject(SObjects[0]) is TSTable);
+  SingleTable := (DBObjects.Count = 1) and (TSObject(DBObjects[0]) is TSTable);
 
-  if ((Assigned(DBGrid) or (SObjects.Count > 0)) and (DialogType = edtNormal)) then
+  if ((Assigned(DBGrid) or (DBObjects.Count > 0)) and (DialogType = edtNormal)) then
     case (ExportType) of
       etODBC:
         if (not GetDataSource()) then
@@ -648,7 +648,7 @@ begin
   TSCSVOptions.Enabled := (ExportType in [etTextFile]) and (Filename <> '');
   TSXMLOptions.Enabled := (ExportType in [etXMLFile]) and (Filename <> '');
   TSHTMLOptions.Enabled := (ExportType in [etHTMLFile, etPDFFile]) and (Filename <> '');
-  TSFields.Enabled := (ExportType in [etExcelFile, etODBC]) and SingleTable and (TObject(SObjects[0]) is TSTable);
+  TSFields.Enabled := (ExportType in [etExcelFile, etODBC]) and SingleTable and (TObject(DBObjects[0]) is TSTable);
   TSTask.Enabled := not TSSQLOptions.Enabled and not TSCSVOptions.Enabled and not TSHTMLOptions.Enabled and not TSFields.Enabled;
 
   TabSheet := nil;
@@ -1150,7 +1150,7 @@ begin
   TSCSVOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etTextFile]);
   TSXMLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etXMLFile]) and not Assigned(DBGrid);
   TSHTMLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etHTMLFile, etPrinter, etPDFFile]);
-  TSFields.Enabled := (DialogType in [edtNormal]) and (ExportType in [etExcelFile, etODBC]) and (SingleTable and (TObject(SObjects[0]) is TSTable) or Assigned(DBGrid)) or (ExportType in [etXMLFile]) and Assigned(DBGrid);
+  TSFields.Enabled := (DialogType in [edtNormal]) and (ExportType in [etExcelFile, etODBC]) and (SingleTable and (TObject(DBObjects[0]) is TSTable) or Assigned(DBGrid)) or (ExportType in [etXMLFile]) and Assigned(DBGrid);
   TSTask.Enabled := False;
   TSExecute.Enabled := not TSSQLOptions.Enabled and not TSCSVOptions.Enabled and not TSHTMLOptions.Enabled and not TSFields.Enabled;
 
@@ -1379,10 +1379,10 @@ var
 begin
   Database := BuildTitle();
 
-  if (SingleTable and (TObject(SObjects[0]) is TSBaseTable)) then
-    Filename := TSBaseTable(SObjects[0]).Name
-  else if (SObjects.Count = 1) then
-    Filename := TSObject(SObjects[0]).Name
+  if (SingleTable and (TObject(DBObjects[0]) is TSBaseTable)) then
+    Filename := TSBaseTable(DBObjects[0]).Name
+  else if (DBObjects.Count = 1) then
+    Filename := TSObject(DBObjects[0]).Name
   else if (Assigned(Database)) then
     Filename := Database.Name
   else if (Assigned(Session)) then
@@ -1495,7 +1495,7 @@ begin
     or (ExportType in [etHTMLFile, etPrinter, etPDFFile]) and not FHTMLStructure.Checked;
 
   if (SingleTable) then
-    SetLength(FSourceFields, TSTable(SObjects[0]).Fields.Count)
+    SetLength(FSourceFields, TSTable(DBObjects[0]).Fields.Count)
   else if (Assigned(DBGrid)) then
     SetLength(FSourceFields, DBGrid.DataSource.DataSet.FieldCount)
   else
@@ -1509,8 +1509,8 @@ begin
 
   FieldNames := #13#10;
   if (SingleTable) then
-    for J := 0 to TSTable(SObjects[0]).Fields.Count - 1 do
-      FieldNames := FieldNames + TSTable(SObjects[0]).Fields[J].Name + #13#10
+    for J := 0 to TSTable(DBObjects[0]).Fields.Count - 1 do
+      FieldNames := FieldNames + TSTable(DBObjects[0]).Fields[J].Name + #13#10
   else if (Assigned(DBGrid)) then
     for J := 0 to DBGrid.FieldCount - 1 do
       FieldNames := FieldNames + DBGrid.DataSource.DataSet.Fields[J].DisplayName + #13#10;
@@ -1582,15 +1582,15 @@ begin
 
   FSQLFile.Enabled := True;
   FTextFile.Enabled := False;
-  FExcelFile.Enabled := (SObjects.Count = 1) and (TObject(SObjects[0]) is TSDatabase);
-  FAccessFile.Enabled := (SObjects.Count = 1) and (TObject(SObjects[0]) is TSDatabase);
-  FODBC.Enabled := (SObjects.Count = 1) and (TObject(SObjects[0]) is TSDatabase);
+  FExcelFile.Enabled := (DBObjects.Count = 1) and (TObject(DBObjects[0]) is TSDatabase);
+  FAccessFile.Enabled := (DBObjects.Count = 1) and (TObject(DBObjects[0]) is TSDatabase);
+  FODBC.Enabled := (DBObjects.Count = 1) and (TObject(DBObjects[0]) is TSDatabase);
   FHTMLFile.Enabled := True;
   FXMLFile.Enabled := True;
   FPDFFile.Enabled := True;
 
-  for I := 0 to SObjects.Count - 1 do
-    if (TObject(SObjects[I]) is TSTable) then
+  for I := 0 to DBObjects.Count - 1 do
+    if (TObject(DBObjects[I]) is TSTable) then
     begin
       FTextFile.Enabled := True;
       FExcelFile.Enabled := True;
@@ -1679,7 +1679,7 @@ var
 begin
   Result := True;
 
-  SObjects.Clear();
+  DBObjects.Clear();
   for I := 0 to FSelect.Items.Count - 1 do
     if (FSelect.Items[I].Selected) then
       if (FSelect.Items[I].ImageIndex = iiServer) then
@@ -1687,12 +1687,12 @@ begin
         Child := FSelect.Items[I].getFirstChild();
         while (Assigned(Child)) do
         begin
-          SObjects.Add(Child.Data);
+          DBObjects.Add(Child.Data);
           Child := Child.getNextSibling();
         end;
       end
       else
-        SObjects.Add(FSelect.Items[I].Data);
+        DBObjects.Add(FSelect.Items[I].Data);
 end;
 
 procedure TDExport.OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
@@ -1824,6 +1824,7 @@ end;
 
 procedure TDExport.TSExecuteShow(Sender: TObject);
 var
+  Answer: Integer;
   I: Integer;
 begin
   Session.UnRegisterEventProc(FormSessionEvent);
@@ -1967,6 +1968,8 @@ begin
 
   if (Assigned(Export)) then
   begin
+    Answer := IDYES;
+
     if (Assigned(DBGrid)) then
     begin
       Export.Add(DBGrid);
@@ -1991,15 +1994,38 @@ begin
     end
     else
     begin
-      for I := 0 to SObjects.Count - 1 do
-        Export.Add(TSDBObject(SObjects[I]));
+      for I := 0 to DBObjects.Count - 1 do
+        if (Answer <> IDCANCEL) then
+        begin
+          if ((TSDBObject(DBObjects[I]).Source = '')
+            and (Answer <> IDYESALL)) then
+            if (TSDBObject(DBObjects[I]) is TSBaseTable) then
+              Answer := MsgBox(Preferences.LoadStr(924, TSDBObject(DBObjects[I]).Database.Name + '.' + TSDBObject(DBObjects[I]).Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
+            else if (TSDBObject(DBObjects[I]) is TSView) then
+              Answer := MsgBox(Preferences.LoadStr(925, TSDBObject(DBObjects[I]).Database.Name + '.' + TSDBObject(DBObjects[I]).Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
+            else if (TSDBObject(DBObjects[I]) is TSProcedure) then
+              Answer := MsgBox(Preferences.LoadStr(926, TSDBObject(DBObjects[I]).Database.Name + '.' + TSDBObject(DBObjects[I]).Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
+            else if (TSDBObject(DBObjects[I]) is TSFunction) then
+              Answer := MsgBox(Preferences.LoadStr(927, TSDBObject(DBObjects[I]).Database.Name + '.' + TSDBObject(DBObjects[I]).Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
+            else if (TSDBObject(DBObjects[I]) is TSTrigger) then
+              Answer := MsgBox(Preferences.LoadStr(928, TSDBObject(DBObjects[I]).Database.Name + '.' + TSDBObject(DBObjects[I]).Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
+            else if (TSDBObject(DBObjects[I]) is TSEvent) then
+              Answer := MsgBox(Preferences.LoadStr(929, TSDBObject(DBObjects[I]).Database.Name + '.' + TSDBObject(DBObjects[I]).Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
+            else
+              raise ERangeError.Create(SRangeError);
+            if (Answer = IDNO) then
+              Answer := IDCANCEL;
 
-      if (SingleTable) then
+          if (TSDBObject(DBObjects[I]).Source <> '') then
+            Export.Add(TSDBObject(DBObjects[I]));
+        end;
+
+      if ((Answer <> IDCANCEL) and SingleTable) then
         for I := 0 to Length(FSourceFields) - 1 do
           if (FSourceFields[I].ItemIndex > 0) then
           begin
             SetLength(Export.TableFields, Length(Export.TableFields) + 1);
-            Export.TableFields[Length(Export.TableFields) - 1] := TSTable(SObjects[0]).Fields[FSourceFields[I].ItemIndex - 1];
+            Export.TableFields[Length(Export.TableFields) - 1] := TSTable(DBObjects[0]).Fields[FSourceFields[I].ItemIndex - 1];
             SetLength(Export.DestinationFields, Length(Export.DestinationFields) + 1);
             if (Length(FDestinationFields) = 0) then
               Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := FSourceFields[I].Text
@@ -2008,11 +2034,19 @@ begin
           end;
     end;
 
-    Export.Wnd := Handle;
-    Export.OnTerminate := OnTerminate;
-    Export.OnUpdate := OnUpdate;
-    Export.OnError := OnError;
-    Export.Start();
+    if ((Answer = IDCANCEL) or (Export.Items.Count = 0)) then
+    begin
+      FreeAndNil(Export);
+      ModalResult := mrCancel;
+    end
+    else
+    begin
+      Export.Wnd := Handle;
+      Export.OnTerminate := OnTerminate;
+      Export.OnUpdate := OnUpdate;
+      Export.OnError := OnError;
+      Export.Start();
+    end;
   end;
 end;
 
@@ -2127,11 +2161,11 @@ var
 begin
   DatabaseCount := 0;
   OldDatabase := nil;
-  for I := 0 to SObjects.Count - 1 do
+  for I := 0 to DBObjects.Count - 1 do
   begin
-    if (TSDBObject(SObjects[I]).Database <> OldDatabase) then
+    if (TSDBObject(DBObjects[I]).Database <> OldDatabase) then
       Inc(DatabaseCount);
-    OldDatabase := TSDBObject(SObjects[I]).Database;
+    OldDatabase := TSDBObject(DBObjects[I]).Database;
   end;
 
   FDatabaseNodeDisabled.Enabled := DatabaseCount <= 1;
@@ -2250,35 +2284,35 @@ begin
     or (DialogType = edtNormal)) then
   begin
     I := 0;
-    while (I < SObjects.Count) do
-      if (TObject(SObjects[I]) is TSDatabase) then
+    while (I < DBObjects.Count) do
+      if (TObject(DBObjects[I]) is TSDatabase) then
       begin
-        Database := TSDatabase(SObjects[I]);
+        Database := TSDatabase(DBObjects[I]);
         if (not Database.Valid) then
           Inc(I)
         else
         begin
           for J := 0 to Database.Tables.Count - 1 do
-            if (SObjects.IndexOf(Database.Tables[J]) < 0) then
-              SObjects.Add(Database.Tables[J]);
+            if (DBObjects.IndexOf(Database.Tables[J]) < 0) then
+              DBObjects.Add(Database.Tables[J]);
           if (Assigned(Database.Routines)) then
             for J := 0 to Database.Routines.Count - 1 do
-              if (SObjects.IndexOf(Database.Routines[J]) < 0) then
-                SObjects.Add(Database.Routines[J]);
+              if (DBObjects.IndexOf(Database.Routines[J]) < 0) then
+                DBObjects.Add(Database.Routines[J]);
           if (Assigned(Database.Events)) then
             for J := 0 to Database.Events.Count - 1 do
-              if (SObjects.IndexOf(Database.Events[J]) < 0) then
-                SObjects.Add(Database.Events[J]);
-          SObjects.Delete(I);
+              if (DBObjects.IndexOf(Database.Events[J]) < 0) then
+                DBObjects.Add(Database.Events[J]);
+          DBObjects.Delete(I);
         end;
       end
-      else if (TObject(SObjects[I]) is TSBaseTable) then
+      else if (TObject(DBObjects[I]) is TSBaseTable) then
       begin
-        Table := TSBaseTable(SObjects[I]);
+        Table := TSBaseTable(DBObjects[I]);
         if (Assigned(Table.Database.Triggers)) then
           for J := 0 to Table.TriggerCount - 1 do
-            if (SObjects.IndexOf(Table.Triggers[J]) < 0) then
-              SObjects.Add(Table.Triggers[J]);
+            if (DBObjects.IndexOf(Table.Triggers[J]) < 0) then
+              DBObjects.Add(Table.Triggers[J]);
         Inc(I);
       end
       else
@@ -2288,7 +2322,7 @@ begin
   BuildTitle();
 
 
-  Message.Result := LRESULT(Session.Update(SObjects));
+  Message.Result := LRESULT(Session.Update(DBObjects));
   if (Boolean(Message.Result)) then
     if (Assigned(WantedNodeExpand)) then
       WantedNodeExpand.Expand(False)

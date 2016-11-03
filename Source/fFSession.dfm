@@ -786,8 +786,8 @@ object FSession: TFSession
         end
       end
       object FFilter: TComboBox_Ext
-        Left = 142
-        Top = 0
+        Left = 136
+        Top = -3
         Width = 198
         Height = 22
         Constraints.MinWidth = 100

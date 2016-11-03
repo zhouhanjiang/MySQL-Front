@@ -175,7 +175,7 @@ begin
   FLComment.Visible := FComment.Visible;
   if (FComment.Visible) then
     FComment.Caption := Session.VariableByName('version_comment').Value;
-  if (Session.Connection.LibraryType = ltDLL) then
+  if (Session.Connection.LibraryType = MySQLDB.ltDLL) then
     FLibVersion.Caption := Session.Connection.Lib.VersionStr
   else
     FLibVersion.Caption := Preferences.LoadStr(649);

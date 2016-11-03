@@ -3478,6 +3478,9 @@ begin
 
   if (Assigned(TempSyncThread)) then
   begin
+    {$IFDEF Debug}
+      MessageBox(0, 'Terminate!', 'Warning', MB_OK + MB_ICONWARNING);
+    {$ENDIF}
     if (TempSyncThread.IsRunning) then
     begin
       S := '----> Connection Terminated <----';
@@ -5581,7 +5584,7 @@ end;
 procedure TMySQLDataSet.InternalClose();
 begin
   Connection.TerminateCS.Enter();
-  if (Connection.InUse()) then
+  if (Assigned(SyncThread) and (SyncThread = Connection.SyncThread) and Connection.InUse()) then
     Connection.Terminate();
   Connection.TerminateCS.Leave();
 

@@ -128,8 +128,9 @@ end;
 
 procedure TDAccount.FBDatabaseClick(Sender: TObject);
 var
-  Session: TSSession;
   LibraryName: string;
+  LibraryType: TMySQLLibrary.TLibraryType;
+  Session: TSSession;
 begin
   if (CheckConnectInfos()) then
   begin
@@ -137,13 +138,18 @@ begin
     if (Assigned(Session)) then
     begin
       case (FConnectionType.ItemIndex) of
-        0: LibraryName := '';
+        1: LibraryType := ltDLL;
+        2: LibraryType := ltHTTP;
+        else LibraryType := ltBuiltIn;
+      end;
+      case (FConnectionType.ItemIndex) of
         1: LibraryName := FLibraryFilename.Text;
         2: LibraryName := FHTTPTunnelURI.Text;
+        else LibraryName := '';
       end;
 
       Session.Connection.BeginSilent();
-      Session.Connection.Connect(FConnectionType.ItemIndex, LibraryName, FHost.Text, FUser.Text, FPassword.Text, '', FUDPort.Position, True);
+      Session.Connection.Connect(LibraryType, LibraryName, FHost.Text, FUser.Text, FPassword.Text, '', FUDPort.Position, True);
       if (Session.Connection.ErrorCode <> 0) then
         Session.Connection.OnSQLError(Session.Connection, Session.Connection.ErrorCode, Session.Connection.ErrorMessage)
       else if (Session.Connection.Connected) then
@@ -262,9 +268,9 @@ begin
       NewAccount.Connection.Host := Trim(FHost.Text);
       NewAccount.Connection.Port := FUDPort.Position;
       case (FConnectionType.ItemIndex) of
-        0: NewAccount.Connection.LibraryType := ltBuiltIn;
-        1: NewAccount.Connection.LibraryType := ltDLL;
-        2: NewAccount.Connection.LibraryType := ltHTTP;
+        0: NewAccount.Connection.LibraryType := fPreferences.ltBuiltIn;
+        1: NewAccount.Connection.LibraryType := fPreferences.ltDLL;
+        2: NewAccount.Connection.LibraryType := fPreferences.ltHTTP;
       end;
       NewAccount.Connection.LibraryFilename := Trim(FLibraryFilename.Text);
       NewAccount.Connection.HTTPTunnelURI := Trim(FHTTPTunnelURI.Text);
@@ -348,9 +354,9 @@ begin
     else
       FUDPort.Position := Account.Connection.Port;
     case (Account.Connection.LibraryType) of
-      ltBuiltIn: FConnectionType.ItemIndex := 0;
-      ltDLL: FConnectionType.ItemIndex := 1;
-      ltHTTP: FConnectionType.ItemIndex := 2;
+      fPreferences.ltBuiltIn: FConnectionType.ItemIndex := 0;
+      fPreferences.ltDLL: FConnectionType.ItemIndex := 1;
+      fPreferences.ltHTTP: FConnectionType.ItemIndex := 2;
     end;
     FLibraryFilename.Text := Account.Connection.LibraryFilename;
     FHTTPTunnelURI.Text := Account.Connection.HTTPTunnelURI;

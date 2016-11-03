@@ -531,9 +531,9 @@ const
   begin
     case MsgDlgBtn of
       mbYes:         Result := Preferences.LoadStr(74);
-      mbYesToAll:    Result := Preferences.LoadStr(74) + ', ' + LowerCase(Preferences.LoadStr(214));
+      mbYesToAll:    Result := Preferences.LoadStr(930);
       mbNo:          Result := Preferences.LoadStr(75);
-      mbNoToAll:     Result := Preferences.LoadStr(75) + ', ' + LowerCase(Preferences.LoadStr(214));
+      mbNoToAll:     Result := Preferences.LoadStr(931);
       mbOK:          Result := Preferences.LoadStr(29);
       mbCancel:      Result := Preferences.LoadStr(30);
       mbAbort:       Result := 'Abort';
