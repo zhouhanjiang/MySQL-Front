@@ -1146,7 +1146,9 @@ begin
   HDItem.Mask := HDI_FORMAT;
   if (DataLink.DataSet is TMySQLDataSet) then
     for I := LeftCol to Columns.Count - 1 do
-      if (Columns[I].Visible and BOOL(SendMessage(Header, HDM_GETITEM, Index, LParam(@HDItem)))) then
+      if (Columns[I].Visible
+        and Assigned(Columns[I].Field)
+        and BOOL(SendMessage(Header, HDM_GETITEM, Index, LParam(@HDItem)))) then
       begin
         if (Columns[I].Field.Tag and ftAscSortedField <> 0) then
           HDItem.fmt := HDItem.fmt and not HDF_SORTUP or HDF_SORTUP
