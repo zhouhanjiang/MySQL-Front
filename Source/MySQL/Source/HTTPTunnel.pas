@@ -188,7 +188,6 @@ var
   HttpRequestError: Longint;
   Index: DWord;
   InternetError: Longint;
-  Len: DWord;
   ObjectName: string;
   pvData: Pointer;
   QueryInfo: array [0..2048] of Char;
@@ -262,16 +261,16 @@ begin
             ZeroMemory(@StatusCode, SizeOf(StatusCode));
             repeat
               ResponseReceived.WaitFor(50);
-              Len := Length(StatusCode); Index := 0;
-            until (HttpQueryInfo(Request, HTTP_QUERY_STATUS_CODE, @StatusCode, Len, Index) or (Len = 0) or (SysUtils.StrToInt(StrPas(PChar(@StatusCode))) <> 0));
+              Size := SizeOf(StatusCode); Index := 0;
+            until (HttpQueryInfo(Request, HTTP_QUERY_STATUS_CODE, @StatusCode, Size, Index) or (Size = 0) or (SysUtils.StrToInt(StatusCode) <> 0));
 
-            case (SysUtils.StrToInt(StrPas(PChar(@StatusCode)))) of
+            case (SysUtils.StrToInt(StatusCode)) of
               HTTP_STATUS_FORBIDDEN:
                 begin
-                  Seterror(CR_HTTPTUNNEL_ACCESS_DENIED_ERROR, my_char(EncodeString(StrPas(PChar(@StatusCode)))));
-                  Len := Length(QueryInfo); Index := 0;
-                  if (HttpQueryInfo(Request, HTTP_QUERY_STATUS_TEXT, @QueryInfo, Len, Index)) then
-                    Seterror(CR_HTTPTUNNEL_ACCESS_DENIED_ERROR, my_char(EncodeString(DecodeString(StrPas(error())) + ' ' + StrPas(PChar(@QueryInfo)))));
+                  Seterror(CR_HTTPTUNNEL_ACCESS_DENIED_ERROR, my_char(RawByteString(StatusCode)));
+                  Size := SizeOf(QueryInfo); Index := 0;
+                  if (HttpQueryInfo(Request, HTTP_QUERY_STATUS_TEXT, @QueryInfo, Size, Index)) then
+                    Seterror(CR_HTTPTUNNEL_ACCESS_DENIED_ERROR, my_char(error() + ' ' + RawByteString(QueryInfo)));
                 end;
               HTTP_STATUS_REDIRECT,
               HTTP_STATUS_REDIRECT_METHOD:
@@ -301,9 +300,9 @@ begin
                 begin
                   Size := SizeOf(QueryInfo); Index := 0;
                   if (not HttpQueryInfo(Request, HTTP_QUERY_STATUS_TEXT, @QueryInfo, Size, Index)) then
-                    Seterror(CR_HTTPTUNNEL_SERVER_ERROR, my_char(EncodeString(StrPas(PChar(@StatusCode)))))
+                    Seterror(CR_HTTPTUNNEL_SERVER_ERROR, my_char(RawByteString(StatusCode)))
                   else
-                    Seterror(CR_HTTPTUNNEL_SERVER_ERROR, my_char(EncodeString(StrPas(PChar(@StatusCode)) + ' ' + StrPas(PChar(@QueryInfo)))));
+                    Seterror(CR_HTTPTUNNEL_SERVER_ERROR, my_char(RawByteString(StatusCode) + ' ' + RawByteString(QueryInfo)));
                 end;
             end;
           end;
