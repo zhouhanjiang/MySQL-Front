@@ -1997,7 +1997,8 @@ begin
       for I := 0 to DBObjects.Count - 1 do
         if (Answer <> IDCANCEL) then
         begin
-          if ((TSDBObject(DBObjects[I]).Source = '')
+          if ((ExportType in [etSQLFile, etExcelFile, etAccessFile, etODBC])
+            and (TSDBObject(DBObjects[I]).Source = '')
             and (Answer <> IDYESALL)) then
             if (TSDBObject(DBObjects[I]) is TSBaseTable) then
               Answer := MsgBox(Preferences.LoadStr(924, TSDBObject(DBObjects[I]).Database.Name + '.' + TSDBObject(DBObjects[I]).Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
@@ -2016,7 +2017,8 @@ begin
             if (Answer = IDNO) then
               Answer := IDCANCEL;
 
-          if (TSDBObject(DBObjects[I]).Source <> '') then
+          if (not ((ExportType in [etSQLFile, etExcelFile, etAccessFile, etODBC]))
+            or (TSDBObject(DBObjects[I]).Source <> '')) then
             Export.Add(TSDBObject(DBObjects[I]));
         end;
 
