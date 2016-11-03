@@ -1997,7 +1997,7 @@ begin
       for I := 0 to DBObjects.Count - 1 do
         if (Answer <> IDCANCEL) then
         begin
-          if ((ExportType in [etSQLFile, etExcelFile, etAccessFile, etODBC])
+          if ((ExportType = etSQLFile)
             and (TSDBObject(DBObjects[I]).Source = '')
             and (Answer <> IDYESALL)) then
             if (TSDBObject(DBObjects[I]) is TSBaseTable) then
@@ -2017,8 +2017,7 @@ begin
             if (Answer = IDNO) then
               Answer := IDCANCEL;
 
-          if (not ((ExportType in [etSQLFile, etExcelFile, etAccessFile, etODBC]))
-            or (TSDBObject(DBObjects[I]).Source <> '')) then
+          if ((ExportType <> etSQLFile) or (TSDBObject(DBObjects[I]).Source <> '')) then
             Export.Add(TSDBObject(DBObjects[I]));
         end;
 
