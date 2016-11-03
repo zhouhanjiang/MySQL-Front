@@ -15213,7 +15213,7 @@ begin
     Nodes.Ident := ParseTableIdent();
 
 
-  Found := True; OldCurrentToken := CurrentToken;
+  Found := True; OldCurrentToken := CurrentToken; 
   while (not ErrorFound and Found) do
   begin
 
@@ -15489,11 +15489,17 @@ begin
       Specifications.Add(ParseSymbol(ttComma));
   end;
 
-  if (not ErrorFound and (CurrentToken = OldCurrentToken)) then
-    if (EndOfStmt(CurrentToken)) then
+  if (not ErrorFound) then
+    if (EndOfStmt(CurrentToken) 
+      and (Specifications.Count > 0) 
+      and IsToken(Specifications[Specifications.Count - 1]) 
+      and (TokenPtr(Specifications[Specifications.Count - 1])^.TokenType = ttComma)) then
       SetError(PE_IncompleteStmt)
-    else
-      SetError(PE_UnexpectedToken);
+    else if (CurrentToken = OldCurrentToken) then
+      if (EndOfStmt(CurrentToken)) then
+        SetError(PE_IncompleteStmt)
+      else
+        SetError(PE_UnexpectedToken);
 
   if (not ErrorFound) then
     if (IsTag(kiPARTITION, kiBY)) then
@@ -17059,12 +17065,16 @@ begin
             else if (IsTag(kiCURRENT_TIMESTAMP)
               or IsTag(kiNULL)) then
               Nodes.Real.Default.Expr := ParseTag(TokenPtr(CurrentToken)^.KeywordIndex)
-            else if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType = ttInteger)) then
+            else if (EndOfStmt(CurrentToken)) then
+              SetError(PE_IncompleteStmt)
+            else if (TokenPtr(CurrentToken)^.TokenType = ttInteger) then
               Nodes.Real.Default.Expr := ApplyCurrentToken(utInteger)
-            else if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType = ttNumeric)) then
+            else if (TokenPtr(CurrentToken)^.TokenType = ttNumeric) then
               Nodes.Real.Default.Expr := ApplyCurrentToken(utNumeric)
+            else if ((TokenPtr(CurrentToken)^.TokenType = ttString) or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and not AnsiQuotes) then
+              Nodes.Real.Default.Expr := ApplyCurrentToken(utString)
             else
-              Nodes.Real.Default.Expr := ApplyCurrentToken(utString);
+              SetError(PE_UnexpectedToken);
         end
         else if ((Nodes.Real.OnUpdateTag = 0) and IsTag(kiON, kiUPDATE)
           and (not EndOfStmt(NextToken[2]) and ((TokenPtr(NextToken[2])^.KeywordIndex = kiCURRENT_TIMESTAMP) or (TokenPtr(NextToken[2])^.KeywordIndex = kiCURRENT_TIME) or (TokenPtr(NextToken[2])^.KeywordIndex = kiCURRENT_DATE)))) then
@@ -17182,6 +17192,7 @@ begin
   if (IsTag(kiPRIMARY, kiKEY)
     or IsTag(kiUNIQUE, kiINDEX)
     or IsTag(kiUNIQUE, kiKEY)
+    or IsTag(kiUNIQUE)
     or (ConstraintNode = 0) and IsTag(kiFULLTEXT, kiINDEX)
     or (ConstraintNode = 0) and IsTag(kiFULLTEXT, kiKEY)
     or (ConstraintNode = 0) and IsTag(kiSPATIAL, kiINDEX)
@@ -21088,7 +21099,12 @@ begin
 
   CurrentToken := GetToken(0); // Cache for speeding
 
-  StmtList := ParseList(False, ParseStmt, ttSemicolon, True, True);
+  try
+    StmtList := ParseList(False, ParseStmt, ttSemicolon, True, True);
+  except
+    on E: Exception do
+      raise Exception.Create('Error in SQLParser:' + #13#10#13#10 + Text);
+  end;
 
   Result := TRoot.Create(Self, FirstTokenAll, StmtList);
 
@@ -24171,9 +24187,10 @@ begin
         SUB ECX,2                        // Two characters handled
       MLCommentL:
         CMP ECX,1                        // Last characters in SQL?
-        JE MLCommentLE
-        CMP EAX,$002F002A
-        JE DoubleChar
+        JE MLCommentLE                   // Yes!
+        MOV EAX,[ESI]                    // Get two character from SQL
+        CMP EAX,$002F002A                // "*/"?
+        JE DoubleChar                    // Yes!
       MLCommentLE:
         ADD ESI,2                        // Next character in SQL
         LOOP MLCommentL
