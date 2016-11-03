@@ -212,7 +212,6 @@ type
         ntDeclareConditionStmt,
         ntDeclareCursorStmt,
         ntDeclareHandlerStmt,
-        ntDeclareHandlerStmtCondition,
         ntDefaultFunc,
         ntDeleteStmt,
         ntDoStmt,
@@ -347,7 +346,6 @@ type
         ntStartTransactionStmt,
         ntStopSlaveStmt,
         ntSubArea,
-        ntSubAreaSelectStmt,
         ntSubPartition,
         ntSubquery,
         ntSubstringFunc,
@@ -497,7 +495,6 @@ type
         stStartSlave,
         stStartTransaction,
         stStopSlave,
-        stSubAreaSelect,
         stTruncate,
         stUnknown,
         stUnlockTables,
@@ -715,7 +712,6 @@ type
         'ntDeclareConditionStmt',
         'ntDeclareCursorStmt',
         'ntDeclareHandlerStmt',
-        'ntDeclareHandlerStmtCondition',
         'ntDefaultFunc',
         'ntDeleteStmt',
         'ntDoStmt',
@@ -850,7 +846,6 @@ type
         'ntStartTransactionStmt',
         'ntStopSlaveStmt',
         'ntSubArea',
-        'ntSubAreaSelect',
         'ntSubPartition',
         'ntSubquery',
         'ntSubstringFunc',
@@ -1000,7 +995,6 @@ type
         'stStartSlave',
         'stStartTransaction',
         'stStopSlave',
-        'stSubAreaSelect',
         'stTruncate',
         'stUnknown',
         'stUnlockTables',
@@ -1281,7 +1275,6 @@ type
         ntStartSlaveStmt,
         ntStartTransactionStmt,
         ntStopSlaveStmt,
-        ntSubAreaSelectStmt,
         ntTruncateStmt,
         ntUnknownStmt,
         ntUnlockTablesStmt,
@@ -1503,7 +1496,6 @@ type
         ntStartSlaveStmt,
         ntStartTransactionStmt,
         ntStopSlaveStmt,
-        ntSubAreaSelectStmt,
         ntTruncateStmt,
         ntUnknownStmt,
         ntUnlockTablesStmt,
@@ -14676,6 +14668,7 @@ begin
     ntCreateServerStmt: Result := SizeOf(TCreateServerStmt);
     ntCreateTablespaceStmt: Result := SizeOf(TCreateTablespaceStmt);
     ntCreateTableStmt: Result := SizeOf(TCreateTableStmt);
+    ntCreateTableStmtCheck: Result := SizeOf(TCreateTableStmt.TCheck);
     ntCreateTableStmtField: Result := SizeOf(TCreateTableStmt.TField);
     ntCreateTableStmtForeignKey: Result := SizeOf(TCreateTableStmt.TForeignKey);
     ntCreateTableStmtKey: Result := SizeOf(TCreateTableStmt.TKey);
@@ -14694,6 +14687,7 @@ begin
     ntDeclareConditionStmt: Result := SizeOf(TDeclareConditionStmt);
     ntDeclareCursorStmt: Result := SizeOf(TDeclareCursorStmt);
     ntDeclareHandlerStmt: Result := SizeOf(TDeclareHandlerStmt);
+    ntDefaultFunc: Result := SizeOf(TDefaultFunc);
     ntDeleteStmt: Result := SizeOf(TDeleteStmt);
     ntDoStmt: Result := SizeOf(TDoStmt);
     ntDropDatabaseStmt: Result := SizeOf(TDropDatabaseStmt);
@@ -14714,10 +14708,7 @@ begin
     ntFetchStmt: Result := SizeOf(TFetchStmt);
     ntFlushStmt: Result := SizeOf(TFlushStmt);
     ntFlushStmtOption: Result := SizeOf(TFlushStmt.TOption);
-    ntDefaultFunc: Result := SizeOf(TDefaultFunc);
     ntFunctionReturns: Result := SizeOf(TFunctionReturns);
-    ntIfStmt: Result := SizeOf(TIfStmt);
-    ntIfStmtBranch: Result := SizeOf(TIfStmt.TBranch);
     ntGetDiagnosticsStmt: Result := SizeOf(TGetDiagnosticsStmt);
     ntGetDiagnosticsStmtStmtInfo: Result := SizeOf(TGetDiagnosticsStmt.TStmtInfo);
     ntGetDiagnosticsStmtCondInfo: Result := SizeOf(TGetDiagnosticsStmt.TStmtInfo);
@@ -14727,6 +14718,8 @@ begin
     ntGroupConcatFunc: Result := SizeOf(TGroupConcatFunc);
     ntGroupConcatFuncExpr: Result := SizeOf(TGroupConcatFunc.TExpr);
     ntHelpStmt: Result := SizeOf(THelpStmt);
+    ntIfStmt: Result := SizeOf(TIfStmt);
+    ntIfStmtBranch: Result := SizeOf(TIfStmt.TBranch);
     ntInsertStmtSetItem: Result := SizeOf(TInsertStmt.TSetItem);
     ntInOp: Result := SizeOf(TInOp);
     ntInsertStmt: Result := SizeOf(TInsertStmt);
@@ -14778,7 +14771,6 @@ begin
     ntSetStmtAssignment: Result := SizeOf(TSetStmt.TAssignment);
     ntSetTransactionStmt: Result := SizeOf(TSetTransactionStmt);
     ntSetTransactionStmtCharacteristic: Result := SizeOf(TSetTransactionStmt.TCharacteristic);
-    ntTrimFunc: Result := SizeOf(TTrimFunc);
     ntShowBinaryLogsStmt: Result := SizeOf(TShowBinaryLogsStmt);
     ntShowBinlogEventsStmt: Result := SizeOf(TShowBinlogEventsStmt);
     ntShowCharacterSetStmt: Result := SizeOf(TShowCharacterSetStmt);
@@ -14833,6 +14825,7 @@ begin
     ntSubquery: Result := SizeOf(TSubquery);
     ntSubstringFunc: Result := SizeOf(TSubstringFunc);
     ntTag: Result := SizeOf(TTag);
+    ntTrimFunc: Result := SizeOf(TTrimFunc);
     ntTruncateStmt: Result := SizeOf(TTruncateStmt);
     ntUnaryOp: Result := SizeOf(TUnaryOp);
     ntUnknownStmt: Result := SizeOf(TUnknownStmt);
