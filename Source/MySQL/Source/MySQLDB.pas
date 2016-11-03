@@ -3077,8 +3077,11 @@ procedure TMySQLConnection.SyncDisconnecting(const SyncThread: TSyncThread);
 begin
   Assert(Assigned(SyncThread.LibHandle));
 
-  Lib.mysql_close(SyncThread.LibHandle);
-  SyncThread.LibHandle := nil;
+  if (Assigned(SyncThread.LibHandle)) then
+  begin
+    Lib.mysql_close(SyncThread.LibHandle);
+    SyncThread.LibHandle := nil;
+  end;
 end;
 
 procedure TMySQLConnection.SyncDisconnected(const SyncThread: TSyncThread);
@@ -5342,7 +5345,9 @@ end;
 
 function TMySQLDataSet.GetLibRow(): MYSQL_ROW;
 begin
-  if (not Active or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
+  if (not Active
+    or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
+    or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
     Result := nil
   else
     Result := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow;

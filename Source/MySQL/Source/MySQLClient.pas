@@ -663,7 +663,10 @@ end;
 
 function mysql_field_count(mysql: MYSQL): my_uint; stdcall;
 begin
-  Result := mysql.res.FieldCount;
+  if (not Assigned(mysql.res)) then
+    Result := 0
+  else
+    Result := mysql.res.FieldCount;
 end;
 
 procedure mysql_free_result(res: MYSQL_RES); stdcall;
@@ -2744,10 +2747,7 @@ begin
     Result := nil;
   end
   else if (FieldCount = 0) then
-  begin
-    Seterror(CR_UNKNOWN_ERROR);
-    Result := nil;
-  end
+    Result := nil
   else
   begin
     fres := MYSQL_RES.Create(Self, FieldCount);

@@ -613,30 +613,25 @@ begin
 end;
 
 procedure TWWindow.ApplicationException(Sender: TObject; E: Exception);
-var
-  Msg: string;
 begin
   if (E.Message <> SRecordChanged) then
   begin
     DisableApplicationActivate := True;
 
-    Msg := 'Internal Program Bug:' + #13#10 + E.Message;
-
     {$IFNDEF EurekaLog}
-    if ((AvailableUpdate < 0) and IsConnectedToInternet()) then
+    if ((AvailableUpdateVersion < 0) and IsConnectedToInternet()) then
     begin
       CheckUpdateThread := TCheckUpdateThread.Create(True);
       CheckUpdateThread.Stream := TStringStream.Create('');
       CheckUpdateThread.Execute();
       CheckUpdateThread.Stream.Free();
-
       CheckUpdateThread.Free();
     end;
     {$ENDIF}
 
-    MsgBox(Msg, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+    MsgBox('Internal Program Bug:' + #13#10 + E.Message, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
 
-    if (AvailableUpdate > Preferences.Version) then
+    if (Preferences.Version < AvailableUpdateVersion) then
       PostMessage(Handle, UM_UPDATEAVAILABLE, 0, 0);
 
     DisableApplicationActivate := False;
@@ -922,20 +917,17 @@ begin
 
   try Accounts.Save(); except end;
 
-  if ((0 < AvailableUpdate) and (AvailableUpdate < Preferences.Version)) then
-    Handled := False
-  else
+  if ((AvailableUpdateVersion < 0) and IsConnectedToInternet()) then
   begin
     CheckUpdateThread := TCheckUpdateThread.Create(True);
     CheckUpdateThread.Stream := TStringStream.Create('');
     CheckUpdateThread.Execute();
     CheckUpdateThread.Stream.Free();
-
-    UpdateAvailable := AvailableUpdate > Preferences.Version;
-    Handled := not UpdateAvailable;
-
     CheckUpdateThread.Free();
   end;
+
+  UpdateAvailable := Preferences.Version < AvailableUpdateVersion;
+  Handled := (AvailableUpdateVersion < 0) or not UpdateAvailable;
 end;
 {$ENDIF}
 

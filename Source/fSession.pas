@@ -9347,7 +9347,7 @@ begin
       for I := 0 to TList(Self).Count - 1 do
         Engine[I].FDefault := StrIComp(PChar(Engine[I].Name), PChar(Session.VariableByName('storage_engine').Value)) = 0;
   end
-  else if (not DataSet.IsEmpty()) then
+  else if (Assigned(DataSet) and not DataSet.IsEmpty()) then
     repeat
       if ((not UseInformationSchema and (StrIComp(PChar(DataSet.FieldByName('Support').AsString), 'NO') <> 0) and (StrIComp(PChar(DataSet.FieldByName('Support').AsString), 'DISABLED') <> 0))
         or (UseInformationSchema and (StrIComp(PChar(DataSet.FieldByName('SUPPORT').AsString), 'NO') <> 0) and (StrIComp(PChar(DataSet.FieldByName('SUPPORT').AsString), 'DISABLED') <> 0))) then
@@ -9696,7 +9696,7 @@ begin
       end;
     end;
   end
-  else if (not DataSet.IsEmpty()) then
+  else if (Assigned(DataSet) and not DataSet.IsEmpty()) then
     repeat
       if (not UseInformationSchema) then
         Name := DataSet.FieldByName('Charset').AsString
@@ -11043,7 +11043,7 @@ begin
   FSyntaxProvider.ServerVersionInt := Connection.MySQLVersion;
   FUser := nil;
   ManualURL := '';
-  ParseEndDate := EncodeDate(2016, 11, 07);
+  ParseEndDate := EncodeDate(2016, 11, 10);
   UnparsableSQL := '';
 
   if (not Assigned(AAccount)) then

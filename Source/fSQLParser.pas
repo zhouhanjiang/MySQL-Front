@@ -17054,13 +17054,17 @@ begin
           Nodes.Real.Default.Tag := ParseTag(kiDEFAULT);
 
           if (not ErrorFound) then
-            if (IsTag(kiCURRENT_TIMESTAMP)
+            if (IsTag(kiCURRENT_TIMESTAMP) and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.TokenType = ttOpenBracket)) then
+              Nodes.Real.Default.Expr := ParseDefaultFunc()
+            else if (IsTag(kiCURRENT_TIMESTAMP)
               or IsTag(kiNULL)) then
               Nodes.Real.Default.Expr := ParseTag(TokenPtr(CurrentToken)^.KeywordIndex)
             else if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType = ttInteger)) then
-              Nodes.Real.Default.Expr := ParseInteger()
+              Nodes.Real.Default.Expr := ApplyCurrentToken(utInteger)
+            else if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType = ttNumeric)) then
+              Nodes.Real.Default.Expr := ApplyCurrentToken(utNumeric)
             else
-              Nodes.Real.Default.Expr := ParseString();
+              Nodes.Real.Default.Expr := ApplyCurrentToken(utString);
         end
         else if ((Nodes.Real.OnUpdateTag = 0) and IsTag(kiON, kiUPDATE)
           and (not EndOfStmt(NextToken[2]) and ((TokenPtr(NextToken[2])^.KeywordIndex = kiCURRENT_TIMESTAMP) or (TokenPtr(NextToken[2])^.KeywordIndex = kiCURRENT_TIME) or (TokenPtr(NextToken[2])^.KeywordIndex = kiCURRENT_DATE)))) then
@@ -18999,8 +19003,9 @@ begin
             otDot:
               SetError(PE_UnexpectedToken, Nodes[NodeIndex]);
             otBinary,
-            otInvertBits,
             otDistinct,
+            otInvertBits,
+            otNot,
             otUnaryMinus,
             otUnaryNot,
             otUnaryPlus:

@@ -79,7 +79,7 @@ function CheckActualVersion(const Stream: TStringStream; var VersionStr: string;
 
 var
   CheckUpdateThread: TCheckUpdateThread;
-  AvailableUpdate: Integer;
+  AvailableUpdateVersion: Integer;
 
 function DInstallUpdate(): TDInstallUpdate;
 
@@ -153,8 +153,8 @@ begin
           Build := StrToInt(VerBuild.GetText());
       end;
 
-      AvailableUpdate := EncodeVersion(Major, Minor, Patch, Build);
-      UpdateAvailable := AvailableUpdate > Preferences.Version;
+      AvailableUpdateVersion := EncodeVersion(Major, Minor, Patch, Build);
+      UpdateAvailable := Preferences.Version < AvailableUpdateVersion;
 
       VersionStr := IntToStr(Major) + '.' + IntToStr(Minor) + '  (Build ' + IntToStr(Patch) + '.' + IntToStr(Build) + ')';
 
@@ -549,6 +549,7 @@ begin
 end;
 
 initialization
+  AvailableUpdateVersion := -1;
   CheckUpdateThread := nil;
   FInstallUpdate := nil;
 end.
