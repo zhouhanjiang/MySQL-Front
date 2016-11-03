@@ -2393,6 +2393,7 @@ begin
 
   inherited;
 
+try
   if (Session.SQLParser.ParseSQL(FSource)) then
   begin
     Token := Session.SQLParser.FirstStmt^.FirstToken;
@@ -2417,6 +2418,9 @@ begin
     FSource := Session.SQLParser.GetSQL();
     Session.SQLParser.Clear();
   end;
+except
+  Session.UnparsableSQL := Session.UnparsableSQL + FSource;
+end;
 end;
 
 procedure TSDBObject.Clear();
@@ -2496,6 +2500,7 @@ var
 begin
   References.Clear();
 
+try
   if (not Session.SQLParser.ParseSQL(SQL)) then
   begin
     if ((Now() <= Session.ParseEndDate)
@@ -2553,6 +2558,9 @@ begin
     end;
   end;
   Session.SQLParser.Clear();
+except
+  Session.UnparsableSQL := Session.UnparsableSQL + SQL;
+end;
 end;
 
 procedure TSDBObject.SetSource(const Field: TField);
@@ -5117,6 +5125,7 @@ begin
 
   if (Now() <= Session.ParseEndDate) then
   begin
+try
     if (not Session.SQLParser.ParseSQL(Source)) then
       Session.UnparsableSQL := Session.UnparsableSQL
         + '# SetSource()' + #13#10
@@ -5125,6 +5134,9 @@ begin
         + '# CodePage: ' + IntToStr(Session.Connection.CodePage) + #13#10
         + Source + #13#10 + #13#10;
     Session.SQLParser.Clear();
+except
+  Session.UnparsableSQL := Session.UnparsableSQL + Source;
+end;
   end;
 
   ParseCreateTable(Source);
@@ -5219,9 +5231,13 @@ begin
     end;
     SQL := SQL + ';' + #13#10;
 
+try
     if (Session.SQLParser.ParseSQL(SQL)) then
       SQL := Session.SQLParser.FormatSQL() + #13#10;
     Session.SQLParser.Clear();
+except
+  Session.UnparsableSQL := Session.UnparsableSQL + SQL;
+end;
 
     if (DropBeforeCreate) then
       SQL := 'DROP VIEW IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
@@ -5322,6 +5338,7 @@ begin
     FStmt := Copy(SQL, SQLParseGetIndex(Parse), Len) + ';';
 
 
+try
     if (Session.SQLParser.ParseSQL(FStmt)) then
     begin
       TableCount := 0; TableName := '';
@@ -5379,6 +5396,9 @@ begin
     end;
 
     Session.SQLParser.Clear();
+except
+  Session.UnparsableSQL := Session.UnparsableSQL + FStmt;
+end;
   end;
 end;
 
@@ -6590,6 +6610,7 @@ begin
 
     FSourceEx := LeftStr(S, SQLParseGetIndex(Parse) - RemovedLength - 1) + #13#10;
 
+try
     if (Session.SQLParser.ParseSQL(FSourceEx)) then
     begin
       Token := Session.SQLParser.FirstStmt^.FirstToken;
@@ -6614,6 +6635,9 @@ begin
       FSourceEx := Session.SQLParser.GetSQL();
       Session.SQLParser.Clear();
     end;
+except
+  Session.UnparsableSQL := Session.UnparsableSQL + FSourceEx;
+end;
   end;
 end;
 
@@ -8848,9 +8872,6 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered and SessionEvents) then
-    Session.ExecuteEvent(etItemsValid, Session, Self);
-
   Result := inherited;
 
   if (Filtered and not FValid) then
@@ -8862,6 +8883,9 @@ begin
 
     FValid := Found;
   end;
+
+  if (FValid and SessionEvents) then
+    Session.ExecuteEvent(etItemsValid, Session, Self);
 end;
 
 procedure TSDatabases.Delete(const AEntity: TSEntity);
@@ -9108,10 +9132,10 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered and SessionEvents) then
-    Session.ExecuteEvent(etItemsValid, Session, Self);
-
   Result := inherited;
+
+  if (FValid and SessionEvents) then
+    Session.ExecuteEvent(etItemsValid, Session, Self);
 end;
 
 function TSVariables.GetVariable(Index: Integer): TSVariable;
@@ -9211,14 +9235,10 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered) then
-  begin
-    FValid := True;
-    if (SessionEvents) then
-      Session.ExecuteEvent(etItemsValid, Session, Self);
-  end;
-
   Result := inherited;
+
+  if (FValid and SessionEvents) then
+    Session.ExecuteEvent(etItemsValid, Session, Self);
 end;
 
 function TSStati.GetStatus(Index: Integer): TSStatus;
@@ -9405,10 +9425,10 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered and SessionEvents) then
-    Session.ExecuteEvent(etItemsValid, Session, Self);
-
   Result := inherited;
+
+  if (FValid and SessionEvents) then
+    Session.ExecuteEvent(etItemsValid, Session, Self);
 end;
 
 function TSEngines.GetDefaultEngine(): TSEngine;
@@ -9497,10 +9517,10 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered and SessionEvents) then
-    Session.ExecuteEvent(etItemsValid, Session, Self);
-
   Result := inherited;
+
+  if (FValid and SessionEvents) then
+    Session.ExecuteEvent(etItemsValid, Session, Self);
 end;
 
 function TSPlugins.GetPlugin(Index: Integer): TSPlugin;
@@ -9745,10 +9765,10 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered and SessionEvents) then
-    Session.ExecuteEvent(etItemsValid, Session, Self);
-
   Result := inherited;
+
+  if (FValid and SessionEvents) then
+    Session.ExecuteEvent(etItemsValid, Session, Self);
 end;
 
 function TSCharsets.GetCharset(Index: Integer): TSCharset;
@@ -9837,10 +9857,10 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered and SessionEvents) then
-    Session.ExecuteEvent(etItemsValid, Session, Self);
-
   Result := inherited;
+
+  if (FValid and SessionEvents) then
+    Session.ExecuteEvent(etItemsValid, Session, Self);
 end;
 
 function TSCollations.GetCollation(Index: Integer): TSCollation;
@@ -9950,10 +9970,10 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered and SessionEvents) then
-    Session.ExecuteEvent(etItemsValid, Session, Self);
-
   Result := inherited;
+
+  if (FValid and SessionEvents) then
+    Session.ExecuteEvent(etItemsValid, Session, Self);
 end;
 
 procedure TSProcesses.Delete(const AEntity: TSEntity);
@@ -10587,12 +10607,12 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered and SessionEvents) then
-    Session.ExecuteEvent(etItemsValid, Session, Self);
-
   Result := inherited
     or (Session.Connection.ErrorCode = ER_DBACCESS_DENIED_ERROR)
     or (Session.Connection.ErrorCode = ER_TABLEACCESS_DENIED_ERROR);
+
+  if (FValid and SessionEvents) then
+    Session.ExecuteEvent(etItemsValid, Session, Self);
 end;
 
 function TSUsers.GetUser(Index: Integer): TSUser;
@@ -11783,6 +11803,7 @@ begin
   if (Now() <= ParseEndDate) then
   begin
     SetString(SQL, Text, Len);
+try
     if ((Connection.ErrorCode = ER_PARSE_ERROR) and SQLParser.ParseSQL(SQL)) then
     begin
       UnparsableSQL := UnparsableSQL
@@ -11802,6 +11823,9 @@ begin
         + Trim(SQL) + #13#10 + #13#10 + #13#10;
     end;
     SQLParser.Clear();
+except
+  UnparsableSQL := UnparsableSQL + SQL;
+end;
   end;
 
   if ((Connection.ErrorCode = 0) and SQLCreateParse(Parse, Text, Len, Connection.MySQLVersion)) then

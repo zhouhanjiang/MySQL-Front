@@ -18252,7 +18252,7 @@ begin
   Nodes.StmtTag := ParseTag(kiDECLARE);
 
   if (not ErrorFound) then
-    Nodes.IdentList := ParseList(False, ParseVariableIdent);
+    Nodes.IdentList := ParseList(False, ParseDbIdent);
 
   if (not ErrorFound) then
     Nodes.TypeNode := ParseDatatype();
@@ -21092,12 +21092,7 @@ begin
 
   CurrentToken := GetToken(0); // Cache for speeding
 
-  try
-    StmtList := ParseList(False, ParseStmt, ttSemicolon, True, True);
-  except
-    on E: Exception do
-      raise Exception.Create('Error in SQLParser:' + #13#10#13#10 + Text);
-  end;
+  StmtList := ParseList(False, ParseStmt, ttSemicolon, True, True);
 
   Result := TRoot.Create(Self, FirstTokenAll, StmtList);
 
@@ -23042,7 +23037,12 @@ begin
   SetString(Self.Text, Text, Length);
   CompletionList.SetActive(UseCompletionList);
 
-  FRoot := ParseRoot();
+  try
+    FRoot := ParseRoot();
+  except
+    on E: Exception do
+      raise Exception.Create('SQLParser error: ' + E.Message + #13#10#13#10 + Self.Text);
+  end;
 
   Result := FirstError.Code = PE_Success;
 end;
@@ -24574,9 +24574,9 @@ begin
       Return:
         MOV TokenType,ttReturn
         INC NewLines                     // One new line
-        CMP EAX,$00100013                // <CarriadgeReturn><NewLine>?
+        CMP EAX,$000A000D                // <CarriadgeReturn><NewLine>?
         JE DoubleChar                    // Yes!
-        CMP EAX,$00130010                // <NewLine><CarriadgeReturn>?
+        CMP EAX,$000D000A                // <NewLine><CarriadgeReturn>?
         JE DoubleChar                    // Yes!
         JMP SingleChar
 
