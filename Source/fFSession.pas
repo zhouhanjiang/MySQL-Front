@@ -6573,8 +6573,12 @@ procedure TFSession.FNavigatorUpdate(const SessionEvent: TSSession.TEvent);
       Result := Sign(Pos(Chr(Item1.ImageIndex), ImageIndexSort) - Pos(Chr(Item2.ImageIndex), ImageIndexSort))
     else if ((TObject(Item1.Data) is TSItem) and (TObject(Item2.Data) is TSItem)) then
       Result := Sign(TSItem(Item1.Data).Index - TSItem(Item2.Data).Index)
+    else if (not Assigned(Item1)) then
+      raise ERangeError.Create(SRangeError)
+    else if (not Assigned(Item2)) then
+      raise ERangeError.Create(SRangeError)
     else
-      raise ERangeError.Create(SRangeError);
+      raise ERangeError.CreateFmt(SRangeError + ': Cannot compare %s (%d) with %s (%d) for ImageIndex %d', [Item1.Text, Item1.ImageIndex, Item2.Text, Item2.ImageIndex, ImageIndex]);
   end;
 
   procedure InsertChild(const Node: TTreeNode; const Data: TObject);

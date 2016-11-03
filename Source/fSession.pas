@@ -5529,7 +5529,9 @@ begin
             Insert(Index, NewTable)
           else
             Add(NewTable);
-        end;
+        end
+        else if (DeleteList.IndexOf(Items[Index]) >= 0) then
+          DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
 
         if (Table[Index] is TSBaseTable) then
           TSBaseTable(Table[Index]).BuildStatus(DataSet, UseInformationSchema);
