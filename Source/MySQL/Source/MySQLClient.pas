@@ -128,13 +128,13 @@ type
     function SendDataFile(const Filename: RawByteString): Boolean;
   protected
     CAPABILITIES: my_uint;
+    CLIENT_STATUS: TMySQL_Packet.TClientStatus;
     faffected_rows: my_ulonglong;
     fca: RawByteString;
     fca_path: RawByteString;
     fcert: RawByteString;
     fcharacter_set_name: RawByteString;
     fcipher: RawByteString;
-    fclient_status: TMySQL_Packet.TClientStatus;
     fcompress: Boolean;
     fdb: RawByteString;
     fhost: RawByteString;
@@ -203,7 +203,6 @@ type
     function thread_id(): my_uint; virtual;
     function use_result(): MYSQL_RES; virtual;
     function warning_count(): my_uint; virtual;
-    property client_status: TMySQL_Packet.TClientStatus read fclient_status;
     property res: MYSQL_RES read fres;
   end;
 
@@ -663,10 +662,7 @@ end;
 
 function mysql_field_count(mysql: MYSQL): my_uint; stdcall;
 begin
-  if (not Assigned(mysql.res)) then
-    Result := 0
-  else
-    Result := mysql.res.FieldCount;
+  Result := mysql.FieldCount;
 end;
 
 procedure mysql_free_result(res: MYSQL_RES); stdcall;
@@ -1185,7 +1181,7 @@ begin
 
   {$IFDEF EurekaLog}
     if ((AErrNo = CR_COMMANDS_OUT_OF_SYNC) and (Self is MYSQL)) then
-      raise Exception.CreateFMT(DecodeString(error() + ' (fclient_status: %d)'), [Ord(MYSQL(Self).fclient_status)]);
+      raise Exception.CreateFMT(DecodeString(error() + ' (CLIENT_STATUS: %d)'), [Ord(MYSQL(Self).CLIENT_STATUS)]);
   {$ENDIF}
 
   Result := FErrNo;
@@ -1751,7 +1747,6 @@ var
 begin
   Assert(Direction = idWrite);
 
-
   Offset := 0;
   repeat
     PartSize := Size - Offset;
@@ -1807,7 +1802,7 @@ begin
 
   inherited;
 
-  fclient_status := MYSQL_STATUS_READY;
+  CLIENT_STATUS := MYSQL_STATUS_READY;
   finfo := '';
   fserver_capabilities := 0;
   if (Assigned(fserver_info)) then
@@ -1821,7 +1816,7 @@ constructor MYSQL.Create();
 begin
   inherited;
 
-  fclient_status := MYSQL_STATUS_READY;
+  CLIENT_STATUS := MYSQL_STATUS_READY;
   fres := nil;
   UseNamedPipe := False;
 
@@ -1866,7 +1861,7 @@ end;
 
 function MYSQL.eof(): my_bool;
 begin
-  if (not Assigned(res) or (res.ResultType = rtUsed) and (fclient_status <> MYSQL_STATUS_READY)) then
+  if (not Assigned(res) or (res.ResultType = rtUsed) and (CLIENT_STATUS <> MYSQL_STATUS_READY)) then
     Result := 0
   else
     Result := 1;
@@ -1875,7 +1870,7 @@ end;
 function MYSQL.ExecuteCommand(const Command: enum_server_command;
   const Bin: my_char; const Size: my_int; const Retry: Boolean): my_int;
 begin
-  if ((fclient_status <> MYSQL_STATUS_READY) or (more_results() <> 0)) then
+  if ((CLIENT_STATUS <> MYSQL_STATUS_READY) or (more_results() <> 0)) then
   begin
     Seterror(CR_COMMANDS_OUT_OF_SYNC);
     Result := -1;
@@ -1989,7 +1984,7 @@ var
   RBS: RawByteString;
   StateChange: RawByteString;
 begin
-  if (fclient_status <> MYSQL_STATUS_READY)  then
+  if (CLIENT_STATUS <> MYSQL_STATUS_READY)  then
   begin
     Seterror(CR_COMMANDS_OUT_OF_SYNC);
     Result := 1;
@@ -2020,7 +2015,7 @@ begin
       end
       else if (ServerError()) then
         Result := 1
-      else if ((Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $00) and (PacketBuffer.Size - PacketBuffer.Offset + 1 > 7)) then
+      else if (Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $00) then
       begin
         SetPacketPointer(1, FILE_CURRENT); // $00
 
@@ -2047,7 +2042,7 @@ begin
         else
           ReadPacket(finfo, True);
 
-        fclient_status := MYSQL_STATUS_READY;
+        CLIENT_STATUS := MYSQL_STATUS_READY;
 
         Result := 0;
       end
@@ -2061,7 +2056,7 @@ begin
         else
           Result := 0;
       end
-      else if ((Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FE) and (PacketBuffer.Size - PacketBuffer.Offset + 1 < 9)) then
+      else if (Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FE) then
       begin
         SetPacketPointer(1, FILE_CURRENT); // $FE
 
@@ -2088,7 +2083,7 @@ begin
         if (SERVER_STATUS and SERVER_STATUS_AUTOCOMMIT = 0) then
           SERVER_STATUS := SERVER_STATUS or SERVER_STATUS_IN_TRANS;
 
-        fclient_status := MYSQL_STATUS_GET_RESULT;
+        CLIENT_STATUS := MYSQL_STATUS_GET_RESULT;
 
         Result := 0;
       end;
@@ -2142,10 +2137,10 @@ begin
       ReadPacket(SERVER_STATUS, 2);
     end;
 
-    if (fclient_status = MYSQL_STATUS_GET_RESULT) then
-      fclient_status := MYSQL_STATUS_USE_RESULT
+    if (CLIENT_STATUS = MYSQL_STATUS_GET_RESULT) then
+      CLIENT_STATUS := MYSQL_STATUS_USE_RESULT
     else
-      fclient_status := MYSQL_STATUS_READY;
+      CLIENT_STATUS := MYSQL_STATUS_READY;
 
     Result := 0;
   end
@@ -2739,15 +2734,18 @@ end;
 
 function MYSQL.use_result(): MYSQL_RES;
 begin
-  if ((errno() <> 0) or (fclient_status = MYSQL_STATUS_READY)) then
+  if ((errno() <> 0) or (CLIENT_STATUS = MYSQL_STATUS_READY)) then
     Result := nil
-  else if (fclient_status <> MYSQL_STATUS_GET_RESULT) then
+  else if (CLIENT_STATUS <> MYSQL_STATUS_GET_RESULT) then
   begin
     Seterror(CR_COMMANDS_OUT_OF_SYNC);
     Result := nil;
   end
   else if (FieldCount = 0) then
-    Result := nil
+  begin
+    Seterror(CR_UNKNOWN_ERROR);
+    Result := nil;
+  end
   else
   begin
     fres := MYSQL_RES.Create(Self, FieldCount);
@@ -2937,7 +2935,7 @@ var
   I: my_int;
   Next_Row: MYSQL_RES.PRow;
 begin
-  if ((mysql.fclient_status = MYSQL_STATUS_USE_RESULT)) then
+  if ((mysql.CLIENT_STATUS = MYSQL_STATUS_USE_RESULT)) then
     MysqlClient.ReadRows(Self);
 
   if (mysql.fres = Self) then
@@ -3010,7 +3008,7 @@ begin
       Result := CurrentRow^.Row;
       Inc(RowIndex);
     end
-  else if (MysqlClient.fclient_status <> MYSQL_STATUS_USE_RESULT) then
+  else if (MysqlClient.CLIENT_STATUS <> MYSQL_STATUS_USE_RESULT) then
   begin
     MysqlClient.Seterror(CR_COMMANDS_OUT_OF_SYNC);
     Result := nil;
@@ -3018,7 +3016,7 @@ begin
   else if (MysqlClient.ReadRow(CurrentRow) <= 0) then
   begin
     FreeMem(CurrentRow); CurrentRow := nil;
-    mysql.fclient_status := MYSQL_STATUS_READY;
+    mysql.CLIENT_STATUS := MYSQL_STATUS_READY;
     Result := nil;
   end
   else
