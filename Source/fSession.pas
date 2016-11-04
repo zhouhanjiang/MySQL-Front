@@ -2180,7 +2180,7 @@ begin
   Database := Session.DatabaseByName(FDatabaseName);
 
   if (not Assigned(Database)) then
-    raise ERangeError.Create(SRangeError)
+    Result := nil
   else if (FDBObjectClass = TSTable) then
     Result := Database.TableByName(FDBObjectName)
   else if (FDBObjectClass = TSProcedure) then
@@ -2393,7 +2393,6 @@ begin
 
   inherited;
 
-try
   if (Session.SQLParser.ParseSQL(FSource)) then
   begin
     Token := Session.SQLParser.FirstStmt^.FirstToken;
@@ -2418,9 +2417,6 @@ try
     FSource := Session.SQLParser.GetSQL();
     Session.SQLParser.Clear();
   end;
-except
-  Session.UnparsableSQL := Session.UnparsableSQL + FSource;
-end;
 end;
 
 procedure TSDBObject.Clear();
@@ -2497,10 +2493,10 @@ var
   PreviousToken1: TSQLParser.PToken;
   PreviousToken2: TSQLParser.PToken;
   Token: TSQLParser.PToken;
+  S: string;
 begin
   References.Clear();
 
-try
   if (not Session.SQLParser.ParseSQL(SQL)) then
   begin
     if ((Now() <= Session.ParseEndDate)
@@ -2511,7 +2507,7 @@ try
       Session.UnparsableSQL := Session.UnparsableSQL
         + '# SetReferences()' + #13#10
         + '# Error: ' + Session.SQLParser.ErrorMessage + #13#10
-        + SQL + #13#10 + #13#10;
+        + S + #13#10 + #13#10;
   end
   else
   begin
@@ -2554,13 +2550,10 @@ try
       end;
     except
       on E: Exception do
-        raise Exception.CreateFMT(E.Message + ' (Database: %s, Source: %s)', [Database.Name, SQL]);
+        raise Exception.CreateFMT(E.Message + ' (Database: %s, Source: %s)', [Database.Name, S]);
     end;
   end;
   Session.SQLParser.Clear();
-except
-  Session.UnparsableSQL := Session.UnparsableSQL + SQL;
-end;
 end;
 
 procedure TSDBObject.SetSource(const Field: TField);
@@ -5125,18 +5118,12 @@ begin
 
   if (Now() <= Session.ParseEndDate) then
   begin
-try
     if (not Session.SQLParser.ParseSQL(Source)) then
       Session.UnparsableSQL := Session.UnparsableSQL
         + '# SetSource()' + #13#10
         + '# Error: ' + Session.SQLParser.ErrorMessage + #13#10
-        + '# Hex: ' + SQLEscapeBin(TMySQLQuery(Field.DataSet).LibRow^[Field.FieldNo - 1], TMySQLQuery(Field.DataSet).LibLengths^[Field.FieldNo - 1], True) + #13#10
-        + '# CodePage: ' + IntToStr(Session.Connection.CodePage) + #13#10
         + Source + #13#10 + #13#10;
     Session.SQLParser.Clear();
-except
-  Session.UnparsableSQL := Session.UnparsableSQL + Source;
-end;
   end;
 
   ParseCreateTable(Source);
@@ -5231,13 +5218,9 @@ begin
     end;
     SQL := SQL + ';' + #13#10;
 
-try
     if (Session.SQLParser.ParseSQL(SQL)) then
       SQL := Session.SQLParser.FormatSQL() + #13#10;
     Session.SQLParser.Clear();
-except
-  Session.UnparsableSQL := Session.UnparsableSQL + SQL;
-end;
 
     if (DropBeforeCreate) then
       SQL := 'DROP VIEW IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
@@ -5338,7 +5321,6 @@ begin
     FStmt := Copy(SQL, SQLParseGetIndex(Parse), Len) + ';';
 
 
-try
     if (Session.SQLParser.ParseSQL(FStmt)) then
     begin
       TableCount := 0; TableName := '';
@@ -5396,9 +5378,6 @@ try
     end;
 
     Session.SQLParser.Clear();
-except
-  Session.UnparsableSQL := Session.UnparsableSQL + FStmt;
-end;
   end;
 end;
 
@@ -5636,7 +5615,7 @@ begin
         end;
 
         View.Fields.FValid := True;
-        View.PushBuildEvent(False);
+        View.PushBuildEvent();
 
         Index := 0;
       end;
@@ -5693,7 +5672,7 @@ begin
     end;
 
     View.Fields.FValid := True;
-    View.PushBuildEvent(True);
+    View.PushBuildEvent();
   end;
 
   Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
@@ -6610,7 +6589,6 @@ begin
 
     FSourceEx := LeftStr(S, SQLParseGetIndex(Parse) - RemovedLength - 1) + #13#10;
 
-try
     if (Session.SQLParser.ParseSQL(FSourceEx)) then
     begin
       Token := Session.SQLParser.FirstStmt^.FirstToken;
@@ -6635,9 +6613,6 @@ try
       FSourceEx := Session.SQLParser.GetSQL();
       Session.SQLParser.Clear();
     end;
-except
-  Session.UnparsableSQL := Session.UnparsableSQL + FSourceEx;
-end;
   end;
 end;
 
@@ -8874,17 +8849,16 @@ begin
 
   Result := inherited;
 
-  if (Filtered and not FValid) then
+  Found := True;
+  if (Filtered) then
   begin
-    Found := True;
-
     for I := 0 to Length(DatabaseNames) - 1 do
       Found := Found and (IndexByName(DatabaseNames[I]) >= 0);
 
-    FValid := Found;
+    FValid := FValid or Found;
   end;
 
-  if (FValid and SessionEvents) then
+  if (FValid and (not Filtered or Found) and SessionEvents) then
     Session.ExecuteEvent(etItemsValid, Session, Self);
 end;
 
@@ -9134,7 +9108,7 @@ begin
 
   Result := inherited;
 
-  if (FValid and SessionEvents) then
+  if (FValid and not Filtered and SessionEvents) then
     Session.ExecuteEvent(etItemsValid, Session, Self);
 end;
 
@@ -9237,7 +9211,7 @@ begin
 
   Result := inherited;
 
-  if (FValid and SessionEvents) then
+  if (FValid and not Filtered and SessionEvents) then
     Session.ExecuteEvent(etItemsValid, Session, Self);
 end;
 
@@ -9427,7 +9401,7 @@ begin
 
   Result := inherited;
 
-  if (FValid and SessionEvents) then
+  if (FValid and not Filtered and SessionEvents) then
     Session.ExecuteEvent(etItemsValid, Session, Self);
 end;
 
@@ -9519,7 +9493,7 @@ begin
 
   Result := inherited;
 
-  if (FValid and SessionEvents) then
+  if (FValid and not Filtered and SessionEvents) then
     Session.ExecuteEvent(etItemsValid, Session, Self);
 end;
 
@@ -9767,7 +9741,7 @@ begin
 
   Result := inherited;
 
-  if (FValid and SessionEvents) then
+  if (FValid and not Filtered and SessionEvents) then
     Session.ExecuteEvent(etItemsValid, Session, Self);
 end;
 
@@ -9859,7 +9833,7 @@ begin
 
   Result := inherited;
 
-  if (FValid and SessionEvents) then
+  if (FValid and not Filtered and SessionEvents) then
     Session.ExecuteEvent(etItemsValid, Session, Self);
 end;
 
@@ -9972,7 +9946,7 @@ begin
 
   Result := inherited;
 
-  if (FValid and SessionEvents) then
+  if (FValid and not Filtered and SessionEvents) then
     Session.ExecuteEvent(etItemsValid, Session, Self);
 end;
 
@@ -10611,7 +10585,7 @@ begin
     or (Session.Connection.ErrorCode = ER_DBACCESS_DENIED_ERROR)
     or (Session.Connection.ErrorCode = ER_TABLEACCESS_DENIED_ERROR);
 
-  if (FValid and SessionEvents) then
+  if (FValid and not Filtered and SessionEvents) then
     Session.ExecuteEvent(etItemsValid, Session, Self);
 end;
 
@@ -11803,7 +11777,6 @@ begin
   if (Now() <= ParseEndDate) then
   begin
     SetString(SQL, Text, Len);
-try
     if ((Connection.ErrorCode = ER_PARSE_ERROR) and SQLParser.ParseSQL(SQL)) then
     begin
       UnparsableSQL := UnparsableSQL
@@ -11823,9 +11796,6 @@ try
         + Trim(SQL) + #13#10 + #13#10 + #13#10;
     end;
     SQLParser.Clear();
-except
-  UnparsableSQL := UnparsableSQL + SQL;
-end;
   end;
 
   if ((Connection.ErrorCode = 0) and SQLCreateParse(Parse, Text, Len, Connection.MySQLVersion)) then
@@ -12309,6 +12279,7 @@ begin
           + 'Content-Transfer-Encoding: binary' + #10
           + 'MySQL: ' + Self.Connection.ServerVersionStr + #10
           + 'MySQL-Front: ' + Preferences.VersionStr + #10;
+
         if (not HttpSendRequest(Request, PChar(Headers), Length(Headers), @Body[1], Length(Body))) then
           Write;
 

@@ -69,6 +69,9 @@ package, you have to make a right click -> Install.
 To get detailed memory leak informations while debugging, you have to store
 FastMM_FullDebugMode.dll inside the Temp folder.
 
+Build a setup program. This will generate the resource file with the icons,
+strings, version information and others.
+
 
 Building the setup program:
 ===========================

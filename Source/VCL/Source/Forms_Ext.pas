@@ -100,7 +100,10 @@ begin
   else if (Control is TUpDown) then
   begin
     if (Assigned(TUpDown(Control).Associate) and (TUpDown(Control).Associate is TEdit)) then
+    begin
+      TUpDown(Control).Height := TEdit(TUpDown(Control).Associate).Height;
       SetWindowLong(TEdit(TUpDown(Control).Associate).Handle, GWL_STYLE, GetWindowLong(TEdit(TUpDown(Control).Associate).Handle, GWL_STYLE) or ES_NUMBER or ES_RIGHT);
+    end;
   end
   else if (Control is TToolBar) then
   begin

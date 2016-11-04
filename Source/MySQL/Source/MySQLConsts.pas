@@ -10,7 +10,6 @@ const
   LOCAL_HOST_NAMEDPIPE  = '.';
   MAX_ALLOWED_PACKET    = $1000000;
   MAX_PACKET_LENGTH     = $FFFFFE;
-  MYSQL_ERRMSG_SIZE     = 512;
   MYSQL_NAMEDPIPE       = 'MySQL';
   MYSQL_PORT            = 3306;
   NAME_CHAR_LEN         = 64;

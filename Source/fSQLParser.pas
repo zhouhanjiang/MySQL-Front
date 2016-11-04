@@ -3075,7 +3075,7 @@ type
           end;
           Limit: packed record
             Tag: TOffset;
-            Expr: TOffset;
+            Token: TOffset;
           end;
         end;
       private
@@ -3835,7 +3835,7 @@ type
       private type
         TNodes = packed record
           OpenBracket: TOffset;
-          FirstChild: TOffset;
+          FirstElement: TOffset;
           CloseBracket: TOffset;
         end;
       private
@@ -3847,13 +3847,13 @@ type
         class function Create(const AParser: TSQLParser;
           const ANodes: TNodes; const ADelimiterType: TTokenType;
           const AChildren: POffsetList): TOffset; static;
-        function GetFirstChild(): PChild; {$IFNDEF Debug} inline; {$ENDIF}
+        function GetFirstElement(): PChild; {$IFNDEF Debug} inline; {$ENDIF}
       public
         function GetDelimiter(const Child: PChild): PToken;
-        function GetNextSibling(const Child: PChild): PChild;
+        function GetNextElement(const Child: PChild): PChild;
         property DelimiterType: TTokenType read FDelimiterType;
         property ChildCount: Word read FElementCount;
-        property FirstChild: PChild read GetFirstChild;
+        property FirstElement: PChild read GetFirstElement;
         property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
@@ -5278,8 +5278,12 @@ type
           StmtTag: TOffset;
           TypeList: TOffset;
           ForQueryValue: TOffset;
-          LimitValue: TOffset;
-          OffsetValue: TOffset;
+          Limit: packed record
+            Tag: TOffset;
+            Token: TOffset;
+            OffsetTag: TOffset;
+            OffsetToken: TOffset;
+          end;
         end;
       private
         Heritage: TStmt;
@@ -5790,7 +5794,7 @@ type
           end;
           Limit: packed record
             Tag: TOffset;
-            Expr: TOffset;
+            Token: TOffset;
           end;
         end;
       private
@@ -6319,7 +6323,6 @@ type
     kiNUMBER,
     kiOFFSET,
     kiOJ,
-    kiOFF,
     kiOLD,
     kiON,
     kiONE,
@@ -7140,7 +7143,7 @@ const
     'WEEKDAY,WEEKOFYEAR,WEIGHT_STRING,WITHIN,X,Y,YEAR,YEARWEEK';
 
   MySQLKeywords =
-    'ANY,SOME,OFF,STATS_SAMPLE_PAGES,DUAL,TABLE_CHECKSUM,NEW,OLD,' +
+    'ANY,SOME,STATS_SAMPLE_PAGES,DUAL,TABLE_CHECKSUM,NEW,OLD,' +
 
     'ACCOUNT,ACTION,ADD,AFTER,AGAINST,ALGORITHM,ALL,ALTER,ALWAYS,ANALYZE,AND,' +
     'AS,ASC,ASCII,AT,AUTO_INCREMENT,AVG_ROW_LENGTH,BEFORE,BEGIN,' +
@@ -9914,7 +9917,7 @@ begin
   begin
     Nodes := ANodes;
     if (AChildren.Count > 0) then
-      Nodes.FirstChild := AChildren^[0];
+      Nodes.FirstElement := AChildren^[0];
 
     FDelimiterType := ADelimiterType;
 
@@ -9962,15 +9965,15 @@ begin
   end;
 end;
 
-function TSQLParser.TList.GetFirstChild(): PChild;
+function TSQLParser.TList.GetFirstElement(): PChild;
 begin
-  if (Nodes.FirstChild = 0) then
+  if (Nodes.FirstElement = 0) then
     Result := nil
   else
-    Result := PChild(Parser.NodePtr(Nodes.FirstChild));
+    Result := PChild(Parser.NodePtr(Nodes.FirstElement));
 end;
 
-function TSQLParser.TList.GetNextSibling(const Child: PChild): PChild;
+function TSQLParser.TList.GetNextElement(const Child: PChild): PChild;
 var
   Token: PToken;
 begin
@@ -10349,7 +10352,7 @@ begin
   if (Nodes.StmtList = 0) then
     Result := nil
   else
-    Result := PStmt(PList(Parser.NodePtr(Nodes.StmtList))^.FirstChild);
+    Result := PStmt(PList(Parser.NodePtr(Nodes.StmtList))^.FirstElement);
 end;
 
 function TSQLParser.TRoot.GetFirstTokenAll(): PToken;
@@ -12619,14 +12622,14 @@ begin
       or (PList(NodePtr(Nodes.From1.List))^.ChildCount = 1))
     and ((Nodes.From2.TableReferenceList = 0)
       or (NodePtr(Nodes.From2.TableReferenceList)^.NodeType <> ntList)
-      or (PList(NodePtr(Nodes.From2.TableReferenceList))^.Nodes.FirstChild = 0)
-      or (NodePtr(PList(NodePtr(Nodes.From2.TableReferenceList))^.Nodes.FirstChild)^.NodeType <> ntList)
-      or (PList(NodePtr(PList(NodePtr(Nodes.From2.TableReferenceList))^.Nodes.FirstChild))^.ChildCount = 1))
+      or (PList(NodePtr(Nodes.From2.TableReferenceList))^.Nodes.FirstElement = 0)
+      or (NodePtr(PList(NodePtr(Nodes.From2.TableReferenceList))^.Nodes.FirstElement)^.NodeType <> ntList)
+      or (PList(NodePtr(PList(NodePtr(Nodes.From2.TableReferenceList))^.Nodes.FirstElement))^.ChildCount = 1))
     and ((Nodes.Using.TableReferenceList = 0)
       or (NodePtr(Nodes.Using.TableReferenceList)^.NodeType <> ntList)
-      or (PList(NodePtr(Nodes.Using.TableReferenceList))^.Nodes.FirstChild = 0)
-      or (NodePtr(PList(NodePtr(Nodes.Using.TableReferenceList))^.Nodes.FirstChild)^.NodeType <> ntList)
-      or (PList(NodePtr(PList(NodePtr(Nodes.Using.TableReferenceList))^.Nodes.FirstChild))^.ChildCount = 1))
+      or (PList(NodePtr(Nodes.Using.TableReferenceList))^.Nodes.FirstElement = 0)
+      or (NodePtr(PList(NodePtr(Nodes.Using.TableReferenceList))^.Nodes.FirstElement)^.NodeType <> ntList)
+      or (PList(NodePtr(PList(NodePtr(Nodes.Using.TableReferenceList))^.Nodes.FirstElement))^.ChildCount = 1))
     and ((Nodes.Where.Expr = 0)
       or (NodePtr(Nodes.Where.Expr)^.NodeType <> ntList)
       or (PList(NodePtr(Nodes.Where.Expr))^.ChildCount <= 3))) then
@@ -12749,7 +12752,7 @@ begin
   end;
 
   FormatNode(Nodes.Limit.Tag, Separator);
-  FormatNode(Nodes.Limit.Expr, stSpaceBefore);
+  FormatNode(Nodes.Limit.Token, stSpaceBefore);
 end;
 
 procedure TSQLParser.FormatDefaultFunc(const Nodes: TDefaultFunc.TNodes);
@@ -12862,9 +12865,9 @@ begin
       or (PList(NodePtr(Nodes.Values.List))^.ChildCount = 1))
     and ((Nodes.Values.List = 0)
       or (NodePtr(Nodes.Values.List)^.NodeType <> ntList)
-      or (PList(NodePtr(Nodes.Values.List))^.Nodes.FirstChild = 0)
-      or (NodePtr(PList(NodePtr(Nodes.Values.List))^.Nodes.FirstChild)^.NodeType <> ntList)
-      or (PList(NodePtr(PList(NodePtr(Nodes.Values.List))^.Nodes.FirstChild))^.ChildCount <= 3))) then
+      or (PList(NodePtr(Nodes.Values.List))^.Nodes.FirstElement = 0)
+      or (NodePtr(PList(NodePtr(Nodes.Values.List))^.Nodes.FirstElement)^.NodeType <> ntList)
+      or (PList(NodePtr(PList(NodePtr(Nodes.Values.List))^.Nodes.FirstElement))^.ChildCount <= 3))) then
   begin
     Separator := stSpaceBefore;
   end
@@ -12952,10 +12955,10 @@ begin
     end;
   end;
 
-  if (not IsChild(List^.Nodes.FirstChild)) then
+  if (not IsChild(List^.Nodes.FirstElement)) then
     Child := nil
   else
-    Child := ChildPtr(List^.Nodes.FirstChild);
+    Child := ChildPtr(List^.Nodes.FirstElement);
 
   Indent := False;
   while (Assigned(Child)) do
@@ -12976,7 +12979,7 @@ begin
       Commands.DecreaseIndent();
     end;
 
-    Child := List^.GetNextSibling(Child);
+    Child := List^.GetNextElement(Child);
 
     if (Assigned(Child)) then
       case (Child^.NodeType) of
@@ -13523,9 +13526,9 @@ begin
       or (PList(NodePtr(Nodes.From.TableReferenceList))^.ChildCount = 1))
     and ((Nodes.From.TableReferenceList = 0)
       or (NodePtr(Nodes.From.TableReferenceList)^.NodeType <> ntList)
-      or (PList(NodePtr(Nodes.From.TableReferenceList))^.Nodes.FirstChild = 0)
-      or (NodePtr(PList(NodePtr(Nodes.From.TableReferenceList))^.Nodes.FirstChild)^.NodeType <> ntList)
-      or (PList(NodePtr(PList(NodePtr(Nodes.From.TableReferenceList))^.Nodes.FirstChild))^.ChildCount = 1))
+      or (PList(NodePtr(Nodes.From.TableReferenceList))^.Nodes.FirstElement = 0)
+      or (NodePtr(PList(NodePtr(Nodes.From.TableReferenceList))^.Nodes.FirstElement)^.NodeType <> ntList)
+      or (PList(NodePtr(PList(NodePtr(Nodes.From.TableReferenceList))^.Nodes.FirstElement))^.ChildCount = 1))
     and ((Nodes.Where.Expr = 0)
       or (NodePtr(Nodes.Where.Expr)^.NodeType <> ntList)
       or (PList(NodePtr(Nodes.Where.Expr))^.ChildCount <= 3))
@@ -14127,9 +14130,9 @@ begin
       or (PList(NodePtr(Nodes.TableReferenceList))^.ChildCount = 1))
     and ((Nodes.TableReferenceList = 0)
       or (NodePtr(Nodes.TableReferenceList)^.NodeType <> ntList)
-      or (PList(NodePtr(Nodes.TableReferenceList))^.Nodes.FirstChild = 0)
-      or (NodePtr(PList(NodePtr(Nodes.TableReferenceList))^.Nodes.FirstChild)^.NodeType <> ntList)
-      or (PList(NodePtr(PList(NodePtr(Nodes.TableReferenceList))^.Nodes.FirstChild))^.ChildCount = 1))
+      or (PList(NodePtr(Nodes.TableReferenceList))^.Nodes.FirstElement = 0)
+      or (NodePtr(PList(NodePtr(Nodes.TableReferenceList))^.Nodes.FirstElement)^.NodeType <> ntList)
+      or (PList(NodePtr(PList(NodePtr(Nodes.TableReferenceList))^.Nodes.FirstElement))^.ChildCount = 1))
     and ((Nodes.Set_.PairList = 0)
       or (NodePtr(Nodes.Set_.PairList)^.NodeType <> ntList)
       or (PList(NodePtr(Nodes.Set_.PairList))^.ChildCount <= 3))
@@ -14178,7 +14181,7 @@ begin
     Commands.DecreaseIndent();
   end;
   FormatNode(Nodes.Limit.Tag, Separator);
-  FormatNode(Nodes.Limit.Expr, stSpaceBefore);
+  FormatNode(Nodes.Limit.Token, stSpaceBefore);
 end;
 
 procedure TSQLParser.FormatUser(const Nodes: TUser.TNodes);
@@ -17642,7 +17645,10 @@ begin
   Nodes.DefinerNode := DefinerValue;
 
   if (not ErrorFound) then
-    Nodes.TriggerTag := ParseTag(kiTRIGGER);
+    if (InCreateTriggerStmt) then
+      SetError(PE_UnexpectedToken)
+    else
+      Nodes.TriggerTag := ParseTag(kiTRIGGER);
 
   if (not ErrorFound) then
     if (IsTag(kiIF, kiNOT, kiEXISTS)) then
@@ -17690,11 +17696,9 @@ begin
 
   if (not ErrorFound) then
   begin
-    if (InCreateTriggerStmt) then
-      raise Exception.Create(SUnknownError);
     InCreateTriggerStmt := True;
     Nodes.Body := ParsePL_SQLStmt();
-    InCreateTriggerStmt := True;
+    InCreateTriggerStmt := False;
   end;
 
   Result := TCreateTriggerStmt.Create(Self, Nodes);
@@ -18426,7 +18430,7 @@ begin
 
       if (not ErrorFound) then
       begin
-        Nodes.From1.List := ParseList(False, ParseSelectStmtTableFactor);
+        Nodes.From1.List := ParseList(False, ParseTableIdent);
         if (not ErrorFound) then
           if (Nodes.From1.List = 0) then
             TableCount := 0
@@ -18485,7 +18489,12 @@ begin
       Nodes.Limit.Tag := ParseTag(kiLIMIT);
 
       if (not ErrorFound) then
-        Nodes.Limit.Expr := ParseExpr();
+        if (EndOfStmt(CurrentToken)) then
+          SetError(PE_IncompleteStmt)
+        else if ((TokenPtr(CurrentToken)^.TokenType in ttIdents) and InCompound) then
+          Nodes.Limit.Token := ApplyCurrentToken(utDbIdent)
+        else
+          Nodes.Limit.Token := ParseInteger();
     end;
 
   Result := TDeleteStmt.Create(Self, Nodes);
@@ -18875,7 +18884,7 @@ begin
         if (IsNextTag(1, kiSELECT)) then
           Nodes.Add(ParseSubSelectStmt())
         else
-          Nodes.Add(ParseList(True, ParseExpr))
+          Nodes.Add(ParseList(True, ParseExpr, ttComma, False))
       else if (TokenPtr(CurrentToken)^.KeywordIndex = kiBINARY) then
         // BINARY is operator and function, so we have to handle it separately
         if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.TokenType = ttOpenBracket)) then
@@ -20268,8 +20277,9 @@ begin
       and DelimiterFound
       and EndOfStmt(CurrentToken)) then
       SetError(PE_IncompleteStmt)
-    else if (not CanEmpty
-      and (Children.Count = 0)) then
+    else if ((DelimiterType = ttSemicolon) and not DelimiterFound and not EndOfStmt(CurrentToken)) then
+      SetError(PE_UnexpectedToken)
+    else if (not CanEmpty and (Children.Count = 0)) then
       if (EndOfStmt(CurrentToken)) then
         SetError(PE_IncompleteStmt)
       else
@@ -20523,8 +20533,8 @@ begin
 
   Nodes.BeginTag := ParseTag(kiLOOP);
 
-  if (not ErrorFound and not IsTag(kiEND)) then
-    Nodes.StmtList := ParseList(False, ParsePL_SQLStmt, ttSemicolon);
+  if (not ErrorFound) then
+    Nodes.StmtList := ParseList(False, ParsePL_SQLStmt, ttSemicolon, False);
 
   if (not ErrorFound) then
     Nodes.EndTag := ParseTag(kiEND, kiLOOP);
@@ -20851,8 +20861,8 @@ begin
 
   Nodes.RepeatTag := ParseTag(kiREPEAT);
 
-  if (not ErrorFound and not IsTag(kiUNTIL)) then
-    Nodes.StmtList := ParseList(False, ParsePL_SQLStmt, ttSemicolon);
+  if (not ErrorFound) then
+    Nodes.StmtList := ParseList(False, ParsePL_SQLStmt, ttSemicolon, False);
 
   if (not ErrorFound) then
     Nodes.UntilTag := ParseTag(kiUNTIL);
@@ -21333,7 +21343,12 @@ begin
           Nodes.Limit.Tag := ParseTag(kiLIMIT);
 
           if (not ErrorFound) then
-            Nodes.Limit.RowCountToken := ParseExpr();
+            if (EndOfStmt(CurrentToken)) then
+              SetError(PE_IncompleteStmt)
+            else if ((TokenPtr(CurrentToken)^.TokenType in ttIdents) and InCompound) then
+              Nodes.Limit.RowCountToken := ApplyCurrentToken(utDbIdent)
+            else
+              Nodes.Limit.RowCountToken := ParseInteger();
 
           if (not ErrorFound) then
             if (IsSymbol(ttComma)) then
@@ -21343,7 +21358,13 @@ begin
               if (not ErrorFound) then
               begin
                 Nodes.Limit.OffsetToken := Nodes.Limit.RowCountToken;
-                Nodes.Limit.RowCountToken := ParseExpr();
+
+                if (EndOfStmt(CurrentToken)) then
+                  SetError(PE_IncompleteStmt)
+                else if ((TokenPtr(CurrentToken)^.TokenType in ttIdents) and InCompound) then
+                  Nodes.Limit.RowCountToken := ApplyCurrentToken(utDbIdent)
+                else
+                  Nodes.Limit.RowCountToken := ParseInteger();
               end;
             end
             else if (IsTag(kiOFFSET)) then
@@ -21351,7 +21372,12 @@ begin
               Nodes.Limit.OffsetTag := ParseTag(kiOFFSET);
 
               if (not ErrorFound) then
-                Nodes.Limit.OffsetToken := ParseExpr();
+                if (EndOfStmt(CurrentToken)) then
+                  SetError(PE_IncompleteStmt)
+                else if (TokenPtr(CurrentToken)^.TokenType in ttIdents) then
+                  Nodes.Limit.OffsetToken := ApplyCurrentToken(utDbIdent)
+                else
+                  Nodes.Limit.OffsetToken := ParseInteger();
             end;
         end;
 
@@ -21408,7 +21434,12 @@ begin
           Nodes.Union1.Limit.Tag := ParseTag(kiLIMIT);
 
           if (not ErrorFound) then
-            Nodes.Union1.Limit.RowCountToken := ParseExpr();
+            if (EndOfStmt(CurrentToken)) then
+              SetError(PE_IncompleteStmt)
+            else if ((TokenPtr(CurrentToken)^.TokenType in ttIdents) and InCompound) then
+              Nodes.Union1.Limit.RowCountToken := ApplyCurrentToken(utDbIdent)
+            else
+              Nodes.Union1.Limit.RowCountToken := ParseInteger();
 
           if (not ErrorFound) then
             if (IsSymbol(ttComma)) then
@@ -21418,7 +21449,12 @@ begin
               if (not ErrorFound) then
               begin
                 Nodes.Union1.Limit.OffsetToken := Nodes.Limit.RowCountToken;
-                Nodes.Union1.Limit.RowCountToken := ParseExpr();
+                if (EndOfStmt(CurrentToken)) then
+                  SetError(PE_IncompleteStmt)
+                else if ((TokenPtr(CurrentToken)^.TokenType in ttIdents) and InCompound) then
+                  Nodes.Union1.Limit.RowCountToken := ApplyCurrentToken(utDbIdent)
+                else
+                  Nodes.Union1.Limit.RowCountToken := ParseInteger();
               end;
             end
             else if (IsTag(kiOFFSET)) then
@@ -21426,7 +21462,12 @@ begin
               Nodes.Union1.Limit.OffsetTag := ParseTag(kiOFFSET);
 
               if (not ErrorFound) then
-                Nodes.Union1.Limit.OffsetToken := ParseExpr();
+                if (EndOfStmt(CurrentToken)) then
+                  SetError(PE_IncompleteStmt)
+                else if (TokenPtr(CurrentToken)^.TokenType in ttIdents) then
+                  Nodes.Union1.Limit.OffsetToken := ApplyCurrentToken(utDbIdent)
+                else
+                  Nodes.Union1.Limit.OffsetToken := ParseInteger();
             end;
         end;
     end;
@@ -21463,7 +21504,12 @@ begin
             Nodes.Union2.Limit.Tag := ParseTag(kiLIMIT);
 
             if (not ErrorFound) then
-              Nodes.Union2.Limit.RowCountToken := ParseExpr();
+              if (EndOfStmt(CurrentToken)) then
+                SetError(PE_IncompleteStmt)
+              else if ((TokenPtr(CurrentToken)^.TokenType in ttIdents) and InCompound) then
+                Nodes.Union2.Limit.RowCountToken := ApplyCurrentToken(utDbIdent)
+              else
+                Nodes.Union2.Limit.RowCountToken := ParseInteger();
 
             if (not ErrorFound) then
               if (IsSymbol(ttComma)) then
@@ -21473,7 +21519,12 @@ begin
                 if (not ErrorFound) then
                 begin
                   Nodes.Union2.Limit.OffsetToken := Nodes.Limit.RowCountToken;
-                  Nodes.Union2.Limit.RowCountToken := ParseExpr();
+                  if (EndOfStmt(CurrentToken)) then
+                    SetError(PE_IncompleteStmt)
+                  else if ((TokenPtr(CurrentToken)^.TokenType in ttIdents) and InCompound) then
+                    Nodes.Union2.Limit.RowCountToken := ApplyCurrentToken(utDbIdent)
+                  else
+                    Nodes.Union2.Limit.RowCountToken := ParseInteger();
                 end;
               end
               else if (IsTag(kiOFFSET)) then
@@ -21481,7 +21532,12 @@ begin
                 Nodes.Union2.Limit.OffsetTag := ParseTag(kiOFFSET);
 
                 if (not ErrorFound) then
-                  Nodes.Union2.Limit.OffsetToken := ParseExpr();
+                  if (EndOfStmt(CurrentToken)) then
+                    SetError(PE_IncompleteStmt)
+                  else if (TokenPtr(CurrentToken)^.TokenType in ttIdents) then
+                    Nodes.Union2.Limit.OffsetToken := ApplyCurrentToken(utDbIdent)
+                  else
+                    Nodes.Union2.Limit.OffsetToken := ParseInteger();
               end;
           end;
       end;
@@ -22005,11 +22061,7 @@ begin
     end;
 
   if (not ErrorFound) then
-    if (IsTag(kiOFF)
-      or IsTag(kiON)) then
-      Nodes.ValueExpr := ApplyCurrentToken(utDbIdent)
-    else
-      Nodes.ValueExpr := ParseExpr();
+    Nodes.ValueExpr := ParseExpr();
 
   Result := TSetStmt.TAssignment.Create(Self, Nodes);
 end;
@@ -22107,7 +22159,12 @@ begin
 
       if (not ErrorFound) then
       begin
-        Nodes.Limit.RowCountToken := ParseInteger();
+        if (EndOfStmt(CurrentToken)) then
+          SetError(PE_IncompleteStmt)
+        else if ((TokenPtr(CurrentToken)^.TokenType in ttIdents) and InCompound) then
+          Nodes.Limit.RowCountToken := ApplyCurrentToken(utDbIdent)
+        else
+          Nodes.Limit.RowCountToken := ParseInteger();
 
         if (not ErrorFound) then
           if (IsSymbol(ttComma)) then
@@ -22117,7 +22174,12 @@ begin
             if (not ErrorFound) then
             begin
               Nodes.Limit.OffsetToken := Nodes.Limit.RowCountToken;
-              Nodes.Limit.RowCountToken := ParseInteger();
+              if (EndOfStmt(CurrentToken)) then
+                SetError(PE_IncompleteStmt)
+              else if ((TokenPtr(CurrentToken)^.TokenType in ttIdents) and InCompound) then
+                Nodes.Limit.RowCountToken := ApplyCurrentToken(utDbIdent)
+              else
+                Nodes.Limit.RowCountToken := ParseInteger();
             end;
           end;
       end;
@@ -22441,7 +22503,12 @@ begin
 
       if (not ErrorFound) then
       begin
-        Nodes.Limit.RowCountToken := ParseInteger();
+        if (EndOfStmt(CurrentToken)) then
+          SetError(PE_IncompleteStmt)
+        else if ((TokenPtr(CurrentToken)^.TokenType in ttIdents) and InCompound) then
+          Nodes.Limit.RowCountToken := ApplyCurrentToken(utDbIdent)
+        else
+          Nodes.Limit.RowCountToken := ParseInteger();
 
         if (not ErrorFound) then
           if (IsSymbol(ttComma)) then
@@ -22451,7 +22518,12 @@ begin
             if (not ErrorFound) then
             begin
               Nodes.Limit.OffsetToken := Nodes.Limit.RowCountToken;
-              Nodes.Limit.RowCountToken := ParseInteger();
+              if (EndOfStmt(CurrentToken)) then
+                SetError(PE_IncompleteStmt)
+              else if ((TokenPtr(CurrentToken)^.TokenType in ttIdents) and InCompound) then
+                Nodes.Limit.RowCountToken := ApplyCurrentToken(utDbIdent)
+              else
+                Nodes.Limit.RowCountToken := ParseInteger();
             end;
           end;
       end;
@@ -22668,11 +22740,29 @@ begin
   if (not ErrorFound) then
     if (IsTag(kiLIMIT)) then
     begin
-      Nodes.LimitValue := ParseValue(kiLIMIT, vaNo, ParseInteger);
+      Nodes.Limit.Tag := ParseTag(kiLIMIT);
+
+      if (not ErrorFound) then
+        if (EndOfStmt(CurrentToken)) then
+          SetError(PE_IncompleteStmt)
+        else if ((TokenPtr(CurrentToken)^.TokenType in ttIdents) and InCompound) then
+          Nodes.Limit.Token := ApplyCurrentToken(utDbIdent)
+        else
+          Nodes.Limit.Token := ParseInteger();
 
       if (not ErrorFound) then
         if (IsTag(kiOFFSET)) then
-          Nodes.LimitValue := ParseValue(kiOFFSET, vaNo, ParseInteger);
+        begin
+          Nodes.Limit.OffsetTag := ParseTag(kiOFFSET);
+
+          if (not ErrorFound) then
+            if (EndOfStmt(CurrentToken)) then
+              SetError(PE_IncompleteStmt)
+            else if ((TokenPtr(CurrentToken)^.TokenType in ttIdents) and InCompound) then
+              Nodes.Limit.OffsetToken := ApplyCurrentToken(utDbIdent)
+            else
+              Nodes.Limit.OffsetToken := ParseInteger();
+        end;
     end;
 
   Result := TShowProfileStmt.Create(Self, Nodes);
@@ -22744,7 +22834,12 @@ begin
 
       if (not ErrorFound) then
       begin
-        Nodes.Limit.RowCountToken := ParseInteger();
+        if (EndOfStmt(CurrentToken)) then
+          SetError(PE_IncompleteStmt)
+        else if ((TokenPtr(CurrentToken)^.TokenType in ttIdents) and InCompound) then
+          Nodes.Limit.RowCountToken := ApplyCurrentToken(utDbIdent)
+        else
+          Nodes.Limit.RowCountToken := ParseInteger();
 
         if (not ErrorFound) then
           if (IsSymbol(ttComma)) then
@@ -22754,7 +22849,12 @@ begin
             if (not ErrorFound) then
             begin
               Nodes.Limit.OffsetToken := Nodes.Limit.RowCountToken;
-              Nodes.Limit.RowCountToken := ParseExpr();
+              if (EndOfStmt(CurrentToken)) then
+                SetError(PE_IncompleteStmt)
+              else if ((TokenPtr(CurrentToken)^.TokenType in ttIdents) and InCompound) then
+                Nodes.Limit.RowCountToken := ApplyCurrentToken(utDbIdent)
+              else
+                Nodes.Limit.RowCountToken := ParseInteger();
             end;
           end;
       end;
@@ -22928,7 +23028,12 @@ begin
 
       if (not ErrorFound) then
       begin
-        Nodes.Limit.RowCountToken := ParseInteger();
+        if (EndOfStmt(CurrentToken)) then
+          SetError(PE_IncompleteStmt)
+        else if ((TokenPtr(CurrentToken)^.TokenType in ttIdents) and InCompound) then
+          Nodes.Limit.RowCountToken := ApplyCurrentToken(utDbIdent)
+        else
+          Nodes.Limit.RowCountToken := ParseInteger();
 
         if (not ErrorFound) then
           if (IsSymbol(ttComma)) then
@@ -22938,7 +23043,12 @@ begin
             if (not ErrorFound) then
             begin
               Nodes.Limit.OffsetToken := Nodes.Limit.RowCountToken;
-              Nodes.Limit.RowCountToken := ParseInteger();
+              if (EndOfStmt(CurrentToken)) then
+                SetError(PE_IncompleteStmt)
+              else if ((TokenPtr(CurrentToken)^.TokenType in ttIdents) and InCompound) then
+                Nodes.Limit.RowCountToken := ApplyCurrentToken(utDbIdent)
+              else
+                Nodes.Limit.RowCountToken := ParseInteger();
             end;
           end;
       end;
@@ -23164,13 +23274,13 @@ begin
     Result := ParseCreateStmt()
   else if (IsTag(kiDEALLOCATE)) then
     Result := ParseDeallocatePrepareStmt()
-  else if (InPL_SQL and IsTag(kiDECLARE) and IsNextTag(2, kiCONDITION)) then
+  else if (InCompound and IsTag(kiDECLARE) and IsNextTag(2, kiCONDITION)) then
     Result := ParseDeclareConditionStmt()
-  else if (InPL_SQL and IsTag(kiDECLARE) and IsNextTag(2, kiCURSOR)) then
+  else if (InCompound and IsTag(kiDECLARE) and IsNextTag(2, kiCURSOR)) then
     Result := ParseDeclareCursorStmt()
-  else if (InPL_SQL and IsTag(kiDECLARE) and IsNextTag(2, kiHANDLER)) then
+  else if (InCompound and IsTag(kiDECLARE) and IsNextTag(2, kiHANDLER)) then
     Result := ParseDeclareHandlerStmt()
-  else if (InPL_SQL and IsTag(kiDECLARE)) then
+  else if (InCompound and IsTag(kiDECLARE)) then
     Result := ParseDeclareStmt()
   else if (IsTag(kiDELETE)) then
     Result := ParseDeleteStmt()
@@ -24420,12 +24530,12 @@ begin
         JB Finish                        // Before!
         CMP AX,'Z'                       // "Z"?
         JBE Ident                        // Yes!
+        CMP AX,'_'                       // "_"?
+        JE Ident                         // Yes!
         CMP AX,'a'                       // "z"?
         JB Finish                        // Before!
         CMP AX,'z'                       // "z"?
         JBE Ident                        // Yes!
-        CMP AX,'_'                       // "_"?
-        JE Ident                         // Yes!
         CMP AX,127                       // Extended character?
         JBE Finish                       // No!
         JMP Ident
@@ -24882,7 +24992,12 @@ begin
         Nodes.Limit.Tag := ParseTag(kiLIMIT);
 
         if (not ErrorFound) then
-          Nodes.Limit.Expr := ParseExpr();
+          if (EndOfStmt(CurrentToken)) then
+            SetError(PE_IncompleteStmt)
+          else if ((TokenPtr(CurrentToken)^.TokenType in ttIdents) and InCompound) then
+            Nodes.Limit.Token := ApplyCurrentToken(utDbIdent)
+          else
+            Nodes.Limit.Token := ParseInteger();
       end;
   end;
 
@@ -25196,8 +25311,8 @@ begin
   if (not ErrorFound) then
     Nodes.DoTag := ParseTag(kiDO);
 
-  if (not ErrorFound and not IsTag(kiEND)) then
-    Nodes.StmtList := ParseList(False, ParsePL_SQLStmt, ttSemicolon);
+  if (not ErrorFound) then
+    Nodes.StmtList := ParseList(False, ParsePL_SQLStmt, ttSemicolon, False);
 
   if (not ErrorFound) then
     Nodes.EndTag := ParseTag(kiEND, kiWHILE);
@@ -25534,9 +25649,9 @@ begin
                   HTML := HTML
                     + '<tr><td>DbIdentType:</td><td>&nbsp;</td><td>' + DbIdentTypeToString[PDbIdent(Node)^.DbIdentType] + '</td></tr>';
                 ntList:
-                  if (Assigned(PList(Node)^.FirstChild)) then
+                  if (Assigned(PList(Node)^.FirstElement)) then
                     HTML := HTML
-                      + '<tr><td>FirstChild Offset:</td><td>&nbsp;</td><td>' + IntToStr(PNode(PList(Node)^.FirstChild)^.Offset) + '</td></tr>'
+                      + '<tr><td>FirstElement Offset:</td><td>&nbsp;</td><td>' + IntToStr(PNode(PList(Node)^.FirstElement)^.Offset) + '</td></tr>'
                       + '<tr><td>ElementCount:</td><td>&nbsp;</td><td>' + IntToStr(PList(Node)^.ChildCount) + '</td></tr>';
                 ntSelectStmtTableJoin:
                   HTML := HTML
@@ -26225,7 +26340,6 @@ begin
     kiNUMBER                        := IndexOf('NUMBER');
     kiOFFSET                        := IndexOf('OFFSET');
     kiOJ                            := IndexOf('OJ');
-    kiOFF                           := IndexOf('OFF');
     kiOLD                           := IndexOf('OLD');
     kiON                            := IndexOf('ON');
     kiONE                           := IndexOf('ONE');
