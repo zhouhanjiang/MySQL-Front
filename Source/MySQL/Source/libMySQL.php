@@ -8,7 +8,7 @@
 
 	/****************************************************************************/
 
-	$MF_VERSION = 24;
+	$MF_VERSION = 25;
 
 	$Charsets = array(
 		'big5' => 1,
@@ -278,8 +278,8 @@
 			SendPacket($Packet);
 		}
 
-		if (! mysqli_connect_errno($mysqli) && $_SESSION['charset'] && version_compare(preg_replace('/-.*$/', '', mysqli_get_server_info($mysqli)), '4.1.1') >= 0)
-			if ((version_compare(phpversion(), '5.2.3') < 0) || (version_compare(preg_replace('/-.*$/', '', mysqli_get_server_info($mysqli)), '5.0.7') < 0))
+		if (! mysqli_connect_errno($mysqli) && $_SESSION['charset'] && (mysqli_get_server_version($mysqli) >= 40101))
+			if ((version_compare(phpversion(), '5.2.3') < 0) || (mysqli_get_server_version($mysqli) < 50007))
 				mysqli_query($mysqli, 'SET NAMES ' . $_SESSION['charset'] . ';', MYSQLI_USE_RESULT);
 			else
 				mysqli_set_charset($mysqli, $_SESSION['charset']);
@@ -290,12 +290,12 @@
 			$Packet .= mysqli_error($mysqli) . "\x00";
 			SendPacket($Packet);
 		} else if ($Connect) {
-			if (version_compare(preg_replace('/-.*$/', '', mysqli_get_server_info($mysqli)), '4.1.1') < 0) {
+			if (mysqli_get_server_version($mysqli) < 40101) {
 				$result = mysqli_query($mysqli, "SHOW VARIABLES LIKE 'character_set';", MYSQLI_USE_RESULT);
 				if ($Row = mysqli_fetch_array($result))
 					$_SESSION['charset'] = $Row['Value'];
 				mysqli_free_result($result);
-			} else if ((version_compare(phpversion(), '5.2.3') < 0) || version_compare(preg_replace('/-.*$/', '', mysqli_get_server_info($mysqli)), '5.0.7')) {
+			} else if ((version_compare(phpversion(), '5.2.3') < 0) || (mysqli_get_server_version($mysqli) < 50007)) {
 				$result = mysqli_query($mysqli, "SHOW VARIABLES LIKE 'character_set_client';", MYSQLI_USE_RESULT);
 				if ($Row = mysqli_fetch_array($result))
 					$_SESSION['charset'] = $Row['Value'];
@@ -303,9 +303,9 @@
 			} else
 				$_SESSION['charset'] = mysqli_character_set_name($mysqli);
 
-			if (version_compare(preg_replace('/-.*$/', '', mysqli_get_server_info($mysqli)), '4.1.1') < 0) {
+			if (mysqli_get_server_version($mysqli) < 40101) {
 				$CharsetNr = $Charsets[$_SESSION['charset']];
-			} else if (version_compare(preg_replace('/-.*$/', '', mysqli_get_server_info($mysqli)), '5.0.0') < 0) {
+			} else if (mysqli_get_server_version($mysqli) < 50000) {
 				$result = mysqli_query($mysqli, 'SHOW COLLATION;', MYSQLI_USE_RESULT);
 				while ($Row = mysqli_fetch_array($result))
 					if ($Row['Charset'] == $_SESSION['charset'] && $Row['Default'] == 'Yes')
@@ -376,9 +376,9 @@
 						FlushPackets();
 
 						if (preg_match("^USE[| |\t|\n|\r]*", $Query))
-							$_SESSION['database'] = eregi_replace("[|`|\"| *;|;|\t|\n|\r]", "", eregi_replace("^USE[| |\t|\n|\r]*", "", $Query));
+							$_SESSION['database'] = preg_replace('/[|`|\"| *;|;|\t|\n|\r]/i', '', preg_replace('/^USE[| |\t|\n|\r]*/i', '', $Query));
 						else if (preg_match("^SET[| |\t|\n|\r]*NAMES[| |\t|\n|\r]", $Query)) {
-							$_SESSION['charset'] = eregi_replace("[|`|\"| *;|;|\t|\n|\r]", "", eregi_replace("^NAMES[| |\t|\n|\r]*", "", eregi_replace("^SET[| |\t|\n|\r]*", "", $Query)));
+							$_SESSION['charset'] = preg_replace('/[|`|\"| *;|;|\t|\n|\r]/i', '', preg_replace('/^NAMES[| |\t|\n|\r]*/i', '', preg_replace('/^SET[| |\t|\n|\r]*/i', '', $Query)));
 						}
 					} else {
 						do {
@@ -588,9 +588,9 @@
 						FlushPackets();
 
 						if (preg_match("^USE[| |\t|\n|\r]", $Query))
-							$_SESSION['database'] = eregi_replace("[|`|\"| *;|;|\t|\n|\r]", "", eregi_replace("^USE[| |\t|\n|\r]*", "", $Query));
+							$_SESSION['database'] = preg_replace('/[|`|\"| *;|;|\t|\n|\r]/i', '', preg_replace('/^USE[| |\t|\n|\r]*/i', '', $Query));
 						else if (preg_match("^SET[| |\t|\n|\r][| |\t|\n|\r]*NAMES[| |\t|\n|\r]", $Query)) {
-							$_SESSION['charset'] = eregi_replace("[|`|\"| *;|;|\t|\n|\r]", "", eregi_replace("^NAMES[| |\t|\n|\r]*", "", eregi_replace("^SET[| |\t|\n|\r]*", "", $Query)));
+							$_SESSION['charset'] = preg_replace('/[|`|\"| *;|;|\t|\n|\r]/i', '', preg_replace('/^NAMES[| |\t|\n|\r]*/i', '', preg_replace('/^SET[| |\t|\n|\r]*/i', '', $Query)));
 							SetCharsetNr($mysql);
 						}
 					} else {

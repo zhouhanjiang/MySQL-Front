@@ -105,8 +105,8 @@ type
   TSEntities = class(TSItems)
   protected
     FValid: Boolean;
-    function Add(const AEntity: TSEntity; const ExecuteEvent: Boolean = False): Integer; virtual;
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; virtual;
+    function Add(const AEntity: TSEntity; const SendEvent: Boolean = False): Integer; virtual;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean; virtual;
     procedure Delete(const AEntity: TSEntity); overload; virtual;
     function GetValid(): Boolean; virtual;
     function SQLGetItems(const Name: string = ''): string; virtual; abstract;
@@ -158,7 +158,7 @@ type
 
   TSObjects = class(TSEntities)
   protected
-    function Add(const AEntity: TSEntity; const ExecuteEvent: Boolean = False): Integer; override;
+    function Add(const AEntity: TSEntity; const SendEvent: Boolean = False): Integer; override;
     procedure Delete(const AEntity: TSEntity); override;
   public
     procedure Invalidate(); override;
@@ -243,7 +243,7 @@ type
   private
     FDatabase: TSDatabase;
   protected
-    function Add(const AEntity: TSEntity; const ExecuteEvent: Boolean = False): Integer; override;
+    function Add(const AEntity: TSEntity; const SendEvent: Boolean = False): Integer; override;
     procedure Delete(const AEntity: TSEntity); override;
   public
     constructor Create(const ADatabase: TSDatabase); reintroduce; virtual;
@@ -642,7 +642,6 @@ type
   protected
     FValidStatus: Boolean;
     procedure AddReference(const ReferencedTable: TSBaseTable);
-    procedure BuildStatus(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean); virtual;
     function GetValid(): Boolean; override;
     procedure ParseCreateTable(const SQL: string); virtual;
     procedure SetSource(const Field: TField); override;
@@ -659,13 +658,13 @@ type
     procedure Empty(); virtual;
     function EmptyFields(const Fields: TList): Boolean; virtual;
     function GetSourceEx(const DropBeforeCreate: Boolean = False): string; override;
+    procedure InvalidateData(); override;
     function KeyByCaption(const Caption: string): TSKey; virtual;
     function IndexByName(const Name: string): TSKey; virtual;
     function KeyByDataSet(const DataSet: TSTable.TDataSet): TSKey; virtual;
     procedure Invalidate(); override;
     procedure InvalidateStatus(); virtual;
     function PartitionByName(const PartitionName: string): TSPartition; virtual;
-    procedure PushBuildEvent(const SItemsEvents: Boolean = True); override;
     function Update(const Status: Boolean): Boolean; reintroduce; overload; virtual;
     property AutoIncrement: LargeInt read FAutoIncrement write FAutoIncrement;
     property AutoIncrementField: TSBaseTableField read GetAutoIncrementField;
@@ -742,8 +741,8 @@ type
     function GetTable(Index: Integer): TSTable; inline;
     function GetValidStatus(): Boolean;
   protected
-    function Add(const AEntity: TSEntity; const ExecuteEvent: Boolean = False): Integer; override;
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; overload; override;
+    function Add(const AEntity: TSEntity; const SendEvent: Boolean = False): Integer; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean; overload; override;
     function BuildViewFields(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean): Boolean;
     procedure Delete(const AEntity: TSEntity); override;
     function SQLGetItems(const Name: string = ''): string; override;
@@ -835,7 +834,7 @@ type
   private
     function GetRoutine(Index: Integer): TSRoutine;
   protected
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     procedure AddRoutine(const NewRoutine: TSRoutine); virtual;
@@ -891,9 +890,8 @@ type
   private
     function GetTrigger(Index: Integer): TSTrigger; inline;
   protected
-    function Add(const AEntity: TSEntity; const ExecuteEvent: Boolean = False): Integer; override;
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; override;
-    procedure Delete(const AEntity: TSEntity); override;
+    function Add(const AEntity: TSEntity; const SendEvent: Boolean = False): Integer; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     procedure Invalidate(); override;
@@ -954,7 +952,7 @@ type
   private
     function GetEvent(Index: Integer): TSEvent;
   protected
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     property Event[Index: Integer]: TSEvent read GetEvent; default;
@@ -965,7 +963,7 @@ type
     Names: array of array [0 .. NAME_CHAR_LEN] of Char;
     function GetColumn(Index: Integer): PChar;
   protected
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean; override;
     function GetCount(): Integer; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
@@ -1004,6 +1002,7 @@ type
     function GetValidSource(): Boolean; override;
     procedure SetName(const AName: string); override;
     procedure SetSource(const DataSet: TMySQLQuery); override;
+    procedure SetSource(const Field: TField); override;
     function SQLAlterTable(const Table, NewTable: TSBaseTable; const EncloseFields: Boolean = True): string; virtual;
     function SQLGetSource(): string; virtual;
     function SQLTruncateTable(const Table: TSBaseTable): string; virtual;
@@ -1070,7 +1069,7 @@ type
   private
     function GetDatabase(Index: Integer): TSDatabase; inline;
   protected
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean; override;
     procedure Delete(const AEntity: TSEntity); override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
@@ -1107,7 +1106,7 @@ type
   private
     function GetVariable(Index: Integer): TSVariable; inline;
   protected
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     property Variable[Index: Integer]: TSVariable read GetVariable; default;
@@ -1122,7 +1121,7 @@ type
   private
     function GetStatus(Index: Integer): TSStatus;
   protected
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     property Status[Index: Integer]: TSStatus read GetStatus; default;
@@ -1157,7 +1156,7 @@ type
     function GetDefaultEngine(): TSEngine;
     function GetEngine(Index: Integer): TSEngine; inline;
   protected
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     function Update(): Boolean; override;
@@ -1179,7 +1178,7 @@ type
   private
     function GetPlugin(Index: Integer): TSPlugin;
   protected
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     property Plugin[Index: Integer]: TSPlugin read GetPlugin; default;
@@ -1233,7 +1232,7 @@ type
   private
     function GetCharset(Index: Integer): TSCharset;
   protected
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     function Update(): Boolean; override;
@@ -1263,7 +1262,7 @@ type
   private
     function GetCollation(Index: Integer): TSCollation;
   protected
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     property Collation[Index: Integer]: TSCollation read GetCollation; default;
@@ -1295,11 +1294,10 @@ type
   private
     function GetProcess(Index: Integer): TSProcess;
   protected
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean; override;
     function GetValid(): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
-    procedure Delete(const AEntity: TSEntity); override;
     function NameCmp(const Name1, Name2: string): Integer; override;
     property Process[Index: Integer]: TSProcess read GetProcess; default;
   end;
@@ -1368,7 +1366,6 @@ type
     function GetValid(): Boolean; override;
     procedure SetName(const AName: string); override;
     procedure SetSource(const DataSet: TMySQLQuery); override;
-    procedure SetSource(const ASource: string); override;
     function SQLGetSource(): string;
   public
     function AddRight(const NewUserRight: TSUserRight): Boolean;
@@ -1400,7 +1397,7 @@ type
   private
     function GetUser(Index: Integer): TSUser; inline;
   protected
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean; override;
     function GetValid(): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
@@ -1458,7 +1455,6 @@ type
     FEngines: TSEngines;
     FFieldTypes: TSFieldTypes;
     FInformationSchema: TSDatabase;
-    FInvalidObjects: TList;
     FMetadataProvider: TacEventMetadataProvider;
     FPerformanceSchema: TSDatabase;
     FPlugins: TSPlugins;
@@ -1479,7 +1475,7 @@ type
     function BuildTriggers(const DataSet: TMySQLQuery): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
     procedure BuildUser(const DataSet: TMySQLQuery);
     procedure ConnectChange(Sender: TObject; Connecting: Boolean);
-    procedure DoExecuteEvent(const AEvent: TEvent);
+    procedure DoSendEvent(const AEvent: TEvent);
     function GetCaption(): string;
     function GetCharset(): string;
     function GetCollation(): string;
@@ -1494,18 +1490,17 @@ type
     FSQLParser: TSQLParser;
     ParseEndDate: TDateTime;
     UnparsableSQL: string;
-    procedure ExecuteEvent(const EventType: TEvent.TEventType); overload;
-    procedure ExecuteEvent(const EventType: TEvent.TEventType; const Sender: TObject; const SItems: TSItems = nil; const SItem: TSItem = nil); overload;
     function GetLog(): string;
     function GetSlowLog(): string;
     function GetSlowSQLLog(const User: TSUser = nil): string;
     function GetSQLLog(const User: TSUser = nil): string;
     procedure MonitorLog(const Connection: TMySQLConnection; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
     procedure MonitorExecutedStmts(const Connection: TMySQLConnection; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
+    procedure SendEvent(const EventType: TEvent.TEventType; const Sender: TObject; const SItems: TSItems = nil; const SItem: TSItem = nil); overload;
+    procedure SendEvent(const EventType: TEvent.TEventType); overload;
     function SessionResult(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
       const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
     property Sessions: TSSessions read FSessions;
-    property InvalidObjects: TList read FInvalidObjects;
   public
     function AddDatabase(const NewDatabase: TSDatabase): Boolean;
     function AddUser(const ANewUser: TSUser): Boolean;
@@ -1922,7 +1917,7 @@ end;
 
 { TSEntities ******************************************************************}
 
-function TSEntities.Add(const AEntity: TSEntity; const ExecuteEvent: Boolean): Integer;
+function TSEntities.Add(const AEntity: TSEntity; const SendEvent: Boolean = False): Integer;
 begin
   if (InsertIndex(AEntity.Name, Result)) then
     if (Result < TList(Self).Count) then
@@ -1931,7 +1926,7 @@ begin
       TList(Self).Add(AEntity);
 end;
 
-function TSEntities.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
+function TSEntities.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean;
 begin
   FValid := not Filtered;
 
@@ -1959,11 +1954,9 @@ begin
   Index := IndexOf(AEntity);
 
   if (Index >= 0) then
-  begin
-    TList(Self).Delete(Index);
+    Delete(Index);
 
-    AEntity.Free();
-  end;
+  AEntity.Free();
 end;
 
 function TSEntities.GetValid(): Boolean;
@@ -1978,7 +1971,7 @@ end;
 
 procedure TSEntities.PushBuildEvent(const Sender: TObject);
 begin
-  Session.ExecuteEvent(etItemsValid, Sender, Self);
+  Session.SendEvent(etItemsValid, Sender, Self);
 end;
 
 function TSEntities.Update(): Boolean;
@@ -2027,9 +2020,6 @@ begin
   if (Assigned(FDesktop)) then
     FDesktop.Free();
 
-  if (Assigned(Session.InvalidObjects) and (Session.InvalidObjects.IndexOf(Self) > 0)) then
-    Session.InvalidObjects.Delete(Session.InvalidObjects.IndexOf(Self));
-
   inherited;
 end;
 
@@ -2071,9 +2061,6 @@ end;
 
 procedure TSObject.Invalidate();
 begin
-  if (Valid and Assigned(Session.InvalidObjects) and (Session.InvalidObjects.IndexOf(Self) < 0)) then
-    Session.InvalidObjects.Add(Self);
-
   FSource := '';
   FValidSource := False;
 end;
@@ -2090,18 +2077,16 @@ procedure TSObject.SetSource(const Field: TField);
 var
   SQL: string;
 begin
-  SQL := Field.AsString;
-
-  if ((SQL <> '') and (SQL[Length(SQL)] <> ';')) then
-    SQL := SQL + ';';
+  SQL := Field.AsString + ';' + #13#10;
 
   SetSource(SQL);
 end;
 
 procedure TSObject.SetSource(const ASource: string);
 begin
-  FValidSource := True;
   FSource := ASource;
+
+  FValidSource := True;
 end;
 
 function TSObject.Update(): Boolean;
@@ -2114,22 +2099,14 @@ end;
 
 { TSObjects *******************************************************************}
 
-function TSObjects.Add(const AEntity: TSEntity; const ExecuteEvent: Boolean): Integer;
+function TSObjects.Add(const AEntity: TSEntity; const SendEvent: Boolean): Integer;
 begin
   Assert(AEntity is TSObject);
 
-  if (InsertIndex(AEntity.Name, Result)) then
-    if (Result < TList(Self).Count) then
-      TList(Self).Insert(Result, AEntity)
-    else
-      TList(Self).Add(AEntity);
+  Result := inherited;
 
-  if ((Result >= 0) and ExecuteEvent) then
-  begin
-    TSObject(AEntity).Invalidate();
-    Session.InvalidObjects.Add(AEntity);
-    Session.ExecuteEvent(etItemCreated, Session, Self, AEntity);
-  end;
+  if ((Result >= 0) and SendEvent) then
+    Session.SendEvent(etItemCreated, Session, Self, AEntity);
 end;
 
 procedure TSObjects.Delete(const AEntity: TSEntity);
@@ -2144,10 +2121,10 @@ begin
   begin
     Delete(Index);
 
-    Session.ExecuteEvent(etItemDropped, Session, Self, AEntity);
-
-    AEntity.Free();
+    Session.SendEvent(etItemDropped, Session, Self, AEntity);
   end;
+
+  AEntity.Free();
 end;
 
 procedure TSObjects.Invalidate();
@@ -2463,8 +2440,8 @@ begin
   if (Valid) then
   begin
     if (SItemsEvents) then
-      Session.ExecuteEvent(etItemsValid, Database, Items);
-    Session.ExecuteEvent(etItemValid, Database, Items, Self);
+      Session.SendEvent(etItemsValid, Database, Items);
+    Session.SendEvent(etItemValid, Database, Items, Self);
   end;
 end;
 
@@ -2497,19 +2474,7 @@ var
 begin
   References.Clear();
 
-  if (not Session.SQLParser.ParseSQL(SQL)) then
-  begin
-    if ((Now() <= Session.ParseEndDate)
-      and (StrIComp(PChar(Name), 'create_synonym_db') <> 0)
-      and (StrIComp(PChar(Name), 'diagnostics') <> 0)
-      and (StrIComp(PChar(Name), 'execute_prepared_stmt') <> 0)
-      and (StrLIComp(PChar(Name), 'ps_', 3) <> 0)) then
-      Session.UnparsableSQL := Session.UnparsableSQL
-        + '# SetReferences()' + #13#10
-        + '# Error: ' + Session.SQLParser.ErrorMessage + #13#10
-        + S + #13#10 + #13#10;
-  end
-  else
+  if (Session.SQLParser.ParseSQL(SQL)) then
   begin
     try
       PreviousToken1 := nil; PreviousToken2 := nil;
@@ -2560,6 +2525,16 @@ procedure TSDBObject.SetSource(const Field: TField);
 begin
   inherited;
 
+  if (Now() <= Session.ParseEndDate) then
+  begin
+    if (not Session.SQLParser.ParseSQL(Source)) then
+      Session.UnparsableSQL := Session.UnparsableSQL
+        + '# SetSource()' + #13#10
+        + '# Error: ' + Session.SQLParser.ErrorMessage + #13#10
+        + Source + #13#10 + #13#10;
+    Session.SQLParser.Clear();
+  end;
+
   if (not (Self is TSBaseTable)) then
     SetReferences(Source);
 end;
@@ -2576,7 +2551,7 @@ end;
 
 { TSDBObjects *****************************************************************}
 
-function TSDBObjects.Add(const AEntity: TSEntity; const ExecuteEvent: Boolean = False): Integer;
+function TSDBObjects.Add(const AEntity: TSEntity; const SendEvent: Boolean = False): Integer;
 begin
   Assert(AEntity is TSObject);
 
@@ -2586,12 +2561,8 @@ begin
     else
       TList(Self).Add(AEntity);
 
-  if (ExecuteEvent) then
-  begin
-    TSObject(AEntity).Invalidate();
-    Session.InvalidObjects.Add(AEntity);
-    Session.ExecuteEvent(etItemCreated, Database, Self, AEntity);
-  end;
+  if ((Result >= 0) and SendEvent) then
+    Session.SendEvent(etItemCreated, Database, Self, AEntity);
 end;
 
 constructor TSDBObjects.Create(const ADatabase: TSDatabase);
@@ -2611,12 +2582,12 @@ begin
 
   if (Index >= 0) then
   begin
-    TList(Self).Delete(Index);
+    Delete(Index);
 
-    Session.ExecuteEvent(etItemDropped, Database, Self, AEntity);
-
-    AEntity.Free();
+    Session.SendEvent(etItemDropped, Database, Self, AEntity);
   end;
+
+  AEntity.Free();
 end;
 
 { TSKeyColumn *****************************************************************}
@@ -3817,11 +3788,7 @@ end;
 procedure TSTable.InvalidateData();
 begin
   if (Assigned(FDataSet) and FDataSet.Active) then
-  begin
     DataSet.Invalidate();
-    if (Session.InvalidObjects.IndexOf(Self) < 0) then
-      Session.InvalidObjects.Add(Self);
-  end;
 end;
 
 function TSTable.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
@@ -3869,15 +3836,10 @@ end;
 
 procedure TSTable.PushBuildEvent(const SItemsEvents: Boolean = True);
 begin
-  if (ValidSource) then
-  begin
-    if (SItemsEvents) then
-    begin
-      Session.ExecuteEvent(etItemsValid, Database, Items);
-      Session.ExecuteEvent(etItemsValid, Self, Fields);
-    end;
-    Session.ExecuteEvent(etItemValid, Database, Items, Self);
-  end;
+  inherited;
+
+  if (Fields.Count > 0) then
+    Session.SendEvent(etItemsValid, Self, Fields);
 end;
 
 { TSPartition *****************************************************************}
@@ -4111,80 +4073,6 @@ begin
     end;
 end;
 
-procedure TSBaseTable.BuildStatus(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean);
-var
-  RBS: RawByteString;
-  TempCharset: TSCharset;
-begin
-  if (not UseInformationSchema) then
-  begin
-    if (Assigned(DataSet.FindField('Type'))) then // MySQL < 4.1.2 and 5.0.0???
-      FEngine := Session.EngineByName(DataSet.FieldByName('Type').AsString)
-    else
-      FEngine := Session.EngineByName(DataSet.FieldByName('Engine').AsString);
-    FRowType := StrToMySQLRowType(DataSet.FieldByName('Row_format').AsString);
-    if (Self is TSSystemView) then
-      FRecordCount := -1
-    else
-      if (not TryStrToInt64(DataSet.FieldByName('Rows').AsString, FRecordCount)) then FRecordCount := 0;
-    FAvgRowLength := DataSet.FieldByName('Avg_row_length').AsLargeInt;
-    if (not TryStrToInt64(DataSet.FieldByName('Data_length').AsString, FDataSize)) then FDataSize := 0;
-    if (not TryStrToInt64(DataSet.FieldByName('Index_length').AsString, FIndexSize)) then FIndexSize := 0;
-    if (not TryStrToInt64(DataSet.FieldByName('Max_data_length').AsString, FMaxDataSize)) then FMaxDataSize := 0;
-    if (not TryStrToInt64(DataSet.FieldByName('Data_free').AsString, FUnusedSize)) then FUnusedSize := 0;
-    if (not TryStrToInt64(DataSet.FieldByName('Auto_increment').AsString, FAutoIncrement)) then FAutoIncrement := 0;
-    FCreated := DataSet.FieldByName('Create_time').AsDateTime;
-    FUpdated := DataSet.FieldByName('Update_time').AsDateTime;
-    FChecked := DataSet.FieldByName('Check_time').AsDateTime;
-    FComment := DataSet.FieldByName('Comment').AsString;
-  end
-  else
-  begin
-    FEngine := Session.EngineByName(DataSet.FieldByName('ENGINE').AsString);
-    RowType := StrToMySQLRowType(DataSet.FieldByName('ROW_FORMAT').AsString);
-    if (Self is TSSystemView) then
-      FRecordCount := -1
-    else
-      if (not TryStrToInt64(DataSet.FieldByName('TABLE_ROWS').AsString, FRecordCount)) then FRecordCount := 0;
-    FAvgRowLength := DataSet.FieldByName('AVG_ROW_LENGTH').AsInteger;
-    if (not TryStrToInt64(DataSet.FieldByName('DATA_LENGTH').AsString, FDataSize)) then FDataSize := 0;
-    if (not TryStrToInt64(DataSet.FieldByName('MAX_DATA_LENGTH').AsString, FMaxDataSize)) then FMaxDataSize := 0;
-    if (not TryStrToInt64(DataSet.FieldByName('INDEX_LENGTH').AsString, FIndexSize)) then FIndexSize := 0;
-    if (not TryStrToInt64(DataSet.FieldByName('DATA_FREE').AsString, FUnusedSize)) then FUnusedSize := 0;
-    if (not TryStrToInt64(DataSet.FieldByName('AUTO_INCREMENT').AsString, FAutoIncrement)) then FAutoIncrement := 0;
-    FCreated := DataSet.FieldByName('CREATE_TIME').AsDateTime;
-    FUpdated := DataSet.FieldByName('UPDATE_TIME').AsDateTime;
-    FChecked := DataSet.FieldByName('CHECK_TIME').AsDateTime;
-    if (Assigned(DataSet.FindField('TABLE_COLLATION'))) then
-      FCollation := DataSet.FieldByName('TABLE_COLLATION').AsString;
-    try
-      FComment := DataSet.FieldByName('TABLE_COMMENT').AsString;
-    except
-      // Sometimes, the MySQL server sends wrong encoded table comments
-      // This code allow the user to handle this table - but the comments are wrong.
-      SetString(RBS,
-        DataSet.LibRow^[DataSet.FieldByName('TABLE_COMMENT').FieldNo - 1],
-        DataSet.LibLengths^[DataSet.FieldByName('TABLE_COMMENT').FieldNo - 1]);
-      FComment := string(RBS);
-    end;
-
-    TempCharset := Session.CharsetByCollation(FCollation);
-    if (not Assigned(TempCharset)) then
-      FCharset := ''
-    else
-      FCharset := Session.CharsetByCollation(Collation).Name;
-  end;
-
-  if (Pos('InnoDB free: ', FComment) > 0) then
-  begin
-    Delete(FComment, Pos('InnoDB free: ', FComment), Length(FComment) - Pos('InnoDB free: ', FComment) + 1);
-    FComment := Trim(FComment);
-    if (Copy(FComment, Length(FComment), 1) = ';') then Delete(FComment, Length(FComment), 1);
-  end;
-
-  FValidStatus := True;
-end;
-
 constructor TSBaseTable.Create(const ASDBObjects: TSDBObjects; const AName: string = ''; const ASystemTable: Boolean = False);
 begin
   inherited Create(ASDBObjects, AName);
@@ -4369,6 +4257,13 @@ begin
   Result := inherited and (Fields.Count > 0) and ValidStatus;
 end;
 
+procedure TSBaseTable.InvalidateData();
+begin
+  inherited;
+
+  InvalidateStatus();
+end;
+
 function TSBaseTable.KeyByCaption(const Caption: string): TSKey;
 var
   IndexName: string;
@@ -4442,9 +4337,6 @@ end;
 
 procedure TSBaseTable.InvalidateStatus();
 begin
-  if (ValidStatus and (Session.InvalidObjects.IndexOf(Self) < 0)) then
-    Session.InvalidObjects.Add(Self);
-
   FValidStatus := False;
 end;
 
@@ -4519,7 +4411,7 @@ begin
     end;
 
 
-    // Remove deleted (and renamed) fields to reduce ExecuteEvent for "moved"
+    // Remove deleted (and renamed) fields to reduce SendEvent for "moved"
     // fields
 
     DeleteList := TList.Create();
@@ -4544,7 +4436,7 @@ begin
     end;
     for I := DeleteList.Count - 1 downto 0 do
     begin
-      Session.ExecuteEvent(etItemDropped, Self, FFields, DeleteList[I]);
+      Session.SendEvent(etItemDropped, Self, FFields, DeleteList[I]);
       if (TObject(DeleteList[I]) is TSTableField) then
         FFields.DeleteField(TSTableField(DeleteList[I]));
     end;
@@ -4690,8 +4582,8 @@ begin
 
       if (Moved and not FirstParse) then
       begin
-        Session.ExecuteEvent(etItemDropped, Self, FFields, NewField);
-        Session.ExecuteEvent(etItemCreated, Self, FFields, NewField);
+        Session.SendEvent(etItemDropped, Self, FFields, NewField);
+        Session.SendEvent(etItemCreated, Self, FFields, NewField);
       end;
 
       Inc(Index);
@@ -5095,18 +4987,13 @@ begin
   end;
 end;
 
-procedure TSBaseTable.PushBuildEvent(const SItemsEvents: Boolean = True);
-begin
-  if ((ValidSource or ValidStatus) and SItemsEvents) then
-    Session.ExecuteEvent(etItemsValid, Self);
-  if (Valid or ValidSource or ValidStatus) then
-    Session.ExecuteEvent(etItemValid, Database, Tables, Self);
-end;
-
 procedure TSBaseTable.SetSource(const Field: TField);
 var
+  OldSourceAvailable: Boolean;
   RBS: RawByteString;
 begin
+  OldSourceAvailable := Source <> '';
+
   try
     inherited SetSource(Field);
   except
@@ -5116,18 +5003,13 @@ begin
     SetSource(string(RBS));
   end;
 
-  if (Now() <= Session.ParseEndDate) then
-  begin
-    if (not Session.SQLParser.ParseSQL(Source)) then
-      Session.UnparsableSQL := Session.UnparsableSQL
-        + '# SetSource()' + #13#10
-        + '# Error: ' + Session.SQLParser.ErrorMessage + #13#10
-        + Source + #13#10 + #13#10;
-    Session.SQLParser.Clear();
-  end;
-
   ParseCreateTable(Source);
-  PushBuildEvent();
+
+  if (OldSourceAvailable) then
+    Session.SendEvent(etItemAltered, Database, Items, Self)
+  else
+    Session.SendEvent(etItemValid, Database, Items, Self);
+  Session.SendEvent(etItemsValid, Self, Fields);
 end;
 
 procedure TSBaseTable.SetSource(const DataSet: TMySQLQuery);
@@ -5387,19 +5269,10 @@ begin
 end;
 
 procedure TSView.SetSource(const Field: TField);
-var
-  OldSourceAvailable: Boolean;
 begin
-  OldSourceAvailable := Source <> '';
-
   inherited SetSource(Field);
 
   ParseCreateView(Source);
-  if (ValidSource) then
-    if (OldSourceAvailable) then
-      Session.ExecuteEvent(etItemAltered, Database, Items, Self)
-    else
-      Session.ExecuteEvent(etItemValid, Database, Items, Self);
 end;
 
 function TSView.SQLGetSource(): string;
@@ -5409,7 +5282,7 @@ end;
 
 { TSTables ********************************************************************}
 
-function TSTables.Add(const AEntity: TSEntity; const ExecuteEvent: Boolean = False): Integer;
+function TSTables.Add(const AEntity: TSEntity; const SendEvent: Boolean = False): Integer;
 begin
   if (Assigned(Database.Columns)) then Database.Columns.Invalidate();
 
@@ -5441,12 +5314,14 @@ begin
   end;
 end;
 
-function TSTables.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
+function TSTables.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
   Name: string;
   NewTable: TSTable;
+  RBS: RawByteString;
+  TempCharset: TSCharset;
 begin
   if (DataSet.FieldCount <= 2) then // SHOW [FULL] TABLES
   begin
@@ -5478,8 +5353,8 @@ begin
         else if (DeleteList.IndexOf(Items[Index]) >= 0) then
           DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
 
-        if (Filtered and SessionEvents) then
-          Session.ExecuteEvent(etItemValid, Database, Self, Table[Index]);
+        if (Filtered and SendEvents) then
+          Session.SendEvent(etItemValid, Database, Self, Table[Index]);
       until (not DataSet.FindNext());
 
     if (not Filtered) then
@@ -5492,11 +5367,14 @@ begin
       end;
     DeleteList.Free();
 
-    if (not Filtered and SessionEvents) then
+    if (not Filtered) then
     begin
       FValid := True;
-      Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
-      Session.ExecuteEvent(etItemsValid, Database, Self);
+      if (SendEvents) then
+      begin
+        Session.SendEvent(etItemsValid, Session, Session.Databases);
+        Session.SendEvent(etItemsValid, Database, Self);
+      end;
     end;
   end
   else
@@ -5533,10 +5411,83 @@ begin
           DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
 
         if (Table[Index] is TSBaseTable) then
-          TSBaseTable(Table[Index]).BuildStatus(DataSet, UseInformationSchema);
+        begin
+          if (not UseInformationSchema) then
+          begin
+            if (Assigned(DataSet.FindField('Type'))) then // MySQL < 4.1.2 and 5.0.0???
+              TSBaseTable(Table[Index]).FEngine := Session.EngineByName(DataSet.FieldByName('Type').AsString)
+            else
+              TSBaseTable(Table[Index]).FEngine := Session.EngineByName(DataSet.FieldByName('Engine').AsString);
+            TSBaseTable(Table[Index]).FRowType := StrToMySQLRowType(DataSet.FieldByName('Row_format').AsString);
+            if (TSBaseTable(Table[Index]) is TSSystemView) then
+              TSBaseTable(Table[Index]).FRecordCount := -1
+            else
+              if (not TryStrToInt64(DataSet.FieldByName('Rows').AsString, TSBaseTable(Table[Index]).FRecordCount)) then TSBaseTable(Table[Index]).FRecordCount := 0;
+            TSBaseTable(Table[Index]).FAvgRowLength := DataSet.FieldByName('Avg_row_length').AsLargeInt;
+            if (not TryStrToInt64(DataSet.FieldByName('Data_length').AsString, TSBaseTable(Table[Index]).FDataSize)) then TSBaseTable(Table[Index]).FDataSize := 0;
+            if (not TryStrToInt64(DataSet.FieldByName('Index_length').AsString, TSBaseTable(Table[Index]).FIndexSize)) then TSBaseTable(Table[Index]).FIndexSize := 0;
+            if (not TryStrToInt64(DataSet.FieldByName('Max_data_length').AsString, TSBaseTable(Table[Index]).FMaxDataSize)) then TSBaseTable(Table[Index]).FMaxDataSize := 0;
+            if (not TryStrToInt64(DataSet.FieldByName('Data_free').AsString, TSBaseTable(Table[Index]).FUnusedSize)) then TSBaseTable(Table[Index]).FUnusedSize := 0;
+            if (not TryStrToInt64(DataSet.FieldByName('Auto_increment').AsString, TSBaseTable(Table[Index]).FAutoIncrement)) then TSBaseTable(Table[Index]).FAutoIncrement := 0;
+            TSBaseTable(Table[Index]).FCreated := DataSet.FieldByName('Create_time').AsDateTime;
+            TSBaseTable(Table[Index]).FUpdated := DataSet.FieldByName('Update_time').AsDateTime;
+            TSBaseTable(Table[Index]).FChecked := DataSet.FieldByName('Check_time').AsDateTime;
+            TSBaseTable(Table[Index]).FComment := DataSet.FieldByName('Comment').AsString;
+          end
+          else
+          begin
+            TSBaseTable(Table[Index]).FEngine := Session.EngineByName(DataSet.FieldByName('ENGINE').AsString);
+            TSBaseTable(Table[Index]).RowType := StrToMySQLRowType(DataSet.FieldByName('ROW_FORMAT').AsString);
+            if (TSBaseTable(Table[Index]) is TSSystemView) then
+              TSBaseTable(Table[Index]).FRecordCount := -1
+            else
+              if (not TryStrToInt64(DataSet.FieldByName('TABLE_ROWS').AsString, TSBaseTable(Table[Index]).FRecordCount)) then TSBaseTable(Table[Index]).FRecordCount := 0;
+            TSBaseTable(Table[Index]).FAvgRowLength := DataSet.FieldByName('AVG_ROW_LENGTH').AsInteger;
+            if (not TryStrToInt64(DataSet.FieldByName('DATA_LENGTH').AsString, TSBaseTable(Table[Index]).FDataSize)) then TSBaseTable(Table[Index]).FDataSize := 0;
+            if (not TryStrToInt64(DataSet.FieldByName('MAX_DATA_LENGTH').AsString, TSBaseTable(Table[Index]).FMaxDataSize)) then TSBaseTable(Table[Index]).FMaxDataSize := 0;
+            if (not TryStrToInt64(DataSet.FieldByName('INDEX_LENGTH').AsString, TSBaseTable(Table[Index]).FIndexSize)) then TSBaseTable(Table[Index]).FIndexSize := 0;
+            if (not TryStrToInt64(DataSet.FieldByName('DATA_FREE').AsString, TSBaseTable(Table[Index]).FUnusedSize)) then TSBaseTable(Table[Index]).FUnusedSize := 0;
+            if (not TryStrToInt64(DataSet.FieldByName('AUTO_INCREMENT').AsString, TSBaseTable(Table[Index]).FAutoIncrement)) then TSBaseTable(Table[Index]).FAutoIncrement := 0;
+            TSBaseTable(Table[Index]).FCreated := DataSet.FieldByName('CREATE_TIME').AsDateTime;
+            TSBaseTable(Table[Index]).FUpdated := DataSet.FieldByName('UPDATE_TIME').AsDateTime;
+            TSBaseTable(Table[Index]).FChecked := DataSet.FieldByName('CHECK_TIME').AsDateTime;
+            if (Assigned(DataSet.FindField('TABLE_COLLATION'))) then
+              TSBaseTable(Table[Index]).FCollation := DataSet.FieldByName('TABLE_COLLATION').AsString;
+            try
+              TSBaseTable(Table[Index]).FComment := DataSet.FieldByName('TABLE_COMMENT').AsString;
+            except
+              // Sometimes, the MySQL server sends wrong encoded table comments
+              // This code allow the user to handle this table - but the comments are wrong.
+              SetString(RBS,
+                DataSet.LibRow^[DataSet.FieldByName('TABLE_COMMENT').FieldNo - 1],
+                DataSet.LibLengths^[DataSet.FieldByName('TABLE_COMMENT').FieldNo - 1]);
+              TSBaseTable(Table[Index]).FComment := string(RBS);
+            end;
+            TempCharset := Session.CharsetByCollation(TSBaseTable(Table[Index]).FCollation);
+            if (not Assigned(TempCharset)) then
+              TSBaseTable(Table[Index]).FCharset := ''
+            else
+              TSBaseTable(Table[Index]).FCharset := TempCharset.Name;
+          end;
 
-        if (Filtered and SessionEvents) then
-          Table[Index].PushBuildEvent(Filtered);
+          if (Pos('InnoDB free: ', TSBaseTable(Table[Index]).FComment) > 0) then
+          begin
+            System.Delete(TSBaseTable(Table[Index]).FComment,
+              Pos('InnoDB free: ', TSBaseTable(Table[Index]).FComment),
+              Length(TSBaseTable(Table[Index]).FComment) - Pos('InnoDB free: ', TSBaseTable(Table[Index]).FComment) + 1);
+            TSBaseTable(Table[Index]).FComment := Trim(TSBaseTable(Table[Index]).FComment);
+            if (Copy(TSBaseTable(Table[Index]).FComment, System.Length(TSBaseTable(Table[Index]).FComment), 1) = ';') then
+              System.Delete(TSBaseTable(Table[Index]).FComment, System.Length(TSBaseTable(Table[Index]).FComment), 1);
+          end;
+
+          TSBaseTable(Table[Index]).FValidStatus := True;
+        end;
+
+        if (Filtered and SendEvents) then
+        begin
+          Session.SendEvent(etItemsValid, Table[Index]);
+          Session.SendEvent(etItemValid, Database, Self, Table[Index]);
+        end;
       until (not DataSet.FindNext() or (UseInformationSchema and (Session.Databases.NameCmp(DataSet.FieldByName('TABLE_SCHEMA').AsString, Database.Name) <> 0)));
 
     if (not Filtered) then
@@ -5552,14 +5503,14 @@ begin
     if (not Filtered) then
     begin
       FValid := True;
-      if (SessionEvents) then
+      if (SendEvents) then
       begin
-        Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
-        Session.ExecuteEvent(etItemsValid, Database, Self);
+        Session.SendEvent(etItemsValid, Session, Session.Databases);
+        Session.SendEvent(etItemsValid, Database, Self);
       end;
     end;
-    if (Database.Valid and SessionEvents) then
-      Session.ExecuteEvent(etItemValid, Session, Session.Databases, Database);
+    if (Database.Valid and SendEvents) then
+      Session.SendEvent(etItemValid, Session, Session.Databases, Database);
   end;
 
   Result := False;
@@ -5615,7 +5566,8 @@ begin
         end;
 
         View.Fields.FValid := True;
-        View.PushBuildEvent();
+        Session.SendEvent(etItemValid, Database, Self, View);
+        Session.SendEvent(etItemsValid, View, View.Fields);
 
         Index := 0;
       end;
@@ -5672,13 +5624,14 @@ begin
     end;
 
     View.Fields.FValid := True;
-    View.PushBuildEvent();
+    Session.SendEvent(etItemValid, Database, Self, View);
+    Session.SendEvent(etItemsValid, View, View.Fields);
   end;
 
-  Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
-  Session.ExecuteEvent(etItemsValid, Database, Self);
+  Session.SendEvent(etItemsValid, Session, Session.Databases);
+  Session.SendEvent(etItemsValid, Database, Self);
   if (Database.Valid) then
-    Session.ExecuteEvent(etItemValid, Session, Session.Databases, Database);
+    Session.SendEvent(etItemValid, Session, Session.Databases, Database);
 
   Result := False;
 end;
@@ -5731,59 +5684,48 @@ end;
 function TSTables.SQLGetStatus(const List: TList = nil): string;
 var
   BaseTables: Integer;
-  BaseTablesInList: Integer;
   I: Integer;
+  Tables: TList;
 begin
   Result := '';
 
+  Tables := TList.Create();
+  if (Assigned(List)) then
+    Tables.Assign(List)
+  else
+    for I := 0 to Count - 1 do
+      if ((Table[I] is TSBaseTable) and not TSBaseTable(Table[I]).ValidStatus) then
+        Tables.Add(Table[I]);
+
   if (Session.Connection.MySQLVersion < 50003) then // 5.0.2 supports INFORMATION_SCHEMA, but the WHERE clause is supported up from 5.0.3
   begin
-    if (Assigned(List)) then
-    begin
-      for I := 0 to List.Count - 1 do
-        if ((TObject(List[I]) is TSBaseTable) and not TSBaseTable(List[I]).ValidStatus) then
-          Result := Result + 'SHOW TABLE STATUS FROM ' + Session.Connection.EscapeIdentifier(Database.Name) + ' LIKE ' + SQLEscape(TSTable(List[I]).Name) + ';' + #13#10;
-    end
-    else if (not Session.Connection.MultiStatements) then
-    begin
-      Result := Result + 'SHOW TABLE STATUS FROM ' + Session.Connection.EscapeIdentifier(Database.Name) + ';' + #13#10;
-    end
-    else
-    begin
-      for I := 0 to Count - 1 do
-        if ((Table[I] is TSBaseTable) and not TSBaseTable(Table[I]).ValidStatus) then
-          Result := Result + 'SHOW TABLE STATUS FROM ' + Session.Connection.EscapeIdentifier(Database.Name) + ' LIKE ' + SQLEscape(Table[I].Name) + ';' + #13#10;
-    end
+    Result := '';
+    for I := 0 to Tables.Count - 1 do
+      Result := Result + 'SHOW TABLE STATUS FROM ' + Session.Connection.EscapeIdentifier(Database.Name) + ' LIKE ' + SQLEscape(TSTable(Tables[I]).Name) + ';' + #13#10;
   end
   else
   begin
     BaseTables := 0;
     for I := 0 to Count - 1 do
-      if (Table[I] is TSBaseTable) then
-        Inc(BaseTables);
-    BaseTablesInList := 0;
-    if (Assigned(List)) then
-      for I := 0 to List.Count - 1 do
-        if (TSDBObject(List[I]) is TSBaseTable) then
-          Inc(BaseTablesInList);
+      Inc(BaseTables);
 
-    if (Assigned(List) and (BaseTablesInList <> BaseTables)) then
+    if (Valid and (Tables.Count < BaseTables)) then
     begin
-      for I := 0 to List.Count - 1 do
-        if (TSDBObject(List[I]) is TSBaseTable) then
-        begin
-          if (Result <> '') then Result := Result + ',';
-          Result := Result + SQLEscape(TSBaseTable(List[I]).Name);
-        end;
-      if (Result <> '') then
-        Result := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('TABLES')
-          + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name)
-          + ' AND ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ' IN (' + Result + ');' + #13#10;
+      for I := 0 to Tables.Count - 1 do
+      begin
+        if (Result <> '') then Result := Result + ',';
+        Result := Result + SQLEscape(TSBaseTable(Tables[I]).Name);
+      end;
+      Result := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('TABLES')
+        + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name)
+        + ' AND ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ' IN (' + Result + ');' + #13#10;
     end
     else
       Result := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('TABLES')
         + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ';' + #13#10;
   end;
+
+  Tables.Free();
 end;
 
 function TSTables.SQLGetViewFields(): string;
@@ -6174,11 +6116,10 @@ begin
 
   ParseCreateRoutine(Source);
 
-  if (Valid) then
-    if (OldSourceAvailable) then
-      Session.ExecuteEvent(etItemAltered, Database, Items, Self)
-    else
-      Session.ExecuteEvent(etItemValid, Database, Items, Self);
+  if (OldSourceAvailable) then
+    Session.SendEvent(etItemAltered, Database, Items, Self)
+  else
+    Session.SendEvent(etItemValid, Database, Items, Self);
 end;
 
 function TSRoutine.SQLGetSource(): string;
@@ -6196,12 +6137,6 @@ end;
 procedure TSProcedure.SetSource(const DataSet: TMySQLQuery);
 begin
   SetSource(DataSet.FieldByName('Create Procedure'));
-
-  if (Valid) then
-  begin
-    Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
-    Session.ExecuteEvent(etItemValid, Database, Routines, Self);
-  end;
 end;
 
 function TSProcedure.SQLGetSource(): string;
@@ -6265,12 +6200,6 @@ end;
 procedure TSFunction.SetSource(const DataSet: TMySQLQuery);
 begin
   SetSource(DataSet.FieldByName('Create Function'));
-
-  if (Valid) then
-  begin
-//    Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
-//    Session.ExecuteEvent(etItemValid, Database, Routines, Self);
-  end;
 end;
 
 function TSFunction.SQLGetSource(): string;
@@ -6310,7 +6239,7 @@ begin
   end;
 end;
 
-function TSRoutines.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
+function TSRoutines.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -6368,8 +6297,8 @@ begin
         Routine[Index].FRoutineType := RoutineType;
       end;
 
-      if (Filtered and SessionEvents) then
-        Session.ExecuteEvent(etItemValid, Session, Self, Routine[Index]);
+      if (Filtered and SendEvents) then
+        Session.SendEvent(etItemValid, Database, Self, Routine[Index]);
 
       // Inside ROUTINE_DEFINITION there are no parameter, but for references
       // we don't need them, so we can set the references without a separated
@@ -6388,13 +6317,13 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered and (SessionEvents)) then
+  if (not Filtered and (SendEvents)) then
   begin
-    Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
-    Session.ExecuteEvent(etItemsValid, Database, Self);
+    Session.SendEvent(etItemsValid, Session, Session.Databases);
+    Session.SendEvent(etItemsValid, Database, Self);
   end;
-  if (Database.Valid and SessionEvents) then
-    Session.ExecuteEvent(etItemValid, Session, Session.Databases, Database);
+  if (Database.Valid and SendEvents) then
+    Session.SendEvent(etItemValid, Session, Session.Databases, Database);
 
   Result := inherited or (Session.Connection.ErrorCode = ER_CANNOT_LOAD_FROM_TABLE);
 end;
@@ -6619,9 +6548,6 @@ end;
 procedure TSTrigger.SetSource(const DataSet: TMySQLQuery);
 begin
   SetSource(DataSet.FieldByName('SQL Original Statement'));
-
-  if (Valid) then
-    Session.ExecuteEvent(etItemsValid, Session.Databases);
 end;
 
 procedure TSTrigger.SetSource(const Field: TField);
@@ -6634,11 +6560,10 @@ begin
 
   ParseCreateTrigger(Source);
 
-  if (Valid) then
-    if (OldSourceAvailable) then
-      Session.ExecuteEvent(etItemAltered, Database, Items, Self)
-    else
-      Session.ExecuteEvent(etItemValid, Database, Items, Self);
+  if (OldSourceAvailable) then
+    Session.SendEvent(etItemAltered, Database, Items, Self)
+  else
+    Session.SendEvent(etItemValid, Database, Items, Self);
 end;
 
 function TSTrigger.SQLDelete(): string;
@@ -6708,7 +6633,7 @@ end;
 
 { TSTriggers ******************************************************************}
 
-function TSTriggers.Add(const AEntity: TSEntity; const ExecuteEvent: Boolean = False): Integer;
+function TSTriggers.Add(const AEntity: TSEntity; const SendEvent: Boolean = False): Integer;
 begin
   Assert(AEntity is TSTrigger);
 
@@ -6718,15 +6643,11 @@ begin
     else
       TList(Self).Add(AEntity);
 
-  if (ExecuteEvent) then
-  begin
-    TSTrigger(AEntity).Invalidate();
-    Session.InvalidObjects.Add(AEntity);
-    Session.ExecuteEvent(etItemCreated, Database, Self, AEntity);
-  end;
+  if (SendEvent) then
+    Session.SendEvent(etItemCreated, Database, Self, AEntity);
 end;
 
-function TSTriggers.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
+function TSTriggers.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -6755,24 +6676,7 @@ begin
           DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
 
         if (not UseInformationSchema) then
-        begin
-          if (StrIComp(PChar(DataSet.FieldByName('Event').AsString), 'INSERT') = 0) then
-            Trigger[Index].FEvent := teInsert
-          else if (StrIComp(PChar(DataSet.FieldByName('Event').AsString), 'UPDATE') = 0) then
-            Trigger[Index].FEvent := teUpdate
-          else if (StrIComp(PChar(DataSet.FieldByName('Event').AsString), 'DELETE') = 0) then
-            Trigger[Index].FEvent := teDelete;
-          if (not Assigned(DataSet.FindField('Definer'))) then
-            Trigger[Index].FDefiner := ''
-          else
-            Trigger[Index].FDefiner := DataSet.FieldByName('Definer').AsString;
-          Trigger[Index].FStmt := DataSet.FieldByName('Statement').AsString + ';';
-          Trigger[Index].FTableName := DataSet.FieldByName('Table').AsString;
-          if (StrIComp(PChar(DataSet.FieldByName('Timing').AsString), 'BEFORE') = 0) then
-            Trigger[Index].FTiming := ttBefore
-          else if (StrIComp(PChar(DataSet.FieldByName('Timing').AsString), 'AFTER') = 0) then
-            Trigger[Index].FTiming := ttAfter;
-        end
+          raise ERangeError.Create(SRangeError)
         else
         begin
           if (StrIComp(PChar(DataSet.FieldByName('EVENT_MANIPULATION').AsString), 'INSERT') = 0) then
@@ -6780,27 +6684,28 @@ begin
           else if (StrIComp(PChar(DataSet.FieldByName('EVENT_MANIPULATION').AsString), 'UPDATE') = 0) then
             Trigger[Index].FEvent := teUpdate
           else if (StrIComp(PChar(DataSet.FieldByName('EVENT_MANIPULATION').AsString), 'DELETE') = 0) then
-            Trigger[Index].FEvent := teDelete;
-          Trigger[Index].FName := DataSet.FieldByName('TRIGGER_NAME').AsString;
-          if (not Assigned(DataSet.FindField('DEFINER'))) then
-            Trigger[Index].FDefiner := ''
+            Trigger[Index].FEvent := teDelete
           else
-            Trigger[Index].FDefiner := DataSet.FieldByName('DEFINER').AsString;
+            raise ERangeError.Create(SRangeError);
+          Trigger[Index].FName := DataSet.FieldByName('TRIGGER_NAME').AsString;
+          Trigger[Index].FDefiner := DataSet.FieldByName('DEFINER').AsString;
           Trigger[Index].FStmt := Trim(DataSet.FieldByName('ACTION_STATEMENT').AsString);
           if (RightStr(Trigger[Index].FStmt, 1) <> ';') then Trigger[Index].FStmt := Trigger[Index].FStmt + ';';
           Trigger[Index].FTableName := DataSet.FieldByName('EVENT_OBJECT_TABLE').AsString;
           if (StrIComp(PChar(DataSet.FieldByName('ACTION_TIMING').AsString), 'BEFORE') = 0) then
             Trigger[Index].FTiming := ttBefore
           else if (StrIComp(PChar(DataSet.FieldByName('ACTION_TIMING').AsString), 'AFTER') = 0) then
-            Trigger[Index].FTiming := ttAfter;
+            Trigger[Index].FTiming := ttAfter
+          else
+            raise ERangeError.Create(SRangeError)
         end;
         Trigger[Index].FValid := True;
 
         if (Session.Connection.MySQLVersion < 50121) then
           Trigger[Index].SetSource(Trigger[Index].GetSourceEx());
 
-        if (Filtered and SessionEvents) then
-          Session.ExecuteEvent(etItemValid, Session, Self, Trigger[Index]);
+        if (Filtered and SendEvents) then
+          Session.SendEvent(etItemValid, Database, Self, Trigger[Index]);
       end;
     until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('TRIGGER_SCHEMA').AsString, Database.Name) <> 0));
 
@@ -6814,33 +6719,15 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered and SessionEvents) then
+  if (not Filtered and SendEvents) then
   begin
-    Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
-    Session.ExecuteEvent(etItemsValid, Database, Self);
+    Session.SendEvent(etItemsValid, Session, Session.Databases);
+    Session.SendEvent(etItemsValid, Database, Self);
   end;
-  if (Database.Valid and SessionEvents) then
-    Session.ExecuteEvent(etItemValid, Session, Session.Databases, Database);
+  if (Database.Valid and SendEvents) then
+    Session.SendEvent(etItemValid, Session, Session.Databases, Database);
 
   Result := inherited;
-end;
-
-procedure TSTriggers.Delete(const AEntity: TSEntity);
-var
-  Index: Integer;
-begin
-  Assert(AEntity is TSTrigger);
-
-  Index := IndexOf(AEntity);
-
-  if (Index >= 0) then
-  begin
-    TList(Self).Delete(Index);
-
-    Session.ExecuteEvent(etItemDropped, Database, Self, AEntity);
-
-    AEntity.Free();
-  end;
 end;
 
 function TSTriggers.GetTrigger(Index: Integer): TSTrigger;
@@ -7015,11 +6902,10 @@ begin
 
   ParseCreateEvent(Source);
 
-  if (Valid) then
-    if (OldSourceAvailable) then
-      Session.ExecuteEvent(etItemAltered, Database, Items, Self)
-    else
-      Session.ExecuteEvent(etItemValid, Database, Items, Self);
+  if (OldSourceAvailable) then
+    Session.SendEvent(etItemAltered, Database, Items, Self)
+  else
+    Session.SendEvent(etItemValid, Database, Items, Self);
 end;
 
 function TSEvent.SQLGetSource(): string;
@@ -7040,7 +6926,7 @@ end;
 
 { TSEvents ********************************************************************}
 
-function TSEvents.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
+function TSEvents.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -7068,33 +6954,19 @@ begin
           DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
 
         if (not UseInformationSchema) then
-        begin
-//          Event[Index].FCreated := DataSet.FieldByName('CREATED').AsDateTime;
-//          Event[Index].FComment := DataSet.FieldByName('EVENT_COMMENT').AsString;
-          Event[Index].FDefiner := DataSet.FieldByName('Definer').AsString;
-          Event[Index].FEnabled := DataSet.FieldByName('Status').AsString = 'ENABLED';
-          Event[Index].FEndDateTime := DataSet.FieldByName('Ends').AsDateTime;
-          Event[Index].FEventType := StrToEventType(DataSet.FieldByName('Type').AsString);
-          Event[Index].FExecute := DataSet.FieldByName('Execute at').AsDateTime;
-          Event[Index].FIntervalType := StrToIntervalType(DataSet.FieldByName('Interval field').AsString);
-          Event[Index].FIntervalValue := DataSet.FieldByName('Interval value').AsString;
-//          Event[Index].FPreserve := DataSet.FieldByName('ON_COMPLETION').AsString = 'PRESERVE';
-          Event[Index].FStartDateTime := DataSet.FieldByName('Starts').AsDateTime;
-//          Event[Index].FStmt := Trim(SQLTrim(DataSet.FieldByName('EVENT_DEFINITION').AsString));
-//          Event[Index].FUpdated := DataSet.FieldByName('LAST_ALTERED').AsDateTime;
-        end
+          raise ERangeError.Create(SRangeError)
         else
         begin
           Event[Index].FCreated := DataSet.FieldByName('CREATED').AsDateTime;
           Event[Index].FComment := DataSet.FieldByName('EVENT_COMMENT').AsString;
           Event[Index].FDefiner := DataSet.FieldByName('DEFINER').AsString;
-          Event[Index].FEnabled := DataSet.FieldByName('STATUS').AsString = 'ENABLED';
+          Event[Index].FEnabled := StrIComp(PChar(DataSet.FieldByName('STATUS').AsString), 'ENABLED') = 0;
           Event[Index].FEndDateTime := DataSet.FieldByName('ENDS').AsDateTime;
           Event[Index].FEventType := StrToEventType(DataSet.FieldByName('EVENT_TYPE').AsString);
           Event[Index].FExecute := DataSet.FieldByName('EXECUTE_AT').AsDateTime;
           Event[Index].FIntervalType := StrToIntervalType(DataSet.FieldByName('INTERVAL_FIELD').AsString);
           Event[Index].FIntervalValue := DataSet.FieldByName('INTERVAL_VALUE').AsString;
-          Event[Index].FPreserve := DataSet.FieldByName('ON_COMPLETION').AsString = 'PRESERVE';
+          Event[Index].FPreserve := StrIComp(PChar(DataSet.FieldByName('ON_COMPLETION').AsString), 'PRESERVE') = 0;
           Event[Index].FStartDateTime := DataSet.FieldByName('STARTS').AsDateTime;
           Event[Index].FStmt := SQLTrimStmt(DataSet.FieldByName('EVENT_DEFINITION').AsString, Session.Connection.MySQLVersion);
           Event[Index].FUpdated := DataSet.FieldByName('LAST_ALTERED').AsDateTime;
@@ -7102,8 +6974,8 @@ begin
 
         if (Copy(Event[Index].Stmt, Length(Event[Index].Stmt), 1) <> ';') then Event[Index].Stmt := Event[Index].Stmt + ';';
 
-        if (Filtered and SessionEvents) then
-          Session.ExecuteEvent(etItemsValid, Database, Self, Event[Index]);
+        if (Filtered and SendEvents) then
+          Session.SendEvent(etItemsValid, Database, Self, Event[Index]);
       end;
     until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('EVENT_SCHEMA').AsString, Database.Name) <> 0));
 
@@ -7117,13 +6989,13 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered and (SessionEvents)) then
+  if (not Filtered and (SendEvents)) then
   begin
-    Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
-    Session.ExecuteEvent(etItemsValid, Database, Self);
+    Session.SendEvent(etItemsValid, Session, Session.Databases);
+    Session.SendEvent(etItemsValid, Database, Self);
   end;
-  if (Database.Valid and SessionEvents) then
-    Session.ExecuteEvent(etItemValid, Session, Session.Databases, Database);
+  if (Database.Valid and SendEvents) then
+    Session.SendEvent(etItemValid, Session, Session.Databases, Database);
 
   Result := inherited or (Session.Connection.ErrorCode = ER_EVENTS_DB_ERROR);
 end;
@@ -7141,7 +7013,7 @@ end;
 
 { TSColumns *******************************************************************}
 
-function TSColumns.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
+function TSColumns.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean;
 begin
   if (not DataSet.IsEmpty()) then
   begin
@@ -7827,11 +7699,11 @@ end;
 
 procedure TSDatabase.PushBuildEvents();
 begin
-  Session.ExecuteEvent(etItemsValid, Self, Tables);
+  Session.SendEvent(etItemsValid, Self, Tables);
   if (Assigned(Routines)) then
-    Session.ExecuteEvent(etItemsValid, Self, Routines);
+    Session.SendEvent(etItemsValid, Self, Routines);
   if (Assigned(Events)) then
-    Session.ExecuteEvent(etItemsValid, Self, Events);
+    Session.SendEvent(etItemsValid, Self, Events);
 end;
 
 function TSDatabase.RenameTable(const Table: TSTable; const NewTableName: string): Boolean;
@@ -7877,14 +7749,23 @@ begin
   // On the second execution, the "Create Database" field is given.
   // This is a bug of the MySQL 4.1.10 server, I think.
   if (Assigned(DataSet.FindField('Create Database'))) then
-  begin
     SetSource(DataSet.FieldByName('Create Database'));
+end;
 
-    ParseCreateDatabase(Source);
+procedure TSDatabase.SetSource(const Field: TField);
+var
+  OldSourceAvailable: Boolean;
+begin
+  OldSourceAvailable := Source <> '';
 
-    if (Valid) then
-      Session.ExecuteEvent(etItemValid, Session, Databases, Self);
-  end;
+  inherited;
+
+  ParseCreateDatabase(Source);
+
+  if (OldSourceAvailable) then
+    Session.SendEvent(etItemAltered, Session, Items, Self)
+  else
+    Session.SendEvent(etItemValid, Session, Items, Self);
 end;
 
 function TSDatabase.SQLAlterTable(const Table, NewTable: TSBaseTable; const EncloseFields: Boolean): string;
@@ -8745,7 +8626,7 @@ end;
 
 { TSDatabases *****************************************************************}
 
-function TSDatabases.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
+function TSDatabases.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean;
 var
   DatabaseNames: TCSVStrings;
   DeleteList: TList;
@@ -8807,8 +8688,8 @@ begin
           Database[Index].Collation := DataSet.FieldByName('DEFAULT_COLLATION_NAME').AsString;
         end;
 
-        if (Filtered and SessionEvents) then
-          Session.ExecuteEvent(etItemValid, Session, Self, Database[Index]);
+        if (Filtered and SendEvents) then
+          Session.SendEvent(etItemValid, Session, Self, Database[Index]);
       end;
     until (not DataSet.FindNext());
   end
@@ -8832,8 +8713,8 @@ begin
       else
         Add(TSDatabase.Create(Self, Name));
 
-      if (Filtered and SessionEvents) then
-        Session.ExecuteEvent(etItemValid, Session, Self, Database[Index]);
+      if (Filtered and SendEvents) then
+        Session.SendEvent(etItemValid, Session, Self, Database[Index]);
     end;
   end;
 
@@ -8858,19 +8739,17 @@ begin
     FValid := FValid or Found;
   end;
 
-  if (FValid and (not Filtered or Found) and SessionEvents) then
-    Session.ExecuteEvent(etItemsValid, Session, Self);
+  if (FValid and (not Filtered or Found) and SendEvents) then
+    Session.SendEvent(etItemsValid, Session, Self);
 end;
 
 procedure TSDatabases.Delete(const AEntity: TSEntity);
 var
   I: Integer;
-  Index: Integer;
   J: Integer;
   Names: TCSVStrings;
 begin
   Assert(AEntity is TSDatabase);
-
 
   if (Session.Account.Connection.Database <> '') then
   begin
@@ -8891,13 +8770,7 @@ begin
     end;
   end;
 
-  Index := IndexOf(AEntity);
-  if (Index >= 0) then
-    Delete(Index);
-
-  Session.ExecuteEvent(etItemDropped, Session, Self, AEntity);
-
-  AEntity.Free();
+  inherited;
 end;
 
 function TSDatabases.GetDatabase(Index: Integer): TSDatabase;
@@ -9027,7 +8900,7 @@ end;
 
 { TSVariables *****************************************************************}
 
-function TSVariables.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
+function TSVariables.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -9056,8 +8929,8 @@ begin
       else
         Variable[Index].Value := DataSet.FieldByName('VARIABLE_VALUE').AsString;
 
-      if (Filtered and SessionEvents) then
-        Session.ExecuteEvent(etItemValid, Session, Self, Variable[Index]);
+      if (Filtered and SendEvents) then
+        Session.SendEvent(etItemValid, Session, Self, Variable[Index]);
     until (not DataSet.FindNext());
 
   if (Count > 0) then
@@ -9108,8 +8981,8 @@ begin
 
   Result := inherited;
 
-  if (FValid and not Filtered and SessionEvents) then
-    Session.ExecuteEvent(etItemsValid, Session, Self);
+  if (FValid and not Filtered and SendEvents) then
+    Session.SendEvent(etItemsValid, Session, Self);
 end;
 
 function TSVariables.GetVariable(Index: Integer): TSVariable;
@@ -9154,7 +9027,7 @@ end;
 
 { TSStati *********************************************************************}
 
-function TSStati.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
+function TSStati.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -9184,8 +9057,8 @@ begin
       else
         Status[Index].Value := DataSet.FieldByName('VARIABLE_VALUE').AsString;
 
-      if (Filtered and SessionEvents) then
-        Session.ExecuteEvent(etItemValid, Session, Self, Status[Index]);
+      if (Filtered and SendEvents) then
+        Session.SendEvent(etItemValid, Session, Self, Status[Index]);
     until (not DataSet.FindNext());
 
   if (Assigned(Session.StatusByName('Uptime'))) then
@@ -9211,8 +9084,8 @@ begin
 
   Result := inherited;
 
-  if (FValid and not Filtered and SessionEvents) then
-    Session.ExecuteEvent(etItemsValid, Session, Self);
+  if (FValid and not Filtered and SendEvents) then
+    Session.SendEvent(etItemsValid, Session, Self);
 end;
 
 function TSStati.GetStatus(Index: Integer): TSStatus;
@@ -9312,7 +9185,7 @@ end;
 
 { TSEngines *******************************************************************}
 
-function TSEngines.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
+function TSEngines.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean;
 var
   DeleteList: TList;
   I: Integer;
@@ -9401,8 +9274,8 @@ begin
 
   Result := inherited;
 
-  if (FValid and not Filtered and SessionEvents) then
-    Session.ExecuteEvent(etItemsValid, Session, Self);
+  if (FValid and not Filtered and SendEvents) then
+    Session.SendEvent(etItemsValid, Session, Self);
 end;
 
 function TSEngines.GetDefaultEngine(): TSEngine;
@@ -9450,7 +9323,7 @@ end;
 
 { TSPlugins *******************************************************************}
 
-function TSPlugins.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
+function TSPlugins.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -9477,8 +9350,8 @@ begin
       if (UseInformationSchema) then
         Plugin[Index].FComment := DataSet.FieldByName('PLUGIN_DESCRIPTION').AsString;
 
-      if (Filtered and SessionEvents) then
-        Session.ExecuteEvent(etItemValid, Session, Self, Plugin[Index]);
+      if (Filtered and SendEvents) then
+        Session.SendEvent(etItemValid, Session, Self, Plugin[Index]);
     until (not DataSet.FindNext());
 
   if (not Filtered) then
@@ -9493,8 +9366,8 @@ begin
 
   Result := inherited;
 
-  if (FValid and not Filtered and SessionEvents) then
-    Session.ExecuteEvent(etItemsValid, Session, Self);
+  if (FValid and not Filtered and SendEvents) then
+    Session.SendEvent(etItemsValid, Session, Self);
 end;
 
 function TSPlugins.GetPlugin(Index: Integer): TSPlugin;
@@ -9661,7 +9534,7 @@ end;
 
 { TSCharsets ******************************************************************}
 
-function TSCharsets.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
+function TSCharsets.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -9741,8 +9614,8 @@ begin
 
   Result := inherited;
 
-  if (FValid and not Filtered and SessionEvents) then
-    Session.ExecuteEvent(etItemsValid, Session, Self);
+  if (FValid and not Filtered and SendEvents) then
+    Session.SendEvent(etItemsValid, Session, Self);
 end;
 
 function TSCharsets.GetCharset(Index: Integer): TSCharset;
@@ -9779,7 +9652,7 @@ end;
 
 { TSCollations ****************************************************************}
 
-function TSCollations.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
+function TSCollations.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -9833,8 +9706,8 @@ begin
 
   Result := inherited;
 
-  if (FValid and not Filtered and SessionEvents) then
-    Session.ExecuteEvent(etItemsValid, Session, Self);
+  if (FValid and not Filtered and SendEvents) then
+    Session.SendEvent(etItemsValid, Session, Self);
 end;
 
 function TSCollations.GetCollation(Index: Integer): TSCollation;
@@ -9864,7 +9737,7 @@ end;
 
 { TSProcesses *****************************************************************}
 
-function TSProcesses.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
+function TSProcesses.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean;
 var
   Days: Integer;
   DeleteList: TList;
@@ -9930,8 +9803,8 @@ begin
         Process[Index].FSQL := DataSet.FieldByName('INFO').AsString;
       end;
 
-      if (Filtered and SessionEvents) then
-        Session.ExecuteEvent(etItemValid, Session, Self, Process[Index]);
+      if (Filtered and SendEvents) then
+        Session.SendEvent(etItemValid, Session, Self, Process[Index]);
     until (not DataSet.FindNext());
 
   if (not Filtered) then
@@ -9946,15 +9819,8 @@ begin
 
   Result := inherited;
 
-  if (FValid and not Filtered and SessionEvents) then
-    Session.ExecuteEvent(etItemsValid, Session, Self);
-end;
-
-procedure TSProcesses.Delete(const AEntity: TSEntity);
-begin
-  inherited;
-
-  Session.ExecuteEvent(etItemDropped, Session, Self, AEntity);
+  if (FValid and not Filtered and SendEvents) then
+    Session.SendEvent(etItemsValid, Session, Self);
 end;
 
 function TSProcesses.GetProcess(Index: Integer): TSProcess;
@@ -10482,32 +10348,26 @@ end;
 
 procedure TSUser.SetSource(const DataSet: TMySQLQuery);
 var
-  Source: string;
+  SQL: string;
 begin
-  Source := '';
+  SQL := '';
   if (not DataSet.IsEmpty) then
     repeat
-      Source := Source + DataSet.Fields[0].AsString + ';' + #13#10;
+      SQL := SQL + DataSet.Fields[0].AsString + ';' + #13#10;
     until (not DataSet.FindNext());
 
-  if (Source <> '') then
+  if (SQL <> '') then
   begin
-    SetSource(Source);
+    SetSource(SQL);
+
+    ParseGrant(SQL);
 
     if (Valid) then
     begin
-      Session.ExecuteEvent(etItemsValid, Session, Session.Users);
-      Session.ExecuteEvent(etItemValid, Session, Users, Self);
+      Session.SendEvent(etItemsValid, Session, Session.Users);
+      Session.SendEvent(etItemValid, Session, Users, Self);
     end;
   end;
-end;
-
-procedure TSUser.SetSource(const ASource: string);
-begin
-  inherited;
-
-  if (Source <> '') then
-    ParseGrant(Source);
 end;
 
 function TSUser.SQLGetSource(): string;
@@ -10538,7 +10398,7 @@ end;
 
 { TSUsers *********************************************************************}
 
-function TSUsers.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
+function TSUsers.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SendEvents: Boolean = True): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -10565,8 +10425,8 @@ begin
       else if (DeleteList.IndexOf(Items[Index]) >= 0) then
         DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
 
-      if (Filtered and SessionEvents) then
-        Session.ExecuteEvent(etItemValid, Session, Self, User[Index]);
+      if (Filtered and SendEvents) then
+        Session.SendEvent(etItemValid, Session, Self, User[Index]);
     until (not DataSet.FindNext());
 
   if ((Session.Connection.ErrorCode = 0) and not Filtered) then
@@ -10585,8 +10445,8 @@ begin
     or (Session.Connection.ErrorCode = ER_DBACCESS_DENIED_ERROR)
     or (Session.Connection.ErrorCode = ER_TABLEACCESS_DENIED_ERROR);
 
-  if (FValid and not Filtered and SessionEvents) then
-    Session.ExecuteEvent(etItemsValid, Session, Self);
+  if (FValid and not Filtered and SendEvents) then
+    Session.SendEvent(etItemsValid, Session, Self);
 end;
 
 function TSUsers.GetUser(Index: Integer): TSUser;
@@ -10625,19 +10485,19 @@ procedure TSConnection.DoAfterExecuteSQL();
 begin
   inherited;
 
-  Session.ExecuteEvent(etAfterExecuteSQL);
+  Session.SendEvent(etAfterExecuteSQL);
 end;
 
 procedure TSConnection.DoBeforeExecuteSQL();
 begin
-  Session.ExecuteEvent(etBeforeExecuteSQL);
+  Session.SendEvent(etBeforeExecuteSQL);
 
   inherited;
 end;
 
 procedure TSConnection.DoError(const AErrorCode: Integer; const AErrorMessage: string);
 begin
-  Session.ExecuteEvent(etError);
+  Session.SendEvent(etError);
 
   inherited;
 end;
@@ -10833,7 +10693,7 @@ begin
     if (Assigned(Databases[I].Events)) then
       Databases[I].Events.FValid := True;
 
-  ExecuteEvent(etItemsValid, Self, Databases);
+  SendEvent(etItemsValid, Self, Databases);
 
   Result := Connection.ErrorCode = ER_EVENTS_DB_ERROR;
 end;
@@ -10856,7 +10716,7 @@ begin
     if (Assigned(Databases[I].Routines)) then
       Databases[I].Routines.FValid := True;
 
-  ExecuteEvent(etItemsValid, Self, Databases);
+  SendEvent(etItemsValid, Self, Databases);
 
   Result := False;
 end;
@@ -10878,7 +10738,7 @@ begin
   for I := 0 to Databases.Count - 1 do
     Databases[I].Tables.FValid := True;
 
-  ExecuteEvent(etItemsValid, Self, Databases);
+  SendEvent(etItemsValid, Self, Databases);
 
   Result := False;
 end;
@@ -10901,7 +10761,7 @@ begin
     if (Assigned(Databases[I].Triggers)) then
       Databases[I].Triggers.FValid := True;
 
-  ExecuteEvent(etItemsValid, Self, Databases);
+  SendEvent(etItemsValid, Self, Databases);
 
   Result := False;
 end;
@@ -10940,17 +10800,10 @@ procedure TSSession.BuildUser(const DataSet: TMySQLQuery);
 var
   Index: Integer;
   Name: string;
-  Source: string;
 begin
-  Source :='';
-  if (not DataSet.IsEmpty()) then
-    repeat
-      Source := Source + DataSet.Fields[0].AsString + ';' + #13#10;
-    until (not DataSet.FindNext());
+  Assert(not Assigned(FUser));
 
   FUser := TSUser.Create(Users);
-  if (Source <> '') then
-    FUser.SetSource(Source);
 
   if (FUser.Name <> '') then
     Name := FUser.Name
@@ -10967,7 +10820,7 @@ begin
   else
     Users.Add(FUser);
 
-  ExecuteEvent(etItemValid, Self, Users, User);
+  FUser.SetSource(DataSet);
 end;
 
 procedure TSSession.ConnectChange(Sender: TObject; Connecting: Boolean);
@@ -11047,7 +10900,7 @@ begin
   FSyntaxProvider.ServerVersionInt := Connection.MySQLVersion;
   FUser := nil;
   ManualURL := '';
-  ParseEndDate := EncodeDate(2016, 11, 10);
+  ParseEndDate := EncodeDate(2016, 11, 12);
   UnparsableSQL := '';
 
   if (not Assigned(AAccount)) then
@@ -11060,7 +10913,6 @@ begin
     FDatabases :=  TSDatabases.Create(Self);
     FFieldTypes := nil;
     FEngines := nil;
-    FInvalidObjects := nil;
     FPlugins := nil;
     FProcesses := nil;
     FStati := nil;
@@ -11088,7 +10940,6 @@ begin
     FDatabases :=  TSDatabases.Create(Self);
     FFieldTypes := nil;
     FEngines := nil;
-    FInvalidObjects := TList.Create();
     FPlugins := nil;
     FProcesses := nil;
     FStati := nil;
@@ -11334,7 +11185,6 @@ begin
   if (Assigned(FDatabases)) then FDatabases.Free();
   if (Assigned(FEngines)) then FEngines.Free();
   if (Assigned(FFieldTypes)) then FFieldTypes.Free();
-  if (Assigned(FInvalidObjects)) then FInvalidObjects.Free();
   if (Assigned(FPlugins)) then FPlugins.Free();
   if (Assigned(FProcesses)) then FProcesses.Free();
   if (Assigned(FStati)) then FStati.Free();
@@ -11359,7 +11209,7 @@ begin
   inherited;
 end;
 
-procedure TSSession.DoExecuteEvent(const AEvent: TEvent);
+procedure TSSession.DoSendEvent(const AEvent: TEvent);
 var
   I: Integer;
   EventProc: TEventProc;
@@ -11473,29 +11323,6 @@ begin
       Result := Connection.EscapeIdentifier(Username)
     else
       Result := Connection.EscapeIdentifier(Username) + '@' + Connection.EscapeIdentifier(Host);
-end;
-
-procedure TSSession.ExecuteEvent(const EventType: TEvent.TEventType);
-var
-  Event: TEvent;
-begin
-  Event := TEvent.Create(Self);
-  Event.EventType := EventType;
-  DoExecuteEvent(Event);
-  Event.Free();
-end;
-
-procedure TSSession.ExecuteEvent(const EventType: TEvent.TEventType; const Sender: TObject; const SItems: TSItems = nil; const SItem: TSItem = nil);
-var
-  Event: TEvent;
-begin
-  Event := TEvent.Create(Self);
-  Event.EventType := EventType;
-  Event.Sender := Sender;
-  Event.SItems := SItems;
-  Event.SItem := SItem;
-  DoExecuteEvent(Event);
-  Event.Free();
 end;
 
 function TSSession.FieldTypeByCaption(const Caption: string): TSFieldType;
@@ -11749,7 +11576,7 @@ end;
 
 procedure TSSession.MonitorLog(const Connection: TMySQLConnection; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
 begin
-  ExecuteEvent(etMonitor);
+  SendEvent(etMonitor);
 end;
 
 procedure TSSession.MonitorExecutedStmts(const Connection: TMySQLConnection; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
@@ -11823,7 +11650,7 @@ begin
               else
               begin
                 Index := Databases.Add(TSDatabase.Create(Databases, DDLStmt.ObjectName));
-                ExecuteEvent(etItemCreated, Database, Databases, Databases[Index]);
+                SendEvent(etItemCreated, Database, Databases, Databases[Index]);
               end;
             end;
           dtDrop:
@@ -11870,13 +11697,13 @@ begin
                         if (Assigned(Table)) then
                         begin
                           if (DDLStmt.NewDatabaseName <> DatabaseName) then
-                            ExecuteEvent(etItemDropped, Table.Database, Table.Tables, Table);
+                            SendEvent(etItemDropped, Table.Database, Table.Tables, Table);
                           Table.SetDatabase(DatabaseByName(DDLStmt.NewDatabaseName));
                           Table.Name := DDLStmt.NewObjectName;
                           if (DDLStmt.NewDatabaseName <> DatabaseName) then
-                            ExecuteEvent(etItemDropped, Table.Database, Table.Tables, Table)
+                            SendEvent(etItemDropped, Table.Database, Table.Tables, Table)
                           else
-                            ExecuteEvent(etItemAltered, Database, Database.Tables, Table);
+                            SendEvent(etItemAltered, Database, Database.Tables, Table);
                         end;
                       end;
                     end;
@@ -11890,20 +11717,20 @@ begin
                       if (DDLStmt.DefinitionType = dtAlterRename) then
                       begin
                         if (Databases.NameCmp(DDLStmt.NewDatabaseName, Database.Name) <> 0) then
-                          ExecuteEvent(etItemDropped, Table.Database, Table.Tables, Table);
+                          SendEvent(etItemDropped, Table.Database, Table.Tables, Table);
                         Table.SetDatabase(Database);
                         Table.Name := DDLStmt.NewObjectName;
                         if (Databases.NameCmp(DDLStmt.NewDatabaseName, Database.Name) <> 0) then
-                          ExecuteEvent(etItemDropped, Table.Database, Table.Tables, Table)
+                          SendEvent(etItemDropped, Table.Database, Table.Tables, Table)
                         else
-                          ExecuteEvent(etItemAltered, Database, Database.Tables, Table);
+                          SendEvent(etItemAltered, Database, Database.Tables, Table);
                       end;
 
                       if ((Table.Database <> Database) and Table.Database.Valid) then
                         Table.Database.Invalidate()
                       else
                         Table.Invalidate();
-                      ExecuteEvent(etItemAltered, Database, Database.Tables, Table);
+                      SendEvent(etItemAltered, Database, Database.Tables, Table);
                     end;
                   end;
                 dtDrop:
@@ -11960,7 +11787,7 @@ begin
                     else
                       Routine := Database.FunctionByName(DDLStmt.ObjectName);
                     Routine.Invalidate();
-                    ExecuteEvent(etItemAltered, Database, Database.Routines, Routine);
+                    SendEvent(etItemAltered, Database, Database.Routines, Routine);
                   end;
                 dtDrop:
                   begin
@@ -12020,7 +11847,7 @@ begin
                     if (DDLStmt.DefinitionType = dtAlterRename) then
                     begin
                       if (Databases.NameCmp(DDLStmt.NewDatabaseName, Database.Name) <> 0) then
-                        ExecuteEvent(etItemDropped, Event.Database, Event.Events, Event);
+                        SendEvent(etItemDropped, Event.Database, Event.Events, Event);
                       Event.SetDatabase(DatabaseByName(DDLStmt.NewDatabaseName));
                       Event.Name := DDLStmt.NewObjectName;
                     end;
@@ -12029,9 +11856,9 @@ begin
                     else
                       Event.Invalidate();
                     if (Databases.NameCmp(DDLStmt.NewDatabaseName, Database.Name) <> 0) then
-                      ExecuteEvent(etItemDropped, Event.Database, Event.Events, Event)
+                      SendEvent(etItemDropped, Event.Database, Event.Events, Event)
                     else
-                      ExecuteEvent(etItemAltered, Database, Database.Events, Event);
+                      SendEvent(etItemAltered, Database, Database.Events, Event);
                   end;
                 dtDrop:
                   begin
@@ -12061,7 +11888,7 @@ begin
             begin
               TSBaseTable(Table).InvalidateStatus();
               Table.InvalidateData();
-              ExecuteEvent(etItemValid, Database, Database.Tables, Table);
+              SendEvent(etItemValid, Database, Database.Tables, Table);
             end;
           end;
         end;
@@ -12076,7 +11903,7 @@ begin
           if (Assigned(Variable) and SQLParseChar(Parse, '=')) then
           begin
             Variable.FValue := SQLParseValue(Parse);
-            ExecuteEvent(etItemAltered, Self, Variables, Variable);
+            SendEvent(etItemAltered, Self, Variables, Variable);
           end;
         end
         else
@@ -12093,7 +11920,7 @@ begin
             if (Assigned(Variable) and SQLParseChar(Parse, '=')) then
             begin
               Variable.FValue := SQLParseValue(Parse);
-              ExecuteEvent(etItemAltered, Self, Variables, Variable);
+              SendEvent(etItemAltered, Self, Variables, Variable);
             end;
           end;
         end;
@@ -12115,7 +11942,7 @@ begin
               if (Assigned(Table)) then
               begin
                 TSBaseTable(Table).InvalidateStatus();
-                ExecuteEvent(etItemValid, Database, Database.Tables, Table);
+                SendEvent(etItemValid, Database, Database.Tables, Table);
               end;
             end;
           end;
@@ -12130,12 +11957,11 @@ begin
         Database := DatabaseByName(DatabaseName);
         if (Assigned(Database)) then
         begin
-          Table := Database.BaseTableByName(ObjectName);
+          Table := Database.TableByName(ObjectName);
           if (Assigned(Table)) then
           begin
-            TSBaseTable(Table).InvalidateStatus();
             Table.InvalidateData();
-            ExecuteEvent(etItemValid, Database, Database.Tables, Table);
+            SendEvent(etItemValid, Database, Database.Tables, Table);
           end;
         end;
       end;
@@ -12157,7 +11983,7 @@ begin
           if (Assigned(User)) then
           begin
             User.Name := ObjectName;
-            ExecuteEvent(etItemAltered, Self, Users, User);
+            SendEvent(etItemAltered, Self, Users, User);
           end;
         end;
       until (not SQLParseChar(Parse, ','))
@@ -12172,7 +11998,7 @@ begin
             if (Assigned(User)) then
             begin
               User.Invalidate();
-              ExecuteEvent(etItemAltered, Self, Users, User);
+              SendEvent(etItemAltered, Self, Users, User);
             end;
             while (not SQLParseChar(Parse, ';') and not SQLParseEnd(Parse) and not SQLParseKeyword(Parse, 'REQUIRE', False) and not SQLParseKeyword(Parse, 'WITH', False) and not SQLParseChar(Parse, ',', False)) do
               SQLParseValue(Parse);
@@ -12189,7 +12015,7 @@ begin
             if (Assigned(User)) then
             begin
               User.Invalidate();
-              ExecuteEvent(etItemAltered, Self, Users, User);
+              SendEvent(etItemAltered, Self, Users, User);
             end;
           until (not SQLParseChar(Parse, ','));
       end
@@ -12251,6 +12077,19 @@ begin
   end;
 end;
 
+procedure TSSession.SendEvent(const EventType: TEvent.TEventType; const Sender: TObject; const SItems: TSItems = nil; const SItem: TSItem = nil);
+var
+  Event: TEvent;
+begin
+  Event := TEvent.Create(Self);
+  Event.EventType := EventType;
+  Event.Sender := Sender;
+  Event.SItems := SItems;
+  Event.SItem := SItem;
+  DoSendEvent(Event);
+  Event.Free();
+end;
+
 procedure TSSession.SendSQLToDeveloper(const SQL: string);
 var
   Body: RawByteString;
@@ -12295,15 +12134,35 @@ end;
 
 function TSSession.SessionResult(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
   const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+
+  function SQLParseColumnNames(var Handle: TSQLParse): Boolean;
+  var
+    ColumnName: string;
+    TempHandle: TSQLParse;
+  begin
+    TempHandle := Handle;
+
+    repeat
+      ColumnName := SQLParseValue(Handle);
+    until (SQLParseEnd(Handle) or not SQLParseChar(Handle, ','));
+    Result := (ColumnName <> '') and (ColumnName <> 'FROM');
+
+    Result := Result and not SQLParseChar(Handle, '(');
+    if (not Result) then
+      Handle := TempHandle;
+  end;
+
 var
   Database: TSDatabase;
   DatabaseName: string;
   DataSet: TMySQLQuery;
+  DBObject: TSDBObject;
+  Distinct: Boolean;
   Field: Integer;
   FunctionName: string;
   ObjectName: string;
   Parse: TSQLParse;
-  DBObject: TSDBObject;
+  SysDate: TDateTime;
   Table: TSTable;
 begin
   Result := False;
@@ -12314,32 +12173,55 @@ begin
     if (SQLParseKeyword(Parse, 'SELECT')) then
     begin
       DatabaseName := Connection.DatabaseName;
-      if ((SQLParseChar(Parse, '*') or SQLParseValue(Parse, 'GRANTEE')) and SQLParseKeyword(Parse, 'FROM') and SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
+      Distinct := SQLParseKeyword(Parse, 'DISTINCT');
+      if (FCurrentUser = '') then
+      begin
+        DataSet.Open(DataHandle);
+        Field := 0;
+        if (not DataSet.IsEmpty) then
+          repeat
+            FunctionName := SQLParseValue(Parse);
+            if (SQLParseChar(Parse, '(', False)) then
+              FunctionName := FunctionName + SQLParseValue(Parse);
+            if (StrIComp(PChar(FunctionName), 'CURRENT_USER()') = 0) then
+              FCurrentUser := DataSet.Fields[Field].AsString
+            else if (StrIComp(PChar(FunctionName), 'SYSDATE()') = 0) then
+            begin
+              if (TryStrToDateTime(DataSet.Fields[Field].AsString, SysDate, FormatSettings)) then
+                Connection.TimeDiff := SysDate - Now();
+            end
+            else if (StrIComp(PChar(FunctionName), 'USER()') = 0) then
+              FCurrentUser := DataSet.Fields[Field].AsString;
+            Inc(Field);
+          until (not SQLParseChar(Parse, ','));
+      end
+      else if (SQLParseColumnNames(Parse) and SQLParseKeyword(Parse, 'FROM') and SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
       begin
         if (Databases.NameCmp(DatabaseName, INFORMATION_SCHEMA) = 0) then
         begin
           DataSet.Open(DataHandle);
           if (TableNameCmp(ObjectName, 'CHARACTER_SETS') = 0) then
-            Result := Charsets.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
+            Result := Charsets.Build(DataSet, True, not SQLParseEnd(Parse))
           else if (TableNameCmp(ObjectName, 'COLLATIONS') = 0) then
-            Result := Collations.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
+            Result := Collations.Build(DataSet, True, not SQLParseEnd(Parse))
           else if ((TableNameCmp(ObjectName, 'COLUMNS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'TABLE_SCHEMA') = 0) and SQLParseChar(Parse, '=')) then
-            Result := DatabaseByName(SQLParseValue(Parse)).Tables.BuildViewFields(DataSet, True)
+            if (not Distinct) then
+              Result := DatabaseByName(SQLParseValue(Parse)).Tables.BuildViewFields(DataSet, True)
+            else
+              Result := DatabaseByName(SQLParseValue(Parse)).Columns.Build(DataSet, True)
           else if (TableNameCmp(ObjectName, 'ENGINES') = 0) then
-            Result := Engines.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
-          else if ((TableNameCmp(ObjectName, 'EVENTS') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
-          begin
-            Result := BuildEvents(DataSet);
-          end
+            Result := Engines.Build(DataSet, True, not SQLParseEnd(Parse))
+          else if ((TableNameCmp(ObjectName, 'EVENTS') = 0) and SQLParseEnd(Parse)) then
+            Result := BuildEvents(DataSet)
           else if ((TableNameCmp(ObjectName, 'EVENTS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'EVENT_SCHEMA') = 0) and SQLParseChar(Parse, '=')) then
           begin
             Database := DatabaseByName(SQLParseValue(Parse));
-            Result := Database.Events.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'));
+            Result := Database.Events.Build(DataSet, True, not SQLParseEnd(Parse));
           end
           else if (TableNameCmp(ObjectName, 'PLUGINS') = 0) then
-            Result := Plugins.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
+            Result := Plugins.Build(DataSet, True, not SQLParseEnd(Parse))
           else if (TableNameCmp(ObjectName, 'PROCESSLIST') = 0) then
-            Result := Processes.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
+            Result := Processes.Build(DataSet, True, not SQLParseEnd(Parse))
           else if ((TableNameCmp(ObjectName, 'REFERENTIAL_CONSTRAINTS') = 0)
             and SQLParseKeyword(Parse, 'WHERE')
             and (StrIComp(PChar(SQLParseValue(Parse)), 'UNIQUE_CONSTRAINT_SCHEMA') = 0)
@@ -12353,35 +12235,35 @@ begin
                 Result := Table.ReferencedRequester.BuildBaseTableReferences(DataSet);
             end;
           end
-          else if ((TableNameCmp(ObjectName, 'ROUTINES') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
+          else if ((TableNameCmp(ObjectName, 'ROUTINES') = 0) and SQLParseEnd(Parse)) then
             Result := BuildRoutines(DataSet)
           else if ((TableNameCmp(ObjectName, 'ROUTINES') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'ROUTINE_SCHEMA') = 0) and SQLParseChar(Parse, '=')) then
           begin
             Database := DatabaseByName(SQLParseValue(Parse));
-            Result := Database.Routines.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'));
+            Result := Database.Routines.Build(DataSet, True, not SQLParseEnd(Parse));
           end
           else if (TableNameCmp(ObjectName, 'SESSION_STATUS') = 0) then
-            Result := Stati.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
+            Result := Stati.Build(DataSet, True, not SQLParseEnd(Parse))
           else if (TableNameCmp(ObjectName, 'SESSION_VARIABLES') = 0) then
-            Result := Variables.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
+            Result := Variables.Build(DataSet, True, not SQLParseEnd(Parse))
           else if (TableNameCmp(ObjectName, 'SCHEMATA') = 0) then
-            Result := Databases.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
-          else if ((TableNameCmp(ObjectName, 'TABLES') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
+            Result := Databases.Build(DataSet, True, not SQLParseEnd(Parse))
+          else if ((TableNameCmp(ObjectName, 'TABLES') = 0) and SQLParseEnd(Parse)) then
             Result := BuildTables(DataSet)
           else if ((TableNameCmp(ObjectName, 'TABLES') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'TABLE_SCHEMA') = 0) and SQLParseChar(Parse, '=')) then
           begin
             Database := DatabaseByName(SQLParseValue(Parse));
             Result := Database.Tables.Build(DataSet, True, SQLParseKeyword(Parse, 'AND') and SQLParseValue(Parse, 'TABLE_NAME'));
           end
-          else if ((TableNameCmp(ObjectName, 'TRIGGERS') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
+          else if ((TableNameCmp(ObjectName, 'TRIGGERS') = 0) and SQLParseEnd(Parse)) then
             Result := BuildTriggers(DataSet)
           else if ((TableNameCmp(ObjectName, 'TRIGGERS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'EVENT_OBJECT_SCHEMA') = 0) and SQLParseChar(Parse, '=')) then
           begin
             Database := DatabaseByName(SQLParseValue(Parse));
-            Result := Database.Triggers.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'));
+            Result := Database.Triggers.Build(DataSet, True, not SQLParseEnd(Parse));
           end
           else if ((TableNameCmp(ObjectName, 'USER_PRIVILEGES') = 0)) then
-            Result := Users.Build(DataSet, True, not SQLParseKeyword(Parse, 'GROUP BY') and not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
+            Result := Users.Build(DataSet, True, not SQLParseKeyword(Parse, 'GROUP BY') and not SQLParseEnd(Parse))
           else
             raise EConvertError.CreateFmt(SUnknownSQLStmt, [Connection.CommandText]);
         end
@@ -12389,62 +12271,16 @@ begin
         begin
           DataSet.Open(DataHandle);
           if (TableNameCmp(ObjectName, 'SESSION_STATUS') = 0) then
-            Result := Stati.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
+            Result := Stati.Build(DataSet, True, not SQLParseEnd(Parse))
           else if (TableNameCmp(ObjectName, 'SESSION_VARIABLES') = 0) then
-            Result := Variables.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'));
+            Result := Variables.Build(DataSet, True, not SQLParseEnd(Parse));
         end
         else if (Databases.NameCmp(DatabaseName, 'mysql') = 0) then
         begin
           DataSet.Open(DataHandle);
           if (TableNameCmp(ObjectName, 'user') = 0) then
-            Result := Users.Build(DataSet, False, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'));
-        end
-        else if (ErrorCode = 0) then
-        begin
-          Database := DatabaseByName(DatabaseName);
-          if (Assigned(Database)) then
-          begin
-            Table := Database.TableByName(ObjectName);
-            if (Assigned(Table.FDataSet) and not Table.FDataSet.Active) then
-              Table.FDataSet.Open(DataHandle)
-            else
-              DataSet.Open(DataHandle);
-          end;
+            Result := Users.Build(DataSet, False, not SQLParseEnd(Parse));
         end;
-      end
-      else if (SQLParseKeyword(Parse, 'DISTINCT') and SQLParseValue(Parse, 'COLUMN_NAME') and SQLParseKeyword(Parse, 'FROM') and SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
-      begin
-        if ((Databases.NameCmp(DatabaseName, INFORMATION_SCHEMA) = 0)
-          and (TableNameCmp(ObjectName, 'COLUMNS') = 0)
-          and SQLParseKeyword(Parse, 'WHERE')
-          and (StrIComp(PChar(SQLParseValue(Parse)), 'TABLE_SCHEMA') = 0)
-          and SQLParseChar(Parse, '=')) then
-        begin
-          DataSet.Open(DataHandle);
-          Database := DatabaseByName(SQLParseValue(Parse));
-          Result := Database.Columns.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'));
-        end;
-      end
-      else if ((FCurrentUser = '') and (DataHandle.Connection.ErrorCode = 0)) then
-      begin
-        DataSet.Open(DataHandle);
-        Field := 0;
-        if (not DataSet.IsEmpty) then
-          repeat
-            FunctionName := SQLParseValue(Parse);
-            if (SQLParseChar(Parse, '(', False)) then
-              FunctionName := FunctionName + SQLParseValue(Parse);
-            if (lstrcmpi(PChar(FunctionName), 'CURRENT_USER()') = 0) then
-              FCurrentUser := DataSet.Fields[Field].AsString
-            else if (lstrcmpi(PChar(FunctionName), 'SYSDATE()') = 0) then
-            begin
-              if (TryStrToDateTime(DataSet.Fields[Field].AsString, Connection.TimeDiff, FormatSettings)) then
-                Connection.TimeDiff := Connection.TimeDiff - Now();
-            end
-            else if (lstrcmpi(PChar(FunctionName), 'USER()') = 0) then
-              FCurrentUser := DataSet.Fields[Field].AsString;
-            Inc(Field);
-          until (not SQLParseChar(Parse, ','));
       end;
     end
     else if (SQLParseKeyword(Parse, 'SHOW')) then
@@ -12499,7 +12335,7 @@ begin
         end;
       end
       else if (SQLParseKeyword(Parse, 'DATABASES')) then
-        Result := Databases.Build(DataSet, False, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
+        Result := Databases.Build(DataSet, False, not SQLParseEnd(Parse))
       else if (SQLParseKeyword(Parse, 'ENGINES')) then
         Result := Engines.Build(DataSet, False, not SQLParseEnd(Parse))
       else if (SQLParseKeyword(Parse, 'EVENTS')) then
@@ -12536,13 +12372,13 @@ begin
       end
       else if (SQLParseKeyword(Parse, 'FULL PROCESSLIST')
         or SQLParseKeyword(Parse, 'PROCESSLIST')) then
-        Result := Processes.Build(DataSet, False, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
+        Result := Processes.Build(DataSet, False, not SQLParseEnd(Parse))
       else if (SQLParseKeyword(Parse, 'STATUS')
         or SQLParseKeyword(Parse, 'SESSION STATUS')) then
-        Result := Stati.Build(DataSet, False, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
+        Result := Stati.Build(DataSet, False, not SQLParseEnd(Parse))
       else if (SQLParseKeyword(Parse, 'VARIABLES')
         or SQLParseKeyword(Parse, 'SESSION VARIABLES')) then
-        Result := Variables.Build(DataSet, False, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
+        Result := Variables.Build(DataSet, False, not SQLParseEnd(Parse))
       else if (SQLParseKeyword(Parse, 'FULL TABLES')
         or SQLParseKeyword(Parse, 'OPEN TABLES')
         or SQLParseKeyword(Parse, 'TABLES')) then
@@ -12552,7 +12388,7 @@ begin
         else
           DatabaseName := SQLParseValue(Parse);
         if (Assigned(DatabaseByName(DatabaseName))) then
-          Result := DatabaseByName(DatabaseName).Tables.Build(DataSet, False, not SQLParseChar(Parse, ';') and not SQLParseEnd(Parse));
+          Result := DatabaseByName(DatabaseName).Tables.Build(DataSet, False, not SQLParseEnd(Parse));
       end
       else if (SQLParseKeyword(Parse, 'TABLE STATUS')) then
       begin
@@ -12560,7 +12396,7 @@ begin
           DatabaseName := Connection.DatabaseName
         else
           DatabaseName := SQLParseValue(Parse);
-        Result := DatabaseByName(DatabaseName).Tables.Build(DataSet, False,not SQLParseChar(Parse, ';') and not SQLParseEnd(Parse));
+        Result := DatabaseByName(DatabaseName).Tables.Build(DataSet, False, not SQLParseEnd(Parse));
       end
       else if (SQLParseKeyword(Parse, 'TRIGGERS')) then
       begin
@@ -12568,7 +12404,7 @@ begin
           DatabaseName := Connection.DatabaseName
         else
           DatabaseName := SQLParseValue(Parse);
-        Result := DatabaseByName(DatabaseName).Triggers.Build(DataSet, False, not SQLParseChar(Parse, ';') and not SQLParseEnd(Parse));
+        Result := DatabaseByName(DatabaseName).Triggers.Build(DataSet, False, not SQLParseEnd(Parse));
       end
       else
         raise EConvertError.CreateFmt(SUnknownSQLStmt, [Connection.CommandText]);
@@ -12592,6 +12428,16 @@ begin
       Databases[I].FreeDesktop();
 
   FCreateDesktop := ACreateDesktop;
+end;
+
+procedure TSSession.SendEvent(const EventType: TEvent.TEventType);
+var
+  Event: TEvent;
+begin
+  Event := TEvent.Create(Self);
+  Event.EventType := EventType;
+  DoSendEvent(Event);
+  Event.Free();
 end;
 
 function TSSession.StatusByName(const StatusName: string): TSStatus;
@@ -12708,8 +12554,6 @@ begin
 
   if (Assigned(Objects)) then
     List.Assign(Objects, laOr);
-  if (Assigned(InvalidObjects) and (InvalidObjects.Count < 10)) then
-    List.Assign(InvalidObjects, laOr);
   List.Sort(Compare);
 
   Tables := TList.Create();
@@ -12742,7 +12586,7 @@ begin
       if (Assigned(Database) and (TSDBObject(List[I]).Database <> Database)) then
         if (Tables.Count > 0) then
         begin
-          if (BaseTableInTables and Status) then
+          if (BaseTableInTables and Status and not Database.Tables.ValidStatus) then
             SQL := SQL + Database.Tables.SQLGetStatus(Tables);
           if (ViewInTables) then
             SQL := SQL + Database.Tables.SQLGetViewFields();
@@ -12767,24 +12611,20 @@ begin
       SQL := SQL + TSReferencedRequester(List[I]).SQLGetReferences;
   if (Tables.Count > 0) then
   begin
-    if (BaseTableInTables and Status) then
+    if (BaseTableInTables and Status and not Database.Tables.ValidStatus) then
       SQL := SQL + Database.Tables.SQLGetStatus(Tables);
     if (ViewInTables) then
       SQL := SQL + Database.Tables.SQLGetViewFields();
     Tables.Clear();
   end;
 
-  for I := 0 to List.Count - 1 do
-    if ((TObject(List[I]) is TSTable) and Assigned(TSTable(List[I]).FDataSet) and not TSTable(List[I]).FDataSet.Active
-      and (TSTable(List[I]).Database <> InformationSchema) and (Databases.NameCmp(TSTable(List[I]).Database.Name, 'mysql') <> 0)) then
-      SQL := SQL + TSTable(List[I]).FDataSet.SQLSelect();
-
-  for I := 0 to List.Count - 1 do
-    if (TObject(List[I]) is TSDatabase) then
-    begin
-      if (Status and not TSDatabase(List[I]).Tables.ValidStatus and not (TSDatabase(List[I]) is TSSystemDatabase)) then
-        SQL := SQL + TSDatabase(List[I]).Tables.SQLGetStatus(TSDatabase(List[I]).Tables);
-    end;
+  if (Status) then
+    for I := 0 to List.Count - 1 do
+      if (TObject(List[I]) is TSDatabase) then
+      begin
+        if (not TSDatabase(List[I]).Tables.ValidStatus and not (TSDatabase(List[I]) is TSSystemDatabase)) then
+          SQL := SQL + TSDatabase(List[I]).Tables.SQLGetStatus();
+      end;
 
   if (not Assigned(Objects) and Status and (Connection.MySQLVersion >= 50002) and not Valid) then
   begin
@@ -12796,8 +12636,6 @@ begin
 
 
   Tables.Free();
-  if (Assigned(InvalidObjects)) then
-    InvalidObjects.Clear();
   List.Free();
 
   Result := (SQL = '') or Connection.SendSQL(SQL, SessionResult);

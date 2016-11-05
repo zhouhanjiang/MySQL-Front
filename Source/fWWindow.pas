@@ -872,7 +872,7 @@ begin
     GlobalUnlock(ClipboardData);
     CloseClipboard();
 
-    CloseDialog := False;
+    CloseDialog := False  ;
   end;
 end;
 

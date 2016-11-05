@@ -1003,7 +1003,6 @@ type
     procedure SetPath(const APath: TFileName);
     procedure SQLError(DataSet: TDataSet; E: EDatabaseError; var Action: TDataAction);
     procedure SynMemoApplyPreferences(const SynMemo: TSynMemo);
-    procedure SynCompletionEvent(const Event: TSSession.TEvent);
     procedure TableOpen(Sender: TObject);
     procedure TCResultMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
     procedure UMActivateDBGrid(var Message: TMessage); message UM_ACTIVATE_DBGRID;
@@ -4118,7 +4117,7 @@ begin
             if ((View = vBrowser) and (FNavigator.Selected.ImageIndex in [iiBaseTable, iiSystemView, iiView]) and not TSTable(FNavigator.Selected.Data).Valid) then
             begin
               ActiveDBGrid.DataSource.DataSet.Close();
-              Session.Update();
+              Address := Address;
             end
             else if (ActiveDBGrid.DataSource.DataSet.Active) then
               ActiveDBGrid.DataSource.DataSet.Refresh();
@@ -12201,17 +12200,14 @@ begin
         PContentChange(nil);
       end;
 
-    if (SessionEvent.EventType = etItemAltered) then
+    if (SessionEvent.EventType = etItemValid) then
     begin
-      if (SessionEvent.SItem is TSTable) then
-      begin
-        if (Assigned(Desktop(TSTable(SessionEvent.SItem)).DBGrid)) then
-        begin
-          Wanted.Update := TSTable(SessionEvent.SItem).Update;
-          FFilter.Text := '';
-          FFilterEnabled.Down := False;
-        end;
-      end;
+      if ((View = vBrowser)
+        and Assigned(FNavigator.Selected) and (SessionEvent.SItem = FNavigator.Selected.Data)) then
+        Wanted.Update := UpdateAfterAddressChanged;
+    end
+    else if (SessionEvent.EventType = etItemAltered) then
+    begin
       if ((SessionEvent.SItem is TSView) and Assigned(Desktop(TSView(SessionEvent.SItem)).SynMemo)) then
         Desktop(TSView(SessionEvent.SItem)).SynMemo.Modified := Desktop(TSView(SessionEvent.SItem)).SynMemoTextAtUpdate <> Desktop(TSView(SessionEvent.SItem)).SynMemo.Text
       else if ((SessionEvent.SItem is TSRoutine) and Assigned(Desktop(TSRoutine(SessionEvent.SItem)).SynMemo)) then
@@ -12257,7 +12253,6 @@ begin
         begin
           URI.Param['view'] := ViewToParam(AView);
           if (Assigned(SQLEditors[AView])) then
-          begin
             if (SQLEditors[AView].Filename = '') then
             begin
               URI.Param['file'] := Null;
@@ -12271,7 +12266,6 @@ begin
               else
                 URI.Param['cp'] := IntToStr(SQLEditors[AView].FileCodePage);
             end;
-          end;
         end;
     end;
 
@@ -12812,7 +12806,7 @@ begin
           SynCompletionPending.CurrentInput := CurrentInput;
           SynCompletionPending.X := X;
           SynCompletionPending.Y := Y;
-          Session.RegisterEventProc(SynCompletionEvent);
+          Wanted.Action := aSynCompletionExecute;
         end;
       end;
 
@@ -12982,15 +12976,6 @@ begin
   end;
 end;
 
-procedure TFSession.SynCompletionEvent(const Event: TSSession.TEvent);
-begin
-  if (Event.EventType = etAfterExecuteSQL) then
-  begin
-    Wanted.Action := aSynCompletionExecute;
-    Session.UnRegisterEventProc(SynCompletionEvent);
-  end;
-end;
-
 procedure TFSession.SynMemoDragDrop(Sender, Source: TObject; X, Y: Integer);
 var
   DatabaseName: string;
@@ -13097,11 +13082,7 @@ begin
   MainAction('aHIndex').ShortCut := ShortCut(VK_F1, []);
   MainAction('aHSQL').ShortCut := 0;
 
-  if (SynCompletionPending.Active) then
-  begin
-    Session.UnRegisterEventProc(SynCompletionEvent);
-    SynCompletionPending.Active := False;
-  end;
+  SynCompletionPending.Active := False;
 end;
 
 procedure TFSession.SynMemoStatusChange(Sender: TObject; Changes: TSynStatusChanges);
@@ -13118,11 +13099,7 @@ begin
 
     if (((scCaretX in Changes) or (scSelection in Changes) or (scModified in Changes) or (scAll in Changes)) and Assigned(ActiveSynMemo)) then
     begin
-      if (SynCompletionPending.Active) then
-      begin
-        Session.UnRegisterEventProc(SynCompletionEvent);
-        SynCompletionPending.Active := False;
-      end;
+      SynCompletionPending.Active := False;
 
       SelSQL := ActiveSynMemo.SelText; // Cache, da Abfrage bei vielen Zeilen Zeit benötigt
       if (View = vIDE) then SQL := ActiveSynMemo.Text;

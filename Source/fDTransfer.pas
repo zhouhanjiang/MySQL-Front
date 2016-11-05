@@ -795,10 +795,18 @@ end;
 procedure TDTransfer.TSWhatShow(Sender: TObject);
 var
   I: Integer;
+  J: Integer;
 begin
   FData.Enabled := False;
   for I := 0 to FSource.SelectionCount - 1 do
-    FData.Enabled := FData.Enabled or (FSource.Selections[I].ImageIndex = iiBaseTable);
+    if (TObject(FSource.Selections[I].Data) is TSDatabase) then
+    begin
+      for J := 0 to TSDatabase(FSource.Selections[I].Data).Tables.Count - 1 do
+        if (TSDatabase(FSource.Selections[I].Data).Tables[J] is TSBaseTable) then
+          FData.Enabled := True;
+    end
+    else if (FSource.Selections[I].ImageIndex = iiBaseTable) then
+      FData.Enabled := True;
   FData.Checked := FData.Checked and FData.Enabled;
 
   TSExecute.Enabled := FStructure.Checked or FData.Checked;
