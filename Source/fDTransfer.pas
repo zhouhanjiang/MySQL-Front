@@ -801,6 +801,9 @@ begin
   for I := 0 to FSource.SelectionCount - 1 do
     if (TObject(FSource.Selections[I].Data) is TSDatabase) then
     begin
+      TSDatabase(FSource.Selections[I].Data).Session.Connection.BeginSynchron();
+      TSDatabase(FSource.Selections[I].Data).Update();
+      TSDatabase(FSource.Selections[I].Data).Session.Connection.EndSynchron();
       for J := 0 to TSDatabase(FSource.Selections[I].Data).Tables.Count - 1 do
         if (TSDatabase(FSource.Selections[I].Data).Tables[J] is TSBaseTable) then
           FData.Enabled := True;
