@@ -1049,12 +1049,12 @@ end;
 
 procedure TDTable.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = etItemValid) and (Event.SItem = Table)) then
+  if ((Event.EventType = etItemValid) and (Event.Item = Table)) then
     if (not PageControl.Visible) then
       Built()
     else
       BuiltStatus()
-  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is TSTable)) then
+  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.Item is TSTable)) then
     ModalResult := mrOk;
 
   if (Event.EventType = etAfterExecuteSQL) then

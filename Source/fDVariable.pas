@@ -82,7 +82,7 @@ end;
 
 procedure TDVariable.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType in [etItemAltered]) and (Event.SItem is TSVariable)) then
+  if ((Event.EventType in [etItemAltered]) and (Event.Item is TSVariable)) then
     ModalResult := mrOk;
 
   if (Event.EventType = etAfterExecuteSQL) then

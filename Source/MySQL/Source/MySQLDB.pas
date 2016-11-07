@@ -5692,7 +5692,7 @@ begin
         UniqueTableName := UniqueTableName and ((TableName = '') or (TableName = FieldInfo.TableName));
       end;
 
-    if (UniqueTableName) then
+    if (not UniqueTableName) then
       TableName := '';
   end;
 end;
@@ -6526,10 +6526,7 @@ begin
     Result := ''
   else
     Result := Connection.EscapeIdentifier(DatabaseName) + '.';
-  if (TableName = '') then
-    Result := ''
-  else
-    Result := Result + Connection.EscapeIdentifier(TableName);
+  Result := Result + Connection.EscapeIdentifier(TableName);
 end;
 
 function TMySQLDataSet.SQLUpdate(Buffer: TRecordBuffer = nil): string;
@@ -7237,7 +7234,7 @@ end;
 //  RBS: RawByteString;
 //  S: string;
 initialization
-//  RBS := HexToStr('435245415445205441424C45206074626C52656A65637456616C756573602');
+//  RBS := HexToStr('435245415445205441424C45206074625F63756C747572656020280A2020');
 //  SetLength(S, Length(RBS));
 //  Len := AnsiCharToWideChar(65001, PAnsiChar(RBS), Length(RBS), PChar(S), Length(S));
 

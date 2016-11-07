@@ -286,7 +286,7 @@ var
   I: Integer;
   Valid: Boolean;
 begin
-  if ((Event.EventType = etItemValid) and (Event.SItems = Database.Tables)) then
+  if ((Event.EventType = etItemValid) and (Event.Items = Database.Tables)) then
   begin
     Valid := True;
     for I := 0 to Tables.Count - 1 do

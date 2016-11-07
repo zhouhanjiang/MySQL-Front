@@ -1264,6 +1264,7 @@ begin
                 inherited
               else if ((LeftCol + Integer(HDCustomDraw^.dwItemSpec) < Columns.Count)
                 and Columns[LeftCol + Integer(HDCustomDraw^.dwItemSpec)].Field.IsIndexField
+                and Assigned(Columns[LeftCol + Integer(HDCustomDraw^.dwItemSpec)].Field)
                 and (Assigned(TitleBoldFont) or (GetObject(TitleFont.Handle, SizeOf(LogFont), @LogFont) <> 0))) then
               begin
                 if (not Assigned(TitleBoldFont)) then

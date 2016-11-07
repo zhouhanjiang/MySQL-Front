@@ -125,7 +125,7 @@ end;
 
 procedure TDDatabases.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType in [etItemsValid]) and (Event.SItems = Session.Databases)) then
+  if ((Event.EventType in [etItemsValid]) and (Event.Items = Session.Databases)) then
     Built();
 
   if (Event.EventType = etAfterExecuteSQL) then

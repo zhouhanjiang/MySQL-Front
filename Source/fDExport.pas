@@ -978,10 +978,7 @@ end;
 procedure TDExport.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if (Event.EventType = etAfterExecuteSQL) then
-  begin
-    FSelect.Cursor := crDefault;
     PostMessage(Handle, UM_POST_AFTEREXECUTESQL, 0, 0);
-  end;
 end;
 
 procedure TDExport.FormShow(Sender: TObject);
@@ -1379,7 +1376,9 @@ var
 begin
   Database := BuildTitle();
 
-  if (SingleTable and (TObject(DBObjects[0]) is TSBaseTable)) then
+  if (Assigned(DBGrid)) then
+    Filename := Preferences.LoadStr(362)
+  else if (SingleTable and (TObject(DBObjects[0]) is TSBaseTable)) then
     Filename := TSBaseTable(DBObjects[0]).Name
   else if (DBObjects.Count = 1) then
     Filename := TSObject(DBObjects[0]).Name
@@ -2279,8 +2278,11 @@ var
   Database: TSDatabase;
   I: Integer;
   J: Integer;
+  K: Integer;
   Table: TSBaseTable;
 begin
+  FSelect.Cursor := crDefault;
+
   if ((DialogType in [edtEditJob, edtExecuteJob]) and InitTSSelect() and (DialogType in [edtExecuteJob]) and ObjectsFromFSelect()
     or (DialogType = edtNormal)) then
   begin
@@ -2295,7 +2297,13 @@ begin
         begin
           for J := 0 to Database.Tables.Count - 1 do
             if (DBObjects.IndexOf(Database.Tables[J]) < 0) then
+            begin
               DBObjects.Add(Database.Tables[J]);
+              if ((Database.Tables[J] is TSBaseTable) and Assigned(Database.Triggers)) then
+                for K := 0 to TSBaseTable(Database.Tables[J]).TriggerCount - 1 do
+                  if (DBObjects.IndexOf(TSBaseTable(Database.Tables[J]).Triggers[K]) < 0) then
+                    DBObjects.Add(TSBaseTable(Database.Tables[J]).Triggers[K]);
+            end;
           if (Assigned(Database.Routines)) then
             for J := 0 to Database.Routines.Count - 1 do
               if (DBObjects.IndexOf(Database.Routines[J]) < 0) then

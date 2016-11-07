@@ -306,13 +306,13 @@ end;
 
 procedure TDForeignKey.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = etItemValid) and (Event.SItem = Table)) then
+  if ((Event.EventType = etItemValid) and (Event.Item = Table)) then
     Built()
   else if ((Event.EventType = etItemsValid) and (Event.Sender = Table.Session.Databases)) then
     FParentDatabaseChange(Event.Sender)
-  else if ((Event.EventType = etItemValid) and (Event.SItem = SelectedParentTable)) then
+  else if ((Event.EventType = etItemValid) and (Event.Item = SelectedParentTable)) then
     FParentTableChange(Event.Sender)
-  else if ((Event.EventType = etItemAltered) and (Event.SItem = Table)) then
+  else if ((Event.EventType = etItemAltered) and (Event.Item = Table)) then
     ModalResult := mrOk;
 
   if (Event.EventType = etAfterExecuteSQL) then

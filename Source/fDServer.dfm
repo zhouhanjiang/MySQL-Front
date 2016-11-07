@@ -32,20 +32,7 @@ object DServer: TDServer
     Cancel = True
     Caption = 'FBCancel'
     ModalResult = 2
-    TabOrder = 3
-  end
-  object PSQLWait: TPanel_Ext
-    Left = 8
-    Top = 8
-    Width = 321
-    Height = 321
-    Cursor = crHourGlass
-    Anchors = [akLeft, akTop, akRight, akBottom]
-    BevelOuter = bvNone
-    Caption = 'PSQLWait'
-    ParentBackground = False
-    TabOrder = 0
-    Visible = False
+    TabOrder = 2
   end
   object PageControl: TPageControl
     Left = 8
@@ -56,16 +43,12 @@ object DServer: TDServer
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
-    TabOrder = 1
+    TabOrder = 0
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
-        275)
+        293)
       object GServer: TGroupBox_Ext
         Left = 8
         Top = 8
@@ -94,17 +77,19 @@ object DServer: TDServer
         object FVersion: TLabel
           Left = 120
           Top = 20
-          Width = 41
+          Width = 165
           Height = 13
           Anchors = [akLeft, akTop, akRight]
+          AutoSize = False
           Caption = 'FVersion'
         end
         object FComment: TLabel
           Left = 120
           Top = 44
-          Width = 50
+          Width = 165
           Height = 13
           Anchors = [akLeft, akTop, akRight]
+          AutoSize = False
           Caption = 'FComment'
         end
       end
@@ -150,33 +135,37 @@ object DServer: TDServer
         object FUser: TLabel
           Left = 120
           Top = 68
-          Width = 28
+          Width = 165
           Height = 13
           Anchors = [akLeft, akTop, akRight]
+          AutoSize = False
           Caption = 'FUser'
         end
         object FLibVersion: TLabel
           Left = 120
           Top = 44
-          Width = 55
+          Width = 165
           Height = 13
           Anchors = [akLeft, akTop, akRight]
+          AutoSize = False
           Caption = 'FLibVersion'
         end
         object FHost: TLabel
           Left = 120
           Top = 20
-          Width = 28
+          Width = 165
           Height = 13
           Anchors = [akLeft, akTop, akRight]
+          AutoSize = False
           Caption = 'FHost'
         end
         object FCharacterSet: TLabel
           Left = 120
           Top = 92
-          Width = 68
+          Width = 165
           Height = 13
           Anchors = [akLeft, akTop, akRight]
+          AutoSize = False
           Caption = 'FCharacterSet'
         end
         object FLThreadId: TLabel
@@ -189,103 +178,25 @@ object DServer: TDServer
         object FThreadId: TLabel
           Left = 120
           Top = 116
-          Width = 49
+          Width = 165
           Height = 13
+          Anchors = [akLeft, akTop, akRight]
+          AutoSize = False
           Caption = 'FThreadId'
         end
-      end
-    end
-    object TSSQLLog: TTabSheet
-      Caption = 'TSSQLLog'
-      OnShow = TSSQLLogShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
-      DesignSize = (
-        313
-        275)
-      object FSQLLog: TSynMemo
-        Left = 8
-        Top = 8
-        Width = 297
-        Height = 257
-        Anchors = [akLeft, akTop, akRight, akBottom]
-        Font.Charset = DEFAULT_CHARSET
-        Font.Color = clWindowText
-        Font.Height = -13
-        Font.Name = 'Courier New'
-        Font.Style = []
-        PopupMenu = MSource
-        TabOrder = 0
-        Gutter.Font.Charset = DEFAULT_CHARSET
-        Gutter.Font.Color = clWindowText
-        Gutter.Font.Height = -11
-        Gutter.Font.Name = 'Courier New'
-        Gutter.Font.Style = []
-        Gutter.Width = 0
-        MaxScrollWidth = 65535
-        Options = [eoAutoIndent, eoGroupUndo, eoHideShowScrollbars, eoNoCaret, eoShowScrollHint, eoSmartTabDelete, eoSmartTabs, eoTabsToSpaces, eoTrimTrailingSpaces]
-        ReadOnly = True
-        RightEdgeColor = clWindow
-        ScrollHintFormat = shfTopToBottom
-        WantReturns = False
-        FontSmoothing = fsmNone
-      end
-    end
-    object TSSlowSQLLog: TTabSheet
-      Caption = 'TSSlowSQLLog'
-      OnShow = TSSlowSQLLogShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
-      DesignSize = (
-        313
-        275)
-      object FSlowSQLLog: TSynMemo
-        Left = 8
-        Top = 8
-        Width = 297
-        Height = 257
-        Anchors = [akLeft, akTop, akRight, akBottom]
-        Font.Charset = DEFAULT_CHARSET
-        Font.Color = clWindowText
-        Font.Height = -13
-        Font.Name = 'Courier New'
-        Font.Style = []
-        PopupMenu = MSource
-        TabOrder = 0
-        Gutter.Font.Charset = DEFAULT_CHARSET
-        Gutter.Font.Color = clWindowText
-        Gutter.Font.Height = -11
-        Gutter.Font.Name = 'Courier New'
-        Gutter.Font.Style = []
-        Gutter.Width = 0
-        MaxScrollWidth = 65535
-        Options = [eoAutoIndent, eoGroupUndo, eoHideShowScrollbars, eoNoCaret, eoShowScrollHint, eoSmartTabDelete, eoSmartTabs, eoTabsToSpaces, eoTrimTrailingSpaces]
-        ReadOnly = True
-        RightEdgeColor = clWindow
-        ScrollHintFormat = shfTopToBottom
-        WantReturns = False
-        FontSmoothing = fsmNone
       end
     end
     object TSStartup: TTabSheet
       Caption = 'TSStartup'
       OnShow = TSStartupShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
-        275)
+        293)
       object FStartup: TSynMemo
         Left = 8
         Top = 8
         Width = 297
-        Height = 257
+        Height = 275
         Anchors = [akLeft, akTop, akRight, akBottom]
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText
@@ -316,18 +227,14 @@ object DServer: TDServer
     object TSPlugins: TTabSheet
       Caption = 'TSPlugins'
       OnShow = TSPluginsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
-        275)
+        293)
       object FPlugins: TListView
         Left = 8
         Top = 8
         Width = 296
-        Height = 257
+        Height = 275
         Anchors = [akLeft, akTop, akRight, akBottom]
         Columns = <
           item
@@ -338,8 +245,11 @@ object DServer: TDServer
           end>
         ReadOnly = True
         RowSelect = True
+        SortType = stText
         TabOrder = 0
         ViewStyle = vsReport
+        OnColumnClick = ListViewColumnClick
+        OnCompare = ListViewCompare
       end
     end
   end
@@ -350,11 +260,11 @@ object DServer: TDServer
     Height = 25
     Anchors = [akLeft, akBottom]
     Caption = 'FBHelp'
-    TabOrder = 2
+    TabOrder = 1
     OnClick = FBHelpClick
   end
   object MSource: TPopupMenu
-    Left = 128
+    Left = 160
     Top = 336
     object msUndo: TMenuItem
       Caption = 'aEUndo'

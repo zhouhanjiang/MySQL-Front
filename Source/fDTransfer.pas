@@ -76,11 +76,13 @@ type
       Session: TSSession;
     end;
     Transfer: TTTransfer;
-    WantedExecute: Boolean;
-    WantedNodeExpand: TTreeNode;
+    Wanted: record
+      Page: TTabSheet;
+      Node: TTreeNode;
+    end;
     procedure CheckActivePageChange(const ActivePageIndex: Integer);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
-    function GetSession(const Index: Integer): TSSession;
+    function GetSession(const TreeNode: TTreeNode): TSSession;
     procedure OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure OnTerminate(Sender: TObject);
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
@@ -221,14 +223,25 @@ end;
 
 procedure TDTransfer.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if (Event.EventType in [etAfterExecuteSQL]) then
+  if ((Event.EventType = etItemsValid)
+    and (Wanted.Node.ImageIndex = iiServer) and (Event.Items = GetSession(Wanted.Node).Databases)) then
+    Wanted.Node.Expand(False)
+  else if ((Event.EventType = etItemValid)
+    and (Wanted.Node.ImageIndex = iiDatabase) and (Event.Item = Wanted.Node.Data)) then
+    Wanted.Node.Expand(False);
+
+  if (Event.EventType = etError) then
   begin
     FSource.Cursor := crDefault;
     FDestination.Cursor := crDefault;
+    SetControlCursor(GProgress, crDefault);
 
-    if (Assigned(WantedNodeExpand)) then
-      WantedNodeExpand.Expand(False)
-    else if (WantedExecute) then
+    Wanted.Node := nil;
+    Wanted.Page := nil;
+  end
+  else if (Event.EventType = etAfterExecuteSQL) then
+  begin
+    if (Assigned(Wanted.Page) and Assigned(Wanted.Page.OnShow)) then
       PostMessage(Handle, UM_POST_AFTEREXECUTESQL, 0, 0);
   end;
 end;
@@ -241,7 +254,6 @@ begin
   BorderStyle := bsSizeable;
 
   Transfer := nil;
-  BorderStyle := bsSizeable;
 
   FSource.Images := Preferences.Images;
   FDestination.Images := Preferences.Images;
@@ -292,7 +304,8 @@ begin
     Height := Preferences.Transfer.Height;
   end;
 
-  WantedNodeExpand := nil;
+  Wanted.Node := nil;
+  Wanted.Page := nil;
 
   SetLength(Sessions, Accounts.Count);
   for I := 0 to Length(Sessions) - 1 do
@@ -344,27 +357,44 @@ begin
   FStructureClick(Sender);
 end;
 
-function TDTransfer.GetSession(const Index: Integer): TSSession;
+function TDTransfer.GetSession(const TreeNode: TTreeNode): TSSession;
+var
+  Index: Integer;
+  Node: TTreeNode;
 begin
-  if (not Assigned(Sessions[Index].Session)) then
-    Sessions[Index].Session := fSession.Sessions.SessionByAccount(Accounts[Index]);
+  Node := TreeNode;
+  while (Assigned(Node.Parent)) do
+    Node := Node.Parent;
 
-  if (not Assigned(Sessions[Index].Session)) then
+  if (not Assigned(Node.Data)) then
   begin
-    DConnecting.Session := TSSession.Create(fSession.Sessions, Accounts[Index]);
-    if (not DConnecting.Execute()) then
-      DConnecting.Session.Free()
-    else
+    Index := Node.Index; // Cache for speeding - Index is slow
+
+    if (Assigned(SourceSession) and (SourceSession.Account = Accounts[Index])) then
+      Sessions[Index].Session := SourceSession;
+
+    if (not Assigned(Sessions[Index].Session)) then
+      Sessions[Index].Session := fSession.Sessions.SessionByAccount(Accounts[Index]);
+
+    if (not Assigned(Sessions[Index].Session)) then
     begin
-      Sessions[Index].Created := True;
-      Sessions[Index].Session := DConnecting.Session;
+      DConnecting.Session := TSSession.Create(fSession.Sessions, Accounts[Index]);
+      if (not DConnecting.Execute()) then
+        DConnecting.Session.Free()
+      else
+      begin
+        Sessions[Index].Created := True;
+        Sessions[Index].Session := DConnecting.Session;
+      end;
     end;
+
+    if (Assigned(Sessions[Index].Session)) then
+      Sessions[Index].Session.RegisterEventProc(FormSessionEvent);
+
+    Node.Data := Sessions[Index].Session;
   end;
 
-  Result := Sessions[Index].Session;
-
-  if (Assigned(Result)) then
-    Result.RegisterEventProc(FormSessionEvent);
+  Result := TSSession(Node.Data);
 end;
 
 procedure TDTransfer.OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
@@ -462,27 +492,22 @@ begin
   if (not Assigned(TreeView.Selected)) then
     TreeView.Selected := Node;
 
-  if (Assigned(WantedNodeExpand)) then
-  begin
-    for I := 0 to Length(Sessions) - 1 do
-      if (Assigned(Sessions[I].Session)) then
-        Sessions[I].Session.UnRegisterEventProc(FormSessionEvent);
-    WantedNodeExpand := nil;
-  end;
-
   if (Assigned(Node)) then
+  begin
+    if (Assigned(Wanted.Node)) then
+    begin
+      GetSession(Wanted.Node).Connection.Terminate();
+      Wanted.Node := nil;
+    end;
     if (Node.HasChildren and not Assigned(Node.getFirstChild())) then
     begin
       case (Node.ImageIndex) of
         iiServer:
           begin
-            Session := GetSession(Node.Index);
+            Session := GetSession(Node);
             if (Assigned(Session)) then
               if (not Session.Databases.Update()) then
-              begin
-                WantedNodeExpand := Node;
-                TreeView.Cursor := crSQLWait;
-              end
+                Wanted.Node := Node
               else
               begin
                 for I := 0 to Session.Databases.Count - 1 do
@@ -498,13 +523,10 @@ begin
           end;
         iiDatabase:
           begin
-            Session := GetSession(Node.Parent.Index);
+            Session := TSSession(Node.Parent.Data);
             Database := Session.DatabaseByName(Node.Text);
             if (not Database.Update()) then
-            begin
-              WantedNodeExpand := Node;
-              TreeView.Cursor := crSQLWait;
-            end
+              Wanted.Node := Node
             else
             begin
               for I := 0 to Database.Tables.Count - 1 do
@@ -545,6 +567,12 @@ begin
           end;
       end;
     end;
+  end;
+
+  if (not Assigned(Wanted.Node)) then
+    TreeView.Cursor := crDefault
+  else
+    TreeView.Cursor := crSQLWait;
 end;
 
 procedure TDTransfer.TreeViewGetSelectedIndex(Sender: TObject; Node: TTreeNode);
@@ -608,18 +636,19 @@ begin
 
   Node := FSource.Selected;
   while (Assigned(Node.Parent)) do Node := Node.Parent;
-  SourceSession := GetSession(Node.Index);
-  WantedExecute := False;
+  SourceSession := TSSession(Node.Data);
+  Wanted.Page := nil;
 
   List := TList.Create();
   case (FSource.Selected.ImageIndex) of
     iiDatabase:
       for I := 0 to FSource.Selected.Parent.Count - 1 do
-        if (not WantedExecute) then
+        if (not Assigned(Wanted.Page)) then
         begin
           Database := SourceSession.DatabaseByName(FSource.Selected.Parent[I].Text);
-          WantedExecute := not Database.Update();
-          if (not WantedExecute) then
+          if (not Database.Update()) then
+            Wanted.Page := TSExecute
+          else
           begin
             for J := 0 to Database.Tables.Count - 1 do
               List.Add(Database.Tables[J]);
@@ -640,20 +669,22 @@ begin
             List.Add(FSource.Selected.Parent.Item[I].Data);
       end;
   end;
-  WantedExecute := not SourceSession.Update(List);
+  if (not Assigned(Wanted.Page) and not SourceSession.Update(List)) then
+    Wanted.Page := TSExecute;
   List.Free();
 
-  if (WantedExecute) then
+  if (Assigned(Wanted.Page)) then
     DestinationSession := nil
   else
   begin
     Node := FDestination.Selected;
     while (Assigned(Node.Parent)) do Node := Node.Parent;
-    DestinationSession := GetSession(Node.Index);
-    WantedExecute := not DestinationSession.Update();
+    DestinationSession := TSSession(Node.Data);
+    if (not DestinationSession.Update()) then
+      Wanted.Page := TSExecute;
   end;
 
-  if (not WantedExecute) then
+  if (not Assigned(Wanted.Page)) then
   begin
     List := TList.Create();
 
@@ -677,12 +708,12 @@ begin
         if (List.IndexOf(TSDatabase(FDestination.Selected.Data).Events) < 0) then
           List.Add(TSDatabase(FDestination.Selected.Data).Events);
     end;
-    if (not WantedExecute) then
-      WantedExecute := not DestinationSession.Update(List);
+    if (not DestinationSession.Update(List)) then
+      Wanted.Page := TSExecute;
     List.Free();
   end;
 
-  if (not WantedExecute) then
+  if (not Assigned(Wanted.Page)) then
   begin
     Answer := IDYES;
 
@@ -727,6 +758,11 @@ begin
     else
       Transfer.Start();
   end;
+
+  if (not Assigned(Wanted.Page)) then
+    SetControlCursor(GProgress, crDefault)
+  else
+    SetControlCursor(GProgress, crSQLWait);
 end;
 
 procedure TDTransfer.TSSelectResize(Sender: TObject);
@@ -796,23 +832,45 @@ procedure TDTransfer.TSWhatShow(Sender: TObject);
 var
   I: Integer;
   J: Integer;
+  List: TList;
+  Node: TTreeNode;
 begin
+  Wanted.Page := nil;
   FData.Enabled := False;
+
+  List := TList.Create();
   for I := 0 to FSource.SelectionCount - 1 do
     if (TObject(FSource.Selections[I].Data) is TSDatabase) then
-    begin
-      TSDatabase(FSource.Selections[I].Data).Session.Connection.BeginSynchron();
-      TSDatabase(FSource.Selections[I].Data).Update();
-      TSDatabase(FSource.Selections[I].Data).Session.Connection.EndSynchron();
-      for J := 0 to TSDatabase(FSource.Selections[I].Data).Tables.Count - 1 do
-        if (TSDatabase(FSource.Selections[I].Data).Tables[J] is TSBaseTable) then
-          FData.Enabled := True;
-    end
-    else if (FSource.Selections[I].ImageIndex = iiBaseTable) then
-      FData.Enabled := True;
-  FData.Checked := FData.Checked and FData.Enabled;
+      List.Add(FSource.Selections[I].Data);
+  Node := FSource.Selected;
+  while (Assigned(Node.Parent)) do Node := Node.Parent;
+  if (not TSSession(Node.Data).Update(List)) then
+    Wanted.Page := TSWhat;
+  List.Free();
 
-  TSExecute.Enabled := FStructure.Checked or FData.Checked;
+  if (not Assigned(Wanted.Page)) then
+  begin
+    for I := 0 to FSource.SelectionCount - 1 do
+      if (TObject(FSource.Selections[I].Data) is TSDatabase) then
+      begin
+        TSDatabase(FSource.Selections[I].Data).Session.Connection.BeginSynchron();
+        TSDatabase(FSource.Selections[I].Data).Update();
+        TSDatabase(FSource.Selections[I].Data).Session.Connection.EndSynchron();
+        for J := 0 to TSDatabase(FSource.Selections[I].Data).Tables.Count - 1 do
+          if (TSDatabase(FSource.Selections[I].Data).Tables[J] is TSBaseTable) then
+            FData.Enabled := True;
+      end
+      else if (FSource.Selections[I].ImageIndex = iiBaseTable) then
+        FData.Enabled := True;
+    FData.Checked := FData.Checked and FData.Enabled;
+  end;
+
+  if (not Assigned(Wanted.Page)) then
+    FData.Cursor := crDefault
+  else
+    FData.Cursor := crSQLWait;
+
+  TSExecute.Enabled := not Assigned(Wanted.Page) and (FStructure.Checked or FData.Checked);
   CheckActivePageChange(TSWhat.PageIndex);
 end;
 
@@ -846,7 +904,7 @@ end;
 
 procedure TDTransfer.UMPostAfterExecuteSQL(var Message: TMessage);
 begin
-  TSExecuteShow(nil);
+  Wanted.Page.OnShow(nil);
 end;
 
 procedure TDTransfer.UMTerminate(var Message: TMessage);

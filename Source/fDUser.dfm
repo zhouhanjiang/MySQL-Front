@@ -62,7 +62,7 @@ object DUser: TDUser
     Top = 8
     Width = 321
     Height = 241
-    ActivePage = TSBasics
+    ActivePage = TSLimits
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
@@ -70,12 +70,12 @@ object DUser: TDUser
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
       ExplicitLeft = 0
-      ExplicitTop = 0
+      ExplicitTop = 42
       ExplicitWidth = 0
-      ExplicitHeight = 0
+      ExplicitHeight = 195
       DesignSize = (
         313
-        195)
+        213)
       object GBasics: TGroupBox_Ext
         Left = 8
         Top = 8
@@ -149,17 +149,17 @@ object DUser: TDUser
       Caption = 'TSRights'
       OnShow = TSRightsShow
       ExplicitLeft = 0
-      ExplicitTop = 0
+      ExplicitTop = 42
       ExplicitWidth = 0
-      ExplicitHeight = 0
+      ExplicitHeight = 195
       DesignSize = (
         313
-        195)
+        213)
       object FRights: TListView
         Left = 8
         Top = 8
         Width = 189
-        Height = 169
+        Height = 187
         Anchors = [akLeft, akTop, akRight, akBottom]
         Columns = <
           item
@@ -173,6 +173,7 @@ object DUser: TDUser
         ViewStyle = vsReport
         OnDblClick = FRightsDblClick
         OnSelectItem = FRightsSelectItem
+        ExplicitHeight = 169
       end
       object FBRightsNew: TButton
         Left = 208
@@ -208,12 +209,12 @@ object DUser: TDUser
     object TSLimits: TTabSheet
       Caption = 'TSLimits'
       ExplicitLeft = 0
-      ExplicitTop = 0
+      ExplicitTop = 42
       ExplicitWidth = 0
-      ExplicitHeight = 0
+      ExplicitHeight = 195
       DesignSize = (
         313
-        195)
+        213)
       object GLimits: TGroupBox_Ext
         Left = 8
         Top = 8
@@ -322,96 +323,20 @@ object DUser: TDUser
         end
       end
     end
-    object TSSQLLog: TTabSheet
-      Caption = 'TSSQLLog'
-      OnShow = TSSQLLogShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
-      DesignSize = (
-        313
-        195)
-      object FSQLLog: TSynMemo
-        Left = 8
-        Top = 8
-        Width = 297
-        Height = 169
-        Anchors = [akLeft, akTop, akRight, akBottom]
-        Font.Charset = DEFAULT_CHARSET
-        Font.Color = clWindowText
-        Font.Height = -13
-        Font.Name = 'Courier New'
-        Font.Style = []
-        PopupMenu = MSource
-        TabOrder = 0
-        Gutter.Font.Charset = DEFAULT_CHARSET
-        Gutter.Font.Color = clWindowText
-        Gutter.Font.Height = -11
-        Gutter.Font.Name = 'Courier New'
-        Gutter.Font.Style = []
-        Gutter.Width = 0
-        MaxScrollWidth = 65535
-        Options = [eoAutoIndent, eoGroupUndo, eoHideShowScrollbars, eoNoCaret, eoShowScrollHint, eoSmartTabDelete, eoSmartTabs, eoTabsToSpaces, eoTrimTrailingSpaces]
-        ReadOnly = True
-        RightEdgeColor = clWindow
-        ScrollHintFormat = shfTopToBottom
-        WantReturns = False
-        FontSmoothing = fsmNone
-      end
-    end
-    object TSSlowSQLLog: TTabSheet
-      Caption = 'TSSlowSQLLog'
-      OnShow = TSSlowSQLLogShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
-      DesignSize = (
-        313
-        195)
-      object FSlowSQLLog: TSynMemo
-        Left = 8
-        Top = 8
-        Width = 297
-        Height = 169
-        Anchors = [akLeft, akTop, akRight, akBottom]
-        Font.Charset = DEFAULT_CHARSET
-        Font.Color = clWindowText
-        Font.Height = -13
-        Font.Name = 'Courier New'
-        Font.Style = []
-        PopupMenu = MSource
-        TabOrder = 0
-        Gutter.Font.Charset = DEFAULT_CHARSET
-        Gutter.Font.Color = clWindowText
-        Gutter.Font.Height = -11
-        Gutter.Font.Name = 'Courier New'
-        Gutter.Font.Style = []
-        Gutter.Width = 0
-        MaxScrollWidth = 65535
-        Options = [eoAutoIndent, eoGroupUndo, eoHideShowScrollbars, eoNoCaret, eoShowScrollHint, eoSmartTabDelete, eoSmartTabs, eoTabsToSpaces, eoTrimTrailingSpaces]
-        ReadOnly = True
-        RightEdgeColor = clWindow
-        ScrollHintFormat = shfTopToBottom
-        WantReturns = False
-        FontSmoothing = fsmNone
-      end
-    end
     object TSSource: TTabSheet
       Caption = 'TSSource'
       ExplicitLeft = 0
-      ExplicitTop = 0
+      ExplicitTop = 42
       ExplicitWidth = 0
-      ExplicitHeight = 0
+      ExplicitHeight = 195
       DesignSize = (
         313
-        195)
+        213)
       object FSource: TSynMemo
         Left = 8
         Top = 8
         Width = 297
-        Height = 169
+        Height = 187
         Anchors = [akLeft, akTop, akRight, akBottom]
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText
@@ -434,6 +359,7 @@ object DUser: TDUser
         ScrollHintFormat = shfTopToBottom
         WantReturns = False
         FontSmoothing = fsmNone
+        ExplicitHeight = 169
       end
     end
   end

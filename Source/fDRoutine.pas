@@ -261,9 +261,9 @@ end;
 
 procedure TDRoutine.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = etItemValid) and (Event.SItem = Routine)) then
+  if ((Event.EventType = etItemValid) and (Event.Item = Routine)) then
     Built()
-  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is TSRoutine)) then
+  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.Item is TSRoutine)) then
     ModalResult := mrOk;
 
   if (Event.EventType = etAfterExecuteSQL) then

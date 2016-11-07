@@ -107,7 +107,7 @@ type
     WantedExecute: Boolean;
     WantedNodeExpand: TTreeNode;
     procedure FormSessionEvent(const Event: TSSession.TEvent);
-    function GetSession(const Index: Integer): TSSession;
+    function GetSession(const TreeNode: TTreeNode): TSSession;
     procedure OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure OnSearched(const AItem: TTSearch.TItem);
     procedure OnTerminate(Sender: TObject);
@@ -460,8 +460,10 @@ begin
       case (Node.ImageIndex) of
         iiServer:
           begin
-            Session := GetSession(Node.Index);
+            Session := GetSession(Node);
             if (Assigned(Session)) then
+            begin
+              Node.Data := Session;
               if (not Session.Update()) then
               begin
                 WantedNodeExpand := Node;
@@ -479,10 +481,11 @@ begin
                   end;
                 Node.HasChildren := Assigned(Node.getFirstChild());
               end;
+            end;
           end;
         iiDatabase:
           begin
-            Session := GetSession(Node.Parent.Index);
+            Session := TSSession(Node.Parent.Data);
             Database := Session.DatabaseByName(Node.Text);
             if ((not Database.Tables.Update() or not Session.Update(Database.Tables))) then
             begin
@@ -504,7 +507,7 @@ begin
           end;
         iiBaseTable:
           begin
-            Session := GetSession(Node.Parent.Parent.Index);
+            Session := TSSession(Node.Parent.Parent.Data);
             Database := Session.DatabaseByName(Node.Parent.Text);
             Table := Database.BaseTableByName(Node.Text);
             if (not Table.Update()) then
@@ -567,27 +570,44 @@ begin
   end;
 end;
 
-function TDSearch.GetSession(const Index: Integer): TSSession;
+function TDSearch.GetSession(const TreeNode: TTreeNode): TSSession;
+var
+  Index: Integer;
+  Node: TTreeNode;
 begin
-  if (not Assigned(Sessions[Index].Session)) then
-    Sessions[Index].Session := fSession.Sessions.SessionByAccount(Accounts[Index]);
+  Node := TreeNode;
+  while (Assigned(Node.Parent)) do
+    Node := Node.Parent;
 
-  if (not Assigned(Sessions[Index].Session)) then
+  if (not Assigned(Node.Data)) then
   begin
-    DConnecting.Session := TSSession.Create(fSession.Sessions, Accounts[Index]);
-    if (not DConnecting.Execute()) then
-      DConnecting.Session.Free()
-    else
+    Index := Node.Index; // Cache for speeding - Index is slow
+
+    if (Assigned(Session) and (Session.Account = Accounts[Index])) then
+      Sessions[Index].Session := Session;
+
+    if (not Assigned(Sessions[Index].Session)) then
+      Sessions[Index].Session := fSession.Sessions.SessionByAccount(Accounts[Index]);
+
+    if (not Assigned(Sessions[Index].Session)) then
     begin
-      Sessions[Index].Created := True;
-      Sessions[Index].Session := DConnecting.Session;
+      DConnecting.Session := TSSession.Create(fSession.Sessions, Accounts[Index]);
+      if (not DConnecting.Execute()) then
+        DConnecting.Session.Free()
+      else
+      begin
+        Sessions[Index].Created := True;
+        Sessions[Index].Session := DConnecting.Session;
+      end;
     end;
+
+    if (Assigned(Sessions[Index].Session)) then
+      Sessions[Index].Session.RegisterEventProc(FormSessionEvent);
+
+    Node.Data := Sessions[Index].Session;
   end;
 
-  Result := Sessions[Index].Session;
-
-  if (Assigned(Result)) then
-    Result.RegisterEventProc(FormSessionEvent);
+  Result := TSSession(Node.Data);
 end;
 
 procedure TDSearch.mTCopyClick(Sender: TObject);
@@ -787,7 +807,7 @@ begin
 
   Node := FSelect.Selected;
   while (Assigned(Node.Parent)) do Node := Node.Parent;
-  Session := GetSession(Node.Index);
+  Session := TSSession(Node.Data);
   InitializeNode(Session, FSelect.Selected);
 
   if (not WantedExecute) then

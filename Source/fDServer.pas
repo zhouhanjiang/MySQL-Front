@@ -22,12 +22,12 @@ type
     FLHost: TLabel;
     FLibVersion: TLabel;
     FLLibVersion: TLabel;
+    FLThreadId: TLabel;
     FLUser: TLabel;
     FLVersion: TLabel;
     FPlugins: TListView;
-    FSlowSQLLog: TSynMemo;
-    FSQLLog: TSynMemo;
     FStartup: TSynMemo;
+    FThreadId: TLabel;
     FUser: TLabel;
     FVersion: TLabel;
     GConnection: TGroupBox_Ext;
@@ -44,12 +44,7 @@ type
     PageControl: TPageControl;
     TSBasics: TTabSheet;
     TSPlugins: TTabSheet;
-    TSSlowSQLLog: TTabSheet;
-    TSSQLLog: TTabSheet;
     TSStartup: TTabSheet;
-    PSQLWait: TPanel_Ext;
-    FLThreadId: TLabel;
-    FThreadId: TLabel;
     procedure FBHelpClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormHide(Sender: TObject);
@@ -61,13 +56,13 @@ type
     procedure ListViewKeyPress(Sender: TObject; var Key: Char);
     procedure ListViewResize(Sender: TObject);
     procedure TSPluginsShow(Sender: TObject);
-    procedure TSSlowSQLLogShow(Sender: TObject);
-    procedure TSSQLLogShow(Sender: TObject);
     procedure TSStartupShow(Sender: TObject);
   private
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure ListViewShowSortDirection(const ListView: TListView);
+    function SessionUpdate(): Boolean;
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure VariableValid(const Variable: TSVariable);
   public
     Session: TSSession;
     Tab: TCustomFrame;
@@ -85,7 +80,8 @@ uses
   MySQLConsts,
   CommCtrl_Ext,
   MySQLDB, SQLUtils,
-  fPreferences;
+  fPreferences,
+  fDVariable, fDUser;
 
 var
   FServer: TDServer;
@@ -116,10 +112,22 @@ end;
 
 procedure TDServer.FormSessionEvent(const Event: TSSession.TEvent);
 begin
+  if (Event.EventType = etItemsValid) then
+  begin
+    if (Event.Items = Session.Plugins) then
+    begin
+      FPlugins.Cursor := crDefault;
+      if (Assigned(TSPlugins.OnShow)) then
+        TSPlugins.OnShow(nil);
+    end;
+  end
+  else if (Event.EventType = etItemValid) then
+    if (Event.Item is TSVariable) then
+      VariableValid(TSVariable(Event.Item));
+
   if (Event.EventType = etAfterExecuteSQL) then
   begin
-    PageControl.Visible := True;
-    PSQLWait.Visible := not PageControl.Visible;
+    FPlugins.Cursor := crDefault;
   end;
 end;
 
@@ -129,9 +137,6 @@ begin
 
   FStartup.Highlighter := MainHighlighter;
   FPlugins.SmallImages := Preferences.Images;
-
-  FSQLLog.Highlighter := MainHighlighter;
-  FSlowSQLLog.Highlighter := MainHighlighter;
 
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
@@ -148,7 +153,7 @@ begin
   Preferences.Server.Width := Width;
   Preferences.Server.Height := Height;
 
-  FSQLLog.Lines.Clear();
+  FStartup.Lines.Clear();
 
   FPlugins.DisableAlign(); FPlugins.Items.BeginUpdate();
   FPlugins.Items.Clear();
@@ -156,8 +161,6 @@ begin
 end;
 
 procedure TDServer.FormShow(Sender: TObject);
-var
-  List: TList;
 begin
   Session.RegisterEventProc(FormSessionEvent);
 
@@ -190,21 +193,10 @@ begin
 
   FStartup.Lines.Clear();
 
-  TSSQLLog.TabVisible := Session.LogActive;
-  TSSlowSQLLog.TabVisible := Session.SlowLogActive;
   TSStartup.TabVisible := Assigned(Session.VariableByName('init_connect')) and (Session.VariableByName('init_connect').Value <> '');
   TSPlugins.TabVisible := Assigned(Session.Plugins);
 
   PageControl.ActivePage := TSBasics;
-
-  List := TList.Create();
-  if (not Session.Stati.Valid) then
-    List.Add(Session.Stati);
-  if (Assigned(Session.Plugins) and not Session.Plugins.Valid) then
-    List.Add(Session.Plugins);
-  PageControl.Visible := Session.Update(List);
-  PSQLWait.Visible := not PageControl.Visible;
-  List.Free();
 
   ActiveControl := FBCancel;
 end;
@@ -305,55 +297,54 @@ begin
     SendMessage(ListView.Handle, LVM_SETSELECTEDCOLUMN, Column.Index, 0);
 end;
 
+function TDServer.SessionUpdate(): Boolean;
+var
+  List: TList;
+begin
+  List := TList.Create();
+  if (Assigned(Session.Plugins) and not Session.Plugins.Valid) then
+  begin
+    FPlugins.Cursor := crSQLWait;
+    List.Add(Session.Plugins);
+  end;
+  Result := Session.Update(List);
+  List.Free();
+end;
+
 procedure TDServer.TSPluginsShow(Sender: TObject);
 var
   I: Integer;
   Item: TListItem;
 begin
   if (FPlugins.Items.Count = 0) then
-  begin
-    FPlugins.DisableAlign(); FPlugins.Items.BeginUpdate();
-
-    for I := 0 to Session.Plugins.Count - 1 do
+    if (Session.Plugins.Valid or SessionUpdate()) then
     begin
-      Item := FPlugins.Items.Add();
-      Item.Caption := Session.Plugins[I].Name;
-      Item.ImageIndex := iiPlugin;
-      Item.SubItems.Add(Session.Plugins[I].Comment);
+      FPlugins.DisableAlign();
+      FPlugins.Items.BeginUpdate();
+
+      for I := 0 to Session.Plugins.Count - 1 do
+      begin
+        Item := FPlugins.Items.Add();
+        Item.Caption := Session.Plugins[I].Name;
+        Item.ImageIndex := iiPlugin;
+        Item.SubItems.Add(Session.Plugins[I].Comment);
+      end;
+      if (FPlugins.Items.Count = 0) then
+        FPlugins.Selected := nil
+      else
+        FPlugins.Selected := FPlugins.Items[0];
+      FPlugins.ItemFocused := FPlugins.Selected;
+
+      FPlugins.Items.EndUpdate();
+      FPlugins.EnableAlign();
+
+      FPlugins.Columns[0].Width := FPlugins.ClientWidth div 2;
+      FPlugins.Columns[1].Width := FPlugins.ClientWidth - FPlugins.Columns[0].Width;
+
+      FPlugins.Columns[0].Tag := 1;
+      FPlugins.Columns[1].Tag := 0;
+      ListViewShowSortDirection(FPlugins);
     end;
-    if (FPlugins.Items.Count = 0) then
-      FPlugins.Selected := nil
-    else
-      FPlugins.Selected := FPlugins.Items[0];
-    FPlugins.ItemFocused := FPlugins.Selected;
-
-    FPlugins.Columns[0].Tag := 1;
-    FPlugins.Columns[1].Tag := 0;
-    ListViewShowSortDirection(FPlugins);
-
-    FPlugins.EnableAlign(); FPlugins.Items.EndUpdate();
-
-    FPlugins.Columns[0].Width := FPlugins.ClientWidth div 2;
-    FPlugins.Columns[1].Width := FPlugins.ClientWidth - FPlugins.Columns[0].Width;
-  end;
-end;
-
-procedure TDServer.TSSlowSQLLogShow(Sender: TObject);
-begin
-  if (FSlowSQLLog.Lines.Text = '') then
-  begin
-    FSlowSQLLog.Text := Session.SlowLog;
-    SendMessage(FSlowSQLLog.Handle, WM_VSCROLL, SB_BOTTOM, 0);
-  end
-end;
-
-procedure TDServer.TSSQLLogShow(Sender: TObject);
-begin
-  if (FSQLLog.Lines.Text = '') then
-  begin
-    FSQLLog.Text := Session.Log;
-    SendMessage(FSQLLog.Handle, WM_VSCROLL, SB_BOTTOM, 0);
-  end
 end;
 
 procedure TDServer.TSStartupShow(Sender: TObject);
@@ -364,8 +355,6 @@ end;
 
 procedure TDServer.UMChangePreferences(var Message: TMessage);
 begin
-  PSQLWait.Caption := Preferences.LoadStr(882) + '...';
-
   TSBasics.Caption := Preferences.LoadStr(108);
   GServer.Caption := Preferences.LoadStr(906);
   FLVersion.Caption := Preferences.LoadStr(169) + ':';
@@ -376,38 +365,6 @@ begin
   FLUser.Caption := Preferences.LoadStr(561) + ':';
   FLCharacterSet.Caption := Preferences.LoadStr(682) + ':';
   FLThreadId.Caption := Preferences.LoadStr(269) + ':';
-
-  TSSQLLog.Caption := Preferences.LoadStr(11);
-  FSQLLog.Font.Name := Preferences.SQLFontName;
-  FSQLLog.Font.Style := Preferences.SQLFontStyle;
-  FSQLLog.Font.Color := Preferences.SQLFontColor;
-  FSQLLog.Font.Size := Preferences.SQLFontSize;
-  FSQLLog.Font.Charset := Preferences.SQLFontCharset;
-  if (Preferences.Editor.LineNumbersForeground = clNone) then
-    FSQLLog.Gutter.Font.Color := clWindowText
-  else
-    FSQLLog.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
-  if (Preferences.Editor.LineNumbersBackground = clNone) then
-    FSQLLog.Gutter.Color := clBtnFace
-  else
-    FSQLLog.Gutter.Color := Preferences.Editor.LineNumbersBackground;
-  FSQLLog.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
-
-  TSSlowSQLLog.Caption := Preferences.LoadStr(847);
-  FSlowSQLLog.Font.Name := Preferences.SQLFontName;
-  FSlowSQLLog.Font.Style := Preferences.SQLFontStyle;
-  FSlowSQLLog.Font.Color := Preferences.SQLFontColor;
-  FSlowSQLLog.Font.Size := Preferences.SQLFontSize;
-  FSlowSQLLog.Font.Charset := Preferences.SQLFontCharset;
-  if (Preferences.Editor.LineNumbersForeground = clNone) then
-    FSlowSQLLog.Gutter.Font.Color := clWindowText
-  else
-    FSlowSQLLog.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
-  if (Preferences.Editor.LineNumbersBackground = clNone) then
-    FSlowSQLLog.Gutter.Color := clBtnFace
-  else
-    FSlowSQLLog.Gutter.Color := Preferences.Editor.LineNumbersBackground;
-  FSlowSQLLog.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
 
   TSStartup.Caption := Preferences.LoadStr(805);
   FStartup.Font.Name := Preferences.SQLFontName;
@@ -438,6 +395,10 @@ begin
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBCancel.Caption := Preferences.LoadStr(231);
+end;
+
+procedure TDServer.VariableValid(const Variable: TSVariable);
+begin
 end;
 
 initialization

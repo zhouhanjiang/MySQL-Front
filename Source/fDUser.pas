@@ -31,9 +31,7 @@ type
     FPassword: TEdit;
     FQueriesPerHour: TEdit;
     FRights: TListView;
-    FSlowSQLLog: TSynMemo;
     FSource: TSynMemo;
-    FSQLLog: TSynMemo;
     FUDConnectionsPerHour: TUpDown;
     FUDQueriesPerHour: TUpDown;
     FUDUpdatesPerHour: TUpDown;
@@ -51,9 +49,7 @@ type
     TSBasics: TTabSheet;
     TSLimits: TTabSheet;
     TSRights: TTabSheet;
-    TSSlowSQLLog: TTabSheet;
     TSSource: TTabSheet;
-    TSSQLLog: TTabSheet;
     procedure FBHelpClick(Sender: TObject);
     procedure FBOkCheckEnabled(Sender: TObject);
     procedure FBRightsDeleteClick(Sender: TObject);
@@ -72,8 +68,6 @@ type
       Data: Integer; var Compare: Integer);
     procedure ListViewResize(Sender: TObject);
     procedure TSRightsShow(Sender: TObject);
-    procedure TSSlowSQLLogShow(Sender: TObject);
-    procedure TSSQLLogShow(Sender: TObject);
   private
     NewUser: TSUser;
     RightsModified: Boolean;
@@ -210,9 +204,9 @@ end;
 
 procedure TDUser.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = etItemValid) and (Event.SItem = User)) then
+  if ((Event.EventType = etItemValid) and (Event.Item = User)) then
     Built()
-  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is TSUser)) then
+  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.Item is TSUser)) then
     ModalResult := mrOk;
 
   if (Event.EventType = etAfterExecuteSQL) then
@@ -269,8 +263,6 @@ begin
 
   FRights.SmallImages := Preferences.Images;
 
-  FSQLLog.Highlighter := MainHighlighter;
-  FSlowSQLLog.Highlighter := MainHighlighter;
   FSource.Highlighter := MainHighlighter;
 
   PageControl.ActivePage := TSBasics;
@@ -286,8 +278,6 @@ begin
   FRights.Items.BeginUpdate();
   FRights.Items.Clear();
   FRights.Items.EndUpdate();
-  FSlowSQLLog.Lines.Clear();
-  FSQLLog.Lines.Clear();
   FSource.Lines.Clear();
 
   if (Assigned(NewUser)) then
@@ -365,8 +355,6 @@ begin
   FLUserConnections.Visible := FUserConnections.Visible;
   FUDUserConnections.Visible := FUserConnections.Visible;
 
-  TSSlowSQLLog.TabVisible := Assigned(User) and Session.SlowLogActive;
-  TSSQLLog.TabVisible := Assigned(User) and Session.LogActive;
   TSSource.TabVisible := Assigned(User);
 
   PageControl.ActivePage := TSBasics;
@@ -511,21 +499,6 @@ begin
   ActiveControl := FRights;
 end;
 
-procedure TDUser.TSSlowSQLLogShow(Sender: TObject);
-begin
-  if (FSlowSQLLog.Lines.Text = '') then
-  begin
-    FSlowSQLLog.Text := User.SlowSQLLog;
-    SendMessage(FSlowSQLLog.Handle, WM_VSCROLL, SB_BOTTOM, 0);
-  end
-end;
-
-procedure TDUser.TSSQLLogShow(Sender: TObject);
-begin
-  if (FSQLLog.Lines.Text = '') then
-    FSQLLog.Text := User.SQLLog;
-end;
-
 procedure TDUser.UMChangePreferences(var Message: TMessage);
 begin
   Preferences.Images.GetIcon(iiUser, Icon);
@@ -549,38 +522,6 @@ begin
   FLQueriesPerHour.Caption := Preferences.LoadStr(290) + ':';
   FLUpdatesPerHour.Caption := Preferences.LoadStr(291) + ':';
   FLUserConnections.Caption := Preferences.LoadStr(871) + ':';
-
-  TSSQLLog.Caption := Preferences.LoadStr(11);
-  FSQLLog.Font.Name := Preferences.SQLFontName;
-  FSQLLog.Font.Style := Preferences.SQLFontStyle;
-  FSQLLog.Font.Color := Preferences.SQLFontColor;
-  FSQLLog.Font.Size := Preferences.SQLFontSize;
-  FSQLLog.Font.Charset := Preferences.SQLFontCharset;
-  if (Preferences.Editor.LineNumbersForeground = clNone) then
-    FSQLLog.Gutter.Font.Color := clWindowText
-  else
-    FSQLLog.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
-  if (Preferences.Editor.LineNumbersBackground = clNone) then
-    FSQLLog.Gutter.Color := clBtnFace
-  else
-    FSQLLog.Gutter.Color := Preferences.Editor.LineNumbersBackground;
-  FSQLLog.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
-
-  TSSlowSQLLog.Caption := Preferences.LoadStr(847);
-  FSlowSQLLog.Font.Name := Preferences.SQLFontName;
-  FSlowSQLLog.Font.Style := Preferences.SQLFontStyle;
-  FSlowSQLLog.Font.Color := Preferences.SQLFontColor;
-  FSlowSQLLog.Font.Size := Preferences.SQLFontSize;
-  FSlowSQLLog.Font.Charset := Preferences.SQLFontCharset;
-  if (Preferences.Editor.LineNumbersForeground = clNone) then
-    FSlowSQLLog.Gutter.Font.Color := clWindowText
-  else
-    FSlowSQLLog.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
-  if (Preferences.Editor.LineNumbersBackground = clNone) then
-    FSlowSQLLog.Gutter.Color := clBtnFace
-  else
-    FSlowSQLLog.Gutter.Color := Preferences.Editor.LineNumbersBackground;
-  FSlowSQLLog.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
 
   TSSource.Caption := Preferences.LoadStr(198);
   FSource.Font.Name := Preferences.SQLFontName;

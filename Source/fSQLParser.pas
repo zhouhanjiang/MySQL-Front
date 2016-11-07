@@ -15518,11 +15518,9 @@ begin
       and IsToken(Specifications[Specifications.Count - 1]) 
       and (TokenPtr(Specifications[Specifications.Count - 1])^.TokenType = ttComma)) then
       SetError(PE_IncompleteStmt)
-    else if (CurrentToken = OldCurrentToken) then
-      if (EndOfStmt(CurrentToken)) then
-        SetError(PE_IncompleteStmt)
-      else
-        SetError(PE_UnexpectedToken);
+    else if (not EndOfStmt(CurrentToken)
+      and (CurrentToken = OldCurrentToken)) then
+      SetError(PE_UnexpectedToken);
 
   if (not ErrorFound) then
     if (IsTag(kiPARTITION, kiBY)) then
@@ -17091,17 +17089,17 @@ begin
             Nodes.Real.Default.Expr := ParseExpr();
         end
         else if ((DatatypeIndex in [diDatetime, diTimestamp]) and (Nodes.Real.OnUpdate = 0) and IsTag(kiON, kiUPDATE, kiCURRENT_DATE)) then
-          if (IsNextSymbol(3, ttOpenBracket)) then
+          if (not IsNextSymbol(3, ttOpenBracket)) then
             Nodes.Real.OnUpdate := ParseTag(kiON, kiUPDATE, kiCURRENT_DATE)
           else
             Nodes.Real.OnUpdate := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, ParseDefaultFunc)
         else if ((DatatypeIndex in [diDatetime, diTimestamp]) and (Nodes.Real.OnUpdate = 0) and IsTag(kiON, kiUPDATE, kiCURRENT_TIME)) then
-          if (IsNextSymbol(3, ttOpenBracket)) then
+          if (not IsNextSymbol(3, ttOpenBracket)) then
             Nodes.Real.OnUpdate := ParseTag(kiON, kiUPDATE, kiCURRENT_TIME)
           else
             Nodes.Real.OnUpdate := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, ParseDefaultFunc)
         else if ((DatatypeIndex in [diDatetime, diTimestamp]) and (Nodes.Real.OnUpdate = 0) and IsTag(kiON, kiUPDATE, kiCURRENT_TIMESTAMP)) then
-          if (IsNextSymbol(3, ttOpenBracket)) then
+          if (not IsNextSymbol(3, ttOpenBracket)) then
             Nodes.Real.OnUpdate := ParseTag(kiON, kiUPDATE, kiCURRENT_TIMESTAMP)
           else
             Nodes.Real.OnUpdate := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, ParseDefaultFunc)
@@ -18131,7 +18129,7 @@ function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
       Result := 0;
     end
     else if ((TokenPtr(CurrentToken)^.TokenType = ttString) and (ADbIdentType in [ditAlias])
-      or (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent) and not AnsiQuotes
+      or (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent)
       or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and (AnsiQuotes or (ADbIdentType in [ditAlias]))
       or (TokenPtr(CurrentToken)^.OperatorType = otMulti) and JokerAllowed and (ADbIdentType in [ditDatabase, ditTable, ditProcedure, ditFunction, ditField])
       or (TokenPtr(CurrentToken)^.TokenType = ttIdent)
@@ -18963,7 +18961,7 @@ begin
         else if (TokenPtr(CurrentToken)^.OperatorType = otCase) then
           Nodes.Add(ParseCaseOp())
         else if ((Nodes.Count = 0)
-          or IsOperator(Nodes[Nodes.Count - 1]) and ((TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType <> otNot) or not (TokenPtr(CurrentToken)^.OperatorType in [otBetween, otIn, otLike]))) then
+          or IsOperator(Nodes[Nodes.Count - 1]) and ((TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType <> otNot) or not (TokenPtr(CurrentToken)^.OperatorType in [otBetween, otIn, otLike, otRegexp]))) then
           SetError(PE_UnexpectedToken)
         else
           Nodes.Add(ApplyCurrentToken(utOperator))
@@ -21190,7 +21188,7 @@ begin
   end
   else
   begin
-    ttIdents := [ttIdent, ttDQIdent];
+    ttIdents := [ttIdent, ttMySQLIdent, ttDQIdent];
     ttStrings := [ttIdent, ttString];
   end;
 

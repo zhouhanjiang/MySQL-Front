@@ -86,6 +86,7 @@ function MainAction(const Name: string): TAction;
 function MsgBoxCheck(const Text: string; const Caption: string; uType: UINT;
   Default: Integer; RegVal: PChar): Integer;
 function MsgBox(const Text: string; const Caption: string; const Flags: Longint): Integer;
+procedure SetControlCursor(const Control: TControl; const Cursor: TCursor);
 procedure SetToolBarHints(const ToolBar: TToolBar);
 function ShowEnabledItems(const Item: TMenuItem): Boolean;
 function SizeToStr(const Size: LongLong): string;
@@ -841,6 +842,17 @@ begin
   SetForegroundWindow(TopWindow);
 end;
 
+procedure SetControlCursor(const Control: TControl; const Cursor: TCursor);
+var
+  I: Integer;
+begin
+  if (Control is TWinControl) then
+    for I := 0 to TWinControl(Control).ControlCount - 1 do
+      SetControlCursor(TWinControl(Control).Controls[I], Cursor);
+
+  Control.Cursor := Cursor;
+end;
+
 procedure SetToolBarHints(const ToolBar: TToolBar);
 var
   I: Integer;
@@ -945,6 +957,7 @@ initialization
   DurationFormatSettings.ShortTimeFormat := 'hh:mm';
   DurationFormatSettings.LongTimeFormat := 'hh:mm:ss';
 
-  Screen.Cursors[crClone] := LoadCursor(HInstance, 'Clone');
+  Screen.Cursors[crHandPoint] := LoadCursor(0, IDC_HAND);
+  Screen.Cursors[crSQLWait] := LoadCursor(0, IDC_WAIT);
 end.
 

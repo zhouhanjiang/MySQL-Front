@@ -165,6 +165,10 @@ object DRoutine: TDRoutine
     end
     object TSInformation: TTabSheet
       Caption = 'TSInformation'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         297)

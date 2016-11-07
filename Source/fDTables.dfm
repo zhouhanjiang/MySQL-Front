@@ -219,6 +219,10 @@ object DTables: TDTables
     object TSInformation: TTabSheet
       Caption = 'TSInformation'
       OnShow = TSInformationShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -344,6 +348,10 @@ object DTables: TDTables
       ParentShowHint = False
       ShowHint = True
       OnShow = TSExtrasShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -449,6 +457,10 @@ object DTables: TDTables
     object TSSource: TTabSheet
       Caption = 'TSSource'
       OnShow = TSSourceShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         297)

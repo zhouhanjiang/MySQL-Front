@@ -186,7 +186,7 @@ type
     procedure BeforeExecute(); override;
     procedure BeforeExecuteData(const Item: TItem); virtual;
     procedure Close(); virtual;
-    function DoExecuteSQL(var SQL: string): Boolean;
+    function DoExecuteSQL(var SQL: string): Boolean; virtual;
     procedure DoUpdateGUI(); override;
     procedure ExecuteStructure(const Item: TItem); virtual;
     procedure ExecuteTableData(const Item: TItem; const Table: TSTable); virtual;
@@ -249,6 +249,8 @@ type
   TTImportSQL = class(TTImportFile)
   private
     FSetNamesApplied: Boolean;
+  protected
+    function DoExecuteSQL(var SQL: string): Boolean; override;
   public
     Text: PString;
     constructor Create(const AFilename: TFileName; const ACodePage: Cardinal; const ASession: TSSession; const ADatabase: TSDatabase);
@@ -2477,6 +2479,11 @@ begin
 
   FSetNamesApplied := False;
   Text := nil
+end;
+
+function TTImportSQL.DoExecuteSQL(var SQL: string): Boolean;
+begin
+  Result := (SQL = '') or inherited;
 end;
 
 procedure TTImportSQL.Execute();

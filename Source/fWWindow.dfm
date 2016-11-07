@@ -583,6 +583,7 @@ object WWindow: TWWindow
       Enabled = False
       HelpType = htContext
       ImageIndex = 102
+      Visible = False
     end
     object aVSQLHistory: TAction
       Category = 'View'
@@ -1656,6 +1657,7 @@ object WWindow: TWWindow
       end
       object miEJobs: TMenuItem
         Caption = 'miJobs'
+        Visible = False
         object miEJobAdd: TMenuItem
           Caption = 'miJAdd'
           object miEJobAddImport: TMenuItem
