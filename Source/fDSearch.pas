@@ -159,12 +159,7 @@ end;
 
 procedure TDSearch.FBBackClick(Sender: TObject);
 begin
-  if ((PageControl.ActivePage = TSFOptions) or (PageControl.ActivePage = TSROptions)) then
-    PageControl.ActivePage := TSSelect
-  else if ((PageControl.ActivePage = TSExecute) and SearchOnly) then
-    PageControl.ActivePage := TSFOptions
-  else if ((PageControl.ActivePage = TSExecute) and not SearchOnly) then
-    PageControl.ActivePage := TSROptions;
+  PageControl.SelectNextPage(False);
 end;
 
 procedure TDSearch.FBCancelClick(Sender: TObject);
@@ -178,15 +173,7 @@ end;
 
 procedure TDSearch.FBForwardClick(Sender: TObject);
 begin
-  if (PageControl.ActivePage = TSSelect) then
-    if (SearchOnly) then
-      PageControl.ActivePage := TSFOptions
-    else
-      PageControl.ActivePage := TSROptions
-  else if (PageControl.ActivePage = TSFOptions) then
-    PageControl.ActivePage := TSExecute
-  else if (PageControl.ActivePage = TSROptions) then
-    PageControl.ActivePage := TSExecute;
+  PageControl.SelectNextPage(True);
 end;
 
 procedure TDSearch.FBHelpClick(Sender: TObject);
@@ -392,6 +379,9 @@ begin
 
   FRFindText.Text := '';
   FReplaceText.Text := '';
+
+  TSFOptions.TabVisible := SearchOnly;
+  TSROptions.TabVisible := not SearchOnly;
 
   PageControl.ActivePage := TSSelect;
 

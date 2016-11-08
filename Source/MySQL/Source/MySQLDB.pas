@@ -62,6 +62,8 @@ type
     mysql_real_connect: Tmysql_real_connect;
     mysql_real_escape_string: Tmysql_real_escape_string;
     mysql_real_query: Tmysql_real_query;
+    mysql_session_track_get_first: Tmysql_session_track_get_first;
+    mysql_session_track_get_next: Tmysql_session_track_get_next;
     mysql_set_character_set: Tmysql_set_character_set;
     mysql_set_local_infile_default: Tmysql_set_local_infile_default;
     mysql_set_local_infile_handler: Tmysql_set_local_infile_handler;
@@ -141,6 +143,7 @@ type
 
     TConvertErrorNotifyEvent = procedure (Sender: TObject; Text: string) of object;
     TErrorEvent = procedure (const Connection: TMySQLConnection; const ErrorCode: Integer; const ErrorMessage: string) of object;
+    TVariableChangeEvent = procedure (const Connection: TMySQLConnection; const Name, Value: string) of object;
     TOnUpdateIndexDefsEvent = procedure (const DataSet: TMySQLQuery; const IndexDefs: TIndexDefs) of object;
     TResultEvent = function (const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
       const CommandText: string; const DataHandle: TDataResult; const Data: Boolean): Boolean of object;
@@ -236,6 +239,7 @@ type
     FOnConvertError: TConvertErrorNotifyEvent;
     FOnSQLError: TErrorEvent;
     FOnUpdateIndexDefs: TOnUpdateIndexDefsEvent;
+    FOnVariableChange: TVariableChangeEvent;
     FPassword: string;
     FPort: Word;
     FServerTimeout: Word;
@@ -282,6 +286,7 @@ type
     procedure DoConvertError(const Sender: TObject; const Text: string; const Error: EConvertError); virtual;
     procedure DoDisconnect(); override;
     procedure DoError(const AErrorCode: Integer; const AErrorMessage: string); virtual;
+    procedure DoVariableChange(const Name, Value: string); virtual;
     function GetErrorMessage(const AHandle: MySQLConsts.MYSQL): string; virtual;
     function ExecuteSQL(const Mode: TSyncThread.TMode; const Synchron: Boolean; const SQL: string;
       const OnResult: TResultEvent = nil; const Done: TEvent = nil): Boolean; overload; virtual;
@@ -382,6 +387,7 @@ type
     property OnConvertError: TConvertErrorNotifyEvent read FOnConvertError write FOnConvertError;
     property OnSQLError: TErrorEvent read FOnSQLError write FOnSQLError;
     property OnUpdateIndexDefs: TOnUpdateIndexDefsEvent read FOnUpdateIndexDefs write FOnUpdateIndexDefs;
+    property OnVariableChange: TVariableChangeEvent read FOnVariableChange write FOnVariableChange;
     property Password: string read FPassword write SetPassword;
     property Port: Word read FPort write SetPort default MYSQL_PORT;
     property ServerTimeout: Word read FServerTimeout write FServerTimeout default 0;
@@ -1451,6 +1457,8 @@ begin
       mysql_real_connect := GetProcAddress(Handle, 'mysql_real_connect');
       mysql_real_escape_string := GetProcAddress(Handle, 'mysql_real_escape_string');
       mysql_real_query := GetProcAddress(Handle, 'mysql_real_query');
+      mysql_session_track_get_first := GetProcAddress(Handle, 'mysql_session_track_get_first');
+      mysql_session_track_get_next := GetProcAddress(Handle, 'mysql_session_track_get_next');
       mysql_set_character_set := GetProcAddress(Handle, 'mysql_set_character_set');
       mysql_set_local_infile_default := GetProcAddress(Handle, 'mysql_set_local_infile_default');
       mysql_set_local_infile_handler := GetProcAddress(Handle, 'mysql_set_local_infile_handler');
@@ -1502,6 +1510,8 @@ begin
     mysql_real_connect := @MySQLClient.mysql_real_connect;
     mysql_real_escape_string := @MySQLClient.mysql_real_escape_string;
     mysql_real_query := @MySQLClient.mysql_real_query;
+    mysql_session_track_get_first := @MySQLClient.mysql_session_track_get_first;
+    mysql_session_track_get_next := @MySQLClient.mysql_session_track_get_next;
     mysql_set_character_set := @MySQLClient.mysql_set_character_set;
     mysql_set_local_infile_default := @MySQLClient.mysql_set_local_infile_default;
     mysql_set_local_infile_handler := @MySQLClient.mysql_set_local_infile_handler;
@@ -2306,6 +2316,12 @@ begin
       raise EMySQLError.Create(ErrorMessage, ErrorCode, Self)
     else
       FOnSQLError(Self, ErrorCode, ErrorMessage);
+end;
+
+procedure TMySQLConnection.DoVariableChange(const Name, Value: string);
+begin
+  if (Assigned(FOnVariableChange)) then
+    FOnVariableChange(Self, Name, Value);
 end;
 
 procedure TMySQLConnection.EndSilent();
@@ -3118,8 +3134,13 @@ end;
 procedure TMySQLConnection.SyncExecuted(const SyncThread: TSyncThread);
 var
   CLStmt: TSQLCLStmt;
+  Data: my_char;
   Info: my_char;
-  S: String;
+  Len: Integer;
+  Name: string;
+  Size: size_t;
+  S: string;
+  Value: string;
 begin
   Assert(SyncThread.State in [ssExecutingFirst, ssExecutingNext]);
 
@@ -3201,6 +3222,23 @@ begin
   if (SyncThread.StmtIndex < SyncThread.StmtLengths.Count) then
     WriteMonitor(@SyncThread.SQL[SyncThread.SQLIndex], Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]), ttResult);
 
+  if (Assigned(Lib.mysql_session_track_get_first) and Assigned(Lib.mysql_session_track_get_next)
+    and (Lib.mysql_session_track_get_first(SyncThread.LibHandle, SESSION_TRACK_SYSTEM_VARIABLES, Data, Size) = 0)) then
+  begin
+    repeat
+      Len := AnsiCharToWideChar(CodePage, Data, Size, nil, 0);
+      SetLength(Name, Len);
+      AnsiCharToWideChar(CodePage, Data, Size, PChar(Name), Len);
+      if (Lib.mysql_session_track_get_next(SyncThread.LibHandle, SESSION_TRACK_SYSTEM_VARIABLES, Data, Size) = 0) then
+      begin
+        Len := AnsiCharToWideChar(CodePage, Data, Size, nil, 0);
+        SetLength(Value, Len);
+        AnsiCharToWideChar(CodePage, Data, Size, PChar(Value), Len);
+        DoVariableChange(Name, Value);
+      end;
+    until (Lib.mysql_session_track_get_next(SyncThread.LibHandle, SESSION_TRACK_SYSTEM_VARIABLES, Data, Size) <> 0);
+  end;
+
   if (not Assigned(SyncThread.OnResult)) then
   begin
     if (SyncThread.ErrorCode > 0) then
@@ -3221,7 +3259,9 @@ begin
         DoError(SyncThread.ErrorCode, SyncThread.ErrorMessage);
         SyncThread.State := ssReady;
         SyncHandledResult(SyncThread);
-      end;
+      end
+      else if (SyncThread.State = ssResult) then
+        raise Exception.Create('Query has not been handled: ' + SyncThread.CommandText);
     finally
       InOnResult := False;
     end;
@@ -3262,7 +3302,7 @@ begin
     SQL := @SyncThread.SQL[SQLIndex];
     StmtLength := Integer(SyncThread.StmtLengths[StmtIndex]);
 
-    if (50100 <= MySQLVersion) then
+    if (MySQLVersion <= 50100) then
       if (not CreateTableInPacket) then
         CreateTableInPacket := SQLParseDDLStmt(DDLStmt, SQL, StmtLength, MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType = otTable)
       else
@@ -7234,7 +7274,7 @@ end;
 //  RBS: RawByteString;
 //  S: string;
 initialization
-//  RBS := HexToStr('435245415445205441424C45206074625F63756C747572656020280A2020');
+//  RBS := HexToStr('435245415445205441424C45206074625F6163746020280A2020606163745');
 //  SetLength(S, Length(RBS));
 //  Len := AnsiCharToWideChar(65001, PAnsiChar(RBS), Length(RBS), PChar(S), Length(S));
 

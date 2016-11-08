@@ -53,6 +53,7 @@ type
   public
     constructor Create(); override;
     destructor Destroy(); override;
+
     function get_host_info(): my_char; override;
     function options(option: enum_mysql_option; const arg: my_char): my_int; override;
   end;

@@ -1532,6 +1532,7 @@ type
     function UserByCaption(const Caption: string): TSUser;
     function UserByName(const UserName: string): TSUser;
     function VariableByName(const VariableName: string): TSVariable;
+    procedure VariableChange(const Connection: TMySQLConnection; const Name, Value: string);
     property Account: TPAccount read FAccount;
     property Caption: string read GetCaption;
     property Charset: string read GetCharset;
@@ -1912,7 +1913,7 @@ end;
 
 function TSEntities.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
 begin
-  FValid := not Filtered;
+  FValid := FValid or not Filtered;
 
   Result := False;
 end;
@@ -2061,8 +2062,9 @@ procedure TSObject.SetSource(const Field: TField);
 var
   SQL: string;
 begin
-  SQL := Field.AsString + ';' + #13#10;
-
+  SQL := Field.AsString;
+  if (SQL <> '') then
+    SQL := SQL + ';' + #13#10;
   SetSource(SQL);
 end;
 
@@ -2458,7 +2460,7 @@ var
 begin
   References.Clear();
 
-  if (Session.SQLParser.ParseSQL(SQL)) then
+  if (Session.SQLParser.ParseSQL(SQL) and Assigned(Session.SQLParser.FirstStmt)) then
   begin
     try
       PreviousToken1 := nil; PreviousToken2 := nil;
@@ -5254,7 +5256,8 @@ procedure TSView.SetSource(const Field: TField);
 begin
   inherited SetSource(Field);
 
-  ParseCreateView(Source);
+  if (Source <> '') then
+    ParseCreateView(Source);
 end;
 
 function TSView.SQLGetSource(): string;
@@ -5628,7 +5631,7 @@ function TSTables.GetValidStatus(): Boolean;
 var
   I: Integer;
 begin
-  Result := True;
+  Result := Valid;
 
   for I := 0 to Count - 1 do
     Result := Result and (not (Table[I] is TSBaseTable) or TSBaseTable(Table[I]).ValidStatus);
@@ -5659,7 +5662,6 @@ end;
 
 function TSTables.SQLGetStatus(const List: TList = nil): string;
 var
-  BaseTables: Integer;
   I: Integer;
   Tables: TList;
 begin
@@ -5675,17 +5677,18 @@ begin
 
   if (Session.Connection.MySQLVersion < 50003) then // 5.0.2 supports INFORMATION_SCHEMA, but the WHERE clause is supported up from 5.0.3
   begin
-    Result := '';
-    for I := 0 to Tables.Count - 1 do
-      Result := Result + 'SHOW TABLE STATUS FROM ' + Session.Connection.EscapeIdentifier(Database.Name) + ' LIKE ' + SQLEscape(TSTable(Tables[I]).Name) + ';' + #13#10;
+    if (Valid and (Tables.Count < Count)) then
+    begin
+      Result := '';
+      for I := 0 to Tables.Count - 1 do
+        Result := Result + 'SHOW TABLE STATUS FROM ' + Session.Connection.EscapeIdentifier(Database.Name) + ' LIKE ' + SQLEscape(TSTable(Tables[I]).Name) + ';' + #13#10;
+    end
+    else
+      Result := 'SHOW TABLE STATUS FROM ' + Session.Connection.EscapeIdentifier(Database.Name) + ';' + #13#10;
   end
   else
   begin
-    BaseTables := 0;
-    for I := 0 to Count - 1 do
-      Inc(BaseTables);
-
-    if (Valid and (Tables.Count < BaseTables)) then
+    if (Valid and (Tables.Count < Count)) then
     begin
       for I := 0 to Tables.Count - 1 do
       begin
@@ -6090,7 +6093,8 @@ begin
 
   inherited;
 
-  ParseCreateRoutine(Source);
+  if (Source <> '') then
+    ParseCreateRoutine(Source);
 
   if (OldSourceAvailable) then
     Session.SendEvent(etItemAltered, Database, Items, Self)
@@ -6271,6 +6275,7 @@ begin
         Routine[Index].FDefiner := DataSet.FieldByName('DEFINER').AsString;
         Routine[Index].FModified := DataSet.FieldByName('LAST_ALTERED').AsDateTime;
         Routine[Index].FRoutineType := RoutineType;
+        Routine[Index].FStmt := DataSet.FieldByName('ROUTINE_DEFINITION').AsString;
       end;
 
       if (Filtered) then
@@ -6534,7 +6539,8 @@ begin
 
   inherited;
 
-  ParseCreateTrigger(Source);
+  if (Source <> '') then
+    ParseCreateTrigger(Source);
 
   if (OldSourceAvailable) then
     Session.SendEvent(etItemAltered, Database, Items, Self)
@@ -6665,7 +6671,7 @@ begin
             raise ERangeError.Create(SRangeError);
           Trigger[Index].FName := DataSet.FieldByName('TRIGGER_NAME').AsString;
           Trigger[Index].FDefiner := DataSet.FieldByName('DEFINER').AsString;
-          Trigger[Index].FStmt := Trim(DataSet.FieldByName('ACTION_STATEMENT').AsString);
+          Trigger[Index].FStmt := DataSet.FieldByName('ACTION_STATEMENT').AsString;
           if (RightStr(Trigger[Index].FStmt, 1) <> ';') then Trigger[Index].FStmt := Trigger[Index].FStmt + ';';
           Trigger[Index].FTableName := DataSet.FieldByName('EVENT_OBJECT_TABLE').AsString;
           if (StrIComp(PChar(DataSet.FieldByName('ACTION_TIMING').AsString), 'BEFORE') = 0) then
@@ -6876,7 +6882,8 @@ begin
 
   inherited;
 
-  ParseCreateEvent(Source);
+  if (Source <> '') then
+    ParseCreateEvent(Source);
 
   if (OldSourceAvailable) then
     Session.SendEvent(etItemAltered, Database, Items, Self)
@@ -6944,7 +6951,7 @@ begin
           Event[Index].FIntervalValue := DataSet.FieldByName('INTERVAL_VALUE').AsString;
           Event[Index].FPreserve := StrIComp(PChar(DataSet.FieldByName('ON_COMPLETION').AsString), 'PRESERVE') = 0;
           Event[Index].FStartDateTime := DataSet.FieldByName('STARTS').AsDateTime;
-          Event[Index].FStmt := SQLTrimStmt(DataSet.FieldByName('EVENT_DEFINITION').AsString, Session.Connection.MySQLVersion);
+          Event[Index].FStmt := DataSet.FieldByName('EVENT_DEFINITION').AsString;
           Event[Index].FUpdated := DataSet.FieldByName('LAST_ALTERED').AsDateTime;
         end;
 
@@ -8400,7 +8407,7 @@ begin
     and Assigned(Session.Connection.Lib.mysql_set_server_option)) then
     Session.Connection.Lib.mysql_set_server_option(Session.Connection.Handle, MYSQL_OPTION_MULTI_STATEMENTS_ON);
 
-  if (not Result and Assigned(Routine)) then
+  if (not Result and Assigned(Routine) and (Routine.Source <> '')) then
   begin
     Session.StmtMonitor.OnMonitor := nil;
     Session.Connection.ExecuteSQL(Routine.Source);
@@ -8517,7 +8524,7 @@ begin
     and Assigned(Session.Connection.Lib.mysql_set_server_option)) then
     Session.Connection.Lib.mysql_set_server_option(Session.Connection.Handle, MYSQL_OPTION_MULTI_STATEMENTS_ON);
 
-  if (not Result and Assigned(Trigger)) then
+  if (not Result and Assigned(Trigger) and (Trigger.Source <> '')) then
   begin
     Session.StmtMonitor.OnMonitor := nil;
     Session.Connection.ExecuteSQL(Trigger.Source);
@@ -10839,10 +10846,11 @@ constructor TSSession.Create(const ASessions: TSSessions; const AAccount: TPAcco
 begin
   inherited Create();
 
-  FConnection := TSConnection.Create(Self);
   FSessions := ASessions;
-  Sessions.Add(Self);
   FAccount := AAccount;
+
+  FConnection := TSConnection.Create(Self);
+  Sessions.Add(Self);
 
   EventProcs := TList.Create();
   FCurrentUser := '';
@@ -10876,6 +10884,8 @@ begin
   end
   else
   begin
+    Connection.OnVariableChange := VariableChange;
+
     FSQLMonitor := TMySQLMonitor.Create(nil);
     FSQLMonitor.Connection := Connection;
     FSQLMonitor.CacheSize := Preferences.LogSize;
@@ -12022,6 +12032,8 @@ begin
             Inc(Field);
           until (not SQLParseChar(Parse, ','));
       end
+      else if (SQLParseValue(Parse, 'SLEEP')) then
+        DataSet.Open(DataHandle)
       else if (SQLParseColumnNames(Parse) and SQLParseKeyword(Parse, 'FROM') and SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
       begin
         if (Databases.NameCmp(DatabaseName, INFORMATION_SCHEMA) = 0) then
@@ -12397,10 +12409,7 @@ begin
       if (not Database.ValidSource and not (TObject(List[I]) is TSSystemDatabase)) then
         SQL := SQL + Database.SQLGetSource();
       if (not Database.Tables.Valid) then
-        if (Connection.MySQLVersion < 50003) then
-          SQL := SQL + Database.Tables.SQLGetItems()
-        else
-          SQL := SQL + Database.Tables.SQLGetStatus();
+        SQL := SQL + Database.Tables.SQLGetItems();
       if (Assigned(Database.Routines) and not Database.Routines.Valid) then
         SQL := SQL + Database.Routines.SQLGetItems();
       if (Assigned(Database.Triggers) and not Database.Triggers.Valid) then
@@ -12453,12 +12462,17 @@ begin
           SQL := SQL + TSDatabase(List[I]).Tables.SQLGetStatus();
       end;
 
-  if (not Assigned(Objects) and Status and (Connection.MySQLVersion >= 50002) and not Valid) then
+  if (not Assigned(Objects) and Status and not Valid and (Connection.MySQLVersion >= 50002) and (Account.Connection.Database = '')) then
   begin
+SQL := SQL + 'SELECT SLEEP(2);' + #13#10;
     SQL := SQL + 'SELECT * FROM ' + Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Connection.EscapeIdentifier('TABLES') + ';' + #13#10;
+SQL := SQL + 'SELECT SLEEP(2);' + #13#10;
     if (Connection.MySQLVersion >= 50010) then SQL := SQL + 'SELECT * FROM ' + Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Connection.EscapeIdentifier('TRIGGERS') + ';' + #13#10;
+SQL := SQL + 'SELECT SLEEP(2);' + #13#10;
     if (Connection.MySQLVersion >= 50004) then SQL := SQL + 'SELECT * FROM ' + Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Connection.EscapeIdentifier('ROUTINES') + ';' + #13#10;
+SQL := SQL + 'SELECT SLEEP(2);' + #13#10;
     if (Connection.MySQLVersion >= 50106) then SQL := SQL + 'SELECT * FROM ' + Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Connection.EscapeIdentifier('EVENTS') + ';' + #13#10;
+SQL := SQL + 'SELECT SLEEP(2);' + #13#10;
   end;
 
 
@@ -12881,6 +12895,18 @@ begin
     Result := nil
   else
     Result := Variables[Index];
+end;
+
+procedure TSSession.VariableChange(const Connection: TMySQLConnection; const Name, Value: string);
+var
+  Variable: TSVariable;
+begin
+  Variable := VariableByName(Name);
+  if (Assigned(Variable)) then
+  begin
+    Variable.FValue := Value;
+    SendEvent(etItemValid, Self, Variables, Variable);
+  end;
 end;
 
 { TSSessions ******************************************************************}

@@ -299,6 +299,7 @@ object FSession: TFSession
     Top = 22
     Width = 467
     Height = 234
+    Cursor = crSQLWait
     Align = alClient
     BevelOuter = bvNone
     Color = clWindow

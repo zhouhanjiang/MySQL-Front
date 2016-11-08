@@ -327,15 +327,15 @@ var
 begin
   FBBack.Enabled := False;
   for I := 0 to PageControl.PageCount - 1 do
-    FBBack.Enabled := FBBack.Enabled or PageControl.Pages[I].Enabled and (I < ActivePageIndex);
+    FBBack.Enabled := FBBack.Enabled or PageControl.Pages[I].TabVisible and (I < ActivePageIndex);
 
   NextActivePageIndex := -1;
   for I := PageControl.PageCount - 1 downto ActivePageIndex + 1 do
-    if (PageControl.Pages[I].Enabled) then
+    if (PageControl.Pages[I].TabVisible) then
       NextActivePageIndex := I;
   if (NextActivePageIndex >= 0) then
     for I := NextActivePageIndex + 1 to PageControl.PageCount - 1 do
-      PageControl.Pages[I].Enabled := False;
+      PageControl.Pages[I].TabVisible := False;
 
   if (ActivePageIndex = TSTask.PageIndex) then
     FBForward.Caption := Preferences.LoadStr(230)
@@ -407,15 +407,8 @@ begin
 end;
 
 procedure TDImport.FBBackClick(Sender: TObject);
-var
-  ActivePageIndex: Integer;
 begin
-  for ActivePageIndex := PageControl.ActivePageIndex - 1 downto 0 do
-    if (PageControl.Pages[ActivePageIndex].Enabled) then
-    begin
-      PageControl.ActivePageIndex := ActivePageIndex;
-      Exit;
-    end;
+  PageControl.SelectNextPage(False);
 end;
 
 procedure TDImport.FBCancelClick(Sender: TObject);
@@ -442,22 +435,15 @@ begin
 end;
 
 procedure TDImport.FBForwardClick(Sender: TObject);
-var
-  ActivePageIndex: Integer;
 begin
-  if (PageControl.ActivePageIndex = TSTask.PageIndex) then
+  if (PageControl.ActivePage = TSTask) then
     ModalResult := mrOk
   else
   begin
-    if (PageControl.ActivePageIndex = TSJob.PageIndex) then
+    if (PageControl.ActivePage = TSJob) then
       TSJobHide(Sender);
 
-    for ActivePageIndex := PageControl.ActivePageIndex + 1 to PageControl.PageCount - 1 do
-      if (PageControl.Pages[ActivePageIndex].Enabled) then
-      begin
-        PageControl.ActivePageIndex := ActivePageIndex;
-        Exit;
-      end;
+    PageControl.SelectNextPage(True);
   end;
 end;
 
@@ -529,13 +515,13 @@ begin
 
     if (not FDelimiterTab.Checked and (FDelimiter.Text = '') or not FQuoteNothing.Checked and (FQuoteChar.Text = '')) then
     begin
-      TSFields.Enabled := False;
-      TSWhat.Enabled := False;
+      TSFields.TabVisible := False;
+      TSWhat.TabVisible := False;
     end
     else
     begin
-      TSFields.Enabled := (SObject is TSBaseTable);
-      TSWhat.Enabled := not TSFields.Enabled;
+      TSFields.TabVisible := (SObject is TSBaseTable);
+      TSWhat.TabVisible := not TSFields.TabVisible;
     end;
 
     CheckActivePageChange(TSCSVOptions.PageIndex);
@@ -669,8 +655,8 @@ begin
     and (not FFilename.Visible or (DirectoryExists(ExtractFilePath(FFilename.Text)) and (ExtractFileName(FFilename.Text) <> '')))
     and (not FDataSource.Visible or (FDataSource.Text <> ''));
 
-  TSTables.Enabled := (ImportType in [itExcelFile, itAccessFile, itODBC]) and Enabled;
-  TSSelect.Enabled := not TSTables.Enabled and Enabled;
+  TSTables.TabVisible := (ImportType in [itExcelFile, itAccessFile, itODBC]) and Enabled;
+  TSSelect.TabVisible := not TSTables.TabVisible and Enabled;
 
   CheckActivePageChange(TSJob.PageIndex);
 end;
@@ -1124,24 +1110,24 @@ begin
       FCharset.ItemIndex := -1;
   FCharsetChange(Sender);
 
-  TSJob.Enabled := DialogType in [idtCreateJob, idtEditJob];
-  TSTables.Enabled := (DialogType in [idtNormal, idtCreateJob, idtEditJob]) and (ImportType in [itAccessFile, itExcelFile, itODBC]);
-  TSSelect.Enabled := DialogType in [idtEditJob];
-  TSCSVOptions.Enabled := (DialogType in [idtNormal]) and (ImportType in [itTextFile]);
-  TSWhat.Enabled := False;
-  TSFields.Enabled := False;
-  TSStmtType.Enabled := False;
-  TSTask.Enabled := False;
-  TSExecute.Enabled := False;
+  TSJob.TabVisible := DialogType in [idtCreateJob, idtEditJob];
+  TSTables.TabVisible := (DialogType in [idtNormal, idtCreateJob, idtEditJob]) and (ImportType in [itAccessFile, itExcelFile, itODBC]);
+  TSSelect.TabVisible := DialogType in [idtEditJob];
+  TSCSVOptions.TabVisible := (DialogType in [idtNormal]) and (ImportType in [itTextFile]);
+  TSWhat.TabVisible := False;
+  TSFields.TabVisible := False;
+  TSStmtType.TabVisible := False;
+  TSTask.TabVisible := False;
+  TSExecute.TabVisible := False;
 
   if ((DialogType in [idtExecuteJob]) or (ImportType in [itSQLFile])) then
     PostMessage(Handle, UM_POST_SHOW, 0, 0);
 
-  if (TSFields.Enabled) then
+  if (TSFields.TabVisible) then
     InitTSFields(Sender);
 
   for I := 0 to PageControl.PageCount - 1 do
-    if ((PageControl.ActivePageIndex < 0) and PageControl.Pages[I].Enabled) then
+    if ((PageControl.ActivePageIndex < 0) and PageControl.Pages[I].TabVisible) then
       PageControl.ActivePageIndex := I;
   CheckActivePageChange(PageControl.ActivePageIndex);
 
@@ -1191,10 +1177,10 @@ begin
   else
     SObject := TSObject(FSelect.Selected.Data);
 
-  TSCSVOptions.Enabled := (ImportType in [itTextFile]) and (SObject is TSTable);
-  TSWhat.Enabled := (ImportType in [itTextFile, itAccessFile, itExcelFile, itODBC]) and (SObject is TSDatabase) and not TSCSVOptions.Enabled;
-  TSFields.Enabled := (DialogType in [idtNormal, idtCreateJob, idtEditJob]) and not TSCSVOptions.Enabled and not TSWhat.Enabled and (SObject is TSTable);
-  TSTask.Enabled := (DialogType <> idtNormal) and (ImportType in [itSQLFile]) and not (TSCSVOptions.Enabled or TSWhat.Enabled or TSFields.Enabled);
+  TSCSVOptions.TabVisible := (ImportType in [itTextFile]) and (SObject is TSTable);
+  TSWhat.TabVisible := (ImportType in [itTextFile, itAccessFile, itExcelFile, itODBC]) and (SObject is TSDatabase) and not TSCSVOptions.TabVisible;
+  TSFields.TabVisible := (DialogType in [idtNormal, idtCreateJob, idtEditJob]) and not TSCSVOptions.TabVisible and not TSWhat.TabVisible and (SObject is TSTable);
+  TSTask.TabVisible := (DialogType <> idtNormal) and (ImportType in [itSQLFile]) and not (TSCSVOptions.TabVisible or TSWhat.TabVisible or TSFields.TabVisible);
 
   CheckActivePageChange(TSSelect.PageIndex);
 end;
@@ -1263,8 +1249,8 @@ end;
 
 procedure TDImport.FStmtTypeClick(Sender: TObject);
 begin
-  TSTask.Enabled := (DialogType <> idtNormal) and (FInsert.Checked and FInsert.Enabled or FReplace.Checked and FReplace.Enabled or FUpdate.Checked and FUpdate.Enabled or FInsertOrUpdate.Checked and FInsertOrUpdate.Enabled);
-  TSExecute.Enabled := (DialogType = idtNormal) and (FInsert.Checked and FInsert.Enabled or FReplace.Checked and FReplace.Enabled or FUpdate.Checked and FUpdate.Enabled or FInsertOrUpdate.Checked and FInsertOrUpdate.Enabled);
+  TSTask.TabVisible := (DialogType <> idtNormal) and (FInsert.Checked and FInsert.Enabled or FReplace.Checked and FReplace.Enabled or FUpdate.Checked and FUpdate.Enabled or FInsertOrUpdate.Checked and FInsertOrUpdate.Enabled);
+  TSExecute.TabVisible := (DialogType = idtNormal) and (FInsert.Checked and FInsert.Enabled or FReplace.Checked and FReplace.Enabled or FUpdate.Checked and FUpdate.Enabled or FInsertOrUpdate.Checked and FInsertOrUpdate.Enabled);
   CheckActivePageChange(TSStmtType.PageIndex);
 end;
 
@@ -1276,10 +1262,10 @@ end;
 procedure TDImport.FTablesChange(Sender: TObject; Item: TListItem;
   Change: TItemChange);
 begin
-  TSSelect.Enabled := (DialogType in [idtCreateJob, idtEditJob, idtExecuteJob]) and Assigned(FTables.Selected);
-  TSCSVOptions.Enabled := (ImportType in [itTextFile]) and (SObject is TSTable);
-  TSWhat.Enabled := (ImportType in [itTextFile, itAccessFile, itExcelFile, itODBC]) and (SObject is TSDatabase) and not TSCSVOptions.Enabled;
-  TSTask.Enabled := (DialogType in [idtCreateJob, idtEditJob]) and (ImportType = itSQLFile);
+  TSSelect.TabVisible := (DialogType in [idtCreateJob, idtEditJob, idtExecuteJob]) and Assigned(FTables.Selected);
+  TSCSVOptions.TabVisible := (ImportType in [itTextFile]) and (SObject is TSTable);
+  TSWhat.TabVisible := (ImportType in [itTextFile, itAccessFile, itExcelFile, itODBC]) and (SObject is TSDatabase) and not TSCSVOptions.TabVisible;
+  TSTask.TabVisible := (DialogType in [idtCreateJob, idtEditJob]) and (ImportType = itSQLFile);
 
   CheckActivePageChange(TSTables.PageIndex);
 end;
@@ -1294,8 +1280,8 @@ end;
 procedure TDImport.FTablesSelectItem(Sender: TObject; Item: TListItem;
   Selected: Boolean);
 begin
-  TSWhat.Enabled := (FTables.SelCount > 0) and (ImportType in [itTextFile, itAccessFile, itExcelFile, itODBC]) and not (SObject is TSBaseTable);
-  TSFields.Enabled := (FTables.SelCount > 0) and not TSWhat.Enabled;
+  TSWhat.TabVisible := (FTables.SelCount > 0) and (ImportType in [itTextFile, itAccessFile, itExcelFile, itODBC]) and not (SObject is TSBaseTable);
+  TSFields.TabVisible := (FTables.SelCount > 0) and not TSWhat.TabVisible;
   CheckActivePageChange(TSTables.PageIndex);
 end;
 
@@ -1366,7 +1352,7 @@ var
   I: Integer;
   J: Integer;
 begin
-  if (TSFields.Enabled or not Assigned(Sender)) then
+  if (TSFields.TabVisible or not Assigned(Sender)) then
   begin
     ClearTSFields(Sender);
 
@@ -1802,10 +1788,10 @@ var
   I: Integer;
   J: Integer;
 begin
-  TSStmtType.Enabled := False;
+  TSStmtType.TabVisible := False;
   for I := 0 to Length(FDestinationFields) - 1 do
     if ((FSourceFields[I].Text <> '') and (FDestinationFields[I].ItemIndex > 0)) then
-      TSStmtType.Enabled := True;
+      TSStmtType.TabVisible := True;
 
   FUpdate.Enabled := (SObject is TSBaseTable) and Assigned(TSBaseTable(SObject).PrimaryKey);
   if (FUpdate.Enabled and Assigned(TSBaseTable(SObject).PrimaryKey)) then
@@ -1848,9 +1834,9 @@ end;
 
 procedure TDImport.TSWhatShow(Sender: TObject);
 begin
-  TSFields.Enabled := (DialogType = idtNormal) and (FStructure.Checked or FData.Checked) and (SObject is TSBaseTable);
-  TSTask.Enabled := (DialogType <> idtNormal) and (FStructure.Checked or FData.Checked) and not TSFields.Enabled;
-  TSExecute.Enabled := (DialogType = idtNormal) and (FStructure.Checked or FData.Checked) and not TSFields.Enabled;
+  TSFields.TabVisible := (DialogType = idtNormal) and (FStructure.Checked or FData.Checked) and (SObject is TSBaseTable);
+  TSTask.TabVisible := (DialogType <> idtNormal) and (FStructure.Checked or FData.Checked) and not TSFields.TabVisible;
+  TSExecute.TabVisible := (DialogType = idtNormal) and (FStructure.Checked or FData.Checked) and not TSFields.TabVisible;
   CheckActivePageChange(TSWhat.PageIndex);
 end;
 
@@ -1871,10 +1857,10 @@ end;
 
 procedure TDImport.TSTablesHide(Sender: TObject);
 begin
-//  if (TSFields.Enabled) then
+//  if (TSFields.TabVisible) then
 //  begin
 //    ClearTSFields(Sender);
-//    if (TSFields.Enabled) then
+//    if (TSFields.TabVisible) then
 //      InitTSFields(Sender);
 //  end;
 end;
@@ -2047,7 +2033,7 @@ end;
 
 procedure TDImport.UMPostShow(var Message: TMessage);
 begin
-  TSExecute.Enabled := True;
+  TSExecute.TabVisible := True;
   PageControl.ActivePage := TSExecute;
 end;
 
@@ -2121,9 +2107,9 @@ begin
   if ((Sender = FData) and FData.Checked) then
     FStructure.Checked := True;
 
-  TSFields.Enabled := (DialogType = idtNormal) and FStructure.Checked and FData.Checked and (SObject is TSBaseTable);
-  TSTask.Enabled := (DialogType <> idtNormal) and not TSFields.Enabled and FStructure.Checked;
-  TSExecute.Enabled := (DialogType = idtNormal) and not TSFields.Enabled and FStructure.Checked;
+  TSFields.TabVisible := (DialogType = idtNormal) and FStructure.Checked and FData.Checked and (SObject is TSBaseTable);
+  TSTask.TabVisible := (DialogType <> idtNormal) and not TSFields.TabVisible and FStructure.Checked;
+  TSExecute.TabVisible := (DialogType = idtNormal) and not TSFields.TabVisible and FStructure.Checked;
   CheckActivePageChange(TSWhat.PageIndex);
 end;
 

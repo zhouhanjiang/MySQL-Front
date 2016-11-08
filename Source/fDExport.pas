@@ -315,15 +315,15 @@ var
 begin
   FBBack.Enabled := False;
   for I := ActivePageIndex - 1 downto 0 do
-    FBBack.Enabled := FBBack.Enabled or PageControl.Pages[I].Enabled;
+    FBBack.Enabled := FBBack.Enabled or PageControl.Pages[I].TabVisible;
 
   NextActivePageIndex := -1;
   for I := PageControl.PageCount - 1 downto ActivePageIndex + 1 do
-    if (PageControl.Pages[I].Enabled) then
+    if (PageControl.Pages[I].TabVisible) then
       NextActivePageIndex := I;
   if (NextActivePageIndex >= 0) then
     for I := NextActivePageIndex + 1 to PageControl.PageCount - 1 do
-      PageControl.Pages[I].Enabled := False;
+      PageControl.Pages[I].TabVisible := False;
 
   if (ActivePageIndex = TSTask.PageIndex) then
     FBForward.Caption := Preferences.LoadStr(230)
@@ -415,15 +415,8 @@ begin
 end;
 
 procedure TDExport.FBBackClick(Sender: TObject);
-var
-  ActivePageIndex: Integer;
 begin
-  for ActivePageIndex := PageControl.ActivePageIndex - 1 downto 0 do
-    if (PageControl.Pages[ActivePageIndex].Enabled) then
-    begin
-      PageControl.ActivePageIndex := ActivePageIndex;
-      Exit;
-    end;
+  PageControl.SelectNextPage(False);
 end;
 
 procedure TDExport.FBCancelClick(Sender: TObject);
@@ -455,18 +448,11 @@ begin
 end;
 
 procedure TDExport.FBForwardClick(Sender: TObject);
-var
-  ActivePageIndex: Integer;
 begin
-  if (PageControl.ActivePageIndex = TSTask.PageIndex) then
+  if (PageControl.ActivePage = TSTask) then
     ModalResult := mrOk
   else
-    for ActivePageIndex := PageControl.ActivePageIndex + 1 to PageControl.PageCount - 1 do
-      if (PageControl.Pages[ActivePageIndex].Enabled) then
-      begin
-        PageControl.ActivePageIndex := ActivePageIndex;
-        Exit;
-      end;
+    PageControl.SelectNextPage(True);
 end;
 
 procedure TDExport.FBHelpClick(Sender: TObject);
@@ -502,15 +488,15 @@ begin
     TabSheet := TSTask
   else
     TabSheet := TSExecute;
-  TabSheet.Enabled := False;
+  TabSheet.TabVisible := False;
   for I := 0 to Length(FSourceFields) - 1 do
     if ((FSourceFields[I].ItemIndex > 0) and (FDestinationFields[I].Text <> '')) then
-      TabSheet.Enabled := True;
+      TabSheet.TabVisible := True;
 
   for I := 0 to Length(FSourceFields) - 1 do
     for J := 0 to I - 1 do
       if ((I <> J) and FDestinationFields[I].Enabled and FDestinationFields[J].Enabled and (lstrcmpi(PChar(FDestinationFields[J].Text), PChar(FDestinationFields[I].Text)) = 0)) then
-        TabSheet.Enabled := False;
+        TabSheet.TabVisible := False;
 
   CheckActivePageChange(TSFields.PageIndex);
 end;
@@ -588,7 +574,7 @@ begin
   FLHTMLViewDatas.Enabled := FHTMLData.Checked;
   FHTMLMemoContent.Enabled := FHTMLData.Checked;
 
-  TabSheet.Enabled := FHTMLStructure.Checked or FHTMLData.Checked;
+  TabSheet.TabVisible := FHTMLStructure.Checked or FHTMLData.Checked;
   CheckActivePageChange(TSHTMLOptions.PageIndex);
 end;
 
@@ -606,7 +592,7 @@ begin
   else
     TabSheet := TSExecute;
 
-  TabSheet.Enabled := FHTMLStructure.Checked or FHTMLData.Checked;
+  TabSheet.TabVisible := FHTMLStructure.Checked or FHTMLData.Checked;
 
   CheckActivePageChange(TSHTMLOptions.PageIndex);
 end;
@@ -644,19 +630,19 @@ begin
   FDataSource.Visible := ExportType in [etODBC];
   FLDataSource.Visible := FDataSource.Visible; FBDataSource.Visible := FDataSource.Visible;
 
-  TSSQLOptions.Enabled := (ExportType in [etSQLFile]) and (Filename <> '');
-  TSCSVOptions.Enabled := (ExportType in [etTextFile]) and (Filename <> '');
-  TSXMLOptions.Enabled := (ExportType in [etXMLFile]) and (Filename <> '');
-  TSHTMLOptions.Enabled := (ExportType in [etHTMLFile, etPDFFile]) and (Filename <> '');
-  TSFields.Enabled := (ExportType in [etExcelFile, etODBC]) and SingleTable and (TObject(DBObjects[0]) is TSTable);
-  TSTask.Enabled := not TSSQLOptions.Enabled and not TSCSVOptions.Enabled and not TSHTMLOptions.Enabled and not TSFields.Enabled;
+  TSSQLOptions.TabVisible := (ExportType in [etSQLFile]) and (Filename <> '');
+  TSCSVOptions.TabVisible := (ExportType in [etTextFile]) and (Filename <> '');
+  TSXMLOptions.TabVisible := (ExportType in [etXMLFile]) and (Filename <> '');
+  TSHTMLOptions.TabVisible := (ExportType in [etHTMLFile, etPDFFile]) and (Filename <> '');
+  TSFields.TabVisible := (ExportType in [etExcelFile, etODBC]) and SingleTable and (TObject(DBObjects[0]) is TSTable);
+  TSTask.TabVisible := not TSSQLOptions.TabVisible and not TSCSVOptions.TabVisible and not TSHTMLOptions.TabVisible and not TSFields.TabVisible;
 
   TabSheet := nil;
   for I := 0 to PageControl.PageCount - 1 do
-    if (PageControl.Pages[I].Enabled) then
+    if (PageControl.Pages[I].TabVisible) then
       TabSheet := PageControl.Pages[I];
   if (Assigned(TabSheet) and (TabSheet <> TSJob)) then
-    TabSheet.Enabled := TabSheet.Enabled
+    TabSheet.TabVisible := TabSheet.TabVisible
       and ValidJobName(Trim(FName.Text))
       and ((DialogType <> edtCreateJob) or not Assigned(Session.Account.JobByName(Trim(FName.Text))))
       and ((DialogType <> edtEditJob) or (Session.Account.JobByName(Trim(FName.Text)) = Job))
@@ -1141,17 +1127,17 @@ begin
   else
     FHTMLStructure.Caption := Preferences.LoadStr(215);
 
-  TSSelect.Enabled := DialogType in [edtCreateJob, edtEditJob];
-  TSJob.Enabled := False;
-  TSSQLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etSQLFile]);
-  TSCSVOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etTextFile]);
-  TSXMLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etXMLFile]) and not Assigned(DBGrid);
-  TSHTMLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etHTMLFile, etPrinter, etPDFFile]);
-  TSFields.Enabled := (DialogType in [edtNormal]) and (ExportType in [etExcelFile, etODBC]) and (SingleTable and (TObject(DBObjects[0]) is TSTable) or Assigned(DBGrid)) or (ExportType in [etXMLFile]) and Assigned(DBGrid);
-  TSTask.Enabled := False;
-  TSExecute.Enabled := not TSSQLOptions.Enabled and not TSCSVOptions.Enabled and not TSHTMLOptions.Enabled and not TSFields.Enabled;
+  TSSelect.TabVisible := DialogType in [edtCreateJob, edtEditJob];
+  TSJob.TabVisible := False;
+  TSSQLOptions.TabVisible := (DialogType in [edtNormal]) and (ExportType in [etSQLFile]);
+  TSCSVOptions.TabVisible := (DialogType in [edtNormal]) and (ExportType in [etTextFile]);
+  TSXMLOptions.TabVisible := (DialogType in [edtNormal]) and (ExportType in [etXMLFile]) and not Assigned(DBGrid);
+  TSHTMLOptions.TabVisible := (DialogType in [edtNormal]) and (ExportType in [etHTMLFile, etPrinter, etPDFFile]);
+  TSFields.TabVisible := (DialogType in [edtNormal]) and (ExportType in [etExcelFile, etODBC]) and (SingleTable and (TObject(DBObjects[0]) is TSTable) or Assigned(DBGrid)) or (ExportType in [etXMLFile]) and Assigned(DBGrid);
+  TSTask.TabVisible := False;
+  TSExecute.TabVisible := not TSSQLOptions.TabVisible and not TSCSVOptions.TabVisible and not TSHTMLOptions.TabVisible and not TSFields.TabVisible;
 
-  FBBack.Visible := TSSelect.Enabled or TSSQLOptions.Enabled or TSCSVOptions.Enabled or TSXMLOptions.Enabled or TSHTMLOptions.Enabled or TSFields.Enabled;
+  FBBack.Visible := TSSelect.TabVisible or TSSQLOptions.TabVisible or TSCSVOptions.TabVisible or TSXMLOptions.TabVisible or TSHTMLOptions.TabVisible or TSFields.TabVisible;
   FBForward.Visible := FBBack.Visible;
 
   if (DialogType in [edtCreateJob, edtEditJob]) then
@@ -1167,7 +1153,7 @@ begin
   PSQLWait.Visible := not PageControl.Visible;
 
   for I := 0 to PageControl.PageCount - 1 do
-    if ((PageControl.ActivePageIndex < 0) and PageControl.Pages[I].Enabled) then
+    if ((PageControl.ActivePageIndex < 0) and PageControl.Pages[I].TabVisible) then
       PageControl.ActivePageIndex := I;
   CheckActivePageChange(PageControl.ActivePageIndex);
 
@@ -1204,7 +1190,7 @@ end;
 
 procedure TDExport.FSelectChange(Sender: TObject; Node: TTreeNode);
 begin
-  TSJob.Enabled := Assigned(FSelect.Selected) and (DialogType in [edtCreateJob, edtEditJob]);
+  TSJob.TabVisible := Assigned(FSelect.Selected) and (DialogType in [edtCreateJob, edtEditJob]);
   CheckActivePageChange(TSSelect.PageIndex);
 end;
 
@@ -1340,7 +1326,7 @@ begin
   FReplaceData.Enabled := FSQLData.Checked and not FDropStmts.Checked;
   FReplaceData.Checked := FReplaceData.Checked and FReplaceData.Enabled;
 
-  TabSheet.Enabled := FSQLStructure.Checked or FSQLData.Checked;
+  TabSheet.TabVisible := FSQLStructure.Checked or FSQLData.Checked;
   CheckActivePageChange(TSSQLOptions.PageIndex);
 end;
 
@@ -1817,7 +1803,7 @@ begin
   FBCancel.ModalResult := mrCancel;
   FBCancel.Default := False;
 
-  TabSheet.Enabled := not TSFields.Enabled;
+  TabSheet.TabVisible := not TSFields.TabVisible;
   CheckActivePageChange(TSCSVOptions.PageIndex);
 end;
 
@@ -2059,7 +2045,7 @@ begin
   else
     TabSheet := TSExecute;
 
-  TabSheet.Enabled := True;
+  TabSheet.TabVisible := True;
   CheckActivePageChange(TSFields.PageIndex);
 end;
 
@@ -2085,7 +2071,7 @@ end;
 
 procedure TDExport.TSOptionsHide(Sender: TObject);
 begin
-  if (TSFields.Enabled) then
+  if (TSFields.TabVisible) then
     InitTSFields();
 end;
 
@@ -2127,7 +2113,7 @@ begin
   else
     TabSheet := TSExecute;
 
-  TabSheet.Enabled :=
+  TabSheet.TabVisible :=
     (FRootNodeText.Text <> '')
     and (not FDatabaseNodeDisabled.Checked or FDatabaseNodeDisabled.Enabled)
     and (not FDatabaseNodeName.Checked or FDatabaseNodeName.Enabled)
@@ -2149,7 +2135,7 @@ end;
 
 procedure TDExport.TSXMLOptionsHide(Sender: TObject);
 begin
-  if (TSFields.Enabled) then
+  if (TSFields.TabVisible) then
     InitTSFields();
 end;
 
@@ -2343,9 +2329,9 @@ begin
         PSQLWait.Visible := not PageControl.Visible;
       end;
 
-      if (TSFields.Enabled) then
+      if (TSFields.TabVisible) then
         InitTSFields();
-      if (TSJob.Enabled and (DialogType = edtCreateJob)) then
+      if (TSJob.TabVisible and (DialogType = edtCreateJob)) then
         InitTSJob();
       CheckActivePageChange(PageControl.ActivePageIndex);
     end;

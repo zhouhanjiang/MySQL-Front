@@ -1282,7 +1282,7 @@ begin
       SQL := DataHandle.Connection.CommandText;
       Len := SQLStmtLength(PChar(SQL), Length(SQL));
       SQLTrimStmt(SQL, 1, Len, FSession.Session.Connection.MySQLVersion, StartingCommentLength, EndingCommentLength);
-      FSynMemo.SelStart := FSession.aDRunExecuteSelStart + DataHandle.Connection.SuccessfullExecutedSQLLength + StartingCommentLength - 1;
+      FSynMemo.SelStart := FSession.aDRunExecuteSelStart + DataHandle.Connection.SuccessfullExecutedSQLLength + StartingCommentLength;
       FSynMemo.SelLength := Len - StartingCommentLength - EndingCommentLength;
     end
   end
@@ -2572,7 +2572,7 @@ begin
       AllowChange := False
     else if (URI.Database = '') then
     begin
-      if ((ParamToView(URI.Param['view']) = vObjects) and not Session.Update(nil, True)) then
+      if ((ParamToView(URI.Param['view']) = vObjects) and not Session.Update(nil, (URI.Database = '') and (URI.Param['system'] = Null)) and ((URI.Database <> '') or (URI.Param['system'] <> Null))) then
         AllowChange := False
       else if ((ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and not Session.Databases.Update()) then
         AllowChange := False
@@ -2877,7 +2877,7 @@ begin
   begin
     if ((SelectedDatabase <> '') and (SelectedDatabase <> Session.Connection.DatabaseName)) then
     begin
-      Dec(aDRunExecuteSelStart, Length(Session.Connection.SQLUse(SelectedDatabase)));
+      Dec(aDRunExecuteSelStart, Length(Session.Connection.SQLUse(SelectedDatabase)) + 1);
       SQL := Session.Connection.SQLUse(SelectedDatabase) + SQL;
     end;
 
@@ -2916,7 +2916,7 @@ begin
   begin
     if ((SelectedDatabase <> '') and (SelectedDatabase <> Session.Connection.DatabaseName)) then
     begin
-      Dec(aDRunExecuteSelStart, Length(Session.Connection.SQLUse(SelectedDatabase)));
+      Dec(aDRunExecuteSelStart, Length(Session.Connection.SQLUse(SelectedDatabase)) + 1);
       SQL := Session.Connection.SQLUse(SelectedDatabase) + SQL;
     end;
 
@@ -8781,12 +8781,23 @@ procedure TFSession.ListViewInitialize(const ListView: TListView);
 
   procedure SetColumnWidths(const ListView: TListView; const Kind: TPAccount.TDesktop.TListViewKind);
   var
+    HDLayout: THDLayout;
+    HDRect: TRect;
+    HDWindowPos: TWindowPos;
     I: Integer;
+    MinWidth: Integer;
   begin
+    MinWidth := -1;
+    HDLayout.Rect := @HDRect;
+    HDLayout.WindowPos := @HDWindowPos;
+    if (Header_Layout(ListView_GetHeader(ListView.Handle), @HDLayout)) then
+      MinWidth := HDWindowPos.cy;
+
     for I := 0 to ListView.Columns.Count - 1 do
     begin
       ListView.Column[I].Width := Session.Account.Desktop.ColumnWidths[Kind, I];
-      ListView.Columns[I].MinWidth := 10;
+      if (MinWidth > 0) then
+        ListView.Columns[I].MinWidth := MinWidth;
     end;
   end;
 
@@ -9237,15 +9248,12 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
         Item.SubItems.Add(FormatFloat('#,##0', TSBaseTable(Data).RecordCount, LocaleFormatSettings))
       else
         Item.SubItems.Add('');
-      if ((TSTable(Data) is TSBaseTable) and not TSBaseTable(Data).ValidStatus or (TSTable(Data) is TSView)) then
-        Item.SubItems.Add('')
-      else if (TSTable(Data) is TSBaseTable) then
-        if ((TSBaseTable(Data).DataSize + TSBaseTable(Data).IndexSize < 0)) then
-          Item.SubItems.Add('')
-        else
-          Item.SubItems.Add(SizeToStr(TSBaseTable(Data).DataSize))
+      if ((TSTable(Data) is TSView) and (TSView(Data).Stmt <> '')) then
+        Item.SubItems.Add(SizeToStr(Length(TSView(Data).Stmt)))
+      else if ((TSTable(Data) is TSBaseTable) and TSBaseTable(Data).ValidStatus) then
+        Item.SubItems.Add(SizeToStr(TSBaseTable(Data).DataSize))
       else
-        Item.SubItems.Add(SizeToStr(Length(TSView(TSTable(Data)).Source)));
+        Item.SubItems.Add('');
       if (not (TSTable(Data) is TSBaseTable) or not TSBaseTable(Data).ValidStatus or (TSBaseTable(Data).Updated <= 0)) then
         Item.SubItems.Add('')
       else
@@ -9275,10 +9283,10 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
         TSRoutine.TRoutineType.rtFunction: Item.SubItems.Add(Preferences.LoadStr(769));
       end;
       Item.SubItems.Add('');
-      if (not TSRoutine(Data).Valid or (TSRoutine(Data).Source = '')) then
+      if (TSRoutine(Data).Stmt = '') then
         Item.SubItems.Add('')
       else
-        Item.SubItems.Add(SizeToStr(Length(TSRoutine(Data).Source)));
+        Item.SubItems.Add(SizeToStr(Length(TSRoutine(Data).Stmt)));
       if (TSRoutine(Data).Modified = 0) then
         Item.SubItems.Add('')
       else
@@ -9296,10 +9304,10 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
       Item.Caption := TSEvent(Data).Caption;
       Item.SubItems.Add(Preferences.LoadStr(812));
       Item.SubItems.Add('');
-      if (not TSEvent(Data).Valid or (TSEvent(Data).Source = '')) then
+      if (TSEvent(Data).Stmt = '') then
         Item.SubItems.Add('')
       else
-        Item.SubItems.Add(SizeToStr(Length(TSEvent(Data).Source)));
+        Item.SubItems.Add(SizeToStr(Length(TSEvent(Data).Stmt)));
       if (TSEvent(Data).Updated = 0) then
         Item.SubItems.Add('')
       else
@@ -9556,7 +9564,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
     else
     begin
       Result := ListView.Items[Index];
-      ReorderGroup := True;
+      ReorderGroup := not (Data is TSItem) or (TSItem(Data).Caption <> Result.Caption);
     end;
     UpdateItem(Result, Data);
 
@@ -9572,7 +9580,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
     end;
   end;
 
-  function AddItem(const Kind: TPAccount.TDesktop.TListViewKind; const Data: TObject): TListItem;
+  function AddItem(const Kind: TPAccount.TDesktop.TListViewKind; const Data: TSItem): TListItem;
   begin
     Result := ListView.Items.Add();
     Result.Data := Data;
@@ -9622,12 +9630,12 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
           for I := 0 to ListView.Columns.Count - 1 do
             if ((Kind = lkProcesses) and (I = 5)) then
               ListView.Columns[I].Width := Preferences.GridMaxColumnWidth
-            else if ((Kind in [lkServer, lkDatabase, lkTable]) or (ListView.Items.Count > 0)) then
-              ListView.Columns[I].Width := ColumnWidths[I]
-            else if (ListView.Items.Count = 0) then
-              ListView.Columns[I].Width := ColumnHeaderWidth
-            else
-              ListView.Columns[I].Width := ColumnTextWidth;
+            else // if ((Kind in [lkServer, lkDatabase, lkTable]) or (ListView.Items.Count > 0)) then
+              ListView.Columns[I].Width := ColumnWidths[I];
+//            else if (ListView.Items.Count = 0) then
+//              ListView.Columns[I].Width := ColumnHeaderWidth
+//            else
+//              ListView.Columns[I].Width := ColumnTextWidth;
 
           ListView.EnableAlign();
           ListView.Items.EndUpdate();
@@ -13458,28 +13466,30 @@ begin
 
 
   if (not (tsLoading in FrameState)) then
+  begin
     SessionUpdate(nil);
 
-  for I := 0 to PListView.ControlCount - 1 do
-    if (PListView.Controls[I] is TListView) then
-    begin
-      ListViewInitialize(TListView(PListView.Controls[I]));
+    for I := 0 to PListView.ControlCount - 1 do
+      if (PListView.Controls[I] is TListView) then
+      begin
+        ListViewInitialize(TListView(PListView.Controls[I]));
 
-      if (PListView.Controls[I].Tag = 0) then
-        Session.Databases.PushBuildEvent(nil)
-      else if (TObject(PListView.Controls[I].Tag) is TSProcesses) then
-        Session.Processes.PushBuildEvent(nil)
-      else if (TObject(PListView.Controls[I].Tag) is TSStati) then
-        Session.Stati.PushBuildEvent(nil)
-      else if (TObject(PListView.Controls[I].Tag) is TSUsers) then
-        Session.Users.PushBuildEvent(nil)
-      else if (TObject(PListView.Controls[I].Tag) is TSVariables) then
-        Session.Variables.PushBuildEvent(nil)
-      else if (TObject(PListView.Controls[I].Tag) is TSDatabase) then
-        TSDatabase(PListView.Controls[I].Tag).PushBuildEvents()
-      else if (TObject(PListView.Controls[I].Tag) is TSTable) then
-        TSTable(PListView.Controls[I].Tag).PushBuildEvent();
-    end;
+        if (PListView.Controls[I].Tag = 0) then
+          Session.Databases.PushBuildEvent(nil)
+        else if (TObject(PListView.Controls[I].Tag) is TSProcesses) then
+          Session.Processes.PushBuildEvent(nil)
+        else if (TObject(PListView.Controls[I].Tag) is TSStati) then
+          Session.Stati.PushBuildEvent(nil)
+        else if (TObject(PListView.Controls[I].Tag) is TSUsers) then
+          Session.Users.PushBuildEvent(nil)
+        else if (TObject(PListView.Controls[I].Tag) is TSVariables) then
+          Session.Variables.PushBuildEvent(nil)
+        else if (TObject(PListView.Controls[I].Tag) is TSDatabase) then
+          TSDatabase(PListView.Controls[I].Tag).PushBuildEvents()
+        else if (TObject(PListView.Controls[I].Tag) is TSTable) then
+          TSTable(PListView.Controls[I].Tag).PushBuildEvent();
+      end;
+  end;
 
   FOffset.Hint := Preferences.LoadStr(846) + ' (' + ShortCutToText(aTBOffset.ShortCut) + ')';
   FUDOffset.Hint := Preferences.LoadStr(846);
@@ -13972,34 +13982,29 @@ begin
   case (View) of
     vObjects:
       case (SelectedImageIndex) of
+        iiServer:
+          if (Session.Connection.MySQLVersion < 50002) then
+          begin
+            List := TList.Create();
+            for I := 0 to Session.Databases.Count - 1 do
+              List.Add(Session.Databases[I]);
+            Result := not Session.Update(List, True);
+            List.Free();
+          end;
         iiDatabase,
         iiSystemDatabase:
           begin
             Database := TSDatabase(FNavigator.Selected.Data);
-
-            List := TList.Create();
-
-            List.Add(Database);
             if (not Database.Tables.Valid) then
-              Wanted.FUpdate := UpdateAfterAddressChanged
-            else
-              List.Add(Database.Tables);
-            if (Assigned(Database.Routines)) then
-              for I := 0 to Database.Routines.Count - 1 do
-                List.Add(Database.Routines[I]);
-            if (Assigned(Database.Events)) then
-              for I := 0 to Database.Events.Count - 1 do
-                List.Add(Database.Events[I]);
-            if (Assigned(Database.Triggers)) then
-              for I := 0 to Database.Triggers.Count - 1 do
-                List.Add(Database.Triggers[I]);
-
-            for I := List.Count - 1 downto 0 do
-              if ((TObject(List[I]) is TSObject) and not TSObject(List[I]).Valid) then
-                List.Delete(I);
-
+              Wanted.Update := UpdateAfterAddressChanged;
+            List := TList.Create();
+            if (Session.Connection.MySQLVersion < 50002) then
+              List.Add(Database);
+            if (not (Database is TSSystemDatabase)) then
+              for I := 0 to Database.Tables.Count - 1 do
+                if (Database.Tables[I] is TSView) then
+                  List.Add(Database.Tables[I]);
             Result := not Session.Update(List, True);
-
             List.Free();
           end;
       end;

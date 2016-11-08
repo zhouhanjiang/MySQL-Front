@@ -3,7 +3,7 @@
 interface {********************************************************************}
 
 uses
-  SyncObjs, WinSock,
+  Windows, SyncObjs, WinSock,
   SysUtils,
   MySQLConsts;
 
@@ -68,11 +68,12 @@ type
     function GetPacketSize(): my_int; virtual;
     procedure next_command(); virtual;
     function next_result(): my_int; virtual;
-    function ReadPacket(const Buffer: my_char; const Size: my_uint): Boolean; overload; virtual;
-    function ReadPacket(out Value: my_int; const Size: Byte = 0): Boolean; overload; virtual;
-    function ReadPacket(out Value: my_uint; const Size: Byte = 0): Boolean; overload; virtual;
-    function ReadPacket(out Value: my_ulonglong; const Size: Byte = 0): Boolean; overload; virtual;
-    function ReadPacket(out Value: RawByteString; const NTS: Boolean = True; const Size: Byte = 0): Boolean; overload; virtual;
+    function ReadMem(const Mem: PAnsiChar; const MemSize: Integer; out Value: my_ulonglong; const Size: Byte = 0): Integer; overload;
+    function ReadPacket(const Buffer: my_char; const Size: my_uint): Boolean; overload;
+    function ReadPacket(out Value: my_int; const Size: Byte = 0): Boolean; overload;
+    function ReadPacket(out Value: my_uint; const Size: Byte = 0): Boolean; overload;
+    function ReadPacket(out Value: my_ulonglong; const Size: Byte = 0): Boolean; overload;
+    function ReadPacket(out Value: RawByteString; const NTS: Boolean = True; const Size: Byte = 0): Boolean; overload;
     function ReallocBuffer(var Buffer: TBuffer; const NeededSize: my_uint; const ReduceSize: Boolean = False): Boolean;
     function SetPacketPointer(const DistanceToMove: my_int; const MoveMethod: my_int): my_int; virtual;
     procedure SetDirection(ADirection: TMySQL_IO.TDirection); override;
@@ -160,6 +161,11 @@ type
     fwarning_count: my_uint;
     SERVER_CAPABILITIES: my_uint;
     SERVER_STATUS: my_int;
+    StateInfo: record
+      Data: RawByteString;
+      Index: Integer;
+      VariablenValue: Boolean;
+    end;
     procedure ClosePacket(); override;
     function ExecuteCommand(const Command: enum_server_command; const Bin: my_char; const Size: my_int; const Retry: Boolean): my_int; virtual;
     function GetCodePage(): Cardinal; override;
@@ -192,6 +198,8 @@ type
     function real_query(query: my_char; length: my_int): my_int; virtual;
     function refresh(options: my_int): my_int; virtual;
     function select_db(db: my_char): my_int; virtual;
+    function session_track_get_first(state_type: enum_session_state_type; out data: my_char; out length: size_t): my_int; virtual;
+    function session_track_get_next(state_type: enum_session_state_type; out data: my_char; out length: size_t): my_int; virtual;
     function set_character_set(const csname: my_char): my_int; virtual;
     procedure set_local_infile_default(); virtual;
     procedure set_local_infile_handler(local_infile_init: Tlocal_infile_init; local_infile_read: Tlocal_infile_read; local_infile_end: Tlocal_infile_end; local_infile_error: Tlocal_infile_error; userdata: Pointer); virtual;
@@ -252,6 +260,8 @@ function mysql_real_query(mysql: MYSQL; query: my_char; length: my_int): my_int;
 // function mysql_row_seek(res: MYSQL_RES; offset: MYSQL_ROW_OFFSET): MYSQL_ROW_OFFSET; stdcall;
 // function mysql_row_tell(res: MYSQL_RES): MYSQL_ROW_OFFSET; stdcall;
 function mysql_select_db(mysql: MYSQL; const db: my_char): my_int; stdcall;
+function mysql_session_track_get_first(mysql: MYSQL; state_type: enum_session_state_type; out data: my_char; out length: size_t): my_int; stdcall;
+function mysql_session_track_get_next(mysql: MYSQL; state_type: enum_session_state_type; out data: my_char; out length: size_t): my_int; stdcall;
 function mysql_set_character_set(mysql: MYSQL; const csname: my_char): my_int; stdcall;
 function mysql_set_server_option(mysql: MYSQL; option: enum_mysql_set_option): my_int; stdcall;
 function mysql_shutdown(mysql: MYSQL; shutdown_level: mysql_enum_shutdown_level): my_int; stdcall;
@@ -276,7 +286,7 @@ const
 implementation {***************************************************************}
 
 uses
-  Windows, Classes,
+  Classes,
   ZLib, StrUtils;
 
 const
@@ -295,7 +305,8 @@ const
                          CLIENT_LOCAL_FILES or
                          CLIENT_PROTOCOL_41 or
                          CLIENT_TRANSACTIONS or
-                         CLIENT_SECURE_CONNECTION;
+                         CLIENT_SECURE_CONNECTION or
+                         CLIENT_SESSION_TRACK;
 
 type
   TWSAConnectByNameA = function(
@@ -776,6 +787,16 @@ end;
 function mysql_select_db(mysql: MYSQL; const db: my_char): my_int; stdcall;
 begin
   Result := mysql.select_db(db);
+end;
+
+function mysql_session_track_get_first(mysql: MYSQL; state_type: enum_session_state_type; out data: my_char; out length: size_t): my_int; stdcall;
+begin
+  Result := mysql.session_track_get_first(state_type, data, length);
+end;
+
+function mysql_session_track_get_next(mysql: MYSQL; state_type: enum_session_state_type; out data: my_char; out length: size_t): my_int; stdcall;
+begin
+  Result := mysql.session_track_get_next(state_type, data, length);
 end;
 
 function mysql_set_character_set(mysql: MYSQL; const csname: my_char): my_int; stdcall;
@@ -1335,6 +1356,57 @@ begin
   Result := 0;
 end;
 
+function TMySQL_Packet.ReadMem(const Mem: PAnsiChar; const MemSize: Integer; out Value: my_ulonglong; const Size: Byte = 0): Integer;
+begin
+  Result := 0;
+  FillChar(Value, SizeOf(Value), #0);
+
+  if (Size > 0) then
+  begin
+    if (Size <= MemSize) then
+    begin
+      Move(Mem[0], Value, Size);
+      Result := Size;
+    end;
+  end
+  else if (1 > MemSize) then
+    Result := 0
+  else if (Byte(Mem[0]) < $FB) then
+  begin
+    Move(Mem[0], Value, 1);
+    Result := 1;
+  end
+  else if (Byte(Mem[0]) = $FB) then
+  begin
+    Value := NULL_LENGTH;
+    Result := 1;
+  end
+  else if (Byte(Mem[0]) = $FC) then
+  begin
+    if (2 <= MemSize) then
+    begin
+      Move(Mem[1], Value, 2);
+      Result := 3;
+    end;
+  end
+  else if (Byte(Mem[0]) = $FD) then
+  begin
+    if (3 <= MemSize) then
+    begin
+      Move(Mem[1], Value, 3);
+      Result := 4;
+    end;
+  end
+  else
+  begin
+    if (8 <= MemSize) then
+    begin
+      Move(Mem[1], Value, 8);
+      Result := 9;
+    end;
+  end;
+end;
+
 function TMySQL_Packet.ReadPacket(const Buffer: my_char; const Size: my_uint): Boolean;
 begin
   Assert(Direction = idRead);
@@ -1368,62 +1440,76 @@ begin
 end;
 
 function TMySQL_Packet.ReadPacket(out Value: my_ulonglong; const Size: Byte = 0): Boolean;
+var
+  ReadSize: Integer;
 begin
-  FillChar(Value, SizeOf(Value), #0);
-
   if ((errno() <> 0) and (errno() <> CR_SERVER_LOST)) then
     Result := False
-  else if (Size > 0) then
-  begin
-    Result := PacketBuffer.Offset + Size <= PacketBuffer.Size;
-    if (Result) then
-    begin
-      Move(PacketBuffer.Mem[PacketBuffer.Offset], Value, Size);
-      Inc(PacketBuffer.Offset, Size);
-    end;
-  end
-  else if (PacketBuffer.Offset + 1 > PacketBuffer.Size) then
-    Result := False
-  else if (Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FB) then
-  begin
-    Result := True;
-    Value := NULL_LENGTH;
-    Inc(PacketBuffer.Offset);
-  end
-  else if (Byte(PacketBuffer.Mem[PacketBuffer.Offset]) < $FB) then
-  begin
-    Result := True;
-    Move(PacketBuffer.Mem[PacketBuffer.Offset], Value, 1);
-    Inc(PacketBuffer.Offset, 1);
-  end
-  else if (Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FC) then
-  begin
-    Result := PacketBuffer.Offset + 2 <= PacketBuffer.Size;
-    if (Result) then
-    begin
-      Move(PacketBuffer.Mem[PacketBuffer.Offset + 1], Value, 2);
-      Inc(PacketBuffer.Offset, 3);
-    end;
-  end
-  else if (Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FD) then
-  begin
-    Result := PacketBuffer.Offset + 3 <= PacketBuffer.Size;
-    if (Result) then
-    begin
-      Move(PacketBuffer.Mem[PacketBuffer.Offset + 1], Value, 3);
-      Inc(PacketBuffer.Offset, 4);
-    end;
-  end
   else
   begin
-    Result := PacketBuffer.Offset + 8 <= PacketBuffer.Size;
-    if (Result) then
-    begin
-      Move(PacketBuffer.Mem[PacketBuffer.Offset + 1], Value, 8);
-      Inc(PacketBuffer.Offset, 9);
-    end;
+    ReadSize := ReadMem(@PacketBuffer.Mem[PacketBuffer.Offset], PacketBuffer.Size - PacketBuffer.Offset, Value, Size);
+    Inc(PacketBuffer.Offset, ReadSize);
+    Result := ReadSize > 0;
   end;
 end;
+
+//function TMySQL_Packet.ReadPacket(out Value: my_ulonglong; const Size: Byte = 0): Boolean;
+//begin
+//  FillChar(Value, SizeOf(Value), #0);
+//
+//  if ((errno() <> 0) and (errno() <> CR_SERVER_LOST)) then
+//    Result := False
+//  else if (Size > 0) then
+//  begin
+//    Result := PacketBuffer.Offset + Size <= PacketBuffer.Size;
+//    if (Result) then
+//    begin
+//      Move(PacketBuffer.Mem[PacketBuffer.Offset], Value, Size);
+//      Inc(PacketBuffer.Offset, Size);
+//    end;
+//  end
+//  else if (PacketBuffer.Offset + 1 > PacketBuffer.Size) then
+//    Result := False
+//  else if (Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FB) then
+//  begin
+//    Result := True;
+//    Value := NULL_LENGTH;
+//    Inc(PacketBuffer.Offset);
+//  end
+//  else if (Byte(PacketBuffer.Mem[PacketBuffer.Offset]) < $FB) then
+//  begin
+//    Result := True;
+//    Move(PacketBuffer.Mem[PacketBuffer.Offset], Value, 1);
+//    Inc(PacketBuffer.Offset, 1);
+//  end
+//  else if (Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FC) then
+//  begin
+//    Result := PacketBuffer.Offset + 2 <= PacketBuffer.Size;
+//    if (Result) then
+//    begin
+//      Move(PacketBuffer.Mem[PacketBuffer.Offset + 1], Value, 2);
+//      Inc(PacketBuffer.Offset, 3);
+//    end;
+//  end
+//  else if (Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FD) then
+//  begin
+//    Result := PacketBuffer.Offset + 3 <= PacketBuffer.Size;
+//    if (Result) then
+//    begin
+//      Move(PacketBuffer.Mem[PacketBuffer.Offset + 1], Value, 3);
+//      Inc(PacketBuffer.Offset, 4);
+//    end;
+//  end
+//  else
+//  begin
+//    Result := PacketBuffer.Offset + 8 <= PacketBuffer.Size;
+//    if (Result) then
+//    begin
+//      Move(PacketBuffer.Mem[PacketBuffer.Offset + 1], Value, 8);
+//      Inc(PacketBuffer.Offset, 9);
+//    end;
+//  end;
+//end;
 
 function TMySQL_Packet.ReadPacket(out Value: RawByteString; const NTS: Boolean = True; const Size: Byte = 0): Boolean;
 var
@@ -1757,6 +1843,8 @@ begin
 
   CLIENT_STATUS := MYSQL_STATUS_READY;
   finfo := '';
+  StateInfo.Data := '';
+  StateInfo.Index := 0;
   SERVER_CAPABILITIES := 0;
   if (Assigned(fserver_info)) then
     begin FreeMem(fserver_info); fserver_info := nil; end;
@@ -1773,8 +1861,8 @@ begin
   fres := nil;
   UseNamedPipe := False;
 
-  faffected_rows := 0;
   CAPABILITIES := CLIENT_CAPABILITIES;
+  faffected_rows := 0;
   fcharacter_set_name := '';
   fcompress := False;
   ftimeout := NET_READ_TIMEOUT;
@@ -1791,13 +1879,15 @@ begin
   fpasswd := '';
   fport := MYSQL_PORT;
   freconnect := False;
-  SERVER_CAPABILITIES := 0;
   fserver_info := nil;
+  StateInfo.Data := '';
+  StateInfo.Index := 0;
   fthread_id := 0;
-  SERVER_STATUS := 0;
   fuser := '';
   fpipe_name := '';
   fwarning_count := 0;
+  SERVER_CAPABILITIES := 0;
+  SERVER_STATUS := 0;
 end;
 
 destructor MYSQL.Destroy();
@@ -1935,7 +2025,6 @@ function MYSQL.next_result(): my_int;
 var
   FileSent: Boolean;
   RBS: RawByteString;
-  StateChange: RawByteString;
 begin
   if (CLIENT_STATUS <> MYSQL_STATUS_READY)  then
   begin
@@ -1948,6 +2037,8 @@ begin
     finfo := '';
     finsert_id := -1;
     fwarning_count := 0;
+    StateInfo.Data := '';
+    StateInfo.Index := 0;
     fres := nil;
 
     repeat
@@ -1990,7 +2081,7 @@ begin
           ReadPacket(finfo, False);
 
           if (SERVER_STATUS and SERVER_SESSION_STATE_CHANGED <> 0) then
-            ReadPacket(StateChange, False);
+            ReadPacket(StateInfo.Data, False);
         end
         else
           ReadPacket(finfo, True);
@@ -2613,6 +2704,72 @@ begin
   Result := inherited;
 
   FillChar(FSQLState, SizeOf(FSQLState), #0);
+end;
+
+function MYSQL.session_track_get_first(state_type: enum_session_state_type; out data: my_char; out length: size_t): my_int;
+begin
+  if (StateInfo.Data = '') then
+  begin
+    data := nil;
+    length := 0;
+    Result := 1;
+  end
+  else
+  begin
+    StateInfo.Index := 1;
+    StateInfo.VariablenValue := False;
+    Result := session_track_get_next(state_type, data, length);
+  end;
+end;
+
+function MYSQL.session_track_get_next(state_type: enum_session_state_type; out data: my_char; out length: size_t): my_int;
+var
+  Len: my_ulonglong;
+  StateType: enum_session_state_type;
+begin
+  data := nil;
+  length := 0;
+  Result := 1;
+
+  if (StateInfo.VariablenValue) then
+  begin
+    if (state_type = SESSION_TRACK_SYSTEM_VARIABLES) then
+    begin
+      Inc(StateInfo.Index, ReadMem(PAnsiChar(@StateInfo.Data[StateInfo.Index]), System.Length(StateInfo.Data) - (StateInfo.Index - 1), Len));
+      data := PAnsiChar(@StateInfo.Data[StateInfo.Index]);
+      length := Len;
+      Inc(StateInfo.Index, Len);
+      StateInfo.VariablenValue := False;
+      Result := 0;
+    end;
+  end
+  else if (StateInfo.Index - 1 < System.Length(StateInfo.Data)) then
+  begin
+    repeat
+      StateType := enum_session_state_type(StateInfo.Data[StateInfo.Index]);
+      Inc(StateInfo.Index);
+      Inc(StateInfo.Index, ReadMem(PAnsiChar(@StateInfo.Data[StateInfo.Index]), System.Length(StateInfo.Data) - (StateInfo.Index - 1), Len));
+      if (StateType <> state_type) then
+        Inc(StateInfo.Index, Len)
+      else
+        case (StateType) of
+          SESSION_TRACK_SYSTEM_VARIABLES,
+          SESSION_TRACK_SCHEMA,
+          SESSION_TRACK_STATE_CHANGE:
+            begin
+              Inc(StateInfo.Index, ReadMem(PAnsiChar(@StateInfo.Data[StateInfo.Index]), System.Length(StateInfo.Data) - (StateInfo.Index - 1), Len));
+              data := PAnsiChar(@StateInfo.Data[StateInfo.Index]);
+              length := Len;
+              Inc(StateInfo.Index, Len);
+              StateInfo.VariablenValue := StateType = SESSION_TRACK_SYSTEM_VARIABLES;
+              Result := 0;
+            end;
+//          SESSION_TRACK_GTIDS:
+          else
+            Inc(StateInfo.Index, Len)
+        end;
+    until ((Result = 0) or (StateInfo.Index - 1 >= System.Length(StateInfo.Data)));
+  end;
 end;
 
 function MYSQL.set_character_set(const csname: my_char): my_int;

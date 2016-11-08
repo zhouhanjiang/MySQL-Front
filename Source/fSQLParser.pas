@@ -5987,6 +5987,7 @@ type
     TSpacer = (sNone, sSpace, sReturn);
     TExprOptions = set of (eoIn, eoAllFields);
   private
+// Why is comment need? Without it, there are access violations in Delphi XE2 ...
     diBIGINT,
     diBINARY,
     diBIT,
@@ -6335,6 +6336,7 @@ type
     kiOLD,
     kiON,
     kiONE,
+    kiONLINE,
     kiONLY,
     kiOPEN,
     kiOPTIMIZE,
@@ -7155,7 +7157,7 @@ const
     'WEEKDAY,WEEKOFYEAR,WEIGHT_STRING,WITHIN,X,Y,YEAR,YEARWEEK';
 
   MySQLKeywords =
-    'ANY,SOME,STATS_SAMPLE_PAGES,DUAL,TABLE_CHECKSUM,NEW,OLD,' +
+    'ANY,SOME,STATS_SAMPLE_PAGES,DUAL,TABLE_CHECKSUM,NEW,OLD,ONLINE,' +
 
     'ACCOUNT,ACTION,ADD,AFTER,AGAINST,ALGORITHM,ALL,ALTER,ALWAYS,ANALYZE,AND,' +
     'AS,ASC,ASCII,AT,AUTO_INCREMENT,AVG_ROW_LENGTH,BEFORE,BEGIN,' +
@@ -15105,11 +15107,13 @@ var
   AlterTag: TOffset;
   DefinerValue: TOffset;
   IgnoreTag: TOffset;
+  OnlineTag: TOffset;
   SQLSecurityTag: TOffset;
 begin
   AlgorithmValue := 0;
   DefinerValue := 0;
   IgnoreTag := 0;
+  OnlineTag := 0;
   SQLSecurityTag := 0;
 
   AlterTag := ParseTag(kiALTER);
@@ -15129,42 +15133,46 @@ begin
       SQLSecurityTag := ParseTag(kiSQL, kiSECURITY, kiINVOKER);
 
   if (not ErrorFound and (AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0)) then
-    if (IsTag(kiTEMPORARY)) then
+    if (IsTag(kiONLINE)) then
+      IgnoreTag := ParseTag(kiONLINE);
+
+  if (not ErrorFound and (AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0)) then
+    if (IsTag(kiIGNORE)) then
       IgnoreTag := ParseTag(kiIGNORE);
 
   if (ErrorFound) then
     Result := 0
-  else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (IgnoreTag = 0)
+  else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (OnlineTag = 0) and (IgnoreTag = 0)
     and IsTag(kiDATABASE)) then
     Result := ParseAlterDatabaseStmt(AlterTag)
   else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (IgnoreTag = 0)
     and IsTag(kiEVENT)) then
     Result := ParseAlterEventStmt(AlterTag, DefinerValue)
-  else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (IgnoreTag = 0)
+  else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (OnlineTag = 0) and (IgnoreTag = 0)
     and IsTag(kiFUNCTION)) then
     Result := ParseAlterRoutineStmt(rtFunction, AlterTag)
-  else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (IgnoreTag = 0)
+  else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (OnlineTag = 0) and (IgnoreTag = 0)
     and IsTag(kiINSTANCE)) then
     Result := ParseAlterInstanceStmt(AlterTag)
-  else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (IgnoreTag = 0)
+  else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (OnlineTag = 0) and (IgnoreTag = 0)
     and IsTag(kiPROCEDURE)) then
     Result := ParseAlterRoutineStmt(rtProcedure, AlterTag)
-  else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (IgnoreTag = 0)
+  else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (OnlineTag = 0) and (IgnoreTag = 0)
     and IsTag(kiSCHEMA)) then
     Result := ParseAlterDatabaseStmt(AlterTag)
-  else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (IgnoreTag = 0)
+  else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (OnlineTag = 0) and (IgnoreTag = 0)
     and IsTag(kiSERVER)) then
     Result := ParseAlterServerStmt(AlterTag)
   else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0)
     and IsTag(kiTABLE)) then
     Result := ParseAlterTableStmt(AlterTag, IgnoreTag)
-  else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (IgnoreTag = 0)
+  else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (OnlineTag = 0) and (IgnoreTag = 0)
     and IsTag(kiTABLESPACE)) then
     Result := ParseAlterTablespaceStmt(AlterTag)
-  else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (IgnoreTag = 0)
+  else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (OnlineTag = 0) and (IgnoreTag = 0)
     and IsTag(kiUSER)) then
     Result := ParseCreateUserStmt(AlterTag)
-  else if ((DefinerValue = 0) and (SQLSecurityTag = 0) and (IgnoreTag = 0)
+  else if ((DefinerValue = 0) and (SQLSecurityTag = 0) and (OnlineTag = 0) and (IgnoreTag = 0)
     and IsTag(kiVIEW)) then
     Result := ParseAlterViewStmt(AlterTag, AlgorithmValue, DefinerValue, SQLSecurityTag)
   else if (EndOfStmt(CurrentToken)) then
@@ -26528,6 +26536,7 @@ begin
     kiOLD                           := IndexOf('OLD');
     kiON                            := IndexOf('ON');
     kiONE                           := IndexOf('ONE');
+    kiONLINE                        := IndexOf('ONLINE');
     kiONLY                          := IndexOf('ONLY');
     kiOPEN                          := IndexOf('OPEN');
     kiOPTIMIZE                      := IndexOf('OPTIMIZE');

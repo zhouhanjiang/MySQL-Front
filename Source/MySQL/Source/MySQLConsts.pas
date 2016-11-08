@@ -2,6 +2,9 @@ unit MySQLConsts;
 
 interface {********************************************************************}
 
+uses
+  Windows;
+
 const
   COLUMN_COMMENT_MAXLEN = 1024;
   HOSTNAME_LENGTH       = 60;
@@ -277,11 +280,14 @@ type
   enum_session_state_type = (
     SESSION_TRACK_SYSTEM_VARIABLES,    // Session system variables
     SESSION_TRACK_SCHEMA,              // Current schema
-    SESSION_TRACK_STATE_CHANGE         // track session state changes
+    SESSION_TRACK_STATE_CHANGE,        // track session state changes
+    SESSION_TRACK_GTIDS                // track GTIDs
   );
-  // SESSION_TRACK_BEGIN = SESSION_TRACK_SYSTEM_VARIABLES;
-  // SESSION_TRACK_END = SESSION_TRACK_STATE_CHANGE;
+const
+  SESSION_TRACK_BEGIN = SESSION_TRACK_SYSTEM_VARIABLES;
+  SESSION_TRACK_END = SESSION_TRACK_STATE_CHANGE;
 
+type
   mysql_enum_shutdown_level = (
     SHUTDOWN_DEFAULT               = 0,                                            // wait for existing connections to finish
     SHUTDOWN_WAIT_CONNECTIONS      = MYSQL_SHUTDOWN_KILLABLE_CONNECT,              // wait for existing trans to finish
@@ -451,6 +457,8 @@ type
   Tmysql_row_seek = function (res: MYSQL_RES; offset: MYSQL_ROW_OFFSET): MYSQL_ROW_OFFSET; stdcall;
   Tmysql_row_tell = function (res: MYSQL_RES): MYSQL_ROWS; stdcall;
   Tmysql_select_db = function (mysql: MYSQL; const db: my_char): my_int; stdcall;
+  Tmysql_session_track_get_first = function (mysql: MYSQL; state_type: enum_session_state_type; out data: my_char; out length: size_t): my_int; stdcall;
+  Tmysql_session_track_get_next = function (mysql: MYSQL; state_type: enum_session_state_type; out data: my_char; out length: size_t): my_int; stdcall;
   Tmysql_set_character_set = function (mysql: MYSQL; const csname: my_char): my_int; stdcall;
   Tmysql_set_server_option = function (mysql: MYSQL; option: enum_mysql_set_option): my_int; stdcall;
   Tmysql_shutdown = function (mysql: MYSQL; shutdown_level: mysql_enum_shutdown_level): my_int; stdcall;

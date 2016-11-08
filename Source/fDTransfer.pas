@@ -150,7 +150,7 @@ begin
       NextActivePageIndex := I;
   if (NextActivePageIndex >= 0) then
     for I := NextActivePageIndex + 1 to PageControl.PageCount - 1 do
-      PageControl.Pages[I].Enabled := False;
+      PageControl.Pages[I].TabVisible := False;
 
   if (not FBBack.Enabled) then
     FBForward.Caption := Preferences.LoadStr(229) + ' >'
@@ -171,15 +171,8 @@ begin
 end;
 
 procedure TDTransfer.FBBackClick(Sender: TObject);
-var
-  ActivePageIndex: Integer;
 begin
-  for ActivePageIndex := PageControl.ActivePageIndex - 1 downto 0 do
-    if (PageControl.Pages[ActivePageIndex].Enabled) then
-    begin
-      PageControl.ActivePageIndex := ActivePageIndex;
-      Exit;
-    end;
+  PageControl.SelectNextPage(False);
 end;
 
 procedure TDTransfer.FBCancelClick(Sender: TObject);
@@ -192,15 +185,8 @@ begin
 end;
 
 procedure TDTransfer.FBForwardClick(Sender: TObject);
-var
-  ActivePageIndex: Integer;
 begin
-  for ActivePageIndex := PageControl.ActivePageIndex + 1 to PageControl.PageCount - 1 do
-    if (PageControl.Pages[ActivePageIndex].Enabled) then
-    begin
-      PageControl.ActivePageIndex := ActivePageIndex;
-      Exit;
-    end;
+  PageControl.SelectNextPage(True);
 end;
 
 procedure TDTransfer.FBHelpClick(Sender: TObject);
@@ -212,7 +198,7 @@ procedure TDTransfer.FDataClick(Sender: TObject);
 begin
   FStructure.Checked := FStructure.Checked or FData.Checked;
 
-  TSExecute.Enabled := FStructure.Checked;
+  TSExecute.TabVisible := FStructure.Checked;
   CheckActivePageChange(TSWhat.PageIndex);
 end;
 
@@ -318,12 +304,12 @@ begin
   end;
 
 
-  TSSelect.Enabled := True;
-  TSWhat.Enabled := False;
-  TSExecute.Enabled := False;
+  TSSelect.TabVisible := True;
+  TSWhat.TabVisible := False;
+  TSExecute.TabVisible := False;
 
   for I := 0 to PageControl.PageCount - 1 do
-    if ((PageControl.ActivePageIndex < 0) and PageControl.Pages[I].Enabled) then
+    if ((PageControl.ActivePageIndex < 0) and PageControl.Pages[I].TabVisible) then
       PageControl.ActivePageIndex := I;
   CheckActivePageChange(PageControl.ActivePageIndex);
 
@@ -348,7 +334,7 @@ procedure TDTransfer.FStructureClick(Sender: TObject);
 begin
   FData.Checked := FData.Checked and FStructure.Checked;
 
-  TSExecute.Enabled := FStructure.Checked;
+  TSExecute.TabVisible := FStructure.Checked;
   CheckActivePageChange(TSWhat.PageIndex);
 end;
 
@@ -469,7 +455,7 @@ begin
     if ((Sender = FSource) and Assigned(Node)) then
       FSource.MultiSelect := Assigned(Node.Parent);
 
-    TSWhat.Enabled := Assigned(FSource.Selected) and Assigned(FSource.Selected.Parent) and Assigned(FDestination.Selected)
+    TSWhat.TabVisible := Assigned(FSource.Selected) and Assigned(FSource.Selected.Parent) and Assigned(FDestination.Selected)
       and (FSource.Selected.Parent.Level = FDestination.Selected.Level)
       and ((FSource.Selected.ImageIndex <> iiDatabase) or (FSource.Selected.Parent.Text <> FDestination.Selected.Text))
       and ((FSource.Selected.ImageIndex <> iiBaseTable) or (FSource.Selected.Parent.Text <> FDestination.Selected.Text) or (FSource.Selected.Parent.Parent.Text <> FDestination.Selected.Parent.Text));
@@ -835,8 +821,8 @@ var
   List: TList;
   Node: TTreeNode;
 begin
+  Wanted.Node := nil;
   Wanted.Page := nil;
-  FData.Enabled := False;
 
   List := TList.Create();
   for I := 0 to FSource.SelectionCount - 1 do
@@ -848,8 +834,14 @@ begin
     Wanted.Page := TSWhat;
   List.Free();
 
-  if (not Assigned(Wanted.Page)) then
+  if (Assigned(Wanted.Page)) then
   begin
+    FData.Enabled := True;
+    FData.Checked := Preferences.Transfer.Data;
+  end
+  else
+  begin
+    FData.Enabled := False;
     for I := 0 to FSource.SelectionCount - 1 do
       if (TObject(FSource.Selections[I].Data) is TSDatabase) then
       begin
@@ -862,15 +854,11 @@ begin
       end
       else if (FSource.Selections[I].ImageIndex = iiBaseTable) then
         FData.Enabled := True;
-    FData.Checked := FData.Checked and FData.Enabled;
   end;
 
-  if (not Assigned(Wanted.Page)) then
-    FData.Cursor := crDefault
-  else
-    FData.Cursor := crSQLWait;
+  FData.Checked := FData.Checked and FData.Enabled;
 
-  TSExecute.Enabled := not Assigned(Wanted.Page) and (FStructure.Checked or FData.Checked);
+  TSExecute.TabVisible := not Assigned(Wanted.Page) and (FStructure.Checked or FData.Checked);
   CheckActivePageChange(TSWhat.PageIndex);
 end;
 
@@ -920,7 +908,7 @@ begin
   FDestination.Items.Clear();
   FDestination.Items.EndUpdate();
 
-  TSWhat.Enabled := False;
+  TSWhat.TabVisible := False;
 
   FBBack.Enabled := True;
   FBCancel.Enabled := True;
