@@ -1112,21 +1112,6 @@ type
     property Variable[Index: Integer]: TSVariable read GetVariable; default;
   end;
 
-  TSStatus = class(TSEntity)
-  public
-    Value: string;
-  end;
-
-  TSStati = class(TSEntities)
-  private
-    function GetStatus(Index: Integer): TSStatus;
-  protected
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean; override;
-    function SQLGetItems(const Name: string = ''): string; override;
-  public
-    property Status[Index: Integer]: TSStatus read GetStatus; default;
-  end;
-
   TSEngine = class(TSEntity)
   private
     FComment: string;
@@ -1455,7 +1440,6 @@ type
     FPerformanceSchema: TSDatabase;
     FPlugins: TSPlugins;
     FProcesses: TSProcesses;
-    FStati: TSStati;
     FSQLMonitor: TMySQLMonitor;
     FStartTime: TDateTime;
     FSyntaxProvider: TacMYSQLSyntaxProvider;
@@ -1520,7 +1504,6 @@ type
     function PluginByName(const PluginName: string): TSPlugin;
     function ProcessByThreadId(const ThreadId: Longword): TSProcess;
     procedure RegisterEventProc(const AEventProc: TEventProc);
-    function StatusByName(const StatusName: string): TSStatus;
     function TableName(const Name: string): string;
     function TableNameCmp(const Name1, Name2: string): Integer; inline;
     function UnescapeValue(const Value: string; const FieldType: TSField.TFieldType = mfVarChar): string; overload;
@@ -1554,7 +1537,6 @@ type
     property Plugins: TSPlugins read FPlugins;
     property Processes: TSProcesses read FProcesses;
     property StartTime: TDateTime read FStartTime;
-    property Stati: TSStati read FStati;
     property SQLMonitor: TMySQLMonitor read FSQLMonitor;
     property SQLParser: TSQLParser read FSQLParser;
     property SyntaxProvider: TacMYSQLSyntaxProvider read FSyntaxProvider;
@@ -9011,109 +8993,6 @@ begin
   end;
 end;
 
-{ TSStati *********************************************************************}
-
-function TSStati.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
-var
-  DeleteList: TList;
-  Index: Integer;
-  Name: string;
-  Seconds: UInt64;
-begin
-  DeleteList := TList.Create();
-  DeleteList.Assign(Self);
-
-  if (not DataSet.IsEmpty()) then
-    repeat
-      if (not UseInformationSchema) then
-        Name := DataSet.FieldByName('Variable_name').AsString
-      else
-        Name := DataSet.FieldByName('VARIABLE_NAME').AsString;
-
-      if (InsertIndex(Name, Index)) then
-        if (Index < Count) then
-          Insert(Index, TSStatus.Create(Self, Name))
-        else
-          Add(TSStatus.Create(Self, Name))
-      else if (DeleteList.IndexOf(Items[Index]) >= 0) then
-        DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
-
-      if (not UseInformationSchema) then
-        Status[Index].Value := DataSet.FieldByName('Value').AsString
-      else
-        Status[Index].Value := DataSet.FieldByName('VARIABLE_VALUE').AsString;
-
-      if (Filtered) then
-        Session.SendEvent(etItemValid, Session, Self, Status[Index]);
-    until (not DataSet.FindNext());
-
-  if (Assigned(Session.StatusByName('Uptime'))) then
-  begin
-    Seconds := StrToUInt64(Session.StatusByName('Uptime').Value);
-
-    Session.FStartTime := Now();
-    Session.FStartTime := Session.FStartTime - EncodeTime(0, 0, Seconds mod 60, 0); Seconds := Seconds div 60;
-    Session.FStartTime := Session.FStartTime - EncodeTime(0, Seconds mod 60, 0, 0); Seconds := Seconds div 60;
-    Session.FStartTime := Session.FStartTime - EncodeTime(Seconds mod 24, 0, 0, 0); Seconds := Seconds div 24;
-    Session.FStartTime := Session.FStartTime - Seconds;
-  end;
-
-  if (not Filtered) then
-    while (DeleteList.Count > 0) do
-    begin
-      Index := IndexOf(DeleteList.Items[0]);
-      Item[Index].Free();
-      Delete(Index);
-      DeleteList.Delete(0);
-    end;
-  DeleteList.Free();
-
-  Result := inherited;
-
-  if (FValid and not Filtered) then
-    Session.SendEvent(etItemsValid, Session, Self);
-end;
-
-function TSStati.GetStatus(Index: Integer): TSStatus;
-begin
-  Result := TSStatus(Items[Index]);
-end;
-
-function TSStati.SQLGetItems(const Name: string = ''): string;
-begin
-  if (Session.Connection.MySQLVersion < 50112) then
-  begin
-    if (Session.Connection.MySQLVersion < 50002) then
-      Result := 'SHOW STATUS'
-    else
-      Result := 'SHOW SESSION STATUS';
-    if (Name <> '') then
-      Result := Result + ' LIKE ' + SQLEscape(Name);
-    Result := Result + ';' + #13#10;
-  end
-  else if (Session.Connection.MySQLVersion < 50706) then
-  begin
-    Result := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('SESSION_STATUS');
-    if (Name <> '') then
-      Result := Result + ' WHERE ' + Session.Connection.EscapeIdentifier('VARIABLE_NAME') + '=' + SQLEscape(Name);
-    Result := Result + ';' + #13#10;
-  end
-  else if (Session.Connection.MySQLVersion < 50708) then
-  begin
-    Result := 'SHOW SESSION STATUS';
-    if (Name <> '') then
-      Result := Result + ' LIKE ' + SQLEscape(Name);
-    Result := Result + ';' + #13#10;
-  end
-  else
-  begin
-    Result := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(PERFORMANCE_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('SESSION_STATUS');
-    if (Name <> '') then
-      Result := Result + ' WHERE ' + Session.Connection.EscapeIdentifier('VARIABLE_NAME') + '=' + SQLEscape(Name);
-    Result := Result + ';' + #13#10;
-  end;
-end;
-
 { TSEngine ********************************************************************}
 
 function TSEngine.FieldAvailable(const MySQLFieldType: TSField.TFieldType): Boolean;
@@ -10586,7 +10465,6 @@ function Compare(Item1, Item2: Pointer): Integer;
   begin
     if (Item is TSUser) then Result := 0
     else if (Item is TSVariables) then Result := 1
-    else if (Item is TSStati) then Result := 2
     else if (Item is TSEngines) then Result := 3
     else if (Item is TSCharsets) then Result := 4
     else if (Item is TSCollations) then Result := 5
@@ -10800,7 +10678,6 @@ begin
     if (not Assigned(FEngines)) then FEngines := TSEngines.Create(Self);
     if (not Assigned(FPlugins) and (Connection.MySQLVersion >= 50105)) then FPlugins := TSPlugins.Create(Self);
     if (not Assigned(FProcesses)) then FProcesses := TSProcesses.Create(Self);
-    if (not Assigned(FStati)) then FStati := TSStati.Create(Self);
     if (not Assigned(FUsers)) then FUsers := TSUsers.Create(Self);
 
     if (Assigned(Account)) then
@@ -10881,7 +10758,6 @@ begin
     FEngines := nil;
     FPlugins := nil;
     FProcesses := nil;
-    FStati := nil;
     FUsers := nil;
     FVariables := TSVariables.Create(Self);
   end
@@ -10911,7 +10787,6 @@ begin
     FEngines := nil;
     FPlugins := nil;
     FProcesses := nil;
-    FStati := nil;
     FUsers := nil;
     FVariables := TSVariables.Create(Self);
   end;
@@ -11136,7 +11011,6 @@ begin
   if (Assigned(FFieldTypes)) then FFieldTypes.Free();
   if (Assigned(FPlugins)) then FPlugins.Free();
   if (Assigned(FProcesses)) then FProcesses.Free();
-  if (Assigned(FStati)) then FStati.Free();
   if (Assigned(FUsers)) then FUsers.Free();
   if (Assigned(FVariables)) then FVariables.Free();
 
@@ -11364,7 +11238,7 @@ var
   I: Integer;
 begin
   Result := (FCurrentUser <> '') and Assigned(FUser)
-    and Variables.Valid and Stati.Valid and Engines.Valid and Charsets.Valid and (not Assigned(Collations) or Collations.Valid) and Users.Valid
+    and Variables.Valid and Engines.Valid and Charsets.Valid and (not Assigned(Collations) or Collations.Valid) and Users.Valid
     and Databases.Valid;
   for I := 0 to Databases.Count - 1 do
     Result := Result and (Databases[I].Valid);
@@ -11414,7 +11288,6 @@ end;
 procedure TSSession.Invalidate();
 begin
   if (Assigned(Variables)) then Variables.Invalidate();
-  if (Assigned(Stati)) then Stati.Invalidate();
   if (Assigned(Engines)) then Engines.Invalidate();
   if (Assigned(Charsets)) then Charsets.Invalidate();
   if (Assigned(Collations)) then Collations.Invalidate();
@@ -12088,8 +11961,6 @@ begin
             Database := DatabaseByName(SQLParseValue(Parse));
             Result := Database.Routines.Build(DataSet, True, not SQLParseEnd(Parse));
           end
-          else if (TableNameCmp(ObjectName, 'SESSION_STATUS') = 0) then
-            Result := Stati.Build(DataSet, True, not SQLParseEnd(Parse))
           else if (TableNameCmp(ObjectName, 'SESSION_VARIABLES') = 0) then
             Result := Variables.Build(DataSet, True, not SQLParseEnd(Parse))
           else if (TableNameCmp(ObjectName, 'SCHEMATA') = 0) then
@@ -12116,9 +11987,7 @@ begin
         else if (Databases.NameCmp(DatabaseName, PERFORMANCE_SCHEMA) = 0) then
         begin
           DataSet.Open(DataHandle);
-          if (TableNameCmp(ObjectName, 'SESSION_STATUS') = 0) then
-            Result := Stati.Build(DataSet, True, not SQLParseEnd(Parse))
-          else if (TableNameCmp(ObjectName, 'SESSION_VARIABLES') = 0) then
+          if (TableNameCmp(ObjectName, 'SESSION_VARIABLES') = 0) then
             Result := Variables.Build(DataSet, True, not SQLParseEnd(Parse));
         end
         else if (Databases.NameCmp(DatabaseName, 'mysql') = 0) then
@@ -12219,9 +12088,6 @@ begin
       else if (SQLParseKeyword(Parse, 'FULL PROCESSLIST')
         or SQLParseKeyword(Parse, 'PROCESSLIST')) then
         Result := Processes.Build(DataSet, False, not SQLParseEnd(Parse))
-      else if (SQLParseKeyword(Parse, 'STATUS')
-        or SQLParseKeyword(Parse, 'SESSION STATUS')) then
-        Result := Stati.Build(DataSet, False, not SQLParseEnd(Parse))
       else if (SQLParseKeyword(Parse, 'VARIABLES')
         or SQLParseKeyword(Parse, 'SESSION VARIABLES')) then
         Result := Variables.Build(DataSet, False, not SQLParseEnd(Parse))
@@ -12284,17 +12150,6 @@ begin
   Event.EventType := EventType;
   DoSendEvent(Event);
   Event.Free();
-end;
-
-function TSSession.StatusByName(const StatusName: string): TSStatus;
-var
-  Index: Integer;
-begin
-  Index := Stati.IndexByName(StatusName);
-  if (Index < 0) then
-    Result := nil
-  else
-    Result := Stati[Index];
 end;
 
 function TSSession.TableName(const Name: string): string;
@@ -12391,7 +12246,6 @@ begin
   List := TList.Create();
 
   if (Assigned(Variables) and not Variables.Valid) then List.Add(Variables);
-  if (Assigned(Stati) and not Stati.Valid) then List.Add(Stati);
   if (Assigned(Engines) and not Engines.Valid) then List.Add(Engines);
   if (Assigned(Charsets) and not Charsets.Valid) then List.Add(Charsets);
   if (Assigned(Collations) and not Collations.Valid) then List.Add(Collations);

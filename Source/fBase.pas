@@ -23,7 +23,6 @@ const
   iiViewField = 75;
   iiForeignKey = 28;
   iiProcesses = 31;
-  iiStati = 32;
   iiUsers = 33;
   iiUser = 41;
   iiVariables = 34;

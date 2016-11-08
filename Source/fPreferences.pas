@@ -656,7 +656,7 @@ type
 
     TDesktop = class
     type
-      TListViewKind = (lkServer, lkDatabase, lkTable, lkProcesses, lkStati, lkUsers, lkVariables);
+      TListViewKind = (lkServer, lkDatabase, lkTable, lkProcesses, lkUsers, lkVariables);
     private
       FAccount: TPAccount;
       FAddressMRU: TPPreferences.TMRUList;
@@ -3695,8 +3695,6 @@ begin
   if (Assigned(XMLNode(XML, 'objects/processes/widths/statement')) and TryStrToInt(XMLNode(XML, 'objects/processes/widths/statement').Text, ColumnWidths[lkProcesses][5])) then ColumnWidths[lkProcesses][5] := Round(ColumnWidths[lkProcesses][5] * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'objects/processes/widths/time')) and TryStrToInt(XMLNode(XML, 'objects/processes/widths/time').Text, ColumnWidths[lkProcesses][6])) then ColumnWidths[lkProcesses][6] := Round(ColumnWidths[lkProcesses][6] * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'objects/processes/widths/state')) and TryStrToInt(XMLNode(XML, 'objects/processes/widths/state').Text, ColumnWidths[lkProcesses][7])) then ColumnWidths[lkProcesses][7] := Round(ColumnWidths[lkProcesses][7] * Screen.PixelsPerInch / PixelsPerInch);
-  if (Assigned(XMLNode(XML, 'objects/stati/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/stati/widths/name').Text, ColumnWidths[lkStati][0])) then ColumnWidths[lkStati][0] := Round(ColumnWidths[lkStati][0] * Screen.PixelsPerInch / PixelsPerInch);
-  if (Assigned(XMLNode(XML, 'objects/stati/widths/value')) and TryStrToInt(XMLNode(XML, 'objects/stati/widths/value').Text, ColumnWidths[lkStati][1])) then ColumnWidths[lkStati][1] := Round(ColumnWidths[lkStati][1] * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'objects/users/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/users/widths/name').Text, ColumnWidths[lkUsers][0])) then ColumnWidths[lkUsers][0] := Round(ColumnWidths[lkUsers][0] * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'objects/users/widths/fullname')) and TryStrToInt(XMLNode(XML, 'objects/users/widths/fullname').Text, ColumnWidths[lkUsers][1])) then ColumnWidths[lkUsers][1] := Round(ColumnWidths[lkUsers][1] * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'objects/users/widths/comment')) and TryStrToInt(XMLNode(XML, 'objects/users/widths/comment').Text, ColumnWidths[lkUsers][2])) then ColumnWidths[lkUsers][2] := Round(ColumnWidths[lkUsers][2] * Screen.PixelsPerInch / PixelsPerInch);
@@ -3756,8 +3754,6 @@ begin
   XMLNode(XML, 'objects/processes/widths/statement').Text := IntToStr(ColumnWidths[lkProcesses][5]);
   XMLNode(XML, 'objects/processes/widths/time').Text := IntToStr(ColumnWidths[lkProcesses][6]);
   XMLNode(XML, 'objects/processes/widths/state').Text := IntToStr(ColumnWidths[lkProcesses][7]);
-  XMLNode(XML, 'objects/stati/widths/name').Text := IntToStr(ColumnWidths[lkStati][0]);
-  XMLNode(XML, 'objects/stati/widths/value').Text := IntToStr(ColumnWidths[lkStati][1]);
   XMLNode(XML, 'objects/users/widths/name').Text := IntToStr(ColumnWidths[lkUsers][0]);
   XMLNode(XML, 'objects/users/widths/fullname').Text := IntToStr(ColumnWidths[lkUsers][1]);
   XMLNode(XML, 'objects/users/widths/comment').Text := IntToStr(ColumnWidths[lkUsers][2]);

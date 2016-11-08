@@ -882,7 +882,6 @@ type
     SQLEditor: TSQLEditor;
     SQLEditor2: TSQLEditor;
     SQLEditor3: TSQLEditor;
-    StatiListView: TListView;
     SynMemoBeforeDrag: TSynMemoBeforeDrag;
     SynCompletionPending: record
       Active: Boolean;
@@ -1101,7 +1100,6 @@ const
   giForeignKeys = 8;
   giTriggers = 9;
   giProcesses = 10;
-  giStati = 11;
   giUsers = 12;
   giVariables = 13;
 
@@ -2562,8 +2560,6 @@ begin
       Session.Processes.Invalidate();
       Session.Processes.Update();
     end
-    else if (URI.Param['system'] = 'stati') then
-      Session.Stati.Update()
     else if (URI.Param['system'] = 'users') then
       Session.Users.Update()
     else if (URI.Param['system'] = 'variables') then
@@ -2661,8 +2657,6 @@ begin
   end
   else if ((URI.Database = '') and (URI.Param['system'] = 'processes')) then
     Result := Preferences.LoadStr(24)
-  else if ((URI.Database = '') and (URI.Param['system'] = 'stati')) then
-    Result := Preferences.LoadStr(23)
   else if ((URI.Database = '') and (URI.Param['system'] = 'users')) then
     Result := Preferences.LoadStr(561)
   else if ((URI.Database = '') and (URI.Param['system'] = 'variables')) then
@@ -4082,7 +4076,6 @@ begin
             iiEvent: TSEvent(FNavigator.Selected.Data).Invalidate();
             iiTrigger: TSTrigger(FNavigator.Selected.Data).Invalidate();
             iiProcesses: Session.Processes.Invalidate();
-            iiStati: Session.Stati.Invalidate();
             iiUsers: Session.Users.Invalidate();
             iiVariables: Session.Variables.Invalidate();
           end;
@@ -4285,7 +4278,6 @@ begin
     iiView: Result := lkTable;
     iiProcesses: Result := lkProcesses;
     iiUsers: Result := lkUsers;
-    iiStati: Result := lkStati;
     iiVariables: Result := lkVariables;
     else raise ERangeError.Create(SRangeError);
   end;
@@ -4341,7 +4333,6 @@ begin
   ActiveListView := FServerListView;
   ActiveWorkbench := nil;
   ProcessesListView := nil;
-  StatiListView := nil;
   UsersListView := nil;
   VariablesListView := nil;
   for Kind := lkServer to lkVariables do
@@ -5901,7 +5892,6 @@ begin
   FServerListView.Items.Clear();
   FServerListView.Items.EndUpdate();
   if (Assigned(ProcessesListView)) then FreeListView(ProcessesListView);
-  if (Assigned(StatiListView)) then FreeListView(StatiListView);
   if (Assigned(UsersListView)) then FreeListView(UsersListView);
   if (Assigned(VariablesListView)) then FreeListView(VariablesListView);
   if (Assigned(SQLEditor)) then SQLEditor.Free();
@@ -6596,7 +6586,6 @@ begin
   begin
     case (Node.ImageIndex) of
       iiProcesses: Node.Text := Preferences.LoadStr(24);
-      iiStati: Node.Text := Preferences.LoadStr(23);
       iiUsers: Node.Text := Preferences.LoadStr(561);
       iiVariables: Node.Text := Preferences.LoadStr(22);
     end;
@@ -6639,7 +6628,6 @@ begin
     Child := FNavigator.Items.getFirstNode().getFirstChild();
     while (Assigned(Child) and not Assigned(Result)) do
       if ((URI.Param['system'] = 'processes') and (Child.ImageIndex = iiProcesses)
-        or (URI.Param['system'] = 'stati') and (Child.ImageIndex = iiStati)
         or (URI.Param['system'] = 'users') and (Child.ImageIndex = iiUsers)
         or (URI.Param['system'] = 'variables') and (Child.ImageIndex = iiVariables)) then
         Result := Child
@@ -6768,14 +6756,11 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
       iiTrigger:
         Result := giTriggers;
       iiProcesses,
-      iiStati,
       iiUsers,
       iiVariables:
         Result := giSystemTools;
       iiProcess:
         Result := giProcesses;
-      iiStatus:
-        Result := giStati;
       iiUser:
         Result := giUsers;
       iiVariable:
@@ -6787,7 +6772,7 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
 
   function Compare(const ImageIndex: Integer; const Item1, Item2: TTreeNode): Integer;
   const
-    ImageIndexSort = Chr(iiProcesses) + Chr(iiStati) + Chr(iiUsers) + Chr(iiVariables);
+    ImageIndexSort = Chr(iiProcesses) + Chr(iiUsers) + Chr(iiVariables);
   begin
     if (GroupIDByImageIndex(Item1.ImageIndex) <> GroupIDByImageIndex(Item2.ImageIndex)) then
       Result := Sign(GroupIDByImageIndex(Item1.ImageIndex) - GroupIDByImageIndex(Item2.ImageIndex))
@@ -6862,8 +6847,6 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
       Text := TSItem(Data).Caption
     else if (TObject(Data) is TSProcesses) then
       Text := Preferences.LoadStr(24)
-    else if (TObject(Data) is TSStati) then
-      Text := Preferences.LoadStr(23)
     else if (TObject(Data) is TSUsers) then
       Text := Preferences.LoadStr(561)
     else if (TObject(Data) is TSVariables) then
@@ -6901,8 +6884,6 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
       Text := TSItem(Data).Caption
     else if (TObject(Data) is TSProcesses) then
       Text := Preferences.LoadStr(24)
-    else if (TObject(Data) is TSStati) then
-      Text := Preferences.LoadStr(23)
     else if (TObject(Data) is TSUsers) then
       Text := Preferences.LoadStr(561)
     else if (TObject(Data) is TSVariables) then
@@ -8139,15 +8120,6 @@ begin
           end;
           Result := ProcessesListView;
         end;
-      iiStati:
-        begin
-          if (not Assigned(StatiListView)) then
-          begin
-            StatiListView := CreateListView(Session.Stati);
-            Session.Stati.PushBuildEvent(Session.Stati);
-          end;
-          Result := StatiListView;
-        end;
       iiUsers:
         begin
           if (not Assigned(UsersListView)) then
@@ -8475,8 +8447,6 @@ begin
     Result := iiTrigger
   else if (TObject(Data) is TSProcesses) then
     Result := iiProcesses
-  else if (TObject(Data) is TSStati) then
-    Result := iiStati
   else if (TObject(Data) is TSUsers) then
     Result := iiUsers
   else if (TObject(Data) is TSVariables) then
@@ -8560,7 +8530,7 @@ end;
 procedure TFSession.ListViewCompare(Sender: TObject; Item1: TListItem;
   Item2: TListItem; Data: Integer; var Compare: Integer);
 const
-  ImageIndexSort = Chr(iiProcesses) + Chr(iiStati) + Chr(iiUsers) + Chr(iiVariables);
+  ImageIndexSort = Chr(iiProcesses) + Chr(iiUsers) + Chr(iiVariables);
 var
   String1: string;
   String2: string;
@@ -8902,15 +8872,6 @@ begin
 
       ListView.Groups.Add().GroupID := giProcesses;
     end
-    else if (TObject(ListView.Tag) is TSStati) then
-    begin
-      ListView.Columns.Add();
-      ListView.Columns.Add();
-      ListView.Columns.EndUpdate();
-      SetColumnWidths(ListView, lkStati);
-
-      ListView.Groups.Add().GroupID := giStati;
-    end
     else if (TObject(ListView.Tag) is TSUsers) then
     begin
       ListView.Columns.Add();
@@ -8944,7 +8905,6 @@ begin
     for I := 0 to ListView.Items.Count - 1 do
       case (ListView.Items[I].ImageIndex) of
         iiProcesses: ListView.Items[I].Caption := Preferences.LoadStr(24);
-        iiStati: ListView.Items[I].Caption := Preferences.LoadStr(23);
         iiUsers: ListView.Items[I].Caption := Preferences.LoadStr(561);
         iiVariables: ListView.Items[I].Caption := Preferences.LoadStr(22);
         else Dec(Count);
@@ -8992,11 +8952,6 @@ begin
     ListView.Columns[5].Caption := Preferences.LoadStr(274);
     ListView.Columns[6].Caption := Preferences.LoadStr(661);
     ListView.Columns[7].Caption := Preferences.LoadStr(276);
-  end
-  else if (TObject(ListView.Tag) is TSStati) then
-  begin
-    ListView.Columns[0].Caption := Preferences.LoadStr(267);
-    ListView.Columns[1].Caption := Preferences.LoadStr(268);
   end
   else if (TObject(ListView.Tag) is TSUsers) then
   begin
@@ -9468,19 +9423,6 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
         Item.SubItems.Add(ExecutionTimeToStr(TSProcess(Data).Time));
       Item.SubItems.Add(TSProcess(Data).State);
     end
-    else if (Data is TSStati) then
-    begin
-      Item.GroupID := giSystemTools;
-      Item.ImageIndex := iiStati;
-      Item.SubItems.Add(FormatFloat('#,##0', TSStati(Data).Count, LocaleFormatSettings));
-    end
-    else if (Data is TSStatus) then
-    begin
-      Item.GroupID := giStati;
-      Item.ImageIndex := iiStatus;
-      Item.Caption := TSStatus(Data).Caption;
-      Item.SubItems.Add(TSStatus(Data).Value);
-    end
     else if (Data is TSUsers) then
     begin
       Item.GroupID := giSystemTools;
@@ -9728,8 +9670,6 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
           end;
         giProcesses:
           SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(24) + ' (' + IntToStr(Session.Processes.Count) + ')');
-        giStati:
-          SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(23) + ' (' + IntToStr(Session.Stati.Count) + ')');
         giUsers:
           SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(561) + ' (' + IntToStr(Session.Users.Count) + ')');
         giVariables:
@@ -9757,8 +9697,6 @@ begin
           begin
             if (Assigned(Session.Processes)) then
               InsertOrUpdateItem(Kind, Session.Processes);
-            if (Assigned(Session.Stati)) then
-              InsertOrUpdateItem(Kind, Session.Stati);
             if (Assigned(Session.Users)) then
               InsertOrUpdateItem(Kind, Session.Users);
             if (Assigned(Session.Variables)) then
@@ -9768,7 +9706,7 @@ begin
 
           if (Event.Items is TSDatabases) then
             UpdateGroup(Kind, giDatabases, Event.Items)
-          else if ((Event.Items is TSProcesses) or (Event.Items is TSStati) or (Event.Items is TSUsers) or (Event.Items is TSVariables)) then
+          else if ((Event.Items is TSProcesses) or (Event.Items is TSUsers) or (Event.Items is TSVariables)) then
           begin
             for I := 0 to ListView.Items.Count - 1 do
               if (ListView.Items[I].Data = Event.Items) then
@@ -9802,8 +9740,6 @@ begin
         end;
       lkProcesses:
         UpdateGroup(Kind, giProcesses, Event.Items);
-      lkStati:
-        UpdateGroup(Kind, giStati, Event.Items);
       lkUsers:
         UpdateGroup(Kind, giUsers, Event.Items);
       lkVariables:
@@ -10791,7 +10727,7 @@ begin
 
   if (Assigned(Node)) then
   begin
-    if (not (Node.ImageIndex in [iiProcesses, iiStati, iiUsers, iiVariables])) then
+    if (not (Node.ImageIndex in [iiProcesses, iiUsers, iiVariables])) then
       URI.Param['view'] := ViewToParam(View);
 
     case (Node.ImageIndex) of
@@ -10850,8 +10786,6 @@ begin
         end;
       iiProcesses:
         URI.Param['system'] := 'processes';
-      iiStati:
-        URI.Param['system'] := 'stati';
       iiUsers:
         URI.Param['system'] := 'users';
       iiVariables:
@@ -12149,8 +12083,6 @@ begin
         ListViewUpdate(Event, FServerListView)
       else if (Event.Items is TSProcesses) then
         ListViewUpdate(Event, ProcessesListView)
-      else if (Event.Items is TSStati) then
-        ListViewUpdate(Event, StatiListView)
       else if (Event.Items is TSUsers) then
         ListViewUpdate(Event, UsersListView)
       else if (Event.Items is TSVariables) then
@@ -13478,8 +13410,6 @@ begin
           Session.Databases.PushBuildEvent(nil)
         else if (TObject(PListView.Controls[I].Tag) is TSProcesses) then
           Session.Processes.PushBuildEvent(nil)
-        else if (TObject(PListView.Controls[I].Tag) is TSStati) then
-          Session.Stati.PushBuildEvent(nil)
         else if (TObject(PListView.Controls[I].Tag) is TSUsers) then
           Session.Users.PushBuildEvent(nil)
         else if (TObject(PListView.Controls[I].Tag) is TSVariables) then
@@ -13903,12 +13833,6 @@ begin
     Node := FNavigator.Items.AddChild(FNavigator.Items.GetFirstNode(), Preferences.LoadStr(24));
     Node.Data := Session.Processes;
     Node.ImageIndex := iiProcesses;
-  end;
-  if (Assigned(Session.Stati)) then
-  begin
-    Node := FNavigator.Items.AddChild(FNavigator.Items.GetFirstNode(), Preferences.LoadStr(23));
-    Node.Data := Session.Stati;
-    Node.ImageIndex := iiStati;
   end;
   if (Assigned(Session.Users)) then
   begin
