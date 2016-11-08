@@ -142,8 +142,9 @@ type
     TDataResult = TSyncThread;
 
     TConvertErrorNotifyEvent = procedure (Sender: TObject; Text: string) of object;
+    TDatabaseChangeEvent = procedure (const Connection: TMySQLConnection; const NewName: string) of object;
     TErrorEvent = procedure (const Connection: TMySQLConnection; const ErrorCode: Integer; const ErrorMessage: string) of object;
-    TVariableChangeEvent = procedure (const Connection: TMySQLConnection; const Name, Value: string) of object;
+    TVariableChangeEvent = procedure (const Connection: TMySQLConnection; const Name, NewValue: string) of object;
     TOnUpdateIndexDefsEvent = procedure (const DataSet: TMySQLQuery; const IndexDefs: TIndexDefs) of object;
     TResultEvent = function (const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
       const CommandText: string; const DataHandle: TDataResult; const Data: Boolean): Boolean of object;
@@ -237,6 +238,7 @@ type
     FMariaDBVersion: Integer;
     FMySQLVersion: Integer;
     FOnConvertError: TConvertErrorNotifyEvent;
+    FOnDatabaseChange: TDatabaseChangeEvent;
     FOnSQLError: TErrorEvent;
     FOnUpdateIndexDefs: TOnUpdateIndexDefsEvent;
     FOnVariableChange: TVariableChangeEvent;
@@ -284,9 +286,10 @@ type
     procedure DoBeforeExecuteSQL(); virtual;
     procedure DoConnect(); override;
     procedure DoConvertError(const Sender: TObject; const Text: string; const Error: EConvertError); virtual;
+    procedure DoDatabaseChange(const NewName: string); virtual;
     procedure DoDisconnect(); override;
     procedure DoError(const AErrorCode: Integer; const AErrorMessage: string); virtual;
-    procedure DoVariableChange(const Name, Value: string); virtual;
+    procedure DoVariableChange(const Name, NewValue: string); virtual;
     function GetErrorMessage(const AHandle: MySQLConsts.MYSQL): string; virtual;
     function ExecuteSQL(const Mode: TSyncThread.TMode; const Synchron: Boolean; const SQL: string;
       const OnResult: TResultEvent = nil; const Done: TEvent = nil): Boolean; overload; virtual;
@@ -385,6 +388,7 @@ type
     property LibraryName: string read FLibraryName write SetLibraryName;
     property LibraryType: TMySQLLibrary.TLibraryType read FLibraryType write SetLibraryType default ltBuiltIn;
     property OnConvertError: TConvertErrorNotifyEvent read FOnConvertError write FOnConvertError;
+    property OnDatabaseChange: TDatabaseChangeEvent read FOnDatabaseChange write FOnDatabaseChange;
     property OnSQLError: TErrorEvent read FOnSQLError write FOnSQLError;
     property OnUpdateIndexDefs: TOnUpdateIndexDefsEvent read FOnUpdateIndexDefs write FOnUpdateIndexDefs;
     property OnVariableChange: TVariableChangeEvent read FOnVariableChange write FOnVariableChange;
@@ -2267,6 +2271,14 @@ begin
     raise Error;
 end;
 
+procedure TMySQLConnection.DoDatabaseChange(const NewName: string);
+begin
+  FDatabaseName := NewName;
+
+  if (Assigned(FOnDatabaseChange)) then
+    FOnDatabaseChange(Self, NewName);
+end;
+
 procedure TMySQLConnection.DoDisconnect();
 begin
   Assert(Connected);
@@ -2318,10 +2330,10 @@ begin
       FOnSQLError(Self, ErrorCode, ErrorMessage);
 end;
 
-procedure TMySQLConnection.DoVariableChange(const Name, Value: string);
+procedure TMySQLConnection.DoVariableChange(const Name, NewValue: string);
 begin
   if (Assigned(FOnVariableChange)) then
-    FOnVariableChange(Self, Name, Value);
+    FOnVariableChange(Self, Name, NewValue);
 end;
 
 procedure TMySQLConnection.EndSilent();
@@ -3164,20 +3176,46 @@ begin
       WriteMonitor(PChar(S), Length(S), ttInfo);
     end;
 
+    if (Assigned(Lib.mysql_session_track_get_first) and Assigned(Lib.mysql_session_track_get_next)) then
+    begin
+//      if (Lib.mysql_session_track_get_first(SyncThread.LibHandle, SESSION_TRACK_SCHEMA, Data, Size) = 0) then
+//      begin
+//        Len := AnsiCharToWideChar(CodePage, Data, Size, nil, 0);
+//        SetLength(Name, Len);
+//        AnsiCharToWideChar(CodePage, Data, Size, PChar(Name), Len);
+//        S := '--> Database selected: ' + Name;
+//        WriteMonitor(PChar(S), Length(S), ttInfo);
+//        DoDatabaseChange(Name);
+//      end;
+      if (Lib.mysql_session_track_get_first(SyncThread.LibHandle, SESSION_TRACK_SYSTEM_VARIABLES, Data, Size) = 0) then
+        repeat
+          Len := AnsiCharToWideChar(CodePage, Data, Size, nil, 0);
+          SetLength(Name, Len);
+          AnsiCharToWideChar(CodePage, Data, Size, PChar(Name), Len);
+          if (Lib.mysql_session_track_get_next(SyncThread.LibHandle, SESSION_TRACK_SYSTEM_VARIABLES, Data, Size) = 0) then
+          begin
+            Len := AnsiCharToWideChar(CodePage, Data, Size, nil, 0);
+            SetLength(Value, Len);
+            AnsiCharToWideChar(CodePage, Data, Size, PChar(Value), Len);
+            DoVariableChange(Name, Value);
+          end;
+        until (Lib.mysql_session_track_get_next(SyncThread.LibHandle, SESSION_TRACK_SYSTEM_VARIABLES, Data, Size) <> 0);
+    end;
+
     if (SyncThread.CLStmts[SyncThread.StmtIndex]) then
     begin
       if (SQLParseCLStmt(CLStmt, @SyncThread.SQL[SyncThread.SQLIndex], Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]), MySQLVersion)) then
         if ((CLStmt.CommandType = ctDropDatabase) and (CLStmt.ObjectName = FDatabaseName)) then
         begin
-          FDatabaseName := '';
           S := '--> Database unselected';
           WriteMonitor(PChar(S), Length(S), ttInfo);
+          DoDatabaseChange('');
         end
         else if ((CLStmt.CommandType = ctUse) and (CLStmt.ObjectName <> FDatabaseName)) then
         begin
-          FDatabaseName := CLStmt.ObjectName;
-          S := '--> Database selected: ' + DatabaseName;
+          S := '--> Database selected: ' + CLStmt.ObjectName;
           WriteMonitor(PChar(S), Length(S), ttInfo);
+          DoDatabaseChange(CLStmt.ObjectName);
         end
         else if (CLStmt.CommandType = ctShutdown) then
         begin
@@ -3222,23 +3260,6 @@ begin
   if (SyncThread.StmtIndex < SyncThread.StmtLengths.Count) then
     WriteMonitor(@SyncThread.SQL[SyncThread.SQLIndex], Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]), ttResult);
 
-  if (Assigned(Lib.mysql_session_track_get_first) and Assigned(Lib.mysql_session_track_get_next)
-    and (Lib.mysql_session_track_get_first(SyncThread.LibHandle, SESSION_TRACK_SYSTEM_VARIABLES, Data, Size) = 0)) then
-  begin
-    repeat
-      Len := AnsiCharToWideChar(CodePage, Data, Size, nil, 0);
-      SetLength(Name, Len);
-      AnsiCharToWideChar(CodePage, Data, Size, PChar(Name), Len);
-      if (Lib.mysql_session_track_get_next(SyncThread.LibHandle, SESSION_TRACK_SYSTEM_VARIABLES, Data, Size) = 0) then
-      begin
-        Len := AnsiCharToWideChar(CodePage, Data, Size, nil, 0);
-        SetLength(Value, Len);
-        AnsiCharToWideChar(CodePage, Data, Size, PChar(Value), Len);
-        DoVariableChange(Name, Value);
-      end;
-    until (Lib.mysql_session_track_get_next(SyncThread.LibHandle, SESSION_TRACK_SYSTEM_VARIABLES, Data, Size) <> 0);
-  end;
-
   if (not Assigned(SyncThread.OnResult)) then
   begin
     if (SyncThread.ErrorCode > 0) then
@@ -3260,7 +3281,7 @@ begin
         SyncThread.State := ssReady;
         SyncHandledResult(SyncThread);
       end
-      else if (SyncThread.State = ssResult) then
+      else if ((SyncThread.State = ssResult) and Assigned(SyncThread.ResHandle)) then
         raise Exception.Create('Query has not been handled: ' + SyncThread.CommandText);
     finally
       InOnResult := False;

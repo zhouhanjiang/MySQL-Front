@@ -1425,7 +1425,7 @@ type
     TUpdate = function (): Boolean of object;
     TEvent = class(TObject)
     type
-      TEventType = (etItemsValid, etItemValid, etItemCreated, etItemDropped, etItemAltered, etBeforeExecuteSQL, etAfterExecuteSQL, etMonitor, etError);
+      TEventType = (etItemsValid, etItemValid, etItemCreated, etItemDropped, etItemAltered, etDatabaseChange, etBeforeExecuteSQL, etAfterExecuteSQL, etMonitor, etError);
     public
       Session: TSSession;
       EventType: TEventType;
@@ -1471,6 +1471,7 @@ type
     function BuildTriggers(const DataSet: TMySQLQuery): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
     procedure BuildUser(const DataSet: TMySQLQuery);
     procedure ConnectChange(Sender: TObject; Connecting: Boolean);
+    procedure DatabaseChange(const Connection: TMySQLConnection; const NewName: string);
     procedure DoSendEvent(const AEvent: TEvent);
     function GetCaption(): string;
     function GetCharset(): string;
@@ -1479,6 +1480,7 @@ type
     function GetValid(): Boolean;
     procedure SendSQLToDeveloper(const SQL: string);
     procedure SetCreateDesktop(ACreateDesktop: TCreateDesktop);
+    procedure VariableChange(const Connection: TMySQLConnection; const Name, NewValue: string);
   protected
     FLowerCaseTableNames: Byte;
     FSQLParser: TSQLParser;
@@ -1532,7 +1534,6 @@ type
     function UserByCaption(const Caption: string): TSUser;
     function UserByName(const UserName: string): TSUser;
     function VariableByName(const VariableName: string): TSVariable;
-    procedure VariableChange(const Connection: TMySQLConnection; const Name, Value: string);
     property Account: TPAccount read FAccount;
     property Caption: string read GetCaption;
     property Charset: string read GetCharset;
@@ -8992,7 +8993,9 @@ begin
       Result := Result + ' WHERE ' + Session.Connection.EscapeIdentifier('VARIABLE_NAME') + '=' + SQLEscape(Name);
     Result := Result + ';' + #13#10;
   end
-  else if (Session.Connection.MySQLVersion < 50708) then
+  else if (Session.Connection.MySQLVersion < 50714) then
+  // PERFORMANCE_SCHEMA.SESSION_VARIABLES should be available in 5.7.8 and higher.
+  // But a user reported not to have it on your 5.7.12 server.
   begin
     Result := 'SHOW SESSION VARIABLES';
     if (Name <> '') then
@@ -10884,6 +10887,7 @@ begin
   end
   else
   begin
+    Connection.OnDatabaseChange := DatabaseChange;
     Connection.OnVariableChange := VariableChange;
 
     FSQLMonitor := TMySQLMonitor.Create(nil);
@@ -10924,6 +10928,11 @@ begin
     Result := nil
   else
     Result := Databases[Index];
+end;
+
+procedure TSSession.DatabaseChange(const Connection: TMySQLConnection; const NewName: string);
+begin
+  SendEvent(etDatabaseChange, Self, nil, nil);
 end;
 
 procedure TSSession.DecodeInterval(const Value: string; const IntervalType: TSEvent.TIntervalType; var Year, Month, Day, Quarter, Week, Hour, Minute, Second, MSec: Word);
@@ -12032,8 +12041,6 @@ begin
             Inc(Field);
           until (not SQLParseChar(Parse, ','));
       end
-      else if (SQLParseValue(Parse, 'SLEEP')) then
-        DataSet.Open(DataHandle)
       else if (SQLParseColumnNames(Parse) and SQLParseKeyword(Parse, 'FROM') and SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
       begin
         if (Databases.NameCmp(DatabaseName, INFORMATION_SCHEMA) = 0) then
@@ -12464,15 +12471,10 @@ begin
 
   if (not Assigned(Objects) and Status and not Valid and (Connection.MySQLVersion >= 50002) and (Account.Connection.Database = '')) then
   begin
-SQL := SQL + 'SELECT SLEEP(2);' + #13#10;
     SQL := SQL + 'SELECT * FROM ' + Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Connection.EscapeIdentifier('TABLES') + ';' + #13#10;
-SQL := SQL + 'SELECT SLEEP(2);' + #13#10;
     if (Connection.MySQLVersion >= 50010) then SQL := SQL + 'SELECT * FROM ' + Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Connection.EscapeIdentifier('TRIGGERS') + ';' + #13#10;
-SQL := SQL + 'SELECT SLEEP(2);' + #13#10;
     if (Connection.MySQLVersion >= 50004) then SQL := SQL + 'SELECT * FROM ' + Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Connection.EscapeIdentifier('ROUTINES') + ';' + #13#10;
-SQL := SQL + 'SELECT SLEEP(2);' + #13#10;
     if (Connection.MySQLVersion >= 50106) then SQL := SQL + 'SELECT * FROM ' + Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Connection.EscapeIdentifier('EVENTS') + ';' + #13#10;
-SQL := SQL + 'SELECT SLEEP(2);' + #13#10;
   end;
 
 
@@ -12897,14 +12899,14 @@ begin
     Result := Variables[Index];
 end;
 
-procedure TSSession.VariableChange(const Connection: TMySQLConnection; const Name, Value: string);
+procedure TSSession.VariableChange(const Connection: TMySQLConnection; const Name, NewValue: string);
 var
   Variable: TSVariable;
 begin
   Variable := VariableByName(Name);
   if (Assigned(Variable)) then
   begin
-    Variable.FValue := Value;
+    Variable.FValue := NewValue;
     SendEvent(etItemValid, Self, Variables, Variable);
   end;
 end;

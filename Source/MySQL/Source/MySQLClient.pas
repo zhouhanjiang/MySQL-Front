@@ -1369,7 +1369,7 @@ begin
       Result := Size;
     end;
   end
-  else if (1 > MemSize) then
+  else if (MemSize < 1) then
     Result := 0
   else if (Byte(Mem[0]) < $FB) then
   begin
@@ -1383,7 +1383,9 @@ begin
   end
   else if (Byte(Mem[0]) = $FC) then
   begin
-    if (2 <= MemSize) then
+    if (MemSize < 3) then
+      raise Exception.Create('Range check error')
+    else
     begin
       Move(Mem[1], Value, 2);
       Result := 3;
@@ -1391,20 +1393,26 @@ begin
   end
   else if (Byte(Mem[0]) = $FD) then
   begin
-    if (3 <= MemSize) then
+    if (MemSize < 4) then
+      raise Exception.Create('Range check error')
+    else
     begin
       Move(Mem[1], Value, 3);
       Result := 4;
     end;
   end
-  else
+  else if (Byte(Mem[0]) = $FE) then
   begin
-    if (8 <= MemSize) then
+    if (MemSize < 9) then
+      raise Exception.Create('Range check error')
+    else
     begin
       Move(Mem[1], Value, 8);
       Result := 9;
     end;
-  end;
+  end
+  else // Byte(Mem[0]) = $FF
+    raise Exception.Create('Range check error');
 end;
 
 function TMySQL_Packet.ReadPacket(const Buffer: my_char; const Size: my_uint): Boolean;
@@ -1452,64 +1460,6 @@ begin
     Result := ReadSize > 0;
   end;
 end;
-
-//function TMySQL_Packet.ReadPacket(out Value: my_ulonglong; const Size: Byte = 0): Boolean;
-//begin
-//  FillChar(Value, SizeOf(Value), #0);
-//
-//  if ((errno() <> 0) and (errno() <> CR_SERVER_LOST)) then
-//    Result := False
-//  else if (Size > 0) then
-//  begin
-//    Result := PacketBuffer.Offset + Size <= PacketBuffer.Size;
-//    if (Result) then
-//    begin
-//      Move(PacketBuffer.Mem[PacketBuffer.Offset], Value, Size);
-//      Inc(PacketBuffer.Offset, Size);
-//    end;
-//  end
-//  else if (PacketBuffer.Offset + 1 > PacketBuffer.Size) then
-//    Result := False
-//  else if (Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FB) then
-//  begin
-//    Result := True;
-//    Value := NULL_LENGTH;
-//    Inc(PacketBuffer.Offset);
-//  end
-//  else if (Byte(PacketBuffer.Mem[PacketBuffer.Offset]) < $FB) then
-//  begin
-//    Result := True;
-//    Move(PacketBuffer.Mem[PacketBuffer.Offset], Value, 1);
-//    Inc(PacketBuffer.Offset, 1);
-//  end
-//  else if (Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FC) then
-//  begin
-//    Result := PacketBuffer.Offset + 2 <= PacketBuffer.Size;
-//    if (Result) then
-//    begin
-//      Move(PacketBuffer.Mem[PacketBuffer.Offset + 1], Value, 2);
-//      Inc(PacketBuffer.Offset, 3);
-//    end;
-//  end
-//  else if (Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FD) then
-//  begin
-//    Result := PacketBuffer.Offset + 3 <= PacketBuffer.Size;
-//    if (Result) then
-//    begin
-//      Move(PacketBuffer.Mem[PacketBuffer.Offset + 1], Value, 3);
-//      Inc(PacketBuffer.Offset, 4);
-//    end;
-//  end
-//  else
-//  begin
-//    Result := PacketBuffer.Offset + 8 <= PacketBuffer.Size;
-//    if (Result) then
-//    begin
-//      Move(PacketBuffer.Mem[PacketBuffer.Offset + 1], Value, 8);
-//      Inc(PacketBuffer.Offset, 9);
-//    end;
-//  end;
-//end;
 
 function TMySQL_Packet.ReadPacket(out Value: RawByteString; const NTS: Boolean = True; const Size: Byte = 0): Boolean;
 var
@@ -2081,7 +2031,11 @@ begin
           ReadPacket(finfo, False);
 
           if (SERVER_STATUS and SERVER_SESSION_STATE_CHANGED <> 0) then
-            ReadPacket(StateInfo.Data, False);
+            if (ReadPacket(StateInfo.Data, False)) then
+            begin
+              StateInfo.Index := 1;
+              StateInfo.VariablenValue := False;
+            end;
         end
         else
           ReadPacket(finfo, True);
