@@ -351,6 +351,7 @@ object FSession: TFSession
       Top = 0
       Width = 467
       Height = 56
+      Cursor = crSQLWait
       HelpContext = 1035
       Align = alTop
       BevelInner = bvRaised
@@ -394,6 +395,7 @@ object FSession: TFSession
       Top = 310
       Width = 467
       Height = 50
+      Cursor = crSQLWait
       Align = alTop
       BevelInner = bvRaised
       BevelOuter = bvLowered

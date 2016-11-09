@@ -837,6 +837,7 @@ type
 
   private
     ActiveControlOnDeactivate: TWinControl;
+    ActiveDBGrid: TMySQLDBGrid;
     ActiveIDEInputDataSet: TDataSet;
     ActiveListView: TListView;
     ActiveWorkbench: TWWorkbench;
@@ -1041,7 +1042,6 @@ type
   protected
     procedure CreateParams(var Params: TCreateParams); override;
   public
-    ActiveDBGrid: TMySQLDBGrid;
     Session: TSSession;
     StatusBar: TStatusBar;
     ToolBarData: TToolBarData;
@@ -2564,31 +2564,16 @@ begin
       Session.Users.Update()
     else if (URI.Param['system'] = 'variables') then
       Session.Variables.Update()
-    else if (URI.Param['system'] <> Null) then
-      AllowChange := False
     else if (URI.Database = '') then
-    begin
-      if ((ParamToView(URI.Param['view']) = vObjects) and not Session.Update(nil, (URI.Database = '') and (URI.Param['system'] = Null)) and ((URI.Database <> '') or (URI.Param['system'] <> Null))) then
-        AllowChange := False
-      else if ((ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and not Session.Databases.Update()) then
-        AllowChange := False
-    end
-    else if ((URI.Database <> '') and not Session.Databases.Update()) then
+      Session.Update(nil, URI.Param['view'] = Null)
+    else if (not Session.Databases.Update()) then
       AllowChange := False
-    else if (URI.Database <> '') then
+    else
     begin
       Database := Session.DatabaseByName(URI.Database);
       if (not Assigned(Database)) then
         NotFound := True
-      else if (not (ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and not Database.Update(URI.Param['view'] = Null) and ((URI.Table <> '') or (URI.Param['objecttype'] <> Null))) then
-        AllowChange := False
-      else if ((URI.Table <> '') and not Database.Tables.Update()) then
-        AllowChange := False
-      else if (((URI.Param['objecttype'] = 'procedure') or (URI.Param['objecttype'] = 'function')) and (URI.Param['object'] <> Null) and not Database.Routines.Update()) then
-        AllowChange := False
-      else if ((URI.Param['objecttype'] = 'trigger') and (URI.Param['object'] <> Null) and not Database.Triggers.Update()) then
-        AllowChange := False
-      else if ((URI.Param['objecttype'] = 'event') and (URI.Param['object'] <> Null) and not Database.Events.Update()) then
+      else if (not (ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and not Database.Update((URI.Param['view'] = Null) and (URI.Table = '')) and ((URI.Table <> '') or (URI.Param['object'] <> Null))) then
         AllowChange := False
       else if ((URI.Table <> '') or (URI.Param['object'] <> Null)) then
       begin
@@ -2607,10 +2592,8 @@ begin
 
         if (not Assigned(DBObject)) then
           NotFound := True
-        else if (not DBObject.Update() and (URI.Param['objecttype'] = 'trigger')) then
-          AllowChange := False
-        else if (URI.Param['objecttype'] = 'trigger') and ((URI.Param['object'] = Null) or not Assigned(Database.TriggerByName(URI.Param['object']))) then
-          NotFound := True;
+        else if ((DBObject is TSBaseTable) and (URI.Param['objecttype'] = 'trigger') and (URI.Param['object'] <> Null) and not DBObject.Update()) then
+          AllowChange := False;
       end;
     end;
 
@@ -8142,9 +8125,8 @@ begin
         Result := nil;
     end;
 
-  if (Assigned(Result)) then
-    for I := 0 to PListView.ControlCount - 1 do
-      PListView.Controls[I].Visible := PListView.Controls[I] = Result;
+  for I := 0 to PListView.ControlCount - 1 do
+    PListView.Controls[I].Visible := PListView.Controls[I] = Result;
 end;
 
 function TFSession.GetActiveSynMemo(): TSynMemo;
@@ -8195,9 +8177,8 @@ begin
       Result := nil;
   end;
 
-  if (Assigned(Result) and (Result <> FQueryBuilderSynMemo)) then
-    for I := 0 to PSynMemo.ControlCount - 1 do
-      PSynMemo.Controls[I].Visible := PSynMemo.Controls[I] = Result;
+  for I := 0 to PSynMemo.ControlCount - 1 do
+    PSynMemo.Controls[I].Visible := PSynMemo.Controls[I] = Result;
 end;
 
 function TFSession.GetActiveWorkbench(): TWWorkbench;
@@ -13931,12 +13912,16 @@ begin
             Result := not Session.Update(List, True);
             List.Free();
           end;
+        iiBaseTable,
+        iiSystemView,
+        iiView:
+          TSTable(FNavigator.Selected.Data).Update();
       end;
     vBrowser:
       if ((TObject(FNavigator.Selected.Data) is TSTable) and not TSTable(FNavigator.Selected.Data).ValidData) then
         TableOpen(nil);
     vIDE:
-      PContentChange(nil);
+      TSDBObject(FNavigator.Selected.Data).Update();
     vDiagram:
       if (not Assigned(ActiveWorkbench) and Assigned(FNavigator.Selected)) then
       begin

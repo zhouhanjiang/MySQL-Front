@@ -542,7 +542,6 @@ type
     FFilterSQL: string;
     function GetFields(): TSTableFields; virtual;
     procedure SetName(const AName: string); override;
-    procedure SetSource(const ASource: string); override;
   public
     procedure Assign(const Source: TSTable); reintroduce; virtual;
     constructor Create(const ASDBObjects: TSDBObjects; const AName: string = ''); reintroduce; virtual;
@@ -2500,7 +2499,7 @@ begin
       Session.UnparsableSQL := Session.UnparsableSQL
         + '# SetSource()' + #13#10
         + '# Error: ' + Session.SQLParser.ErrorMessage + #13#10
-        + '# Hex: ' + SQLEscapeBin(Source, True) + #13#10
+        + '# Hex: ' + SQLEscapeBin(@TMySQLQuery(Field.DataSet).LibRow^[Field.FieldNo - 1], TMySQLQuery(Field.DataSet).LibLengths^[Field.FieldNo - 1], True) + #13#10
         + Source + #13#10 + #13#10;
     Session.SQLParser.Clear();
   end;
@@ -3792,13 +3791,6 @@ begin
     inherited SetName(LowerCase(AName))
   else
     inherited SetName(AName);
-end;
-
-procedure TSTable.SetSource(const ASource: string);
-begin
-  InvalidateData();
-
-  inherited;
 end;
 
 procedure TSTable.PushBuildEvent(const SItemsEvents: Boolean = True);
@@ -12231,11 +12223,11 @@ begin
     else
       SQL := SQL + 'SELECT SYSDATE(),CURRENT_USER();' + #13#10;
 
-  if (not Assigned(FUser) and ((Connection.MySQLVersion >= 40102) or (FCurrentUser <> ''))) then
-    if (Connection.MySQLVersion < 40102) then
-      SQL := SQL + 'SHOW GRANTS FOR ' + EscapeUser(FCurrentUser) + ';' + #13#10
-    else
-      SQL := SQL + 'SHOW GRANTS FOR CURRENT_USER();' + #13#10;
+  if (not Assigned(FUser))  then
+    if (Connection.MySQLVersion >= 40102) then
+      SQL := SQL + 'SHOW GRANTS FOR CURRENT_USER();' + #13#10
+    else if (FCurrentUser <> '') then
+      SQL := SQL + 'SHOW GRANTS FOR ' + EscapeUser(FCurrentUser) + ';' + #13#10;
 
   if ((Connection.MySQLVersion > 40100) and Assigned(Account) and (Account.ManualURLVersion <> Connection.ServerVersionStr)) then
   begin

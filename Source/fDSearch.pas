@@ -104,8 +104,10 @@ type
     ReplaceSession: TSSession;
     SQLWait: Boolean;
     Tables: array of TDSTableItem;
-    WantedExecute: Boolean;
-    WantedNodeExpand: TTreeNode;
+    Wanted: record
+      Node: TTreeNode;
+      Page: TTabSheet;
+    end;
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     function GetSession(const TreeNode: TTreeNode): TSSession;
     procedure OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
@@ -113,6 +115,7 @@ type
     procedure OnTerminate(Sender: TObject);
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPostAfterExecuteSQL(var Message: TMessage); message UM_POST_AFTEREXECUTESQL;
     procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
   public
@@ -158,8 +161,15 @@ begin
 end;
 
 procedure TDSearch.FBBackClick(Sender: TObject);
+var
+  PageIndex: Integer;
 begin
-  PageControl.SelectNextPage(False);
+  for PageIndex := PageControl.ActivePageIndex - 1 downto 0 do
+    if (PageControl.Pages[PageIndex].Enabled) then
+    begin
+      PageControl.ActivePageIndex := PageIndex;
+      exit;
+    end;
 end;
 
 procedure TDSearch.FBCancelClick(Sender: TObject);
@@ -172,8 +182,15 @@ begin
 end;
 
 procedure TDSearch.FBForwardClick(Sender: TObject);
+var
+  PageIndex: Integer;
 begin
-  PageControl.SelectNextPage(True);
+  for PageIndex := PageControl.ActivePageIndex + 1 to PageControl.PageCount - 1 do
+    if (PageControl.Pages[PageIndex].Enabled) then
+    begin
+      PageControl.ActivePageIndex := PageIndex;
+      exit;
+    end;
 end;
 
 procedure TDSearch.FBHelpClick(Sender: TObject);
@@ -200,11 +217,8 @@ procedure TDSearch.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if (Event.EventType in [etAfterExecuteSQL]) then
   begin
-    FSelect.Cursor := crDefault;
-    if (Assigned(WantedNodeExpand)) then
-      WantedNodeExpand.Expand(False)
-    else if (WantedExecute) then
-      TSExecuteShow(Event.Sender);
+    if (Assigned(Wanted.Node) or Assigned(Wanted.Page) and Assigned(Wanted.Page.OnShow)) then
+      PostMessage(Handle, UM_POST_AFTEREXECUTESQL, 0, 0);
   end;
 end;
 
@@ -287,8 +301,6 @@ end;
 procedure TDSearch.FormShow(Sender: TObject);
 var
   I: Integer;
-  J: Integer;
-  Node: TTreeNode;
 begin
   if (SearchOnly) then
   begin
@@ -339,8 +351,8 @@ begin
     end;
   end;
 
-  WantedExecute := False;
-  WantedNodeExpand := nil;
+  Wanted.Node := nil;
+  Wanted.Page := nil;
   FErrorMessages.Visible := not SearchOnly;
   FTables.Visible := SearchOnly;
   FFFindTextChange(Sender);
@@ -349,30 +361,7 @@ begin
   for I := 0 to Length(Sessions) - 1 do
   begin
     Sessions[I].Created := False;
-    if (Assigned(Session) and (Accounts[I] = Session.Account)) then
-      Sessions[I].Session := Session
-    else
-      Sessions[I].Session := nil;
-  end;
-
-  for I := 0 to Accounts.Count - 1 do
-  begin
-    Node := FSelect.Items.Add(nil, Accounts[I].Name);
-    Node.ImageIndex := iiServer;
-    Node.HasChildren := True;
-
-    if (Assigned(Session) and (Accounts[I] = Session.Account) and Session.Databases.Valid) then
-    begin
-      FSelect.Selected := Node;
-      Node.Expand(False);
-      if (Assigned(Database)) then
-        for J := 0 to Node.Count - 1 do
-          if (Node[J].Data = Database) then
-          begin
-            FSelect.Selected := Node[J];
-            Node[J].Expand(False);
-          end;
-    end;
+    Sessions[I].Session := nil;
   end;
 
   FFFindText.Text := '';
@@ -380,8 +369,8 @@ begin
   FRFindText.Text := '';
   FReplaceText.Text := '';
 
-  TSFOptions.TabVisible := SearchOnly;
-  TSROptions.TabVisible := not SearchOnly;
+  TSFOptions.Enabled := SearchOnly;
+  TSROptions.Enabled := not SearchOnly;
 
   PageControl.ActivePage := TSSelect;
 
@@ -436,12 +425,12 @@ var
 begin
   TreeView := TTreeView_Ext(Sender);
 
-  if (Assigned(WantedNodeExpand)) then
+  if (Assigned(Wanted.Node)) then
   begin
     for I := 0 to Length(Sessions) - 1 do
       if (Assigned(Sessions[I].Session)) then
         Sessions[I].Session.UnRegisterEventProc(FormSessionEvent);
-    WantedNodeExpand := nil;
+    Wanted.Node := nil;
   end;
 
   if (Assigned(Node)) then
@@ -455,10 +444,7 @@ begin
             begin
               Node.Data := Session;
               if (not Session.Update()) then
-              begin
-                WantedNodeExpand := Node;
-                TreeView.Cursor := crSQLWait;
-              end
+                Wanted.Node := Node
               else
               begin
                 for I := 0 to Session.Databases.Count - 1 do
@@ -478,10 +464,7 @@ begin
             Session := TSSession(Node.Parent.Data);
             Database := Session.DatabaseByName(Node.Text);
             if ((not Database.Tables.Update() or not Session.Update(Database.Tables))) then
-            begin
-              WantedNodeExpand := Node;
-              TreeView.Cursor := crSQLWait;
-            end
+              Wanted.Node := Node
             else
             begin
               for I := 0 to Database.Tables.Count - 1 do
@@ -501,10 +484,7 @@ begin
             Database := Session.DatabaseByName(Node.Parent.Text);
             Table := Database.BaseTableByName(Node.Text);
             if (not Table.Update()) then
-            begin
-              WantedNodeExpand := Node;
-              TreeView.Cursor := crSQLWait;
-            end
+              Wanted.Node := Node
             else
             begin
               for I := 0 to Table.Fields.Count - 1 do
@@ -518,6 +498,11 @@ begin
           end;
       end;
     end;
+
+  if (not Assigned(Wanted.Node)) then
+    TreeView.Cursor := crDefault
+  else
+    TreeView.Cursor := crSQLWait;
 end;
 
 procedure TDSearch.FSelectGetImageIndex(Sender: TObject; Node: TTreeNode);
@@ -726,32 +711,37 @@ procedure TDSearch.TSExecuteShow(Sender: TObject);
     case (Node.ImageIndex) of
       iiServer:
         begin
-          WantedExecute := not Session.Update();
-          if (not WantedExecute) then
+          if (not Session.Update()) then
+            Wanted.Page := TSExecute
+          else
             for I := 0 to Session.Databases.Count - 1 do
-              if (not WantedExecute and not (Session.Databases[I] is TSSystemDatabase)) then
+              if (not (Session.Databases[I] is TSSystemDatabase)) then
               begin
                 Database := Session.Databases[I];
-                WantedExecute := not Database.Tables.Update();
-                if (not WantedExecute) then
+                if (not Database.Tables.Update()) then
+                  Wanted.Page := TSExecute
+                else
                 begin
                   for J := 0 to Database.Tables.Count - 1 do
                     if (Database.Tables[J] is TSBaseTable) then
                       Objects.Add(Database.Tables[J]);
-                  WantedExecute := not Session.Update(Objects);
+                  if (not Session.Update(Objects)) then
+                    Wanted.Page := TSExecute;
                 end;
               end;
         end;
       iiDatabase:
         begin
           Database := Session.DatabaseByName(Node.Text);
-          WantedExecute := not Database.Tables.Update();
-          if (not WantedExecute) then
+          if (not Database.Tables.Update()) then
+            Wanted.Page := TSExecute
+          else
           begin
             for J := 0 to Database.Tables.Count - 1 do
               if (Database.Tables[J] is TSBaseTable) then
                 Objects.Add(Database.Tables[J]);
-            WantedExecute := not Session.Update(Objects);
+            if (not Session.Update(Objects)) then
+              Wanted.Page := TSExecute;
           end;
         end;
       iiBaseTable:
@@ -759,7 +749,8 @@ procedure TDSearch.TSExecuteShow(Sender: TObject);
           for J := 0 to Node.Parent.Count - 1 do
             if (Node.Parent.Item[J].Selected) then
               Objects.Add(Node.Parent.Item[J].Data);
-          WantedExecute := not Session.Update(Objects);
+          if (not Session.Update(Objects)) then
+            Wanted.Page := TSExecute;
         end;
     end;
     Objects.Free();
@@ -800,7 +791,7 @@ begin
   Session := TSSession(Node.Data);
   InitializeNode(Session, FSelect.Selected);
 
-  if (not WantedExecute) then
+  if (not Assigned(Wanted.Page)) then
   begin
     Preferences.Find.FindTextMRU.Add(Trim(FFFindText.Text));
 
@@ -912,6 +903,11 @@ begin
 
     Search.Start();
   end;
+
+  if (not Assigned(Wanted.Page)) then
+    SetControlCursor(GProgress, crDefault)
+  else
+    SetControlCursor(GProgress, crSQLWait);
 end;
 
 procedure TDSearch.TSFOptionsShow(Sender: TObject);
@@ -943,7 +939,32 @@ begin
 end;
 
 procedure TDSearch.TSSelectShow(Sender: TObject);
+var
+  I: Integer;
+  J: Integer;
+  Node: TTreeNode;
 begin
+  if (FSelect.Items.Count = 0) then
+    for I := 0 to Accounts.Count - 1 do
+    begin
+      Node := FSelect.Items.Add(nil, Accounts[I].Name);
+      Node.ImageIndex := iiServer;
+      Node.HasChildren := True;
+
+      if (Assigned(Session) and (Accounts[I] = Session.Account) and Session.Databases.Valid) then
+      begin
+        FSelect.Selected := Node;
+        Node.Expand(False);
+        if (Assigned(Database)) then
+          for J := 0 to Node.Count - 1 do
+            if (Node[J].Data = Database) then
+            begin
+              FSelect.Selected := Node[J];
+              Node[J].Expand(False);
+            end;
+      end;
+    end;
+
   FBBack.Enabled := False;
   FBForward.Caption := Preferences.LoadStr(229) + ' >';
 
@@ -986,6 +1007,23 @@ begin
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBBack.Caption := '< ' + Preferences.LoadStr(228);
+end;
+
+procedure TDSearch.UMPostAfterExecuteSQL(var Message: TMessage);
+var
+  Node: TTreeNode;
+begin
+  if (Assigned(Wanted.Node)) then
+  begin
+    Node := Wanted.Node;
+    Wanted.Node := nil;
+    Node.Expand(False);
+  end
+  else if (Assigned(Wanted.Page)) then
+  begin
+    Wanted.Page.OnShow(nil);
+    Wanted.Page := nil;
+  end;
 end;
 
 procedure TDSearch.UMTerminate(var Message: TMessage);

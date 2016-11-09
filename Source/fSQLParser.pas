@@ -555,7 +555,6 @@ type
 
         otBinary,                 // "BINARY"
         otCollate,                // "COLLATE"
-        otDistinct,               // "DISTINCT"
 
         otUnaryNot,               // "!"
 
@@ -1055,7 +1054,6 @@ type
 
         'otBinary',
         'otCollate',
-        'otDistinct',
 
         'otUnaryNot',
 
@@ -1301,7 +1299,7 @@ type
         ntWeightStringFunc
       ];
 
-      otUnaryOperators = [otDistinct, otUnaryNot, otUnaryMinus, otUnaryPlus, otInvertBits];
+      otUnaryOperators = [otUnaryNot, otUnaryMinus, otUnaryPlus, otInvertBits];
 
       OperatorPrecedenceByOperatorType: array [TOperatorType] of Integer = (
         0,   // otUnknown
@@ -1312,7 +1310,6 @@ type
 
         3,   // otBinary
         3,   // otCollate
-        3,   // otDistinct
 
         4,   // otUnaryNot
 
@@ -2422,7 +2419,7 @@ type
           EnableTag: TOffset;
           CommentValue: TOffset;
           DoTag: TOffset;
-          Body: TOffset;
+          Stmt: TOffset;
         end;
       private
         Heritage: TStmt;
@@ -2477,7 +2474,7 @@ type
           DeterministicTag: TOffset;
           NatureOfDataTag: TOffset;
           SQLSecurityTag: TOffset;
-          Body: TOffset;
+          Stmt: TOffset;
         end;
       private
         Heritage: TStmt;
@@ -2783,7 +2780,7 @@ type
           TableIdent: TOffset;
           ForEachRowTag: TOffset;
           OrderValue: TOffset;
-          Body: TOffset;
+          Stmt: TOffset;
         end;
       private
         Heritage: TStmt;
@@ -5987,7 +5984,6 @@ type
     TSpacer = (sNone, sSpace, sReturn);
     TExprOptions = set of (eoIn, eoAllFields);
   private
-// Why is comment need? Without it, there are access violations in Delphi XE2 ...
     diBIGINT,
     diBINARY,
     diBIT,
@@ -6552,6 +6548,7 @@ type
     FMySQLVersion: Integer;
     FRoot: TOffset;
     FunctionList: TWordList;
+    InCreateEventStmt: Boolean;
     InCreateFunctionStmt: Boolean;
     InCreateProcedureStmt: Boolean;
     InCreateTriggerStmt: Boolean;
@@ -6793,6 +6790,8 @@ type
     function ParseEngineIdent(): TOffset;
     function ParseExecuteStmt(): TOffset;
     function ParseExplainStmt(): TOffset;
+// Why is this comment needed inside the Delphi XE2 IDE?
+// Without it, a call of ParseExpr() crashes at "ParseExpr([eoIn])"
     function ParseExpr(): TOffset; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseExpr(const Options: TExprOptions): TOffset; overload;
     function ParseExtractFunc(): TOffset;
@@ -11675,6 +11674,7 @@ begin
   FirstError.Line := 0;
   FirstError.Pos := nil;
   FirstError.Token := 0;
+  InCreateEventStmt := False;
   InCreateFunctionStmt := False;
   InCreateProcedureStmt := False;
   InCreateTriggerStmt := False;
@@ -12162,7 +12162,7 @@ begin
   FormatNode(Nodes.CommentValue, stReturnBefore);
   FormatNode(Nodes.DoTag, stReturnBefore);
   Commands.DecreaseIndent();
-  FormatNode(Nodes.Body, stReturnBefore);
+  FormatNode(Nodes.Stmt, stReturnBefore);
 end;
 
 procedure TSQLParser.FormatCreateIndexStmt(const Nodes: TCreateIndexStmt.TNodes);
@@ -12215,7 +12215,7 @@ begin
   FormatNode(Nodes.NatureOfDataTag, stReturnBefore);
   FormatNode(Nodes.SQLSecurityTag, stReturnBefore);
   Commands.DecreaseIndent();
-  FormatNode(Nodes.Body, stReturnBefore);
+  FormatNode(Nodes.Stmt, stReturnBefore);
 end;
 
 procedure TSQLParser.FormatCreateServerStmt(const Nodes: TCreateServerStmt.TNodes);
@@ -12414,7 +12414,7 @@ begin
   FormatNode(Nodes.ForEachRowTag, stReturnBefore);
   FormatNode(Nodes.OrderValue, stReturnBefore);
   Commands.DecreaseIndent();
-  FormatNode(Nodes.Body, stReturnBefore);
+  FormatNode(Nodes.Stmt, stReturnBefore);
 end;
 
 procedure TSQLParser.FormatCreateUserStmt(const Nodes: TCreateUserStmt.TNodes);
@@ -15215,11 +15215,11 @@ end;
 
 function TSQLParser.ParseAlterTableStmt(const AlterTag, IgnoreTag: TOffset): TOffset;
 var
+  Comma: TOffset;
   Found: Boolean;
   Found2: Boolean;
   ListNodes: TList.TNodes;
   Nodes: TAlterTableStmt.TNodes;
-  OldCurrentToken: TOffset;
   OldSpecificationsCount: Integer;
   Specifications: TOffsetList;
   TableOptionFound: Boolean;
@@ -15241,9 +15241,8 @@ begin
     Nodes.Ident := ParseTableIdent();
 
 
-  Found := True; OldCurrentToken := CurrentToken; 
-  while (not ErrorFound and Found) do
-  begin
+  Found := True;
+  repeat
 
     Found2 := True; OldSpecificationsCount := Specifications.Count;
     while (not ErrorFound and Found2) do
@@ -15516,18 +15515,18 @@ begin
     else
       Found := False;
 
-    if (not ErrorFound and Found and IsSymbol(ttComma)) then
-      Specifications.Add(ParseSymbol(ttComma));
-  end;
+    if (not ErrorFound and Found) then
+    begin
+      Comma := ParseSymbol(ttComma);
+      if (Comma > 0) then
+        Specifications.Add(Comma);
+    end;
+  until (ErrorFound or not Found);
 
-  if (not ErrorFound) then
-    if (EndOfStmt(CurrentToken) 
-      and (Specifications.Count > 0) 
-      and IsToken(Specifications[Specifications.Count - 1]) 
-      and (TokenPtr(Specifications[Specifications.Count - 1])^.TokenType = ttComma)) then
+  if (not ErrorFound and (Specifications.Count = 0)) then
+    if (EndOfStmt(CurrentToken)) then
       SetError(PE_IncompleteStmt)
-    else if (not EndOfStmt(CurrentToken)
-      and (CurrentToken = OldCurrentToken)) then
+    else
       SetError(PE_UnexpectedToken);
 
   if (not ErrorFound) then
@@ -16401,7 +16400,13 @@ begin
     Nodes.DoTag := ParseTag(kiDO);
 
   if (not ErrorFound) then
-    Nodes.Body := ParsePL_SQLStmt();
+  begin
+    InCreateEventStmt := True;
+    Nodes.Stmt := ParsePL_SQLStmt();
+    if (not ErrorFound and (Nodes.Stmt = 0)) then
+      SetError(PE_IncompleteStmt);
+    InCreateEventStmt := False;
+  end;
 
   Result := TCreateEventStmt.Create(Self, Nodes);
 end;
@@ -16525,13 +16530,11 @@ begin
 
   if (not ErrorFound) then
   begin
-    if (InCreateFunctionStmt) then
-      raise Exception.Create(SUnknownError);
-    InCreateFunctionStmt := ARoutineType = rtFunction;
-    if (InCreateProcedureStmt) then
-      raise Exception.Create(SUnknownError);
     InCreateProcedureStmt := ARoutineType = rtProcedure;
-    Nodes.Body := ParsePL_SQLStmt();
+    InCreateFunctionStmt := ARoutineType = rtFunction;
+    Nodes.Stmt := ParsePL_SQLStmt();
+    if (not ErrorFound and (Nodes.Stmt = 0)) then
+      SetError(PE_IncompleteStmt);
     InCreateFunctionStmt := False;
     InCreateProcedureStmt := False;
   end;
@@ -16704,16 +16707,16 @@ begin
   else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0)
     and IsTag(kiDATABASE)) then
     Result := ParseCreateDatabaseStmt(CreateTag, OrReplaceTag)
-  else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0)
+  else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0) and not (InCreateEventStmt or InCreateFunctionStmt or InCreateProcedureStmt or InCreateTriggerStmt)
     and IsTag(kiEVENT)) then
     Result := ParseCreateEventStmt(CreateTag, OrReplaceTag, DefinerValue)
-  else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0) and not InCreateFunctionStmt
+  else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0) and not (InCreateEventStmt or InCreateFunctionStmt or InCreateProcedureStmt or InCreateTriggerStmt)
     and IsTag(kiFUNCTION)) then
     Result := ParseCreateRoutineStmt(rtFunction, CreateTag, OrReplaceTag, DefinerValue)
   else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0)
     and IsTag(kiINDEX)) then
     Result := ParseCreateIndexStmt(CreateTag, OrReplaceTag, KindTag)
-  else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0) and not InCreateProcedureStmt
+  else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0) and not (InCreateEventStmt or InCreateFunctionStmt or InCreateProcedureStmt or InCreateTriggerStmt)
     and IsTag(kiPROCEDURE)) then
     Result := ParseCreateRoutineStmt(rtProcedure, CreateTag, OrReplaceTag, DefinerValue)
   else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0)
@@ -16728,7 +16731,7 @@ begin
   else if ((OrReplaceTag = 0) and (AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0)
     and IsTag(kiTABLESPACE)) then
     Result := ParseCreateTablespaceStmt(CreateTag)
-  else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0)
+  else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0) and not (InCreateEventStmt or InCreateFunctionStmt or InCreateProcedureStmt or InCreateTriggerStmt)
     and IsTag(kiTRIGGER)) then
     Result := ParseCreateTriggerStmt(CreateTag, OrReplaceTag, DefinerValue)
   else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0)
@@ -17208,6 +17211,7 @@ begin
   ConstraintNode := 0;
   if (IsTag(kiCONSTRAINT)) then
     if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.TokenType in ttIdents)
+      and not IsNextTag(1, kiPRIMARY)
       and not IsNextTag(1, kiFOREIGN)
       and not IsNextTag(1, kiUNIQUE)) then
       ConstraintNode := ParseValue(kiCONSTRAINT, vaNo, ParseDbIdent)
@@ -17683,10 +17687,7 @@ begin
   Nodes.DefinerNode := DefinerValue;
 
   if (not ErrorFound) then
-    if (InCreateTriggerStmt) then
-      SetError(PE_UnexpectedToken)
-    else
-      Nodes.TriggerTag := ParseTag(kiTRIGGER);
+    Nodes.TriggerTag := ParseTag(kiTRIGGER);
 
   if (not ErrorFound) then
     if (IsTag(kiIF, kiNOT, kiEXISTS)) then
@@ -17735,7 +17736,7 @@ begin
   if (not ErrorFound) then
   begin
     InCreateTriggerStmt := True;
-    Nodes.Body := ParsePL_SQLStmt();
+    Nodes.Stmt := ParsePL_SQLStmt();
     InCreateTriggerStmt := False;
   end;
 
@@ -19005,6 +19006,8 @@ begin
             Nodes.Add(ParseMatchFunc())
           else if ((Length = 3) and (StrLIComp(Text, 'MAX', Length) = 0)) then
             Nodes.Add(ParseSumFunc())
+          else if ((Length = 3) and (StrLIComp(Text, 'MIN', Length) = 0)) then
+            Nodes.Add(ParseSumFunc())
           else if ((Length = 8) and (StrLIComp(Text, 'POSITION', Length) = 0)) then
             Nodes.Add(ParsePositionFunc())
           else if ((Length = 7) and (StrLIComp(Text, 'SUBDATE', Length) = 0)) then
@@ -19019,6 +19022,9 @@ begin
             Nodes.Add(ParseTrimFunc())
           else if ((Length = 13) and (StrLIComp(Text, 'WEIGHT_STRING', Length) = 0)) then
             Nodes.Add(ParseWeightStringFunc())
+          else if ((FunctionList.IndexOf(Text, Length) < 0)
+            and (ReservedWordList.IndexOf(Text, Length) >= 0)) then
+            SetError(PE_UnexpectedToken)
           else
             Nodes.Add(ParseDefaultFunc()); // Func()
         end
@@ -19040,6 +19046,8 @@ begin
             Nodes.Add(ParseDefaultFunc()) // Db.Func()
           else
             Nodes.Add(ParseDbIdent(ditField, True, eoAllFields in Options)) // Tbl.Clmn or Db.Tbl.Clmn
+        else if (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) >= 0) then
+          SetError(PE_UnexpectedToken)
         else
           Nodes.Add(ParseDbIdent(ditUnknown, False, eoAllFields in Options))
       else
@@ -19065,7 +19073,6 @@ begin
             otDot:
               SetError(PE_UnexpectedToken, Nodes[NodeIndex]);
             otBinary,
-            otDistinct,
             otInvertBits,
             otNot,
             otUnaryMinus,
@@ -26745,7 +26752,6 @@ begin
     OperatorTypeByKeywordIndex[kiBETWEEN]  := otBetween;
     OperatorTypeByKeywordIndex[kiBINARY]   := otBinary;
     OperatorTypeByKeywordIndex[kiCOLLATE]  := otCollate;
-    OperatorTypeByKeywordIndex[kiDISTINCT] := otDistinct;
     OperatorTypeByKeywordIndex[kiDIV]      := otDiv;
     OperatorTypeByKeywordIndex[kiESCAPE]   := otEscape;
     OperatorTypeByKeywordIndex[kiIS]       := otIs;

@@ -150,7 +150,7 @@ begin
       NextActivePageIndex := I;
   if (NextActivePageIndex >= 0) then
     for I := NextActivePageIndex + 1 to PageControl.PageCount - 1 do
-      PageControl.Pages[I].TabVisible := False;
+      PageControl.Pages[I].Enabled := False;
 
   if (not FBBack.Enabled) then
     FBForward.Caption := Preferences.LoadStr(229) + ' >'
@@ -171,8 +171,15 @@ begin
 end;
 
 procedure TDTransfer.FBBackClick(Sender: TObject);
+var
+  PageIndex: Integer;
 begin
-  PageControl.SelectNextPage(False);
+  for PageIndex := PageControl.ActivePageIndex - 1 downto 0 do
+    if (PageControl.Pages[PageIndex].Enabled) then
+    begin
+      PageControl.ActivePageIndex := PageIndex;
+      exit;
+    end;
 end;
 
 procedure TDTransfer.FBCancelClick(Sender: TObject);
@@ -185,8 +192,15 @@ begin
 end;
 
 procedure TDTransfer.FBForwardClick(Sender: TObject);
+var
+  PageIndex: Integer;
 begin
-  PageControl.SelectNextPage(True);
+  for PageIndex := PageControl.ActivePageIndex + 1 to PageControl.PageCount - 1 do
+    if (PageControl.Pages[PageIndex].Enabled) then
+    begin
+      PageControl.ActivePageIndex := PageIndex;
+      exit;
+    end;
 end;
 
 procedure TDTransfer.FBHelpClick(Sender: TObject);
@@ -198,7 +212,7 @@ procedure TDTransfer.FDataClick(Sender: TObject);
 begin
   FStructure.Checked := FStructure.Checked or FData.Checked;
 
-  TSExecute.TabVisible := FStructure.Checked;
+  TSExecute.Enabled := FStructure.Checked;
   CheckActivePageChange(TSWhat.PageIndex);
 end;
 
@@ -209,13 +223,6 @@ end;
 
 procedure TDTransfer.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = etItemsValid)
-    and (Wanted.Node.ImageIndex = iiServer) and (Event.Items = GetSession(Wanted.Node).Databases)) then
-    Wanted.Node.Expand(False)
-  else if ((Event.EventType = etItemValid)
-    and (Wanted.Node.ImageIndex = iiDatabase) and (Event.Item = Wanted.Node.Data)) then
-    Wanted.Node.Expand(False);
-
   if (Event.EventType = etError) then
   begin
     FSource.Cursor := crDefault;
@@ -227,7 +234,7 @@ begin
   end
   else if (Event.EventType = etAfterExecuteSQL) then
   begin
-    if (Assigned(Wanted.Page) and Assigned(Wanted.Page.OnShow)) then
+    if (Assigned(Wanted.Node) or Assigned(Wanted.Page) and Assigned(Wanted.Page.OnShow)) then
       PostMessage(Handle, UM_POST_AFTEREXECUTESQL, 0, 0);
   end;
 end;
@@ -297,20 +304,15 @@ begin
   for I := 0 to Length(Sessions) - 1 do
   begin
     Sessions[I].Created := False;
-    if (Assigned(SourceSession) and (Accounts[I] = SourceSession.Account)) then
-      Sessions[I].Session := SourceSession
-    else
-      Sessions[I].Session := nil;
+    Sessions[I].Session := nil;
   end;
 
 
-  TSSelect.TabVisible := True;
-  TSWhat.TabVisible := False;
-  TSExecute.TabVisible := False;
+  TSSelect.Enabled := True;
+  TSWhat.Enabled := False;
+  TSExecute.Enabled := False;
 
-  for I := 0 to PageControl.PageCount - 1 do
-    if ((PageControl.ActivePageIndex < 0) and PageControl.Pages[I].TabVisible) then
-      PageControl.ActivePageIndex := I;
+  PageControl.ActivePage := TSSelect;
   CheckActivePageChange(PageControl.ActivePageIndex);
 
   FBCancel.Caption := Preferences.LoadStr(30);
@@ -334,7 +336,7 @@ procedure TDTransfer.FStructureClick(Sender: TObject);
 begin
   FData.Checked := FData.Checked and FStructure.Checked;
 
-  TSExecute.TabVisible := FStructure.Checked;
+  TSExecute.Enabled := FStructure.Checked;
   CheckActivePageChange(TSWhat.PageIndex);
 end;
 
@@ -455,7 +457,7 @@ begin
     if ((Sender = FSource) and Assigned(Node)) then
       FSource.MultiSelect := Assigned(Node.Parent);
 
-    TSWhat.TabVisible := Assigned(FSource.Selected) and Assigned(FSource.Selected.Parent) and Assigned(FDestination.Selected)
+    TSWhat.Enabled := Assigned(FSource.Selected) and Assigned(FSource.Selected.Parent) and Assigned(FDestination.Selected)
       and (FSource.Selected.Parent.Level = FDestination.Selected.Level)
       and ((FSource.Selected.ImageIndex <> iiDatabase) or (FSource.Selected.Parent.Text <> FDestination.Selected.Text))
       and ((FSource.Selected.ImageIndex <> iiBaseTable) or (FSource.Selected.Parent.Text <> FDestination.Selected.Text) or (FSource.Selected.Parent.Parent.Text <> FDestination.Selected.Parent.Text));
@@ -603,6 +605,14 @@ var
   SourceDatabase: TSDatabase;
   SourceSession: TSSession;
 begin
+  FSource.Items.BeginUpdate();
+  FSource.Items.Clear();
+  FSource.Items.EndUpdate();
+  FDestination.Items.BeginUpdate();
+  FDestination.Items.Clear();
+  FDestination.Items.EndUpdate();
+
+
   FEntieredObjects.Caption := '';
   FDoneObjects.Caption := '';
   FEntieredRecords.Caption := '';
@@ -771,45 +781,36 @@ var
   J: Integer;
   Node: TTreeNode;
 begin
-  FSourceOnChange := FSource.OnChange;
-  FSource.OnChange := nil;
-  FDestinationOnChange := FDestination.OnChange;
-  FDestination.OnChange := nil;
-
-  FSource.Items.BeginUpdate();
-  FSource.Items.Clear();
-  FSource.Items.EndUpdate();
-  FDestination.Items.BeginUpdate();
-  FDestination.Items.Clear();
-  FDestination.Items.EndUpdate();
-
-  for I := 0 to Accounts.Count - 1 do
+  if (FSource.Items.Count = 0) then
   begin
-    Node := FSource.Items.Add(nil, Accounts[I].Name);
-    Node.ImageIndex := iiServer;
-    Node.HasChildren := True;
-    if (Assigned(SourceSession) and (Accounts[I] = SourceSession.Account) and SourceSession.Databases.Valid) then
+    FSourceOnChange := FSource.OnChange;
+    FSource.OnChange := nil;
+    FDestinationOnChange := FDestination.OnChange;
+    FDestination.OnChange := nil;
+
+    for I := 0 to Accounts.Count - 1 do
     begin
-      FSource.Selected := Node;
-      Node.Expand(False);
-      if (Assigned(SourceDatabase)) then
-        for J := 0 to Node.Count - 1 do
-          if (Node[J].Data = SourceDatabase) then
-          begin
-            FSource.Selected := Node;
-            Node[J].Expand(False);
-          end;
+      Node := FSource.Items.Add(nil, Accounts[I].Name);
+      Node.ImageIndex := iiServer;
+      Node.HasChildren := True;
+      if (Assigned(SourceSession) and (Accounts[I] = SourceSession.Account)) then
+      begin
+        Node.Expand(False);
+        if (not Assigned(Wanted.Node)) then
+          for J := 0 to Node.Count - 1 do
+            if (Node[J].Data = SourceDatabase) then
+              Node[J].Expand(False);
+      end;
+
+      Node := FDestination.Items.Add(nil, Accounts[I].Name);
+      Node.ImageIndex := iiServer;
+      Node.HasChildren := True;
     end;
+    TreeViewChange(Sender, nil);
 
-    Node := FDestination.Items.Add(nil, Accounts[I].Name);
-    Node.ImageIndex := iiServer;
-    Node.HasChildren := True;
+    FSource.OnChange := FSourceOnChange;
+    FDestination.OnChange := FDestinationOnChange;
   end;
-
-  TreeViewChange(Sender, nil);
-
-  FSource.OnChange := FSourceOnChange;
-  FDestination.OnChange := FDestinationOnChange;
 
   CheckActivePageChange(TSSelect.PageIndex);
 end;
@@ -858,7 +859,7 @@ begin
 
   FData.Checked := FData.Checked and FData.Enabled;
 
-  TSExecute.TabVisible := not Assigned(Wanted.Page) and (FStructure.Checked or FData.Checked);
+  TSExecute.Enabled := not Assigned(Wanted.Page) and (FStructure.Checked or FData.Checked);
   CheckActivePageChange(TSWhat.PageIndex);
 end;
 
@@ -891,8 +892,20 @@ begin
 end;
 
 procedure TDTransfer.UMPostAfterExecuteSQL(var Message: TMessage);
+var
+  Node: TTreeNode;
 begin
-  Wanted.Page.OnShow(nil);
+  if (Assigned(Wanted.Node)) then
+  begin
+    Node := Wanted.Node;
+    Wanted.Node := nil;
+    Node.Expand(False);
+  end
+  else if (Assigned(Wanted.Page)) then
+  begin
+    Wanted.Page.OnShow(nil);
+    Wanted.Page := nil;
+  end;
 end;
 
 procedure TDTransfer.UMTerminate(var Message: TMessage);
@@ -908,7 +921,7 @@ begin
   FDestination.Items.Clear();
   FDestination.Items.EndUpdate();
 
-  TSWhat.TabVisible := False;
+  TSWhat.Enabled := False;
 
   FBBack.Enabled := True;
   FBCancel.Enabled := True;
