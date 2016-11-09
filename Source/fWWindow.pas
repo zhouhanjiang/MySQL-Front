@@ -121,6 +121,8 @@ type
     aHUpdate: TAction;
     aOAccounts: TAction;
     aOGlobals: TAction;
+    aOExport: TAction;
+    aOImport: TAction;
     aSSearchFind: TSearchFind_Ext;
     aSSearchNext: TSearchFindNext;
     aSSearchReplace: TSearchReplace_Ext;
@@ -242,6 +244,8 @@ type
     miOAccounts: TMenuItem;
     miOGlobals: TMenuItem;
     miOptions: TMenuItem;
+    miOExport: TMenuItem;
+    miOImport: TMenuItem;
     miSearch: TMenuItem;
     miSSearchFind: TMenuItem;
     miSSearchNext: TMenuItem;
@@ -281,10 +285,13 @@ type
     N30: TMenuItem;
     N4: TMenuItem;
     N5: TMenuItem;
+    N6: TMenuItem;
     N7: TMenuItem;
     N8: TMenuItem;
     N9: TMenuItem;
+    OpenDialog: TOpenDialog_Ext;
     PWorkSpace: TPanel_Ext;
+    SaveDialog: TSaveDialog_Ext;
     StatusBar: TStatusBar;
     TabControl: TTabControl;
     tbCancelRecord: TToolButton;
@@ -381,6 +388,8 @@ type
       Shift: TShiftState; X, Y: Integer);
     procedure TabControlMouseMove(Sender: TObject; Shift: TShiftState; X,
       Y: Integer);
+    procedure aOExportExecute(Sender: TObject);
+    procedure aOImportExecute(Sender: TObject);
   const
     tiDeactivate = 1;
   type
@@ -410,6 +419,8 @@ type
     procedure ApplicationMessage(var Msg: TMsg; var Handled: Boolean);
     procedure ApplicationModalBegin(Sender: TObject);
     procedure ApplicationModalEnd(Sender: TObject);
+    function CloseAll(): Boolean;
+    procedure CloseTab(const Tab: TFSession);
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure EmptyWorkingMem();
     {$IFDEF EurekaLog}
@@ -432,7 +443,6 @@ type
     procedure UMAddTab(var Message: TMessage); message UM_ADDTAB;
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMMySQLClientSynchronize(var Message: TMessage); message UM_MYSQLCLIENT_SYNCHRONIZE;
-    procedure UMCloseTab(var Message: TMessage); message UM_CLOSE_TAB;
     procedure UMDeactivateTab(var Message: TMessage); message UM_DEACTIVATETAB;
     procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
     procedure UMUpdateAvailable(var Message: TMessage); message UM_UPDATEAVAILABLE;
@@ -459,7 +469,7 @@ implementation {***************************************************************}
 
 uses
   ShellApi, ShlObj, DBConsts, CommCtrl, StrUtils, ShLwApi, IniFiles, Themes,
-  Variants, WinINet, SysConst, Math,
+  Variants, WinINet, SysConst, Math, Zip,
   ODBCAPI,
   acQBLocalizer,
   MySQLConsts, HTTPTunnel,
@@ -512,24 +522,14 @@ begin
 end;
 
 procedure TWWindow.aFCloseAllExecute(Sender: TObject);
-var
-  CanClose: Boolean;
-  I: Integer;
 begin
-  CanClose := Assigned(FSessions); // Prevent a new call, while closing
-  if (CanClose) then
-    for I := FSessions.Count - 1 downto 0 do
-    begin
-      CanClose := CanClose and (SendMessage(TFSession(FSessions[I]).Handle, UM_CLOSE_TAB_QUERY, 0, 0) = 1);
-      if (CanClose) then
-        Perform(UM_CLOSE_TAB, 0, LPARAM(TFSession(FSessions[I])));
-    end;
+  CloseAll();
 end;
 
 procedure TWWindow.aFCloseExecute(Sender: TObject);
 begin
   if (Assigned(ActiveTab) and Boolean(SendMessage(ActiveTab.Handle, UM_CLOSE_TAB_QUERY, 0, 0))) then
-    Perform(UM_CLOSE_TAB, 0, LPARAM(ActiveTab));
+    CloseTab(ActiveTab);
 end;
 
 procedure TWWindow.aFExitExecute(Sender: TObject);
@@ -576,35 +576,77 @@ begin
   end;
 end;
 
+procedure TWWindow.aOAccountsExecute(Sender: TObject);
+begin
+  DAccounts.Account := nil;
+  DAccounts.Open := False;
+  DAccounts.Execute();
+end;
+
 procedure TWWindow.aOGlobalsExecute(Sender: TObject);
 var
   I: Integer;
-  TempCursor: TCursor;
 begin
   if (DOptions.Execute()) then
   begin
-    TempCursor := Screen.Cursor;
-    Screen.Cursor := crHourGlass;
+    TabControl.Visible := Preferences.TabsVisible or not Preferences.TabsVisible and (FSessions.Count >= 2);
+    TBTabControl.Visible := Preferences.TabsVisible;
+    for I := 0 to Screen.FormCount - 1 do
+      PostMessage(Screen.Forms[I].Handle, UM_CHANGEPREFERENCES, 0, 0);
+    Preferences.Save();
+  end;
+end;
+
+procedure TWWindow.aOExportExecute(Sender: TObject);
+var
+  ZipFile: TZipFile;
+begin
+  SaveDialog.Title := Preferences.LoadStr(200);
+  SaveDialog.FileName := SysUtils.LoadStr(1000) + '_Settings.zip';
+  SaveDialog.Filter := FilterDescription('zip') + ' (*.zip)|*.zip';
+  SaveDialog.DefaultExt := '.zip';
+  if (SaveDialog.Execute()) then
+  begin
+    ZipFile := TZipFile.Create();
+    ZipFile.Open(SaveDialog.FileName, zmWrite);
+    ZipFile.Add(Preferences.Filename);
+    ZipFile.Add(Accounts.Filename);
+    ZipFile.Close();
+    ZipFile.Free();
+  end;
+end;
+
+procedure TWWindow.aOImportExecute(Sender: TObject);
+var
+  I: Integer;
+  ZipFile: TZipFile;
+begin
+  OpenDialog.Title := Preferences.LoadStr(371);
+  OpenDialog.FileName := SysUtils.LoadStr(1000) + '_Settings.zip';
+  OpenDialog.Filter := FilterDescription('zip') + ' (*.zip)|*.zip';
+  OpenDialog.DefaultExt := '.zip';
+  if (CloseAll() and OpenDialog.Execute()) then
+  begin
+    ZipFile := TZipFile.Create();
+    ZipFile.Open(OpenDialog.FileName, zmRead);
+    ZipFile.ExtractAll(Preferences.UserPath);
+    ZipFile.Close();
+    ZipFile.Free();
+
+    Preferences.Open();
+    Preferences.Save();
+    Accounts.Open();
 
     TabControl.Visible := Preferences.TabsVisible or not Preferences.TabsVisible and (FSessions.Count >= 2);
     TBTabControl.Visible := Preferences.TabsVisible;
     for I := 0 to Screen.FormCount - 1 do
       PostMessage(Screen.Forms[I].Handle, UM_CHANGEPREFERENCES, 0, 0);
-
-    Screen.Cursor := TempCursor;
   end;
 end;
 
 procedure TWWindow.ApplicationActivate(Sender: TObject);
 begin
   KillTimer(Handle, tiDeactivate);
-end;
-
-procedure TWWindow.aOAccountsExecute(Sender: TObject);
-begin
-  DAccounts.Account := nil;
-  DAccounts.Open := False;
-  DAccounts.Execute();
 end;
 
 procedure TWWindow.ApplicationDeactivate(Sender: TObject);
@@ -682,7 +724,6 @@ procedure TWWindow.ApplicationModalBegin(Sender: TObject);
 begin
   if (Assigned(Screen.ActiveForm) and Screen.ActiveForm.Active and (Screen.ActiveForm is TForm_Ext)) then
   begin
-//    TForm_Ext(Screen.ActiveForm).Deactivate();
     PreviousForm := Screen.ActiveForm;
 
     if ((Screen.ActiveForm = Self) and Assigned(ActiveTab)) then
@@ -696,7 +737,6 @@ procedure TWWindow.ApplicationModalEnd(Sender: TObject);
 begin
   if (Assigned(PreviousForm) and (PreviousForm is TForm_Ext)) then
   begin
-//    TForm_Ext(PreviousForm).Activate();
     PreviousForm := nil;
 
     if (Screen.ActiveForm = Self) then
@@ -726,6 +766,59 @@ begin
   MsgBox(Preferences.LoadStr(533, FindText), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
 end;
 
+function TWWindow.CloseAll(): Boolean;
+var
+  I: Integer;
+begin
+  Result := Assigned(FSessions); // Prevent a new call, while closing
+  if (Result) then
+    for I := FSessions.Count - 1 downto 0 do
+    begin
+      Result := Result and (SendMessage(TFSession(FSessions[I]).Handle, UM_CLOSE_TAB_QUERY, 0, 0) = 1);
+      if (Result) then
+        CloseTab(TFSession(FSessions[I]));
+    end;
+end;
+
+procedure TWWindow.CloseTab(const Tab: TFSession);
+var
+  Session: TSSession;
+  NewTabIndex: Integer;
+begin
+  Perform(UM_DEACTIVATETAB, 0, 0);
+
+  NewTabIndex := FSessions.IndexOf(Tab);
+
+  if (0 <= NewTabIndex) and (NewTabIndex < TabControl.Tabs.Count) then
+  begin
+    TabControl.Tabs.Delete(NewTabIndex);
+    FSessions.Delete(FSessions.IndexOf(Tab));
+    if (TabControl.TabIndex < 0) then
+      TabControl.TabIndex := FSessions.Count - 1;
+
+    Dec(NewTabIndex, 1);
+    if ((NewTabIndex < 0) and (FSessions.Count > 0)) then
+      NewTabIndex := 0;
+    if (NewTabIndex >= 0) then
+      Perform(UM_ACTIVATETAB, 0, LPARAM(FSessions[NewTabIndex]));
+
+    Session := Tab.Session;
+
+    Tab.Visible := False;
+    Tab.Free();
+
+    Session.Free();
+
+    TBTabControl.Visible := Preferences.TabsVisible or not Preferences.TabsVisible and (FSessions.Count >= 2);
+    TabControl.Visible := TBTabControl.Visible;
+    TabControlResize(nil);
+
+    aFCloseAll.Enabled := FSessions.Count > 0;
+  end;
+
+  Perform(UM_UPDATETOOLBAR, 0, 0);
+end;
+
 procedure TWWindow.CMSysFontChanged(var Message: TMessage);
 begin
   inherited;
@@ -746,15 +839,6 @@ begin
     ToolBar.AutoSize := True;
     CToolBar.AutoSize := True;
   end;
-
-  TabControl.Canvas.Font.Style := [fsBold];
-  TabControl.TabHeight := TabControl.Canvas.TextHeight('I') + 10;
-  if (not StyleServices.Enabled) then
-    TabControl.Height := TabControl.TabHeight + 1
-  else
-    TabControl.Height := TabControl.TabHeight + 2;
-
-  StatusBar.ClientHeight := StatusBar.Canvas.TextHeight('I') + 5;
 end;
 
 constructor TWWindow.Create(AOwner: TComponent);
@@ -939,14 +1023,13 @@ end;
 
 procedure TWWindow.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
-  aFCloseAllExecute(Sender);
-
-  CanClose := FSessions.Count = 0;
+  CanClose := CloseAll();
 end;
 
 procedure TWWindow.FormCreate(Sender: TObject);
 var
   I: Integer;
+  Foldername: array [0..MAX_PATH] of Char;
 begin
   DisableApplicationActivate := False;
   MouseDownPoint := Point(-1, -1);
@@ -1005,6 +1088,14 @@ begin
 
   Perform(UM_UPDATETOOLBAR, 0, 0);
 
+  if (SHGetFolderPath(0, CSIDL_DESKTOP, 0, 0, @Foldername) <> S_OK) then
+    OpenDialog.InitialDir := 'C:\'
+  else
+    OpenDialog.InitialDir := StrPas(PChar(@Foldername[0]));
+  if (SHGetFolderPath(0, CSIDL_DESKTOP, 0, 0, @Foldername) <> S_OK) then
+    SaveDialog.InitialDir := 'C:\'
+  else
+    SaveDialog.InitialDir := StrPas(PChar(@Foldername[0]));
 
   CloseButton := TPicture.Create();
   if (StyleServices.Enabled) then
@@ -1606,6 +1697,8 @@ begin
   miOptions.Caption := Preferences.LoadStr(13);
   aOGlobals.Caption := Preferences.LoadStr(52) + '...';
   aOAccounts.Caption := Preferences.LoadStr(25) + '...';
+  aOImport.Caption := Preferences.LoadStr(371) + '...';
+  aOExport.Caption := Preferences.LoadStr(200) + '...';
 
   miExtras.Caption := Preferences.LoadStr(707);
   aEFind.Caption := Preferences.LoadStr(187) + '...';
@@ -1697,45 +1790,6 @@ begin
   if (Assigned(FSessions)) then
     for I := 0 to FSessions.Count - 1 do
       SendMessage(TFSession(FSessions[0]).Handle, Message.Msg, Message.WParam, Message.LParam);
-end;
-
-procedure TWWindow.UMCloseTab(var Message: TMessage);
-var
-  Session: TSSession;
-  NewTabIndex: Integer;
-begin
-  Perform(UM_DEACTIVATETAB, 0, 0);
-
-  NewTabIndex := FSessions.IndexOf(TFSession(Message.LParam));
-
-  if (0 <= NewTabIndex) and (NewTabIndex < TabControl.Tabs.Count) then
-  begin
-    TabControl.Tabs.Delete(NewTabIndex);
-    FSessions.Delete(FSessions.IndexOf(TFSession(Message.LParam)));
-    if (TabControl.TabIndex < 0) then
-      TabControl.TabIndex := FSessions.Count - 1;
-
-    Dec(NewTabIndex, 1);
-    if ((NewTabIndex < 0) and (FSessions.Count > 0)) then
-      NewTabIndex := 0;
-    if (NewTabIndex >= 0) then
-      Perform(UM_ACTIVATETAB, 0, LPARAM(FSessions[NewTabIndex]));
-
-    Session := TFSession(Message.LParam).Session;
-
-    TFSession(Message.LParam).Visible := False;
-    TFSession(Message.LParam).Free();
-
-    Session.Free();
-
-    TBTabControl.Visible := Preferences.TabsVisible or not Preferences.TabsVisible and (FSessions.Count >= 2);
-    TabControl.Visible := TBTabControl.Visible;
-    TabControlResize(nil);
-
-    aFCloseAll.Enabled := FSessions.Count > 0;
-  end;
-
-  Perform(UM_UPDATETOOLBAR, 0, 0);
 end;
 
 procedure TWWindow.UMDeactivateTab(var Message: TMessage);

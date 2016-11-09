@@ -426,6 +426,20 @@ object WWindow: TWWindow
   object ActionList: TActionList
     Left = 80
     Top = 240
+    object aOGlobals: TAction
+      Category = 'Options'
+      Caption = 'aOGlobalSettings'
+      HelpContext = 1066
+      HelpType = htContext
+      OnExecute = aOGlobalsExecute
+    end
+    object aOAccounts: TAction
+      Category = 'Options'
+      Caption = 'aOAccounts'
+      HelpContext = 1065
+      HelpType = htContext
+      OnExecute = aOAccountsExecute
+    end
     object aEFind: TAction
       Category = 'Extras'
       Caption = 'aEFind'
@@ -443,6 +457,12 @@ object WWindow: TWWindow
       Caption = 'aETransfer'
       HelpType = htContext
       OnExecute = aETransferExecute
+    end
+    object aOImport: TAction
+      Category = 'Options'
+      Caption = 'aOImport'
+      Visible = False
+      OnExecute = aOImportExecute
     end
     object aEJobAddExport: TAction
       Category = 'Extras'
@@ -1121,13 +1141,6 @@ object WWindow: TWWindow
       HelpType = htContext
       ImageIndex = 17
     end
-    object aOGlobals: TAction
-      Category = 'Options'
-      Caption = 'aOGlobalSettings'
-      HelpContext = 1066
-      HelpType = htContext
-      OnExecute = aOGlobalsExecute
-    end
     object aEUndo: TEditUndo
       Category = 'Edit'
       Caption = 'aEUndo'
@@ -1151,13 +1164,6 @@ object WWindow: TWWindow
       HelpType = htContext
       ImageIndex = 7
       ShortCut = 16472
-    end
-    object aOAccounts: TAction
-      Category = 'Options'
-      Caption = 'aOAccounts'
-      HelpContext = 1065
-      HelpType = htContext
-      OnExecute = aOAccountsExecute
     end
     object aEDelete: TEditDelete
       Category = 'Edit'
@@ -1258,6 +1264,12 @@ object WWindow: TWWindow
       HelpContext = 1153
       HelpType = htContext
       ImageIndex = 107
+    end
+    object aOExport: TAction
+      Category = 'Options'
+      Caption = 'aOExport'
+      Visible = False
+      OnExecute = aOExportExecute
     end
   end
   object MainMenu: TMainMenu
@@ -1693,6 +1705,15 @@ object WWindow: TWWindow
       object miOAccounts: TMenuItem
         Action = aOAccounts
       end
+      object N6: TMenuItem
+        Caption = '-'
+      end
+      object miOImport: TMenuItem
+        Action = aOImport
+      end
+      object miOExport: TMenuItem
+        Action = aOExport
+      end
     end
     object miHelp: TMenuItem
       Caption = 'miHelp'
@@ -1725,8 +1746,8 @@ object WWindow: TWWindow
     Options.AutoDetectLineLimit = 0
     Options.Visible = False
     SQLDialect = sqlMySQL
-    Left = 144
-    Top = 288
+    Left = 152
+    Top = 240
   end
   object MTabControl: TPopupMenu
     Left = 113
@@ -1743,5 +1764,19 @@ object WWindow: TWWindow
     object mtTabs: TMenuItem
       Caption = 'mtTabs'
     end
+  end
+  object OpenDialog: TOpenDialog_Ext
+    Options = [ofHideReadOnly, ofPathMustExist, ofFileMustExist, ofEnableSizing]
+    EncodingIndex = -1
+    EncodingLabel = 'Encoding:'
+    Left = 16
+    Top = 312
+  end
+  object SaveDialog: TSaveDialog_Ext
+    Options = [ofOverwritePrompt, ofHideReadOnly, ofPathMustExist, ofEnableSizing]
+    EncodingIndex = -1
+    EncodingLabel = 'Encoding:'
+    Left = 80
+    Top = 312
   end
 end

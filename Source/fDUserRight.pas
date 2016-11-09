@@ -40,7 +40,6 @@ type
     FProcedure: TRadioButton;
     FProcedures: TComboBox;
     FProcess: TCheckBox;
-    FProxy: TCheckBox;
     FReferences: TCheckBox;
     FReload: TCheckBox;
     FReplClient: TCheckBox;
@@ -131,7 +130,6 @@ begin
   FGrant.Enabled            := FGrant.Visible            and  FAll.Checked or FDatabase.Checked or FProcedure.Checked or FFunction.Checked;
   FLockTable.Enabled        := FLockTable.Visible        and (FAll.Checked or FDatabase.Checked);
   FProcess.Enabled          := FProcess.Visible          and  FAll.Checked;
-  FProxy.Enabled            := FProxy.Visible            and  FAll.Checked;
   FReferences.Enabled       := FReferences.Visible       and  not FProcedure.Checked and not FFunction.Checked;
   FReload.Enabled           := FReload.Visible           and  FAll.Checked;
   FReplClient.Enabled       := FReplClient.Visible       and  FAll.Checked;
@@ -210,7 +208,6 @@ begin
     and not FGrant.Checked
     and not FLockTable.Checked
     and not FProcess.Checked
-    and not FProxy.Checked
     and not FReferences.Checked
     and not FReload.Checked
     and not FReplClient.Checked
@@ -360,7 +357,6 @@ begin
     NewUserRight.RInsert           := FInsert.Checked;
     NewUserRight.RLockTables       := FLockTable.Checked        and (FAll.Checked or FDatabase.Checked);
     NewUserRight.RProcess          := FProcess.Checked          and  FAll.Checked;
-    NewUserRight.RProxy            := FProxy.Checked            and  FAll.Checked;
     NewUserRight.RReferences       := FReferences.Checked;
     NewUserRight.RReload           := FReload.Checked           and  FAll.Checked;
     NewUserRight.RReplClient       := FReplClient.Checked       and  FAll.Checked;
@@ -431,7 +427,6 @@ begin
   FEvent.Visible := Session.Connection.MySQLVersion >= 50106;
   FExecute.Visible := Session.Connection.MySQLVersion >= 50003;
   FLockTable.Visible := Session.Connection.MySQLVersion >= 40002;
-  FProxy.Visible := Session.Connection.MySQLVersion >= 50507;
   FReplClient.Visible := Session.Connection.MySQLVersion >= 40002;
   FReplSlave.Visible := Session.Connection.MySQLVersion >= 40002;
   FShowDatabase.Visible := Session.Connection.MySQLVersion >= 40002;
@@ -495,7 +490,6 @@ begin
   FInsert.Checked           := Assigned(UserRight) and UserRight.RInsert           and FInsert.Enabled;
   FLockTable.Checked        := Assigned(UserRight) and UserRight.RLockTables       and FLockTable.Enabled;
   FProcess.Checked          := Assigned(UserRight) and UserRight.RProcess          and FProcess.Enabled;
-  FProxy.Checked            := Assigned(UserRight) and UserRight.RProxy            and FProxy.Enabled;
   FReferences.Checked       := Assigned(UserRight) and UserRight.RReferences       and FReferences.Enabled;
   FReload.Checked           := Assigned(UserRight) and UserRight.RReload           and FReload.Enabled;
   FReplClient.Checked       := Assigned(UserRight) and UserRight.RReplClient       and FReplClient.Enabled;
@@ -614,7 +608,6 @@ begin
   FInsert.Caption := Preferences.LoadStr(308);
   FLockTable.Caption := Preferences.LoadStr(316);
   FProcess.Caption := Preferences.LoadStr(320);
-  FProxy.Caption := Preferences.LoadStr(894);
   FReferences.Caption := Preferences.LoadStr(315);
   FReload.Caption := Preferences.LoadStr(321);
   FReplClient.Caption := Preferences.LoadStr(325);

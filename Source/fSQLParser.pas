@@ -6760,8 +6760,6 @@ type
     function ParseDatabaseIdent(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseDatatype(): TOffset; overload; inline;
     function ParseDatatype(out DatatypeIndex: Integer): TOffset; overload;
-    function ParseDatatypeIdent(): TOffset; overload; inline;
-    function ParseDatatypeIdent(out DatatypeIndex: Integer): TOffset; overload;
     function ParseDateAddFunc(): TOffset;
     function ParseDbIdent(): TOffset; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseDbIdent(const ADbIdentType: TDbIdentType; const FullQualified: Boolean = True; const JokerAllowed: Boolean = False): TOffset; overload;
@@ -15517,9 +15515,13 @@ begin
 
     if (not ErrorFound and Found) then
     begin
-      Comma := ParseSymbol(ttComma);
-      if (Comma > 0) then
-        Specifications.Add(Comma);
+      Found := IsSymbol(ttComma);
+      if (Found) then
+      begin
+        Comma := ParseSymbol(ttComma);
+        if (Comma > 0) then
+          Specifications.Add(Comma);
+      end;
     end;
   until (ErrorFound or not Found);
 
@@ -15918,7 +15920,7 @@ begin
     Nodes.AsTag := ParseTag(kiAS);
 
   if (not ErrorFound) then
-    Nodes.DatatypeIdent := ParseDatatypeIdent();
+    Nodes.DatatypeIdent := ParseDatatype();
 
   if (not ErrorFound) then
     Nodes.CloseBracket := ParseSymbol(ttCloseBracket);
@@ -17888,7 +17890,20 @@ begin
     Nodes.NationalToken := ApplyCurrentToken(utDatatype);
 
   if (not ErrorFound) then
-    Nodes.DatatypeToken := ParseDatatypeIdent(DatatypeIndex);
+    if (EndOfStmt(CurrentToken)) then
+    begin
+      CompletionList.AddList(ditDatatype);
+      SetError(PE_IncompleteStmt);
+    end
+    else
+    begin
+      TokenPtr(CurrentToken)^.GetText(Text, Length);
+      DatatypeIndex := DatatypeList.IndexOf(Text, Length);
+      if (DatatypeIndex >= 0) then
+        Nodes.DatatypeToken := ApplyCurrentToken(utDatatype)
+      else
+        SetError(PE_UnexpectedToken);
+    end;
 
   if (not ErrorFound
     and ((DatatypeIndex = diSIGNED) or (DatatypeIndex = diUNSIGNED))
@@ -17969,13 +17984,13 @@ begin
         Nodes.LengthToken := ParseInteger();
 
       if (not ErrorFound) then
-        if (IsSymbol(ttComma)
-          and ((DatatypeIndex = diDEC)
+        if (((DatatypeIndex = diDEC)
             or (DatatypeIndex = diDECIMAL)
             or (DatatypeIndex = diDOUBLE)
             or (DatatypeIndex = diFLOAT)
             or (DatatypeIndex = diNUMERIC)
-            or (DatatypeIndex = diREAL))) then
+            or (DatatypeIndex = diREAL))
+          and IsSymbol(ttComma)) then
         begin
           Nodes.CommaToken := ParseSymbol(ttComma);
 
@@ -18067,35 +18082,6 @@ begin
   Result := TDatatype.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseDatatypeIdent(): TOffset;
-var
-  DatatypeIndex: Integer;
-begin
-  Result := ParseDatatypeIdent(DatatypeIndex);
-end;
-
-function TSQLParser.ParseDatatypeIdent(out DatatypeIndex: Integer): TOffset;
-var
-  Length: Integer;
-  Text: PChar;
-begin
-  Result := 0;
-  if (EndOfStmt(CurrentToken)) then
-  begin
-    CompletionList.AddList(ditDatatype);
-    SetError(PE_IncompleteStmt);
-  end
-  else
-  begin
-    TokenPtr(CurrentToken)^.GetText(Text, Length);
-    DatatypeIndex := DatatypeList.IndexOf(Text, Length);
-    if (DatatypeIndex >= 0) then
-      Result := ApplyCurrentToken(utDatatype)
-    else
-      SetError(PE_UnexpectedToken);
-  end;
-end;
-
 function TSQLParser.ParseDateAddFunc(): TOffset;
 var
   Nodes: TDateAddFunc.TNodes;
@@ -18137,14 +18123,12 @@ function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
       SetError(PE_IncompleteStmt);
       Result := 0;
     end
-    else if ((TokenPtr(CurrentToken)^.TokenType = ttString) and (ADbIdentType in [ditAlias])
+    else if ((TokenPtr(CurrentToken)^.TokenType = ttIdent)
       or (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent)
       or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and (AnsiQuotes or (ADbIdentType in [ditAlias]))
+      or (TokenPtr(CurrentToken)^.TokenType = ttString) and (ADbIdentType in [ditAlias])
       or (TokenPtr(CurrentToken)^.OperatorType = otMulti) and JokerAllowed and (ADbIdentType in [ditDatabase, ditTable, ditProcedure, ditFunction, ditField])
-      or (TokenPtr(CurrentToken)^.TokenType = ttIdent)
-        and ((ADbIdentType in [ditEngine, ditCharset, ditCollation])
-          or QualifiedIdentifier
-          or (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0))) then
+      ) then
     begin
       TokenPtr(CurrentToken)^.FOperatorType := otNone;
       Result := ApplyCurrentToken(utDbIdent);
@@ -24233,12 +24217,13 @@ begin
         JNE SelMySQLCode                 // No!
         MOV TokenType,ttDot
         MOV OperatorType,otDot
-        CMP EAX,$0030002E                // ".0" ?
-        JB SingleChar                    // Before!
-        CMP EAX,$0039002E                // ".9" ?
-        JA SingleChar                    // After!
-        MOV OperatorType,otNone
-        JMP Numeric
+        JMP SingleChar
+//        CMP EAX,$0030002E                // ".0" ?
+//        JB SingleChar                    // Before!
+//        CMP EAX,$0039002E                // ".9" ?
+//        JA SingleChar                    // After!
+//        MOV OperatorType,otNone
+//        JMP Numeric
       SelMySQLCode:
         CMP AX,'/'                       // "/" ?
         JNE SelHexODBCHigh               // No!

@@ -68,42 +68,28 @@ procedure TForm_Ext.ApplyWinAPIUpdates(const Control: TWinControl; const StatusF
 var
   I: Integer;
 begin
-  if (Control is TStatusBar) then
-  begin
-    TStatusBar(Control).Font.Handle := CreateFontIndirect(StatusFont);
-    TStatusBar(Control).Canvas.Font := TStatusBar(Control).Font;
-    TStatusBar(Control).Height := -TStatusBar(Control).Font.Height + 8;
-  end
-  else
-    for I := 0 to Control.ControlCount - 1 do
-      if (Control.Controls[I] is TWinControl) then
-        ApplyWinAPIUpdates(TWinControl(Control.Controls[I]), StatusFont);
+  for I := 0 to Control.ControlCount - 1 do
+    if (Control.Controls[I] is TWinControl) then
+      ApplyWinAPIUpdates(TWinControl(Control.Controls[I]), StatusFont);
 
-  if (Control is TTreeView) then
-  begin
-    if ((ComCtl32MajorVersion > 4) or (ComCtl32MinorVersion >= 71)) then
-      SendMessage(Control.Handle, TVM_SETITEMHEIGHT, GetSystemMetrics(SM_CYSMICON) + 4, 0);
-    if (CheckWin32Version(6)) then
-    begin
-      TTreeView(Control).Indent := GetSystemMetrics(SM_CYSMICON) div 2 + 2;
-      SetWindowLong(Control.Handle, GWL_STYLE, GetWindowLong(Control.Handle, GWL_STYLE) or TVS_NOHSCROLL);
-      SendMessage(Control.Handle, TVM_SETEXTENDEDSTYLE, TVS_EX_AUTOHSCROLL or TVS_EX_FADEINOUTEXPANDOS or TVS_EX_DOUBLEBUFFER, TVS_EX_AUTOHSCROLL or TVS_EX_FADEINOUTEXPANDOS or TVS_EX_DOUBLEBUFFER);
-    end;
-  end
-  else if (Control is TListView) then
+  if (Control is TListView) then
   begin
     if (CheckWin32Version(6,1)) then
       SendMessage(Control.Handle, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_JUSTIFYCOLUMNS, 0);
     SendMessage(Control.Handle, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_DOUBLEBUFFER, LVS_EX_DOUBLEBUFFER);
     SendMessage(Control.Handle, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_COLUMNSNAPPOINTS, LVS_EX_COLUMNSNAPPOINTS);
   end
-  else if (Control is TUpDown) then
+  else if (Control is TStatusBar) then
   begin
-    if (Assigned(TUpDown(Control).Associate) and (TUpDown(Control).Associate is TEdit)) then
-    begin
-      TUpDown(Control).Height := TEdit(TUpDown(Control).Associate).Height;
-      SetWindowLong(TEdit(TUpDown(Control).Associate).Handle, GWL_STYLE, GetWindowLong(TEdit(TUpDown(Control).Associate).Handle, GWL_STYLE) or ES_NUMBER or ES_RIGHT);
-    end;
+    TStatusBar(Control).ClientHeight := TStatusBar(Control).Canvas.TextHeight('I') + 5;
+  end
+  else if (Control is TTabControl) then
+  begin
+    TTabControl(Control).TabHeight := TTabControl(Control).Canvas.TextHeight('I') + 10;
+    if (not StyleServices.Enabled) then
+      TTabControl(Control).Height := TTabControl(Control).TabHeight + 1
+    else
+      TTabControl(Control).Height := TTabControl(Control).TabHeight + 2;
   end
   else if (Control is TToolBar) then
   begin
@@ -115,6 +101,25 @@ begin
           TToolBar(Control).Buttons[I].Enabled := False;
           TToolBar(Control).Buttons[I].Style := tbsButton;
         end;
+  end
+  else if (Control is TTreeView) then
+  begin
+    if ((ComCtl32MajorVersion > 4) or (ComCtl32MinorVersion >= 71)) then
+      SendMessage(Control.Handle, TVM_SETITEMHEIGHT, GetSystemMetrics(SM_CYSMICON) + 4, 0);
+    if (CheckWin32Version(6)) then
+    begin
+      TTreeView(Control).Indent := GetSystemMetrics(SM_CYSMICON) div 2 + 2;
+      SetWindowLong(Control.Handle, GWL_STYLE, GetWindowLong(Control.Handle, GWL_STYLE) or TVS_NOHSCROLL);
+      SendMessage(Control.Handle, TVM_SETEXTENDEDSTYLE, TVS_EX_AUTOHSCROLL or TVS_EX_FADEINOUTEXPANDOS or TVS_EX_DOUBLEBUFFER, TVS_EX_AUTOHSCROLL or TVS_EX_FADEINOUTEXPANDOS or TVS_EX_DOUBLEBUFFER);
+    end;
+  end
+  else if (Control is TUpDown) then
+  begin
+    if (Assigned(TUpDown(Control).Associate) and (TUpDown(Control).Associate is TEdit)) then
+    begin
+      TUpDown(Control).Height := TEdit(TUpDown(Control).Associate).Height;
+      SetWindowLong(TEdit(TUpDown(Control).Associate).Handle, GWL_STYLE, GetWindowLong(TEdit(TUpDown(Control).Associate).Handle, GWL_STYLE) or ES_NUMBER or ES_RIGHT);
+    end;
   end;
 end;
 

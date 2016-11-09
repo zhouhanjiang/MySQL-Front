@@ -464,8 +464,6 @@ begin
 
     if (FUpdateCheckNever.Checked) then Preferences.UpdateCheck := utNever;
     if (FUpdateCheckDaily.Checked) then Preferences.UpdateCheck := utDaily;
-
-    Preferences.Save();
   end;
 end;
 

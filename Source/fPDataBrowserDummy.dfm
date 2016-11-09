@@ -71,7 +71,7 @@ object PDataBrowserDummy: TPDataBrowserDummy
   object FFilter: TComboBox_Ext
     Left = 142
     Top = 0
-    Width = 198
+    Width = 174
     Height = 22
     Constraints.MinWidth = 100
     TabOrder = 5
@@ -94,14 +94,14 @@ object PDataBrowserDummy: TPDataBrowserDummy
     end
   end
   object FQuickSearch: TEdit
-    Left = 353
+    Left = 347
     Top = 0
-    Width = 136
+    Width = 140
     Height = 22
     TabOrder = 7
   end
   object TBQuickSearchEnabled: TToolBar
-    Left = 483
+    Left = 487
     Top = 0
     Width = 23
     Height = 22

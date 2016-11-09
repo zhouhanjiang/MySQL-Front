@@ -346,6 +346,7 @@ type
     FInternetAgent: string;
     FLanguage: TLanguage;
     FTaskService: ITaskService;
+    FUserPath: TFileName;
     FVerMajor, FVerMinor, FVerPatch, FVerBuild: Integer;
     FXMLDocument: IXMLDocument;
     OldAssociateSQL: Boolean;
@@ -360,10 +361,9 @@ type
     function GetXMLDocument(): IXMLDocument;
   protected
     KeyBase: string;
-    procedure LoadFromXML(const XML: IXMLNode); virtual;
+    procedure LoadFromXML(const XML: IXMLNode);
     procedure SaveToRegistry(); virtual;
-    procedure SaveToXML(const XML: IXMLNode); virtual;
-    property Filename: TFileName read GetFilename;
+    procedure SaveToXML(const XML: IXMLNode);
     property TaskService: ITaskService read GetTaskService;
     property XMLDocument: IXMLDocument read GetXMLDocument;
   public
@@ -434,15 +434,17 @@ type
     WindowState: TWindowState;
     UpdateCheck: TUpdateCheckType;
     UpdateChecked: TDateTime;
-    UserPath: TFileName;
-    constructor Create(); virtual;
+    constructor Create();
     destructor Destroy(); override;
-    function LoadStr(const Index: Integer; const Param1: string = ''; const Param2: string = ''; const Param3: string = ''): string; overload; virtual;
-    procedure Save(); virtual;
+    function LoadStr(const Index: Integer; const Param1: string = ''; const Param2: string = ''; const Param3: string = ''): string; overload;
+    procedure Open();
+    procedure Save();
+    property Filename: TFileName read GetFilename;
     property Images: TImageList read FImages;
     property InternetAgent: string read FInternetAgent;
     property Language: TLanguage read GetLanguage;
     property LanguagePath: TFileName read GetLanguagePath;
+    property UserPath: TFileName read FUserPath;
     property VerMajor: Integer read FVerMajor;
     property VerMinor: Integer read FVerMinor;
     property VerPatch: Integer read FVerPatch;
@@ -780,23 +782,23 @@ type
     procedure SetDefault(const AAccount: TPAccount);
   protected
     Section: string;
-    procedure Load(); virtual;
     property DataPath: TFileName read GetDataPath;
-    property Filename: TFileName read GetFilename;
     property XMLDocument: IXMLDocument read GetXMLDocument;
   public
-    function AccountByName(const AccountName: string): TPAccount; virtual;
-    function AccountByURI(const AURI: string; const DefaultAccount: TPAccount = nil): TPAccount; virtual;
-    procedure AddAccount(const NewAccount: TPAccount); virtual;
+    function AccountByName(const AccountName: string): TPAccount;
+    function AccountByURI(const AURI: string; const DefaultAccount: TPAccount = nil): TPAccount;
+    procedure AddAccount(const NewAccount: TPAccount);
     procedure Clear(); override;
     constructor Create(const ADBLogin: TDBLogin);
-    function DeleteAccount(const AAccount: TPAccount): Boolean; virtual;
+    function DeleteAccount(const AAccount: TPAccount): Boolean;
     destructor Destroy(); override;
-    procedure Save(); virtual;
-    procedure UpdateAccount(const Account, NewAccount: TPAccount); virtual;
+    procedure Open();
+    procedure Save();
+    procedure UpdateAccount(const Account, NewAccount: TPAccount);
     property Account[Index: Integer]: TPAccount read GetFAccounts; default;
     property Default: TPAccount read GetDefault write SetDefault;
     property DBLogin: TDBLogin read FDBLogin;
+    property Filename: TFileName read GetFilename;
   end;
 
 function EncodeVersion(const AMajor, AMinor, APatch, ABuild: Integer): Integer;
@@ -1175,7 +1177,7 @@ var
   PIDL: PItemIDList;
 begin
   PIDL := nil;
-  SHGetFolderLocation(Application.Handle, CSIDL, 0, 0, PIDL);
+  SHGetFolderLocation(0, CSIDL, 0, 0, PIDL);
   ZeroMemory(@FileInfo, SizeOf(FileInfo));
   SHGetFileInfo(PChar(PIDL), 0, FileInfo, SizeOf(FileInfo), SHGFI_PIDL or SHGFI_ICON or SHGFI_SMALLICON);
   Result := FileInfo.hIcon;
@@ -2114,16 +2116,16 @@ begin
   else
   {$ENDIF}
   FInternetAgent := SysUtils.LoadStr(1000) + '/' + IntToStr(VerMajor) + '.' + IntToStr(VerMinor);
-  SHGetFolderPath(Application.Handle, CSIDL_PERSONAL, 0, 0, @Foldername);
+  SHGetFolderPath(0, CSIDL_PERSONAL, 0, 0, @Foldername);
   Path := IncludeTrailingPathDelimiter(PChar(@Foldername));
-  if ((FileExists(ExtractFilePath(Application.ExeName) + '\Desktop.xml')) or (SHGetFolderPath(Application.Handle, CSIDL_APPDATA, 0, 0, @Foldername) <> S_OK)) then
-    UserPath := IncludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName))
+  if ((FileExists(ExtractFilePath(Application.ExeName) + '\Desktop.xml')) or (SHGetFolderPath(0, CSIDL_APPDATA, 0, 0, @Foldername) <> S_OK)) then
+    FUserPath := IncludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName))
   {$IFDEF Debug}
   else if (SysUtils.LoadStr(1002) = '') then
-    UserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(PChar(@Foldername)) + 'MySQL-Front')
+    FUserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(PChar(@Foldername)) + 'MySQL-Front')
   {$ENDIF}
   else
-    UserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(PChar(@Foldername)) + SysUtils.LoadStr(1002));
+    FUserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(PChar(@Foldername)) + SysUtils.LoadStr(1002));
 
   SoundFileNavigating := '';
   if (OpenKeyReadOnly('\AppEvents\Schemes\Apps\Explorer\Navigating\.Current')) then
@@ -2164,7 +2166,7 @@ begin
   for I := 0 to MaxIconIndex do
     if (I = 16) then
     begin // ODBC icon
-      SHGetFolderPath(Application.Handle, CSIDL_SYSTEM, 0, 0, @Foldername);
+      SHGetFolderPath(0, CSIDL_SYSTEM, 0, 0, @Foldername);
       ImageList_AddIcon(FImages.Handle, GetFileIcon(StrPas(PChar(@Foldername)) + '\odbcad32.exe'));
     end
     else if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
@@ -2232,7 +2234,7 @@ begin
   View := TPView.Create();
 
   LoadFromRegistry();
-  if Assigned(XMLDocument.DocumentElement) then LoadFromXML(XMLDocument.DocumentElement);
+  Open();
 end;
 
 destructor TPPreferences.Destroy();
@@ -2594,10 +2596,14 @@ begin
   Result := ReplaceStr(Result, '%3', Param3);
 end;
 
+procedure TPPreferences.Open();
+begin
+  if Assigned(XMLDocument.DocumentElement) then LoadFromXML(XMLDocument.DocumentElement);
+end;
+
 procedure TPPreferences.Save();
 begin
   SaveToXML(XMLDocument.DocumentElement);
-  FreeAndNil(FLanguage);
 end;
 
 procedure TPPreferences.SaveToRegistry();
@@ -4146,7 +4152,7 @@ begin
 
     if (Assigned(XMLNode(XML, 'connection'))) then Connection.LoadFromXML(XMLNode(XML, 'connection'));
     if (Assigned(FDesktop) and Assigned(DesktopXMLDocument.DocumentElement)) then
-      FDesktop.LoadFromXML(DesktopXMLDocument.DocumentElement); // Session must be loaded to use FullAddress correctly
+      FDesktop.LoadFromXML(DesktopXMLDocument.DocumentElement); // Desktop must be loaded to use ExpandAddress correctly
   end;
 end;
 
@@ -4306,7 +4312,15 @@ begin
       StringList.Free();
     end;
 
-  Load();
+  // File moved in Nov 2016
+  if (not FileExists(Filename)
+    and FileExists(Preferences.UserPath + 'Accounts\Accounts.xml')) then
+    if (not MoveFile(PChar(Preferences.UserPath + 'Accounts\Accounts.xml'), PChar(Filename))) then
+      RaiseLastOSError()
+    else
+      CreateSymbolicLink(PChar(Preferences.UserPath + 'Accounts\Accounts.xml'), PChar(Filename), 0);
+
+  Open();
 end;
 
 function TPAccounts.DeleteAccount(const AAccount: TPAccount): Boolean;
@@ -4368,7 +4382,7 @@ end;
 
 function TPAccounts.GetFilename(): TFileName;
 begin
-  Result := DataPath + 'Accounts.xml';
+  Result := Preferences.UserPath + 'Accounts.xml';
 end;
 
 function TPAccounts.GetFAccounts(Index: Integer): TPAccount;
@@ -4397,7 +4411,7 @@ begin
   Result := FXMLDocument;
 end;
 
-procedure TPAccounts.Load();
+procedure TPAccounts.Open();
 var
   I: Integer;
   Index: Integer;

@@ -404,15 +404,6 @@ object DUserRight: TDUserRight
       TabOrder = 15
       OnClick = FBOkCheckEnabled
     end
-    object FProxy: TCheckBox
-      Left = 216
-      Top = 360
-      Width = 97
-      Height = 17
-      Caption = 'FProxy'
-      TabOrder = 29
-      OnClick = FBOkCheckEnabled
-    end
     object FCreateTableSpace: TCheckBox
       Left = 216
       Top = 264

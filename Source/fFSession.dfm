@@ -299,7 +299,6 @@ object FSession: TFSession
     Top = 22
     Width = 467
     Height = 234
-    Cursor = crSQLWait
     Align = alClient
     BevelOuter = bvNone
     Color = clWindow
@@ -351,7 +350,6 @@ object FSession: TFSession
       Top = 0
       Width = 467
       Height = 56
-      Cursor = crSQLWait
       HelpContext = 1035
       Align = alTop
       BevelInner = bvRaised
@@ -395,7 +393,6 @@ object FSession: TFSession
       Top = 310
       Width = 467
       Height = 50
-      Cursor = crSQLWait
       Align = alTop
       BevelInner = bvRaised
       BevelOuter = bvLowered
@@ -795,10 +792,9 @@ object FSession: TFSession
       end
       object FFilter: TComboBox_Ext
         Left = 136
-        Top = -3
+        Top = 0
         Width = 198
         Height = 22
-        Constraints.MinWidth = 100
         TabOrder = 5
         OnChange = FFilterChange
         OnDropDown = FFilterDropDown

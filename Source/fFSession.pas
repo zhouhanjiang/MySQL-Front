@@ -21,7 +21,6 @@ const
   UM_ACTIVATE_DBGRID = WM_USER + 500;
   UM_ACTIVATEFTEXT = WM_USER + 501;
   UM_POST_BUILDER_QUERY_CHANGE = WM_USER + 502;
-  UM_POST_MONITOR = WM_USER + 503;
   UM_SYNCOMPLETION_TIMER = WM_USER + 504;
   UM_WANTED_SYNCHRONIZE = WM_USER + 505;
   UM_STATUS_BAR_REFRESH = WM_USER + 506;
@@ -707,6 +706,7 @@ type
       DataSet: TMySQLDataSet;
       DataSource: TDataSource;
       FBuilderDBGrid: TMySQLDBGrid;
+      FListView: TListView;
       PDBGrid: TPanel_Ext;
       FXML: IXMLNode;
       function GetDatabase(): TSDatabase; inline;
@@ -714,7 +714,6 @@ type
     protected
       FWorkbench: TWWorkbench;
     public
-      ListView: TListView;
       function BuilderResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
         const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
       procedure CloseBuilderResult();
@@ -725,6 +724,7 @@ type
       destructor Destroy(); override;
       property BuilderDBGrid: TMySQLDBGrid read FBuilderDBGrid;
       property Database: TSDatabase read GetDatabase;
+      property ListView: TListView read FListView;
       property Workbench: TWWorkbench read FWorkbench;
       property XML: IXMLNode read GetXML;
     end;
@@ -732,6 +732,7 @@ type
     TTableDesktop = class(TSObjectDesktop)
     private
       DataSource: TDataSource;
+      FListView: TListView;
       FDBGrid: TMySQLDBGrid;
       PDBGrid: TPanel_Ext;
       FXML: IXMLNode;
@@ -744,30 +745,32 @@ type
       procedure SetLimit(const Limit: Integer);
       procedure SetLimited(const ALimited: Boolean);
     public
-      ListView: TListView;
       procedure AddFilter(const AFilter: string);
       constructor Create(const AFClient: TFSession; const ATable: TSTable);
-      function CreateDBGrid(): TMySQLDBGrid; virtual;
-      function CreateListView(): TListView; virtual;
-      procedure DataSetAfterOpen(DataSet: TDataSet); virtual;
-      procedure DataSetAfterRefresh(DataSet: TDataSet); virtual;
+      function CreateDBGrid(): TMySQLDBGrid;
+      function CreateListView(): TListView;
+      procedure DataSetAfterOpen(DataSet: TDataSet);
+      procedure DataSetAfterRefresh(DataSet: TDataSet);
       destructor Destroy(); override;
       property DBGrid: TMySQLDBGrid read FDBGrid;
       property Filters[Index: Integer]: string read GetFilter;
       property FilterCount: Integer read GetFilterCount;
       property Limit: Integer read GetLimit write SetLimit;
       property Limited: Boolean read GetLimited write SetLimited;
+      property ListView: TListView read FListView;
       property Table: TSTable read GetTable;
       property XML: IXMLNode read GetXML;
     end;
 
     TViewDesktop = class(TTableDesktop)
+    private
+      FSynMemo: TSynMemo;
+      function GetSynMemo(): TSynMemo;
     public
-      SynMemo: TSynMemo;
       SynMemoTextAtUpdate: string;
       constructor Create(const AFClient: TFSession; const AView: TSView);
-      function CreateSynMemo(): TSynMemo; virtual;
       destructor Destroy(); override;
+      property SynMemo: TSynMemo read GetSynMemo;
     end;
 
     TRoutineDesktop = class(TSObjectDesktop)
@@ -778,39 +781,44 @@ type
         DBGrid: TMySQLDBGrid;
       end;
     private
+      FSynMemo: TSynMemo;
       PDBGrid: TPanel_Ext;
       Results: TList;
       TCResult: TTabControl;
       function GetActiveDBGrid(): TMySQLDBGrid;
+      function GetSynMemo(): TSynMemo; virtual;
       procedure TCResultChange(Sender: TObject);
     public
-      SynMemo: TSynMemo;
       SynMemoTextAtUpdate: string;
       procedure CloseIDEResult();
       constructor Create(const AFClient: TFSession; const ARoutine: TSRoutine);
-      function CreateSynMemo(): TSynMemo; virtual;
       destructor Destroy(); override;
       function IDEResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
         const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
       property ActiveDBGrid: TMySQLDBGrid read GetActiveDBGrid;
-    end;
-
-    TEventDesktop = class(TSObjectDesktop)
-    public
-      SynMemo: TSynMemo;
-      SynMemoTextAtUpdate: string;
-      constructor Create(const AFClient: TFSession; const AEvent: TSEvent);
-      function CreateSynMemo(): TSynMemo; virtual;
-      destructor Destroy(); override;
+      property SynMemo: TSynMemo read GetSynMemo;
     end;
 
     TTriggerDesktop = class(TSObjectDesktop)
+    private
+      FSynMemo: TSynMemo;
+      function GetSynMemo(): TSynMemo;
     public
-      SynMemo: TSynMemo;
       SynMemoTextAtUpdate: string;
       constructor Create(const AFClient: TFSession; const ATrigger: TSTrigger);
-      function CreateSynMemo(): TSynMemo; virtual;
       destructor Destroy(); override;
+      property SynMemo: TSynMemo read GetSynMemo;
+    end;
+
+    TEventDesktop = class(TSObjectDesktop)
+    private
+      FSynMemo: TSynMemo;
+      function GetSynMemo(): TSynMemo; virtual;
+    public
+      SynMemoTextAtUpdate: string;
+      constructor Create(const AFClient: TFSession; const AEvent: TSEvent);
+      destructor Destroy(); override;
+      property SynMemo: TSynMemo read GetSynMemo;
     end;
 
     TWanted = class
@@ -948,6 +956,7 @@ type
     procedure FHTMLShow(Sender: TObject);
     procedure FieldSetText(Sender: TField; const Text: string);
     procedure FImageShow(Sender: TObject);
+    procedure FLogUpdate();
     procedure FNavigatorEmptyExecute(Sender: TObject);
     procedure FNavigatorInitialize(Sender: TObject);
     function FNavigatorNodeByAddress(const Address: string): TTreeNode;
@@ -1013,7 +1022,6 @@ type
     procedure UMFrameActivate(var Message: TMessage); message UM_ACTIVATEFRAME;
     procedure UMFrameDeactivate(var Message: TMessage); message UM_DEACTIVATEFRAME;
     procedure UMPostBuilderQueryChange(var Message: TMessage); message UM_POST_BUILDER_QUERY_CHANGE;
-    procedure UMPostMonitor(var Message: TMessage); message UM_POST_MONITOR;
     procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
     procedure UMStausBarRefresh(var Message: TMessage); message UM_STATUS_BAR_REFRESH;
     procedure UMSynCompletionTime(var Message: TMessage); message UM_SYNCOMPLETION_TIMER;
@@ -1429,13 +1437,13 @@ end;
 
 function TFSession.TDatabaseDesktop.CreateListView(): TListView;
 begin
-  if (not Assigned(ListView)) then
+  if (not Assigned(FListView)) then
   begin
-    ListView := FSession.CreateListView(Database);
+    FListView := FSession.CreateListView(Database);
     Database.PushBuildEvents();
   end;
 
-  Result := ListView;
+  Result := FListView;
 end;
 
 function TFSession.TDatabaseDesktop.CreateWorkbench(): TWWorkbench;
@@ -1551,14 +1559,13 @@ end;
 
 function TFSession.TTableDesktop.CreateListView(): TListView;
 begin
-  if (not Assigned(ListView)) then
+  if (not Assigned(FListView)) then
   begin
-    ListView := FSession.CreateListView(Table);
-    if (Table.ValidSource) then
-      Table.Tables.PushBuildEvent(Table);
+    FListView := FSession.CreateListView(Table);
+    Table.PushBuildEvent(False);
   end;
 
-  Result := ListView;
+  Result := FListView;
 end;
 
 procedure TFSession.TTableDesktop.DataSetAfterOpen(DataSet: TDataSet);
@@ -1719,18 +1726,7 @@ constructor TFSession.TViewDesktop.Create(const AFClient: TFSession; const AView
 begin
   inherited Create(AFClient, AView);
 
-  SynMemo := nil;
-end;
-
-function TFSession.TViewDesktop.CreateSynMemo(): TSynMemo;
-begin
-  if (not Assigned(SynMemo) and TSView(SObject).Valid) then
-  begin
-    SynMemo := FSession.CreateSynMemo(SObject);
-    SynMemo.Text := TSView(SObject).Stmt + #13#10;
-  end;
-
-  Result := SynMemo;
+  FSynMemo := nil;
 end;
 
 destructor TFSession.TViewDesktop.Destroy();
@@ -1739,6 +1735,17 @@ begin
     SynMemo.Free;
 
   inherited;
+end;
+
+function TFSession.TViewDesktop.GetSynMemo(): TSynMemo;
+begin
+  if (not Assigned(FSynMemo) and TSView(SObject).Valid) then
+  begin
+    FSynMemo := FSession.CreateSynMemo(SObject);
+    FSynMemo.Text := TSView(SObject).Stmt + #13#10;
+  end;
+
+  Result := FSynMemo;
 end;
 
 { TFSession.TRoutineDesktop ***************************************************}
@@ -1767,19 +1774,8 @@ constructor TFSession.TRoutineDesktop.Create(const AFClient: TFSession; const AR
 begin
   inherited Create(AFClient, ARoutine);
 
+  FSynMemo := nil;
   Results := nil;
-  SynMemo := nil;
-end;
-
-function TFSession.TRoutineDesktop.CreateSynMemo(): TSynMemo;
-begin
-  if (not Assigned(SynMemo) and TSRoutine(SObject).Valid) then
-  begin
-    SynMemo := FSession.CreateSynMemo(SObject);
-    SynMemo.Text := TSRoutine(SObject).Source;
-  end;
-
-  Result := SynMemo;
 end;
 
 destructor TFSession.TRoutineDesktop.Destroy();
@@ -1803,6 +1799,17 @@ begin
     Result := TResult(Results[0]^).DBGrid
   else
     Result := TResult(Results[TCResult.TabIndex]^).DBGrid;
+end;
+
+function TFSession.TRoutineDesktop.GetSynMemo(): TSynMemo;
+begin
+  if (not Assigned(FSynMemo) and TSRoutine(SObject).Valid) then
+  begin
+    FSynMemo := FSession.CreateSynMemo(SObject);
+    FSynMemo.Text := TSRoutine(SObject).Source;
+  end;
+
+  Result := FSynMemo;
 end;
 
 function TFSession.TRoutineDesktop.IDEResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
@@ -1857,24 +1864,41 @@ begin
       PDBGrid.Controls[I].Visible := TMySQLDBGrid(PDBGrid.Controls[I]).Tag = TCResult.TabIndex;
 end;
 
+{ TFSession.TTriggerDesktop ***************************************************}
+
+constructor TFSession.TTriggerDesktop.Create(const AFClient: TFSession; const ATrigger: TSTrigger);
+begin
+  inherited Create(AFClient, ATrigger);
+
+  FSynMemo := nil;
+end;
+
+destructor TFSession.TTriggerDesktop.Destroy();
+begin
+  inherited;
+
+  if (Assigned(SynMemo)) then
+    SynMemo.Free();
+end;
+
+function TFSession.TTriggerDesktop.GetSynMemo(): TSynMemo;
+begin
+  if (not Assigned(FSynMemo) and TSTrigger(SObject).Valid) then
+  begin
+    FSynMemo := FSession.CreateSynMemo(SObject);
+    FSynMemo.Text := TSTrigger(SObject).Stmt;
+  end;
+
+  Result := FSynMemo;
+end;
+
 { TFSession.TEventDesktop *****************************************************}
 
 constructor TFSession.TEventDesktop.Create(const AFClient: TFSession; const AEvent: TSEvent);
 begin
-  SynMemo := nil;
-
   inherited Create(AFClient, AEvent);
-end;
 
-function TFSession.TEventDesktop.CreateSynMemo(): TSynMemo;
-begin
-  if (not Assigned(SynMemo) and TSEvent(SObject).Valid) then
-  begin
-    SynMemo := FSession.CreateSynMemo(SObject);
-    SynMemo.Text := TSEvent(SObject).Stmt;
-  end;
-
-  Result := SynMemo;
+  FSynMemo := nil;
 end;
 
 destructor TFSession.TEventDesktop.Destroy();
@@ -1885,32 +1909,15 @@ begin
     SynMemo.Free();
 end;
 
-{ TFSession.TTriggerDesktop ***************************************************}
-
-constructor TFSession.TTriggerDesktop.Create(const AFClient: TFSession; const ATrigger: TSTrigger);
+function TFSession.TEventDesktop.GetSynMemo(): TSynMemo;
 begin
-  SynMemo := nil;
-
-  inherited Create(AFClient, ATrigger);
-end;
-
-function TFSession.TTriggerDesktop.CreateSynMemo(): TSynMemo;
-begin
-  if (not Assigned(SynMemo) and TSTrigger(SObject).Valid) then
+  if (not Assigned(FSynMemo) and TSEvent(SObject).Valid) then
   begin
-    SynMemo := FSession.CreateSynMemo(SObject);
-    SynMemo.Text := TSTrigger(SObject).Stmt;
+    FSynMemo := FSession.CreateSynMemo(SObject);
+    FSynMemo.Text := TSEvent(SObject).Stmt;
   end;
 
-  Result := SynMemo;
-end;
-
-destructor TFSession.TTriggerDesktop.Destroy();
-begin
-  inherited;
-
-  if (Assigned(SynMemo)) then
-    SynMemo.Free();
+  Result := FSynMemo;
 end;
 
 { TFSession.TWanted ***********************************************************}
@@ -4188,7 +4195,7 @@ begin
     SLog.Top := 0;
     SLog.Align := alBottom;
 
-    Perform(UM_POST_MONITOR, 0, 0);
+    FLogUpdate();
   end
   else
     SendMessage(FLog.Handle, WM_SETTEXT, 0, 0);
@@ -5008,12 +5015,9 @@ begin
   Result.Left := 0;
   Result.Top := 0;
   Result.Width := PDBGrid.ClientWidth;
-  Result.Height := 24;
   Result.Align := alTop;
 
   Result.Parent := PDBGrid;
-
-  Result.TabHeight := 23;
 
   Result.Perform(CM_PARENTCOLORCHANGED, 0, 0);
   Result.Perform(CM_PARENTFONTCHANGED, 0, 0);
@@ -6250,6 +6254,19 @@ begin
   StatusBarRefresh();
 end;
 
+procedure TFSession.FLogUpdate();
+var
+  Text: string;
+begin
+  if (MainAction('aVSQLLog').Checked) then
+  begin
+    Text := Session.SQLMonitor.CacheText;
+    SendMessage(FLog.Handle, WM_SETTEXT, 0, LPARAM(PChar(Text)));
+
+    PLogResize(nil);
+  end;
+end;
+
 procedure TFSession.FNavigatorChange(Sender: TObject; Node: TTreeNode);
 begin
   FNavigatorMenuNode := Node;
@@ -7268,7 +7285,7 @@ begin
       etItemDropped:
         SessionUpdate(Event);
       etMonitor:
-        Perform(UM_POST_MONITOR, 0, 0);
+        FLogUpdate();
       etBeforeExecuteSQL:
         BeforeExecuteSQL(Event);
       etAfterExecuteSQL:
@@ -8136,11 +8153,11 @@ begin
   case (View) of
     vIDE:
       case (SelectedImageIndex) of
-        iiView: Result := Desktop(TSView(FNavigator.Selected.Data)).CreateSynMemo();
+        iiView: Result := Desktop(TSView(FNavigator.Selected.Data)).SynMemo;
         iiProcedure,
-        iiFunction: Result := Desktop(TSRoutine(FNavigator.Selected.Data)).CreateSynMemo();
-        iiEvent: Result := Desktop(TSEvent(FNavigator.Selected.Data)).CreateSynMemo();
-        iiTrigger: Result := Desktop(TSTrigger(FNavigator.Selected.Data)).CreateSynMemo();
+        iiFunction: Result := Desktop(TSRoutine(FNavigator.Selected.Data)).SynMemo;
+        iiTrigger: Result := Desktop(TSTrigger(FNavigator.Selected.Data)).SynMemo;
+        iiEvent: Result := Desktop(TSEvent(FNavigator.Selected.Data)).SynMemo;
         else Result := nil;
       end;
     vBuilder:
@@ -9553,12 +9570,8 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
           for I := 0 to ListView.Columns.Count - 1 do
             if ((Kind = lkProcesses) and (I = 5)) then
               ListView.Columns[I].Width := Preferences.GridMaxColumnWidth
-            else // if ((Kind in [lkServer, lkDatabase, lkTable]) or (ListView.Items.Count > 0)) then
+            else
               ListView.Columns[I].Width := ColumnWidths[I];
-//            else if (ListView.Items.Count = 0) then
-//              ListView.Columns[I].Width := ColumnHeaderWidth
-//            else
-//              ListView.Columns[I].Width := ColumnTextWidth;
 
           ListView.EnableAlign();
           ListView.Items.EndUpdate();
@@ -9708,6 +9721,8 @@ begin
           if (Event.Sender is TSTable) then
           begin
             Table := TSTable(Event.Sender);
+            ListView.Items.BeginUpdate();
+            ListView.DisableAlign();
             if (Table is TSBaseTable) then
               UpdateGroup(Kind, giKeys, TSBaseTable(Table).Keys);
             UpdateGroup(Kind, giFields, Table.Fields);
@@ -9715,6 +9730,8 @@ begin
               UpdateGroup(Kind, giForeignKeys, TSBaseTable(Table).ForeignKeys);
             if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).Database.Triggers)) then
               UpdateGroup(Kind, giTriggers, TSBaseTable(Table).Database.Triggers);
+            ListView.EnableAlign();
+            ListView.Items.EndUpdate();
           end
           else if ((Event.Sender is TSDatabase) and (Event.Items is TSTriggers)) then
             UpdateGroup(Kind, giTriggers, Event.Items);
@@ -11580,6 +11597,10 @@ begin
 
   if (not (PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (Msg.wParam = MK_LBUTTON))) then
   begin
+    for I := 0 to PDataBrowser.ControlCount - 1 do
+      if (PDataBrowser.Controls[I] <> PDataBrowserSpacer) then
+        PDataBrowser.Controls[I].Height := PDataBrowser.ClientHeight - PDataBrowserSpacer.Height;
+
     FOffset.Left := PDataBrowserDummy.FOffset.Left;
     FOffset.Width := PDataBrowserDummy.FOffset.Width;
     FUDOffset.Left := FOffset.Left + FOffset.Width;
@@ -11589,21 +11610,18 @@ begin
     FUDLimit.Left := FLimit.Left + FLimit.Width;
     FUDLimit.Width := PDataBrowserDummy.FUDLimit.Width;
     TBLimitEnabled.Left := FUDLimit.Left + FUDLimit.Width;
-    TBLimitEnabled.Width := 2 * TBLimitEnabled.Height;
+    TBLimitEnabled.Width := TBLimitEnabled.Height;
 
     TBQuickSearchEnabled.Left := PDataBrowser.ClientWidth - PDataBrowserDummy.TBQuickSearchEnabled.Width - GetSystemMetrics(SM_CXVSCROLL);
     TBQuickSearchEnabled.Width := PDataBrowserDummy.TBQuickSearchEnabled.Width;
-    TBFilterEnabled.Width := 2 * TBFilterEnabled.Height;
+    TBFilterEnabled.Width := TBFilterEnabled.Height;
     FQuickSearch.Left := TBQuickSearchEnabled.Left - PDataBrowserDummy.FQuickSearch.Width;
     FQuickSearch.Width := PDataBrowserDummy.FQuickSearch.Width;
-    TBFilterEnabled.Width := 2 * TBFilterEnabled.Height;
-    TBFilterEnabled.Left := FQuickSearch.Left - TBFilterEnabled.Width;
+
+    TBFilterEnabled.Width := TBFilterEnabled.Height;
+    TBFilterEnabled.Left := FQuickSearch.Left - (PDataBrowserDummy.FQuickSearch.Left - PDataBrowserDummy.TBFilterEnabled.Left);
     FFilter.Left := PDataBrowserDummy.FFilter.Left;
     FFilter.Width := TBFilterEnabled.Left - FFilter.Left;
-
-    for I := 0 to PDataBrowser.ControlCount - 1 do
-      if (PDataBrowser.Controls[I] <> PDataBrowserSpacer) then
-        PDataBrowser.Controls[I].Height := PDataBrowser.ClientHeight - PDataBrowserSpacer.Height;
   end;
 end;
 
@@ -13749,19 +13767,6 @@ end;
 procedure TFSession.UMPostBuilderQueryChange(var Message: TMessage);
 begin
   FQueryBuilderEditorPageControlCheckStyle();
-end;
-
-procedure TFSession.UMPostMonitor(var Message: TMessage);
-var
-  Text: string;
-begin
-  if (MainAction('aVSQLLog').Checked) then
-  begin
-    Text := Session.SQLMonitor.CacheText;
-    SendMessage(FLog.Handle, WM_SETTEXT, 0, LPARAM(PChar(Text)));
-
-    PLogResize(nil);
-  end;
 end;
 
 procedure TFSession.UMPostShow(var Message: TMessage);

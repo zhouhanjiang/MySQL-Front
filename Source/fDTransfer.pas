@@ -282,6 +282,13 @@ begin
     Preferences.Transfer.Structure := FStructure.Checked;
   end;
 
+  FSource.Items.BeginUpdate();
+  FSource.Items.Clear();
+  FSource.Items.EndUpdate();
+  FDestination.Items.BeginUpdate();
+  FDestination.Items.Clear();
+  FDestination.Items.EndUpdate();
+
   PageControl.ActivePage := nil; // Make sure, not ___OnShowPage will be executed
 end;
 
@@ -605,14 +612,6 @@ var
   SourceDatabase: TSDatabase;
   SourceSession: TSSession;
 begin
-  FSource.Items.BeginUpdate();
-  FSource.Items.Clear();
-  FSource.Items.EndUpdate();
-  FDestination.Items.BeginUpdate();
-  FDestination.Items.Clear();
-  FDestination.Items.EndUpdate();
-
-
   FEntieredObjects.Caption := '';
   FDoneObjects.Caption := '';
   FEntieredRecords.Caption := '';
@@ -752,7 +751,16 @@ begin
     if (not Assigned(Transfer)) then
       ModalResult := mrCancel
     else
+    begin
+      FSource.Items.BeginUpdate();
+      FSource.Items.Clear();
+      FSource.Items.EndUpdate();
+      FDestination.Items.BeginUpdate();
+      FDestination.Items.Clear();
+      FDestination.Items.EndUpdate();
+
       Transfer.Start();
+    end;
   end;
 
   if (not Assigned(Wanted.Page)) then

@@ -7275,40 +7275,29 @@ end;
 
 {******************************************************************************}
 
-function HexToStr(const Hex: string): RawByteString;
-const
-  Digits: string = '0123456789ABCDEF';
-var
-  Index: Integer;
-begin
-  Index := 0;
-  Result := '';
-  while (Index < Length(Hex) div 2) do
-  begin
-    Result := Result + AnsiChar(Chr((Pos(Hex[2 * Index + 1], Digits) - 1) * $10 + Pos(Hex[2 * Index + 2], Digits) - 1));
-    Inc(Index);
-  end;
-end;
-
-var
-  Len: Integer;
-  RBS: RawByteString;
-  S: string;
+//function HexToStr(const Hex: string): RawByteString;
+//const
+//  Digits: string = '0123456789ABCDEF';
+//var
+//  Index: Integer;
+//begin
+//  Index := 0;
+//  Result := '';
+//  while (Index < Length(Hex) div 2) do
+//  begin
+//    Result := Result + AnsiChar(Chr((Pos(Hex[2 * Index + 1], Digits) - 1) * $10 + Pos(Hex[2 * Index + 2], Digits) - 1));
+//    Inc(Index);
+//  end;
+//end;
+//
+//var
+//  Len: Integer;
+//  RBS: RawByteString;
+//  S: string;
 initialization
-  RBS := HexToStr('435245415445205441424C45206074625F63756C747572656020280A20206'
-    + '063756C747572655F316020766172636861722833292044454641554C54204E554C4C2C0A'
-    + '20206063756C747572655F326020766172636861722833292044454641554C54204E554C4'
-    + 'C2C0A20206063756C747572655F336020766172636861722833292044454641554C54204E'
-    + '554C4C2C0A20206063756C747572655F346020766172636861722833292044454641554C5'
-    + '4204E554C4C2C0A20206063756C747572655F356020766172636861722833292044454641'
-    + '554C54204E554C4C2C0A20206063756C747572655F3660207661726368617228332920444'
-    + '54641554C54204E554C4C2C0A20206063756C747572655F37602076617263686172283329'
-    + '2044454641554C54204E554C4C2C0A20206063756C747572655F746F74616C60207661726'
-    + '36861722833292044454641554C54204E554C4C0A2920454E47494E453D496E6E6F444220'
-    + '44454641554C5420434841525345543D7574663820434F4D4D454E543D273F3F2D2E3F3F3'
-    + 'F3F2F3F3F2D3F3B0D0A');
-  SetLength(S, Length(RBS));
-  Len := AnsiCharToWideChar(65001, PAnsiChar(RBS), Length(RBS), PChar(S), Length(S));
+//  RBS := HexToStr('');
+//  SetLength(S, Length(RBS));
+//  Len := AnsiCharToWideChar(65001, PAnsiChar(RBS), Length(RBS), PChar(S), Length(S));
 
   MySQLConnectionOnSynchronize := nil;
   SynchronizingThreads := TList.Create();

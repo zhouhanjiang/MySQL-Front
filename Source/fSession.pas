@@ -1315,7 +1315,6 @@ type
     RInsert: Boolean;
     RLockTables: Boolean;
     RProcess: Boolean;
-    RProxy: Boolean;
     RReferences: Boolean;
     RReload: Boolean;
     RReplClient: Boolean;
@@ -1409,14 +1408,13 @@ type
     TUpdate = function (): Boolean of object;
     TEvent = class(TObject)
     type
-      TEventType = (etItemsValid, etItemValid, etItemCreated, etItemDropped, etItemAltered, etDatabaseChange, etBeforeExecuteSQL, etAfterExecuteSQL, etMonitor, etError);
+      TEventType = (etItemsValid, etItemValid, etItemCreated, etItemDropped, etItemAltered, etDatabaseChanged, etBeforeExecuteSQL, etAfterExecuteSQL, etMonitor, etError);
     public
       Session: TSSession;
       EventType: TEventType;
       Sender: TObject;
       Items: TSItems;
       Item: TSItem;
-      Update: TUpdate;
       constructor Create(const ASession: TSSession);
     end;
     TCreateDesktop = function (const CObject: TSObject): TSObject.TDesktop of object;
@@ -2499,7 +2497,7 @@ begin
       Session.UnparsableSQL := Session.UnparsableSQL
         + '# SetSource()' + #13#10
         + '# Error: ' + Session.SQLParser.ErrorMessage + #13#10
-        + '# Hex: ' + SQLEscapeBin(@TMySQLQuery(Field.DataSet).LibRow^[Field.FieldNo - 1], TMySQLQuery(Field.DataSet).LibLengths^[Field.FieldNo - 1], True) + #13#10
+        + '# Hex: ' + SQLEscapeBin(TMySQLQuery(Field.DataSet).LibRow^[Field.FieldNo - 1], TMySQLQuery(Field.DataSet).LibLengths^[Field.FieldNo - 1], True) + #13#10
         + Source + #13#10 + #13#10;
     Session.SQLParser.Clear();
   end;
@@ -9734,7 +9732,6 @@ begin
   RInsert := Source.RInsert;
   RLockTables := Source.RLockTables;
   RProcess := Source.RProcess;
-  RProxy := Source.RProxy;
   RReferences := Source.RReferences;
   RReload := Source.RReload;
   RReplClient := Source.RReplClient;
@@ -9776,7 +9773,6 @@ begin
   RInsert := False;
   RLockTables := False;
   RProcess := False;
-  RProxy := False;
   RReferences := False;
   RReload := False;
   RReplClient := False;
@@ -9996,7 +9992,6 @@ procedure TSUser.ParseGrant(const SQL: string);
         RInsert          := (RInsert          or (Privileg = 'INSERT')                  or (Privileg = 'ALL PRIVILEGES'));
         RLockTables      := (RLockTables      or (Privileg = 'LOCK TABLES')             or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.MySQLVersion >= 40002);
         RProcess         := (RProcess         or (Privileg = 'PROCESS')                 or (Privileg = 'ALL PRIVILEGES'));
-        RProxy           := (RProxy           or (Privileg = 'PROXY')                   or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.MySQLVersion >= 50507);
         RReferences      := (RReferences      or (Privileg = 'REFERENCES')              or (Privileg = 'ALL PRIVILEGES'));
         RReload          := (RReload          or (Privileg = 'RELOAD')                  or (Privileg = 'ALL PRIVILEGES'));
         RReplClient      := (RReplClient      or (Privileg = 'REPLICATION CLIENT')      or (Privileg = 'ALL PRIVILEGES')) and (Session.Connection.MySQLVersion >= 40002);
@@ -10446,7 +10441,6 @@ begin
   Session := ASession;
   Sender := nil;
   Items := nil;
-  Update := nil;
 end;
 
 { TSSession *******************************************************************}
@@ -10798,8 +10792,16 @@ begin
 end;
 
 procedure TSSession.DatabaseChange(const Connection: TMySQLConnection; const NewName: string);
+var
+  Database: TSDatabase;
 begin
-  SendEvent(etDatabaseChange, Self, nil, nil);
+  Database := DatabaseByName(NewName);
+  if (not Assigned(Database)) then
+  begin
+    Database := TSDatabase.Create(Databases, NewName);
+    Databases.Add(Database, True);
+  end;
+  SendEvent(etDatabaseChanged, Self, Databases, Database);
 end;
 
 procedure TSSession.DecodeInterval(const Value: string; const IntervalType: TSEvent.TIntervalType; var Year, Month, Day, Quarter, Week, Hour, Minute, Second, MSec: Word);
@@ -12510,7 +12512,6 @@ type
     if ((not Grant xor NewRight.RInsert         ) and (Grant xor (Assigned(OldRight) and OldRight.RInsert         ))                                                                                         ) then begin Result := Result + ',INSERT';                  if (not Grant and (OldRight.FieldName <> '')) then Result := Result + '(' + Connection.EscapeIdentifier(OldRight.FieldName) + ')' else if (Grant and (NewRight.FieldName <> '')) then Result := Result + '(' + Connection.EscapeIdentifier(NewRight.FieldName) + ')'; end;
     if ((not Grant xor NewRight.RLockTables     ) and (Grant xor (Assigned(OldRight) and OldRight.RLockTables     )) and (RightType in [rtAll, rtDatabase])            and (Connection.MySQLVersion >= 40002)) then       Result := Result + ',LOCK TABLES';
     if ((not Grant xor NewRight.RProcess        ) and (Grant xor (Assigned(OldRight) and OldRight.RProcess        )) and (RightType in [rtAll])                                                              ) then       Result := Result + ',PROCESS';
-    if ((not Grant xor NewRight.RProxy          ) and (Grant xor (Assigned(OldRight) and OldRight.RProxy          )) and (RightType in [rtAll])                        and (Connection.MySQLVersion >= 50507)) then       Result := Result + ',PROXY';
     if ((not Grant xor NewRight.RReferences     ) and (Grant xor (Assigned(OldRight) and OldRight.RReferences     ))                                                                                         ) then begin Result := Result + ',REFERENCES';              if (not Grant and (OldRight.FieldName <> '')) then Result := Result + '(' + Connection.EscapeIdentifier(OldRight.FieldName) + ')' else if (Grant and (NewRight.FieldName <> '')) then Result := Result + '(' + Connection.EscapeIdentifier(NewRight.FieldName) + ')'; end;
     if ((not Grant xor NewRight.RReload         ) and (Grant xor (Assigned(OldRight) and OldRight.RReload         )) and (RightType in [rtAll])                                                              ) then       Result := Result + ',RELOAD';
     if ((not Grant xor NewRight.RReplClient     ) and (Grant xor (Assigned(OldRight) and OldRight.RReplClient     )) and (RightType in [rtAll])                        and (Connection.MySQLVersion >= 40002)) then       Result := Result + ',REPLICATION CLIENT';
@@ -12524,6 +12525,9 @@ type
     if ((not Grant xor NewRight.RUpdate         ) and (Grant xor (Assigned(OldRight) and OldRight.RUpdate         ))                                                                                         ) then begin Result := Result + ',UPDATE';                  if (not Grant and (OldRight.FieldName <> '')) then Result := Result + '(' + Connection.EscapeIdentifier(OldRight.FieldName) + ')' else if (Grant and (NewRight.FieldName <> '')) then Result := Result + '(' + Connection.EscapeIdentifier(NewRight.FieldName) + ')'; end;
 
     Delete(Result, 1, 1);
+
+    if (Result = '') then
+      Result := 'PROXY';
   end;
 
 var

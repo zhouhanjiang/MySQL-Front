@@ -44,6 +44,9 @@ type
     procedure FParentDatabaseChange(Sender: TObject);
     procedure FParentTableChange(Sender: TObject);
   private
+    Wanted: record
+      ComboBox: TComboBox;
+    end;
     procedure Built();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     function GetParentDatabase(): TSDatabase;
@@ -51,6 +54,7 @@ type
     property SelectedParentDatabase: TSDatabase read GetParentDatabase;
     property SelectedParentTable: TSBaseTable read GetParentTable;
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPostAfterExecuteSQL(var Message: TMessage); message UM_POST_AFTEREXECUTESQL;
   public
     Database: TSDatabase;
     ForeignKey: TSForeignKey;
@@ -307,25 +311,28 @@ end;
 procedure TDForeignKey.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = etItemValid) and (Event.Item = Table)) then
-    Built()
-  else if ((Event.EventType = etItemsValid) and (Event.Sender = Table.Session.Databases)) then
-    FParentDatabaseChange(Event.Sender)
-  else if ((Event.EventType = etItemValid) and (Event.Item = SelectedParentTable)) then
-    FParentTableChange(Event.Sender)
+  begin
+    Built();
+    ActiveControl := FName;
+    FBOkCheckEnabled(nil);
+  end
   else if ((Event.EventType = etItemAltered) and (Event.Item = Table)) then
     ModalResult := mrOk;
 
-  if (Event.EventType = etAfterExecuteSQL) then
+  if (Event.EventType = etError) then
   begin
     FParentTable.Cursor := crDefault;
     FParentFields.Cursor := crDefault;
 
+    Wanted.ComboBox := nil;
+  end
+  else if (Event.EventType = etAfterExecuteSQL) then
+  begin
     GBasics.Visible := True;
     GAttributes.Visible := GBasics.Visible;
     PSQLWait.Visible := not GBasics.Visible;
 
-    ActiveControl := FName;
-    FBOkCheckEnabled(nil);
+    PostMessage(Handle, UM_POST_AFTEREXECUTESQL, 0, 0);
   end;
 end;
 
@@ -351,6 +358,8 @@ begin
     Caption := Preferences.LoadStr(842, ForeignKey.Name);
     HelpContext := 1057;
   end;
+
+  Wanted.ComboBox := nil;
 
   FDatabase.Text := Table.Database.Name;
   FTable.Text := Table.Name;
@@ -388,16 +397,14 @@ procedure TDForeignKey.FParentDatabaseChange(Sender: TObject);
 var
   I: Integer;
 begin
+  Wanted.ComboBox := nil;
+
   FParentTable.Clear();
 
-  if (not Assigned(SelectedParentDatabase)) then
-    FParentTable.Cursor := crDefault
-  else if (not SelectedParentDatabase.Update()) then
-    FParentTable.Cursor := crSQLWait
+  if (not Assigned(SelectedParentDatabase) or not SelectedParentDatabase.Update()) then
+    Wanted.ComboBox := FParentDatabase
   else
   begin
-    FParentTable.Cursor := crDefault;
-
     for I := 0 to SelectedParentDatabase.Tables.Count - 1 do
       if (SelectedParentDatabase.Tables.Table[I] is TSBaseTable) then
         FParentTable.Items.Add(SelectedParentDatabase.Tables.Table[I].Name);
@@ -405,6 +412,11 @@ begin
     FParentTable.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
     FBOkCheckEnabled(Sender);
   end;
+
+  if (not Assigned(Wanted.ComboBox)) then
+    FParentTable.Cursor := crDefault
+  else
+    FParentTable.Cursor := crSQLWait;
 end;
 
 procedure TDForeignKey.FParentTableChange(Sender: TObject);
@@ -412,16 +424,14 @@ var
   I: Integer;
   J: Integer;
 begin
+  Wanted.ComboBox := nil;
+
   FParentFields.Clear();
 
-  if (not Assigned(SelectedParentTable)) then
-    FParentFields.Cursor := crDefault
-  else if (not SelectedParentTable.Update()) then
-    FParentFields.Cursor := crSQLWait
+  if (not Assigned(SelectedParentTable) or not SelectedParentTable.Update()) then
+    Wanted.ComboBox := FParentTable
   else
   begin
-    FParentFields.Cursor := crDefault;
-
     for I := 0 to SelectedParentTable.Fields.Count - 1 do
       FParentFields.Items.Add(SelectedParentTable.Fields[I].Name);
 
@@ -434,6 +444,11 @@ begin
     FParentFields.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
     FBOkCheckEnabled(Sender);
   end;
+
+  if (not Assigned(Wanted.ComboBox)) then
+    FParentFields.Cursor := crDefault
+  else
+    FParentFields.Cursor := crSQLWait;
 end;
 
 function TDForeignKey.GetParentDatabase(): TSDatabase;
@@ -482,6 +497,12 @@ begin
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBOk.Caption := Preferences.LoadStr(29);
+end;
+
+procedure TDForeignKey.UMPostAfterExecuteSQL(var Message: TMessage);
+begin
+  if (Assigned(Wanted.ComboBox) and Assigned(Wanted.ComboBox.OnChange)) then
+    Wanted.ComboBox.OnChange(nil);
 end;
 
 initialization
