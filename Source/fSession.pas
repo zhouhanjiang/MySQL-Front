@@ -10722,7 +10722,7 @@ begin
   FSyntaxProvider.ServerVersionInt := Connection.MySQLVersion;
   FUser := nil;
   ManualURL := '';
-  ParseEndDate := EncodeDate(2016, 11, 12);
+  ParseEndDate := EncodeDate(2016, 11, 14);
   UnparsableSQL := '';
 
   if (not Assigned(AAccount)) then

@@ -1165,10 +1165,6 @@ object DExport: TDExport
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -1393,15 +1389,6 @@ object DExport: TDExport
     EncodingIndex = -1
     EncodingLabel = '&Encoding:'
     Left = 88
-    Top = 288
-  end
-  object PrintDialog: TPrintDialog_Ext
-    FromPage = 1
-    MinPage = 1
-    MaxPage = 3
-    Options = [poWarning]
-    ToPage = 2
-    Left = 120
     Top = 288
   end
 end
