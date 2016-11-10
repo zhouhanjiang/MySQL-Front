@@ -588,7 +588,7 @@ type
 
     TJobExport = class(TJob)
     type
-      TExportType = (etUnknown, etSQLFile, etTextFile, etExcelFile, etAccessFile, etODBC, etHTMLFile, etXMLFile, etPDFFile, etPrinter);
+      TExportType = (etUnknown, etSQLFile, etTextFile, etExcelFile, etAccessFile, etODBC, etHTMLFile, etXMLFile, etPDFFile);
     protected
       procedure LoadFromXML(const XML: IXMLNode); override;
       procedure SaveToXML(const XML: IXMLNode); override;
@@ -1109,7 +1109,6 @@ begin
   else if (UpperCase(Str) = 'HTMLFILE') then ExportType := etHTMLFile
   else if (UpperCase(Str) = 'XMLFILE') then ExportType := etXMLFile
   else if (UpperCase(Str) = 'PDFFILE') then ExportType := etPDFFile
-  else if (UpperCase(Str) = 'PRINTER') then ExportType := etPrinter
   else Result := False;
 end;
 
@@ -1124,7 +1123,6 @@ begin
     etHTMLFile: Result := 'HTMLFile';
     etXMLFile: Result := 'XMLFile';
     etPDFFile: Result := 'PDFFile';
-    etPrinter: Result := 'Printer';
     else raise ERangeError.CreateFmt(SPropertyOutOfRange, ['ExportType']);
   end;
 end;

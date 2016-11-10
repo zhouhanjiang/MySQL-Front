@@ -50,7 +50,7 @@ type
       property Item[Index: Integer]: TItem read GetItem; default;
       property Tool: TTool read FTool;
     end;
-    TErrorType = (TE_Database, TE_NoPrimaryIndex, TE_File, TE_ODBC, TE_XML, TE_Warning, TE_Printer, TE_OutOfMemory, TE_CharacterSet);
+    TErrorType = (TE_Database, TE_NoPrimaryIndex, TE_File, TE_ODBC, TE_XML, TE_Warning, TE_OutOfMemory, TE_CharacterSet);
     TError = record
       ErrorType: TErrorType;
       ErrorCode: Integer;
@@ -642,23 +642,6 @@ type
     IndexBackground: Boolean;
     NULLText: Boolean;
     constructor Create(const ASession: TSSession);
-    destructor Destroy(); override;
-  end;
-
-  TTExportPrint = class(TTExportCanvas)
-  private
-    Handle: HDC;
-    DevMode: PDeviceMode;
-    Pages: array of TBitmap;
-    Printer: THandle;
-    FTitle: string;
-    procedure PrintPage(const Page: TBitmap);
-  protected
-    procedure AddPage(const NewPageRow: Boolean); override;
-    procedure AfterExecute(); override;
-    procedure BeforeExecute(); override;
-  public
-    constructor Create(const ASession: TSSession; const APrinterName: string; const ATitle: string);
     destructor Destroy(); override;
   end;
 
@@ -7486,140 +7469,6 @@ begin
     if (Style <> Font.Style) then
       Canvas.Font.Style := Style;
   end;
-end;
-
-{ TTExportPrint ***************************************************************}
-
-procedure TTExportPrint.AddPage(const NewPageRow: Boolean);
-var
-  FontSize: Integer;
-  I: Integer;
-begin
-  if (NewPageRow) then
-  begin
-    for I := 0 to Length(Pages) - 1 do
-    begin
-      if (Success = daSuccess) then
-        PrintPage(Pages[I]);
-      Pages[I].Free();
-    end;
-    SetLength(Pages, 0);
-  end;
-
-  if (Success <> daSuccess) then
-    Canvas := nil
-  else
-  begin
-    SetLength(Pages, Length(Pages) + 1);
-    Pages[Length(Pages) - 1] := TBitmap.Create();
-    Pages[Length(Pages) - 1].Canvas.Handle := CreateCompatibleDC(Handle);
-    Pages[Length(Pages) - 1].Monochrome := True;
-    Pages[Length(Pages) - 1].SetSize(PageWidth, PageHeight);
-    Canvas := Pages[Length(Pages) - 1].Canvas;
-
-    if (Canvas.Font.PixelsPerInch <> GetDeviceCaps(Handle, LOGPIXELSY)) then
-    begin
-      FontSize := Canvas.Font.Size;
-      Canvas.Font.PixelsPerInch := GetDeviceCaps(Handle, LOGPIXELSY);
-      Canvas.Font.Size := FontSize;
-    end;
-  end;
-end;
-
-procedure TTExportPrint.AfterExecute();
-var
-  I: Integer;
-begin
-  for I := 0 to Length(Pages) - 1 do
-  begin
-    if (Success = daSuccess) then
-      PrintPage(Pages[I]);
-    Pages[I].Free();
-  end;
-  SetLength(Pages, 0);
-
-  if (EndDoc(Handle) <= 0) then
-    RaiseLastOSError();
-
-  inherited;
-end;
-
-procedure TTExportPrint.BeforeExecute();
-var
-  DocInfo: TDocInfo;
-begin
-  inherited;
-
-  if (Success = daSuccess) then
-  begin
-    ZeroMemory(@DocInfo, SizeOf(DocInfo));
-    DocInfo.cbSize := SizeOf(DocInfo);
-    DocInfo.lpszDocName := PChar(FTitle);
-    if (StartDoc(Handle, DocInfo) <= 0) then
-      RaiseLastOSError();
-  end;
-end;
-
-constructor TTExportPrint.Create(const ASession: TSSession; const APrinterName: string; const ATitle: string);
-var
-  Size: Integer;
-  XResolution: Integer;
-begin
-  FTitle := ATitle;
-
-  if (not OpenPrinter(PChar(APrinterName), Printer, nil)) then
-    RaiseLastOSError();
-
-  Size := DocumentProperties(Application.Handle, Printer, nil, nil, nil, 0);
-
-  GetMem(DevMode, Size);
-  if (DocumentProperties(Application.Handle, Printer, nil, DevMode, nil, DM_OUT_BUFFER) <> IDOK) then
-    RaiseLastOSError();
-
-  Handle := CreateDC(nil, PChar(APrinterName), nil, DevMode);
-
-  PageWidth := GetDeviceCaps(Handle, HorzRes);
-  PageHeight := GetDeviceCaps(Handle, VertRes);
-
-  if (DevMode^.dmPrintQuality > 0) then
-    XResolution := DevMode^.dmPrintQuality
-  else
-    XResolution := DevMode^.dmYResolution;
-
-  Margins.Left := Round(XResolution * MarginsMilliInch.Left / 1000);
-  Margins.Top := Round(DevMode^.dmYResolution * MarginsMilliInch.Top / 1000);
-  Margins.Right := Round(XResolution * MarginsMilliInch.Right / 1000);
-  Margins.Bottom := Round(DevMode^.dmYResolution * MarginsMilliInch.Bottom / 1000);
-
-  Padding := Round(DevMode^.dmYResolution * PaddingMilliInch / 1000);
-
-  LineWidth := Round(XResolution * LineWidthMilliInch / 1000);
-  LineHeight := Round(DevMode^.dmYResolution * LineHeightMilliInch / 1000);
-
-  SetLength(Pages, 0);
-  Success := daSuccess;
-  AddPage(False);
-
-  inherited Create(ASession);
-end;
-
-destructor TTExportPrint.Destroy();
-begin
-  DeleteDC(Handle);
-  FreeMem(DevMode);
-  ClosePrinter(Printer);
-
-  inherited;
-end;
-
-procedure TTExportPrint.PrintPage(const Page: TBitmap);
-begin
-  if (StartPage(Handle) <= 0) then
-    RaiseLastOSError();
-  if (not BitBlt(Handle, 0, 0, PageWidth, PageHeight, Page.Canvas.Handle, 0, 0, SRCCOPY)) then
-    RaiseLastOSError();
-  if (EndPage(Handle) <= 0) then
-    RaiseLastOSError();
 end;
 
 { TTExportPDF *****************************************************************}

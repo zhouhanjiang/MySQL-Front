@@ -437,6 +437,9 @@ type
     procedure miFReopenClick(Sender: TObject);
     procedure mtTabsClick(Sender: TObject);
     procedure MySQLConnectionSynchronize(const Data: Pointer); inline;
+    {$IFDEF EurekaLog}
+    procedure SendBugReportToDeveloper(const BugReport: string);
+    {$ENDIF}
     procedure SetActiveTab(const FSession: TFSession);
     procedure SQLError(const Connection: TMySQLConnection; const ErrorCode: Integer; const ErrorMessage: string);
     procedure UMActivateTab(var Message: TMessage); message UM_ACTIVATETAB;
@@ -564,8 +567,7 @@ end;
 
 procedure TWWindow.aHUpdateExecute(Sender: TObject);
 begin
-  aFCloseAllExecute(Sender);
-  if (not Assigned(ActiveTab)) then
+  if (CloseAll()) then
   begin
     UpdateExecution := True;
     Preferences.SetupProgramExecute := DInstallUpdate.Execute();
@@ -1012,6 +1014,9 @@ begin
 
   UpdateAvailable := Preferences.Version < AvailableUpdateVersion;
   Handled := (AvailableUpdateVersion < 0) or not UpdateAvailable;
+
+  if (Handled) then
+    SendBugReportToDeveloper(EurekaExceptionRecord.LogText);
 end;
 {$ENDIF}
 
@@ -1245,6 +1250,48 @@ begin
   if (not UpdateExecution) then
     PostMessage(Handle, UM_MYSQLCLIENT_SYNCHRONIZE, 0, LPARAM(Data));
 end;
+
+{$IFDEF EurekaLog}
+procedure TWWindow.SendBugReportToDeveloper(const BugReport: string);
+var
+  Body: RawByteString;
+  Connection: HInternet;
+  Flags: Cardinal;
+  Handle: HInternet;
+  Headers: string;
+  Len: Integer;
+  Request: HInternet;
+begin
+  Handle := InternetOpen(PChar('Bug Reporter'), INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);
+  if (Assigned(Handle)) then
+  begin
+    Connection := InternetConnect(Handle, 'www.mysqlfront.de', 80, nil, nil, INTERNET_SERVICE_HTTP, 0, Cardinal(Self));
+    if (Assigned(Connection)) then
+    begin
+      Len := WideCharToAnsiChar(CP_UTF8, @BugReport[1], Length(BugReport), nil, 0);
+      SetLength(Body, Len);
+      WideCharToAnsiChar(CP_UTF8, @BugReport[1], Length(BugReport), @Body[1], Len);
+
+      Flags := INTERNET_FLAG_NO_AUTO_REDIRECT or INTERNET_FLAG_NO_CACHE_WRITE or INTERNET_FLAG_NO_UI or INTERNET_FLAG_KEEP_CONNECTION or INTERNET_FLAG_NO_COOKIES;
+      Request := HttpOpenRequest(Connection, 'POST', PChar('/bug.php'), 'HTTP/1.1', nil, nil, Flags, Cardinal(Self));
+      if (Assigned(Request)) then
+      begin
+        Headers := 'Content-Type: text/plain; charset=UTF-8' + #10
+          + 'Content-Transfer-Encoding: binary' + #10;
+
+        if (not HttpSendRequest(Request, PChar(Headers), Length(Headers), @Body[1], Length(Body))) then
+          Write;
+
+        InternetCloseHandle(Request);
+      end;
+      Body := '';
+
+      InternetCloseHandle(Connection);
+    end;
+    InternetCloseHandle(Handle);
+  end;
+end;
+{$ENDIF}
 
 procedure TWWindow.SetActiveTab(const FSession: TFSession);
 begin

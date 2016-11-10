@@ -138,7 +138,6 @@ type
     PErrorMessages: TPanel_Ext;
     PFieldNode: TPanel_Ext;
     PQuote: TPanel_Ext;
-    PrintDialog: TPrintDialog_Ext;
     PSelect: TPanel_Ext;
     PSeparator: TPanel_Ext;
     PSQLWait: TPanel_Ext;
@@ -225,7 +224,6 @@ type
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     function GetDataSource(): Boolean;
     function GetFilename(): Boolean;
-    function GetPrinter(): Boolean;
     procedure InitTSFields();
     procedure InitTSJob();
     function InitTSSelect(): Boolean;
@@ -401,9 +399,6 @@ begin
       etODBC:
         if (not GetDataSource()) then
           ModalResult := mrCancel;
-      etPrinter:
-        if (not GetPrinter()) then
-          ModalResult := mrCancel;
       else
       begin
         if (not GetFilename()) then
@@ -530,7 +525,7 @@ begin
   for I := 0 to Length(FDestinationFields) - 1 do
     if (Sender = FSourceFields[I]) then
     begin
-      FDestinationFields[I].Enabled := (FSourceFields[I].ItemIndex > 0) and (ExportType in [etTextFile, etExcelFile, etHTMLFile, etPDFFile, etXMLFile, etPrinter]);
+      FDestinationFields[I].Enabled := (FSourceFields[I].ItemIndex > 0) and (ExportType in [etTextFile, etExcelFile, etHTMLFile, etPDFFile, etXMLFile]);
       FDestinationFields[I].Text := FSourceFields[I].Text;
     end;
 
@@ -1002,8 +997,6 @@ begin
     Caption := Preferences.LoadStr(842, Job.Name)
   else if (DialogType = edtExecuteJob) then
     Caption := Preferences.LoadStr(210) + ' ' + ExtractFileName(Job.Filename)
-  else if (ExportType = etPrinter) then
-    Caption := Preferences.LoadStr(577)
   else if (ExtractFileName(Filename) = '') then
     Caption := Preferences.LoadStr(210)
   else
@@ -1024,7 +1017,6 @@ begin
       etXMLFile: HelpContext := 1017;
       etHTMLFile: HelpContext := 1016;
       etPDFFile: HelpContext := 1137;
-      etPrinter: HelpContext := 1018;
       else HelpContext := -1;
     end;
   FBHelp.Visible := HelpContext >= 0;
@@ -1146,7 +1138,7 @@ begin
   TSSQLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etSQLFile]);
   TSCSVOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etTextFile]);
   TSXMLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etXMLFile]) and not Assigned(DBGrid);
-  TSHTMLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etHTMLFile, etPrinter, etPDFFile]);
+  TSHTMLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etHTMLFile, etPDFFile]);
   TSFields.Enabled := (DialogType in [edtNormal]) and (ExportType in [etExcelFile, etODBC]) and (SingleTable and (TObject(DBObjects[0]) is TSTable) or Assigned(DBGrid)) or (ExportType in [etXMLFile]) and Assigned(DBGrid);
   TSTask.Enabled := False;
   TSExecute.Enabled := not TSSQLOptions.Enabled and not TSCSVOptions.Enabled and not TSHTMLOptions.Enabled and not TSFields.Enabled;
@@ -1472,13 +1464,6 @@ begin
   end;
 end;
 
-function TDExport.GetPrinter(): Boolean;
-begin
-  Result := PrintDialog.Execute();
-  if (Result) then
-    Filename := PrintDialog.PrinterName;
-end;
-
 procedure TDExport.InitTSFields();
 var
   I: Integer;
@@ -1491,7 +1476,7 @@ begin
   FLDestinationFields.Visible :=
     (ExportType = etTextFile) and FCSVHeadline.Checked
     or (ExportType in [etExcelFile, etXMLFile])
-    or (ExportType in [etHTMLFile, etPrinter, etPDFFile]) and not FHTMLStructure.Checked;
+    or (ExportType in [etHTMLFile, etPDFFile]) and not FHTMLStructure.Checked;
 
   if (SingleTable) then
     SetLength(FSourceFields, TSTable(DBObjects[0]).Fields.Count)
@@ -1544,7 +1529,7 @@ begin
       FDestinationFields[I].Top := FDestinationField1.Top + I * (FSourceField2.Top - FSourceField1.Top);
       FDestinationFields[I].Width := FDestinationField1.Width;
       FDestinationFields[I].Height := FDestinationField1.Height;
-      FDestinationFields[I].Enabled := ExportType in [etTextFile, etExcelFile, etHTMLFile, etPrinter, etPDFFile, etXMLFile];
+      FDestinationFields[I].Enabled := ExportType in [etTextFile, etExcelFile, etHTMLFile, etPDFFile, etXMLFile];
       TEdit(FDestinationFields[I]).Text := FSourceFields[I].Text;
       K := 2;
       for J := 0 to I - 1 do
@@ -1952,13 +1937,9 @@ begin
           TTExportXML(Export).FieldNodeAttribute := FFieldNodeAttribute.Text;
         end;
       end;
-    etPrinter,
     etPDFFile:
       begin
-        if (ExportType = etPrinter) then
-          Export := TTExportPrint.Create(Session, Filename, Title)
-        else
-          Export := TTExportPDF.Create(Session, Filename);
+        Export := TTExportPDF.Create(Session, Filename);
         TTExportCanvas(Export).Data := FHTMLData.Checked;
         TTExportCanvas(Export).NULLText := FHTMLNullText.Checked;
         TTExportCanvas(Export).Structure := FHTMLStructure.Checked;
@@ -2070,7 +2051,7 @@ begin
   FHTMLStructureClick(Sender);
   FHTMLDataClick(Sender);
 
-  FHTMLMemoContent.Visible := not (ExportType in [etPrinter, etPDFFile]); FLHTMLViewDatas.Visible := FHTMLMemoContent.Visible;
+  FHTMLMemoContent.Visible := not (ExportType in [etPDFFile]); FLHTMLViewDatas.Visible := FHTMLMemoContent.Visible;
 end;
 
 procedure TDExport.TSJobShow(Sender: TObject);

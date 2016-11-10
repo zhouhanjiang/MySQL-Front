@@ -361,7 +361,6 @@ type
     procedure CreateNewSection(const X, Y: Integer); virtual;
     procedure CreateNewTable(const X, Y: Integer); virtual;
     procedure LoadFromFile(const AFilename: string); virtual;
-    procedure Print(const Title: string); virtual;
     procedure SaveToBMP(const FileName: string); virtual;
     procedure SaveToFile(const AFilename: string); virtual;
     function TableByBaseTable(const ATable: TSBaseTable): TWTable; virtual;
@@ -387,7 +386,7 @@ type
 implementation {***************************************************************}
 
 uses
-  ExtCtrls, Math, Dialogs, StdActns, Consts, Printers, UITypes,
+  ExtCtrls, Math, Dialogs, StdActns, Consts, UITypes,
   fPreferences;
 
 var
@@ -3637,41 +3636,6 @@ end;
 function TWWorkbench.Position(const X, Y: Integer): TCoord;
 begin
   Result := Coord(HorzScrollBar.Position + X, VertScrollBar.Position + Y);
-end;
-
-procedure TWWorkbench.Print(const Title: string);
-var
-  Bitmap: Graphics.TBitmap;
-  I: Integer;
-  Ratio: TPoint;
-begin
-  if (Tables.Count > 0) then
-  begin
-    Selected := nil;
-
-    Bitmap := Graphics.TBitmap.Create();
-    Bitmap.Width := HorzScrollBar.Range;
-    Bitmap.Height := VertScrollBar.Range;
-
-    for I := 0 to ControlCount - 1 do
-      if (Controls[I].Visible and (Controls[I] is TWControl)) then
-        TWControl(Controls[I]).PaintTo(Bitmap.Canvas, Controls[I].Left, Controls[I].Top);
-
-    Printer().Title := Title;
-    Printer().Fonts.Text;
-    Printer().BeginDoc();
-
-    Ratio.X := GetDeviceCaps(Printer().Canvas.Handle, LOGPIXELSX) div GetDeviceCaps(Tables[0].Canvas.Handle, LOGPIXELSX);
-    Ratio.Y := GetDeviceCaps(Printer().Canvas.Handle, LOGPIXELSY) div GetDeviceCaps(Tables[0].Canvas.Handle, LOGPIXELSY);
-
-    StretchBlt(
-      Printer().Canvas.Handle, 0, 0, Ratio.X * Bitmap.Width, Ratio.Y * Bitmap.Height,
-      Bitmap.Canvas.Handle, 0, 0, Bitmap.Width, Bitmap.Height, SRCCOPY);
-
-    Bitmap.Free();
-
-    Printer().EndDoc();
-  end;
 end;
 
 procedure TWWorkbench.ReleaseControl(const Control: TWControl);

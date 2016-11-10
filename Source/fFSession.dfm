@@ -491,7 +491,7 @@ object FSession: TFSession
         OnResize = PGridResize
       end
     end
-    object PBuilder: TPanel_Ext
+    object PQueryBuilder: TPanel_Ext
       Left = 0
       Top = 160
       Width = 467
@@ -516,7 +516,7 @@ object FSession: TFSession
         ActiveBorderColor = clWindow
         ExplicitWidth = 319
       end
-      object PBuilderQuery: TPanel_Ext
+      object PQueryBuilderSynMemo: TPanel_Ext
         Left = 0
         Top = 100
         Width = 467
@@ -1900,42 +1900,6 @@ object FSession: TFSession
     Left = 192
     Top = 208
   end
-  object FSQLEditorPrint: TSynEditPrint
-    Copies = 1
-    Header.FrameTypes = []
-    Header.DefaultFont.Charset = DEFAULT_CHARSET
-    Header.DefaultFont.Color = clBlack
-    Header.DefaultFont.Height = -13
-    Header.DefaultFont.Name = 'Times New Roman'
-    Header.DefaultFont.Style = []
-    Footer.FrameTypes = []
-    Footer.DefaultFont.Charset = ANSI_CHARSET
-    Footer.DefaultFont.Color = clBlack
-    Footer.DefaultFont.Height = -13
-    Footer.DefaultFont.Name = 'Times New Roman'
-    Footer.DefaultFont.Style = []
-    Margins.Left = 25.000000000000000000
-    Margins.Right = 15.000000000000000000
-    Margins.Top = 30.000000000000000000
-    Margins.Bottom = 35.000000000000000000
-    Margins.Header = 15.000000000000000000
-    Margins.Footer = 20.000000000000000000
-    Margins.LeftHFTextIndent = 2.000000000000000000
-    Margins.RightHFTextIndent = 2.000000000000000000
-    Margins.HFInternalMargin = 0.500000000000000000
-    Margins.MirrorMargins = False
-    Font.Charset = DEFAULT_CHARSET
-    Font.Color = clWindowText
-    Font.Height = -11
-    Font.Name = 'MS Sans Serif'
-    Font.Style = []
-    Colors = True
-    LineNumbers = True
-    TabWidth = 8
-    Color = clWhite
-    Left = 225
-    Top = 208
-  end
   object MGridHeader: TPopupMenu
     OnPopup = MGridHeaderPopup
     Left = 217
@@ -1956,14 +1920,6 @@ object FSession: TFSession
     object miSSQLHistory: TMenuItem
       Caption = 'miSSQLHistory'
     end
-  end
-  object PrintDialog: TPrintDialog_Ext
-    FromPage = 1
-    MinPage = 1
-    MaxPage = 3
-    ToPage = 2
-    Left = 369
-    Top = 208
   end
   object MFiles: TPopupMenu
     OnPopup = MFilesPopup

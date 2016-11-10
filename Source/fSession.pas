@@ -134,14 +134,14 @@ type
     FDesktop: TDesktop;
     FSource: string;
     FValidSource: Boolean;
+    procedure Build(const DataSet: TMySQLQuery); overload; virtual; abstract;
+    procedure Build(const Field: TField); overload; virtual;
     procedure FreeDesktop(); virtual;
     function GetDesktop(): TDesktop; virtual;
     function GetSource(): string; virtual;
     function GetValid(): Boolean; virtual;
     function GetValidSource(): Boolean; virtual;
     procedure SetName(const AName: string); override;
-    procedure SetSource(const Field: TField); overload; virtual;
-    procedure SetSource(const DataSet: TMySQLQuery); overload; virtual; abstract;
     procedure SetSource(const ASource: string); overload; virtual;
   public
     procedure Assign(const Source: TSObject); reintroduce; virtual;
@@ -219,10 +219,10 @@ type
     FReferences: TSReferences;
     function GetDBObjects(): TSDBObjects; inline;
   protected
+    procedure Build(const DataSet: TMySQLQuery); override; abstract;
+    procedure Build(const Field: TField); override;
     procedure SetDatabase(const ADatabase: TSDatabase); virtual;
     procedure SetReferences(const SQL: string); virtual;
-    procedure SetSource(const Field: TField); override;
-    procedure SetSource(const DataSet: TMySQLQuery); override; abstract;
     function SQLGetSource(): string; virtual; abstract;
   public
     procedure Assign(const Source: TSObject); override;
@@ -641,10 +641,10 @@ type
   protected
     FValidStatus: Boolean;
     procedure AddReference(const ReferencedTable: TSBaseTable);
+    procedure Build(const DataSet: TMySQLQuery); override;
+    procedure Build(const Field: TField); override;
     function GetValid(): Boolean; override;
     procedure ParseCreateTable(const SQL: string); virtual;
-    procedure SetSource(const Field: TField); override;
-    procedure SetSource(const DataSet: TMySQLQuery); override;
     function SQLGetSource(): string; override;
     property MergeSourceTables: TSMergeSourceTables read FMergeSourceTables;
   public
@@ -717,9 +717,9 @@ type
     function ParseCreateView(const SQL: string): string;
   protected
     FComment: string;
+    procedure Build(const DataSet: TMySQLQuery); overload; override;
+    procedure Build(const Field: TField); override;
     function GetValid(): Boolean; override;
-    procedure SetSource(const DataSet: TMySQLQuery); overload; override;
-    procedure SetSource(const Field: TField); override;
     function SQLGetSource(): string; override;
     property ValidFields: Boolean read GetValidFields;
   public
@@ -790,7 +790,7 @@ type
     function GetRoutines(): TSRoutines; inline;
     procedure ParseCreateRoutine(const SQL: string);
   protected
-    procedure SetSource(const Field: TField); override;
+    procedure Build(const Field: TField); override;
     function SQLGetSource(): string; override;
   public
     procedure Assign(const Source: TSRoutine); reintroduce; virtual;
@@ -815,7 +815,7 @@ type
 
   TSProcedure = class(TSRoutine)
   protected
-    procedure SetSource(const DataSet: TMySQLQuery); overload; override;
+    procedure Build(const DataSet: TMySQLQuery); overload; override;
     function SQLGetSource(): string; override;
   public
     function SQLRun(): string; override;
@@ -823,7 +823,7 @@ type
 
   TSFunction = class(TSRoutine)
   protected
-    procedure SetSource(const DataSet: TMySQLQuery); overload; override;
+    procedure Build(const DataSet: TMySQLQuery); overload; override;
     function SQLGetSource(): string; override;
   public
     function SQLRun(): string; override;
@@ -859,8 +859,8 @@ type
     FTableName: string;
     FTiming: TTiming;
     FValid: Boolean;
-    procedure SetSource(const DataSet: TMySQLQuery); overload; override;
-    procedure SetSource(const Field: TField); override;
+    procedure Build(const DataSet: TMySQLQuery); overload; override;
+    procedure Build(const Field: TField); override;
     function SQLGetSource(): string; override;
     property Valid: Boolean read FValid;
   public
@@ -922,8 +922,8 @@ type
     function GetEvents(): TSEvents; inline;
   protected
     procedure ParseCreateEvent(const SQL: string); virtual;
-    procedure SetSource(const DataSet: TMySQLQuery); override;
-    procedure SetSource(const Field: TField); override;
+    procedure Build(const DataSet: TMySQLQuery); override;
+    procedure Build(const Field: TField); override;
     function SQLGetSource(): string; override;
   public
     procedure Assign(const Source: TSEvent); reintroduce; virtual;
@@ -993,15 +993,14 @@ type
     function GetValidSources(): Boolean;
     procedure ParseCreateDatabase(const SQL: string);
   protected
-    function Build(const DataSet: TMySQLQuery): Boolean; virtual;
+    procedure Build(const DataSet: TMySQLQuery); override;
+    procedure Build(const Field: TField); override;
     procedure FreeDesktop(); override;
     function GetCreated(): TDateTime; virtual;
     function GetSource(): string; override;
     function GetValid(): Boolean; override;
     function GetValidSource(): Boolean; override;
     procedure SetName(const AName: string); override;
-    procedure SetSource(const DataSet: TMySQLQuery); override;
-    procedure SetSource(const Field: TField); override;
     function SQLAlterTable(const Table, NewTable: TSBaseTable; const EncloseFields: Boolean = True): string; virtual;
     function SQLGetSource(): string; virtual;
     function SQLTruncateTable(const Table: TSBaseTable): string; virtual;
@@ -1346,7 +1345,7 @@ type
     function GetCaption(): string; override;
     function GetValid(): Boolean; override;
     procedure SetName(const AName: string); override;
-    procedure SetSource(const DataSet: TMySQLQuery); override;
+    procedure Build(const DataSet: TMySQLQuery); override;
     function SQLGetSource(): string;
   public
     function AddRight(const NewUserRight: TSUserRight): Boolean;
@@ -1970,6 +1969,16 @@ begin
   FValidSource := Source.ValidSource;
 end;
 
+procedure TSObject.Build(const Field: TField);
+var
+  SQL: string;
+begin
+  SQL := Field.AsString;
+  if (SQL <> '') then
+    SQL := SQL + ';' + #13#10;
+  SetSource(SQL);
+end;
+
 constructor TSObject.Create(const AItems: TSItems; const AName: string = '');
 begin
   inherited;
@@ -2036,16 +2045,6 @@ begin
 
   FValidSource := False;
   FSource := '';
-end;
-
-procedure TSObject.SetSource(const Field: TField);
-var
-  SQL: string;
-begin
-  SQL := Field.AsString;
-  if (SQL <> '') then
-    SQL := SQL + ';' + #13#10;
-  SetSource(SQL);
 end;
 
 procedure TSObject.SetSource(const ASource: string);
@@ -2362,6 +2361,25 @@ begin
   end;
 end;
 
+procedure TSDBObject.Build(const Field: TField);
+begin
+  inherited;
+
+  if (Now() <= Session.ParseEndDate) then
+  begin
+    if (not Session.SQLParser.ParseSQL(Source)) then
+      Session.UnparsableSQL := Session.UnparsableSQL
+        + '# SetSource()' + #13#10
+        + '# Error: ' + Session.SQLParser.ErrorMessage + #13#10
+        + '# Hex: ' + SQLEscapeBin(TMySQLQuery(Field.DataSet).LibRow^[Field.FieldNo - 1], TMySQLQuery(Field.DataSet).LibLengths^[Field.FieldNo - 1], True) + #13#10
+        + Source + #13#10 + #13#10;
+    Session.SQLParser.Clear();
+  end;
+
+  if (not (Self is TSBaseTable)) then
+    SetReferences(Source);
+end;
+
 procedure TSDBObject.Clear();
 begin
   References.Clear();
@@ -2485,25 +2503,6 @@ begin
     end;
   end;
   Session.SQLParser.Clear();
-end;
-
-procedure TSDBObject.SetSource(const Field: TField);
-begin
-  inherited;
-
-  if (Now() <= Session.ParseEndDate) then
-  begin
-    if (not Session.SQLParser.ParseSQL(Source)) then
-      Session.UnparsableSQL := Session.UnparsableSQL
-        + '# SetSource()' + #13#10
-        + '# Error: ' + Session.SQLParser.ErrorMessage + #13#10
-        + '# Hex: ' + SQLEscapeBin(TMySQLQuery(Field.DataSet).LibRow^[Field.FieldNo - 1], TMySQLQuery(Field.DataSet).LibLengths^[Field.FieldNo - 1], True) + #13#10
-        + Source + #13#10 + #13#10;
-    Session.SQLParser.Clear();
-  end;
-
-  if (not (Self is TSBaseTable)) then
-    SetReferences(Source);
 end;
 
 function TSDBObject.Update(): Boolean;
@@ -4030,6 +4029,36 @@ begin
     end;
 end;
 
+procedure TSBaseTable.Build(const DataSet: TMySQLQuery);
+begin
+  Build(DataSet.FindField('Create Table'));
+end;
+
+procedure TSBaseTable.Build(const Field: TField);
+var
+  OldSourceAvailable: Boolean;
+  RBS: RawByteString;
+begin
+  OldSourceAvailable := Source <> '';
+
+  try
+    inherited Build(Field);
+  except
+    // Sometimes, the MySQL server sends wrong encoded field comments.
+    // This code allow the user to handle this table - but the comments are wrong.
+    SetString(RBS, TMySQLQuery(Field.DataSet).LibRow^[Field.FieldNo - 1], TMySQLQuery(Field.DataSet).LibLengths^[Field.FieldNo - 1]);
+    SetSource(string(RBS));
+  end;
+
+  ParseCreateTable(Source);
+
+  if (OldSourceAvailable) then
+    Session.SendEvent(etItemAltered, Database, Items, Self)
+  else
+    Session.SendEvent(etItemValid, Database, Items, Self);
+  Session.SendEvent(etItemsValid, Self, Fields);
+end;
+
 constructor TSBaseTable.Create(const ASDBObjects: TSDBObjects; const AName: string = ''; const ASystemTable: Boolean = False);
 begin
   inherited Create(ASDBObjects, AName);
@@ -4944,36 +4973,6 @@ begin
   end;
 end;
 
-procedure TSBaseTable.SetSource(const Field: TField);
-var
-  OldSourceAvailable: Boolean;
-  RBS: RawByteString;
-begin
-  OldSourceAvailable := Source <> '';
-
-  try
-    inherited SetSource(Field);
-  except
-    // Sometimes, the MySQL server sends wrong encoded field comments.
-    // This code allow the user to handle this table - but the comments are wrong.
-    SetString(RBS, TMySQLQuery(Field.DataSet).LibRow^[Field.FieldNo - 1], TMySQLQuery(Field.DataSet).LibLengths^[Field.FieldNo - 1]);
-    SetSource(string(RBS));
-  end;
-
-  ParseCreateTable(Source);
-
-  if (OldSourceAvailable) then
-    Session.SendEvent(etItemAltered, Database, Items, Self)
-  else
-    Session.SendEvent(etItemValid, Database, Items, Self);
-  Session.SendEvent(etItemsValid, Self, Fields);
-end;
-
-procedure TSBaseTable.SetSource(const DataSet: TMySQLQuery);
-begin
-  SetSource(DataSet.FindField('Create Table'));
-end;
-
 function TSBaseTable.SQLGetSource(): string;
 begin
   Result := 'SHOW CREATE TABLE ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10
@@ -5004,6 +5003,19 @@ begin
   FCheckOption := TSView(Source).CheckOption;
   FSecurity := TSView(Source).Security;
   FStmt := TSView(Source).Stmt;
+end;
+
+procedure TSView.Build(const DataSet: TMySQLQuery);
+begin
+  Build(DataSet.FieldByName('Create View'));
+end;
+
+procedure TSView.Build(const Field: TField);
+begin
+  inherited Build(Field);
+
+  if (Source <> '') then
+    ParseCreateView(Source);
 end;
 
 constructor TSView.Create(const ACDBObjects: TSDBObjects; const AName: string = '');
@@ -5218,19 +5230,6 @@ begin
 
     Session.SQLParser.Clear();
   end;
-end;
-
-procedure TSView.SetSource(const DataSet: TMySQLQuery);
-begin
-  SetSource(DataSet.FieldByName('Create View'));
-end;
-
-procedure TSView.SetSource(const Field: TField);
-begin
-  inherited SetSource(Field);
-
-  if (Source <> '') then
-    ParseCreateView(Source);
 end;
 
 function TSView.SQLGetSource(): string;
@@ -5750,6 +5749,23 @@ begin
   FValidSource := Source.ValidSource;
 end;
 
+procedure TSRoutine.Build(const Field: TField);
+var
+  OldSourceAvailable: Boolean;
+begin
+  OldSourceAvailable := Source <> '';
+
+  inherited;
+
+  if (Source <> '') then
+    ParseCreateRoutine(Source);
+
+  if (OldSourceAvailable) then
+    Session.SendEvent(etItemAltered, Database, Items, Self)
+  else
+    Session.SendEvent(etItemValid, Database, Items, Self);
+end;
+
 constructor TSRoutine.Create(const ACDBObjects: TSDBObjects; const AName: string = '');
 begin
   inherited;
@@ -6058,23 +6074,6 @@ begin
   end;
 end;
 
-procedure TSRoutine.SetSource(const Field: TField);
-var
-  OldSourceAvailable: Boolean;
-begin
-  OldSourceAvailable := Source <> '';
-
-  inherited;
-
-  if (Source <> '') then
-    ParseCreateRoutine(Source);
-
-  if (OldSourceAvailable) then
-    Session.SendEvent(etItemAltered, Database, Items, Self)
-  else
-    Session.SendEvent(etItemValid, Database, Items, Self);
-end;
-
 function TSRoutine.SQLGetSource(): string;
 begin
   raise EAbstractError.Create(SAbstractError);
@@ -6087,9 +6086,9 @@ end;
 
 { TSProcedure *****************************************************************}
 
-procedure TSProcedure.SetSource(const DataSet: TMySQLQuery);
+procedure TSProcedure.Build(const DataSet: TMySQLQuery);
 begin
-  SetSource(DataSet.FieldByName('Create Procedure'));
+  Build(DataSet.FieldByName('Create Procedure'));
 end;
 
 function TSProcedure.SQLGetSource(): string;
@@ -6150,9 +6149,9 @@ end;
 
 { TSFunction ******************************************************************}
 
-procedure TSFunction.SetSource(const DataSet: TMySQLQuery);
+procedure TSFunction.Build(const DataSet: TMySQLQuery);
 begin
-  SetSource(DataSet.FieldByName('Create Function'));
+  Build(DataSet.FieldByName('Create Function'));
 end;
 
 function TSFunction.SQLGetSource(): string;
@@ -6307,6 +6306,28 @@ begin
   FStmt := Source.Stmt;
   FTableName := Source.FTableName;
   FTiming := Source.Timing;
+end;
+
+procedure TSTrigger.Build(const DataSet: TMySQLQuery);
+begin
+  Build(DataSet.FieldByName('SQL Original Statement'));
+end;
+
+procedure TSTrigger.Build(const Field: TField);
+var
+  OldSourceAvailable: Boolean;
+begin
+  OldSourceAvailable := Source <> '';
+
+  inherited;
+
+  if (Source <> '') then
+    ParseCreateTrigger(Source);
+
+  if (OldSourceAvailable) then
+    Session.SendEvent(etItemAltered, Database, Items, Self)
+  else
+    Session.SendEvent(etItemValid, Database, Items, Self);
 end;
 
 constructor TSTrigger.Create(const ACDBObjects: TSDBObjects; const AName: string = '');
@@ -6497,28 +6518,6 @@ begin
       Session.SQLParser.Clear();
     end;
   end;
-end;
-
-procedure TSTrigger.SetSource(const DataSet: TMySQLQuery);
-begin
-  SetSource(DataSet.FieldByName('SQL Original Statement'));
-end;
-
-procedure TSTrigger.SetSource(const Field: TField);
-var
-  OldSourceAvailable: Boolean;
-begin
-  OldSourceAvailable := Source <> '';
-
-  inherited;
-
-  if (Source <> '') then
-    ParseCreateTrigger(Source);
-
-  if (OldSourceAvailable) then
-    Session.SendEvent(etItemAltered, Database, Items, Self)
-  else
-    Session.SendEvent(etItemValid, Database, Items, Self);
 end;
 
 function TSTrigger.SQLDelete(): string;
@@ -6732,6 +6731,28 @@ begin
   FUpdated := Source.Updated;
 end;
 
+procedure TSEvent.Build(const DataSet: TMySQLQuery);
+begin
+  Build(DataSet.FieldByName('Create Event'));
+end;
+
+procedure TSEvent.Build(const Field: TField);
+var
+  OldSourceAvailable: Boolean;
+begin
+  OldSourceAvailable := Source <> '';
+
+  inherited;
+
+  if (Source <> '') then
+    ParseCreateEvent(Source);
+
+  if (OldSourceAvailable) then
+    Session.SendEvent(etItemAltered, Database, Items, Self)
+  else
+    Session.SendEvent(etItemValid, Database, Items, Self);
+end;
+
 constructor TSEvent.Create(const ACDBObjects: TSDBObjects; const AName: string = '');
 begin
   inherited;
@@ -6840,28 +6861,6 @@ begin
 
     FSourceEx := LeftStr(S, SQLParseGetIndex(Parse) - RemovedLength - 1) + #13#10;
   end;
-end;
-
-procedure TSEvent.SetSource(const DataSet: TMySQLQuery);
-begin
-  SetSource(DataSet.FieldByName('Create Event'));
-end;
-
-procedure TSEvent.SetSource(const Field: TField);
-var
-  OldSourceAvailable: Boolean;
-begin
-  OldSourceAvailable := Source <> '';
-
-  inherited;
-
-  if (Source <> '') then
-    ParseCreateEvent(Source);
-
-  if (OldSourceAvailable) then
-    Session.SendEvent(etItemAltered, Database, Items, Self)
-  else
-    Session.SendEvent(etItemValid, Database, Items, Self);
 end;
 
 function TSEvent.SQLGetSource(): string;
@@ -7057,12 +7056,30 @@ begin
     Result := TSBaseTable(Tables[Index]);
 end;
 
-function TSDatabase.Build(const DataSet: TMySQLQuery): Boolean;
+procedure TSDatabase.Build(const DataSet: TMySQLQuery);
 begin
-  if (not DataSet.IsEmpty()) then
-    SetSource(DataSet);
+  // On ONE 4.1.10 server, on the first execution of SHOW CREATE DATABASE,
+  // only one field ("Database") will be given back - not "Create Database" field.
+  // On the second execution, the "Create Database" field is given.
+  // This is a bug of the MySQL 4.1.10 server, I think.
+  if (Assigned(DataSet.FindField('Create Database'))) then
+    Build(DataSet.FieldByName('Create Database'));
+end;
 
-  Result := False;
+procedure TSDatabase.Build(const Field: TField);
+var
+  OldSourceAvailable: Boolean;
+begin
+  OldSourceAvailable := Source <> '';
+
+  inherited;
+
+  ParseCreateDatabase(Source);
+
+  if (OldSourceAvailable) then
+    Session.SendEvent(etItemAltered, Session, Items, Self)
+  else
+    Session.SendEvent(etItemValid, Session, Items, Self);
 end;
 
 function TSDatabase.CheckTables(const Tables: TList): Boolean;
@@ -7696,32 +7713,6 @@ begin
     inherited SetName(LowerCase(AName))
   else
     inherited SetName(AName);
-end;
-
-procedure TSDatabase.SetSource(const DataSet: TMySQLQuery);
-begin
-  // On ONE 4.1.10 server, on the first execution of SHOW CREATE DATABASE,
-  // only one field ("Database") will be given back - not "Create Database" field.
-  // On the second execution, the "Create Database" field is given.
-  // This is a bug of the MySQL 4.1.10 server, I think.
-  if (Assigned(DataSet.FindField('Create Database'))) then
-    SetSource(DataSet.FieldByName('Create Database'));
-end;
-
-procedure TSDatabase.SetSource(const Field: TField);
-var
-  OldSourceAvailable: Boolean;
-begin
-  OldSourceAvailable := Source <> '';
-
-  inherited;
-
-  ParseCreateDatabase(Source);
-
-  if (OldSourceAvailable) then
-    Session.SendEvent(etItemAltered, Session, Items, Self)
-  else
-    Session.SendEvent(etItemValid, Session, Items, Self);
 end;
 
 function TSDatabase.SQLAlterTable(const Table, NewTable: TSBaseTable; const EncloseFields: Boolean): string;
@@ -10129,7 +10120,9 @@ begin
       end;
 
       if (SQLParseKeyword(Parse, 'REQUIRE')) then
-        repeat SQLParseValue(Parse); until (SQLParseChar(Parse, ';') or SQLParseKeyword(Parse, 'WITH', False));
+        repeat
+          SQLParseValue(Parse);
+        until (SQLParseKeyword(Parse, 'WITH', False) or SQLParseChar(Parse, ';', False) or SQLParseEnd(Parse));
 
       Grant := False;
       if (SQLParseKeyword(Parse, 'WITH')) then
@@ -10188,7 +10181,7 @@ begin
     Name := FName + '@%';
 end;
 
-procedure TSUser.SetSource(const DataSet: TMySQLQuery);
+procedure TSUser.Build(const DataSet: TMySQLQuery);
 var
   SQL: string;
 begin
@@ -10641,7 +10634,7 @@ begin
 
   FUser := TSUser.Create(Users);
 
-  FUser.SetSource(DataSet);
+  FUser.Build(DataSet);
 
   if (not Users.InsertIndex(FUser.Name, Index)) then
   begin
@@ -12028,19 +12021,19 @@ begin
         else
         begin
           if (SQLParseKeyword(Parse, 'DATABASE')) then
-            DatabaseByName(SQLParseValue(Parse)).SetSource(DataSet)
+            DatabaseByName(SQLParseValue(Parse)).Build(DataSet)
           else if (SQLParseKeyword(Parse, 'EVENT')) then
-            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).EventByName(ObjectName).SetSource(DataSet); end
+            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).EventByName(ObjectName).Build(DataSet); end
           else if (SQLParseKeyword(Parse, 'FUNCTION')) then
-            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).FunctionByName(ObjectName).SetSource(DataSet); end
+            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).FunctionByName(ObjectName).Build(DataSet); end
           else if (SQLParseKeyword(Parse, 'PROCEDURE')) then
-            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).ProcedureByName(ObjectName).SetSource(DataSet); end
+            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).ProcedureByName(ObjectName).Build(DataSet); end
           else if (SQLParseKeyword(Parse, 'TABLE')) then
-            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).TableByName(ObjectName).SetSource(DataSet); end
+            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).TableByName(ObjectName).Build(DataSet); end
           else if (SQLParseKeyword(Parse, 'TRIGGER')) then
-            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).TriggerByName(ObjectName).SetSource(DataSet); end
+            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).TriggerByName(ObjectName).Build(DataSet); end
           else if (SQLParseKeyword(Parse, 'VIEW')) then
-            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).TableByName(ObjectName).SetSource(DataSet); end;
+            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).TableByName(ObjectName).Build(DataSet); end;
         end;
       end
       else if (SQLParseKeyword(Parse, 'DATABASES')) then
@@ -12064,7 +12057,7 @@ begin
           if (Users.NameCmp(ObjectName, FCurrentUser) = 0) then
             BuildUser(DataSet)
           else if (Assigned(UserByName(ObjectName))) then
-            UserByName(ObjectName).SetSource(DataSet)
+            UserByName(ObjectName).Build(DataSet)
           else
             Users.Invalidate();
         end

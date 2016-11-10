@@ -9,7 +9,7 @@ uses
   ShDocVw, CommCtrl, PNGImage, GIFImg, Jpeg, ToolWin,
   MPHexEditor, MPHexEditorEx,
   SynEdit, SynEditHighlighter, SynHighlighterSQL, SynMemo, SynEditMiscClasses,
-  SynEditSearch, SynEditPrint, SynCompletionProposal,
+  SynEditSearch, SynCompletionProposal,
   acQBBase, acAST, acQBEventMetaProvider, acMYSQLSynProvider, acSQLBuilderPlainText,
   ShellControls, JAMControls, ShellLink,
   ComCtrls_Ext, StdCtrls_Ext, Dialogs_Ext, Forms_Ext, ExtCtrls_Ext,
@@ -86,7 +86,6 @@ type
     FQuickSearchEnabled: TToolButton;
     FRTF: TRichEdit;
     FServerListView: TListView_Ext;
-    FSQLEditorPrint: TSynEditPrint;
     FSQLEditorSearch: TSynEditSearch;
     FSQLEditorSynMemo: TSynMemo;
     FSQLHistory: TTreeView_Ext;
@@ -304,8 +303,8 @@ type
     OpenDialog: TOpenDialog_Ext;
     PBlob: TPanel_Ext;
     PBlobSpacer: TPanel_Ext;
-    PBuilder: TPanel_Ext;
-    PBuilderQuery: TPanel_Ext;
+    PQueryBuilder: TPanel_Ext;
+    PQueryBuilderSynMemo: TPanel_Ext;
     PContent: TPanel_Ext;
     PDataBrowser: TPanel_Ext;
     PDataBrowserSpacer: TPanel_Ext;
@@ -324,7 +323,6 @@ type
     PObjectIDETrigger: TPanel_Ext;
     PResult: TPanel_Ext;
     PResultHeader: TPanel_Ext;
-    PrintDialog: TPrintDialog_Ext;
     PSideBar: TPanel_Ext;
     PSQLHistory: TPanel_Ext;
     PSynMemo: TPanel_Ext;
@@ -567,7 +565,7 @@ type
     procedure ListViewSelectItem(Sender: TObject; Item: TListItem;
       Selected: Boolean);
     procedure MetadataProviderGetSQLFieldNames(Sender: TacBaseMetadataProvider;
-      const ASQL: WideString; AFields: TacFieldsList);
+      const SQL: WideString; Fields: TacFieldsList);
     procedure mfOpenClick(Sender: TObject);
     procedure mfFilterClearClick(Sender: TObject);
     procedure mfFilterSQLClick(Sender: TObject);
@@ -2442,10 +2440,10 @@ begin
         FFilterEnabled.Enabled := FFilter.Text <> '';
       end;
 
-      {$IFNDEF Debug}
+      {.$IFNDEF Debug}
       // FastMM reports a memory leak with this code. 07.11.2012
       FQueryBuilder.MetadataContainer.DefaultDatabaseNameStr := SelectedDatabase;
-      {$ENDIF}
+      {.$ENDIF}
 
       if (Window.ActiveControl = FNavigator) then
         FNavigatorSetMenuItems(FNavigator, FNavigator.Selected);
@@ -2506,7 +2504,7 @@ begin
       if (PSideBar.Visible) then
       begin
         if (PListView.Visible) then Window.ActiveControl := ActiveListView
-        else if (PBuilder.Visible) then Window.ActiveControl := FQueryBuilder
+        else if (PQueryBuilder.Visible) then Window.ActiveControl := FQueryBuilder
         else if (PSynMemo.Visible) then Window.ActiveControl := ActiveSynMemo
         else if (PResult.Visible) then Window.ActiveControl := ActiveDBGrid
         else if (PNavigator.Visible) then Window.ActiveControl := FNavigator;
@@ -2516,7 +2514,7 @@ begin
           vObjects: if (PListView.Visible) then Window.ActiveControl := ActiveListView;
           vBrowser: if (PResult.Visible) then Window.ActiveControl := ActiveDBGrid;
           vIDE: if (PSynMemo.Visible and Assigned(ActiveSynMemo)) then Window.ActiveControl := ActiveSynMemo;
-          vBuilder: if (PBuilder.Visible and Assigned(FQueryBuilderActiveWorkArea())) then Window.ActiveControl := FQueryBuilderActiveWorkArea();
+          vBuilder: if (PQueryBuilder.Visible and Assigned(FQueryBuilderActiveWorkArea())) then Window.ActiveControl := FQueryBuilderActiveWorkArea();
           vDiagram: if (PWorkbench.Visible) then Window.ActiveControl := ActiveWorkbench;
           vEditor,
           vEditor2,
@@ -3999,7 +3997,7 @@ begin
       vObjects: if (PListView.Visible) then Window.ActiveControl := ActiveListView;
       vBrowser: if (PResult.Visible and Assigned(ActiveDBGrid)) then Window.ActiveControl := ActiveDBGrid;
       vIDE: if (PSynMemo.Visible and Assigned(ActiveSynMemo)) then Window.ActiveControl := ActiveSynMemo;
-      vBuilder: if (PBuilder.Visible) then
+      vBuilder: if (PQueryBuilder.Visible) then
         if (FQueryBuilder.Visible and Assigned(FQueryBuilderActiveWorkArea())) then
           Window.ActiveControl := FQueryBuilderActiveWorkArea()
         else
@@ -4504,7 +4502,7 @@ begin
     PFolders.BevelInner := bvRaised; PFolders.BevelOuter := bvLowered;
     PFiles.BevelInner := bvRaised; PFiles.BevelOuter := bvLowered;
     PListView.BevelInner := bvRaised; PListView.BevelOuter := bvLowered;
-    PBuilderQuery.BevelInner := bvRaised; PBuilderQuery.BevelOuter := bvLowered;
+    PQueryBuilderSynMemo.BevelInner := bvRaised; PQueryBuilderSynMemo.BevelOuter := bvLowered;
     PSynMemo.BevelInner := bvRaised; PSynMemo.BevelOuter := bvLowered;
     PWorkbench.BevelInner := bvRaised; PWorkbench.BevelOuter := bvLowered;
     PSQLEditorDBGrid.BevelInner := bvRaised; PSQLEditorDBGrid.BevelOuter := bvLowered;
@@ -4520,7 +4518,7 @@ begin
     PFiles.BevelInner := bvNone; PFiles.BevelOuter := bvNone;
     PSQLHistory.BevelInner := bvNone; PSQLHistory.BevelOuter := bvNone;
     PListView.BevelInner := bvNone; PListView.BevelOuter := bvNone;
-    PBuilderQuery.BevelInner := bvNone; PBuilderQuery.BevelOuter := bvNone;
+    PQueryBuilderSynMemo.BevelInner := bvNone; PQueryBuilderSynMemo.BevelOuter := bvNone;
     PSynMemo.BevelInner := bvNone; PSynMemo.BevelOuter := bvNone;
     PWorkbench.BevelInner := bvNone; PWorkbench.BevelOuter := bvNone;
     PSQLEditorDBGrid.BevelInner := bvNone; PSQLEditorDBGrid.BevelOuter := bvNone;
@@ -4533,14 +4531,13 @@ begin
 
   PListView.Align := alClient;
   PSynMemo.Align := alClient;
-  PBuilder.Align := alClient;
+  PQueryBuilder.Align := alClient;
 
   FServerListView.RowSelect := CheckWin32Version(6);
   SetWindowLong(ListView_GetHeader(FServerListView.Handle), GWL_STYLE, GetWindowLong(ListView_GetHeader(FServerListView.Handle), GWL_STYLE) or HDS_DRAGDROP);
 
   FSQLEditorSynMemo.Highlighter := MainHighlighter;
   FQueryBuilderSynMemo.Highlighter := MainHighlighter;
-  FSQLEditorPrint.Highlighter := MainHighlighter;
 
 
   Session.SyntaxProvider.AnsiQuotes := Session.Connection.AnsiQuotes;
@@ -5110,12 +5107,12 @@ begin
   begin
     PResult.Align := alBottom;
     PResult.Height := PResultHeight;
-    if (PBuilder.Visible) then PBuilder.Align := alClient;
+    if (PQueryBuilder.Visible) then PQueryBuilder.Align := alClient;
     if (PSynMemo.Visible) then PSynMemo.Align := alClient;
   end;
 
   PResult.Visible := False; SResult.Visible := False;
-  PBuilder.Update(); // TSynMemo aktualisiert leider nicht sofort nach Änderung von TSynMemo.Align
+  PQueryBuilder.Update(); // TSynMemo aktualisiert leider nicht sofort nach Änderung von TSynMemo.Align
   PSynMemo.Update(); // TSynMemo aktualisiert leider nicht sofort nach Änderung von TSynMemo.Align
 
   aDPrev.Enabled := False;
@@ -5799,7 +5796,7 @@ begin
 
   DBGridColEnter(DBGrid);
 
-  SResult.Visible := PResult.Visible and (PBuilder.Visible or PSynMemo.Visible);
+  SResult.Visible := PResult.Visible and (PQueryBuilder.Visible or PSynMemo.Visible);
 end;
 
 destructor TFSession.Destroy();
@@ -7456,7 +7453,7 @@ var
   PageControl: TPageControl;
 begin
   PageControl := FQueryBuilderEditorPageControl();
-  if (PBuilder.Visible and Assigned(PageControl)) then
+  if (PQueryBuilder.Visible and Assigned(PageControl)) then
     if ((FQueryBuilder.SubQueries.Count = 1) and PageControl.Pages[0].TabVisible) then
     begin
       PageControl.Style := tsFlatButtons;
@@ -7481,10 +7478,10 @@ begin
   FQueryBuilderResize(Sender);
 
   BevelWidth := 0;
-  if (PBuilderQuery.BevelInner in [bvLowered, bvRaised]) then
-    Inc(BevelWidth, PBuilderQuery.BevelWidth);
-  if (PBuilderQuery.BevelOuter in [bvLowered, bvRaised]) then
-    Inc(BevelWidth, PBuilderQuery.BevelWidth);
+  if (PQueryBuilderSynMemo.BevelInner in [bvLowered, bvRaised]) then
+    Inc(BevelWidth, PQueryBuilderSynMemo.BevelWidth);
+  if (PQueryBuilderSynMemo.BevelOuter in [bvLowered, bvRaised]) then
+    Inc(BevelWidth, PQueryBuilderSynMemo.BevelWidth);
 
   ZeroMemory(@ScrollBarInfo, SizeOf(ScrollBarInfo));
   ScrollBarInfo.cbSize := SizeOf(ScrollBarInfo);
@@ -7494,17 +7491,16 @@ begin
   if (LineCount = 0) then
     LineCount := 1;
 
-  if (ScrollBarInfo.rgstate[0] = STATE_SYSTEM_INVISIBLE) then
-    NewHeight := LineCount * (FQueryBuilderSynMemo.Canvas.TextHeight('SELECT') + 1) + 2 * FQueryBuilderSynMemo.Top + 2 * BevelWidth
-  else
-    NewHeight := LineCount * (FQueryBuilderSynMemo.Canvas.TextHeight('SELECT') + 1) + 2 * FQueryBuilderSynMemo.Top + 2 * BevelWidth + GetSystemMetrics(SM_CYHSCROLL);
-  PBuilderQuery.Constraints.MaxHeight := NewHeight;
+  NewHeight := LineCount * (FQueryBuilderSynMemo.Canvas.TextHeight('SELECT') + 1) + 2 * FQueryBuilderSynMemo.Top + 2 * BevelWidth;
+  if (ScrollBarInfo.rgstate[0] <> STATE_SYSTEM_INVISIBLE) then
+    Inc(NewHeight,GetSystemMetrics(SM_CYHSCROLL));
+  PQueryBuilderSynMemo.Constraints.MaxHeight := NewHeight;
 
-  if (NewHeight > (PBuilder.Height + PBuilderQuery.Height) div 3) then
-    NewHeight := (PBuilder.Height + PBuilderQuery.Height) div 3;
+  if ((LineCount > 5) and (NewHeight > PContent.Height div 4)) then
+    NewHeight := PContent.Height div 4;
 
-  if ((Sender = FQueryBuilder) or (NewHeight < PBuilderQuery.Height) or (scModified in Changes)) then
-    PBuilderQuery.Height := NewHeight;
+  if (PQueryBuilderSynMemo.Height < NewHeight) then
+    PQueryBuilderSynMemo.Height := NewHeight;
 
   SynMemoStatusChange(FQueryBuilderSynMemo, Changes);
 end;
@@ -10078,9 +10074,8 @@ begin
   end;
 end;
 
-procedure TFSession.MetadataProviderGetSQLFieldNames(
-  Sender: TacBaseMetadataProvider; const ASQL: WideString;
-  AFields: TacFieldsList);
+procedure TFSession.MetadataProviderGetSQLFieldNames(Sender: TacBaseMetadataProvider;
+  const SQL: WideString; Fields: TacFieldsList);
 var
   Database: TSDatabase;
   DatabaseName: string;
@@ -10089,35 +10084,31 @@ var
   Table: TSTable;
   TableName: string;
 begin
-  if (SQLCreateParse(Parse, PChar(ASQL), Length(ASQL), Session.Connection.MySQLVersion)
-    and SQLParseKeyword(Parse, 'SELECT')) then
+  if (not SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion)
+    or not SQLParseKeyword(Parse, 'SELECT')) then
+    raise ERangeError.Create(SRangeError)
+  else
   begin
-    repeat
-      SQLParseValue(Parse);
-    until (SQLParseEnd(Parse) or not SQLParseChar(Parse, ','));
-    if (SQLParseKeyword(Parse, 'FROM')) then
+    if (not SQLParseChar(Parse, '*')) then
+      raise ERangeError.Create(SRangeError);
+    if (not SQLParseKeyword(Parse, 'FROM')) then
+      raise ERangeError.Create(SRangeError)
+    else
     begin
+      Session.Connection.BeginSynchron();
       DatabaseName := SelectedDatabase;
       if (SQLParseObjectName(Parse, DatabaseName, TableName)) then
       begin
         Database := Session.DatabaseByName(DatabaseName);
-        if (Assigned(Database)) then
+        if (Assigned(Database) and Database.Tables.Update()) then
         begin
-          DExecutingSQL.Session := Session;
-          DExecutingSQL.Update := Database.Update;
-          if (Database.Valid or DExecutingSQL.Execute()) then
-          begin
-            Table := Database.TableByName(TableName);
-            if (Assigned(Table)) then
-            begin
-              DExecutingSQL.Update := Table.Update;
-              if (Table.Valid or DExecutingSQL.Execute()) then
-                for I := 0 to Table.Fields.Count - 1 do
-                  AFields.AddField(Table.Fields[I].Name, Session.LowerCaseTableNames = 0);
-            end;
-          end;
+          Table := Database.TableByName(TableName);
+          if (Assigned(Table) and Table.Update()) then
+            for I := 0 to Table.Fields.Count - 1 do
+              Fields.AddField(Table.Fields[I].Name, Session.LowerCaseTableNames = 0);
         end;
       end;
+      Session.Connection.EndSynchron();
     end;
   end;
 end;
@@ -11383,13 +11374,13 @@ begin
     DisableAligns(PContent);
 
     if (PListView.Align = alClient) then PListView.Align := alNone;
-    if (PBuilder.Align = alClient) then PBuilder.Align := alNone;
+    if (PQueryBuilder.Align = alClient) then PQueryBuilder.Align := alNone;
     if (PSynMemo.Align = alClient) then PSynMemo.Align := alNone;
     if (PResult.Align = alClient) then PResult.Align := alNone;
     PListView.Align := alNone;
     PDataBrowser.Align := alNone;
     PObjectIDE.Align := alNone;
-    PBuilder.Align := alNone;
+    PQueryBuilder.Align := alNone;
     PSynMemo.Align := alNone;
     SResult.Align := alNone;
     PResult.Align := alNone;
@@ -11544,11 +11535,11 @@ begin
 
     if ((View = vBuilder) and (SelectedImageIndex in [iiServer, iiDatabase, iiSystemDatabase])) then
     begin
-      PBuilder.Align := alClient;
-      PBuilder.Visible := True;
+      PQueryBuilder.Align := alClient;
+      PQueryBuilder.Visible := True;
     end
     else
-      PBuilder.Visible := False;
+      PQueryBuilder.Visible := False;
 
     if ((View in [vEditor, vEditor2, vEditor3]) and (SelectedImageIndex in [iiServer, iiDatabase, iiSystemDatabase])
       or (View = vIDE) and (SelectedImageIndex in [iiView, iiFunction, iiProcedure, iiEvent, iiTrigger])) then
@@ -12849,11 +12840,11 @@ begin
                         Session.FieldTypes[J].Name,
                         Session.FieldTypes[J].Name);
                   else
-                    raise ERangeError.Create(SRangeError)
+                    raise ERangeError.Create(SRangeError);
                 end;
               end;
             else
-              raise ERangeError.Create(SRangeError)
+              raise ERangeError.Create(SRangeError);
           end;
         end;
 
@@ -13456,8 +13447,6 @@ begin
       SynMemoApplyPreferences(TSynMemo(PSynMemo.Controls[I]));
 
   SynMemoApplyPreferences(FQueryBuilderSynMemo);
-
-  FSQLEditorPrint.Font := FSQLEditorSynMemo.Font;
 
   smEEmpty.Caption := Preferences.LoadStr(181);
 
