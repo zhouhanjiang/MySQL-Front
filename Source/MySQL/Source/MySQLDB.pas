@@ -1912,8 +1912,6 @@ begin
   SetLength(CLStmts, 0);
   StmtLengths := TList.Create();
   State := ssClose;
-
-  FreeOnTerminate := True;
 end;
 
 destructor TMySQLConnection.TSyncThread.Destroy();
@@ -1973,8 +1971,9 @@ begin
       end;
   end;
 
-  if (Assigned(Connection.TerminatedThreads)) then
-    Connection.TerminatedThreads.Delete(Self);
+  Connection.TerminateCS.Enter();
+  Connection.TerminatedThreads.Delete(Self);
+  Connection.TerminateCS.Leave();
 
   {$IFDEF EurekaLog}
   except
@@ -2206,6 +2205,8 @@ begin
 end;
 
 destructor TMySQLConnection.Destroy();
+var
+  I: Integer;
 begin
   Asynchron := False;
   Close();
@@ -2215,14 +2216,19 @@ begin
 
   TerminateCS.Enter();
   if (Assigned(SyncThread)) then
-  begin
-    SyncThread.FreeOnTerminate := False;
     SyncThread.Terminate();
+  TerminateCS.Leave();
+  if (Assigned(SyncThread)) then
+  begin
     SyncThread.WaitFor();
     SyncThread.Free();
   end;
+  for I := 0 to TerminatedThreads.Count - 1 do
+  begin
+    TerminateThread(TThread(TerminatedThreads[I]).Handle, 0);
+    TThread(TerminatedThreads[I]).Free();
+  end;
   TerminatedThreads.Free(); FTerminatedThreads := nil;
-  TerminateCS.Leave();
 
   ExecuteSQLDone.Free();
   TerminateCS.Free();
@@ -2364,8 +2370,10 @@ function TMySQLConnection.ExecuteSQL(const Mode: TSyncThread.TMode; const Synchr
   const SQL: string; const OnResult: TResultEvent = nil; const Done: TEvent = nil): Boolean;
 var
   CLStmt: TSQLCLStmt;
+  EndingCommentLength: Integer;
   SetNames: Boolean;
   SQLIndex: Integer;
+  StartingCommentLength: Integer;
   StmtIndex: Integer;
   StmtLength: Integer;
 begin
@@ -2398,8 +2406,10 @@ begin
   FSuccessfullExecutedSQLLength := 0; FExecutedStmts := 0;
   FRowsAffected := -1; FExecutionTime := 0;
 
-  SQLIndex := 1;
-  while (SQLIndex < Length(SyncThread.SQL)) do
+  SQLTrimStmt(PChar(SQL), Length(SQL), MySQLVersion, StartingCommentLength, EndingCommentLength);
+
+  SQLIndex := 1 + StartingCommentLength;
+  while (SQLIndex < Length(SyncThread.SQL) - EndingCommentLength) do
   begin
     StmtLength := SQLStmtLength(PChar(@SQL[SQLIndex]), Length(SQL) - (SQLIndex - 1));
     SyncThread.StmtLengths.Add(Pointer(StmtLength));
@@ -2420,7 +2430,7 @@ begin
   if (SQL = '') then
     raise EDatabaseError.Create('Empty query')
   else if (SyncThread.StmtLengths.Count = 0) then
-    raise EDatabaseError.Create('No query')
+    Result := False
   else if (SetNames) then
   begin
     DoError(DS_SET_NAMES, StrPas(DATASET_ERRORS[DS_SET_NAMES - DS_MIN_ERROR]));
@@ -7319,7 +7329,7 @@ end;
 //  RBS: RawByteString;
 //  S: string;
 initialization
-//  RBS := HexToStr('CAD5E820BEC4C8A8D4A1D2C2B920CACDA7BED1B9CBE9D2C3E9CDC2C2D5E8CAD4BAE0A8E7B4');
+//  RBS := HexToStr('');
 //  SetLength(S, Length(RBS));
 //  Len := AnsiCharToWideChar(65001, PAnsiChar(RBS), Length(RBS), PChar(S), Length(S));
 

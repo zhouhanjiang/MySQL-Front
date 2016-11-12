@@ -27,6 +27,7 @@ type
     procedure FormCreate(Sender: TObject);
     procedure FormHide(Sender: TObject);
     procedure FormShow(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
   private
     SetupProgramStream: TFileStream;
     SetupProgramURI: string;
@@ -77,11 +78,7 @@ end;
 procedure TDInstallUpdate.FBCancelClick(Sender: TObject);
 begin
   if (Assigned(HTTPThread)) then
-  begin
     HTTPThread.Terminate();
-    HTTPThread.WaitFor();
-    FreeAndNil(HTTPThread);
-  end;
 end;
 
 procedure TDInstallUpdate.FBForwardClick(Sender: TObject);
@@ -128,6 +125,12 @@ begin
   HTTPThread := nil;
 end;
 
+procedure TDInstallUpdate.FormDestroy(Sender: TObject);
+begin
+  if (Assigned(HTTPThread)) then
+    TerminateThread(HTTPThread.Handle, 0);
+end;
+
 procedure TDInstallUpdate.FormHide(Sender: TObject);
 begin
   if (Assigned(PADFileStream)) then
@@ -141,25 +144,25 @@ begin
   FVersionInfo.Caption := Preferences.LoadStr(663);
   FVersionInfo.Enabled := False;
 
-  FBForward.Enabled := False;
-
   FProgram.Caption := Preferences.LoadStr(665);
   FProgram.Enabled := False;
 
   PADFileStream := TStringStream.Create();
   SetupProgramStream := nil;
 
-  FBCancel.OnClick := FBCancelClick;
-
   FVersionInfo.Caption := Preferences.LoadStr(663) + ' ...';
   FVersionInfo.Enabled := True;
 
+  if (Assigned(HTTPThread)) then
+    TerminateThread(HTTPThread.Handle, 0);
   HTTPThread := THTTPThread.Create(SysUtils.LoadStr(1005), nil, PADFileStream);
   HTTPThread.OnProgress := Progress;
 
   SendMessage(Handle, UM_UPDATE_PROGRESSBAR, 10, 100);
 
   HTTPThread.Start();
+
+  FBForward.Enabled := False;
 end;
 
 procedure TDInstallUpdate.Progress(Sender: TObject; const Done, Size: Int64);
@@ -224,7 +227,6 @@ begin
   FreeAndNil(HTTPThread);
 
   FProgram.Caption := Preferences.LoadStr(665) + ': ' + Preferences.LoadStr(138);
-  FBCancel.OnClick := nil;
 
   FreeAndNil(SetupProgramStream);
 

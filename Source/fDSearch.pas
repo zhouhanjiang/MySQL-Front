@@ -826,6 +826,11 @@ begin
 
     ExecuteSession := Session;
 
+    if (Assigned(Search)) then
+    begin
+      TerminateThread(Search.Handle, 0);
+      FreeAndNil(Search);
+    end;
     if (SearchOnly) then
     begin
       SetLength(Tables, 0);

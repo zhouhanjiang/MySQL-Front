@@ -18123,7 +18123,7 @@ function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
       SetError(PE_IncompleteStmt);
       Result := 0;
     end
-    else if ((TokenPtr(CurrentToken)^.TokenType = ttIdent) and (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0)
+    else if ((TokenPtr(CurrentToken)^.TokenType = ttIdent) and (QualifiedIdentifier or (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0))
       or (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent)
       or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and (AnsiQuotes or (ADbIdentType in [ditAlias]))
       or (TokenPtr(CurrentToken)^.TokenType = ttString) and (ADbIdentType in [ditAlias])

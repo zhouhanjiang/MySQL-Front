@@ -15,6 +15,7 @@ object DInstallUpdate: TDInstallUpdate
   OldCreateOrder = False
   Position = poMainFormCenter
   OnCreate = FormCreate
+  OnDestroy = FormDestroy
   OnHide = FormHide
   OnShow = FormShow
   PixelsPerInch = 106

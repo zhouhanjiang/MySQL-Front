@@ -957,7 +957,6 @@ begin
         Session.Account.Jobs.AddJob(NewJob)
       else if (DialogType = edtEditJob) then
         Session.Account.Jobs.UpdateJob(Job, NewJob);
-      Export.Free();
 
       NewJob.Free();
     end;
@@ -1823,6 +1822,11 @@ begin
   FErrors.Caption := '0';
   FErrorMessages.Lines.Clear();
 
+  if (Assigned(Export)) then
+  begin
+    TerminateThread(Export.Handle, 0);
+    FreeAndNil(Export);
+  end;
   case (ExportType) of
     etSQLFile:
       begin

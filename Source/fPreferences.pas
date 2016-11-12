@@ -801,10 +801,8 @@ type
 function EncodeVersion(const AMajor, AMinor, APatch, ABuild: Integer): Integer;
 function XMLNode(const XML: IXMLNode; const Path: string; const NodeAutoCreate: Boolean = False): IXMLNode; overload;
 
-function IsConnectedToInternet(): Boolean;
 function VersionStrToVersion(VersionStr: string): Integer;
 function CopyDir(const fromDir, toDir: string): Boolean;
-function HostIsLocalhost(const Host: string): Boolean;
 function ValidJobName(const Name: string): Boolean;
 function TrySplitParam(const Param: string; out Name, Value: string): Boolean;
 
@@ -833,14 +831,6 @@ begin
   else
     Result := StrToInt(Copy(VersionStr, 1, Pos('.', VersionStr) - 1)) * 10000
       + VersionStrToVersion(Copy(VersionStr, Pos('.', VersionStr) + 1, Length(VersionStr) - Pos('.', VersionStr))) div 100;
-end;
-
-function IsConnectedToInternet(): Boolean;
-var
-  ConnectionTypes: DWord;
-begin
-  ConnectionTypes := INTERNET_CONNECTION_MODEM or INTERNET_CONNECTION_LAN or INTERNET_CONNECTION_PROXY or INTERNET_CONNECTION_CONFIGURED;
-  Result := InternetGetConnectedState(@ConnectionTypes, 0);
 end;
 
 function CopyDir(const fromDir, toDir: string): Boolean;
@@ -1227,11 +1217,6 @@ begin
     2: Result := vsList;
     3: Result := vsReport;
   end;
-end;
-
-function HostIsLocalhost(const Host: string): Boolean;
-begin
-  Result := (lstrcmpi(PChar(Host), PChar(LOCAL_HOST)) = 0) or (Host = '127.0.0.1') or (Host = '::1');
 end;
 
 function ValidJobName(const Name: string): Boolean;
@@ -2931,6 +2916,12 @@ begin
 end;
 
 function TPAccount.TJob.Save(const Update: Boolean): Boolean;
+
+  function HostIsLocalhost(const Host: string): Boolean;
+  begin
+    Result := (lstrcmpi(PChar(Host), PChar(LOCAL_HOST)) = 0) or (Host = '127.0.0.1') or (Host = '::1');
+  end;
+
 var
   Action: IAction;
   DailyTrigger: IDailyTrigger;

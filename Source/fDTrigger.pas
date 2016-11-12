@@ -117,9 +117,6 @@ begin
   FSource.Text := Trigger.Source;
 
   TSSource.TabVisible := FSource.Text <> '';
-
-  PageControl.Visible := True;
-  PSQLWait.Visible := not PageControl.Visible;
 end;
 
 function TDTrigger.Execute(): Boolean;

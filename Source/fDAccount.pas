@@ -273,7 +273,8 @@ var
 begin
   if (ModalResult = mrOk) then
   begin
-    ActiveControl := FBOk; // Run OnExit procedures
+    if ((ActiveControl = FHost) and Assigned(FHost.OnExit)) then
+      FHost.OnExit(Sender);
 
     NewAccount := TPAccount.Create(Accounts);
     if (Assigned(Account)) then

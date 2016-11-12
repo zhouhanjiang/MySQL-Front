@@ -118,14 +118,11 @@ begin
 
   FSize.Caption := FormatFloat('#,##0', Length(Routine.Source), LocaleFormatSettings);
 
-  FSource.Text := Trim(Routine.Source) + #13#10 + #13#10;
+  FSource.Text := Routine.Source;
 
   TSSource.TabVisible := Routine.Source <> '';
 
   FName.Enabled := False; FLName.Enabled := FName.Enabled;
-
-  PageControl.Visible := True;
-  PSQLWait.Visible := not PageControl.Visible;
 end;
 
 function TDRoutine.Execute(): Boolean;
@@ -369,7 +366,6 @@ begin
 
   FReferenced.Cursor := crDefault;
 
-  TSBasics.TabVisible := Assigned(Routine);
   TSInformation.TabVisible := Assigned(Routine);
   TSReferenced.TabVisible := Assigned(Routine);
 

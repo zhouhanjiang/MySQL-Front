@@ -730,9 +730,6 @@ begin
   Preferences.Import.Width := Width;
   Preferences.Import.Height := Height;
 
-  if (Assigned(Import)) then
-    Import.Free();
-
   if (ModalResult = mrOk) then
     if (DialogType in [idtNormal]) then
     begin
@@ -1834,7 +1831,10 @@ end;
 procedure TDImport.TSJobHide(Sender: TObject);
 begin
   if (Assigned(Import)) then
+  begin
+    TerminateThread(Import.Handle, 0);
     FreeAndNil(Import);
+  end;
 
   case (ImportType) of
     itSQLFile: Import := TTImportSQL.Create(Filename, CodePage, Session, Database);

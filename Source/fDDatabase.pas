@@ -120,9 +120,6 @@ begin
   FSource.Lines.Text := Database.Source + #13#10;
 
   TSSource.TabVisible := Database.Source <> '';
-
-  PageControl.Visible := True;
-  PSQLWait.Visible := not PageControl.Visible;
 end;
 
 procedure TDDatabase.BuiltStatus();

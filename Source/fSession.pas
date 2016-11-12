@@ -10998,7 +10998,7 @@ begin
   SQLParser.Free();
   if (UnparsableSQL <> '') then
   begin
-    UnparsableSQL := '# MySQL: ' + Self.Connection.ServerVersionStr + #13#10 + UnparsableSQL;
+    UnparsableSQL := '# MySQL: ' + Self.Connection.ServerVersionStr + #13#10#13#10 + UnparsableSQL;
     SendBugToDeveloper(UnparsableSQL);
   end;
 
@@ -11777,8 +11777,8 @@ begin
 
   if (Index >= 0) then
   begin
-    if (Index < Length(EventProcs) - 1) then
-      MoveMemory(@EventProcs[Index], @EventProcs[Index + 1], (Length(EventProcs) - Index - 1) * SizeOf(TEventProc));
+    if (Index + 1 < Length(EventProcs)) then
+      MoveMemory(@TMethod(EventProcs[Index]), @TMethod(EventProcs[Index + 1]), (Length(EventProcs) - Index - 1) * SizeOf(TEventProc));
     SetLength(EventProcs, Length(EventProcs) - 1);
   end;
 end;
@@ -12071,6 +12071,28 @@ begin
       DataSet.Open(DataHandle);
       BuildManualURL(DataSet);
       Account.ManualURLVersion := Connection.ServerVersionStr;
+    end
+    else if (SQLParseKeyword(Parse, 'OPTIMIZE')) then
+    begin
+      DataSet.Open(DataHandle);
+      if (not DataSet.IsEmpty) then
+        repeat
+          ObjectName := DataSet.FieldByName('Table').AsString;
+          if (Pos('.', ObjectName) = 0) then
+            DatabaseName := Connection.DatabaseName
+          else
+          begin
+            DatabaseName := Copy(ObjectName, 1, Pos('.', ObjectName) - 1);
+            Delete(ObjectName, 1, Pos('.', ObjectName));
+          end;
+          Database := DatabaseByName(DatabaseName);
+          if (Assigned(Database)) then
+          begin
+            Table := Database.TableByName(ObjectName);
+            if (Table is TSBaseTable) then
+              TSBaseTable(Table).InvalidateStatus();
+          end;
+        until (not DataSet.FindNext());
     end;
 
   DataSet.Free();

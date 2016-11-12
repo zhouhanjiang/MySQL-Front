@@ -327,11 +327,11 @@ type
     PSQLHistory: TPanel_Ext;
     PSynMemo: TPanel_Ext;
     PToolBarBlob: TPanel_Ext;
-    PView: TPanel_Ext;
+    PHeader: TPanel_Ext;
     PWorkbench: TPanel_Ext;
     SaveDialog: TSaveDialog_Ext;
     SBlob: TSplitter_Ext;
-    SBuilderQuery: TSplitter_Ext;
+    SQueryBuilderSQL: TSplitter_Ext;
     SExplorer: TSplitter_Ext;
     SLog: TSplitter_Ext;
     smECopy: TMenuItem;
@@ -610,12 +610,12 @@ type
     procedure PanelResize(Sender: TObject);
     procedure PContentResize(Sender: TObject);
     procedure PGridResize(Sender: TObject);
+    procedure PHeaderPaint(Sender: TObject);
     procedure PJobsEnter(Sender: TObject);
     procedure PJobsExit(Sender: TObject);
     procedure PLogResize(Sender: TObject);
     procedure PObjectIDEResize(Sender: TObject);
     procedure PToolBarBlobResize(Sender: TObject);
-    procedure PViewPaint(Sender: TObject);
     procedure SearchNotFound(Sender: TObject; FindText: string);
     procedure SLogCanResize(Sender: TObject; var NewSize: Integer;
       var Accept: Boolean);
@@ -4626,11 +4626,11 @@ begin
   TBSideBar.Top := 0;
   TBSideBar.ButtonHeight := ToolBar.ButtonHeight;
 
-  PView.ClientHeight := ToolBar.Height + 1;
+  PHeader.ClientHeight := ToolBar.Height + 1;
   if (not StyleServices.Enabled or not StyleServices.GetElementColor(StyleServices.GetElementDetails(ttTopTabItemSelected), ecGlowColor, Color)) then
-    PView.Color := clBtnFace
+    PHeader.Color := clBtnFace
   else
-    PView.Color := Color;
+    PHeader.Color := Color;
 
   if (not StyleServices.Enabled or not StyleServices.GetElementColor(StyleServices.GetElementDetails(tebNormalGroupHead),
     ecGradientColor2, Color)) then
@@ -4647,12 +4647,13 @@ begin
     SExplorer.ActiveBorderColor := Color;
     SResult.ActiveBorderColor := Color;
     SBlob.ActiveBorderColor := Color;
-    SBuilderQuery.ActiveBorderColor := Color;
+    SQueryBuilderSQL.ActiveBorderColor := Color;
   end;
 
   SSideBar.Width := GetSystemMetrics(SM_CXFIXEDFRAME);
-  SBlob.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
+  SQueryBuilderSQL.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
   SResult.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
+  SBlob.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
   PResultHeader.Width := CloseButton.Bitmap.Width + 2 * GetSystemMetrics(SM_CXEDGE);
   SLog.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
   PLogHeader.Width := CloseButton.Bitmap.Width + 2 * GetSystemMetrics(SM_CXEDGE);
@@ -4700,6 +4701,10 @@ begin
     FHexEditor.Colors.OffsetBackground := clBtnFace
   else
     FHexEditor.Colors.OffsetBackground := Preferences.Editor.LineNumbersBackground;
+
+  PQueryBuilderSynMemo.Constraints.MinHeight :=
+    (FQueryBuilderSynMemo.Canvas.TextHeight('SELECT') + 1) + 2 * FQueryBuilderSynMemo.Top + 2 * BevelWidth
+    + GetSystemMetrics(SM_CYHSCROLL);
 
   SendMessage(FLog.Handle, EM_SETTEXTMODE, TM_PLAINTEXT, 0);
   SendMessage(FLog.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
@@ -5488,6 +5493,14 @@ end;
 procedure TFSession.DBGridDblClick(Sender: TObject);
 begin
   Wanted.Clear();
+
+  // Debug 2016-11-12
+  if (not Assigned(ActiveDBGrid)) then
+    raise ERangeError.Create(SRangeError)
+  else if (not Assigned(ActiveDBGrid.DataSource)) then
+    raise ERangeError.Create(SRangeError)
+  else if (not Assigned(ActiveDBGrid.DataSource.DataSet)) then
+    raise ERangeError.Create(SRangeError);
 
   if (ActiveDBGrid.DataSource.DataSet.CanModify) then
     if (not Assigned(ActiveDBGrid.SelectedField) or not (ActiveDBGrid.SelectedField.DataType in [ftWideMemo, ftBlob])) then
@@ -7294,7 +7307,7 @@ procedure TFSession.FormResize(Sender: TObject);
 var
   MaxHeight: Integer;
 begin
-  PView.ClientHeight := ToolBar.Height + 1;
+  PHeader.ClientHeight := ToolBar.Height + 1;
 
   if (PSideBar.Visible) then
   begin
@@ -7309,7 +7322,7 @@ begin
 
   if (PLog.Visible) then
   begin
-    PLog.Constraints.MaxHeight := ClientHeight - PView.Height - PContent.Constraints.MinHeight - SLog.Height;
+    PLog.Constraints.MaxHeight := ClientHeight - PHeader.Height - PContent.Constraints.MinHeight - SLog.Height;
     PLogResize(Sender);
   end;
 end;
@@ -7491,7 +7504,7 @@ begin
 
   NewHeight := LineCount * (FQueryBuilderSynMemo.Canvas.TextHeight('SELECT') + 1) + 2 * FQueryBuilderSynMemo.Top + 2 * BevelWidth;
   if (ScrollBarInfo.rgstate[0] <> STATE_SYSTEM_INVISIBLE) then
-    Inc(NewHeight,GetSystemMetrics(SM_CYHSCROLL));
+    Inc(NewHeight, GetSystemMetrics(SM_CYHSCROLL));
   PQueryBuilderSynMemo.Constraints.MaxHeight := NewHeight;
 
   if ((LineCount > 5) and (NewHeight > PContent.Height div 4)) then
@@ -11642,6 +11655,16 @@ begin
     ActiveDBGrid.Invalidate();
 end;
 
+procedure TFSession.PHeaderPaint(Sender: TObject);
+begin
+  if (StyleServices.Enabled) then
+  begin
+    PHeader.Canvas.Pen.Color := SplitColor;
+    PHeader.Canvas.MoveTo(0, PHeader.ClientHeight - 1);
+    PHeader.Canvas.LineTo(PHeader.ClientWidth, PHeader.ClientHeight - 1);
+  end;
+end;
+
 procedure TFSession.PJobsEnter(Sender: TObject);
 begin
   MainAction('aEJobDelete').ShortCut := VK_DELETE;
@@ -11790,16 +11813,6 @@ begin
     TBBlob.ButtonHeight := Max(ToolBar.Images.Height + 6, ToolBar.Canvas.TextHeight('I') + 10);
     TBBlob.Height := TBBlob.ButtonHeight;
     PToolBarBlob.ClientHeight := TBBlob.Height;
-  end;
-end;
-
-procedure TFSession.PViewPaint(Sender: TObject);
-begin
-  if (StyleServices.Enabled) then
-  begin
-    PView.Canvas.Pen.Color := SplitColor;
-    PView.Canvas.MoveTo(0, PView.ClientHeight - 1);
-    PView.Canvas.LineTo(PView.ClientWidth, PView.ClientHeight - 1);
   end;
 end;
 
@@ -12378,8 +12391,15 @@ end;
 
 procedure TFSession.SLogCanResize(Sender: TObject; var NewSize: Integer;
   var Accept: Boolean);
+var
+  MaxHeight: Integer;
 begin
-  Accept := (PLog.Constraints.MinHeight <= NewSize) and (NewSize <= ClientHeight - PView.Height - SLog.Height - PContent.Constraints.MinHeight);
+  MaxHeight := ClientHeight - PHeader.Height - SLog.Height - PContent.Constraints.MinHeight;
+
+  if (NewSize > MaxHeight) then
+    NewSize := MaxHeight;
+
+  Accept := (PLog.Constraints.MinHeight <= NewSize) and (NewSize <= MaxHeight);
 end;
 
 procedure TFSession.SLogMoved(Sender: TObject);
@@ -12402,24 +12422,32 @@ var
   I: Integer;
   MaxHeight: Integer;
   MinHeight: Integer;
-  Splitter: TSplitter_Ext;
+  Splitter: TSplitter;
 begin
-  if (Sender is TSplitter_Ext) then
+  if (Sender is TSplitter) then
   begin
-    Splitter := TSplitter_Ext(Sender);
+    Splitter := TSplitter(Sender);
 
     MaxHeight := Splitter.Parent.ClientHeight;
     MinHeight := 0;
     for I := 0 to Splitter.Parent.ControlCount - 1 do
       if (Splitter.Parent.Controls[I].Visible) then
-        if ((Splitter.Parent.Controls[I].Top < Splitter.Top) and (Splitter.Parent.Controls[I].Constraints.MinHeight > 0)) then
+        if (Splitter.Parent.Controls[I].Top < Splitter.Top) then
           Dec(MaxHeight, Splitter.Parent.Controls[I].Constraints.MinHeight)
-        else if ((Splitter.Parent.Controls[I].Top > Splitter.Top) and (Splitter.Parent.Controls[I].Constraints.MinHeight > 0)) then
-          Inc(MinHeight, Splitter.Parent.Controls[I].Constraints.MinHeight)
         else if (Splitter.Parent.Controls[I] = Splitter) then
-          Dec(MaxHeight, Splitter.Height + 3);
+          Dec(MaxHeight, Splitter.Height)
+        else if (Splitter.Parent.Controls[I].Top > Splitter.Top) then
+          Inc(MinHeight, Splitter.Parent.Controls[I].Constraints.MinHeight);
+    for I := 0 to Splitter.Parent.ControlCount - 1 do
+      if (Splitter.Parent.Controls[I].Visible) then
+        if ((Splitter.Parent.Controls[I].Top > Splitter.Top)
+          and (Splitter.Parent.Controls[I].Constraints.MaxHeight < MaxHeight)) then
+          MaxHeight := Splitter.Parent.Controls[I].Constraints.MaxHeight;
 
-    Accept := (MinHeight <= NewSize) and (NewSize <= MaxHeight);
+    if (NewSize < MinHeight) then
+      NewSize := MinHeight
+    else if (NewSize > MaxHeight) then
+      NewSize := MaxHeight;
   end;
 end;
 
@@ -13487,7 +13515,6 @@ var
   SObject: TSObject;
   I: Integer;
   J: Integer;
-  Node: TTreeNode;
   SynMemo: TSynMemo;
   View: TView;
 begin
@@ -13531,17 +13558,9 @@ begin
         end;
       end;
 
-  Node := FNavigator.Items.getFirstNode();
-  if (Assigned(Node)) then
-  begin
-    Node := Node.getFirstChild();
-    while (Assigned(Node)) do
-    begin
-      if (CanClose and (Node.ImageIndex = iiDatabase)) then
-        Desktop(TSDatabase(Node.Data)).CloseQuery(nil, CanClose);
-      Node := Node.getNextSibling();
-    end;
-  end;
+  for I := 0 to Session.Databases.Count - 1 do
+    if (CanClose) then
+      Desktop(Session.Databases[I]).CloseQuery(nil, CanClose);
 
   if (not CanClose) then
     Message.Result := 0

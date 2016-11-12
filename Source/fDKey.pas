@@ -91,7 +91,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  StrUtils, Math,
+  StrUtils, Math, SysConst,
   MySQLDB;
 
 var
@@ -398,6 +398,12 @@ begin
 
     if (not Assigned(Key)) then
       NewTable.Keys.AddKey(NewKey)
+    else if (NewTable.Keys.Count <> Table.Keys.Count) then
+      // Debug 2016-11-12
+      raise ERangeError.Create(SRangeError)
+    else if (Key.Index >= NewTable.Keys.Count) then
+      // Debug 2016-11-12
+      raise ERangeError.Create(SRangeError)
     else
     begin
       NewTable.Keys[Key.Index].Assign(NewKey);

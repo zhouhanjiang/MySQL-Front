@@ -47,7 +47,7 @@ type
     public
       constructor Create(const ATool: TTool);
       destructor Destroy(); override;
-      property Item[Index: Integer]: TItem read GetItem; default;
+      property Items[Index: Integer]: TItem read GetItem; default;
       property Tool: TTool read FTool;
     end;
     TErrorType = (TE_Database, TE_NoPrimaryIndex, TE_File, TE_ODBC, TE_XML, TE_Warning, TE_OutOfMemory, TE_CharacterSet);
@@ -1389,14 +1389,14 @@ var
   I: Integer;
 begin
   for I := 0 to Count - 1 do
-    Item[I].Free();
+    Items[I].Free();
 
   inherited;
 end;
 
 function TTool.TItems.GetItem(Index: Integer): TItem;
 begin
-  Result := TItem(Items[Index]);
+  Result := TItem(TList(Self).Items[Index]);
 end;
 
 { TTool.TStringBuffer *********************************************************}

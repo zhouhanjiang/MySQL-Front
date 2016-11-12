@@ -447,6 +447,7 @@ type
     procedure UMDeactivateTab(var Message: TMessage); message UM_DEACTIVATETAB;
     procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
     procedure UMOnlineUpdateFound(var Message: TMessage); message UM_ONLINE_UPDATE_FOUND;
+    procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMUpdateToolbar(var Message: TMessage); message UM_UPDATETOOLBAR;
     procedure WMCopyData(var Message: TWMCopyData); message WM_COPYDATA;
     procedure WMDrawItem(var Message: TWMDrawItem); message WM_DRAWITEM;
@@ -477,6 +478,13 @@ uses
   fTools, fURI,
   fDAccounts, fDAccount, fDOptions, fDLogin, fDStatement, fDTransfer, fDSearch,
   fDConnecting, fDInfo, fDInstallUpdate;
+
+function IsConnectedToInternet(): Boolean;
+var
+  ConnectionTypes: DWord;
+begin
+  Result := InternetGetConnectedState(@ConnectionTypes, 0);
+end;
 
 { TWWindow ********************************************************************}
 
@@ -666,7 +674,7 @@ begin
         CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
         CheckOnlineVersionThread.Execute();
         CheckOnlineVersionThread.Free();
-        CheckOnlineVersionThread := nil;
+        FreeAndNil(CheckOnlineVersionThread);
       end;
     {$ENDIF}
 
@@ -1010,7 +1018,7 @@ begin
       CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
       CheckOnlineVersionThread.Execute();
       CheckOnlineVersionThread.Free();
-      CheckOnlineVersionThread := nil;
+      FreeAndNil(CheckOnlineVersionThread);
     end;
 
   Handled := OnlineProgramVersion <= Preferences.Version;
@@ -1027,7 +1035,7 @@ begin
       Log.Text := ActiveTab.Session.Connection.BugMonitor.CacheText;
       if (Log.Count < 10) then FirstLine := 0 else FirstLine := Log.Count - 10;
       for I := FirstLine to Log.Count - 1 do
-        Report := Report + Log[I];
+        Report := Report + Log[I] + #13#10;
       Log.Free();
     end;
     SendBugToDeveloper(Report);
@@ -1191,7 +1199,6 @@ begin
   begin
     CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
     CheckOnlineVersionThread.OnTerminate := OnlineVersionChecked;
-    CheckOnlineVersionThread.FreeOnTerminate := True;
     CheckOnlineVersionThread.Start();
   end;
 
@@ -1257,6 +1264,7 @@ end;
 procedure TWWindow.OnlineVersionChecked(Sender: TObject);
 begin
   CheckOnlineVersionThread := nil;
+  PostMessage(Handle, UM_TERMINATE, 0, 0);
   if (OnlineRecommendedVersion > Preferences.Version) then
     PostMessage(Handle, UM_ONLINE_UPDATE_FOUND, 0, 0);
 end;
@@ -1870,6 +1878,14 @@ begin
     StatusBar.Panels[I].Text := '';
 end;
 
+procedure TWWindow.UMOnlineUpdateFound(var Message: TMessage);
+begin
+  if (Screen.ActiveForm <> Self) then
+    OnlineRecommendedUpdateFound := True
+  else
+    InformOnlineUpdateFound();
+end;
+
 procedure TWWindow.UMPostShow(var Message: TMessage);
 var
   ExecutePostShow: Boolean;
@@ -1892,12 +1908,10 @@ begin
   MySQLDB.MySQLConnectionSynchronize(Pointer(Message.LParam));
 end;
 
-procedure TWWindow.UMOnlineUpdateFound(var Message: TMessage);
+procedure TWWindow.UMTerminate(var Message: TMessage);
 begin
-  if (Screen.ActiveForm <> Self) then
-    OnlineRecommendedUpdateFound := True
-  else
-    InformOnlineUpdateFound();
+  CheckOnlineVersionThread.WaitFor();
+  FreeAndNil(CheckOnlineVersionThread);
 end;
 
 procedure TWWindow.UMUpdateToolbar(var Message: TMessage);

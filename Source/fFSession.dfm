@@ -503,7 +503,7 @@ object FSession: TFSession
       ParentBackground = False
       TabOrder = 1
       Visible = False
-      object SBuilderQuery: TSplitter_Ext
+      object SQueryBuilderSQL: TSplitter_Ext
         Left = 0
         Top = 96
         Width = 467
@@ -1194,7 +1194,7 @@ object FSession: TFSession
       Visible = False
     end
   end
-  object PView: TPanel_Ext
+  object PHeader: TPanel_Ext
     Left = 0
     Top = 0
     Width = 591
@@ -1205,7 +1205,7 @@ object FSession: TFSession
     ParentBackground = False
     ParentDoubleBuffered = False
     TabOrder = 3
-    OnPaint = PViewPaint
+    OnPaint = PHeaderPaint
     object TBSideBar: TToolBar
       Left = 2
       Top = 0

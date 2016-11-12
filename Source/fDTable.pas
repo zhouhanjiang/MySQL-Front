@@ -603,20 +603,7 @@ begin
     FPartitionTypeChange(nil);
   end;
 
-
-  TSInformation.TabVisible := Assigned(Table);
-  TSKeys.TabVisible := True;
-  TSFields.TabVisible := True;
-  TSForeignKeys.TabVisible := Assigned(Table);
-  TSTriggers.TabVisible := Assigned(Table) and Assigned(Database.Triggers);
-  TSPartitions.TabVisible := Assigned(Table) and Assigned(Table.Partitions);
-  TSExtras.TabVisible := Assigned(Table);
-  TSSource.TabVisible := Assigned(Table);
-
-  PageControl.ActivePage := TSBasics;
-
-  PageControl.Visible := True;
-  PSQLWait.Visible := not PageControl.Visible;
+  TSSource.TabVisible := NewTable.Source <> '';
 end;
 
 procedure TDTable.BuiltStatus();
@@ -999,7 +986,7 @@ begin
 
   BorderStyle := bsSizeable;
 
-  PageControl.ActivePage := nil; // TSInformationShow should not be called previously while the next showing
+  PageControl.ActivePage := TSBasics; // TSInformationShow should not be called previously while the next showing
 
   SetWindowLong(FAutoIncrement.Handle, GWL_STYLE, GetWindowLong(FAutoIncrement.Handle, GWL_STYLE) or ES_NUMBER);
   FFields.RowSelect := CheckWin32Version(6);
@@ -1017,8 +1004,6 @@ end;
 procedure TDTable.FormHide(Sender: TObject);
 begin
   Database.Session.ReleaseEventProc(FormSessionEvent);
-
-  PageControl.ActivePage := nil; // TSInformationShow should not be called previously while the next showing
 
   if (Assigned(NewTable)) then
     FreeAndNil(NewTable);
@@ -1043,6 +1028,8 @@ begin
   FReferenced.Items.EndUpdate();
 
   FSource.Lines.Clear();
+
+  PageControl.ActivePage := TSBasics; // TSInformationShow should not be called previously while the next showing
 end;
 
 procedure TDTable.FormSessionEvent(const Event: TSSession.TEvent);

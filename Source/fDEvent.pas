@@ -176,10 +176,7 @@ begin
   FCreated.Caption := SysUtils.DateTimeToStr(Event.Created, LocaleFormatSettings);
   FUpdated.Caption := SysUtils.DateTimeToStr(Event.Updated, LocaleFormatSettings);
 
-  TSSource.TabVisible := True;
-
-  PageControl.Visible := True;
-  PSQLWait.Visible := not PageControl.Visible;
+  TSSource.TabVisible := Event.Source <> '';
 end;
 
 function TDEvent.Execute(): Boolean;
