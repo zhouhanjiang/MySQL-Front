@@ -14622,7 +14622,7 @@ begin
     end;
   end;
 
-  Result := FirstError.Code = PE_Success;
+  Result := (FirstError.Code = PE_Success) and Assigned(FirstStmt);
 end;
 
 function TSQLParser.NewNode(const NodeType: TNodeType): TOffset;
@@ -18123,12 +18123,11 @@ function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
       SetError(PE_IncompleteStmt);
       Result := 0;
     end
-    else if ((TokenPtr(CurrentToken)^.TokenType = ttIdent)
+    else if ((TokenPtr(CurrentToken)^.TokenType = ttIdent) and (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0)
       or (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent)
       or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and (AnsiQuotes or (ADbIdentType in [ditAlias]))
       or (TokenPtr(CurrentToken)^.TokenType = ttString) and (ADbIdentType in [ditAlias])
-      or (TokenPtr(CurrentToken)^.OperatorType = otMulti) and JokerAllowed and (ADbIdentType in [ditDatabase, ditTable, ditProcedure, ditFunction, ditField])
-      ) then
+      or (TokenPtr(CurrentToken)^.OperatorType = otMulti) and JokerAllowed and (ADbIdentType in [ditDatabase, ditTable, ditProcedure, ditFunction, ditField])) then
     begin
       TokenPtr(CurrentToken)^.FOperatorType := otNone;
       Result := ApplyCurrentToken(utDbIdent);
@@ -18177,8 +18176,6 @@ begin
       ditCharset,
       ditCollation:
         CompletionList.AddList(ADbIdentType);
-      else
-        raise ERangeError.Create(SRangeError);
     end;
     SetError(PE_IncompleteStmt);
   end;
@@ -23287,7 +23284,7 @@ begin
       raise Exception.Create('SQLParser error: ' + E.Message + #13#10#13#10 + Self.Text);
   end;
 
-  Result := FirstError.Code = PE_Success;
+  Result := (FirstError.Code = PE_Success) and Assigned(FirstStmt);
 end;
 
 function TSQLParser.ParseSQL(const Text: string; const AUseCompletionList: Boolean = False): Boolean;

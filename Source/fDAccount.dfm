@@ -75,7 +75,7 @@ object DAccount: TDAccount
       MaxLength = 50
       TabOrder = 0
       Text = 'FName'
-      OnChange = FEditChange
+      OnChange = FBOkCheckEnabled
     end
   end
   object GConnection: TGroupBox_Ext
@@ -140,7 +140,7 @@ object DAccount: TDAccount
       TabOrder = 5
       Text = 'FHTTPTunnelURI'
       Visible = False
-      OnChange = FHTTPTunnelURIChange
+      OnChange = FBOkCheckEnabled
       OnEnter = FHTTPTunnelURIEnter
     end
     object FHost: TEdit
@@ -162,6 +162,7 @@ object DAccount: TDAccount
       MaxLength = 5
       TabOrder = 1
       Text = '0'
+      OnChange = FBOkCheckEnabled
     end
     object FConnectionType: TComboBox_Ext
       Left = 128
@@ -181,6 +182,7 @@ object DAccount: TDAccount
       TabOrder = 4
       Text = 'FLibraryFilename'
       Visible = False
+      OnChange = FBOkCheckEnabled
       OnEnter = FLibraryFilenameEnter
     end
     object FUDPort: TUpDown
@@ -237,7 +239,6 @@ object DAccount: TDAccount
       Anchors = [akLeft, akTop, akRight]
       TabOrder = 2
       Text = 'FDatabase'
-      OnChange = FEditChange
     end
     object FUser: TEdit
       Left = 128
@@ -248,7 +249,6 @@ object DAccount: TDAccount
       MaxLength = 50
       TabOrder = 0
       Text = 'FUser'
-      OnChange = FEditChange
     end
     object FPassword: TEdit
       Left = 128
@@ -258,7 +258,6 @@ object DAccount: TDAccount
       Anchors = [akLeft, akTop, akRight]
       TabOrder = 1
       Text = 'FPassword'
-      OnChange = FEditChange
     end
     object FBDatabase: TButton
       Left = 266

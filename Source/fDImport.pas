@@ -178,6 +178,7 @@ type
     procedure WhatClick(Sender: TObject);
     procedure WhatKeyPress(Sender: TObject; var Key: Char);
     procedure TSStmtTypeShow(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
   type
     TTableName = class
     private
@@ -345,10 +346,9 @@ begin
     FBForward.Caption := Preferences.LoadStr(174);
 
   FBForward.Enabled := FBForward.Visible and ((NextActivePageIndex >= 0) or (ActivePageIndex = TSTask.PageIndex));
-  FBForward.Default := True;
-
+  FBForward.Default := PageControl.ActivePage <> TSExecute;
+  FBCancel.Default := not FBForward.Default;
   FBCancel.Caption := Preferences.LoadStr(30);
-  FBCancel.Default := False;
 end;
 
 procedure TDImport.ClearTSFields(Sender: TObject);
@@ -410,6 +410,12 @@ procedure TDImport.FBBackClick(Sender: TObject);
 var
   PageIndex: Integer;
 begin
+  if (Assigned(Import)) then
+  begin
+    Import.WaitFor();
+    FreeAndNil(Import);
+  end;
+
   for PageIndex := PageControl.ActivePageIndex - 1 downto 0 do
     if (PageControl.Pages[PageIndex].Enabled) then
     begin
@@ -421,10 +427,7 @@ end;
 procedure TDImport.FBCancelClick(Sender: TObject);
 begin
   if (Assigned(Import)) then
-  begin
     Import.Terminate();
-    FBCancel.Enabled := False;
-  end;
 end;
 
 procedure TDImport.FBDataSourceClick(Sender: TObject);
@@ -690,6 +693,8 @@ begin
   FSelect.Images := Preferences.Images;
   FTables.SmallImages := Preferences.Images;
 
+  Import := nil;
+
   FCSVHeadline.Checked := Preferences.Import.CSV.Headline;
   FDelimiterTab.Checked := Preferences.Import.CSV.DelimiterType = dtTab;
   FDelimiterChar.Checked := Preferences.Import.CSV.DelimiterType = dtChar;
@@ -706,6 +711,12 @@ begin
   FFilename.Text := '';
 end;
 
+procedure TDImport.FormDestroy(Sender: TObject);
+begin
+  if (Assigned(Import)) then
+    TerminateThread(Import.Handle, 0);
+end;
+
 procedure TDImport.FormHide(Sender: TObject);
 var
   Hour, Min, Sec, MSec: Word;
@@ -714,7 +725,7 @@ var
   J: Integer;
   NewJob: TPAccount.TJobImport;
 begin
-  Session.UnRegisterEventProc(FormSessionEvent);
+  Session.ReleaseEventProc(FormSessionEvent);
 
   Preferences.Import.Width := Width;
   Preferences.Import.Height := Height;
@@ -892,7 +903,6 @@ var
 begin
   Session.RegisterEventProc(FormSessionEvent);
 
-  Import := nil;
   TableNames := TTableNames.Create();
 
   ModalResult := mrNone;
@@ -1668,8 +1678,6 @@ begin
   if (DialogType = idtExecuteJob) then
     InitTSFields(nil);
 
-  Session.UnRegisterEventProc(FormSessionEvent);
-
   FLProgressObjects.Visible := ImportType in [itODBC, itAccessFile, itExcelFile];
   FEntieredObjects.Visible := FLProgressObjects.Visible;
   FDoneObjects.Visible := FLProgressObjects.Visible;
@@ -1687,15 +1695,6 @@ begin
   FProgressBar.Position := 0;
   FErrors.Caption := '0';
   FErrorMessages.Lines.Clear();
-
-  FBBack.Enabled := False;
-  FBForward.Enabled := False;
-  FBForward.Default := False;
-  FBCancel.Enabled := True;
-  FBCancel.Default := True;
-  FBCancel.ModalResult := mrNone;
-
-  ActiveControl := FBCancel;
 
   if (not Assigned(Import)) then
     TSJobHide(Self);
@@ -1752,7 +1751,7 @@ begin
 
   Success := (Answer <> IDCANCEL);
   if (not Success) then
-    SendMessage(Self.Handle, UM_TERMINATE, WPARAM(Success), 0)
+    FreeAndNil(Import)
   else
   begin
     Import.Data := (SObject is TSTable) or not (SObject is TSTable) and FData.Checked;
@@ -1790,10 +1789,15 @@ begin
 
     Import.Wnd := Self.Handle;
     Import.OnError := OnError;
-    Import.OnTerminate := OnTerminate;
     Import.OnUpdate := OnUpdate;
     Import.Start();
   end;
+
+  FBForward.Enabled := False;
+  FBForward.Default := False;
+  FBCancel.Default := True;
+
+  ActiveControl := FBCancel;
 end;
 
 procedure TDImport.TSFieldsChange(Sender: TObject);
@@ -1830,7 +1834,7 @@ end;
 procedure TDImport.TSJobHide(Sender: TObject);
 begin
   if (Assigned(Import)) then
-    Import.Free();
+    FreeAndNil(Import);
 
   case (ImportType) of
     itSQLFile: Import := TTImportSQL.Create(Filename, CodePage, Session, Database);
@@ -1839,6 +1843,8 @@ begin
     itExcelFile: Import := TTImportExcel.Create(Session, Database, Filename);
     itODBC: Import := TTImportODBC.Create(Session, Database, DODBC.DataSource, DODBC.Username, DODBC.Password);
   end;
+  if (Assigned(Import)) then
+    Import.OnTerminate := OnTerminate;
 end;
 
 procedure TDImport.TSJobShow(Sender: TObject);
@@ -2057,32 +2063,17 @@ var
 begin
   Success := Boolean(Message.WParam);
 
-  GProgress.Enabled := True;
-  FLEntiered.Enabled := True;
-  FLDone.Enabled := True;
-  FLProgressRecords.Enabled := True;
-  FEntieredRecords.Enabled := True;
-  FDoneRecords.Enabled := True;
-  FLProgressTime.Enabled := True;
-  FEntieredTime.Enabled := True;
-  FDoneTime.Enabled := True;
-  FProgressBar.Enabled := True;
-
-  FBBack.Enabled := True;
-  FBForward.Enabled := False;
-  FBCancel.Enabled := True;
+  if (Assigned(Import)) then
+  begin
+    Import.WaitFor();
+    FreeAndNil(Import);
+  end;
 
   FBCancel.Caption := Preferences.LoadStr(231);
   if (Success) then
     FBCancel.ModalResult := mrOk
   else
     FBCancel.ModalResult := mrCancel;
-
-  if (Assigned(Import)) then
-  begin
-    Import.WaitFor();
-    FreeAndNil(Import);
-  end;
 end;
 
 procedure TDImport.UMUpdateProgressInfo(var Message: TMessage);

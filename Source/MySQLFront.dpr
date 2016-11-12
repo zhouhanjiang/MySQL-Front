@@ -26,6 +26,7 @@ uses
   ComCtrls_Ext in 'VCL\Source\ComCtrls_Ext.pas',
   CommCtrl_Ext in 'VCL\Source\CommCtrl_Ext.pas',
   Forms_Ext in 'VCL\Source\Forms_Ext.pas',
+  fDeveloper in 'fDeveloper.pas',
   fJob in 'fJob.pas',
   fPreferences in 'fPreferences.pas',
   fSession in 'fSession.pas',

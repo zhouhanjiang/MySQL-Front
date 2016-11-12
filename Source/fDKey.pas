@@ -444,7 +444,7 @@ end;
 
 procedure TDKey.FormHide(Sender: TObject);
 begin
-  Table.Session.UnRegisterEventProc(FormSessionEvent);
+  Table.Session.ReleaseEventProc(FormSessionEvent);
 
   Preferences.Key.Width := Width;
   Preferences.Key.Height := Height;
@@ -478,14 +478,15 @@ begin
     ModalResult := mrOk;
 
   if (Event.EventType = etAfterExecuteSQL) then
-  begin
-    GBasics.Visible := True;
-    GAttributes.Visible := GBasics.Visible;
-    PSQLWait.Visible := not GBasics.Visible;
+    if (not GBasics.Visible) then
+    begin
+      GBasics.Visible := True;
+      GAttributes.Visible := GBasics.Visible;
+      PSQLWait.Visible := not GBasics.Visible;
 
-    ActiveControl := FLName.FocusControl;
-    FBOkCheckEnabled(nil);
-  end;
+      ActiveControl := FLName.FocusControl;
+      FBOkCheckEnabled(nil);
+    end;
 end;
 
 procedure TDKey.FormShow(Sender: TObject);

@@ -4,7 +4,7 @@ interface {********************************************************************}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, ComCtrls, StdCtrls, Mask, ExtCtrls,
+  Dialogs, ComCtrls, StdCtrls, Mask, ExtCtrls, Consts,
   ComCtrls_Ext, StdCtrls_Ext, Forms_Ext,
   MySQLDB,
   fSession,
@@ -874,7 +874,7 @@ end;
 
 procedure TDField.FormHide(Sender: TObject);
 begin
-  Table.Session.UnRegisterEventProc(FormSessionEvent);
+  Table.Session.ReleaseEventProc(FormSessionEvent);
 
   Preferences.Field.Width := Width;
   Preferences.Field.Height := Height;
@@ -888,14 +888,15 @@ begin
     ModalResult := mrOk;
 
   if (Event.EventType = etAfterExecuteSQL) then
-  begin
-    GBasics.Visible := True;
-    GAttributes.Visible := GBasics.Visible;
-    PSQLWait.Visible := not GBasics.Visible;
+    if (not GBasics.Visible) then
+    begin
+      GBasics.Visible := True;
+      GAttributes.Visible := GBasics.Visible;
+      PSQLWait.Visible := not GBasics.Visible;
 
-    ActiveControl := FName;
-    FBOkCheckEnabled(nil);
-  end;
+      ActiveControl := FName;
+      FBOkCheckEnabled(nil);
+    end;
 end;
 
 procedure TDField.FormShow(Sender: TObject);
@@ -1066,6 +1067,9 @@ function TDField.GetType(): TSField.TFieldType;
 begin
   if (FFieldType.ItemIndex < 0) then
     Result := mfUnknown
+  else if (not Assigned(Table.Session.FieldTypeByCaption(FFieldType.Text))) then
+    // Debug 2016-11-12
+    raise ERangeError.CreateFMT(SPropertyOutOfRange + ' ("%s")', ['FFieldType.Text', FFieldType.Text])
   else
     Result := Table.Session.FieldTypeByCaption(FFieldType.Text).MySQLFieldType;
 end;

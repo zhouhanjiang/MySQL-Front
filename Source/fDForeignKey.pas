@@ -271,7 +271,7 @@ end;
 
 procedure TDForeignKey.FormHide(Sender: TObject);
 begin
-  Table.Session.UnRegisterEventProc(FormSessionEvent);
+  Table.Session.ReleaseEventProc(FormSessionEvent);
 
   Preferences.ForeignKey.Width := Width;
   Preferences.ForeignKey.Height := Height;
@@ -311,11 +311,7 @@ end;
 procedure TDForeignKey.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = etItemValid) and (Event.Item = Table)) then
-  begin
-    Built();
-    ActiveControl := FName;
-    FBOkCheckEnabled(nil);
-  end
+    Built()
   else if ((Event.EventType = etItemAltered) and (Event.Item = Table)) then
     ModalResult := mrOk;
 
@@ -328,9 +324,14 @@ begin
   end
   else if (Event.EventType = etAfterExecuteSQL) then
   begin
-    GBasics.Visible := True;
-    GAttributes.Visible := GBasics.Visible;
-    PSQLWait.Visible := not GBasics.Visible;
+    if (not GBasics.Visible) then
+    begin
+      GBasics.Visible := True;
+      GAttributes.Visible := GBasics.Visible;
+      PSQLWait.Visible := not GBasics.Visible;
+      ActiveControl := FName;
+      FBOkCheckEnabled(nil);
+    end;
 
     PostMessage(Handle, UM_POST_AFTEREXECUTESQL, 0, 0);
   end;

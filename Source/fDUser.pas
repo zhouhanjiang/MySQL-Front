@@ -161,7 +161,7 @@ end;
 
 procedure TDUser.FBRightsDeleteClick(Sender: TObject);
 begin
-  NewUser.DeleteRight(NewUser.Right[FRights.ItemIndex]);
+  NewUser.DeleteRight(NewUser.Rights[FRights.ItemIndex]);
   FRightsRefresh(Sender);
 
   FBOkCheckEnabled(Sender);
@@ -235,7 +235,7 @@ begin
     NewUser.UpdatesPerHour := FUDUpdatesPerHour.Position;
     NewUser.UserConnections := FUDUserConnections.Position;
     for I := 0 to NewUser.RightCount - 1 do
-      NewUser.Right[I].NewPassword := NewUser.NewPassword;
+      NewUser.Rights[I].NewPassword := NewUser.NewPassword;
 
     if (not Assigned(User)) then
       CanClose := Session.AddUser(NewUser)
@@ -270,7 +270,7 @@ end;
 
 procedure TDUser.FormHide(Sender: TObject);
 begin
-  Session.UnRegisterEventProc(FormSessionEvent);
+  Session.ReleaseEventProc(FormSessionEvent);
 
   Preferences.User.Width := Width;
   Preferences.User.Height := Height;
@@ -382,16 +382,16 @@ begin
   for I := 0 to NewUser.RightCount - 1 do
   begin
     Item := FRights.Items.Add();
-    Item.Caption := NewUser.Right[I].Caption;
-    if (NewUser.Right[I].FieldName <> '') then
+    Item.Caption := NewUser.Rights[I].Caption;
+    if (NewUser.Rights[I].FieldName <> '') then
       Item.ImageIndex := iiField
-    else if (NewUser.Right[I].TableName <> '') then
+    else if (NewUser.Rights[I].TableName <> '') then
       Item.ImageIndex := iiBaseTable
-    else if (NewUser.Right[I].ProcedureName <> '') then
+    else if (NewUser.Rights[I].ProcedureName <> '') then
       Item.ImageIndex := iiProcedure
-    else if (NewUser.Right[I].FunctionName <> '') then
+    else if (NewUser.Rights[I].FunctionName <> '') then
       Item.ImageIndex := iiFunction
-    else if (NewUser.Right[I].DatabaseName <> '') then
+    else if (NewUser.Rights[I].DatabaseName <> '') then
       Item.ImageIndex := iiDatabase
     else
       Item.ImageIndex := iiServer;
@@ -412,7 +412,7 @@ begin
   RGrant := not Assigned(Session.User);
   if (Assigned(Session.User)) then
     for I := 0 to Session.User.RightCount - 1 do
-      RGrant := RGrant or Session.User.Right[I].RGrant;
+      RGrant := RGrant or Session.User.Rights[I].RGrant;
 
   FBRightsNew.Enabled := RGrant;
   FBRightsEdit.Enabled := Selected;

@@ -81,10 +81,7 @@ type
 
     TDatabase = class(TWindow);
 
-    TDatabases = class(TWindow)
-      Left: Integer;
-      Top: Integer;
-    end;
+    TDatabases = class(TWindow);
 
     TEditor = class
     protected
@@ -834,7 +831,7 @@ begin
   if (Pos('.', VersionStr) = 0) then
     Result := StrToInt(VersionStr) * 10000
   else
-    Result := StrToInt(copy(VersionStr, 1, Pos('.', VersionStr) - 1)) * 10000
+    Result := StrToInt(Copy(VersionStr, 1, Pos('.', VersionStr) - 1)) * 10000
       + VersionStrToVersion(Copy(VersionStr, Pos('.', VersionStr) + 1, Length(VersionStr) - Pos('.', VersionStr))) div 100;
 end;
 
@@ -2601,6 +2598,7 @@ end;
 
 procedure TPPreferences.Save();
 begin
+  FreeAndNil(FLanguage);
   SaveToXML(XMLDocument.DocumentElement);
 end;
 
@@ -3962,8 +3960,8 @@ end;
 
 function TPAccount.ExpandAddress(const APath: string): string;
 var
-  Len: Cardinal;
-  URL: array[0 .. INTERNET_MAX_URL_LENGTH] of Char;
+  Len: DWORD;
+  URL: array [0 .. INTERNET_MAX_URL_LENGTH] of Char;
   URLComponents: URL_COMPONENTS;
 begin
   ZeroMemory(@URLComponents, SizeOf(URLComponents));
@@ -3978,8 +3976,8 @@ begin
     URLComponents.nPort := Connection.Port;
   URLComponents.lpszUrlPath := PChar(APath);
 
-  Len := Length(URL);
-  if (not InternetCreateUrl(URLComponents, ICU_ESCAPE, @URL, Len)) then
+  Len := Length(URL) - 1;
+  if (not InternetCreateUrl(URLComponents, 0, @URL, Len)) then
     RaiseLastOSError()
   else
     SetString(Result, PChar(@URL), Len);

@@ -69,6 +69,7 @@ type
     procedure TSWhatShow(Sender: TObject);
     procedure FSourceChanging(Sender: TObject; Node: TTreeNode;
       var AllowChange: Boolean);
+    procedure FormDestroy(Sender: TObject);
   private
     ProgressInfos: TTool.TProgressInfos;
     Sessions: array of record
@@ -158,10 +159,9 @@ begin
     FBForward.Caption := Preferences.LoadStr(174);
 
   FBForward.Enabled := FBForward.Visible and (NextActivePageIndex >= 0);
-  FBForward.Default := True;
-
+  FBForward.Default := PageControl.ActivePage <> TSExecute;
+  FBCancel.Default := not FBForward.Default;
   FBCancel.Caption := Preferences.LoadStr(30);
-  FBCancel.Default := False;
 end;
 
 function TDTransfer.Execute(): Boolean;
@@ -174,6 +174,12 @@ procedure TDTransfer.FBBackClick(Sender: TObject);
 var
   PageIndex: Integer;
 begin
+  if (Assigned(Transfer)) then
+  begin
+    Transfer.WaitFor();
+    FreeAndNil(Transfer);
+  end;
+
   for PageIndex := PageControl.ActivePageIndex - 1 downto 0 do
     if (PageControl.Pages[PageIndex].Enabled) then
     begin
@@ -185,10 +191,7 @@ end;
 procedure TDTransfer.FBCancelClick(Sender: TObject);
 begin
   if (Assigned(Transfer)) then
-  begin
     Transfer.Terminate();
-    FBCancel.Enabled := False;
-  end;
 end;
 
 procedure TDTransfer.FBForwardClick(Sender: TObject);
@@ -260,6 +263,12 @@ begin
   PageControl.ActivePage := nil; // Make sure, not ___OnShowPage will be executed
 end;
 
+procedure TDTransfer.FormDestroy(Sender: TObject);
+begin
+  if (Assigned(Transfer)) then
+    TerminateThread(Transfer.Handle, 0);
+end;
+
 procedure TDTransfer.FormHide(Sender: TObject);
 var
   I: Integer;
@@ -267,7 +276,7 @@ begin
   for I := 0 to Length(Sessions) - 1 do
     if (Assigned(Sessions[I].Session)) then
     begin
-      Sessions[I].Session.UnRegisterEventProc(FormSessionEvent);
+      Sessions[I].Session.ReleaseEventProc(FormSessionEvent);
       if (Sessions[I].Created) then
         Sessions[I].Session.Free();
     end;
@@ -323,7 +332,6 @@ begin
   CheckActivePageChange(PageControl.ActivePageIndex);
 
   FBCancel.Caption := Preferences.LoadStr(30);
-  FBCancel.Enabled := True;
   FBCancel.ModalResult := mrCancel;
   FBCancel.Default := False;
 
@@ -622,13 +630,6 @@ begin
   FErrors.Caption := '0';
   FErrorMessages.Lines.Clear();
 
-  FBBack.Enabled := False;
-  FBForward.Enabled := False;
-  FBCancel.Enabled := True;
-  FBCancel.Default := True;
-  FBCancel.ModalResult := mrNone;
-  ActiveControl := FBCancel;
-
   Node := FSource.Selected;
   while (Assigned(Node.Parent)) do Node := Node.Parent;
   SourceSession := TSSession(Node.Data);
@@ -767,6 +768,11 @@ begin
     SetControlCursor(GProgress, crDefault)
   else
     SetControlCursor(GProgress, crSQLWait);
+
+  FBForward.Enabled := False;
+  FBForward.Default := False;
+  FBCancel.Default := True;
+  ActiveControl := FBCancel;
 end;
 
 procedure TDTransfer.TSSelectResize(Sender: TObject);
@@ -922,29 +928,19 @@ var
 begin
   Success := Boolean(Message.WParam);
 
-  FSource.Items.BeginUpdate();
-  FSource.Items.Clear();
-  FSource.Items.EndUpdate();
-  FDestination.Items.BeginUpdate();
-  FDestination.Items.Clear();
-  FDestination.Items.EndUpdate();
+  if (Assigned(Transfer)) then
+  begin
+    Transfer.WaitFor();
+    FreeAndNil(Transfer);
+  end;
 
   TSWhat.Enabled := False;
-
-  FBBack.Enabled := True;
-  FBCancel.Enabled := True;
 
   FBCancel.Caption := Preferences.LoadStr(231);
   if (Success) then
     FBCancel.ModalResult := mrOk
   else
     FBCancel.ModalResult := mrCancel;
-
-  if (Assigned(Transfer)) then
-  begin
-    Transfer.WaitFor();
-    FreeAndNil(Transfer);
-  end;
 end;
 
 procedure TDTransfer.UMUpdateProgressInfo(var Message: TMessage);

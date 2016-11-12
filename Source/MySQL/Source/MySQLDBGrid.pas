@@ -43,7 +43,6 @@ type
     FOnFilterChange: TFilterChange;
     FOnSelect: TNotifyEvent;
     IgnoreTitleClick: Boolean;
-    IgnoreTitleChange: Boolean;
     TitleBoldFont: TFont;
     procedure ActivateHint();
     function CanvasTextWidth(const Text: string): Integer; inline;
@@ -398,7 +397,6 @@ begin
   FHeaderControl := nil;
   FListView := 0;
   IgnoreTitleClick := False;
-  IgnoreTitleChange := False;
   FOnCanEditShowExecuted := False;
   TitleBoldFont := nil;
 
@@ -656,7 +654,8 @@ var
 begin
   FHeaderControl.Hint := '';
   for Index := 0 to FHeaderControl.Sections.Count - 1 do
-    if ((FHeaderControl.Sections[Index].Left <= X) and (X <= FHeaderControl.Sections[Index].Right)) then
+    if ((FHeaderControl.Sections[Index].Left <= X) and (X <= FHeaderControl.Sections[Index].Right)
+      and Assigned(Columns[LeftCol + Index].Field)) then
     begin
       if (Columns[LeftCol + Index].Field.IsIndexField and Assigned(TitleBoldFont)) then
         Canvas.Font := TitleBoldFont
@@ -1096,44 +1095,41 @@ var
 begin
   inherited;
 
-  if (not IgnoreTitleChange) then
+  if (Assigned(FHeaderControl)) then
   begin
-    if (Assigned(FHeaderControl)) then
+    FHeaderControl.Sections.BeginUpdate();
+    FHeaderControl.Sections.Clear();
+
+    for I := 0 to Columns.Count - 1 do
     begin
-      FHeaderControl.Sections.BeginUpdate();
-      FHeaderControl.Sections.Clear();
+      with Columns[I] do
+        TabStops[I + IndicatorOffset] := Showing and DataLink.Active and
+          Assigned(Field) and not (Field.FieldKind = fkCalculated);
 
-      for I := 0 to Columns.Count - 1 do
+      if (I >= LeftCol) then
       begin
-        with Columns[I] do
-          TabStops[I + IndicatorOffset] := Showing and DataLink.Active and
-            Assigned(Field) and not (Field.FieldKind = fkCalculated);
-
-        if (I >= LeftCol) then
-        begin
-          Section := FHeaderControl.Sections.Insert(I - LeftCol);
-          Section.MinWidth := FHeaderControl.Height;
-          Section.MaxWidth := Width - FHeaderControl.Height - GetSystemMetrics(SM_CXVSCROLL);
-          if (dgColLines in Options) then
-            Section.Width := Columns[I].Width + GridLineWidth
-          else
-            Section.Width := Columns[I].Width;
-          if (Assigned(Columns[I].Field)) then
-            Section.Text := Columns[I].Field.DisplayName;
-        end;
-
-        if (Assigned(Columns[I].Field) and Columns[I].Field.IsIndexField) then
-          Columns[I].Font.Style := Columns[I].Font.Style + [fsBold]
+        Section := FHeaderControl.Sections.Insert(I - LeftCol);
+        Section.MinWidth := FHeaderControl.Height;
+        Section.MaxWidth := Width - FHeaderControl.Height - GetSystemMetrics(SM_CXVSCROLL);
+        if (dgColLines in Options) then
+          Section.Width := Columns[I].Width + GridLineWidth
         else
-          Columns[I].Font.Style := Columns[I].Font.Style - [fsBold];
+          Section.Width := Columns[I].Width;
+        if (Assigned(Columns[I].Field)) then
+          Section.Text := Columns[I].Field.DisplayName;
       end;
 
-      FHeaderControl.Sections.EndUpdate();
+      if (Assigned(Columns[I].Field) and Columns[I].Field.IsIndexField) then
+        Columns[I].Font.Style := Columns[I].Font.Style + [fsBold]
+      else
+        Columns[I].Font.Style := Columns[I].Font.Style - [fsBold];
     end;
 
-    SetHeaderColumnArrows();
-    Resize();
+    FHeaderControl.Sections.EndUpdate();
   end;
+
+  SetHeaderColumnArrows();
+  Resize();
 end;
 
 procedure TMySQLDBGrid.SetHeaderColumnArrows();
@@ -1232,22 +1228,18 @@ begin
             HDItem.Mask := HDI_WIDTH;
             if (BOOL(SendMessage(Header, HDM_GETITEM, HDNotify^.Item, LPARAM(@HDItem)))) then
             begin
-              IgnoreTitleChange := True;
-
               Canvas.Font := Column.Font;
               NewWidth := TMySQLDataSet(DataLink.DataSet).GetMaxTextWidth(Column.Field, CanvasTextWidth) + 4 + GridLineWidth;
-              if (NewWidth < FHeaderControl.Sections[LeftCol + HDNotify^.Item].MinWidth) then
-                NewWidth := FHeaderControl.Sections[LeftCol + HDNotify^.Item].MinWidth;
+              if (NewWidth < FHeaderControl.Sections[HDNotify^.Item].MinWidth) then
+                NewWidth := FHeaderControl.Sections[HDNotify^.Item].MinWidth;
               if (NewWidth > Width - RowHeights[0]) then
                 NewWidth := Width - RowHeights[0];
 
               HDItem.cxy := NewWidth;
               if (dgColLines in Options) then
-                Inc(HDItem.cxy, GridLineWidth);
-              while (not BOOL(SendMessage(Header, HDM_SETITEM, HDNotify^.Item, LPARAM(@HDItem)))) do
-                Inc(HDItem.cxy, GridLineWidth);
+                Inc(NewWidth, GridLineWidth);
 
-              IgnoreTitleChange := False;
+              Column.Width := NewWidth;
 
               Resize();
             end;

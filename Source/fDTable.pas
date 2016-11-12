@@ -617,8 +617,6 @@ begin
 
   PageControl.Visible := True;
   PSQLWait.Visible := not PageControl.Visible;
-
-  ActiveControl := FName;
 end;
 
 procedure TDTable.BuiltStatus();
@@ -1018,7 +1016,7 @@ end;
 
 procedure TDTable.FormHide(Sender: TObject);
 begin
-  Database.Session.UnRegisterEventProc(FormSessionEvent);
+  Database.Session.ReleaseEventProc(FormSessionEvent);
 
   PageControl.ActivePage := nil; // TSInformationShow should not be called previously while the next showing
 
@@ -1065,9 +1063,13 @@ begin
       FReferenced.Cursor := crDefault;
     end;
 
-    PageControl.Visible := True;
-    PSQLWait.Visible := not PageControl.Visible;
-    FBOkCheckEnabled(nil);
+    if (not PageControl.Visible) then
+    begin
+      PageControl.Visible := True;
+      PSQLWait.Visible := not PageControl.Visible;
+      ActiveControl := FName;
+      FBOkCheckEnabled(nil);
+    end;
   end;
 end;
 
@@ -1583,7 +1585,10 @@ begin
       ListItem.Caption := NewTable.Keys[I].Caption;
       FieldNames := '';
       for J := 0 to NewTable.Keys[I].Columns.Count - 1 do
-        begin if (FieldNames <> '') then FieldNames := FieldNames + ','; FieldNames := FieldNames + NewTable.Keys[I].Columns.Column[J].Field.Name; end;
+      begin
+        if (FieldNames <> '') then FieldNames := FieldNames + ',';
+        FieldNames := FieldNames + NewTable.Keys[I].Columns[J].Field.Name;
+      end;
       ListItem.SubItems.Add(FieldNames);
       if (NewTable.Keys[I].Unique) then
         ListItem.SubItems.Add('unique')

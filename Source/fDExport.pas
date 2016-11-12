@@ -331,13 +331,9 @@ begin
     FBForward.Caption := Preferences.LoadStr(229) + ' >';
 
   FBForward.Enabled := FBForward.Visible and ((NextActivePageIndex >= 0) or (ActivePageIndex = TSTask.PageIndex));
-  FBForward.Default := True;
-
+  FBForward.Default := PageControl.ActivePage <> TSExecute;
+  FBCancel.Default := not FBForward.Default;
   FBCancel.Caption := Preferences.LoadStr(30);
-  FBCancel.Default := False;
-
-  if ((ActiveControl = FBCancel) and FBForward.Enabled) then
-    ActiveControl := FBForward;
 end;
 
 procedure TDExport.ClearTSFields();
@@ -413,6 +409,12 @@ procedure TDExport.FBBackClick(Sender: TObject);
 var
   PageIndex: Integer;
 begin
+  if (Assigned(Export)) then
+  begin
+    Export.WaitFor();
+    FreeAndNil(Export);
+  end;
+
   for PageIndex := PageControl.ActivePageIndex - 1 downto 0 do
     if (PageControl.Pages[PageIndex].Enabled) then
     begin
@@ -424,10 +426,7 @@ end;
 procedure TDExport.FBCancelClick(Sender: TObject);
 begin
   if (Assigned(Export)) then
-  begin
     Export.Terminate();
-    FBCancel.Enabled := False;
-  end;
 end;
 
 procedure TDExport.FBDataSourceClick(Sender: TObject);
@@ -744,6 +743,8 @@ end;
 
 procedure TDExport.FormDestroy(Sender: TObject);
 begin
+  if (Assigned(Export)) then
+    TerminateThread(Export.Handle, 0);
   FObjects.Free();
 end;
 
@@ -754,7 +755,7 @@ var
   Hour, Min, Sec, MSec: Word;
   Year, Month, Day: Word;
 begin
-  Session.UnRegisterEventProc(FormSessionEvent);
+  Session.ReleaseEventProc(FormSessionEvent);
 
   Preferences.Export.Width := Width;
   Preferences.Export.Height := Height;
@@ -1799,7 +1800,6 @@ begin
   FBForward.Default := True;
 
   FBCancel.Caption := Preferences.LoadStr(30);
-  FBCancel.ModalResult := mrCancel;
   FBCancel.Default := False;
 
   TabSheet.Enabled := not TSFields.Enabled;
@@ -1811,7 +1811,7 @@ var
   Answer: Integer;
   I: Integer;
 begin
-  Session.UnRegisterEventProc(FormSessionEvent);
+  Session.ReleaseEventProc(FormSessionEvent);
 
   FEntieredObjects.Caption := '';
   FDoneObjects.Caption := '';
@@ -1822,14 +1822,6 @@ begin
   FProgressBar.Position := 0;
   FErrors.Caption := '0';
   FErrorMessages.Lines.Clear();
-
-  CheckActivePageChange(TSExecute.PageIndex);
-  FBBack.Enabled := False;
-
-  FBForward.Default := False;
-  FBCancel.Default := True;
-  FBCancel.ModalResult := mrNone;
-  ActiveControl := FBCancel;
 
   case (ExportType) of
     etSQLFile:
@@ -1945,6 +1937,8 @@ begin
         TTExportCanvas(Export).Structure := FHTMLStructure.Checked;
       end;
   end;
+  if (Assigned(Export)) then
+    Export.OnTerminate := OnTerminate;
 
   if (Assigned(Export)) then
   begin
@@ -2016,10 +2010,7 @@ begin
     end;
 
     if ((Answer = IDCANCEL) or (Export.Items.Count = 0)) then
-    begin
-      FreeAndNil(Export);
-      ModalResult := mrCancel;
-    end
+      FreeAndNil(Export)
     else
     begin
       Export.Wnd := Handle;
@@ -2029,6 +2020,12 @@ begin
       Export.Start();
     end;
   end;
+
+  CheckActivePageChange(TSExecute.PageIndex);
+
+  FBForward.Default := False;
+  FBCancel.Default := True;
+  ActiveControl := FBCancel;
 end;
 
 procedure TDExport.TSFieldsShow(Sender: TObject);
@@ -2086,7 +2083,6 @@ begin
   FBForward.Default := True;
 
   FBCancel.Caption := Preferences.LoadStr(30);
-  FBCancel.ModalResult := mrCancel;
   FBCancel.Default := False;
 
   FSQLOptionClick(Sender);
@@ -2338,21 +2334,17 @@ var
 begin
   Success := Boolean(Message.WParam);
 
-  FBBack.Enabled := True;
-  FBForward.Enabled := False;
-  FBCancel.Enabled := True;
+  if (Assigned(Export)) then
+  begin
+    Export.WaitFor();
+    FreeAndNil(Export);
+  end;
 
   FBCancel.Caption := Preferences.LoadStr(231);
   if (Success) then
     FBCancel.ModalResult := mrOk
   else
     FBCancel.ModalResult := mrCancel;
-
-  if (Assigned(Export)) then
-  begin
-    Export.WaitFor();
-    FreeAndNil(Export);
-  end;
 end;
 
 procedure TDExport.UMUpdateProgressInfo(var Message: TMessage);

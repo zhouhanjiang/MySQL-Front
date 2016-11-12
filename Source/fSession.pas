@@ -1338,7 +1338,7 @@ type
     function GetHost(): string;
     function GetLogin(): string;
     function GetRight(Index: Integer): TSUserRight; inline;
-    function GetRightCount(): Integer;
+    function GetRightCount(): Integer; inline;
     function GetUsers(): TSUsers; inline;
     procedure ParseGrant(const SQL: string);
   protected
@@ -1364,7 +1364,7 @@ type
     property NewPassword: string read FNewPassword write FNewPassword;
     property QueriesPerHour: Int64 read FQueriesPerHour write FQueriesPerHour;
     property RawPassword: string read FRawPassword write FRawPassword;
-    property Right[Index: Integer]: TSUserRight read GetRight;
+    property Rights[Index: Integer]: TSUserRight read GetRight;
     property RightCount: Integer read GetRightCount;
     property UpdatesPerHour: Int64 read FUpdatesPerHour write FUpdatesPerHour;
     property UserConnections: Int64 read FUserConnections write FUserConnections;
@@ -1376,6 +1376,7 @@ type
     function GetUser(Index: Integer): TSUser; inline;
   protected
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean; override;
+    procedure Delete(const AEntity: TSEntity); override;
     function GetValid(): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
@@ -1419,7 +1420,7 @@ type
     TCreateDesktop = function (const CObject: TSObject): TSObject.TDesktop of object;
     TEventProc = procedure (const AEvent: TEvent) of object;
   private
-    EventProcs: TList;
+    EventProcs: array of TEventProc;
     FAccount: TPAccount;
     FCharsets: TSCharsets;
     FSessions: TSSessions;
@@ -1458,7 +1459,6 @@ type
     function GetCollation(): string;
     function GetUserRights(): TSUserRight;
     function GetValid(): Boolean;
-    procedure SendSQLToDeveloper(const SQL: string);
     procedure SetCreateDesktop(ACreateDesktop: TCreateDesktop);
     procedure VariableChange(const Connection: TMySQLConnection; const Name, NewValue: string);
   protected
@@ -1493,13 +1493,14 @@ type
     function EngineByName(const EngineName: string): TSEngine;
     function EscapeRightIdentifier(const Identifier: string; const IdentifierQuoting: Boolean = False): string;
     function EscapeUser(const User: string; const IdentifierQuoting: Boolean = False): string;
-    function FieldTypeByCaption(const Caption: string): TSFieldType;
+    function FieldTypeByCaption(const Text: string): TSFieldType;
     function FieldTypeByMySQLFieldType(const MySQLFieldType: TSField.TFieldType): TSFieldType;
     procedure UpdateIndexDefs(const DataSet: TMySQLQuery; const IndexDefs: TIndexDefs);
     procedure Invalidate();
     function PluginByName(const PluginName: string): TSPlugin;
     function ProcessByThreadId(const ThreadId: Longword): TSProcess;
     procedure RegisterEventProc(const AEventProc: TEventProc);
+    procedure ReleaseEventProc(const AEventProc: TEventProc);
     function TableName(const Name: string): string;
     function TableNameCmp(const Name1, Name2: string): Integer; inline;
     function UnescapeValue(const Value: string; const FieldType: TSField.TFieldType = mfVarChar): string; overload;
@@ -1509,7 +1510,6 @@ type
     function UpdateDatabase(const Database, NewDatabase: TSDatabase): Boolean;
     function UpdateUser(const User, NewUser: TSUser): Boolean;
     function UpdateVariable(const Variable, NewVariable: TSVariable; const UpdateModes: TSVariable.TUpdateModes): Boolean;
-    procedure UnRegisterEventProc(const AEventProc: TEventProc);
     function UserByCaption(const Caption: string): TSUser;
     function UserByName(const UserName: string): TSUser;
     function VariableByName(const VariableName: string): TSVariable;
@@ -1570,11 +1570,11 @@ var
 implementation {***************************************************************}
 
 uses
-  Variants, SysConst, WinInet, DBConsts, RTLConsts, Math,
+  Variants, SysConst, WinInet, DBConsts, RTLConsts, Math, DateUtils,
   Consts, DBCommon, StrUtils,
   DBGrids,
   CSVUtils, HTTPTunnel, MySQLDBGrid,
-  fURI;
+  fURI, fDeveloper;
 
 const
   INFORMATION_SCHEMA = 'INFORMATION_SCHEMA';
@@ -2458,7 +2458,7 @@ var
 begin
   References.Clear();
 
-  if (Session.SQLParser.ParseSQL(SQL) and Assigned(Session.SQLParser.FirstStmt)) then
+  if (Session.SQLParser.ParseSQL(SQL)) then
   begin
     try
       PreviousToken1 := nil; PreviousToken2 := nil;
@@ -4036,11 +4036,8 @@ end;
 
 procedure TSBaseTable.Build(const Field: TField);
 var
-  OldSourceAvailable: Boolean;
   RBS: RawByteString;
 begin
-  OldSourceAvailable := Source <> '';
-
   try
     inherited Build(Field);
   except
@@ -4052,10 +4049,7 @@ begin
 
   ParseCreateTable(Source);
 
-  if (OldSourceAvailable) then
-    Session.SendEvent(etItemAltered, Database, Items, Self)
-  else
-    Session.SendEvent(etItemValid, Database, Items, Self);
+  Session.SendEvent(etItemValid, Database, Items, Self);
   Session.SendEvent(etItemsValid, Self, Fields);
 end;
 
@@ -4632,14 +4626,18 @@ begin
           NewKeyColumn := TSKeyColumn.Create(NewKey.Columns);
 
           NewKeyColumn.Field := FieldByName(SQLParseValue(Parse));
+          if (not Assigned(NewKeyColumn.Field)) then
+            raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+
           if (SQLParseChar(Parse, '(')) then
           begin
             NewKeyColumn.Length := StrToInt(SQLParseValue(Parse));
             SQLParseChar(Parse, ')')
           end;
-          if (Assigned(NewKeyColumn.Field)) then
-            NewKey.Columns.AddColumn(NewKeyColumn);
-          FreeAndNil(NewKeyColumn);
+
+          NewKey.Columns.AddColumn(NewKeyColumn);
+
+          NewKeyColumn.Free();
 
           SQLParseChar(Parse, ',');
         end;
@@ -5750,20 +5748,13 @@ begin
 end;
 
 procedure TSRoutine.Build(const Field: TField);
-var
-  OldSourceAvailable: Boolean;
 begin
-  OldSourceAvailable := Source <> '';
-
   inherited;
 
   if (Source <> '') then
     ParseCreateRoutine(Source);
 
-  if (OldSourceAvailable) then
-    Session.SendEvent(etItemAltered, Database, Items, Self)
-  else
-    Session.SendEvent(etItemValid, Database, Items, Self);
+  Session.SendEvent(etItemValid, Database, Items, Self);
 end;
 
 constructor TSRoutine.Create(const ACDBObjects: TSDBObjects; const AName: string = '');
@@ -6314,20 +6305,13 @@ begin
 end;
 
 procedure TSTrigger.Build(const Field: TField);
-var
-  OldSourceAvailable: Boolean;
 begin
-  OldSourceAvailable := Source <> '';
-
   inherited;
 
   if (Source <> '') then
     ParseCreateTrigger(Source);
 
-  if (OldSourceAvailable) then
-    Session.SendEvent(etItemAltered, Database, Items, Self)
-  else
-    Session.SendEvent(etItemValid, Database, Items, Self);
+  Session.SendEvent(etItemValid, Database, Items, Self);
 end;
 
 constructor TSTrigger.Create(const ACDBObjects: TSDBObjects; const AName: string = '');
@@ -6737,20 +6721,13 @@ begin
 end;
 
 procedure TSEvent.Build(const Field: TField);
-var
-  OldSourceAvailable: Boolean;
 begin
-  OldSourceAvailable := Source <> '';
-
   inherited;
 
   if (Source <> '') then
     ParseCreateEvent(Source);
 
-  if (OldSourceAvailable) then
-    Session.SendEvent(etItemAltered, Database, Items, Self)
-  else
-    Session.SendEvent(etItemValid, Database, Items, Self);
+  Session.SendEvent(etItemValid, Database, Items, Self);
 end;
 
 constructor TSEvent.Create(const ACDBObjects: TSDBObjects; const AName: string = '');
@@ -7067,19 +7044,12 @@ begin
 end;
 
 procedure TSDatabase.Build(const Field: TField);
-var
-  OldSourceAvailable: Boolean;
 begin
-  OldSourceAvailable := Source <> '';
-
   inherited;
 
   ParseCreateDatabase(Source);
 
-  if (OldSourceAvailable) then
-    Session.SendEvent(etItemAltered, Session, Items, Self)
-  else
-    Session.SendEvent(etItemValid, Session, Items, Self);
+  Session.SendEvent(etItemValid, Session, Items, Self);
 end;
 
 function TSDatabase.CheckTables(const Tables: TList): Boolean;
@@ -7652,8 +7622,6 @@ begin
 
     if (SQLParseKeyword(Parse, 'DEFAULT COLLATE') or SQLParseKeyword(Parse, 'COLLATE')) then
       FCollation := SQLParseValue(Parse)
-    else if (Charset <> '') then
-      FCollation := Session.CharsetByName(Charset).DefaultCollation.Caption
     else
       FCollation := '';
   end;
@@ -8780,7 +8748,10 @@ end;
 
 function TSVariable.GetAsBoolean(): Boolean;
 begin
-  Result := (Value = '1') or (StrIComp(PChar(Value), 'TRUE') = 0) or (StrIComp(PChar(Value), 'YES') = 0) or (StrIComp(PChar(Value), 'ON') = 0);
+  Result := (Value = '1')
+    or (StrIComp(PChar(Value), 'TRUE') = 0)
+    or (StrIComp(PChar(Value), 'YES') = 0)
+    or (StrIComp(PChar(Value), 'ON') = 0);
 end;
 
 function TSVariable.GetAsFloat(): Double;
@@ -9592,6 +9563,7 @@ var
   Minutes: Integer;
   Name: string;
   Seconds: Integer;
+  ThreadId: UInt64;
 begin
   DeleteList := TList.Create();
   DeleteList.Assign(Self);
@@ -9602,7 +9574,10 @@ begin
         Name := DataSet.FieldByName('Id').AsString
       else
         Name := DataSet.FieldByName('ID').AsString;
-      Name := SQLUnescape(Name);
+
+      // Debug 2016-11-11
+      if (not TryStrToUInt64(Name, ThreadId)) then
+        raise ERangeError.CreateFmt(SPropertyOutOfRange, ['ID']);
 
       if (InsertIndex(Name, Index)) then
         if (Index < Count) then
@@ -9805,17 +9780,17 @@ var
 begin
   Index := FRights.Count;
   for I := FRights.Count - 1 downto 0 do
-    if (lstrcmpi(PChar(NewUserRight.DatabaseName), PChar(Right[I].DatabaseName)) < 0) then
+    if (lstrcmpi(PChar(NewUserRight.DatabaseName), PChar(Rights[I].DatabaseName)) < 0) then
       Index := I
-    else if (lstrcmpi(PChar(NewUserRight.DatabaseName), PChar(Right[I].DatabaseName)) = 0) then
-      if ((lstrcmpi(PChar(NewUserRight.TableName), PChar(Right[I].TableName)) < 0) and (NewUserRight.ProcedureName = '') and (NewUserRight.FunctionName = '')) then
+    else if (lstrcmpi(PChar(NewUserRight.DatabaseName), PChar(Rights[I].DatabaseName)) = 0) then
+      if ((lstrcmpi(PChar(NewUserRight.TableName), PChar(Rights[I].TableName)) < 0) and (NewUserRight.ProcedureName = '') and (NewUserRight.FunctionName = '')) then
         Index := I
-      else if ((lstrcmpi(PChar(NewUserRight.TableName), PChar(Right[I].TableName)) = 0) and (NewUserRight.ProcedureName = '') and (NewUserRight.FunctionName = '')) then
-        if ((lstrcmpi(PChar(NewUserRight.FieldName), PChar(Right[I].FieldName)) < 0) and (NewUserRight.ProcedureName = '') and (NewUserRight.FunctionName = '')) then
+      else if ((lstrcmpi(PChar(NewUserRight.TableName), PChar(Rights[I].TableName)) = 0) and (NewUserRight.ProcedureName = '') and (NewUserRight.FunctionName = '')) then
+        if ((lstrcmpi(PChar(NewUserRight.FieldName), PChar(Rights[I].FieldName)) < 0) and (NewUserRight.ProcedureName = '') and (NewUserRight.FunctionName = '')) then
           Index := I
-        else if (lstrcmpi(PChar(NewUserRight.ProcedureName), PChar(Right[I].ProcedureName)) < 0) then
+        else if (lstrcmpi(PChar(NewUserRight.ProcedureName), PChar(Rights[I].ProcedureName)) < 0) then
           Index := I
-        else if (lstrcmpi(PChar(NewUserRight.FunctionName), PChar(Right[I].FunctionName)) < 0) then
+        else if (lstrcmpi(PChar(NewUserRight.FunctionName), PChar(Rights[I].FunctionName)) < 0) then
           Index := I;
 
   FRights.Insert(Index, TSUserRight.Create());
@@ -9882,7 +9857,7 @@ begin
   begin
     Index := IndexOf(UserRight);
 
-    Right[Index].Free();
+    Rights[Index].Free();
     FRights.Delete(Index);
   end;
 end;
@@ -9955,7 +9930,7 @@ begin
   Result := - 1;
 
   for I := 0 to FRights.Count - 1 do
-    if (Right[I] = UserRight) then
+    if (Rights[I] = UserRight) then
       Result := I;
 end;
 
@@ -10169,8 +10144,8 @@ begin
   Result := nil;
 
   for I := 0 to FRights.Count - 1 do
-    if (Right[I].Caption = Caption) then
-      Result := Right[I];
+    if (Rights[I].Caption = Caption) then
+      Result := Rights[I];
 end;
 
 procedure TSUser.SetName(const AName: string);
@@ -10225,7 +10200,7 @@ begin
 
   Result := Index >= 0;
   if (Result) then
-    Right[Index].Assign(NewUserRight);
+    Rights[Index].Assign(NewUserRight);
 end;
 
 { TSUsers *********************************************************************}
@@ -10281,6 +10256,14 @@ begin
     Session.SendEvent(etItemsValid, Session, Self);
 end;
 
+procedure TSUsers.Delete(const AEntity: TSEntity);
+begin
+  if (AEntity = Session.FUser) then
+    Session.FUser := nil;
+
+  inherited;
+end;
+
 function TSUsers.GetUser(Index: Integer): TSUser;
 begin
   Result := TSUser(Items[Index]);
@@ -10288,7 +10271,7 @@ end;
 
 function TSUsers.GetValid(): Boolean;
 begin
-  Result := (Assigned(Session.UserRights) and not Session.UserRights.RGrant) or inherited;
+  Result := Assigned(Session.UserRights) and not Session.UserRights.RGrant or inherited;
 end;
 
 function TSUsers.SQLGetItems(const Name: string = ''): string;
@@ -10387,7 +10370,8 @@ end;
 
 function TSConnection.GetDataFileAllowed(): Boolean;
 begin
-  Result := inherited GetDataFileAllowed() and ((MySQLVersion < 40003) or Session.VariableByName('local_infile').AsBoolean);
+  Result := inherited GetDataFileAllowed()
+    and ((MySQLVersion < 40003) or Assigned(Session.VariableByName('local_infile')) and Session.VariableByName('local_infile').AsBoolean);
 end;
 
 function TSConnection.GetMaxAllowedServerPacket(): Integer;
@@ -10711,7 +10695,7 @@ begin
   FConnection := TSConnection.Create(Self);
   Sessions.Add(Self);
 
-  EventProcs := TList.Create();
+  SetLength(EventProcs, 0);
   FCurrentUser := '';
   FInformationSchema := nil;
   FLowerCaseTableNames := 0;
@@ -10722,7 +10706,8 @@ begin
   FSyntaxProvider.ServerVersionInt := Connection.MySQLVersion;
   FUser := nil;
   ManualURL := '';
-  ParseEndDate := EncodeDate(2016, 11, 14);
+  ParseEndDate := EncodeDate(StrToInt(SysUtils.LoadStr(1007)), StrToInt(SysUtils.LoadStr(1008)), StrToInt(SysUtils.LoadStr(1009)));
+  ParseEndDate := IncDay(ParseEndDate, 7);
   UnparsableSQL := '';
 
   if (not Assigned(AAccount)) then
@@ -10989,7 +10974,7 @@ destructor TSSession.Destroy();
 begin
   Connection.UnRegisterClient(Self);
 
-  if (Assigned(EventProcs)) then EventProcs.Free();
+  SetLength(EventProcs, 0);
 
   if (Assigned(FCharsets)) then FCharsets.Free();
   if (Assigned(FCollations)) then FCollations.Free();
@@ -11012,7 +10997,10 @@ begin
   FSyntaxProvider.Free();
   SQLParser.Free();
   if (UnparsableSQL <> '') then
-    SendSQLToDeveloper(Trim(UnparsableSQL) + #13#10);
+  begin
+    UnparsableSQL := '# MySQL: ' + Self.Connection.ServerVersionStr + #13#10 + UnparsableSQL;
+    SendBugToDeveloper(UnparsableSQL);
+  end;
 
   FConnection.Free();
 
@@ -11022,13 +11010,9 @@ end;
 procedure TSSession.DoSendEvent(const AEvent: TEvent);
 var
   I: Integer;
-  EventProc: TEventProc;
 begin
-  for I := 0 to EventProcs.Count - 1 do
-  begin
-    MoveMemory(@TMethod(EventProc), EventProcs[I], SizeOf(TMethod));
-    EventProc(AEvent);
-  end;
+  for I := 0 to Length(EventProcs) - 1 do
+    EventProcs[I](AEvent);
 end;
 
 procedure TSSession.EmptyDatabases(const Databases: TList);
@@ -11135,34 +11119,34 @@ begin
       Result := Connection.EscapeIdentifier(Username) + '@' + Connection.EscapeIdentifier(Host);
 end;
 
-function TSSession.FieldTypeByCaption(const Caption: string): TSFieldType;
+function TSSession.FieldTypeByCaption(const Text: string): TSFieldType;
 var
   I: Integer;
 begin
   Result := nil;
 
   for I := 0 to FieldTypes.Count - 1 do
-    if (FieldTypes.NameCmp(FieldTypes[I].Name, Caption) = 0) then
+    if (FieldTypes.NameCmp(FieldTypes[I].Name, Text) = 0) then
       Result := FieldTypes[I];
 
   if (not Assigned(Result)) then
-    if ((StrIComp(PChar(Caption), 'BOOL') = 0) or (StrIComp(PChar(Caption), 'BOOLEAN') = 0)) then
+    if ((StrIComp(PChar(Text), 'BOOL') = 0) or (StrIComp(PChar(Text), 'BOOLEAN') = 0)) then
       Result := FieldTypeByMySQLFieldType(mfTinyInt)
-    else if (StrIComp(PChar(Caption), 'INT4') = 0) then
+    else if (StrIComp(PChar(Text), 'INT4') = 0) then
       Result := FieldTypeByMySQLFieldType(mfMediumInt)
-    else if (StrIComp(PChar(Caption), 'INTEGER') = 0) then
+    else if (StrIComp(PChar(Text), 'INTEGER') = 0) then
       Result := FieldTypeByMySQLFieldType(mfInt)
-    else if (StrIComp(PChar(Caption), 'LONG') = 0) then
+    else if (StrIComp(PChar(Text), 'LONG') = 0) then
       Result := FieldTypeByMySQLFieldType(mfInt)
-    else if (StrIComp(PChar(Caption), 'DEC') = 0) then
+    else if (StrIComp(PChar(Text), 'DEC') = 0) then
       Result := FieldTypeByMySQLFieldType(mfDecimal)
-    else if (StrIComp(PChar(Caption), 'NVARCHAR') = 0) then
+    else if (StrIComp(PChar(Text), 'NVARCHAR') = 0) then
       Result := FieldTypeByMySQLFieldType(mfVarChar)
-    else if (StrIComp(PChar(Caption), 'SERIAL') = 0) then
+    else if (StrIComp(PChar(Text), 'SERIAL') = 0) then
       Result := FieldTypeByMySQLFieldType(mfInt);
 
   if (not Assigned(Result)) then
-    raise Exception.CreateFMT(SUnknownFieldType, [Caption]);
+    raise Exception.CreateFMT(SUnknownFieldType + ' (%d known field types)', [Text, FieldTypes.Count]);
 end;
 
 function TSSession.FieldTypeByMySQLFieldType(const MySQLFieldType: TSField.TFieldType): TSFieldType;
@@ -11217,7 +11201,7 @@ begin
   if (not Assigned(User) or (User.RightCount = 0)) then
     Result := nil
   else
-    Result := User.Right[0];
+    Result := User.Rights[0];
 end;
 
 function TSSession.GetValid(): Boolean;
@@ -11768,18 +11752,34 @@ procedure TSSession.RegisterEventProc(const AEventProc: TEventProc);
 var
   I: Integer;
   Index: Integer;
-  ListEntry: Pointer;
 begin
   Index := -1;
-  for I := 0 to EventProcs.Count - 1 do
-    if (CompareMem(EventProcs[I], @TMethod(AEventProc), SizeOf(TMethod))) then
+  for I := 0 to Length(EventProcs) - 1 do
+    if (CompareMem(@TMethod(EventProcs[I]), @TMethod(AEventProc), SizeOf(TEventProc))) then
       Index := I;
 
   if (Index < 0) then
   begin
-    GetMem(ListEntry, SizeOf(TMethod));
-    MoveMemory(ListEntry, @TMethod(AEventProc), SizeOf(TMethod));
-    EventProcs.Add(ListEntry);
+    SetLength(EventProcs, Length(EventProcs) + 1);
+    EventProcs[Length(EventProcs) - 1] := AEventProc;
+  end;
+end;
+
+procedure TSSession.ReleaseEventProc(const AEventProc: TEventProc);
+var
+  I: Integer;
+  Index: Integer;
+begin
+  Index := -1;
+  for I := 0 to Length(EventProcs) - 1 do
+    if (CompareMem(@TMethod(EventProcs[I]), @TMethod(AEventProc), SizeOf(TEventProc))) then
+      Index := I;
+
+  if (Index >= 0) then
+  begin
+    if (Index < Length(EventProcs) - 1) then
+      MoveMemory(@EventProcs[Index], @EventProcs[Index + 1], (Length(EventProcs) - Index - 1) * SizeOf(TEventProc));
+    SetLength(EventProcs, Length(EventProcs) - 1);
   end;
 end;
 
@@ -11794,48 +11794,6 @@ begin
   Event.Item := Item;
   DoSendEvent(Event);
   Event.Free();
-end;
-
-procedure TSSession.SendSQLToDeveloper(const SQL: string);
-var
-  Body: RawByteString;
-  Connection: HInternet;
-  Flags: Cardinal;
-  Handle: HInternet;
-  Headers: string;
-  Len: Integer;
-  Request: HInternet;
-begin
-  Handle := InternetOpen(PChar('SQL-Parser'), INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);
-  if (Assigned(Handle)) then
-  begin
-    Connection := InternetConnect(Handle, 'www.mysqlfront.de', 80, nil, nil, INTERNET_SERVICE_HTTP, 0, Cardinal(Self));
-    if (Assigned(Connection)) then
-    begin
-      Len := WideCharToAnsiChar(CP_UTF8, @SQL[1], Length(SQL), nil, 0);
-      SetLength(Body, Len);
-      WideCharToAnsiChar(CP_UTF8, @SQL[1], Length(SQL), @Body[1], Len);
-
-      Flags := INTERNET_FLAG_NO_AUTO_REDIRECT or INTERNET_FLAG_NO_CACHE_WRITE or INTERNET_FLAG_NO_UI or INTERNET_FLAG_KEEP_CONNECTION or INTERNET_FLAG_NO_COOKIES;
-      Request := HttpOpenRequest(Connection, 'POST', PChar('/SQL.php'), 'HTTP/1.1', nil, nil, Flags, Cardinal(Self));
-      if (Assigned(Request)) then
-      begin
-        Headers := 'Content-Type: text/plain; charset=UTF-8' + #10
-          + 'Content-Transfer-Encoding: binary' + #10
-          + 'MySQL: ' + Self.Connection.ServerVersionStr + #10
-          + 'MySQL-Front: ' + Preferences.VersionStr + #10;
-
-        if (not HttpSendRequest(Request, PChar(Headers), Length(Headers), @Body[1], Length(Body))) then
-          Write;
-
-        InternetCloseHandle(Request);
-      end;
-      Body := '';
-
-      InternetCloseHandle(Connection);
-    end;
-    InternetCloseHandle(Handle);
-  end;
 end;
 
 function TSSession.SessionResult(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
@@ -12174,23 +12132,6 @@ begin
   if (DBIdentifier = '%') then Result := '' else Result := DBIdentifier;
 end;
 
-procedure TSSession.UnRegisterEventProc(const AEventProc: TEventProc);
-var
-  I: Integer;
-  Index: Integer;
-begin
-  Index := -1;
-  for I := 0 to EventProcs.Count - 1 do
-    if (CompareMem(EventProcs[I], @TMethod(AEventProc), SizeOf(TMethod))) then
-      Index := I;
-
-  if (Index >= 0) then
-  begin
-    FreeMem(EventProcs[Index]);
-    EventProcs.Delete(Index);
-  end;
-end;
-
 function TSSession.Update(): Boolean;
 var
   List: TList;
@@ -12457,7 +12398,7 @@ begin
           Table.Update();
           Connection.EndSynchron();
           Field := Table.FieldByName(FieldInfo.OriginalFieldName);
-          if (Assigned(Field) and not Field.AutoIncrement and (Field.Default <> 'NULL') and (Copy(Field.Default, 1, 17) <> 'CURRENT_TIMESTAMP')) then
+          if (Assigned(Field) and not Field.AutoIncrement and (Field.Default <> 'NULL') and (StrLIComp(PChar(Field.Default), 'CURRENT_TIMESTAMP', 17) <> 0)) then
             DataSet.Fields[I].DefaultExpression := Field.UnescapeValue(Field.Default);
           DataSet.Fields[I].ReadOnly := DataSet.Fields[I].ReadOnly or Assigned(Field) and (Field.FieldKind = mkVirtual);
         end;
@@ -12562,17 +12503,17 @@ begin
 
   for I := 0 to NewUser.RightCount - 1 do
   begin
-    NewRight := NewUser.Right[I];
+    NewRight := NewUser.Rights[I];
 
     OldRight := nil;
     if (Assigned(User)) then
       for J := 0 to User.RightCount - 1 do
-        if   ((Databases.NameCmp(User.Right[J].DatabaseName , NewRight.DatabaseName ) = 0)
-          and (TableNameCmp(User.Right[J].TableName    , NewRight.TableName    ) = 0)
-          and (lstrcmpi(PChar(User.Right[J].ProcedureName), PChar(NewRight.ProcedureName)) = 0)
-          and (lstrcmpi(PChar(User.Right[J].FunctionName ), PChar(NewRight.FunctionName )) = 0)
-          and (lstrcmpi(PChar(User.Right[J].FieldName    ), PChar(NewRight.FieldName    )) = 0)) then
-          OldRight := User.Right[J];
+        if   ((Databases.NameCmp(User.Rights[J].DatabaseName , NewRight.DatabaseName ) = 0)
+          and (TableNameCmp(User.Rights[J].TableName    , NewRight.TableName    ) = 0)
+          and (lstrcmpi(PChar(User.Rights[J].ProcedureName), PChar(NewRight.ProcedureName)) = 0)
+          and (lstrcmpi(PChar(User.Rights[J].FunctionName ), PChar(NewRight.FunctionName )) = 0)
+          and (lstrcmpi(PChar(User.Rights[J].FieldName    ), PChar(NewRight.FieldName    )) = 0)) then
+          OldRight := User.Rights[J];
 
 
     if (Assigned(OldRight)) then
@@ -12643,16 +12584,16 @@ begin
   begin
     for I := 0 to User.RightCount - 1 do
     begin
-      OldRight := User.Right[I];
+      OldRight := User.Rights[I];
       NewRight := nil;
       if (Assigned(NewUser)) then
         for J := 0 to NewUser.RightCount - 1 do
-          if   ((Databases.NameCmp(NewUser.Right[J].DatabaseName , OldRight.DatabaseName ) = 0)
-            and (TableNameCmp(NewUser.Right[J].TableName    , OldRight.TableName    ) = 0)
-            and (TableNameCmp(NewUser.Right[J].ProcedureName, OldRight.ProcedureName) = 0)
-            and (TableNameCmp(NewUser.Right[J].FunctionName , OldRight.FunctionName ) = 0)
-            and (lstrcmpi(PChar(NewUser.Right[J].FieldName), PChar(OldRight.FieldName)) = 0)) then
-            NewRight := NewUser.Right[J];
+          if   ((Databases.NameCmp(NewUser.Rights[J].DatabaseName , OldRight.DatabaseName ) = 0)
+            and (TableNameCmp(NewUser.Rights[J].TableName    , OldRight.TableName    ) = 0)
+            and (TableNameCmp(NewUser.Rights[J].ProcedureName, OldRight.ProcedureName) = 0)
+            and (TableNameCmp(NewUser.Rights[J].FunctionName , OldRight.FunctionName ) = 0)
+            and (lstrcmpi(PChar(NewUser.Rights[J].FieldName), PChar(OldRight.FieldName)) = 0)) then
+            NewRight := NewUser.Rights[J];
 
 
       if (not Assigned(NewRight)) then

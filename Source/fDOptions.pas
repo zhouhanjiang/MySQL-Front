@@ -776,7 +776,6 @@ begin
   FUpdateCheckNever.Caption := Preferences.LoadStr(638);
   FUpdateCheckDaily.Caption := Preferences.LoadStr(640);
 
-
   FBHelp.Caption := Preferences.LoadStr(167);
   FBOk.Caption := Preferences.LoadStr(29);
   FBCancel.Caption := Preferences.LoadStr(30);

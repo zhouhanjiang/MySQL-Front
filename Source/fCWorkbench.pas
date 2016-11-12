@@ -3430,7 +3430,7 @@ end;
 
 destructor TWWorkbench.Destroy();
 begin
-  Database.Session.UnRegisterEventProc(SessionEvent);
+  Database.Session.ReleaseEventProc(SessionEvent);
 
   Clear();
 
@@ -3562,7 +3562,7 @@ begin
   Sections.LoadFromXML(XML);
 
 
-  Database.Session.UnRegisterEventProc(SessionEvent);
+  Database.Session.ReleaseEventProc(SessionEvent);
   Database.Session.Connection.BeginSynchron();
 
   Database.Tables.Update();

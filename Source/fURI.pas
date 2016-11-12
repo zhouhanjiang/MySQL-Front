@@ -42,7 +42,7 @@ type
     property Table: string read FTable write SetTable;
   end;
 
-function EscapeURL(const AParam: string): string;
+function EscapeURL(const URL: string): string;
 function UnescapeURL(const AParam: string): string;
 function PathToURI(const APath: TFileName): string;
 function URIToPath(const AURI: string): TFileName;
@@ -133,31 +133,26 @@ begin
   end;
 end;
 
-function EscapeURL(const AParam: string): string;
+function EscapeURL(const URL: string): string;
 var
-  EscapedURL: PChar;
-  S: string;
-  Size: DWord;
+  C: Char;
+  R: HRESULT;
+  Len: DWord;
 begin
-  if (AParam = '') then
+  if (URL = '') then
     Result := ''
   else
   begin
-    S := ReplaceStr(AParam, '#', '%23');
-    S := ReplaceStr(S, '.', '%2e');
-    S := ReplaceStr(S, '?', '%3f');
-    S := ReplaceStr(S, '@', '%40');
-
-    Size := Length(AParam) * 10 + 1;
-    GetMem(EscapedURL, Size * SizeOf(EscapedURL[0]));
-
-    try
-      if (UrlEscape(PChar(S), EscapedURL, @Size, 0) <> S_OK) then
-        raise EConvertError.CreateFmt(SConvStrParseError, [AParam]);
-
-      Result := EscapedURL;
-    finally
-      FreeMem(EscapedURL);
+    Len := 1;
+    R := UrlEscape(PChar(URL), @C, @Len, 0);
+    if ((R <> S_OK) and (R <> E_POINTER)) then
+      RaiseLastOSError()
+    else
+    begin
+      SetLength(Result, Len);
+      if (UrlEscape(PChar(URL), PChar(Result), @Len, 0) <> S_OK) then
+        RaiseLastOSError();
+      SetLength(Result, Len); // Remove ending #0
     end;
   end;
 end;
@@ -184,9 +179,9 @@ end;
 
 function TUURI.GetAddress(): string;
 var
-  Len: Cardinal;
+  Len: DWORD;
   URL: array [0 .. INTERNET_MAX_URL_LENGTH] of Char;
-  URLComponents: URL_COMPONENTS;
+  URLComponents: TURLComponents;
 begin
   ZeroMemory(@URLComponents, SizeOf(URLComponents));
   URLComponents.dwStructSize := SizeOf(URLComponents);
@@ -204,7 +199,7 @@ begin
   URLComponents.lpszUrlPath := PChar(EscapeURL(Path));
   URLComponents.lpszExtraInfo := PChar(Copy(FExtraInfos, 1, 1) + EscapeURL(Copy(FExtraInfos, 2, Length(FExtraInfos) - 1)));
 
-  Len := Length(URL);
+  Len := Length(URL) - 1;
   if (not InternetCreateUrl(URLComponents, 0, @URL, Len)) then
     RaiseLastOSError()
   else
@@ -264,53 +259,58 @@ end;
 
 procedure TUURI.SetAddress(const AAddress: string);
 var
+  Buffer: PChar;
+  ErrorMessage: string;
+  Len: DWORD;
   URLComponents: TURLComponents;
+  URLComponentsExtraInfo: array [0 .. INTERNET_MAX_PATH_LENGTH] of Char;
+  URLComponentsHostName: array [0 .. INTERNET_MAX_HOST_NAME_LENGTH] of Char;
+  URLComponentsPassword: array [0 .. INTERNET_MAX_PASSWORD_LENGTH] of Char;
+  URLComponentsPath: array [0 .. INTERNET_MAX_PATH_LENGTH] of Char;
+  URLComponentsSchemeName: array [0 .. INTERNET_MAX_SCHEME_LENGTH] of Char;
+  URLComponentsUserName: array [0 .. INTERNET_MAX_USER_NAME_LENGTH] of Char;
 begin
   Clear();
 
   if (AAddress <> '') then
   begin
     URLComponents.dwStructSize := SizeOf(URLComponents);
+    URLComponents.dwSchemeLength := Length(URLComponentsSchemeName);
+    URLComponents.dwHostNameLength := Length(URLComponentsHostName);
+    URLComponents.dwUserNameLength := Length(URLComponentsUserName);
+    URLComponents.dwPasswordLength := Length(URLComponentsPassword);
+    URLComponents.dwUrlPathLength := Length(URLComponentsPath);
+    URLComponents.dwExtraInfoLength := Length(URLComponentsExtraInfo);
+    URLComponents.lpszScheme := @URLComponentsSchemeName;
+    URLComponents.lpszHostName := @URLComponentsHostName;
+    URLComponents.lpszUserName := @URLComponentsUserName;
+    URLComponents.lpszPassword := @URLComponentsPassword;
+    URLComponents.lpszUrlPath := @URLComponentsPath;
+    URLComponents.lpszExtraInfo := @URLComponentsExtraInfo;
 
-    URLComponents.dwSchemeLength := INTERNET_MAX_SCHEME_LENGTH;
-    URLComponents.dwHostNameLength := INTERNET_MAX_HOST_NAME_LENGTH;
-    URLComponents.dwUserNameLength := INTERNET_MAX_USER_NAME_LENGTH;
-    URLComponents.dwPasswordLength := INTERNET_MAX_PASSWORD_LENGTH;
-    URLComponents.dwUrlPathLength := INTERNET_MAX_PATH_LENGTH;
-    URLComponents.dwExtraInfoLength := INTERNET_MAX_PATH_LENGTH;
-
-    GetMem(URLComponents.lpszScheme,    URLComponents.dwSchemeLength    * SizeOf(URLComponents.lpszScheme[0]));
-    GetMem(URLComponents.lpszHostName,  URLComponents.dwHostNameLength  * SizeOf(URLComponents.lpszHostName[0]));
-    GetMem(URLComponents.lpszUserName,  URLComponents.dwUserNameLength  * SizeOf(URLComponents.lpszUserName[0]));
-    GetMem(URLComponents.lpszPassword,  URLComponents.dwPasswordLength  * SizeOf(URLComponents.lpszPassword[0]));
-    GetMem(URLComponents.lpszUrlPath,   URLComponents.dwUrlPathLength   * SizeOf(URLComponents.lpszUrlPath[0]));
-    GetMem(URLComponents.lpszExtraInfo, URLComponents.dwExtraInfoLength * SizeOf(URLComponents.lpszExtraInfo[0]));
-
-    try
-      if (not InternetCrackUrl(PChar(AAddress), Length(AAddress), 0, URLComponents)) then
-        raise EConvertError.CreateFmt(SConvStrParseError, [AAddress]);
-
-      Scheme := URLComponents.lpszScheme;
-      Username := UnescapeURL(URLComponents.lpszUserName);
-      Password := UnescapeURL(URLComponents.lpszPassword);
-      FHost := URLComponents.lpszHostName;
-      if (URLComponents.nPort = 0) then
-        Port := MYSQL_PORT
-      else
-        Port := URLComponents.nPort;
-      Path := UnescapeURL(URLComponents.lpszUrlPath);
-      if (URLComponents.dwExtraInfoLength = 0) then
-        FExtraInfos := ''
-      else
-        FExtraInfos := Copy(URLComponents.lpszExtraInfo, 1, 1) + UnescapeURL(Copy(URLComponents.lpszExtraInfo, 2, URLComponents.dwExtraInfoLength - 1));
-    finally
-      FreeMem(URLComponents.lpszScheme);
-      FreeMem(URLComponents.lpszHostName);
-      FreeMem(URLComponents.lpszUserName);
-      FreeMem(URLComponents.lpszPassword);
-      FreeMem(URLComponents.lpszUrlPath);
-      FreeMem(URLComponents.lpszExtraInfo);
+    if (not InternetCrackUrl(PChar(AAddress), Length(AAddress), 0, URLComponents)) then
+    begin
+      Len := FormatMessage(FORMAT_MESSAGE_FROM_HMODULE or FORMAT_MESSAGE_ALLOCATE_BUFFER,
+        Pointer(GetModuleHandle('Wininet.dll')), GetLastError(), 0, @Buffer, 0, nil);
+      while (Len > 0) and (CharInSet(Buffer[Len - 1], [#0..#32])) do Dec(Len);
+      SetString(ErrorMessage, Buffer, Len);
+      ErrorMessage := ErrorMessage + #13#10#13#10 + 'URL: ' + AAddress;
+      raise EConvertError.Create(ErrorMessage);
     end;
+
+    Scheme := URLComponents.lpszScheme;
+    Username := UnescapeURL(URLComponents.lpszUserName);
+    Password := UnescapeURL(URLComponents.lpszPassword);
+    FHost := URLComponents.lpszHostName;
+    if (URLComponents.nPort = 0) then
+      Port := MYSQL_PORT
+    else
+      Port := URLComponents.nPort;
+    Path := UnescapeURL(URLComponents.lpszUrlPath);
+    if (URLComponents.dwExtraInfoLength = 0) then
+      FExtraInfos := ''
+    else
+      FExtraInfos := Copy(URLComponents.lpszExtraInfo, 1, 1) + UnescapeURL(Copy(URLComponents.lpszExtraInfo, 2, URLComponents.dwExtraInfoLength - 1));
   end;
 end;
 

@@ -214,9 +214,6 @@ begin
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
 
-  Preferences.Databases.Left := Left;
-  Preferences.Databases.Top := Top;
-
   Preferences.ODBC.Left := Left;
   Preferences.ODBC.Top := Top;
 

@@ -58,6 +58,7 @@
 			<DCCReference Include="VCL\Source\ComCtrls_Ext.pas"/>
 			<DCCReference Include="VCL\Source\CommCtrl_Ext.pas"/>
 			<DCCReference Include="VCL\Source\Forms_Ext.pas"/>
+			<DCCReference Include="fDeveloper.pas"/>
 			<DCCReference Include="fJob.pas"/>
 			<DCCReference Include="fPreferences.pas"/>
 			<DCCReference Include="fSession.pas"/>
@@ -176,7 +177,6 @@
 			</DCCReference>
 			<DCCReference Include="fPDataBrowserDummy.pas">
 				<Form>PDataBrowserDummy</Form>
-				<FormType>dfm</FormType>
 			</DCCReference>
 			<DCCReference Include="fWWindow.pas">
 				<Form>WWindow</Form>

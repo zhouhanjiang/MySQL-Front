@@ -165,11 +165,6 @@ begin
   FSource.Lines.Text := View.Source + #13#10;
 
   TSSource.TabVisible := Assigned(View) and (View.Source <> '');
-
-  PageControl.Visible := True;
-  PSQLWait.Visible := not PageControl.Visible;
-
-  ActiveControl := FName;
 end;
 
 function TDView.Execute(): Boolean;
@@ -334,7 +329,7 @@ end;
 
 procedure TDView.FormHide(Sender: TObject);
 begin
-  Database.Session.UnRegisterEventProc(FormSessionEvent);
+  Database.Session.ReleaseEventProc(FormSessionEvent);
 
   Preferences.View.Width := Width;
   Preferences.View.Height := Height;
@@ -349,6 +344,7 @@ begin
   FReferenced.Items.EndUpdate();
 
   FSource.Lines.Clear();
+
   PageControl.ActivePage := TSBasics;
 end;
 
@@ -367,8 +363,13 @@ begin
       FReferenced.Cursor := crDefault;
     end;
 
-    PageControl.Visible := True;
-    PSQLWait.Visible := not PageControl.Visible;
+    if (not PageControl.Visible) then
+    begin
+      PageControl.Visible := True;
+      PSQLWait.Visible := not PageControl.Visible;
+      ActiveControl := FName;
+      FBOkCheckEnabled(nil);
+    end;
   end;
 end;
 

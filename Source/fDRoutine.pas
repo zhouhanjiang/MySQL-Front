@@ -126,13 +126,6 @@ begin
 
   PageControl.Visible := True;
   PSQLWait.Visible := not PageControl.Visible;
-
-  ActiveControl := FBCancel;
-  if (PageControl.Visible and (ModalResult = mrNone)) then
-  begin
-    PageControl.ActivePage := TSBasics;
-    ActiveControl := FComment;
-  end;
 end;
 
 function TDRoutine.Execute(): Boolean;
@@ -245,11 +238,13 @@ begin
   BorderStyle := bsSizeable;
 
   FReferenced.RowSelect := CheckWin32Version(6);
+
+  PageControl.ActivePage := TSBasics;
 end;
 
 procedure TDRoutine.FormHide(Sender: TObject);
 begin
-  Database.Session.UnRegisterEventProc(FormSessionEvent);
+  Database.Session.ReleaseEventProc(FormSessionEvent);
 
   Preferences.Routine.Width := Width;
   Preferences.Routine.Height := Height;
@@ -257,6 +252,8 @@ begin
   FReferenced.Items.BeginUpdate();
   FReferenced.Items.Clear();
   FReferenced.Items.EndUpdate();
+
+  PageControl.ActivePage := TSBasics;
 end;
 
 procedure TDRoutine.FormSessionEvent(const Event: TSSession.TEvent);
@@ -274,9 +271,13 @@ begin
       FReferenced.Cursor := crDefault;
     end;
 
-    PageControl.Visible := True;
-    PSQLWait.Visible := not PageControl.Visible;
-    FBOkCheckEnabled(nil);
+    if (not PageControl.Visible) then
+    begin
+      PageControl.Visible := True;
+      PSQLWait.Visible := not PageControl.Visible;
+      ActiveControl := FComment;
+      FBOkCheckEnabled(nil);
+    end;
   end;
 end;
 

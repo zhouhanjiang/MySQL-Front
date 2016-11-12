@@ -2002,7 +2002,9 @@ end;
 
 function TMySQLConnection.TSyncThread.GetIsRunning(): Boolean;
 begin
-  Result := not Terminated and Assigned(RunExecute) and ((RunExecute.WaitFor(IGNORE) = wrSignaled) or not (State in [ssClose, ssReady]));
+  Result := not Terminated
+    and Assigned(RunExecute)
+    and ((RunExecute.WaitFor(IGNORE) = wrSignaled) or not (State in [ssClose, ssReady]));
 end;
 
 procedure TMySQLConnection.TSyncThread.Synchronize();
@@ -2777,6 +2779,10 @@ end;
 
 function TMySQLConnection.NextResult(const DataHandle: TMySQLConnection.TDataResult): Boolean;
 begin
+  // Debug 2016-11-11
+  if (not Assigned(DataHandle)) then
+    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['DataHandle']);
+
   SyncExecute(DataHandle);
   SyncExecutingNext(DataHandle);
   SyncExecuted(DataHandle);
@@ -2905,6 +2911,9 @@ begin
   Assert(Assigned(SyncThread));
   Assert(SyncThread.State = ssResult);
   Assert(not Assigned(SyncThread.DataSet));
+
+  if (not Assigned(DataSet)) then
+    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['DataSet']);
 
   DataSet.SyncThread := SyncThread;
   SyncThread.DataSet := DataSet;
@@ -3093,7 +3102,10 @@ begin
     end;
   end;
 
-  SyncThread.State := ssReady;
+  if (not Connected) then
+    SyncThread.State := ssClose
+  else
+    SyncThread.State := ssReady;
 
   if (Connected) then
     SendConnectEvent(True);
@@ -3204,7 +3216,8 @@ begin
 
     if (SyncThread.CLStmts[SyncThread.StmtIndex]) then
     begin
-      if (SQLParseCLStmt(CLStmt, @SyncThread.SQL[SyncThread.SQLIndex], Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]), MySQLVersion)) then
+      if ((SyncThread.StmtIndex < SyncThread.StmtLengths.Count)
+        and (SQLParseCLStmt(CLStmt, @SyncThread.SQL[SyncThread.SQLIndex], Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]), MySQLVersion))) then
         if ((CLStmt.CommandType = ctDropDatabase) and (CLStmt.ObjectName = FDatabaseName)) then
         begin
           S := '--> Database unselected';
@@ -3854,7 +3867,14 @@ end;
 
 function TMySQLIntegerField.GetIsNull(): Boolean;
 begin
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  if (not Assigned(DataSet)) then
+    // Debug 2016-11-10
+    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
+  else if (not (DataSet is TMySQLQuery)) then
+    // Debug 2016-11-10
+    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
+  else
+    Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLIntegerField.GetText(var Text: string; DisplayText: Boolean);
@@ -5398,7 +5418,10 @@ end;
 
 function TMySQLDataSet.GetLibLengths(): MYSQL_LENGTHS;
 begin
-  if (not Active) then
+  if (not Active
+    or not Assigned(ActiveBuffer())
+    or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
+    or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
     Result := nil
   else
     Result := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths;
@@ -5407,6 +5430,7 @@ end;
 function TMySQLDataSet.GetLibRow(): MYSQL_ROW;
 begin
   if (not Active
+    or not Assigned(ActiveBuffer())
     or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
     or not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
     Result := nil
@@ -5650,7 +5674,7 @@ end;
 procedure TMySQLDataSet.InternalClose();
 begin
   Connection.TerminateCS.Enter();
-  if (Assigned(SyncThread) and (SyncThread = Connection.SyncThread) and Connection.InUse()) then
+  if (Assigned(SyncThread) and (SyncThread = Connection.SyncThread) and Connection.SyncThread.IsRunning) then
     Connection.Terminate();
   Connection.TerminateCS.Leave();
 
@@ -5857,7 +5881,7 @@ begin
       begin
         if ((Fields[I].AutoGenerateValue = arAutoInc) and (Fields[I].IsNull or (Fields[I].AsLargeInt = 0))) then
           Fields[I].AsLargeInt := Connection.InsertId;
-        if (Fields[I].Required and (Fields[I].IsNull)) then
+        if (Fields[I].Required and Fields[I].IsNull and (Fields[I].DefaultExpression <> '')) then
           Fields[I].AsString := SQLUnescape(Fields[I].DefaultExpression);
     end;
 
@@ -7295,7 +7319,7 @@ end;
 //  RBS: RawByteString;
 //  S: string;
 initialization
-//  RBS := HexToStr('');
+//  RBS := HexToStr('CAD5E820BEC4C8A8D4A1D2C2B920CACDA7BED1B9CBE9D2C3E9CDC2C2D5E8CAD4BAE0A8E7B4');
 //  SetLength(S, Length(RBS));
 //  Len := AnsiCharToWideChar(65001, PAnsiChar(RBS), Length(RBS), PChar(S), Length(S));
 

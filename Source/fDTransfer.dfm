@@ -15,6 +15,7 @@ object DTransfer: TDTransfer
   OldCreateOrder = True
   Position = poOwnerFormCenter
   OnCreate = FormCreate
+  OnDestroy = FormDestroy
   OnHide = FormHide
   OnShow = FormShow
   DesignSize = (
@@ -200,6 +201,10 @@ object DTransfer: TDTransfer
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         436
         271)

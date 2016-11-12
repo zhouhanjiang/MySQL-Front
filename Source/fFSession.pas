@@ -765,7 +765,6 @@ type
       FSynMemo: TSynMemo;
       function GetSynMemo(): TSynMemo;
     public
-      SynMemoTextAtUpdate: string;
       constructor Create(const AFClient: TFSession; const AView: TSView);
       destructor Destroy(); override;
       property SynMemo: TSynMemo read GetSynMemo;
@@ -787,7 +786,6 @@ type
       function GetSynMemo(): TSynMemo; virtual;
       procedure TCResultChange(Sender: TObject);
     public
-      SynMemoTextAtUpdate: string;
       procedure CloseIDEResult();
       constructor Create(const AFClient: TFSession; const ARoutine: TSRoutine);
       destructor Destroy(); override;
@@ -802,7 +800,6 @@ type
       FSynMemo: TSynMemo;
       function GetSynMemo(): TSynMemo;
     public
-      SynMemoTextAtUpdate: string;
       constructor Create(const AFClient: TFSession; const ATrigger: TSTrigger);
       destructor Destroy(); override;
       property SynMemo: TSynMemo read GetSynMemo;
@@ -813,7 +810,6 @@ type
       FSynMemo: TSynMemo;
       function GetSynMemo(): TSynMemo; virtual;
     public
-      SynMemoTextAtUpdate: string;
       constructor Create(const AFClient: TFSession; const AEvent: TSEvent);
       destructor Destroy(); override;
       property SynMemo: TSynMemo read GetSynMemo;
@@ -850,7 +846,6 @@ type
     aDRunExecuteSelStart: Integer;
     BMPImage: TBitmap;
     CloseButton: TPicture;
-    EditorField: TField;
     FAddress: string;
     FFiles: TJamShellList;
     FFolders: TJamShellTree;
@@ -978,6 +973,7 @@ type
     function GetActiveListView(): TListView;
     function GetActiveSynMemo(): TSynMemo;
     function GetActiveWorkbench(): TWWorkbench;
+    function GetEditorField(): TField;
     function GetFocusedSItem(): TSItem;
     function GetPath(): TFileName; inline;
     function GetMenuDatabase(): TSDatabase;
@@ -1041,6 +1037,7 @@ type
     procedure WMParentNotify(var Message: TWMParentNotify); message WM_PARENTNOTIFY;
     procedure WMTimer(var Message: TWMTimer); message WM_TIMER;
     property ActiveSynMemo: TSynMemo read GetActiveSynMemo;
+    property EditorField: TField read GetEditorField;
     property FocusedSItem: TSItem read GetFocusedSItem;
     property MenuDatabase: TSDatabase read GetMenuDatabase;
     property SelectedImageIndex: Integer read GetSelectedImageIndex;
@@ -1075,7 +1072,7 @@ implementation {***************************************************************}
 uses
   MMSystem, Math, DBConsts, Clipbrd, DBCommon, ShellAPI, Variants, Types,
   XMLDoc, Themes, StrUtils, UxTheme, FileCtrl, SysConst, RichEdit, UITypes,
-  ShLwApi,
+  ShLwApi, Consts,
   acQBLocalizer, acQBStrings,
   CommCtrl_Ext, StdActns_Ext,
   MySQLConsts, SQLUtils,
@@ -2948,7 +2945,7 @@ begin
         iiProcedure:  Data := Data + 'Procedure='   + FNavigatorMenuNode.Text + #13#10;
         iiFunction:   Data := Data + 'Function='    + FNavigatorMenuNode.Text + #13#10;
         iiEvent:      Data := Data + 'Event='       + FNavigatorMenuNode.Text + #13#10;
-        iiKey:        Data := Data + 'Index='       + FNavigatorMenuNode.Text + #13#10;
+        iiKey:        Data := Data + 'Key='         + TSKey(FNavigatorMenuNode.Data).Name + #13#10;
         iiSystemViewField,
         iiField,
         iiVirtualField,
@@ -2974,7 +2971,13 @@ begin
           iiProcedure:  Data := Data + 'Procedure='  + ActiveListView.Items[I].Caption + #13#10;
           iiFunction:   Data := Data + 'Function='   + ActiveListView.Items[I].Caption + #13#10;
           iiEvent:      Data := Data + 'Event='      + ActiveListView.Items[I].Caption + #13#10;
-          iiKey:        Data := Data + 'Key='        + TSKey(ActiveListView.Items[I].Data).Name + #13#10;
+          iiKey:
+            begin
+              // Debug 2016-11-11
+              if (not (TObject(ActiveListView.Items[I].Data) is TSKey)) then
+                raise ERangeError.Create(SPropertyOutOfRange + ' (' + TObject(ActiveListView.Items[I].Data).ClassName + ')');
+              Data := Data + 'Key='        + TSKey(ActiveListView.Items[I].Data).Name + #13#10;
+            end;
           iiField,
           iiVirtualField,
           iiViewField:  Data := Data + 'Field='      + ActiveListView.Items[I].Caption + #13#10;
@@ -4076,9 +4079,9 @@ begin
       vEditor3:
         if ((PResult.Visible or (View = vBrowser)) and (ActiveDBGrid.DataSource.DataSet is TMySQLDataSet) and (TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).CommandText <> '')) then
         begin
-          AllowRefresh := True;
+          AllowRefresh := ActiveDBGrid.DataSource.DataSet.Active;
 
-          if (ActiveDBGrid.DataSource.DataSet.Active) then
+          if (AllowRefresh) then
           begin
             ActiveDBGrid.EditorMode := False;
             try
@@ -5198,8 +5201,6 @@ procedure TFSession.DBGridColEnter(Sender: TObject);
 var
   DBGrid: TMySQLDBGrid;
 begin
-  EditorField := nil;
-
   if (Sender is TMySQLDBGrid) then
   begin
     DBGrid := TMySQLDBGrid(Sender);
@@ -5210,9 +5211,6 @@ begin
     begin
       FText.OnChange := nil;
 
-      EditorField := nil;
-      if (DBGrid.SelectedField.DataType in [ftString, ftWideMemo, ftBlob]) then
-        EditorField := DBGrid.SelectedField;
       if (Assigned(EditorField) xor PBlob.Visible) then
       begin
         PostMessage(DBGrid.Handle, WM_SIZE, SIZE_MAXIMIZED, DBGrid.Height shl 16 + DBGrid.Width);
@@ -5807,7 +5805,7 @@ var
   URI: TUURI;
   View: TView;
 begin
-  Session.UnRegisterEventProc(FormSessionEvent);
+  Session.ReleaseEventProc(FormSessionEvent);
   Session.CreateDesktop := nil;
 
   FNavigatorChanging(nil, nil, TempB);
@@ -7647,8 +7645,6 @@ end;
 
 procedure TFSession.FreeDBGrid(const DBGrid: TMySQLDBGrid);
 begin
-  EditorField := nil;
-
   FText.OnChange := nil;
   PBlob.Parent := PContent;
   PBlob.Visible := False;
@@ -7656,7 +7652,6 @@ begin
 
   if (ActiveDBGrid = DBGrid) then
     ActiveDBGrid := nil;
-  EditorField := nil;
 
   if (Assigned(DBGrid)) then // Debug 13.10.15 ... is this needed?
     DBGrid.Free();
@@ -8208,6 +8203,20 @@ begin
   if (Assigned(Result)) then
     for I := 0 to PWorkbench.ControlCount - 1 do
       PWorkbench.Controls[I].Visible := PWorkbench.Controls[I] = Result;
+end;
+
+function TFSession.GetEditorField(): TField;
+var
+  DBGrid: TDBGrid;
+begin
+  DBGrid := ActiveDBGrid;
+
+  if (not Assigned(DBGrid)
+    or not Assigned(DBGrid.SelectedField)
+    or not (DBGrid.SelectedField.DataType in [ftString, ftWideMemo, ftBlob])) then
+    Result := nil
+  else
+    Result := DBGrid.SelectedField;
 end;
 
 function TFSession.GetFocusedSItem(): TSItem;
@@ -9875,6 +9884,12 @@ begin
           begin
             Database := TSDatabase(FNavigator.Selected.Data);
 
+            // Debug 2016-11-10
+            if (not Assigned(Database)) then
+              raise ERangeError.Create(SRangeError)
+            else if (Session.Databases.IndexOf(Database) < 0) then
+              raise ERangeError.Create(SRangeError);
+
             MainAction('aFImportSQL').Enabled := (ListView.SelCount = 0) and (SelectedImageIndex = iiDatabase);
             MainAction('aFImportText').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
             MainAction('aFImportExcel').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
@@ -11242,83 +11257,88 @@ begin
           begin
             SourceDatabase := SourceSession.DatabaseByName(SourceURI.Database);
 
-            DExecutingSQL.Session := SourceSession;
-            DExecutingSQL.Update := SourceDatabase.Tables.Update;
-            if (not Assigned(SourceDatabase) or not SourceDatabase.Tables.Valid and not DExecutingSQL.Execute()) then
-              SourceTable := nil
-            else
-              SourceTable := SourceDatabase.BaseTableByName(SourceURI.Table);
-
-            DExecutingSQL.Update := SourceTable.Update;
-            if (not Assigned(SourceTable) or not SourceTable.Valid and not DExecutingSQL.Execute()) then
+            if (not Assigned(SourceDatabase)) then
               MessageBeep(MB_ICONERROR)
             else
             begin
-              Database := Session.DatabaseByName(Node.Parent.Text);
-              Table := Database.BaseTableByName(Node.Text);
+              DExecutingSQL.Session := SourceSession;
+              DExecutingSQL.Update := SourceDatabase.Tables.Update;
+              if (not Assigned(SourceDatabase) or not SourceDatabase.Tables.Valid and not DExecutingSQL.Execute()) then
+                SourceTable := nil
+              else
+                SourceTable := SourceDatabase.BaseTableByName(SourceURI.Table);
 
-              DExecutingSQL.Update := Table.Update;
-              if (Table.Valid or DExecutingSQL.Execute()) then
+              DExecutingSQL.Update := SourceTable.Update;
+              if (not Assigned(SourceTable) or not SourceTable.Valid and not DExecutingSQL.Execute()) then
+                MessageBeep(MB_ICONERROR)
+              else
               begin
-                NewTable := TSBaseTable.Create(Database.Tables);
-                NewTable.Assign(Table);
+                Database := Session.DatabaseByName(Node.Parent.Text);
+                Table := Database.BaseTableByName(Node.Text);
 
-                for I := 1 to StringList.Count - 1 do
-                  if (StringList.Names[I] = 'Field') then
-                  begin
-                    Name := CopyName(StringList.ValueFromIndex[I], NewTable.Fields);
+                DExecutingSQL.Update := Table.Update;
+                if (Table.Valid or DExecutingSQL.Execute()) then
+                begin
+                  NewTable := TSBaseTable.Create(Database.Tables);
+                  NewTable.Assign(Table);
 
-                    NewField := TSBaseTableField.Create(NewTable.Fields);
-                    NewField.Assign(SourceTable.FieldByName(StringList.ValueFromIndex[I]));
-                    TSBaseTableField(NewField).OriginalName := '';
-                    NewField.Name := Name;
-                    NewField.FieldBefore := NewTable.Fields[NewTable.Fields.Count - 1];
-                    NewTable.Fields.AddField(NewField);
-                    NewField.Free();
-                  end;
+                  for I := 1 to StringList.Count - 1 do
+                    if (StringList.Names[I] = 'Field') then
+                    begin
+                      Name := CopyName(StringList.ValueFromIndex[I], NewTable.Fields);
 
-                for I := 1 to StringList.Count - 1 do
-                  if (StringList.Names[I] = 'Key') then
-                  begin
-                    Name := CopyName(StringList.ValueFromIndex[I], NewTable.Keys);
+                      NewField := TSBaseTableField.Create(NewTable.Fields);
+                      NewField.Assign(SourceTable.FieldByName(StringList.ValueFromIndex[I]));
+                      TSBaseTableField(NewField).OriginalName := '';
+                      NewField.Name := Name;
+                      NewField.FieldBefore := NewTable.Fields[NewTable.Fields.Count - 1];
+                      NewTable.Fields.AddField(NewField);
+                      NewField.Free();
+                    end;
 
-                    NewKey := TSKey.Create(NewTable.Keys);
-                    NewKey.Assign(SourceTable.IndexByName(StringList.ValueFromIndex[I]));
-                    NewKey.Name := Name;
-                    NewTable.Keys.AddKey(NewKey);
-                    NewKey.Free();
-                  end
-                  else if (StringList.Names[I] = 'ForeignKey') then
-                  begin
-                    Name := CopyName(StringList.ValueFromIndex[I], NewTable.ForeignKeys);
+                  for I := 1 to StringList.Count - 1 do
+                    if (StringList.Names[I] = 'Key') then
+                    begin
+                      Name := CopyName(StringList.ValueFromIndex[I], NewTable.Keys);
 
-                    NewForeignKey := TSForeignKey.Create(NewTable.ForeignKeys);
-                    NewForeignKey.Assign(SourceTable.ForeignKeyByName(StringList.ValueFromIndex[I]));
-                    NewForeignKey.Name := Name;
-                    NewTable.ForeignKeys.AddForeignKey(NewForeignKey);
-                    NewForeignKey.Free();
-                  end;
+                      NewKey := TSKey.Create(NewTable.Keys);
+                      NewKey.Assign(SourceTable.IndexByName(StringList.ValueFromIndex[I]));
+                      NewKey.Name := Name;
+                      NewTable.Keys.AddKey(NewKey);
+                      NewKey.Free();
+                    end
+                    else if (StringList.Names[I] = 'ForeignKey') then
+                    begin
+                      Name := CopyName(StringList.ValueFromIndex[I], NewTable.ForeignKeys);
 
-                Session.Connection.BeginSynchron();
-                Database.UpdateTable(Table, NewTable);
-                Session.Connection.EndSynchron();
+                      NewForeignKey := TSForeignKey.Create(NewTable.ForeignKeys);
+                      NewForeignKey.Assign(SourceTable.ForeignKeyByName(StringList.ValueFromIndex[I]));
+                      NewForeignKey.Name := Name;
+                      NewTable.ForeignKeys.AddForeignKey(NewForeignKey);
+                      NewForeignKey.Free();
+                    end;
 
-                for I := 1 to StringList.Count - 1 do
-                  if (StringList.Names[I] = 'Trigger') then
-                  begin
-                    Name := CopyName(StringList.ValueFromIndex[I], Database.Triggers);
+                  Session.Connection.BeginSynchron();
+                  Database.UpdateTable(Table, NewTable);
+                  Session.Connection.EndSynchron();
 
-                    NewTrigger := TSTrigger.Create(Database.Triggers);
-                    NewTrigger.Assign(SourceDatabase.TriggerByName(StringList.ValueFromIndex[I]));
-                    NewTrigger.Name := Name;
-                    NewTrigger.TableName := NewTable.Name;
-                    Session.Connection.BeginSynchron();
-                    Database.AddTrigger(NewTrigger);
-                    Session.Connection.EndSynchron();
-                    NewTrigger.Free();
-                  end;
+                  for I := 1 to StringList.Count - 1 do
+                    if (StringList.Names[I] = 'Trigger') then
+                    begin
+                      Name := CopyName(StringList.ValueFromIndex[I], Database.Triggers);
 
-                NewTable.Free();
+                      NewTrigger := TSTrigger.Create(Database.Triggers);
+                      NewTrigger.Assign(SourceDatabase.TriggerByName(StringList.ValueFromIndex[I]));
+                      NewTrigger.Name := Name;
+                      NewTrigger.TableName := NewTable.Name;
+                      Session.Connection.BeginSynchron();
+                      Database.AddTrigger(NewTrigger);
+                      Session.Connection.EndSynchron();
+                      NewTrigger.Free();
+                    end;
+
+                  NewTable.Free();
+                end;
               end;
             end;
           end;
@@ -11688,8 +11708,6 @@ begin
       begin
         View := TSView(FNavigator.Selected.Data);
 
-        Desktop(View).SynMemoTextAtUpdate := ActiveSynMemo.Text;
-
         NewView := TSView.Create(Database.Tables);
         NewView.Assign(View);
 
@@ -11704,12 +11722,11 @@ begin
       begin
         Routine := TSRoutine(FNavigator.Selected.Data);
 
-        Desktop(Routine).SynMemoTextAtUpdate := ActiveSynMemo.Text;
-
         if (SelectedImageIndex = iiProcedure) then
           NewRoutine := TSProcedure.Create(Routine.Database.Routines)
         else
           NewRoutine := TSFunction.Create(Routine.Database.Routines);
+        NewRoutine.Assign(Routine);
         NewRoutine.Source := Trim(ActiveSynMemo.Text);
 
         Result := Database.UpdateRoutine(Routine, NewRoutine);
@@ -11719,8 +11736,6 @@ begin
     iiEvent:
       begin
         Event := TSEvent(FNavigator.Selected.Data);
-
-        Desktop(Event).SynMemoTextAtUpdate := ActiveSynMemo.Text;
 
         NewEvent := TSEvent.Create(Database.Events);
         NewEvent.Assign(Event);
@@ -11734,8 +11749,6 @@ begin
     iiTrigger:
       begin
         Trigger := TSTrigger(FNavigator.Selected.Data);
-
-        Desktop(Trigger).SynMemoTextAtUpdate := ActiveSynMemo.Text;
 
         NewTrigger := TSTrigger.Create(Database.Triggers);
         NewTrigger.Assign(Trigger);
@@ -12056,6 +12069,8 @@ procedure TFSession.SessionUpdate(const Event: TSSession.TEvent);
 var
   Control: TWinControl;
   I: Integer;
+  S1: string;
+  S2: string;
   TempActiveControl: TWinControl;
 begin
   LeftMousePressed := False;
@@ -12103,17 +12118,17 @@ begin
         Desktop(TSView(Event.Item)).SynMemo.Text := TSView(Event.Item).Stmt + #13#10
       else if ((Event.Item is TSRoutine) and Assigned(Desktop(TSRoutine(Event.Item)).SynMemo)) then
       begin
-        Desktop(TSRoutine(Event.Item)).SynMemo.Text := TSRoutine(Event.Item).Source + #13#10;
+        Desktop(TSRoutine(Event.Item)).SynMemo.Text := TSRoutine(Event.Item).Source;
         PContentChange(nil);
       end
       else if ((Event.Item is TSTrigger) and Assigned(Desktop(TSTrigger(Event.Item)).SynMemo)) then
       begin
-        Desktop(TSTrigger(Event.Item)).SynMemo.Text := TSTrigger(Event.Item).Source + #13#10;
+        Desktop(TSTrigger(Event.Item)).SynMemo.Text := TSTrigger(Event.Item).Source;
         PContentChange(nil);
       end
       else if ((Event.Item is TSEvent) and Assigned(Desktop(TSEvent(Event.Item)).SynMemo)) then
       begin
-        Desktop(TSEvent(Event.Item)).SynMemo.Text := TSEvent(Event.Item).Stmt + #13#10;
+        Desktop(TSEvent(Event.Item)).SynMemo.Text := TSEvent(Event.Item).Stmt;
         Desktop(TSEvent(Event.Item)).SynMemo.Modified := False;
         PContentChange(nil);
       end;
@@ -12123,17 +12138,6 @@ begin
       if ((View = vBrowser)
         and Assigned(FNavigator.Selected) and (Event.Item = FNavigator.Selected.Data)) then
         Wanted.Update := UpdateAfterAddressChanged;
-    end
-    else if (Event.EventType = etItemAltered) then
-    begin
-      if ((Event.Item is TSView) and Assigned(Desktop(TSView(Event.Item)).SynMemo)) then
-        Desktop(TSView(Event.Item)).SynMemo.Modified := Desktop(TSView(Event.Item)).SynMemoTextAtUpdate <> Desktop(TSView(Event.Item)).SynMemo.Text
-      else if ((Event.Item is TSRoutine) and Assigned(Desktop(TSRoutine(Event.Item)).SynMemo)) then
-        Desktop(TSRoutine(Event.Item)).SynMemo.Modified := Desktop(TSRoutine(Event.Item)).SynMemoTextAtUpdate <> Desktop(TSRoutine(Event.Item)).SynMemo.Text
-      else if ((Event.Item is TSEvent) and Assigned(Desktop(TSEvent(Event.Item)).SynMemo)) then
-        Desktop(TSEvent(Event.Item)).SynMemo.Modified := Desktop(TSEvent(Event.Item)).SynMemoTextAtUpdate <> Desktop(TSEvent(Event.Item)).SynMemo.Text
-      else if ((Event.Item is TSTrigger) and Assigned(Desktop(TSTrigger(Event.Item)).SynMemo)) then
-        Desktop(TSTrigger(Event.Item)).SynMemo.Modified := Desktop(TSTrigger(Event.Item)).SynMemoTextAtUpdate <> Desktop(TSTrigger(Event.Item)).SynMemo.Text;
     end;
   end;
 

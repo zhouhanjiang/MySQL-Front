@@ -120,13 +120,6 @@ begin
 
   PageControl.Visible := True;
   PSQLWait.Visible := not PageControl.Visible;
-
-  ActiveControl := FBCancel;
-  if (PageControl.Visible and (ModalResult = mrNone)) then
-  begin
-    PageControl.ActivePage := TSBasics;
-    ActiveControl := FName;
-  end;
 end;
 
 function TDTrigger.Execute(): Boolean;
@@ -177,8 +170,13 @@ begin
 
   if (Event.EventType = etAfterExecuteSQL) then
   begin
-    PageControl.Visible := True;
-    PSQLWait.Visible := not PageControl.Visible;
+    if (not (PageControl.Visible)) then
+    begin
+      PageControl.Visible := True;
+      PSQLWait.Visible := not PageControl.Visible;
+      ActiveControl := FName;
+      FBOkCheckEnabled(nil);
+    end;
   end;
 end;
 
@@ -243,7 +241,7 @@ end;
 
 procedure TDTrigger.FormHide(Sender: TObject);
 begin
-  Table.Session.UnRegisterEventProc(FormSessionEvent);
+  Table.Session.ReleaseEventProc(FormSessionEvent);
 
   Preferences.Trigger.Width := Width;
   Preferences.Trigger.Height := Height;

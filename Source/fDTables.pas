@@ -268,7 +268,7 @@ end;
 
 procedure TDTables.FormHide(Sender: TObject);
 begin
-  Database.Session.UnRegisterEventProc(FormSessionEvent);
+  Database.Session.ReleaseEventProc(FormSessionEvent);
 
   Preferences.Table.Width := Width;
   Preferences.Table.Height := Height;
@@ -323,12 +323,6 @@ begin
   FTablesCount.Caption := IntToStr(Tables.Count);
 
   FEngine.Items.Clear();
-  for I := 0 to Database.Session.Engines.Count - 1 do
-    if (not (Database.Session.Engines[I] is TSSystemEngine)) then
-      FEngine.Items.Add(Database.Session.Engines[I].Name);
-
-  FEngine.Items.Clear();
-  FEngine.Items.Add('');
   for I := 0 to Database.Session.Engines.Count - 1 do
     FEngine.Items.Add(Database.Session.Engines[I].Name);
 

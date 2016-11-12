@@ -143,12 +143,6 @@ begin
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
 
-  Preferences.Databases.Left := Left;
-  Preferences.Databases.Top := Top;
-
-  Preferences.ODBC.Left := Left;
-  Preferences.ODBC.Top := Top;
-
   BorderStyle := bsSizeable;
 end;
 
@@ -156,8 +150,10 @@ procedure TDDatabases.FormHide(Sender: TObject);
 var
   I: Integer;
 begin
-  if (Assigned(Session)) then
-    Session.UnRegisterEventProc(FormSessionEvent);
+  Session.ReleaseEventProc(FormSessionEvent);
+
+  Preferences.Databases.Width := Width;
+  Preferences.Databases.Height := Height;
 
   if (ModalResult = mrOk) then
   begin
@@ -173,77 +169,23 @@ begin
   FDatabases.Items.BeginUpdate();
   FDatabases.Items.Clear();
   FDatabases.Items.EndUpdate();
-
-  if (Assigned(Session)) then
-  begin
-    Preferences.Databases.Height := Height;
-    Preferences.Databases.Left := Left;
-    Preferences.Databases.Top := Top;
-    Preferences.Databases.Width := Width;
-  end
-  else
-  begin
-    Preferences.ODBC.Height := Height;
-    Preferences.ODBC.Left := Left;
-    Preferences.ODBC.Top := Top;
-    Preferences.ODBC.Width := Width;
-  end;
 end;
 
 procedure TDDatabases.FormShow(Sender: TObject);
-var
-  I: Integer;
-  Item: TListItem;
-  DataSource: array [0 .. STR_LEN] of SQLTCHAR;
 begin
-  if (Assigned(Session)) then
+  Session.RegisterEventProc(FormSessionEvent);
+
+  if ((Preferences.Databases.Width >= Width) and (Preferences.Databases.Height >= Height)) then
   begin
-    Session.RegisterEventProc(FormSessionEvent);
-
-    Left := Preferences.Databases.Left;
-    Top := Preferences.Databases.Top;
-    if ((Preferences.ODBC.Width >= Width) and (Preferences.ODBC.Height >= Height)) then
-    begin
-      Height := Preferences.Databases.Height;
-      Width := Preferences.Databases.Width;
-    end;
-
-    GroupBox.Visible := Session.Databases.Update();
-    PSQLWait.Visible := not GroupBox.Visible;
-
-    if (GroupBox.Visible) then
-      Built();
-
-    FDatabases.MultiSelect := True;
-  end
-  else
-  begin
-    Left := Preferences.ODBC.Left;
-    Top := Preferences.ODBC.Top;
-    if ((Preferences.ODBC.Width >= Width) and (Preferences.ODBC.Height >= Height)) then
-    begin
-      Height := Preferences.ODBC.Height;
-      Width := Preferences.ODBC.Width;
-    end;
-
-    if (SQL_SUCCEEDED(SQLDataSources(ODBCEnv, SQL_FETCH_FIRST, @DataSource, STR_LEN, nil, nil, 0, nil))) then
-      repeat
-        Item := FDatabases.Items.Add();
-        Item.Caption := DataSource;
-        Item.ImageIndex := iiDatabase;
-      until (not SQL_SUCCEEDED(SQLDataSources(ODBCEnv, SQL_FETCH_NEXT, @DataSource, STR_LEN, nil, nil, 0, nil)));
-
-    FDatabases.MultiSelect := False;
-
-    FDatabases.SortType := stText;
-
-    FDatabases.ItemFocused := nil;
-    for I := FDatabases.Items.Count - 1 downto 0 do
-      if (FDatabases.Items[I].Selected) then
-        FDatabases.ItemFocused := FDatabases.Items[I];
-    if (not Assigned(FDatabases.ItemFocused) and (FDatabases.Items.Count > 0)) then
-      FDatabases.ItemFocused := FDatabases.Items[0];
+    Width := Preferences.Databases.Width;
+    Height := Preferences.Databases.Height;
   end;
+
+  GroupBox.Visible := Session.Databases.Update();
+  PSQLWait.Visible := not GroupBox.Visible;
+
+  if (GroupBox.Visible) then
+    Built();
 
   FBOkCheckEnabled(Sender);
   if (not GroupBox.Visible) then

@@ -15,6 +15,7 @@ object DSearch: TDSearch
   OldCreateOrder = False
   Position = poOwnerFormCenter
   OnCreate = FormCreate
+  OnDestroy = FormDestroy
   OnHide = FormHide
   OnShow = FormShow
   DesignSize = (
@@ -59,12 +60,157 @@ object DSearch: TDSearch
     Left = 0
     Top = 0
     Width = 341
-    Height = 289
-    ActivePage = TSSelect
+    Height = 281
+    ActivePage = TSExecute
     Anchors = [akLeft, akTop, akRight, akBottom]
     Style = tsButtons
     TabOrder = 0
     TabStop = False
+    object TSSelect: TTabSheet
+      Caption = 'TSSelect'
+      TabVisible = False
+      OnShow = TSSelectShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
+      DesignSize = (
+        333
+        271)
+      object GSelect: TGroupBox_Ext
+        Left = 4
+        Top = 0
+        Width = 325
+        Height = 271
+        Anchors = [akLeft, akTop, akRight, akBottom]
+        Caption = 'GSelect'
+        TabOrder = 0
+        DesignSize = (
+          325
+          271)
+        object PSelect: TPanel_Ext
+          Left = 8
+          Top = 16
+          Width = 308
+          Height = 246
+          Anchors = [akLeft, akTop, akRight, akBottom]
+          BevelInner = bvRaised
+          BevelOuter = bvLowered
+          Caption = 'PSelect'
+          ParentBackground = False
+          TabOrder = 0
+          object FSelect: TTreeView_Ext
+            Left = 2
+            Top = 2
+            Width = 304
+            Height = 242
+            Align = alClient
+            BorderStyle = bsNone
+            HideSelection = False
+            Indent = 19
+            MultiSelect = True
+            MultiSelectStyle = [msControlSelect, msShiftSelect, msSiblingOnly]
+            ReadOnly = True
+            ShowLines = False
+            TabOrder = 0
+            OnChange = FSelectChange
+            OnChanging = FSelectChanging
+            OnExpanding = FSelectExpanding
+            OnGetImageIndex = FSelectGetImageIndex
+          end
+        end
+      end
+    end
+    object TSFOptions: TTabSheet
+      Caption = 'TSFOptions'
+      TabVisible = False
+      OnShow = TSFOptionsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
+      DesignSize = (
+        333
+        271)
+      object GFWhat: TGroupBox_Ext
+        Left = 4
+        Top = 0
+        Width = 325
+        Height = 49
+        Anchors = [akLeft, akTop, akRight]
+        Caption = 'GFWhat'
+        TabOrder = 0
+        DesignSize = (
+          325
+          49)
+        object FLFFindText: TLabel
+          Left = 8
+          Top = 19
+          Width = 59
+          Height = 13
+          Caption = 'FLFFindText'
+          FocusControl = FFFindText
+        end
+        object FFFindText: TComboBox_Ext
+          Left = 128
+          Top = 16
+          Width = 189
+          Height = 21
+          Anchors = [akLeft, akTop, akRight]
+          TabOrder = 0
+          Text = 'FFFindText'
+          OnChange = FFFindTextChange
+        end
+      end
+      object GFOptions: TGroupBox_Ext
+        Left = 4
+        Top = 56
+        Width = 325
+        Height = 93
+        Anchors = [akLeft, akTop, akRight]
+        Caption = 'GFOptions'
+        TabOrder = 1
+        DesignSize = (
+          325
+          93)
+        object FLFSearchOptions: TLabel
+          Left = 8
+          Top = 17
+          Width = 88
+          Height = 13
+          Caption = 'FLFSearchOptions'
+        end
+        object FFMatchCase: TCheckBox
+          Left = 128
+          Top = 16
+          Width = 189
+          Height = 17
+          Anchors = [akLeft, akTop, akRight]
+          Caption = 'FFMatchCase'
+          TabOrder = 0
+        end
+        object FFWholeValue: TCheckBox
+          Left = 128
+          Top = 40
+          Width = 189
+          Height = 17
+          Anchors = [akLeft, akTop, akRight]
+          Caption = 'FFWholeValue'
+          TabOrder = 1
+        end
+        object FFRegExpr: TCheckBox
+          Left = 128
+          Top = 64
+          Width = 189
+          Height = 17
+          Anchors = [akLeft, akTop, akRight]
+          Caption = 'FFRegExpr'
+          TabOrder = 2
+          OnClick = FFRegExprClick
+          OnKeyPress = FFRegExprKeyPress
+        end
+      end
+    end
     object TSROptions: TTabSheet
       Caption = 'TSROptions'
       TabVisible = False
@@ -75,7 +221,7 @@ object DSearch: TDSearch
       ExplicitHeight = 0
       DesignSize = (
         333
-        279)
+        271)
       object GRWhat: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -178,6 +324,7 @@ object DSearch: TDSearch
     object TSExecute: TTabSheet
       Caption = 'TSExecute'
       TabVisible = False
+      OnResize = TSExecuteResize
       OnShow = TSExecuteShow
       ExplicitLeft = 0
       ExplicitTop = 0
@@ -185,7 +332,7 @@ object DSearch: TDSearch
       ExplicitHeight = 0
       DesignSize = (
         333
-        279)
+        271)
       object GProgress: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -212,7 +359,7 @@ object DSearch: TDSearch
           Caption = 'FLProgressRecords'
         end
         object FDoneTables: TLabel
-          Left = 171
+          Left = 151
           Top = 40
           Width = 64
           Height = 13
@@ -221,7 +368,7 @@ object DSearch: TDSearch
           Caption = 'FDoneTables'
         end
         object FDoneRecords: TLabel
-          Left = 163
+          Left = 147
           Top = 64
           Width = 72
           Height = 13
@@ -237,7 +384,7 @@ object DSearch: TDSearch
           Caption = 'FLProgressTime'
         end
         object FDoneTime: TLabel
-          Left = 180
+          Left = 164
           Top = 88
           Width = 55
           Height = 13
@@ -246,7 +393,7 @@ object DSearch: TDSearch
           Caption = 'FDoneTime'
         end
         object FLDone: TLabel
-          Left = 197
+          Left = 181
           Top = 16
           Width = 38
           Height = 13
@@ -255,7 +402,7 @@ object DSearch: TDSearch
           Caption = 'FLDone'
         end
         object FLEntiered: TLabel
-          Left = 265
+          Left = 263
           Top = 16
           Width = 51
           Height = 13
@@ -381,147 +528,6 @@ object DSearch: TDSearch
             ViewStyle = vsReport
             OnDblClick = FTablesDblClick
           end
-        end
-      end
-    end
-    object TSSelect: TTabSheet
-      Caption = 'TSSelect'
-      TabVisible = False
-      OnShow = TSSelectShow
-      DesignSize = (
-        333
-        279)
-      object GSelect: TGroupBox_Ext
-        Left = 4
-        Top = 0
-        Width = 325
-        Height = 271
-        Anchors = [akLeft, akTop, akRight, akBottom]
-        Caption = 'GSelect'
-        TabOrder = 0
-        DesignSize = (
-          325
-          271)
-        object PSelect: TPanel_Ext
-          Left = 8
-          Top = 16
-          Width = 308
-          Height = 246
-          Anchors = [akLeft, akTop, akRight, akBottom]
-          BevelInner = bvRaised
-          BevelOuter = bvLowered
-          Caption = 'PSelect'
-          ParentBackground = False
-          TabOrder = 0
-          object FSelect: TTreeView_Ext
-            Left = 2
-            Top = 2
-            Width = 304
-            Height = 242
-            Align = alClient
-            BorderStyle = bsNone
-            HideSelection = False
-            Indent = 19
-            MultiSelect = True
-            MultiSelectStyle = [msControlSelect, msShiftSelect, msSiblingOnly]
-            ReadOnly = True
-            ShowLines = False
-            TabOrder = 0
-            OnChange = FSelectChange
-            OnChanging = FSelectChanging
-            OnExpanding = FSelectExpanding
-            OnGetImageIndex = FSelectGetImageIndex
-          end
-        end
-      end
-    end
-    object TSFOptions: TTabSheet
-      Caption = 'TSFOptions'
-      TabVisible = False
-      OnShow = TSFOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
-      DesignSize = (
-        333
-        279)
-      object GFWhat: TGroupBox_Ext
-        Left = 4
-        Top = 0
-        Width = 325
-        Height = 49
-        Anchors = [akLeft, akTop, akRight]
-        Caption = 'GFWhat'
-        TabOrder = 0
-        DesignSize = (
-          325
-          49)
-        object FLFFindText: TLabel
-          Left = 8
-          Top = 19
-          Width = 59
-          Height = 13
-          Caption = 'FLFFindText'
-          FocusControl = FFFindText
-        end
-        object FFFindText: TComboBox_Ext
-          Left = 128
-          Top = 16
-          Width = 189
-          Height = 21
-          Anchors = [akLeft, akTop, akRight]
-          TabOrder = 0
-          Text = 'FFFindText'
-          OnChange = FFFindTextChange
-        end
-      end
-      object GFOptions: TGroupBox_Ext
-        Left = 4
-        Top = 56
-        Width = 325
-        Height = 93
-        Anchors = [akLeft, akTop, akRight]
-        Caption = 'GFOptions'
-        TabOrder = 1
-        DesignSize = (
-          325
-          93)
-        object FLFSearchOptions: TLabel
-          Left = 8
-          Top = 17
-          Width = 88
-          Height = 13
-          Caption = 'FLFSearchOptions'
-        end
-        object FFMatchCase: TCheckBox
-          Left = 128
-          Top = 16
-          Width = 189
-          Height = 17
-          Anchors = [akLeft, akTop, akRight]
-          Caption = 'FFMatchCase'
-          TabOrder = 0
-        end
-        object FFWholeValue: TCheckBox
-          Left = 128
-          Top = 40
-          Width = 189
-          Height = 17
-          Anchors = [akLeft, akTop, akRight]
-          Caption = 'FFWholeValue'
-          TabOrder = 1
-        end
-        object FFRegExpr: TCheckBox
-          Left = 128
-          Top = 64
-          Width = 189
-          Height = 17
-          Anchors = [akLeft, akTop, akRight]
-          Caption = 'FFRegExpr'
-          TabOrder = 2
-          OnClick = FFRegExprClick
-          OnKeyPress = FFRegExprKeyPress
         end
       end
     end

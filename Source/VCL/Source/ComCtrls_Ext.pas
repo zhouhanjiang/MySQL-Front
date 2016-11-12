@@ -18,6 +18,7 @@ type
     ShiftDownSelected: TTreeNode;
   protected
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
+    procedure KeyUp(var Key: Word; Shift: TShiftState); override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState;
       X, Y: Integer); override;
   end;
@@ -67,6 +68,14 @@ begin
   inherited;
 end;
 
+procedure TTreeView_Ext.KeyUp(var Key: Word; Shift: TShiftState);
+begin
+  inherited;
+
+  if (ssShift in Shift) then
+    ShiftDownSelected := nil;
+end;
+
 procedure TTreeView_Ext.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
   Child: TTreeNode;
@@ -81,7 +90,11 @@ begin
 
   inherited;
 
-  if (MultiSelect and Assigned(Node) and Assigned(ShiftDownSelected) and (ShiftDownSelected.Parent = Node.Parent) and (Shift = [ssShift, ssLeft])) then
+  if (MultiSelect
+    and Assigned(ShiftDownSelected)
+    and Assigned(Node)
+    and (ShiftDownSelected.Parent = Node.Parent)
+    and (Shift = [ssShift, ssLeft])) then
   begin
     OldSelectedIndex := ShiftDownSelected.Parent.IndexOf(ShiftDownSelected);
     NodeIndex := Node.Parent.IndexOf(Node);

@@ -16,6 +16,7 @@ object DImport: TDImport
   Position = poOwnerFormCenter
   OnClose = FormClose
   OnCreate = FormCreate
+  OnDestroy = FormDestroy
   OnHide = FormHide
   OnShow = FormShow
   DesignSize = (

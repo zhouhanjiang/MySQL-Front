@@ -123,9 +123,6 @@ begin
 
   PageControl.Visible := True;
   PSQLWait.Visible := not PageControl.Visible;
-
-  if (FCharset.Visible) then
-    ActiveControl := FCharset;
 end;
 
 procedure TDDatabase.BuiltStatus();
@@ -322,7 +319,7 @@ end;
 
 procedure TDDatabase.FormHide(Sender: TObject);
 begin
-  Session.UnRegisterEventProc(FormSessionEvent);
+  Session.ReleaseEventProc(FormSessionEvent);
 
   Preferences.Database.Width := Width;
   Preferences.Database.Height := Height;
@@ -344,9 +341,13 @@ begin
 
   if (Event.EventType = etAfterExecuteSQL) then
   begin
-    PageControl.Visible := True;
-    PSQLWait.Visible := not PageControl.Visible;
-    FBOkCheckEnabled(nil);
+    if (not (PageControl.Visible)) then
+    begin
+      PageControl.Visible := True;
+      PSQLWait.Visible := not PageControl.Visible;
+      FBOkCheckEnabled(nil);
+      ActiveControl := FCharset;
+    end;
   end;
 end;
 

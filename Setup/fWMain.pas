@@ -20,6 +20,7 @@ type
     FBCancel: TButton;
     FBOk: TButton;
     FBeta: TCheckBox;
+    FRecommended: TCheckBox;
     procedure FBCancelClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure FBOkClick(Sender: TObject);
@@ -143,6 +144,13 @@ begin
       Ini.WriteInteger('Version', 'Minor', FUDMinor.Position);
       Ini.WriteInteger('Version', 'Patch', FUDPatch.Position);
       Ini.WriteInteger('Version', 'Build', FUDBuild.Position);
+      if (FRecommended.Checked) then
+      begin
+        Ini.WriteInteger('Version', 'RecommendedMajor', FUDMajor.Position);
+        Ini.WriteInteger('Version', 'RecommendedMinor', FUDMinor.Position);
+        Ini.WriteInteger('Version', 'RecommendedPatch', FUDPatch.Position);
+        Ini.WriteInteger('Version', 'RecommendedBuild', FUDBuild.Position);
+      end;
       Ini.WriteBool('Version', 'Beta', FBeta.Checked);
 
       if (not FBeta.Checked) then
@@ -162,6 +170,10 @@ begin
       AwkFile.Add('  gsub("{BuildVerMinor}", "' + IntToStr(MakeVerMinor) + '", $0)');
       AwkFile.Add('  gsub("{BuildVerPatch}", "' + IntToStr(MakeVerPatch) + '", $0)');
       AwkFile.Add('  gsub("{BuildVerBuild}", "' + IntToStr(MakeVerBuild) + '", $0)');
+      AwkFile.Add('  gsub("{BuildRecommendedMajor}", "' + IntToStr(Ini.ReadInteger('Version', 'RecommendedMajor', 0)) + '", $0)');
+      AwkFile.Add('  gsub("{BuildRecommendedMinor}", "' + IntToStr(Ini.ReadInteger('Version', 'RecommendedMinor', 0)) + '", $0)');
+      AwkFile.Add('  gsub("{BuildRecommendedPatch}", "' + IntToStr(Ini.ReadInteger('Version', 'RecommendedPatch', 0)) + '", $0)');
+      AwkFile.Add('  gsub("{BuildRecommendedBuild}", "' + IntToStr(Ini.ReadInteger('Version', 'RecommendedBuild', 0)) + '", $0)');
       AwkFile.Add('  gsub("{BuildVerStr}", "' + MakeVerStr + '", $0)');
       AwkFile.Add('  gsub("{BuildVerStrFull}", "' + MakeVerStrFull + '", $0)');
       AwkFile.Add('  gsub("{BuildVerFileFlag}", "' + MakeVerFileFlag + '", $0)');
@@ -174,6 +186,7 @@ begin
       AwkFile.Add('  gsub("{BuildInternetPadFile}", "' + Ini.ReadString('Internet', 'PadFile', '') + '", $0)');
       AwkFile.Add('  gsub("{BuildInternetPadFileIcon}", "' + Ini.ReadString('Internet', 'PadFileIcon', '') + '", $0)');
       AwkFile.Add('  gsub("{BuildInternetPadFileScreenshot}", "' + Ini.ReadString('Internet', 'PadFileScreenshot', '') + '", $0)');
+      AwkFile.Add('  gsub("{BuildInternetBugReport}", "' + Ini.ReadString('Internet', 'BugReport', '') + '", $0)');
       AwkFile.Add('  gsub("{BuildImagesPath}", "' + StringReplace(GetEnvironmentVariable('BuildImagesPath'), '\', '\\', [rfReplaceAll]) + '", $0)');
       AwkFile.Add('  gsub("{BuildLanguagesPath}", "' + StringReplace(GetEnvironmentVariable('BuildLanguagesPath'), '\', '\\', [rfReplaceAll]) + '", $0)');
       AwkFile.Add('  gsub("{BuildManualPath}", "' + StringReplace(GetEnvironmentVariable('BuildManualPath'), '\', '\\', [rfReplaceAll]) + '", $0)');

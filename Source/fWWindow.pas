@@ -12,7 +12,7 @@ uses
   SynEditHighlighter, SynHighlighterSQL,
   ExtCtrls_Ext, Forms_Ext, StdCtrls_Ext, ComCtrls_Ext, Dialogs_Ext, StdActns_Ext,
   MySQLDB,
-  fSession, fPreferences,
+  fSession, fPreferences, fDeveloper,
   fFSession, fBase;
 
 const
@@ -21,7 +21,7 @@ const
 const
   UM_ACTIVATETAB = WM_USER + 600;
   UM_MYSQLCLIENT_SYNCHRONIZE = WM_USER + 601;
-  UM_UPDATEAVAILABLE = WM_USER + 602;
+  UM_ONLINE_UPDATE_FOUND = WM_USER + 602;
 
 type
   TWWindow = class (TForm_Ext)
@@ -400,6 +400,7 @@ type
     end;
   private
     CloseButton: TPicture;
+    CheckOnlineVersionThread: TCheckOnlineVersionThread;
     {$IFDEF EurekaLog}
     EurekaLog: TEurekaLog;
     {$ENDIF}
@@ -412,8 +413,7 @@ type
     TabControlDragStartTabIndex: Integer;
     TabControlRepaint: TList;
     UniqueTabNameCounter: Integer;
-    UpdateAvailable: Boolean;
-    UpdateExecution: Boolean;
+    OnlineRecommendedUpdateFound: Boolean;
     procedure ApplicationActivate(Sender: TObject);
     procedure ApplicationDeactivate(Sender: TObject);
     procedure ApplicationMessage(var Msg: TMsg; var Handled: Boolean);
@@ -433,13 +433,11 @@ type
     {$ENDIF}
     function GetActiveTab(): TFSession;
     function GetNewTabIndex(Sender: TObject; X, Y: Integer): Integer;
-    procedure InformUpdateAvailable();
+    procedure InformOnlineUpdateFound();
     procedure miFReopenClick(Sender: TObject);
     procedure mtTabsClick(Sender: TObject);
     procedure MySQLConnectionSynchronize(const Data: Pointer); inline;
-    {$IFDEF EurekaLog}
-    procedure SendBugReportToDeveloper(const BugReport: string);
-    {$ENDIF}
+    procedure OnlineVersionChecked(Sender: TObject);
     procedure SetActiveTab(const FSession: TFSession);
     procedure SQLError(const Connection: TMySQLConnection; const ErrorCode: Integer; const ErrorMessage: string);
     procedure UMActivateTab(var Message: TMessage); message UM_ACTIVATETAB;
@@ -448,7 +446,7 @@ type
     procedure UMMySQLClientSynchronize(var Message: TMessage); message UM_MYSQLCLIENT_SYNCHRONIZE;
     procedure UMDeactivateTab(var Message: TMessage); message UM_DEACTIVATETAB;
     procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
-    procedure UMUpdateAvailable(var Message: TMessage); message UM_UPDATEAVAILABLE;
+    procedure UMOnlineUpdateFound(var Message: TMessage); message UM_ONLINE_UPDATE_FOUND;
     procedure UMUpdateToolbar(var Message: TMessage); message UM_UPDATETOOLBAR;
     procedure WMCopyData(var Message: TWMCopyData); message WM_COPYDATA;
     procedure WMDrawItem(var Message: TWMDrawItem); message WM_DRAWITEM;
@@ -569,12 +567,9 @@ procedure TWWindow.aHUpdateExecute(Sender: TObject);
 begin
   if (CloseAll()) then
   begin
-    UpdateExecution := True;
     Preferences.SetupProgramExecute := DInstallUpdate.Execute();
     if (Preferences.SetupProgramExecute) then
-      Close()
-    else
-      UpdateExecution := False;
+      Close();
   end;
 end;
 
@@ -591,11 +586,11 @@ var
 begin
   if (DOptions.Execute()) then
   begin
+    Preferences.Save();
     TabControl.Visible := Preferences.TabsVisible or not Preferences.TabsVisible and (FSessions.Count >= 2);
     TBTabControl.Visible := Preferences.TabsVisible;
     for I := 0 to Screen.FormCount - 1 do
       PostMessage(Screen.Forms[I].Handle, UM_CHANGEPREFERENCES, 0, 0);
-    Preferences.Save();
   end;
 end;
 
@@ -663,20 +658,22 @@ begin
     DisableApplicationActivate := True;
 
     {$IFNDEF EurekaLog}
-    if ((AvailableUpdateVersion < 0) and IsConnectedToInternet()) then
-    begin
-      CheckUpdateThread := TCheckUpdateThread.Create(True);
-      CheckUpdateThread.Stream := TStringStream.Create('');
-      CheckUpdateThread.Execute();
-      CheckUpdateThread.Stream.Free();
-      CheckUpdateThread.Free();
-    end;
+    if ((OnlineProgramVersion < 0) and IsConnectedToInternet()) then
+      if (Assigned(CheckOnlineVersionThread)) then
+        CheckOnlineVersionThread.WaitFor()
+      else
+      begin
+        CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
+        CheckOnlineVersionThread.Execute();
+        CheckOnlineVersionThread.Free();
+        CheckOnlineVersionThread := nil;
+      end;
     {$ENDIF}
 
     MsgBox('Internal Program Bug:' + #13#10 + E.Message, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
 
-    if (Preferences.Version < AvailableUpdateVersion) then
-      PostMessage(Handle, UM_UPDATEAVAILABLE, 0, 0);
+    if (OnlineProgramVersion > Preferences.Version) then
+      InformOnlineUpdateFound();
 
     DisableApplicationActivate := False;
   end;
@@ -743,10 +740,10 @@ begin
 
     if (Screen.ActiveForm = Self) then
     begin
-      if (UpdateAvailable) then
+      if (OnlineRecommendedUpdateFound) then
       begin
-        UpdateAvailable := False;
-        InformUpdateAvailable();
+        OnlineRecommendedUpdateFound := False;
+        InformOnlineUpdateFound();
       end;
 
       if (Assigned(ActiveTab)) then
@@ -995,28 +992,46 @@ end;
 procedure TWWindow.EurekaLogExceptionNotify(
   EurekaExceptionRecord: TEurekaExceptionRecord; var Handled: Boolean);
 var
-  CheckUpdateThread: TCheckUpdateThread;
+  FirstLine: Integer;
   I: Integer;
+  Log: TStringList;
+  Report: string;
 begin
   for I := 0 to FSessions.Count - 1 do
     try TFSession(FSessions[I]).CrashRescue(); except end;
-
   try Accounts.Save(); except end;
+  try Preferences.Save(); except end;
 
-  if ((AvailableUpdateVersion < 0) and IsConnectedToInternet()) then
-  begin
-    CheckUpdateThread := TCheckUpdateThread.Create(True);
-    CheckUpdateThread.Stream := TStringStream.Create('');
-    CheckUpdateThread.Execute();
-    CheckUpdateThread.Stream.Free();
-    CheckUpdateThread.Free();
-  end;
+  if ((OnlineProgramVersion < 0) and IsConnectedToInternet()) then
+    if (Assigned(CheckOnlineVersionThread)) then
+      CheckOnlineVersionThread.WaitFor()
+    else
+    begin
+      CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
+      CheckOnlineVersionThread.Execute();
+      CheckOnlineVersionThread.Free();
+      CheckOnlineVersionThread := nil;
+    end;
 
-  UpdateAvailable := Preferences.Version < AvailableUpdateVersion;
-  Handled := (AvailableUpdateVersion < 0) or not UpdateAvailable;
+  Handled := OnlineProgramVersion <= Preferences.Version;
 
   if (Handled) then
-    SendBugReportToDeveloper(EurekaExceptionRecord.LogText);
+  begin
+    Report := string(EurekaExceptionRecord.LogText);
+    if (Assigned(ActiveTab)) then
+    begin
+      Report := Report + #13#10;
+      Report := Report + 'SQL Log' + #13#10;
+      Report := Report + '--------------------------------------------------------------------------------' + #13#10;
+      Log := TStringList.Create();
+      Log.Text := ActiveTab.Session.Connection.BugMonitor.CacheText;
+      if (Log.Count < 10) then FirstLine := 0 else FirstLine := Log.Count - 10;
+      for I := FirstLine to Log.Count - 1 do
+        Report := Report + Log[I];
+      Log.Free();
+    end;
+    SendBugToDeveloper(Report);
+  end;
 end;
 {$ENDIF}
 
@@ -1038,10 +1053,9 @@ var
 begin
   DisableApplicationActivate := False;
   MouseDownPoint := Point(-1, -1);
+  OnlineRecommendedUpdateFound := False;
   QuitAfterShow := False;
   UniqueTabNameCounter := 0;
-  UpdateAvailable := False;
-  UpdateExecution := False;
 
   MySQLDB.MySQLConnectionOnSynchronize := MySQLConnectionSynchronize;
 
@@ -1141,16 +1155,8 @@ end;
 
 procedure TWWindow.FormHide(Sender: TObject);
 begin
-  if (Assigned(CheckUpdateThread)) then
-  begin
-    try
-      CheckUpdateThread.Terminate();
-      CheckUpdateThread.WaitFor();
-      FreeAndNil(CheckUpdateThread.Stream);
-    except
-      // It's not needed to see bugs on it.
-    end;
-  end;
+  if (Assigned(CheckOnlineVersionThread)) then
+    TerminateThread(CheckOnlineVersionThread.Handle, 0);
 
   Preferences.WindowState := WindowState;
   if (WindowState = wsNormal) then
@@ -1181,14 +1187,12 @@ end;
 
 procedure TWWindow.FormShow(Sender: TObject);
 begin
-  if (IsConnectedToInternet() and ((Preferences.UpdateCheck = utDaily) and (Trunc(Preferences.UpdateChecked) < Date()))) then
+  if (((Preferences.UpdateCheck = utDaily) and (Trunc(Preferences.UpdateChecked) < Date())) and IsConnectedToInternet()) then
   begin
-    CheckUpdateThread := TCheckUpdateThread.Create(True);
-    CheckUpdateThread.FreeOnTerminate := True;
-    CheckUpdateThread.Stream := TStringStream.Create('');
-    CheckUpdateThread.Wnd := Handle;
-    CheckUpdateThread.SuccessMessage := UM_UPDATEAVAILABLE;
-    CheckUpdateThread.Start();
+    CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
+    CheckOnlineVersionThread.OnTerminate := OnlineVersionChecked;
+    CheckOnlineVersionThread.FreeOnTerminate := True;
+    CheckOnlineVersionThread.Start();
   end;
 
   PostMessage(Handle, UM_POST_SHOW, 0, 0);
@@ -1224,7 +1228,7 @@ begin
   end;
 end;
 
-procedure TWWindow.InformUpdateAvailable();
+procedure TWWindow.InformOnlineUpdateFound();
 begin
   if (MsgBox(Preferences.LoadStr(506) + #10#10 + Preferences.LoadStr(845), Preferences.LoadStr(43), MB_ICONQUESTION + MB_YESNOCANCEL) = ID_YES) then
     aHUpdate.Execute();
@@ -1247,51 +1251,15 @@ end;
 
 procedure TWWindow.MySQLConnectionSynchronize(const Data: Pointer);
 begin
-  if (not UpdateExecution) then
-    PostMessage(Handle, UM_MYSQLCLIENT_SYNCHRONIZE, 0, LPARAM(Data));
+  PostMessage(Handle, UM_MYSQLCLIENT_SYNCHRONIZE, 0, LPARAM(Data));
 end;
 
-{$IFDEF EurekaLog}
-procedure TWWindow.SendBugReportToDeveloper(const BugReport: string);
-var
-  Body: RawByteString;
-  Connection: HInternet;
-  Flags: Cardinal;
-  Handle: HInternet;
-  Headers: string;
-  Len: Integer;
-  Request: HInternet;
+procedure TWWindow.OnlineVersionChecked(Sender: TObject);
 begin
-  Handle := InternetOpen(PChar('Bug Reporter'), INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);
-  if (Assigned(Handle)) then
-  begin
-    Connection := InternetConnect(Handle, 'www.mysqlfront.de', 80, nil, nil, INTERNET_SERVICE_HTTP, 0, Cardinal(Self));
-    if (Assigned(Connection)) then
-    begin
-      Len := WideCharToAnsiChar(CP_UTF8, @BugReport[1], Length(BugReport), nil, 0);
-      SetLength(Body, Len);
-      WideCharToAnsiChar(CP_UTF8, @BugReport[1], Length(BugReport), @Body[1], Len);
-
-      Flags := INTERNET_FLAG_NO_AUTO_REDIRECT or INTERNET_FLAG_NO_CACHE_WRITE or INTERNET_FLAG_NO_UI or INTERNET_FLAG_KEEP_CONNECTION or INTERNET_FLAG_NO_COOKIES;
-      Request := HttpOpenRequest(Connection, 'POST', PChar('/bug.php'), 'HTTP/1.1', nil, nil, Flags, Cardinal(Self));
-      if (Assigned(Request)) then
-      begin
-        Headers := 'Content-Type: text/plain; charset=UTF-8' + #10
-          + 'Content-Transfer-Encoding: binary' + #10;
-
-        if (not HttpSendRequest(Request, PChar(Headers), Length(Headers), @Body[1], Length(Body))) then
-          Write;
-
-        InternetCloseHandle(Request);
-      end;
-      Body := '';
-
-      InternetCloseHandle(Connection);
-    end;
-    InternetCloseHandle(Handle);
-  end;
+  CheckOnlineVersionThread := nil;
+  if (OnlineRecommendedVersion > Preferences.Version) then
+    PostMessage(Handle, UM_ONLINE_UPDATE_FOUND, 0, 0);
 end;
-{$ENDIF}
 
 procedure TWWindow.SetActiveTab(const FSession: TFSession);
 begin
@@ -1921,16 +1889,15 @@ end;
 
 procedure TWWindow.UMMySQLClientSynchronize(var Message: TMessage);
 begin
-  if (not UpdateExecution) then
-    MySQLDB.MySQLConnectionSynchronize(Pointer(Message.LParam));
+  MySQLDB.MySQLConnectionSynchronize(Pointer(Message.LParam));
 end;
 
-procedure TWWindow.UMUpdateAvailable(var Message: TMessage);
+procedure TWWindow.UMOnlineUpdateFound(var Message: TMessage);
 begin
   if (Screen.ActiveForm <> Self) then
-    UpdateAvailable := True
+    OnlineRecommendedUpdateFound := True
   else
-    InformUpdateAvailable();
+    InformOnlineUpdateFound();
 end;
 
 procedure TWWindow.UMUpdateToolbar(var Message: TMessage);

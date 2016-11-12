@@ -93,16 +93,18 @@ type
     procedure FSelectGetImageIndex(Sender: TObject; Node: TTreeNode);
     procedure FSelectChanging(Sender: TObject; Node: TTreeNode;
       var AllowChange: Boolean);
+    procedure TSExecuteResize(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
   private
+    ExecuteSession: TSSession;
+    ProgressInfos: TTool.TProgressInfos;
+    ReplaceSession: TSSession;
+    Search: TTSearch;
     Sessions: array of record
       Created: Boolean;
       Session: TSSession;
     end;
-    ExecuteSession: TSSession;
-    Search: TTSearch;
-    ProgressInfos: TTool.TProgressInfos;
-    ReplaceSession: TSSession;
-    SQLWait: Boolean;
+    Space: Integer;
     Tables: array of TDSTableItem;
     Wanted: record
       Node: TTreeNode;
@@ -164,6 +166,12 @@ procedure TDSearch.FBBackClick(Sender: TObject);
 var
   PageIndex: Integer;
 begin
+  if (Assigned(Search)) then
+  begin
+    Search.WaitFor();
+    FreeAndNil(Search);
+  end;
+
   for PageIndex := PageControl.ActivePageIndex - 1 downto 0 do
     if (PageControl.Pages[PageIndex].Enabled) then
     begin
@@ -175,10 +183,7 @@ end;
 procedure TDSearch.FBCancelClick(Sender: TObject);
 begin
   if (Assigned(Search)) then
-  begin
     Search.Terminate();
-    FBCancel.Enabled := False;
-  end;
 end;
 
 procedure TDSearch.FBForwardClick(Sender: TObject);
@@ -200,7 +205,7 @@ end;
 
 procedure TDSearch.FFFindTextChange(Sender: TObject);
 begin
-  FBForward.Enabled := (FFFindText.Text <> '') and not SQLWait;
+  FBForward.Enabled := Trim(FFFindText.Text) <> '';
 end;
 
 procedure TDSearch.FFRegExprClick(Sender: TObject);
@@ -226,6 +231,8 @@ procedure TDSearch.FormCreate(Sender: TObject);
 var
   I: Integer;
 begin
+  Space := (FLEntiered.Left + FLEntiered.Width) - (FLDone.Left + FLDone.Width);
+
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
 
@@ -237,7 +244,8 @@ begin
 
   FFFindText.Items.Clear();
   for I := Preferences.Find.FindTextMRU.Count - 1 downto 0 do
-    FFFindText.Items.Insert(0, Preferences.Find.FindTextMRU.Values[I]);
+    FFFindText.Items.Add(Preferences.Find.FindTextMRU.Values[I]);
+  FFFindText.Text := '';
 
   FFMatchCase.Checked := foMatchCase in Preferences.Find.Options;
   FFWholeValue.Checked := foWholeValue in Preferences.Find.Options;
@@ -246,10 +254,12 @@ begin
 
   FRFindText.Items.Clear();
   for I := Preferences.Replace.FindTextMRU.Count - 1 downto 0 do
-    FRFindText.Items.Insert(0, Preferences.Replace.FindTextMRU.Values[I]);
+    FRFindText.Items.Add(Preferences.Replace.FindTextMRU.Values[I]);
+  FRFindText.Text := '';
   FReplaceText.Items.Clear();
   for I := Preferences.Replace.ReplaceTextMRU.Count - 1 downto 0 do
-    FReplaceText.Items.Insert(0, Preferences.Replace.ReplaceTextMRU.Values[I]);
+    FReplaceText.Items.Add(Preferences.Replace.ReplaceTextMRU.Values[I]);
+  FReplaceText.Text := '';
 
   FRMatchCase.Checked := roMatchCase in Preferences.Replace.Options;
   FRWholeValue.Checked := roWholeValue in Preferences.Replace.Options;
@@ -260,6 +270,12 @@ begin
   SendMessage(FErrorMessages.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
 
   PageControl.ActivePage := nil; // Make sure, not ___OnShowPage will be executed
+end;
+
+procedure TDSearch.FormDestroy(Sender: TObject);
+begin
+  if (Assigned(Search)) then
+    TerminateThread(Search.Handle, 0);
 end;
 
 procedure TDSearch.FormHide(Sender: TObject);
@@ -274,7 +290,7 @@ begin
   for I := 0 to Length(Sessions) - 1 do
     if (Assigned(Sessions[I].Session)) then
     begin
-      Sessions[I].Session.UnRegisterEventProc(FormSessionEvent);
+      Sessions[I].Session.ReleaseEventProc(FormSessionEvent);
       if (Sessions[I].Created) then
         Sessions[I].Session.Free();
     end;
@@ -355,7 +371,6 @@ begin
   Wanted.Page := nil;
   FErrorMessages.Visible := not SearchOnly;
   FTables.Visible := SearchOnly;
-  FFFindTextChange(Sender);
 
   SetLength(Sessions, Accounts.Count);
   for I := 0 to Length(Sessions) - 1 do
@@ -363,11 +378,6 @@ begin
     Sessions[I].Created := False;
     Sessions[I].Session := nil;
   end;
-
-  FFFindText.Text := '';
-
-  FRFindText.Text := '';
-  FReplaceText.Text := '';
 
   TSFOptions.Enabled := SearchOnly;
   TSROptions.Enabled := not SearchOnly;
@@ -386,7 +396,9 @@ end;
 
 procedure TDSearch.FRFindTextChange(Sender: TObject);
 begin
-  FBForward.Enabled := (FRFindText.Text <> '') and (FRFindText.Text <> FReplaceText.Text) and not SQLWait;
+  FBForward.Enabled := (Trim(FRFindText.Text) <> '')
+    and (Trim(FReplaceText.Text) <> '')
+    and (Trim(FRFindText.Text) <> Trim(FReplaceText.Text));
 end;
 
 procedure TDSearch.FRRegExprClick(Sender: TObject);
@@ -426,12 +438,7 @@ begin
   TreeView := TTreeView_Ext(Sender);
 
   if (Assigned(Wanted.Node)) then
-  begin
-    for I := 0 to Length(Sessions) - 1 do
-      if (Assigned(Sessions[I].Session)) then
-        Sessions[I].Session.UnRegisterEventProc(FormSessionEvent);
     Wanted.Node := nil;
-  end;
 
   if (Assigned(Node)) then
     if (Node.HasChildren and not Assigned(Node.getFirstChild())) then
@@ -698,6 +705,19 @@ begin
   PostMessage(Handle, UM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos))
 end;
 
+procedure TDSearch.TSExecuteResize(Sender: TObject);
+begin
+  FLEntiered.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FLEntiered.Width;
+  FLDone.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FLDone.Width;
+  FEntieredTables.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FEntieredTables.Width;
+  FDoneTables.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FDoneTables.Width;
+  FEntieredRecords.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FEntieredRecords.Width;
+  FDoneRecords.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FDoneRecords.Width;
+  FEntieredTime.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FEntieredTime.Width;
+  FDoneTime.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FDoneTime.Width;
+  FErrors.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FErrors.Width;
+end;
+
 procedure TDSearch.TSExecuteShow(Sender: TObject);
 
   procedure InitializeNode(const Session: TSSession; const Node: TTreeNode);
@@ -766,10 +786,6 @@ var
   Node: TTreeNode;
   Table: TSBaseTable;
 begin
-  FTables.Items.BeginUpdate();
-  FTables.Items.Clear();
-  FTables.Items.EndUpdate();
-
   FEntieredTables.Caption := '';
   FDoneTables.Caption := '';
   FEntieredRecords.Caption := '';
@@ -779,12 +795,6 @@ begin
   FProgressBar.Position := 0;
   FErrors.Caption := '0';
   FErrorMessages.Lines.Clear();
-
-  FBBack.Enabled := False;
-  FBForward.Enabled := False;
-  FBCancel.Default := True;
-  FBCancel.ModalResult := mrNone;
-  ActiveControl := FBCancel;
 
   Node := FSelect.Selected;
   while (Assigned(Node.Parent)) do Node := Node.Parent;
@@ -821,9 +831,8 @@ begin
       SetLength(Tables, 0);
 
       Search := TTSearch.Create(ExecuteSession);
-
       Search.Wnd := Self.Handle;
-      Search.FindText := FFFindText.Text;
+      Search.FindText := Trim(FFFindText.Text);
       Search.MatchCase := FFMatchCase.Checked;
       Search.WholeValue := FFWholeValue.Checked;
       Search.RegExpr := FFRegExpr.Checked;
@@ -840,8 +849,8 @@ begin
 
         TTReplace(Search).Wnd := Self.Handle;
         TTReplace(Search).OnError := OnError;
-        TTReplace(Search).FindText := FRFindText.Text;
-        TTReplace(Search).ReplaceText := FReplaceText.Text;
+        TTReplace(Search).FindText := Trim(FRFindText.Text);
+        TTReplace(Search).ReplaceText := Trim(FReplaceText.Text);
         TTReplace(Search).MatchCase := FRMatchCase.Checked;
         TTReplace(Search).WholeValue := FRWholeValue.Checked;
         TTReplace(Search).RegExpr := FRRegExpr.Checked;
@@ -908,6 +917,10 @@ begin
     SetControlCursor(GProgress, crDefault)
   else
     SetControlCursor(GProgress, crSQLWait);
+
+  FBForward.Default := False;
+  FBCancel.Default := True;
+  ActiveControl := FBCancel;
 end;
 
 procedure TDSearch.TSFOptionsShow(Sender: TObject);
@@ -918,7 +931,6 @@ begin
   FBForward.Caption := Preferences.LoadStr(174);
   FBForward.Default := True;
   FBCancel.Caption := Preferences.LoadStr(30);
-  FBCancel.ModalResult := mrCancel;
   FBCancel.Default := False;
 
   ActiveControl := FFFindText;
@@ -929,11 +941,9 @@ begin
   FBBack.Enabled := True;
   FBForward.Caption := Preferences.LoadStr(174);
   FBForward.Default := True;
-  FBCancel.Caption := Preferences.LoadStr(30);
-  FBCancel.ModalResult := mrCancel;
-  FBCancel.Default := False;
-
   FRFindTextChange(Sender);
+  FBCancel.Caption := Preferences.LoadStr(30);
+  FBCancel.Default := False;
 
   ActiveControl := FRFindText;
 end;
@@ -967,7 +977,6 @@ begin
 
   FBBack.Enabled := False;
   FBForward.Caption := Preferences.LoadStr(229) + ' >';
-
   FSelectChange(Sender, FSelect.Selected);
 end;
 
@@ -1035,12 +1044,17 @@ begin
   if (Success and SearchOnly and (FTables.Items.Count = 0)) then
     MsgBox(Preferences.LoadStr(533, Search.FindText), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
 
+  if (Assigned(Search)) then
+  begin
+    Search.WaitFor();
+    FreeAndNil(Search);
+  end;
+
   if (Assigned(ExecuteSession)) then
     ExecuteSession := nil;
   if (Assigned(ReplaceSession)) then
     FreeAndNil(ReplaceSession);
 
-  FBBack.Enabled := True;
   FBForward.Enabled := False;
   FBCancel.Enabled := True;
 
@@ -1051,12 +1065,6 @@ begin
     FBCancel.ModalResult := mrCancel;
 
   ActiveControl := FBCancel;
-
-  if (Assigned(Search)) then
-  begin
-    Search.WaitFor();
-    FreeAndNil(Search);
-  end;
 end;
 
 procedure TDSearch.UMUpdateProgressInfo(var Message: TMessage);

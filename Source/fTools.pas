@@ -133,7 +133,6 @@ type
     end;
 
   private
-    CriticalSection: TCriticalSection;
     FErrorCount: Integer;
     FItems: TItems;
     FOnError: TErrorEvent;
@@ -188,8 +187,8 @@ type
     procedure Close(); virtual;
     function DoExecuteSQL(var SQL: string): Boolean; virtual;
     procedure DoUpdateGUI(); override;
-    procedure ExecuteStructure(const Item: TItem); virtual;
     procedure ExecuteTableData(const Item: TItem; const Table: TSTable); virtual;
+    procedure ExecuteTableStructure(const Item: TItem); virtual;
     procedure GetValue(const Item: TItem; const Index: Integer; const Values: TTool.TStringBuffer); virtual;
     procedure GetValues(const Item: TItem; const Values: TTool.TDataFileBuffer); virtual;
     function NextRecord(const Item: TItem): Boolean; virtual;
@@ -277,7 +276,7 @@ type
   protected
     procedure AfterExecuteData(const Item: TTImport.TItem); override;
     procedure BeforeExecuteData(const Item: TTImport.TItem); override;
-    procedure ExecuteStructure(const Item: TTImport.TItem); override;
+    procedure ExecuteTableStructure(const Item: TTImport.TItem); override;
     procedure GetValue(const Item: TTImport.TItem; const Index: Integer; const Values: TTool.TStringBuffer); override;
     procedure GetValues(const Item: TTImport.TItem; const Values: TTool.TDataFileBuffer); override;
     function NextRecord(const Item: TTImport.TItem): Boolean; override;
@@ -316,7 +315,7 @@ type
     procedure AfterExecuteData(const Item: TTImport.TItem); override;
     procedure BeforeExecute(); override;
     procedure BeforeExecuteData(const Item: TTImport.TItem); override;
-    procedure ExecuteStructure(const Item: TTImport.TItem); override;
+    procedure ExecuteTableStructure(const Item: TTImport.TItem); override;
     procedure GetValue(const Item: TTImport.TItem; const Index: Integer; const Values: TTool.TStringBuffer); override;
     procedure GetValues(const Item: TTImport.TItem; const Values: TTool.TDataFileBuffer); override;
     function NextRecord(const Item: TTImport.TItem): Boolean; override;
@@ -1599,7 +1598,6 @@ begin
 
   Success := daSuccess;
 
-  CriticalSection := TCriticalSection.Create();
   FErrorCount := 0;
   FItems := TItems.Create(Self);
 end;
@@ -1614,7 +1612,6 @@ end;
 
 destructor TTool.Destroy();
 begin
-  CriticalSection.Free();
   FItems.Free();
 
   inherited;
@@ -1799,8 +1796,6 @@ procedure TTImport.DoUpdateGUI();
 var
   I: Integer;
 begin
-  CriticalSection.Enter();
-
   ProgressInfos.ObjectsDone := 0;
   ProgressInfos.ObjectsSum := Items.Count;
   ProgressInfos.RecordsDone := 0;
@@ -1840,8 +1835,6 @@ begin
     ProgressInfos.TimeSum := ProgressInfos.TimeDone;
   end;
 
-  CriticalSection.Leave();
-
   if (Assigned(FOnUpdate)) then
     FOnUpdate(ProgressInfos);
 end;
@@ -1879,7 +1872,7 @@ begin
         if (Success = daSuccess) then
         begin
           SetLength(FieldMappings, 0);
-          ExecuteStructure(TTImport.TItem(Items[I]));
+          ExecuteTableStructure(TTImport.TItem(Items[I]));
         end;
       end;
 
@@ -1894,6 +1887,8 @@ begin
       end;
 
       Items[I].Done := True;
+
+      if (Success = daFail) then Success := daSuccess;
     end;
 
   AfterExecute();
@@ -1903,10 +1898,6 @@ begin
     StandardEurekaNotify(GetLastExceptionObject(), GetLastExceptionAddress());
   end;
   {$ENDIF}
-end;
-
-procedure TTImport.ExecuteStructure(const Item: TItem);
-begin
 end;
 
 procedure TTImport.ExecuteTableData(const Item: TItem; const Table: TSTable);
@@ -2202,6 +2193,10 @@ begin
   AfterExecuteData(Item);
 end;
 
+procedure TTImport.ExecuteTableStructure(const Item: TItem);
+begin
+end;
+
 procedure TTImport.GetValue(const Item: TItem; const Index: Integer; const Values: TTool.TStringBuffer);
 begin
 end;
@@ -2259,8 +2254,6 @@ end;
 
 procedure TTImportFile.DoUpdateGUI();
 begin
-  CriticalSection.Enter();
-
   ProgressInfos.ObjectsDone := -1;
   ProgressInfos.ObjectsSum := -1;
   ProgressInfos.RecordsDone := FilePos;
@@ -2285,8 +2278,6 @@ begin
     ProgressInfos.Progress := 100;
     ProgressInfos.TimeSum := ProgressInfos.TimeDone;
   end;
-
-  CriticalSection.Leave();
 
   if (Assigned(OnUpdate)) then
     OnUpdate(ProgressInfos);
@@ -2656,7 +2647,7 @@ begin
   inherited;
 end;
 
-procedure TTImportText.ExecuteStructure(const Item: TTImport.TItem);
+procedure TTImportText.ExecuteTableStructure(const Item: TTImport.TItem);
 var
   I: Integer;
   NewField: TSBaseTableField;
@@ -2707,8 +2698,6 @@ begin
     for I := 0 to HeadlineNameCount - 1 do
       AddField(NewTable.Fields[I], HeadlineNames[I]);
   end;
-
-  if (Success = daFail) then Success := daSuccess;
 end;
 
 function TTImportText.GetHeadlineNameCount(): Integer;
@@ -3101,7 +3090,7 @@ begin
   inherited;
 end;
 
-procedure TTImportBaseODBC.ExecuteStructure(const Item: TTImport.TItem);
+procedure TTImportBaseODBC.ExecuteTableStructure(const Item: TTImport.TItem);
 var
   AscOrDesc: array [0 .. 2 - 1] of SQLTCHAR;
   AutoUniqueValue: SQLINTEGER;
@@ -3388,8 +3377,6 @@ begin
   if (Assigned(Table)) then
     for I := 0 to Table.Fields.Count - 1 do
       AddField(Table.Fields[I], SourceFieldNames[I]);
-
-  if (Success = daFail) then Success := daSuccess;
 end;
 
 function TTImportBaseODBC.GetFieldNames(const TableName: string; const FieldNames: TStrings): Boolean;
@@ -3907,8 +3894,6 @@ var
 begin
   if (Assigned(OnUpdate)) then
   begin
-    CriticalSection.Enter();
-
     ProgressInfos.ObjectsDone := 0;
     ProgressInfos.ObjectsSum := Items.Count;
     ProgressInfos.RecordsDone := 0;
@@ -3946,8 +3931,6 @@ begin
       ProgressInfos.Progress := 100;
       ProgressInfos.TimeSum := ProgressInfos.TimeDone;
     end;
-
-    CriticalSection.Leave();
 
     OnUpdate(ProgressInfos);
   end;
@@ -8684,8 +8667,6 @@ var
 begin
   if (Assigned(OnUpdate)) then
   begin
-    CriticalSection.Enter();
-
     ProgressInfos.ObjectsDone := 0;
     ProgressInfos.ObjectsSum := Items.Count;
     ProgressInfos.RecordsDone := 0;
@@ -8721,8 +8702,6 @@ begin
       ProgressInfos.Progress := 100;
       ProgressInfos.TimeSum := ProgressInfos.TimeDone;
     end;
-
-    CriticalSection.Leave();
 
     OnUpdate(ProgressInfos);
   end;

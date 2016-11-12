@@ -87,8 +87,11 @@ begin
 
   if (Event.EventType = etAfterExecuteSQL) then
   begin
-    GroupBox.Visible := True;
-    PSQLWait.Visible := not GroupBox.Visible;
+    if (not GroupBox.Visible) then
+    begin
+      GroupBox.Visible := True;
+      PSQLWait.Visible := not GroupBox.Visible;
+    end;
   end;
 end;
 
@@ -140,7 +143,7 @@ end;
 
 procedure TDVariable.FormHide(Sender: TObject);
 begin
-  Session.UnRegisterEventProc(FormSessionEvent);
+  Session.ReleaseEventProc(FormSessionEvent);
 end;
 
 procedure TDVariable.FormShow(Sender: TObject);

@@ -169,23 +169,23 @@ begin
 
   for I := 0 to User.RightCount - 1 do
     if (not Assigned(UserRight)
-      or (User.Right[I].DatabaseName <> UserRight.DatabaseName)
-      or (User.Right[I].TableName <> UserRight.TableName)
-      or (User.Right[I].FieldName <> UserRight.FieldName)
-      or (User.Right[I].ProcedureName <> UserRight.ProcedureName)
-      or (User.Right[I].FunctionName <> UserRight.FunctionName)) then
+      or (User.Rights[I].DatabaseName <> UserRight.DatabaseName)
+      or (User.Rights[I].TableName <> UserRight.TableName)
+      or (User.Rights[I].FieldName <> UserRight.FieldName)
+      or (User.Rights[I].ProcedureName <> UserRight.ProcedureName)
+      or (User.Rights[I].FunctionName <> UserRight.FunctionName)) then
     begin
-      if (FAll.Checked and (User.Right[I].DatabaseName = '')) then
+      if (FAll.Checked and (User.Rights[I].DatabaseName = '')) then
         FBOk.Enabled := Assigned(UserRight);
-      if (FDatabase.Checked and (lstrcmpi(PChar(User.Right[I].DatabaseName), PChar(FDatabases.Text)) = 0)) then
+      if (FDatabase.Checked and (lstrcmpi(PChar(User.Rights[I].DatabaseName), PChar(FDatabases.Text)) = 0)) then
         FBOk.Enabled := Assigned(UserRight);
-      if (FTable.Checked and (lstrcmpi(PChar(User.Right[I].DatabaseName), PChar(FDatabases.Text)) = 0) and (lstrcmpi(PChar(User.Right[I].TableName), PChar(FTables.Text)) = 0)) then
+      if (FTable.Checked and (lstrcmpi(PChar(User.Rights[I].DatabaseName), PChar(FDatabases.Text)) = 0) and (lstrcmpi(PChar(User.Rights[I].TableName), PChar(FTables.Text)) = 0)) then
         FBOk.Enabled := Assigned(UserRight);
-      if (FField.Checked and (lstrcmpi(PChar(User.Right[I].DatabaseName), PChar(FDatabases.Text)) = 0) and (lstrcmpi(PChar(User.Right[I].TableName), PChar(FTables.Text)) = 0) and (lstrcmpi(PChar(User.Right[I].FieldName), PChar(FFields.Text)) = 0)) then
+      if (FField.Checked and (lstrcmpi(PChar(User.Rights[I].DatabaseName), PChar(FDatabases.Text)) = 0) and (lstrcmpi(PChar(User.Rights[I].TableName), PChar(FTables.Text)) = 0) and (lstrcmpi(PChar(User.Rights[I].FieldName), PChar(FFields.Text)) = 0)) then
         FBOk.Enabled := Assigned(UserRight);
-      if (FProcedure.Checked and (lstrcmpi(PChar(User.Right[I].DatabaseName), PChar(FDatabases.Text)) = 0) and (lstrcmpi(PChar(User.Right[I].ProcedureName), PChar(FProcedures.Text)) = 0)) then
+      if (FProcedure.Checked and (lstrcmpi(PChar(User.Rights[I].DatabaseName), PChar(FDatabases.Text)) = 0) and (lstrcmpi(PChar(User.Rights[I].ProcedureName), PChar(FProcedures.Text)) = 0)) then
         FBOk.Enabled := Assigned(UserRight);
-      if (FFunction.Checked and (lstrcmpi(PChar(User.Right[I].DatabaseName), PChar(FDatabases.Text)) = 0) and (lstrcmpi(PChar(User.Right[I].FunctionName), PChar(FFunctions.Text)) = 0)) then
+      if (FFunction.Checked and (lstrcmpi(PChar(User.Rights[I].DatabaseName), PChar(FDatabases.Text)) = 0) and (lstrcmpi(PChar(User.Rights[I].FunctionName), PChar(FFunctions.Text)) = 0)) then
         FBOk.Enabled := Assigned(UserRight);
     end;
 

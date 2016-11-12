@@ -42,10 +42,9 @@ type
     GConnection: TGroupBox_Ext;
     procedure FBDatabaseClick(Sender: TObject);
     procedure FBHelpClick(Sender: TObject);
+    procedure FBOkCheckEnabled(Sender: TObject);
     procedure FConnectionTypeChange(Sender: TObject);
-    procedure FEditChange(Sender: TObject);
     procedure FHostExit(Sender: TObject);
-    procedure FHTTPTunnelURIChange(Sender: TObject);
     procedure FHTTPTunnelURIEnter(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormCreate(Sender: TObject);
@@ -95,6 +94,35 @@ begin
   end;
 
   Result := FAccount;
+end;
+
+function ValidHostName(const HostName: string): Boolean;
+var
+  URL: string;
+  URLComponents: TURLComponents;
+  URLComponentsExtraInfo: array [0 .. INTERNET_MAX_PATH_LENGTH] of Char;
+  URLComponentsHostName: array [0 .. INTERNET_MAX_HOST_NAME_LENGTH] of Char;
+  URLComponentsPassword: array [0 .. INTERNET_MAX_PASSWORD_LENGTH] of Char;
+  URLComponentsPath: array [0 .. INTERNET_MAX_PATH_LENGTH] of Char;
+  URLComponentsSchemeName: array [0 .. INTERNET_MAX_SCHEME_LENGTH] of Char;
+  URLComponentsUserName: array [0 .. INTERNET_MAX_USER_NAME_LENGTH] of Char;
+begin
+  URLComponents.dwStructSize := SizeOf(URLComponents);
+  URLComponents.dwSchemeLength := Length(URLComponentsSchemeName);
+  URLComponents.dwHostNameLength := Length(URLComponentsHostName);
+  URLComponents.dwUserNameLength := Length(URLComponentsUserName);
+  URLComponents.dwPasswordLength := Length(URLComponentsPassword);
+  URLComponents.dwUrlPathLength := Length(URLComponentsPath);
+  URLComponents.dwExtraInfoLength := Length(URLComponentsExtraInfo);
+  URLComponents.lpszScheme := @URLComponentsSchemeName;
+  URLComponents.lpszHostName := @URLComponentsHostName;
+  URLComponents.lpszUserName := @URLComponentsUserName;
+  URLComponents.lpszPassword := @URLComponentsPassword;
+  URLComponents.lpszUrlPath := @URLComponentsPath;
+  URLComponents.lpszExtraInfo := @URLComponentsExtraInfo;
+
+  URL := 'mysql://' + HostName;
+  Result := InternetCrackUrl(PChar(URL), Length(URL), 0, URLComponents);
 end;
 
 { TDAccount *******************************************************************}
@@ -173,6 +201,19 @@ begin
   Application.HelpContext(HelpContext)
 end;
 
+procedure TDAccount.FBOkCheckEnabled(Sender: TObject);
+var
+  Name: string;
+begin
+  Name := Trim(FName.Text);
+
+  FBOk.Enabled := (not Assigned(Accounts.AccountByName(Name)) or Assigned(Account) and (Accounts.AccountByName(Name) = Account))
+    and ValidHostName(Trim(FHost.Text))
+    and ((Trim(FHost.Text) = LOCAL_HOST_NAMEDPIPE) or (FUDPort.Position > 0))
+    and ((FConnectionType.ItemIndex <> 1) or (Trim(FLibraryFilename.Text) <> ''))
+    and ((FConnectionType.ItemIndex <> 2) or ((Copy(Trim(FHTTPTunnelURI.Text), 1, 7) = 'http://') or (Copy(Trim(FHTTPTunnelURI.Text), 1, 8) = 'https://')));
+end;
+
 procedure TDAccount.FConnectionTypeChange(Sender: TObject);
 begin
   FLibraryFilename.Visible := FConnectionType.ItemIndex = 1;
@@ -180,21 +221,7 @@ begin
   FLLibraryFilename.Visible := FLibraryFilename.Visible;
   FLHTTPTunnelURI.Visible := FHTTPTunnelURI.Visible;
 
-  if (FConnectionType.ItemIndex = 2) then
-    FHTTPTunnelURIChange(Sender);
-end;
-
-procedure TDAccount.FEditChange(Sender: TObject);
-var
-  Name: string;
-begin
-  if (FName.Text = '') then
-    Name := FHost.Text
-  else
-    Name := FName.Text;
-  FBOk.Enabled := (FHost.Text <> '')
-    and (not Assigned(Accounts.AccountByName(Name)) or Assigned(Account) and (Accounts.AccountByName(Name) = Account));
-  FBDatabase.Enabled := FHost.Text <> '';
+  FBOkCheckEnabled(Sender);
 end;
 
 procedure TDAccount.FHostChange(Sender: TObject);
@@ -203,7 +230,7 @@ begin
   FUDPort.Visible := FPort.Visible;
   FLPort.Visible := FPort.Visible;
 
-  FEditChange(Sender);
+  FBOkCheckEnabled(Sender);
 end;
 
 procedure TDAccount.FHostExit(Sender: TObject);
@@ -220,11 +247,6 @@ begin
         Inc(Index);
       FName.Text := FHost.Text + ' (' + IntToStr(Index) + ')';
     end;
-end;
-
-procedure TDAccount.FHTTPTunnelURIChange(Sender: TObject);
-begin
-  FBOk.Enabled := (FHTTPTunnelURI.Text = '') or (Copy(FHTTPTunnelURI.Text, 1, 7) = 'http://') or (Copy(FHTTPTunnelURI.Text, 1, 8) = 'https://');
 end;
 
 procedure TDAccount.FHTTPTunnelURIEnter(Sender: TObject);
@@ -251,44 +273,36 @@ var
 begin
   if (ModalResult = mrOk) then
   begin
-    ActiveControl := FBOk;
+    ActiveControl := FBOk; // Run OnExit procedures
 
-    if ((FConnectionType.ItemIndex = 1) and (FLibraryFilename.Text = '')) then
-      begin ActiveControl := FLibraryFilename; MessageBeep(MB_ICONERROR); CanClose := False; end
-    else if ((FConnectionType.ItemIndex = 2) and not ((Copy(FHTTPTunnelURI.Text, 1, 7) = 'http://') or (Copy(FHTTPTunnelURI.Text, 1, 8) = 'https://'))) then
-      begin ActiveControl := FHTTPTunnelURI; MessageBeep(MB_ICONERROR); CanClose := False; end;
+    NewAccount := TPAccount.Create(Accounts);
+    if (Assigned(Account)) then
+      NewAccount.Assign(Account);
 
-    if (CanClose) then
-    begin
-      NewAccount := TPAccount.Create(Accounts);
-      if (Assigned(Account)) then
-        NewAccount.Assign(Account);
-
-      NewAccount.Name := Trim(FName.Text);
-      NewAccount.Connection.Host := Trim(FHost.Text);
-      NewAccount.Connection.Port := FUDPort.Position;
-      case (FConnectionType.ItemIndex) of
-        0: NewAccount.Connection.LibraryType := fPreferences.ltBuiltIn;
-        1: NewAccount.Connection.LibraryType := fPreferences.ltDLL;
-        2: NewAccount.Connection.LibraryType := fPreferences.ltHTTP;
-      end;
-      NewAccount.Connection.LibraryFilename := Trim(FLibraryFilename.Text);
-      NewAccount.Connection.HTTPTunnelURI := Trim(FHTTPTunnelURI.Text);
-
-      NewAccount.Connection.Username := Trim(FUser.Text);
-      NewAccount.Connection.Password := Trim(FPassword.Text);
-      NewAccount.Connection.Database := ReplaceStr(Trim(FDatabase.Text), ';', ',');
-
-      Username := NewAccount.Connection.Username;
-      Password := NewAccount.Connection.Password;
-
-      if (not Assigned(Account)) then
-        Accounts.AddAccount(NewAccount)
-      else
-        Accounts.UpdateAccount(Account, NewAccount);
-
-      NewAccount.Free();
+    NewAccount.Name := Trim(FName.Text);
+    NewAccount.Connection.Host := Trim(FHost.Text);
+    NewAccount.Connection.Port := FUDPort.Position;
+    case (FConnectionType.ItemIndex) of
+      0: NewAccount.Connection.LibraryType := fPreferences.ltBuiltIn;
+      1: NewAccount.Connection.LibraryType := fPreferences.ltDLL;
+      2: NewAccount.Connection.LibraryType := fPreferences.ltHTTP;
     end;
+    NewAccount.Connection.LibraryFilename := Trim(FLibraryFilename.Text);
+    NewAccount.Connection.HTTPTunnelURI := Trim(FHTTPTunnelURI.Text);
+
+    NewAccount.Connection.Username := Trim(FUser.Text);
+    NewAccount.Connection.Password := Trim(FPassword.Text);
+    NewAccount.Connection.Database := ReplaceStr(Trim(FDatabase.Text), ';', ',');
+
+    Username := NewAccount.Connection.Username;
+    Password := NewAccount.Connection.Password;
+
+    if (not Assigned(Account)) then
+      Accounts.AddAccount(NewAccount)
+    else
+      Accounts.UpdateAccount(Account, NewAccount);
+
+    NewAccount.Free();
   end;
 end;
 
@@ -366,8 +380,6 @@ begin
     FDatabase.Text := Account.Connection.Database;
   end;
 
-
-  FEditChange(nil);
   FConnectionTypeChange(nil);
 
   ActiveControl := FBCancel;

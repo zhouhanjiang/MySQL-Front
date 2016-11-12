@@ -2521,349 +2521,358 @@ var
   IfDeep: Integer;
   LoopDeep: Integer;
   RepeatDeep: Integer;
+  S: string;
   WhileDeep: Integer;
 begin
-  if (Length = 0) then
-  begin
-    Result := 0;
-    if (Assigned(Delimited)) then
-      Delimited^ := False;
-  end
-  else
-    asm
-        PUSH ESI
-        PUSH EDI
-        PUSH EBX
+  try // Debug 2016-11-10
+    if (Length = 0) then
+    begin
+      Result := 0;
+      if (Assigned(Delimited)) then
+        Delimited^ := False;
+    end
+    else
+      asm
+          PUSH ESI
+          PUSH EDI
+          PUSH EBX
 
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
+          PUSH DS                          // string operations uses ES
+          POP ES
+          CLD                              // string operations uses forward direction
 
-        MOV ESI,SQL                      // ESI := SQL
-        MOV ECX,Length
+          MOV ESI,SQL                      // ESI := SQL
+          MOV ECX,Length
 
-        PUSH ESI
+          PUSH ESI
 
-        MOV EDI,0                        // Don't copy inside MoveString
-        MOV EDX,$7FFFFFFF                // Enclose all condional MySQL code
+          MOV EDI,0                        // Don't copy inside MoveString
+          MOV EDX,$7FFFFFFF                // Enclose all condional MySQL code
 
-        CMP Delimited,0                  // Assigned(CompleteStmt)?
-        JE Start                         // No!
-        MOV EAX,[Delimited]
-        MOV BYTE PTR [EAX],False         // Uncomplete Statement!
+          CMP Delimited,0                  // Assigned(CompleteStmt)?
+          JE Start                         // No!
+          MOV EAX,[Delimited]
+          MOV BYTE PTR [EAX],False         // Uncomplete Statement!
 
-      // -------------------
+        // -------------------
 
-      Start:
-        MOV BracketDeep,0
-        MOV CaseDeep,0
-        MOV CompoundDeep,0
-        MOV IfDeep,0
-        MOV LoopDeep,0
-        MOV RepeatDeep,0
-        MOV WhileDeep,0
+        Start:
+          MOV BracketDeep,0
+          MOV CaseDeep,0
+          MOV CompoundDeep,0
+          MOV IfDeep,0
+          MOV LoopDeep,0
+          MOV RepeatDeep,0
+          MOV WhileDeep,0
 
-        CALL Trim                        // Ignore empty characters
-        CMP ECX,0                        // End of SQL?
-        JE Finish                        // Yes!
-        MOV EAX,[KAlter]
-        CALL CompareKeyword              // 'ALTER' in SQL?
-        JE Body
-        MOV EAX,[KCreate]
-        CALL CompareKeyword              // 'CREATE' in SQL?
-        JE Body
+          CALL Trim                        // Ignore empty characters
+          CMP ECX,0                        // End of SQL?
+          JE Finish                        // Yes!
+          MOV EAX,[KAlter]
+          CALL CompareKeyword              // 'ALTER' in SQL?
+          JE Body
+          MOV EAX,[KCreate]
+          CALL CompareKeyword              // 'CREATE' in SQL?
+          JE Body
 
-        MOV EAX,[KBegin]
-        CALL CompareKeyword              // 'BEGIN' in SQL?
-        JNE StartCase                    // No!
-        MOV CompoundDeep,1
-        JMP BodyL
-      StartCase:
-        MOV EAX,[KCase]
-        CALL CompareKeyword              // 'CASE' in SQL?
-        JNE StartIf                      // No!
-        MOV CaseDeep,1
-        JMP BodyL
-      StartIf:
-        MOV EAX,[KIf]
-        CALL CompareKeyword              // 'IF' in SQL?
-        JNE StartLoop                    // No!
-        MOV IfDeep,1
-        JMP BodyL
-      StartLoop:
-        MOV EAX,[KLoop]
-        CALL CompareKeyword              // 'LOOP' in SQL?
-        JNE StartRepeat                  // No!
-        MOV LoopDeep,1
-        JMP BodyL
-      StartRepeat:
-        MOV EAX,[KRepeat]
-        CALL CompareKeyword              // 'REPEAT' in SQL?
-        JNE StartWhile                   // No!
-        MOV RepeatDeep,1
-        JMP BodyL
-      StartWhile:
-        MOV EAX,[KWhile]
-        CALL CompareKeyword              // 'WHILE' in SQL?
-        JNE SimpelStmtL                  // No!
-        MOV WhileDeep,1
-        JMP BodyL
+          MOV EAX,[KBegin]
+          CALL CompareKeyword              // 'BEGIN' in SQL?
+          JNE StartCase                    // No!
+          MOV CompoundDeep,1
+          JMP BodyL
+        StartCase:
+          MOV EAX,[KCase]
+          CALL CompareKeyword              // 'CASE' in SQL?
+          JNE StartIf                      // No!
+          MOV CaseDeep,1
+          JMP BodyL
+        StartIf:
+          MOV EAX,[KIf]
+          CALL CompareKeyword              // 'IF' in SQL?
+          JNE StartLoop                    // No!
+          MOV IfDeep,1
+          JMP BodyL
+        StartLoop:
+          MOV EAX,[KLoop]
+          CALL CompareKeyword              // 'LOOP' in SQL?
+          JNE StartRepeat                  // No!
+          MOV LoopDeep,1
+          JMP BodyL
+        StartRepeat:
+          MOV EAX,[KRepeat]
+          CALL CompareKeyword              // 'REPEAT' in SQL?
+          JNE StartWhile                   // No!
+          MOV RepeatDeep,1
+          JMP BodyL
+        StartWhile:
+          MOV EAX,[KWhile]
+          CALL CompareKeyword              // 'WHILE' in SQL?
+          JNE SimpelStmtL                  // No!
+          MOV WhileDeep,1
+          JMP BodyL
 
-      // -------------------
+        // -------------------
 
-      SimpelStmtL:
-        CALL Trim                        // Empty characters?
-        JE SimpelStmtLE                  // Yes!
-        CMP ECX,0                        // All characters handled?
-        JZ Finish                        // Yes!
-        CALL MoveString                  // Quoted string?
-        JE SimpelStmtLE                  // Yes!
-        LODSW                            // Character -> AX
-        DEC ECX                          // One character handled
-        CMP AX,';'                       // SQL Delimiter?
-        JE Complete                      // Yes!
-      SimpelStmtLE:
-        JMP SimpelStmtL
+        SimpelStmtL:
+          CALL Trim                        // Empty characters?
+          JE SimpelStmtLE                  // Yes!
+          CMP ECX,0                        // All characters handled?
+          JZ Finish                        // Yes!
+          CALL MoveString                  // Quoted string?
+          JE SimpelStmtLE                  // Yes!
+          LODSW                            // Character -> AX
+          DEC ECX                          // One character handled
+          CMP AX,';'                       // SQL Delimiter?
+          JE Complete                      // Yes!
+        SimpelStmtLE:
+          JMP SimpelStmtL
 
-      // -------------------
+        // -------------------
 
-      Body:
-        CALL Trim                        // Empty characters?
-        CMP ECX,0                        // End of SQL?
-        JE Finish                        // Yes!
-        MOV EAX,[KTable]
-        CALL CompareKeyword              // 'TABLE'?
-        JE SimpelStmtL                   // Yes!
-        MOV EAX,[KDatabase]
-        CALL CompareKeyword              // 'DATABASE'?
-        JE SimpelStmtL                   // Yes!
+        Body:
+          CALL Trim                        // Empty characters?
+          CMP ECX,0                        // End of SQL?
+          JE Finish                        // Yes!
+          MOV EAX,[KTable]
+          CALL CompareKeyword              // 'TABLE'?
+          JE SimpelStmtL                   // Yes!
+          MOV EAX,[KDatabase]
+          CALL CompareKeyword              // 'DATABASE'?
+          JE SimpelStmtL                   // Yes!
 
-      BodyL:
-        CALL Trim                        // Empty characters?
-        JE BodyLE                        // Yes!
-        CALL MoveString                  // Quoted string?
-        JE BodyLE                        // Yes!
-        MOV EAX,[KBegin]
-        CALL CompareKeyword              // 'BEGIN'?
-        JNE BodyCase                     // No!
-        INC CompoundDeep
-        JMP BodyLE
-      BodyCase:
-        MOV EAX,[KCase]
-        CALL CompareKeyword              // 'CASE'?
-        JNE BodyIf                       // No!
-        CALL Trim                        // Empty characters?
-        CMP ECX,0                        // All characters handled?
-        JZ Finish                        // Yes!
-        CMP WORD PTR [ESI],'('           // CASE as function?
-        JE BodyLE                        // Yes!
-        INC CaseDeep
-        JMP BodyLE
-      BodyIf:
-        MOV EAX,[KIf]
-        CALL CompareKeyword              // 'IF'?
-        JNE BodyLoop                     // No!
-        CALL Trim                        // Empty characters?
-        CMP ECX,0                        // All characters handled?
-        JZ Finish                        // Yes!
-        CMP WORD PTR [ESI],'('           // IF as function?
-        JE BodyLE                        // Yes!
-        PUSH ESI
-        PUSH ECX
-        MOV EAX,[KNot]
-        CALL CompareKeyword              // Step over possible 'NOT'
-        CMP ECX,0                        // All characters handled?
-        JZ BodyIf2                       // Yes!
-        CALL Trim                        // Step over spaces
-        CMP ECX,0                        // All characters handled?
-        JZ BodyIf2                       // Yes!
-        MOV EAX,[KExists]
-        CALL CompareKeyword              // Step over possible 'EXISTS'
-        JE BodyIf3
-      BodyIf2:
-        CMP EAX,0                        // Clear ZF
-      BodyIf3:
-        POP ECX
-        POP ESI
-        JE BodyLE
-        INC IfDeep
-        JMP BodyLE
-      BodyLoop:
-        MOV EAX,[KLoop]
-        CALL CompareKeyword              // 'LOOP'?
-        JNE BodyRepeat                   // No!
-        INC LoopDeep
-        JMP BodyLE
-      BodyRepeat:
-        MOV EAX,[KRepeat]
-        CALL CompareKeyword              // 'REPEAT'?
-        JNE BodyWhile                    // No!
-        INC RepeatDeep
-        JMP BodyLE
-      BodyWhile:
-        MOV EAX,[KWhile]
-        CALL CompareKeyword              // 'WHILE'?
-        JNE BodyEnd                      // No!
-        INC WhileDeep
-        JMP BodyLE
-      BodyEnd:
-        MOV EAX,[KEnd]
-        CALL CompareKeyword              // 'END'?
-        JNE BodyChar                     // No!
-        CALL Trim                        // Empty characters?
-        CMP ECX,0                        // All characters handled?
-        JZ Finish                        // Yes!
-      BodyEndCase:
-        MOV EAX,[KCase]
-        CALL CompareKeyword              // 'END CASE'?
-        JNE BodyEndIf                    // No!
-        CMP CaseDeep,0
-        JE BodyLE
-        DEC CaseDeep
-        JMP BodyLE
-      BodyEndIf:
-        MOV EAX,[KIf]
-        CALL CompareKeyword              // 'END IF'?
-        JNE BodyEndLoop                  // No!
-        CMP IfDeep,0
-        JE BodyLE
-        DEC IfDeep
-        JMP BodyLE
-      BodyEndLoop:
-        MOV EAX,[KLoop]
-        CALL CompareKeyword              // 'END LOOP'?
-        JNE BodyEndRepeat                // No!
-        CMP LoopDeep,0
-        JE BodyLE
-        DEC LoopDeep
-        JMP BodyLE
-      BodyEndRepeat:
-        MOV EAX,[KRepeat]
-        CALL CompareKeyword              // 'END REPEAT'?
-        JNE BodyEndWhile                 // No!
-        CMP RepeatDeep,0
-        JE BodyLE
-        DEC RepeatDeep
-        JMP BodyLE
-      BodyEndWhile:
-        MOV EAX,[KWhile]
-        CALL CompareKeyword              // 'END WHILE'?
-        JNE BodyEndCompound              // No!
-        CMP WhileDeep,0
-        JE BodyLE
-        DEC WhileDeep
-        JMP BodyLE
-      BodyEndCompound:                   // 'END'
-        CMP CompoundDeep,0
-        JE BodyLE
-        DEC CompoundDeep
-        JMP BodyLE
+        BodyL:
+          CALL Trim                        // Empty characters?
+          JE BodyLE                        // Yes!
+          CALL MoveString                  // Quoted string?
+          JE BodyLE                        // Yes!
+          MOV EAX,[KBegin]
+          CALL CompareKeyword              // 'BEGIN'?
+          JNE BodyCase                     // No!
+          INC CompoundDeep
+          JMP BodyLE
+        BodyCase:
+          MOV EAX,[KCase]
+          CALL CompareKeyword              // 'CASE'?
+          JNE BodyIf                       // No!
+          CALL Trim                        // Empty characters?
+          CMP ECX,0                        // All characters handled?
+          JZ Finish                        // Yes!
+          CMP WORD PTR [ESI],'('           // CASE as function?
+          JE BodyLE                        // Yes!
+          INC CaseDeep
+          JMP BodyLE
+        BodyIf:
+          MOV EAX,[KIf]
+          CALL CompareKeyword              // 'IF'?
+          JNE BodyLoop                     // No!
+          CALL Trim                        // Empty characters?
+          CMP ECX,0                        // All characters handled?
+          JZ Finish                        // Yes!
+          CMP WORD PTR [ESI],'('           // IF as function?
+          JE BodyLE                        // Yes!
+          PUSH ESI
+          PUSH ECX
+          MOV EAX,[KNot]
+          CALL CompareKeyword              // Step over possible 'NOT'
+          CMP ECX,0                        // All characters handled?
+          JZ BodyIf2                       // Yes!
+          CALL Trim                        // Step over spaces
+          CMP ECX,0                        // All characters handled?
+          JZ BodyIf2                       // Yes!
+          MOV EAX,[KExists]
+          CALL CompareKeyword              // Step over possible 'EXISTS'
+          JE BodyIf3
+        BodyIf2:
+          CMP EAX,0                        // Clear ZF
+        BodyIf3:
+          POP ECX
+          POP ESI
+          JE BodyLE
+          INC IfDeep
+          JMP BodyLE
+        BodyLoop:
+          MOV EAX,[KLoop]
+          CALL CompareKeyword              // 'LOOP'?
+          JNE BodyRepeat                   // No!
+          INC LoopDeep
+          JMP BodyLE
+        BodyRepeat:
+          MOV EAX,[KRepeat]
+          CALL CompareKeyword              // 'REPEAT'?
+          JNE BodyWhile                    // No!
+          INC RepeatDeep
+          JMP BodyLE
+        BodyWhile:
+          MOV EAX,[KWhile]
+          CALL CompareKeyword              // 'WHILE'?
+          JNE BodyEnd                      // No!
+          INC WhileDeep
+          JMP BodyLE
+        BodyEnd:
+          MOV EAX,[KEnd]
+          CALL CompareKeyword              // 'END'?
+          JNE BodyChar                     // No!
+          CALL Trim                        // Empty characters?
+          CMP ECX,0                        // All characters handled?
+          JZ Finish                        // Yes!
+        BodyEndCase:
+          MOV EAX,[KCase]
+          CALL CompareKeyword              // 'END CASE'?
+          JNE BodyEndIf                    // No!
+          CMP CaseDeep,0
+          JE BodyLE
+          DEC CaseDeep
+          JMP BodyLE
+        BodyEndIf:
+          MOV EAX,[KIf]
+          CALL CompareKeyword              // 'END IF'?
+          JNE BodyEndLoop                  // No!
+          CMP IfDeep,0
+          JE BodyLE
+          DEC IfDeep
+          JMP BodyLE
+        BodyEndLoop:
+          MOV EAX,[KLoop]
+          CALL CompareKeyword              // 'END LOOP'?
+          JNE BodyEndRepeat                // No!
+          CMP LoopDeep,0
+          JE BodyLE
+          DEC LoopDeep
+          JMP BodyLE
+        BodyEndRepeat:
+          MOV EAX,[KRepeat]
+          CALL CompareKeyword              // 'END REPEAT'?
+          JNE BodyEndWhile                 // No!
+          CMP RepeatDeep,0
+          JE BodyLE
+          DEC RepeatDeep
+          JMP BodyLE
+        BodyEndWhile:
+          MOV EAX,[KWhile]
+          CALL CompareKeyword              // 'END WHILE'?
+          JNE BodyEndCompound              // No!
+          CMP WhileDeep,0
+          JE BodyLE
+          DEC WhileDeep
+          JMP BodyLE
+        BodyEndCompound:                   // 'END'
+          CMP CompoundDeep,0
+          JE BodyLE
+          DEC CompoundDeep
+          JMP BodyLE
 
-      BodyChar:
-        CMP ECX,0                        // All characters handled?
-        JZ Finish                        // Yes!
-        CALL Trim                        // Empty characters?
-        JE BodyLE                        // Yes!
-        CALL MoveString                  // Quoted string?
-        JE BodyLE                        // Yes!
-        LODSW                            // Character -> AX
-        DEC ECX                          // One character handled
-        CMP AX,'('                       // Bracket in SQL?
-        JE BodyBracket                   // Yes!
-        MOV EBX,[Terminators]            // Terminating characters
-      BodyCharTL:
-        CMP WORD PTR [EBX],0             // All terminators checked?
-        JE BodyChar                      // Yes!
-        CMP AX,[EBX]                     // Charcter in SQL = Terminator?
-        JE BodyCharE                    // Yes!
-        ADD EBX,2                        // Next terminator
-        JMP BodyCharTL
-      BodyCharE:
-        CMP AX,';'                       // SQL Delimiter?
-        JNE BodyLE                       // No!
-        CMP CaseDeep,0                   // Still inside CASE?
-        JNE BodyLE                       // Yes!
-        CMP CompoundDeep,0               // Still inside BEGIN END?
-        JNE BodyLE                       // Yes!
-        CMP IfDeep,0                     // Still inside IF?
-        JNE BodyLE                       // Yes!
-        CMP LoopDeep,0                   // Still inside LOOP?
-        JNE BodyLE                       // Yes!
-        CMP RepeatDeep,0                 // Still inside REPEAT?
-        JNE BodyLE                       // Yes!
-        CMP WhileDeep,0                  // Still inside WHILE?
-        JNE BodyLE                       // Yes!
-        JMP Complete
+        BodyChar:
+          CMP ECX,0                        // All characters handled?
+          JZ Finish                        // Yes!
+          CALL Trim                        // Empty characters?
+          JE BodyLE                        // Yes!
+          CALL MoveString                  // Quoted string?
+          JE BodyLE                        // Yes!
+          LODSW                            // Character -> AX
+          DEC ECX                          // One character handled
+          CMP AX,'('                       // Bracket in SQL?
+          JE BodyBracket                   // Yes!
+          MOV EBX,[Terminators]            // Terminating characters
+        BodyCharTL:
+          CMP WORD PTR [EBX],0             // All terminators checked?
+          JE BodyChar                      // Yes!
+          CMP AX,[EBX]                     // Charcter in SQL = Terminator?
+          JE BodyCharE                    // Yes!
+          ADD EBX,2                        // Next terminator
+          JMP BodyCharTL
+        BodyCharE:
+          CMP AX,';'                       // SQL Delimiter?
+          JNE BodyLE                       // No!
+          CMP CaseDeep,0                   // Still inside CASE?
+          JNE BodyLE                       // Yes!
+          CMP CompoundDeep,0               // Still inside BEGIN END?
+          JNE BodyLE                       // Yes!
+          CMP IfDeep,0                     // Still inside IF?
+          JNE BodyLE                       // Yes!
+          CMP LoopDeep,0                   // Still inside LOOP?
+          JNE BodyLE                       // Yes!
+          CMP RepeatDeep,0                 // Still inside REPEAT?
+          JNE BodyLE                       // Yes!
+          CMP WhileDeep,0                  // Still inside WHILE?
+          JNE BodyLE                       // Yes!
+          JMP Complete
 
-      BodyBracket:
-        INC BracketDeep                  // One open bracket found
-      BodyBracketL:
-        CALL Trim                        // Step over empty characters
-        CMP ECX,0                        // All characters handled?
-        JZ BodyLE                        // Yes!
-        CALL MoveString                  // Step over quoted string
-        CMP ECX,0                        // All characters handled?
-        JZ BodyLE                        // Yes!
-        LODSW                            // Character -> AX
-        DEC ECX                          // One character handled
-        CMP AX,'('                       // Another open bracket?
-        JE BodyBracket                   // Yes!
-        CMP AX,')'                       // Closing bracket?
-        JNE BodyBracketL                 // No!
-        DEC BracketDeep                  // One bracket closed
-        CMP BracketDeep,0                // All brackets are closed?
-        JNE BodyBracketL                 // No!
+        BodyBracket:
+          INC BracketDeep                  // One open bracket found
+        BodyBracketL:
+          CALL Trim                        // Step over empty characters
+          CMP ECX,0                        // All characters handled?
+          JZ BodyLE                        // Yes!
+          CALL MoveString                  // Step over quoted string
+          CMP ECX,0                        // All characters handled?
+          JZ BodyLE                        // Yes!
+          LODSW                            // Character -> AX
+          DEC ECX                          // One character handled
+          CMP AX,'('                       // Another open bracket?
+          JE BodyBracket                   // Yes!
+          CMP AX,')'                       // Closing bracket?
+          JNE BodyBracketL                 // No!
+          DEC BracketDeep                  // One bracket closed
+          CMP BracketDeep,0                // All brackets are closed?
+          JNE BodyBracketL                 // No!
 
-      BodyLE:
-        CMP ECX,0                        // All characters handled?
-        JNZ BodyL                        // No!
-        JMP Finish
+        BodyLE:
+          CMP ECX,0                        // All characters handled?
+          JNZ BodyL                        // No!
+          JMP Finish
 
-      // -------------------
+        // -------------------
 
-      Complete:
-        CMP Delimited,0                  // Assigned(Delimited)?
-        JE Complete2                     // No!
-        MOV EAX,[Delimited]
-        MOV BYTE PTR [EAX],True          // Complete statement!
+        Complete:
+          CMP Delimited,0                  // Assigned(Delimited)?
+          JE Complete2                     // No!
+          MOV EAX,[Delimited]
+          MOV BYTE PTR [EAX],True          // Complete statement!
 
-      Complete2:
-        CMP ECX,2                        // Are there two characters left in SQL?
-        JL Complete3                     // No!
-        MOV EAX,[ESI]
-        CMP EAX,$000A000D                // CarriageReturn + LineFeed?
-        JNE Complete3                    // No!
-        ADD ESI,4                        // Step over CarriageReturn + LineFeed
-        SUB ECX,2                        // Ignore CarriageReturn + LineFeed
-        JMP Finish
+        Complete2:
+          CMP ECX,2                        // Are there two characters left in SQL?
+          JL Complete3                     // No!
+          MOV EAX,[ESI]
+          CMP EAX,$000A000D                // CarriageReturn + LineFeed?
+          JNE Complete3                    // No!
+          ADD ESI,4                        // Step over CarriageReturn + LineFeed
+          SUB ECX,2                        // Ignore CarriageReturn + LineFeed
+          JMP Finish
 
-      Complete3:
-        CMP ECX,1                        // Is there one characters left in SQL?
-        JL Finish                        // No!
-        MOV AX,[ESI]
-        CMP AX,13                        // Ending CarriageReturn?
-        JE Complete4                     // Yes!
-        CMP AX,10                        // Ending LineFeed?
-        JE Complete4                     // Yes!
-        JMP Finish
+        Complete3:
+          CMP ECX,1                        // Is there one characters left in SQL?
+          JL Finish                        // No!
+          MOV AX,[ESI]
+          CMP AX,13                        // Ending CarriageReturn?
+          JE Complete4                     // Yes!
+          CMP AX,10                        // Ending LineFeed?
+          JE Complete4                     // Yes!
+          JMP Finish
 
-      Complete4:
-        ADD ESI,2                        // Step over CarriageReturn / LineFeed
-        DEC ECX                          // Ignore CarriageReturn / LineFeed
-        JMP Finish
+        Complete4:
+          ADD ESI,2                        // Step over CarriageReturn / LineFeed
+          DEC ECX                          // Ignore CarriageReturn / LineFeed
+          JMP Finish
 
-      // -------------------
+        // -------------------
 
-      Finish:
-        POP EBX
-        SUB ESI,EBX
-        SHR ESI,1                        // 2 bytes = 1 character
-        MOV @Result,ESI
+        Finish:
+          POP EBX
+          SUB ESI,EBX
+          SHR ESI,1                        // 2 bytes = 1 character
+          MOV @Result,ESI
 
-        POP EBX
-        POP EDI
-        POP ESI
-    end;
+          POP EBX
+          POP EDI
+          POP ESI
+      end;
+  except
+    on E: Exception do
+      begin
+        SetString(S, SQL, Length);
+        raise Exception.Create(E.Message + '  (' + S + ')');
+      end;
+  end;
 end;
 
 function SQLStmtToCaption(const SQL: string; const Len: Integer = 50): string;

@@ -74,7 +74,7 @@ object DTables: TDTables
     Top = 8
     Width = 321
     Height = 325
-    ActivePage = TSExtras
+    ActivePage = TSTables
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
