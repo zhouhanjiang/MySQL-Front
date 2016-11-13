@@ -2936,13 +2936,14 @@ begin
         SHR EBX,1                        // 2 bytes = 1 character
         MOV SCL,EBX                      // StartingCommentLength
 
-        MOV ESI,SQL                      // Read characters from SQL
-        MOV EAX,Length
+        MOV ESI,SQL                      // Go to the end of SQL:
+        MOV EAX,Length                   // ESI := SQL[Length - 1]
         DEC EAX                          // Last character in SQL
         SHL EAX,1                        // 1 character = 2 bytes
         ADD ESI,EAX
         MOV ECX,Length
         SUB ECX,EBX                      // Length of SQL - StartingCommentLength
+        JZ Finish                        // The whole Stmt is a comment!
 
       EndL:
         MOV AX,[ESI]                     // Character in SQL

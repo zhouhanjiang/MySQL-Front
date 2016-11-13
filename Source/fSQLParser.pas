@@ -13958,7 +13958,6 @@ var
   Text: PChar;
 begin
   if ((Token.UsageType in [utKeyword, utOperator])
-    or (Token.DbIdentType = ditFunction)
     or (Token.UsageType = utDbIdent) and (Token.KeywordIndex = kiCURRENT_DATE)
     or (Token.UsageType = utDbIdent) and (Token.KeywordIndex = kiCURRENT_TIME)
     or (Token.UsageType = utDbIdent) and (Token.KeywordIndex = kiCURRENT_TIMESTAMP)
@@ -18212,6 +18211,7 @@ begin
           begin
             CompletionList.AddList(ditTable, TokenPtr(Nodes.TableIdent)^.AsString);
             CompletionList.AddList(ADbIdentType, '', TokenPtr(Nodes.TableIdent)^.AsString);
+            SetError(PE_IncompleteStmt);
             Nodes.Ident := 0;
           end
           else
@@ -18232,6 +18232,7 @@ begin
               if (EndOfStmt(CurrentToken)) then
               begin
                 CompletionList.AddList(ADbIdentType, TokenPtr(Nodes.DatabaseIdent)^.AsString, TokenPtr(Nodes.TableIdent)^.AsString);
+                SetError(PE_IncompleteStmt);
                 Nodes.Ident := 0;
               end
               else

@@ -174,6 +174,7 @@ type
       RunExecute: TEvent;
       function GetCommandText(): string;
       function GetIsRunning(): Boolean;
+      function GetNextCommandText(): string;
     protected
       CLStmts: array of Boolean;
       DataSet: TMySQLQuery;
@@ -194,6 +195,7 @@ type
       procedure Synchronize(); virtual;
       property CommandText: string read GetCommandText;
       property IsRunning: Boolean read GetIsRunning;
+      property NextCommandText: string read GetNextCommandText;
     public
       constructor Create(const AConnection: TMySQLConnection); overload; virtual;
       destructor Destroy(); override;
@@ -227,6 +229,7 @@ type
     FConnected: Boolean;
     FErrorCode: Integer;
     FErrorMessage: string;
+    FErrorSQL: string;
     FHost: string;
     FHostInfo: string;
     FHTTPAgent: string;
@@ -257,8 +260,6 @@ type
     InOnResult: Boolean;
     SilentCount: Integer;
     SynchronCount: Integer;
-    function GetCommandText(): string;
-    function UseCompression(): Boolean; inline;
     function GetNextCommandText(): string;
     function GetServerDateTime(): TDateTime;
     function GetHandle(): MySQLConsts.MYSQL;
@@ -270,6 +271,7 @@ type
     procedure SetPassword(const APassword: string);
     procedure SetPort(const APort: Word);
     procedure SetUsername(const AUsername: string);
+    function UseCompression(): Boolean; inline;
     function UseSyncThread(): Boolean;
   protected
     FDatabaseName: string;
@@ -354,12 +356,12 @@ type
     property AnsiQuotes: Boolean read FAnsiQuotes write SetAnsiQuotes;
     property BugMonitor: TMySQLMonitor read FBugMonitor;
     property CodePage: Cardinal read FCodePage;
-    property CommandText: string read GetCommandText;
     property DataFileAllowed: Boolean read GetDataFileAllowed;
     property HostInfo: string read FHostInfo;
     property HTTPAgent: string read FHTTPAgent write FHTTPAgent;
     property ErrorCode: Integer read FErrorCode;
     property ErrorMessage: string read FErrorMessage;
+    property ErrorSQL: string read FErrorSQL;
     property ExecutedStmts: Integer read FExecutedStmts;
     property ExecutionTime: TDateTime read FExecutionTime;
     property FormatSettings: TFormatSettings read FFormatSettings;
@@ -368,9 +370,9 @@ type
     property Lib: TMySQLLibrary read FLib;
     property MariaDBVersion: Integer read FMariaDBVersion;
     property MySQLVersion: Integer read FMySQLVersion;
-    property NextCommandText: string read GetNextCommandText;
     property MaxAllowedServerPacket: Integer read GetMaxAllowedServerPacket;
     property MultiStatements: Boolean read FMultiStatements;
+    property NextCommandText: string read GetNextCommandText;
     property RowsAffected: Int64 read FRowsAffected;
     property ServerDateTime: TDateTime read GetServerDateTime;
     property ServerVersionStr: string read FServerVersionStr;
@@ -1995,7 +1997,10 @@ begin
     StmtLength := SQLTrimStmt(PChar(@SQL[SQLIndex]), Integer(StmtLengths[StmtIndex]), Connection.MySQLVersion, StartingCommentLength, EndingCommentLength);
     if (SQL[SQLIndex + StartingCommentLength + StmtLength - 1] = ';') then
       Dec(StmtLength);
-    SetString(Result, PChar(@SQL[SQLIndex + StartingCommentLength]), StmtLength);
+    if (StmtLength = 0) then
+      Result := ''
+    else
+      SetString(Result, PChar(@SQL[SQLIndex + StartingCommentLength]), StmtLength);
   end;
 end;
 
@@ -2004,6 +2009,23 @@ begin
   Result := not Terminated
     and Assigned(RunExecute)
     and ((RunExecute.WaitFor(IGNORE) = wrSignaled) or not (State in [ssClose, ssReady]));
+end;
+
+function TMySQLConnection.TSyncThread.GetNextCommandText(): string;
+var
+  EndingCommentLength: Integer;
+  Len: Integer;
+  StartingCommentLength: Integer;
+  StmtLength: Integer;
+begin
+  if (StmtIndex + 1 = StmtLengths.Count) then
+    Result := ''
+  else
+  begin
+    StmtLength := Integer(StmtLengths[StmtIndex + 1]);
+    Len := SQLTrimStmt(SQL, SQLIndex, StmtLength, Connection.MySQLVersion, StartingCommentLength, EndingCommentLength);
+    Result := Copy(SQL, SQLIndex + Integer(StmtLengths[StmtIndex]) + StartingCommentLength, Len);
+  end;
 end;
 
 procedure TMySQLConnection.TSyncThread.Synchronize();
@@ -2254,6 +2276,7 @@ begin
   FExecutionTime := 0;
   FErrorCode := DS_ASYNCHRON;
   FErrorMessage := '';
+  FErrorSQL := '';
   FWarningCount := 0;
 
   if (Assigned(SyncThread) and (SyncThread.State <> ssClose)) then
@@ -2298,6 +2321,7 @@ begin
 
   FErrorCode := DS_ASYNCHRON;
   FErrorMessage := '';
+  FErrorSQL := '';
   FWarningCount := 0;
 
   if (not Assigned(SyncThread)) then
@@ -2330,6 +2354,10 @@ begin
 
   FErrorCode := AErrorCode;
   FErrorMessage := AErrorMessage;
+  if (not Assigned(SyncThread)) then
+    FErrorSQL := ''
+  else
+    FErrorSQL := SyncThread.CommandText + ';' + #13#10;
 
   if (SilentCount = 0) then
     if (not Assigned(FOnSQLError)) then
@@ -2370,10 +2398,8 @@ function TMySQLConnection.ExecuteSQL(const Mode: TSyncThread.TMode; const Synchr
   const SQL: string; const OnResult: TResultEvent = nil; const Done: TEvent = nil): Boolean;
 var
   CLStmt: TSQLCLStmt;
-  EndingCommentLength: Integer;
   SetNames: Boolean;
   SQLIndex: Integer;
-  StartingCommentLength: Integer;
   StmtIndex: Integer;
   StmtLength: Integer;
 begin
@@ -2381,9 +2407,9 @@ begin
   Assert(not Assigned(Done) or (Mode = smSQL));
 
   if (InOnResult) then
-    raise Exception.Create(SOutOfSync + ' (in OnResult): ' + CommandText);
+    raise Exception.Create(SOutOfSync + ' (in OnResult): ' + SyncThread.CommandText);
   if (InMonitor) then
-    raise Exception.Create(SOutOfSync + ' (in Monitor): ' + CommandText);
+    raise Exception.Create(SOutOfSync + ' (in Monitor): ' + SyncThread.CommandText);
 
   if (Assigned(SyncThread) and not (SyncThread.State in [ssClose, ssReady])) then
     Terminate();
@@ -2402,14 +2428,15 @@ begin
   SyncThread.StmtIndex := 0;
   SyncThread.StmtLengths.Clear();
 
-  FErrorCode := DS_ASYNCHRON; FErrorMessage := ''; FWarningCount := 0;
+  FErrorCode := DS_ASYNCHRON;
+  FErrorMessage := '';
+  FErrorSQL := '';
+  FWarningCount := 0;
   FSuccessfullExecutedSQLLength := 0; FExecutedStmts := 0;
   FRowsAffected := -1; FExecutionTime := 0;
 
-  SQLTrimStmt(PChar(SQL), Length(SQL), MySQLVersion, StartingCommentLength, EndingCommentLength);
-
-  SQLIndex := 1 + StartingCommentLength;
-  while (SQLIndex < Length(SyncThread.SQL) - EndingCommentLength) do
+  SQLIndex := 1;
+  while (SQLIndex < Length(SyncThread.SQL)) do
   begin
     StmtLength := SQLStmtLength(PChar(@SQL[SQLIndex]), Length(SQL) - (SQLIndex - 1));
     SyncThread.StmtLengths.Add(Pointer(StmtLength));
@@ -2485,21 +2512,6 @@ begin
   Result := FConnected;
 end;
 
-function TMySQLConnection.GetCommandText(): string;
-var
-  StmtLength: Integer;
-begin
-  if (not Assigned(SyncThread) or (SyncThread.StmtIndex = SyncThread.StmtLengths.Count)) then
-    Result := ''
-  else
-  begin
-    StmtLength := Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]);
-    if ((StmtLength > 0) and (SyncThread.SQL[SyncThread.SQLIndex + StmtLength - 1] = ';')) then
-      Dec(StmtLength);
-    SetString(Result, PChar(@SyncThread.SQL[SyncThread.SQLIndex]), StmtLength);
-  end;
-end;
-
 function TMySQLConnection.GetDataFileAllowed(): Boolean;
 begin
   Result := Assigned(Lib) and not (Lib.FLibraryType in [ltHTTP]);
@@ -2557,20 +2569,11 @@ begin
 end;
 
 function TMySQLConnection.GetNextCommandText(): string;
-var
-  EndingCommentLength: Integer;
-  Len: Integer;
-  StartingCommentLength: Integer;
-  StmtLength: Integer;
 begin
-  if (not InUse() or not Assigned(SyncThread) or (SyncThread.StmtIndex + 1 = SyncThread.StmtLengths.Count)) then
+  if (not Assigned(SyncThread) or not SyncThread.IsRunning) then
     Result := ''
   else
-  begin
-    StmtLength := Integer(SyncThread.StmtLengths[SyncThread.StmtIndex + 1]);
-    Len := SQLTrimStmt(SyncThread.SQL, SyncThread.SQLIndex, StmtLength, MySQLVersion, StartingCommentLength, EndingCommentLength);
-    Result := Copy(SyncThread.SQL, SyncThread.SQLIndex + Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]) + StartingCommentLength, Len);
-  end;
+    Result := SyncThread.NextCommandText;
 end;
 
 function TMySQLConnection.GetServerDateTime(): TDateTime;
@@ -3199,16 +3202,6 @@ begin
     end;
 
     if (Assigned(Lib.mysql_session_track_get_first) and Assigned(Lib.mysql_session_track_get_next)) then
-    begin
-//      if (Lib.mysql_session_track_get_first(SyncThread.LibHandle, SESSION_TRACK_SCHEMA, Data, Size) = 0) then
-//      begin
-//        Len := AnsiCharToWideChar(CodePage, Data, Size, nil, 0);
-//        SetLength(Name, Len);
-//        AnsiCharToWideChar(CodePage, Data, Size, PChar(Name), Len);
-//        S := '--> Database selected: ' + Name;
-//        WriteMonitor(PChar(S), Length(S), ttInfo);
-//        DoDatabaseChange(Name);
-//      end;
       if (Lib.mysql_session_track_get_first(SyncThread.LibHandle, SESSION_TRACK_SYSTEM_VARIABLES, Data, Size) = 0) then
         repeat
           Len := AnsiCharToWideChar(CodePage, Data, Size, nil, 0);
@@ -3222,7 +3215,6 @@ begin
             DoVariableChange(Name, Value);
           end;
         until (Lib.mysql_session_track_get_next(SyncThread.LibHandle, SESSION_TRACK_SYSTEM_VARIABLES, Data, Size) <> 0);
-    end;
 
     if (SyncThread.CLStmts[SyncThread.StmtIndex]) then
     begin
@@ -3570,7 +3562,7 @@ begin
     {$ENDIF}
     if (TempSyncThread.IsRunning) then
     begin
-      S := '----> Connection Terminated <----';
+      S := '--> Connection terminated';
       WriteMonitor(PChar(S), Length(S), ttInfo);
     end;
     TempSyncThread.Terminate();

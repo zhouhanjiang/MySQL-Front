@@ -1261,7 +1261,7 @@ begin
     if (not Data and (DataHandle.Connection.RowsAffected >= 0)) then
       XML.AddChild('rows_affected').Text := IntToStr(DataHandle.Connection.RowsAffected);
     try
-      XML.AddChild('sql').Text := DataHandle.Connection.CommandText;
+      XML.AddChild('sql').Text := CommandText;
       if (DataHandle.Connection.Info <> '') then
         XML.AddChild('info').Text := DataHandle.Connection.Info;
       XML.AddChild('execution_time').Text := FloatToStr(DataHandle.Connection.ExecutionTime, FileFormatSettings);
@@ -1278,9 +1278,9 @@ begin
 
   if (DataHandle.Connection.ErrorCode > 0) then
   begin
-    if ((DataHandle.Connection.CommandText <> '') and (Length(FSynMemo.Text) > Length(DataHandle.Connection.CommandText) + 5)) then
+    if ((CommandText <> '') and (Length(FSynMemo.Text) > Length(CommandText) + 5)) then
     begin
-      SQL := DataHandle.Connection.CommandText;
+      SQL := CommandText;
       Len := SQLStmtLength(PChar(SQL), Length(SQL));
       SQLTrimStmt(SQL, 1, Len, FSession.Session.Connection.MySQLVersion, StartingCommentLength, EndingCommentLength);
       FSynMemo.SelStart := FSession.aDRunExecuteSelStart + DataHandle.Connection.SuccessfullExecutedSQLLength + StartingCommentLength;
@@ -1295,7 +1295,7 @@ begin
       Msg := Msg
         + #10#10
         + 'Statement:' + #10
-        + DataHandle.Connection.CommandText;
+        + CommandText;
 
       MsgBoxCheck(Msg, Preferences.LoadStr(47), MB_OK + MB_ICONWARNING,
         ID_OK, '{46aa8b98-74ae-4c10-9b64-ceded860b3d4}');
@@ -3648,6 +3648,10 @@ var
   SQL: string;
 begin
   Window.ActiveControl := ActiveSynMemo;
+
+  // Debug 2016-11-12
+  if (not Assigned(ActiveSynMemo)) then
+    raise ERangeError.Create(SRangeError);
 
   if (ActiveSynMemo.SelAvail) then
     SQL := ActiveSynMemo.SelText
@@ -8055,25 +8059,25 @@ var
   J: Integer;
   Routine: TSRoutine;
 begin
-  if (not Session.Connection.InUse()) then
-    case (SelectedImageIndex) of
-      iiProcedure,
-      iiFunction:
-        begin
-          Routine := TSRoutine(FNavigator.Selected.Data);
+  case (SelectedImageIndex) of
+    iiProcedure,
+    iiFunction:
+      begin
+        Routine := TSRoutine(FNavigator.Selected.Data);
 
-          FObjectIDEGrid.DataSource.DataSet := Routine.InputDataSet;
+        FObjectIDEGrid.DataSource.DataSet := Routine.InputDataSet;
 
-          for I := 0 to Routine.ParameterCount - 1 do
-            if (Routine.Parameter[I].FieldType = mfEnum) then
-              for J := 0 to Length(Routine.Parameter[I].Items) - 1 do
-                FObjectIDEGrid.Columns[I].PickList.Add(Routine.Parameter[I].Items[J]);
-        end;
-      iiTrigger:
+        for I := 0 to Routine.ParameterCount - 1 do
+          if (Routine.Parameter[I].FieldType = mfEnum) then
+            for J := 0 to Length(Routine.Parameter[I].Items) - 1 do
+              FObjectIDEGrid.Columns[I].PickList.Add(Routine.Parameter[I].Items[J]);
+      end;
+    iiTrigger:
+      if (not Session.Connection.InUse()) then
         FObjectIDEGrid.DataSource.DataSet := TSTrigger(FNavigator.Selected.Data).InputDataSet;
-      else
-        FObjectIDEGrid.DataSource.DataSet := nil;
-    end;
+    else
+      FObjectIDEGrid.DataSource.DataSet := nil;
+  end;
 
   if (Assigned(FObjectIDEGrid.DataSource.DataSet) and not FObjectIDEGrid.DataSource.Enabled) then
     FObjectIDEGrid.DataSource.Enabled := True;
@@ -12151,6 +12155,8 @@ begin
       if ((View = vBrowser)
         and Assigned(FNavigator.Selected) and (Event.Item = FNavigator.Selected.Data)) then
         Wanted.Update := UpdateAfterAddressChanged;
+      if ((View = vIDE) and (Event.Item is TSFunction)) then
+        PContentChange(nil);
     end;
   end;
 
@@ -12502,12 +12508,18 @@ begin
     else if (Window.ActiveControl = ActiveSynMemo) then
       StatusBar.Panels[sbNavigation].Text := IntToStr(ActiveSynMemo.CaretXY.Line) + ':' + IntToStr(ActiveSynMemo.CaretXY.Char)
     else if (Window.ActiveControl = ActiveListView) then
+    begin
+      // Debug 2016-11-13
+      if (not (ActiveListView is TListView)) then
+        raise ERangeError.Create(SRangeError);
+
       if (Assigned(ActiveListView.Selected) and (TObject(ActiveListView.Selected.Data) is TSKey)) then
         StatusBar.Panels[sbNavigation].Text := Preferences.LoadStr(377) + ': ' + IntToStr(TSKey(ActiveListView.Selected.Data).Index + 1)
       else if (Assigned(ActiveListView.Selected) and (TObject(ActiveListView.Selected.Data) is TSTableField)) then
         StatusBar.Panels[sbNavigation].Text := Preferences.LoadStr(164) + ': ' + IntToStr(TSTableField(ActiveListView.Selected.Data).Index)
       else
-        StatusBar.Panels[sbNavigation].Text := ''
+        StatusBar.Panels[sbNavigation].Text := '';
+    end
     else if ((Window.ActiveControl = ActiveDBGrid) and Assigned(ActiveDBGrid.SelectedField) and (ActiveDBGrid.DataSource.DataSet.RecNo >= 0)) then
       StatusBar.Panels[sbNavigation].Text := IntToStr(ActiveDBGrid.DataSource.DataSet.RecNo + 1) + ':' + IntToStr(ActiveDBGrid.SelectedField.FieldNo)
     else if (Window.ActiveControl = FText) then

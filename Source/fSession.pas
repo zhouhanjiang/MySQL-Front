@@ -5056,7 +5056,7 @@ begin
       vaMerge: SQL := SQL + 'ALGORITHM=MERGE ';
       vaTemptable: SQL := SQL + 'ALGORITHM=TEMPTABLE ';
     end;
-    SQL := SQL + 'VIEW ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name);
+    SQL := SQL + 'VIEW ' + Session.Connection.EscapeIdentifier(Name);
     SQL := SQL + ' AS ' + SQLTrimStmt(Stmt, Session.Connection.MySQLVersion);
     if (SQL[Length(SQL)] = ';') then
       Delete(SQL, Length(SQL), 1);
@@ -8626,7 +8626,7 @@ begin
         Session.FInformationSchema := Database[Index];
       end
       else
-        Add(TSDatabase.Create(Self, Name));
+        Index := Add(TSDatabase.Create(Self, Name));
 
       if (Filtered) then
         Session.SendEvent(etItemValid, Session, Self, Database[Index]);
@@ -11272,12 +11272,14 @@ begin
   SendEvent(etMonitor);
 end;
 
-procedure TSSession.MonitorExecutedStmts(const Connection: TMySQLConnection; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
+procedure TSSession.MonitorExecutedStmts(const Connection: TMySQLConnection;
+  const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
 var
   Database: TSDatabase;
   DatabaseName: string;
   DDLStmt: TSQLDDLStmt;
   DMLStmt: TSQLDMLStmt;
+  EndingCommentLength: Integer;
   Event: TSEvent;
   First: Boolean;
   Index: Integer;
@@ -11289,12 +11291,14 @@ var
   Process: TSProcess;
   Routine: TSRoutine;
   SQL: string;
+  StartingCommentLength: Integer;
   Table: TSTable;
   Trigger: TSTrigger;
   User: TSUser;
   Variable: TSVariable;
 begin
-  if (Now() <= ParseEndDate) then
+  if ((Now() <= ParseEndDate)
+    and (SQLTrimStmt(Text, Len, Connection.MySQLVersion, StartingCommentLength, EndingCommentLength) > 0)) then
   begin
     SetString(SQL, Text, Len);
     if ((Connection.ErrorCode = ER_PARSE_ERROR) and SQLParser.ParseSQL(SQL)) then
@@ -11517,7 +11521,11 @@ begin
                       and (NextDDLStmt.ObjectName = DDLStmt.ObjectName)) then
                       // will be handled in the next Stmt
                     else
-                      Database.Triggers.Delete(Database.TriggerByName(DDLStmt.ObjectName));
+                    begin
+                      Trigger := Database.TriggerByName(DDLStmt.ObjectName);
+                      if (Assigned(Trigger)) then
+                        Database.Triggers.Delete(Trigger);
+                    end;
                   end;
               end;
             otEvent:
@@ -11927,7 +11935,7 @@ begin
           else if ((TableNameCmp(ObjectName, 'USER_PRIVILEGES') = 0)) then
             Result := Users.Build(DataSet, True, not SQLParseKeyword(Parse, 'GROUP BY') and not SQLParseEnd(Parse))
           else
-            raise EConvertError.CreateFmt(SUnknownSQLStmt, [Connection.CommandText]);
+            raise EConvertError.CreateFmt(SUnknownSQLStmt, [CommandText]);
         end
         else if (Databases.NameCmp(DatabaseName, PERFORMANCE_SCHEMA) = 0) then
         begin
@@ -12064,7 +12072,7 @@ begin
         Result := DatabaseByName(DatabaseName).Triggers.Build(DataSet, False, not SQLParseEnd(Parse));
       end
       else
-        raise EConvertError.CreateFmt(SUnknownSQLStmt, [Connection.CommandText]);
+        raise EConvertError.CreateFmt(SUnknownSQLStmt, [CommandText]);
     end
     else if (SQLParseKeyword(Parse, 'HELP')) then
     begin
