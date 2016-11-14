@@ -410,10 +410,7 @@ var
   PageIndex: Integer;
 begin
   if (Assigned(Export)) then
-  begin
-    Export.WaitFor();
-    FreeAndNil(Export);
-  end;
+    Export.Terminate();
 
   for PageIndex := PageControl.ActivePageIndex - 1 downto 0 do
     if (PageControl.Pages[PageIndex].Enabled) then
@@ -2027,6 +2024,7 @@ begin
 
   CheckActivePageChange(TSExecute.PageIndex);
 
+  FBForward.Enabled := False;
   FBForward.Default := False;
   FBCancel.Default := True;
   ActiveControl := FBCancel;

@@ -167,10 +167,7 @@ var
   PageIndex: Integer;
 begin
   if (Assigned(Search)) then
-  begin
-    Search.WaitFor();
-    FreeAndNil(Search);
-  end;
+    Search.Terminate();
 
   for PageIndex := PageControl.ActivePageIndex - 1 downto 0 do
     if (PageControl.Pages[PageIndex].Enabled) then
@@ -923,6 +920,7 @@ begin
   else
     SetControlCursor(GProgress, crSQLWait);
 
+  FBForward.Enabled := False;
   FBForward.Default := False;
   FBCancel.Default := True;
   ActiveControl := FBCancel;

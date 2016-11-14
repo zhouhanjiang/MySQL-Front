@@ -129,11 +129,6 @@ begin
   FUDUserConnections.Position := NewUser.UserConnections;
 
   FSource.Text := User.Source;
-
-  PageControl.Visible := True;
-  PSQLWait.Visible := not PageControl.Visible;
-
-  ActiveControl := FName;
 end;
 
 function TDUser.Execute(): Boolean;
@@ -161,8 +156,8 @@ end;
 
 procedure TDUser.FBRightsDeleteClick(Sender: TObject);
 begin
-  NewUser.DeleteRight(NewUser.Rights[FRights.ItemIndex]);
-  FRightsRefresh(Sender);
+  NewUser.DeleteRight(FRights.Selected.Data);
+  FRights.DeleteSelected();
 
   FBOkCheckEnabled(Sender);
 end;
@@ -171,7 +166,7 @@ procedure TDUser.FBRightsEditClick(Sender: TObject);
 begin
   DUserRight.Session := Session;
   DUserRight.User := NewUser;
-  DUserRight.UserRight := NewUser.RightByCaption(FRights.Selected.Caption);
+  DUserRight.UserRight := FRights.Selected.Data;
   if (DUserRight.Execute()) then
   begin
     FRightsRefresh(Sender);
@@ -211,8 +206,13 @@ begin
 
   if (Event.EventType = etAfterExecuteSQL) then
   begin
-    PageControl.Visible := True;
-    PSQLWait.Visible := not PageControl.Visible;
+    if (not PageControl.Visible) then
+    begin
+      PageControl.Visible := True;
+      PSQLWait.Visible := not PageControl.Visible;
+      FBOkCheckEnabled(nil);
+      ActiveControl := FName;
+    end;
   end;
 end;
 
@@ -395,6 +395,7 @@ begin
       Item.ImageIndex := iiDatabase
     else
       Item.ImageIndex := iiServer;
+    Item.Data := NewUser.Rights[I];
   end;
 
   if (FRights.Items.Count > 0) then

@@ -62,17 +62,13 @@ object DUser: TDUser
     Top = 8
     Width = 321
     Height = 241
-    ActivePage = TSLimits
+    ActivePage = TSRights
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 42
-      ExplicitWidth = 0
-      ExplicitHeight = 195
       DesignSize = (
         313
         213)
@@ -148,10 +144,6 @@ object DUser: TDUser
     object TSRights: TTabSheet
       Caption = 'TSRights'
       OnShow = TSRightsShow
-      ExplicitLeft = 0
-      ExplicitTop = 42
-      ExplicitWidth = 0
-      ExplicitHeight = 195
       DesignSize = (
         313
         213)
@@ -173,7 +165,6 @@ object DUser: TDUser
         ViewStyle = vsReport
         OnDblClick = FRightsDblClick
         OnSelectItem = FRightsSelectItem
-        ExplicitHeight = 169
       end
       object FBRightsNew: TButton
         Left = 208
@@ -208,10 +199,6 @@ object DUser: TDUser
     end
     object TSLimits: TTabSheet
       Caption = 'TSLimits'
-      ExplicitLeft = 0
-      ExplicitTop = 42
-      ExplicitWidth = 0
-      ExplicitHeight = 195
       DesignSize = (
         313
         213)
@@ -325,10 +312,6 @@ object DUser: TDUser
     end
     object TSSource: TTabSheet
       Caption = 'TSSource'
-      ExplicitLeft = 0
-      ExplicitTop = 42
-      ExplicitWidth = 0
-      ExplicitHeight = 195
       DesignSize = (
         313
         213)
@@ -359,7 +342,6 @@ object DUser: TDUser
         ScrollHintFormat = shfTopToBottom
         WantReturns = False
         FontSmoothing = fsmNone
-        ExplicitHeight = 169
       end
     end
   end

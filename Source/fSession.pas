@@ -1971,9 +1971,21 @@ end;
 
 procedure TSObject.Build(const Field: TField);
 var
+  Len: Integer;
+  RBS: RawByteString;
   SQL: string;
 begin
-  SQL := Field.AsString;
+  if ((40100 <= Session.Connection.MySQLVersion) and (Session.Connection.MySQLVersion < 50000)
+    and (Field.DataType in BinaryDataTypes)) then
+  begin
+    // In MySQL 4.1, SHOW CREATE TABLE will be answered as binary field
+    RBS := Field.AsAnsiString;
+    Len := AnsiCharToWideChar(Session.Connection.CodePage, PAnsiChar(RBS), Length(RBS), nil, 0);
+    SetLength(SQL, Len);
+    AnsiCharToWideChar(Session.Connection.CodePage, PAnsiChar(RBS), Length(RBS), PChar(SQL), Len);
+  end
+  else
+    SQL := Field.AsString;
   if (SQL <> '') then
     SQL := SQL + ';' + #13#10;
   SetSource(SQL);
@@ -2364,17 +2376,6 @@ end;
 procedure TSDBObject.Build(const Field: TField);
 begin
   inherited;
-
-  if (Now() <= Session.ParseEndDate) then
-  begin
-    if (not Session.SQLParser.ParseSQL(Source)) then
-      Session.UnparsableSQL := Session.UnparsableSQL
-        + '# SetSource()' + #13#10
-        + '# Error: ' + Session.SQLParser.ErrorMessage + #13#10
-        + '# Hex: ' + SQLEscapeBin(TMySQLQuery(Field.DataSet).LibRow^[Field.FieldNo - 1], TMySQLQuery(Field.DataSet).LibLengths^[Field.FieldNo - 1], True) + #13#10
-        + Source + #13#10 + #13#10;
-    Session.SQLParser.Clear();
-  end;
 
   if (not (Self is TSBaseTable)) then
     SetReferences(Source);
@@ -4043,6 +4044,8 @@ begin
   except
     // Sometimes, the MySQL server sends wrong encoded field comments.
     // This code allow the user to handle this table - but the comments are wrong.
+    if (Session.Connection.MySQLVersion >= 50000) then
+      raise ERangeError.Create(SRangeError);
     SetString(RBS, TMySQLQuery(Field.DataSet).LibRow^[Field.FieldNo - 1], TMySQLQuery(Field.DataSet).LibLengths^[Field.FieldNo - 1]);
     SetSource(string(RBS));
   end;

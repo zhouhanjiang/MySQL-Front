@@ -411,10 +411,7 @@ var
   PageIndex: Integer;
 begin
   if (Assigned(Import)) then
-  begin
-    Import.WaitFor();
-    FreeAndNil(Import);
-  end;
+    Import.Terminate();
 
   for PageIndex := PageControl.ActivePageIndex - 1 downto 0 do
     if (PageControl.Pages[PageIndex].Enabled) then

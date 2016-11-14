@@ -673,7 +673,6 @@ begin
       begin
         CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
         CheckOnlineVersionThread.Execute();
-        CheckOnlineVersionThread.Free();
         FreeAndNil(CheckOnlineVersionThread);
       end;
     {$ENDIF}

@@ -175,10 +175,7 @@ var
   PageIndex: Integer;
 begin
   if (Assigned(Transfer)) then
-  begin
-    Transfer.WaitFor();
-    FreeAndNil(Transfer);
-  end;
+    Transfer.Terminate();
 
   for PageIndex := PageControl.ActivePageIndex - 1 downto 0 do
     if (PageControl.Pages[PageIndex].Enabled) then

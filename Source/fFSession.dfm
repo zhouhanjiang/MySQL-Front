@@ -503,7 +503,7 @@ object FSession: TFSession
       ParentBackground = False
       TabOrder = 1
       Visible = False
-      object SQueryBuilderSQL: TSplitter_Ext
+      object SQueryBuilderSynMemo: TSplitter_Ext
         Left = 0
         Top = 96
         Width = 467
