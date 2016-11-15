@@ -272,6 +272,17 @@ begin
     begin
       PageControl.Visible := True;
       PSQLWait.Visible := not PageControl.Visible;
+
+      // Debug 2016-11-15
+      if (not PageControl.Visible) then
+        raise ERangeError.Create(SRangeError);
+      if (PSQLWait.Visible) then
+        raise ERangeError.Create(SRangeError);
+      if (PageControl.ActivePage <> TSBasics) then
+        raise ERangeError.Create(SRangeError);
+      if (not FComment.Enabled) then
+        raise ERangeError.Create(SRangeError);
+
       ActiveControl := FComment;
       FBOkCheckEnabled(nil);
     end;

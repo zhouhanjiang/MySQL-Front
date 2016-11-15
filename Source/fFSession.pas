@@ -2436,11 +2436,8 @@ begin
         FFilterEnabled.Enabled := FFilter.Text <> '';
       end;
 
-      {.$IFNDEF Debug}
-      // FastMM reports a memory leak with this code. 07.11.2012
-      // http://feedback.activedbsoft.com/topics/1177-maybe-a-memory-leak-in-aqb/#comment-3790
-      FQueryBuilder.MetadataContainer.DefaultDatabaseNameStr := SelectedDatabase;
-      {.$ENDIF}
+      if (SelectedDatabase <> '') then
+        FQueryBuilder.MetadataContainer.DefaultDatabaseNameStr := SelectedDatabase;
 
       if (Window.ActiveControl = FNavigator) then
         FNavigatorSetMenuItems(FNavigator, FNavigator.Selected);
@@ -7432,7 +7429,12 @@ end;
 
 procedure TFSession.FQueryBuilderEditorChange(Sender: TObject);
 begin
-  FQueryBuilder.SQL := FQueryBuilderSynMemo.Lines.Text;
+  try
+    FQueryBuilder.SQL := FQueryBuilderSynMemo.Lines.Text;
+  except
+    on E: Exception do
+      raise Exception.Create(E.Message + '  SQL: ' + FQueryBuilderSynMemo.Lines.Text);
+  end;
   PostMessage(Handle, UM_POST_BUILDER_QUERY_CHANGE, 0, 0);
 end;
 
@@ -8543,7 +8545,11 @@ begin
       case (SelectedImageIndex) of
         iiServer:
           case (SortRec^.Index) of
-            1: Compare := Sign(SysUtils.StrToInt64(String1) - SysUtils.StrToInt64(String2));
+            1:
+              begin
+                if (String1 = '') then String1 := '0';              if (String2 = '') then String2 := '0';
+                Compare := Sign(SysUtils.StrToInt64(String1) - SysUtils.StrToInt64(String2));
+              end;
             2:
               begin
                 if (String1 = '') then String1 := '0';              if (String2 = '') then String2 := '0';
@@ -12476,6 +12482,9 @@ begin
     begin
       // Debug 2016-11-13
       if (not (ActiveListView is TListView)) then
+        raise ERangeError.Create(SRangeError);
+      // Debug 2016-11-16
+      if (Assigned(ActiveListView.Selected) and not Assigned(ActiveListView.Selected.Data)) then
         raise ERangeError.Create(SRangeError);
 
       if (Assigned(ActiveListView.Selected) and (TObject(ActiveListView.Selected.Data) is TSKey)) then

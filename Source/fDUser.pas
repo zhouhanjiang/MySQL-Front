@@ -25,7 +25,7 @@ type
     FLPassword: TLabel;
     FLQueriesPerHour: TLabel;
     FLUpdatesPerHour: TLabel;
-    FLUser: TLabel;
+    FLName: TLabel;
     FLUserConnections: TLabel;
     FName: TEdit;
     FPassword: TEdit;
@@ -89,7 +89,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  CommCtrl, Math, StrUtils,
+  CommCtrl, Math, StrUtils, SysConst,
   CommCtrl_Ext,
   SQLUtils, MySQLDB,
   fDUserRight, fPreferences;
@@ -210,6 +210,17 @@ begin
     begin
       PageControl.Visible := True;
       PSQLWait.Visible := not PageControl.Visible;
+
+      // Debug 2016-11-15
+      if (not PageControl.Visible) then
+        raise ERangeError.Create(SRangeError);
+      if (PSQLWait.Visible) then
+        raise ERangeError.Create(SRangeError);
+      if (PageControl.ActivePage <> TSBasics) then
+        raise ERangeError.Create(SRangeError);
+      if (not FName.Enabled) then
+        raise ERangeError.Create(SRangeError);
+
       FBOkCheckEnabled(nil);
       ActiveControl := FName;
     end;
@@ -508,7 +519,7 @@ begin
 
   TSBasics.Caption := Preferences.LoadStr(108);
   GBasics.Caption := Preferences.LoadStr(85);
-  FLUser.Caption := Preferences.LoadStr(561) + ':';
+  FLName.Caption := Preferences.LoadStr(561) + ':';
   FLHost.Caption := Preferences.LoadStr(289) + ':';
   FLPassword.Caption := Preferences.LoadStr(283) + ':';
 

@@ -499,6 +499,14 @@ begin
       GAttributes.Visible := GBasics.Visible;
       PSQLWait.Visible := not GBasics.Visible;
 
+      // Debug 2016-11-15
+      if (not GBasics.Visible) then
+        raise ERangeError.Create(SRangeError);
+      if (PSQLWait.Visible) then
+        raise ERangeError.Create(SRangeError);
+      if (not FName.Enabled) then
+        raise ERangeError.Create(SRangeError);
+
       ActiveControl := FLName.FocusControl;
       FBOkCheckEnabled(nil);
     end;

@@ -62,7 +62,7 @@ object DUser: TDUser
     Top = 8
     Width = 321
     Height = 241
-    ActivePage = TSRights
+    ActivePage = TSBasics
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
@@ -87,12 +87,12 @@ object DUser: TDUser
         DesignSize = (
           297
           117)
-        object FLUser: TLabel
+        object FLName: TLabel
           Left = 8
           Top = 23
-          Width = 34
+          Width = 40
           Height = 13
-          Caption = 'FLUser'
+          Caption = 'FLName'
           FocusControl = FName
         end
         object FLPassword: TLabel
@@ -148,6 +148,10 @@ object DUser: TDUser
     object TSRights: TTabSheet
       Caption = 'TSRights'
       OnShow = TSRightsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         213)
@@ -155,7 +159,7 @@ object DUser: TDUser
         Left = 8
         Top = 8
         Width = 189
-        Height = 187
+        Height = 195
         Anchors = [akLeft, akTop, akRight, akBottom]
         Columns = <
           item
