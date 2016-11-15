@@ -19198,7 +19198,7 @@ begin
                 and ((NodeIndex < 2) or IsOperator(Nodes[NodeIndex - 2]))) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if ((not IsToken(Nodes[NodeIndex - 1]) or (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex <> kiNOT))
-                and (IsOperator(Nodes[NodeIndex - 1]) or (NodePtr(Nodes[NodeIndex - 1])^.NodeType <> ntList) and (NodePtr(Nodes[NodeIndex - 1])^.NodeType <> ntSelectStmt))) then
+                and (IsOperator(Nodes[NodeIndex - 1]) or not IsToken(Nodes[NodeIndex - 1]) and (NodePtr(Nodes[NodeIndex - 1])^.NodeType <> ntList) and (NodePtr(Nodes[NodeIndex - 1])^.NodeType <> ntSelectStmt))) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if (NodeIndex + 1 = Nodes.Count) then
                 SetError(PE_IncompleteStmt)

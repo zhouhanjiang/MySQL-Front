@@ -363,7 +363,7 @@ begin
       FReferenced.Cursor := crDefault;
     end;
 
-    if (not PageControl.Visible) then
+    if (not PageControl.Visible and (ModalResult = mrNone)) then
     begin
       PageControl.Visible := True;
       PSQLWait.Visible := not PageControl.Visible;

@@ -242,9 +242,9 @@ end;
 
 procedure TDTable.aPCreateFieldExecute(Sender: TObject);
 begin
-  DField.Database := nil;
   DField.Table := NewTable;
   DField.Field := nil;
+  DField.ModifyTableOnly := True;
   if (DField.Execute()) then
   begin
     FFieldsRefresh(Sender);
@@ -257,9 +257,9 @@ end;
 
 procedure TDTable.aPCreateForeignKeyExecute(Sender: TObject);
 begin
-  DForeignKey.Database := Database;
   DForeignKey.Table := NewTable;
   DForeignKey.ForeignKey := nil;
+  DForeignKey.ModifyTableOnly := True;
   if (DForeignKey.Execute()) then
   begin
     FForeignKeysRefresh(Sender);
@@ -436,9 +436,9 @@ end;
 
 procedure TDTable.aPEditFieldExecute(Sender: TObject);
 begin
-  DField.Database := nil;
   DField.Table := NewTable;
   DField.Field := TSBaseTableField(NewTable.Fields[FFields.ItemIndex]);
+  DField.ModifyTableOnly := True;
   if (DField.Execute()) then
   begin
     FFieldsRefresh(Sender);
@@ -453,9 +453,9 @@ var
 begin
   ForeignKey := NewTable.ForeignKeys[FForeignKeys.ItemIndex];
 
-  DForeignKey.Database := nil;
   DForeignKey.Table := NewTable;
   DForeignKey.ForeignKey := ForeignKey;
+  DForeignKey.ModifyTableOnly := True;
   if (DForeignKey.Execute()) then
   begin
     FForeignKeysRefresh(Sender);
@@ -986,14 +986,14 @@ begin
 
   BorderStyle := bsSizeable;
 
-  PageControl.ActivePage := TSBasics; // TSInformationShow should not be called previously while the next showing
-
   SetWindowLong(FAutoIncrement.Handle, GWL_STYLE, GetWindowLong(FAutoIncrement.Handle, GWL_STYLE) or ES_NUMBER);
   FFields.RowSelect := CheckWin32Version(6);
   FKeys.RowSelect := CheckWin32Version(6);
   FForeignKeys.RowSelect := CheckWin32Version(6);
   FReferenced.RowSelect := CheckWin32Version(6);
   FPartitions.RowSelect := CheckWin32Version(6);
+
+  PageControl.ActivePage := TSBasics; // TSInformationShow should not be called previously while the next showing
 end;
 
 procedure TDTable.FormDestroy(Sender: TObject);
@@ -1050,7 +1050,7 @@ begin
       FReferenced.Cursor := crDefault;
     end;
 
-    if (not PageControl.Visible) then
+    if (not PageControl.Visible and (ModalResult = mrNone)) then
     begin
       PageControl.Visible := True;
       PSQLWait.Visible := not PageControl.Visible;

@@ -87,7 +87,7 @@ begin
 
   if (Event.EventType = etAfterExecuteSQL) then
   begin
-    if (not GroupBox.Visible) then
+    if (not GroupBox.Visible and (ModalResult = mrNone)) then
     begin
       GroupBox.Visible := True;
       PSQLWait.Visible := not GroupBox.Visible;

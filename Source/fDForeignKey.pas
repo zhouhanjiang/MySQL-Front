@@ -56,8 +56,8 @@ type
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMPostAfterExecuteSQL(var Message: TMessage); message UM_POST_AFTEREXECUTESQL;
   public
-    Database: TSDatabase;
     ForeignKey: TSForeignKey;
+    ModifyTableOnly: Boolean;
     ParentTable: TSBaseTable;
     Table: TSBaseTable;
     function Execute(): Boolean;
@@ -182,6 +182,14 @@ var
 begin
   if ((ModalResult = mrOk) and GBasics.Visible) then
   begin
+    if (ModifyTableOnly) then
+      NewTable := Table
+    else
+    begin
+      NewTable := TSBaseTable.Create(Table.Tables);
+      NewTable.Assign(Table);
+    end;
+
     NewForeignKey := TSForeignKey.Create(Table.ForeignKeys);
     if (Assigned(ForeignKey)) then
       NewForeignKey.Assign(ForeignKey);
@@ -221,31 +229,20 @@ begin
       4: NewForeignKey.OnUpdate := utNoAction;
     end;
 
-    if (not Assigned(Database)) then
-    begin
+    if (ModifyTableOnly) then
       if (not Assigned(ForeignKey)) then
         Table.ForeignKeys.AddForeignKey(NewForeignKey)
       else
-        Table.ForeignKeys[ForeignKey.Index].Assign(NewForeignKey);
-
-      GBasics.Visible := True;
-      GAttributes.Visible := GBasics.Visible;
-      PSQLWait.Visible := not GBasics.Visible;
-    end
+        Table.ForeignKeys[ForeignKey.Index].Assign(NewForeignKey)
     else
-    begin
-      NewTable := TSBaseTable.Create(Database.Tables);
-      NewTable.Assign(Table);
-
       if (not Assigned(ForeignKey)) then
         NewTable.ForeignKeys.AddForeignKey(NewForeignKey)
       else
         NewTable.ForeignKeys[ForeignKey.Index].Assign(NewForeignKey);
 
-      CanClose := Database.UpdateTable(Table, NewTable);
-
-      NewTable.Free();
-
+    if (not ModifyTableOnly) then
+    begin
+      CanClose := Table.Database.UpdateTable(Table, NewTable);
 
       if (not CanClose) then
       begin
@@ -257,6 +254,8 @@ begin
       FBOk.Enabled := False;
     end;
 
+    if (NewTable <> Table) then
+      NewTable.Free();
     NewForeignKey.Free();
   end;
 end;
@@ -324,7 +323,7 @@ begin
   end
   else if (Event.EventType = etAfterExecuteSQL) then
   begin
-    if (not GBasics.Visible) then
+    if (not GBasics.Visible and (ModalResult = mrNone)) then
     begin
       GBasics.Visible := True;
       GAttributes.Visible := GBasics.Visible;

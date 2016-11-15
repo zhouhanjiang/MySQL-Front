@@ -2057,8 +2057,8 @@ begin
     Table := TSBaseTable(FocusedSItem);
 
     DField.Table := Table;
-    DField.Database := DField.Table.Database;
     DField.Field := nil;
+    DField.ModifyTableOnly := False;
     DField.Execute();
   end;
 end;
@@ -2074,9 +2074,9 @@ begin
     Table := TSBaseTable(FocusedSItem);
 
     DForeignKey.Table := Table;
-    DForeignKey.Database := DForeignKey.Table.Database;
     DForeignKey.ParentTable := nil;
     DForeignKey.ForeignKey := nil;
+    DForeignKey.ModifyTableOnly := False;
     DForeignKey.Execute();
   end;
 end;
@@ -2765,17 +2765,17 @@ begin
     end
     else if (SItem is TSBaseTableField) then
     begin
-      DField.Database := TSBaseTableField(SItem).Table.Database;
       DField.Table := TSBaseTable(TSBaseTableField(SItem).Table);
       DField.Field := TSBaseTableField(SItem);
+      DField.ModifyTableOnly := False;
       DField.Execute();
     end
     else if (SItem is TSForeignKey) then
     begin
-      DForeignKey.Database := TSForeignKey(SItem).Table.Database;
       DForeignKey.Table := TSForeignKey(SItem).Table;
       DForeignKey.ParentTable := nil;
       DForeignKey.ForeignKey := TSForeignKey(SItem);
+      DForeignKey.ModifyTableOnly := False;
       DForeignKey.Execute();
     end
     else if (SItem is TSProcess) then
@@ -14313,10 +14313,10 @@ begin
 
     if (Assigned(ChildTable) and Assigned(ParentTable) and not Assigned(TWForeignKey(Control).BaseForeignKey)) then
     begin
-      DForeignKey.Database := Control.Workbench.Database;
       DForeignKey.Table := ChildTable;
       DForeignKey.ParentTable := ParentTable;
       DForeignKey.ForeignKey := nil;
+      DForeignKey.ModifyTableOnly := False;
       Result := DForeignKey.Execute();
       if (Result) then
         Wanted.Update := Session.Update;

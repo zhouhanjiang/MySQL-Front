@@ -4624,26 +4624,28 @@ begin
         NewKey.IndexType := SQLParseValue(Parse);
 
       if (SQLParseChar(Parse, '(')) then
-        while (not SQLParseChar(Parse, ')')) do
-        begin
-          NewKeyColumn := TSKeyColumn.Create(NewKey.Columns);
+        if (SQLParseChar(Parse, ')')) then
+          raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL])
+        else
+          repeat
+            NewKeyColumn := TSKeyColumn.Create(NewKey.Columns);
 
-          NewKeyColumn.Field := FieldByName(SQLParseValue(Parse));
-          if (not Assigned(NewKeyColumn.Field)) then
-            raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+            NewKeyColumn.Field := FieldByName(SQLParseValue(Parse));
+            if (not Assigned(NewKeyColumn.Field)) then
+              raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
-          if (SQLParseChar(Parse, '(')) then
-          begin
-            NewKeyColumn.Length := StrToInt(SQLParseValue(Parse));
-            SQLParseChar(Parse, ')')
-          end;
+            if (SQLParseChar(Parse, '(')) then
+            begin
+              NewKeyColumn.Length := StrToInt(SQLParseValue(Parse));
+              SQLParseChar(Parse, ')')
+            end;
 
-          NewKey.Columns.AddColumn(NewKeyColumn);
+            NewKey.Columns.AddColumn(NewKeyColumn);
 
-          NewKeyColumn.Free();
+            NewKeyColumn.Free();
 
-          SQLParseChar(Parse, ',');
-        end;
+            SQLParseChar(Parse, ',');
+          until (SQLParseChar(Parse, ')'));
 
       while (not SQLParseChar(Parse, ',', False) and not SQLParseChar(Parse, ')', False)) do
       begin

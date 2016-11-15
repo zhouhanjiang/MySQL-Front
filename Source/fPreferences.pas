@@ -4237,17 +4237,16 @@ procedure TPAccounts.AddAccount(const NewAccount: TPAccount);
 var
   XML: IXMLNode;
 begin
+  // Debug 2016-11-15
   if (NewAccount.Name = '') then
-    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Name'])
+    raise ERangeError.Create(SRangeError)
   else if (Assigned(AccountByName(NewAccount.Name))) then
-    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Name'])
-  else
-  begin
-    XML := Accounts.XMLDocument.DocumentElement.AddChild('account');
-    XML.Attributes['name'] := NewAccount.Name;
-    Add(TPAccount.Create(Self, XML));
-    Account[Count - 1].Assign(NewAccount);
-  end;
+    raise ERangeError.Create(SRangeError);
+
+  XML := Accounts.XMLDocument.DocumentElement.AddChild('account');
+  XML.Attributes['name'] := NewAccount.Name;
+  Add(TPAccount.Create(Self, XML));
+  Account[Count - 1].Assign(NewAccount);
 end;
 
 procedure TPAccounts.Clear();

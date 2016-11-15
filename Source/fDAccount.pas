@@ -122,7 +122,7 @@ begin
   URLComponents.lpszExtraInfo := @URLComponentsExtraInfo;
 
   URL := 'mysql://' + HostName;
-  Result := InternetCrackUrl(PChar(URL), Length(URL), 0, URLComponents);
+  Result := (HostName <> '') and InternetCrackUrl(PChar(URL), Length(URL), 0, URLComponents);
 end;
 
 { TDAccount *******************************************************************}
@@ -235,18 +235,23 @@ end;
 
 procedure TDAccount.FHostExit(Sender: TObject);
 var
+  Host: string;
   Index: Integer;
 begin
-  if (FName.Text = '') then
+  if (Trim(FName.Text) = '') then
+  begin
+    Host := Trim(FHost.Text);
+
     if (not Assigned(Accounts.AccountByName(FHost.Text))) then
-      FName.Text := FHost.Text
+      FName.Text := Host
     else
     begin
       Index := 2;
-      while (Assigned(Accounts.AccountByName(FHost.Text + ' (' + IntToStr(Index) + ')'))) do
+      while (Assigned(Accounts.AccountByName(Host + ' (' + IntToStr(Index) + ')'))) do
         Inc(Index);
-      FName.Text := FHost.Text + ' (' + IntToStr(Index) + ')';
+      FName.Text := Host + ' (' + IntToStr(Index) + ')';
     end;
+  end;
 end;
 
 procedure TDAccount.FHTTPTunnelURIEnter(Sender: TObject);
@@ -273,8 +278,8 @@ var
 begin
   if (ModalResult = mrOk) then
   begin
-    if ((ActiveControl = FHost) and Assigned(FHost.OnExit)) then
-      FHost.OnExit(Sender);
+    if (Trim(FName.Text) = '') then
+      FHostExit(Sender);
 
     NewAccount := TPAccount.Create(Accounts);
     if (Assigned(Account)) then

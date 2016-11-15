@@ -80,6 +80,7 @@ type
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Key: TSKey;
+    ModifyTableOnly: Boolean;
     Table: TSBaseTable;
     function Execute(): Boolean;
   end;
@@ -370,6 +371,14 @@ begin
 
   if ((ModalResult = mrOk) and GBasics.Visible) then
   begin
+    if (ModifyTableOnly) then
+      NewTable := Table
+    else
+    begin
+      NewTable := TSBaseTable.Create(Table.Tables);
+      NewTable.Assign(Table);
+    end;
+
     NewKey := TSKey.Create(Table.Keys);
     if (Assigned(Key)) then
       NewKey.Assign(Key);
@@ -393,38 +402,37 @@ begin
     NewKey.Unique := FUnique.Checked;
     NewKey.Fulltext := FFulltext.Checked;
 
-    NewTable := TSBaseTable.Create(Table.Database.Tables);
-    NewTable.Assign(Table);
-
-    if (not Assigned(Key)) then
-      NewTable.Keys.AddKey(NewKey)
-    else if (NewTable.Keys.Count <> Table.Keys.Count) then
-      // Debug 2016-11-12
-      raise ERangeError.Create(SRangeError)
-    else if (Key.Index >= NewTable.Keys.Count) then
-      // Debug 2016-11-12
-      raise ERangeError.Create(SRangeError)
+    if (ModifyTableOnly) then
+      if (not Assigned(Key)) then
+        Table.Keys.AddKey(NewKey)
+      else
+        Table.Keys[Key.Index].Assign(NewKey)
     else
+      if (not Assigned(Key)) then
+        NewTable.Keys.AddKey(NewKey)
+      else
+        NewTable.Keys[Key.Index].Assign(NewKey);
+
+    if (Key.PrimaryKey and not NewKey.PrimaryKey) then
+      for I := 0 to NewTable.Fields.Count - 1 do
+        NewTable.Fields[I].AutoIncrement := False;
+
+    if (not ModifyTableOnly) then
     begin
-      NewTable.Keys[Key.Index].Assign(NewKey);
-      if (Key.PrimaryKey and not NewKey.PrimaryKey) then
-        for I := 0 to NewTable.Fields.Count - 1 do
-          NewTable.Fields[I].AutoIncrement := False;
+      CanClose := Table.Database.UpdateTable(Table, NewTable);
+
+      if (not CanClose) then
+      begin
+        GBasics.Visible := CanClose;
+        GAttributes.Visible := GBasics.Visible;
+        PSQLWait.Visible := not GBasics.Visible;
+      end;
+
+      FBOk.Enabled := False;
     end;
 
-    CanClose := Table.Database.UpdateTable(Table, NewTable);
-
-    NewTable.Free();
-
-    if (not CanClose) then
-    begin
-      GBasics.Visible := CanClose;
-      GAttributes.Visible := GBasics.Visible;
-      PSQLWait.Visible := not GBasics.Visible;
-    end;
-
-    FBOk.Enabled := False;
-
+    if (NewTable <> Table) then
+      NewTable.Free();
     NewKey.Free();
   end;
 end;
@@ -484,7 +492,8 @@ begin
     ModalResult := mrOk;
 
   if (Event.EventType = etAfterExecuteSQL) then
-    if (not GBasics.Visible) then
+  begin
+    if (not GBasics.Visible and (ModalResult = mrNone)) then
     begin
       GBasics.Visible := True;
       GAttributes.Visible := GBasics.Visible;
@@ -493,6 +502,7 @@ begin
       ActiveControl := FLName.FocusControl;
       FBOkCheckEnabled(nil);
     end;
+  end;
 end;
 
 procedure TDKey.FormShow(Sender: TObject);

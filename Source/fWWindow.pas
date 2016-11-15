@@ -481,8 +481,9 @@ uses
 
 function IsConnectedToInternet(): Boolean;
 var
-  ConnectionTypes: DWord;
+  ConnectionTypes: DWORD;
 begin
+  ConnectionTypes := INTERNET_CONNECTION_MODEM + INTERNET_CONNECTION_LAN + INTERNET_CONNECTION_PROXY;
   Result := InternetGetConnectedState(@ConnectionTypes, 0);
 end;
 

@@ -123,8 +123,8 @@ type
     function IsUnionType(): Boolean;
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
-    Database: TSDatabase;
     Field: TSBaseTableField;
+    ModifyTableOnly: Boolean;
     Table: TSBaseTable;
     function Execute(): Boolean;
   end;
@@ -690,11 +690,11 @@ var
 begin
   if ((ModalResult = mrOk) and GBasics.Visible) then
   begin
-    if (not Assigned(Database)) then
+    if (ModifyTableOnly) then
       NewTable := Table
     else
     begin
-      NewTable := TSBaseTable.Create(Database.Tables);
+      NewTable := TSBaseTable.Create(Table.Tables);
       NewTable.Assign(Table);
     end;
 
@@ -812,6 +812,23 @@ begin
       if (not Assigned(Field) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewField.Comment, Table.Session.Connection.MySQLVersion))) then
         NewField.Comment := Trim(FComment.Text);
 
+      if (ModifyTableOnly) then
+        if (not Assigned(Field)) then
+          NewTable.Fields.AddField(NewField)
+        else
+        begin
+          TSBaseTableFields(NewTable.Fields).MoveField(Field, NewField.FieldBefore);
+          NewTable.Fields[Field.Index].Assign(NewField)
+        end
+      else
+        if (not Assigned(Field)) then
+          NewTable.Fields.AddField(NewField)
+        else
+        begin
+          NewTable.Fields[Field.Index].Assign(NewField);
+          TSBaseTableFields(NewTable.Fields).MoveField(NewTable.Fields[Field.Index], NewField.FieldBefore);
+        end;
+
       if (NewField.AutoIncrement and Assigned(Table) and not Assigned(Table.PrimaryKey)) then
       begin
         NewKey := TSKey.Create(NewTable.Keys);
@@ -824,27 +841,9 @@ begin
         NewColumn.Free();
       end;
 
-      if (not Assigned(Database)) then
+      if (not ModifyTableOnly) then
       begin
-        if (not Assigned(Field)) then
-          NewTable.Fields.AddField(NewField)
-        else
-        begin
-          TSBaseTableFields(NewTable.Fields).MoveField(Field, NewField.FieldBefore);
-          NewTable.Fields[Field.Index].Assign(NewField)
-        end;
-      end
-      else
-      begin
-        if (not Assigned(Field)) then
-          NewTable.Fields.AddField(NewField)
-        else
-        begin
-          NewTable.Fields[Field.Index].Assign(NewField);
-          TSBaseTableFields(NewTable.Fields).MoveField(NewTable.Fields[Field.Index], NewField.FieldBefore);
-        end;
-
-        CanClose := Database.UpdateTable(Table, NewTable);
+        CanClose := Table.Database.UpdateTable(Table, NewTable);
 
         if (not CanClose) then
         begin
@@ -856,10 +855,9 @@ begin
         FBOk.Enabled := False;
       end;
 
-      NewField.Free();
-
-      if (Assigned(Database)) then
+      if (NewTable <> Table) then
         NewTable.Free();
+      NewField.Free();
     end;
   end;
 end;
@@ -888,7 +886,7 @@ begin
     ModalResult := mrOk;
 
   if (Event.EventType = etAfterExecuteSQL) then
-    if (not GBasics.Visible) then
+    if (not GBasics.Visible and (ModalResult = mrNone)) then
     begin
       GBasics.Visible := True;
       GAttributes.Visible := GBasics.Visible;

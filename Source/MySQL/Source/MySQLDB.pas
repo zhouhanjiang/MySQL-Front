@@ -3270,15 +3270,7 @@ begin
   SyncThread.State := ssResult;
 
   if (SyncThread.StmtIndex < SyncThread.StmtLengths.Count) then
-  try
     WriteMonitor(@SyncThread.SQL[SyncThread.SQLIndex], Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]), ttResult);
-  except
-    on E: Exception do
-      begin
-        SetString(S, PChar(@SyncThread.SQL[SyncThread.SQLIndex]), Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]));
-        raise Exception.CreateFMT(E.Message + '  (Length: %d, SQL: %s)', [Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]), S]);
-      end;
-  end;
 
   if (not Assigned(SyncThread.OnResult) or (KillThreadId > 0)) then
   begin
