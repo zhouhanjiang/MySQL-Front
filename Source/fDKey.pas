@@ -413,7 +413,7 @@ begin
       else
         NewTable.Keys[Key.Index].Assign(NewKey);
 
-    if (Key.PrimaryKey and not NewKey.PrimaryKey) then
+    if (Assigned(Key) and Key.PrimaryKey and not NewKey.PrimaryKey) then
       for I := 0 to NewTable.Fields.Count - 1 do
         NewTable.Fields[I].AutoIncrement := False;
 
