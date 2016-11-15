@@ -409,9 +409,6 @@ procedure TDExport.FBBackClick(Sender: TObject);
 var
   PageIndex: Integer;
 begin
-  if (Assigned(Export)) then
-    Export.Terminate();
-
   for PageIndex := PageControl.ActivePageIndex - 1 downto 0 do
     if (PageControl.Pages[PageIndex].Enabled) then
     begin
@@ -1822,7 +1819,7 @@ begin
   if (Assigned(Export)) then
   begin
     TerminateThread(Export.Handle, 0);
-    FreeAndNil(Export);
+    Export := nil;
   end;
   case (ExportType) of
     etSQLFile:
@@ -1937,6 +1934,8 @@ begin
         TTExportCanvas(Export).NULLText := FHTMLNullText.Checked;
         TTExportCanvas(Export).Structure := FHTMLStructure.Checked;
       end;
+    else
+      Export := nil;
   end;
   if (Assigned(Export)) then
     Export.OnTerminate := OnTerminate;
@@ -2014,6 +2013,8 @@ begin
       FreeAndNil(Export)
     else
     begin
+      FBBack.Enabled := False;
+
       Export.Wnd := Handle;
       Export.OnTerminate := OnTerminate;
       Export.OnUpdate := OnUpdate;
@@ -2024,6 +2025,7 @@ begin
 
   CheckActivePageChange(TSExecute.PageIndex);
 
+  FBBack.Enabled := False;
   FBForward.Enabled := False;
   FBForward.Default := False;
   FBCancel.Default := True;
@@ -2342,6 +2344,7 @@ begin
     FreeAndNil(Export);
   end;
 
+  FBBack.Enabled := True;
   FBCancel.Caption := Preferences.LoadStr(231);
   if (Success) then
     FBCancel.ModalResult := mrOk

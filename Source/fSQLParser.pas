@@ -5982,7 +5982,7 @@ type
 
   private type
     TSpacer = (sNone, sSpace, sReturn);
-    TExprOptions = set of (eoIn, eoAllFields);
+    TExprOptions = set of (eoIn, eoAllFields, eoOperators);
   private
     diBIGINT,
     diBINARY,
@@ -16308,7 +16308,7 @@ begin
         Nodes.ExprNode := ParseList(False, ParseExpr);
     end
     else
-      Nodes.ExprNode := ParseExpr([eoIn, eoAllFields]);
+      Nodes.ExprNode := ParseExpr([eoIn, eoAllFields, eoOperators]);
 
   if (not ErrorFound) then
     Nodes.CloseBracket := ParseSymbol(ttCloseBracket);
@@ -17098,7 +17098,7 @@ begin
           Nodes.Real.Default.Tag := ParseTag(kiDEFAULT);
 
           if (not ErrorFound) then
-            Nodes.Real.Default.Expr := ParseExpr();
+            Nodes.Real.Default.Expr := ParseExpr([eoIn]);
         end
         else if ((DatatypeIndex in [diDatetime, diTimestamp]) and (Nodes.Real.OnUpdate = 0) and IsTag(kiON, kiUPDATE, kiCURRENT_DATE)) then
           if (not IsNextSymbol(3, ttOpenBracket)) then
@@ -18880,7 +18880,7 @@ end;
 
 function TSQLParser.ParseExpr(): TOffset;
 begin
-  Result := ParseExpr([eoIn]);
+  Result := ParseExpr([eoIn, eoOperators]);
 end;
 
 function TSQLParser.ParseExpr(const Options: TExprOptions): TOffset;
@@ -19038,6 +19038,7 @@ begin
       Assert(ErrorFound or (Nodes.Count > 0) and (Nodes[Nodes.Count - 1] > 0));
     until (ErrorFound
       or EndOfStmt(CurrentToken)
+      or not (eoOperators in Options)
       or not IsOperator(Nodes[Nodes.Count - 1]) and not IsOperator(CurrentToken)
       or not (eoIn in Options) and (TokenPtr(CurrentToken)^.OperatorType = otIn));
 
@@ -19165,7 +19166,7 @@ begin
                 and ((NodeIndex < 2) or IsOperator(Nodes[NodeIndex - 2]))) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if ((not IsToken(Nodes[NodeIndex - 1]) or (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex <> kiNOT))
-                and ((NodeIndex < 1) or IsOperator(Nodes[NodeIndex - 1]))) then
+                and IsOperator(Nodes[NodeIndex - 1])) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if (NodeIndex + 2 = Nodes.Count) then
               begin
@@ -19197,7 +19198,7 @@ begin
                 and ((NodeIndex < 2) or IsOperator(Nodes[NodeIndex - 2]))) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if ((not IsToken(Nodes[NodeIndex - 1]) or (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex <> kiNOT))
-                and ((NodeIndex < 1) or IsOperator(Nodes[NodeIndex - 1]))) then
+                and (IsOperator(Nodes[NodeIndex - 1]) or (NodePtr(Nodes[NodeIndex - 1])^.NodeType <> ntList) and (NodePtr(Nodes[NodeIndex - 1])^.NodeType <> ntSelectStmt))) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if (NodeIndex + 1 = Nodes.Count) then
                 SetError(PE_IncompleteStmt)
@@ -19223,7 +19224,7 @@ begin
                 and ((NodeIndex < 2) or IsOperator(Nodes[NodeIndex - 2]))) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if ((not IsToken(Nodes[NodeIndex - 1]) or (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex <> kiNOT))
-                and ((NodeIndex < 1) or IsOperator(Nodes[NodeIndex - 1]))) then
+                and IsOperator(Nodes[NodeIndex - 1])) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if (NodeIndex + 1 = Nodes.Count) then
                 SetError(PE_IncompleteStmt)
@@ -19274,7 +19275,7 @@ begin
                 and ((NodeIndex < 2) or IsOperator(Nodes[NodeIndex - 2]))) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if ((not IsToken(Nodes[NodeIndex - 1]) or (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex <> kiNOT))
-                and ((NodeIndex < 1) or IsOperator(Nodes[NodeIndex - 1]))) then
+                and IsOperator(Nodes[NodeIndex - 1])) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if (NodeIndex + 1 = Nodes.Count) then
                 SetError(PE_IncompleteStmt)
@@ -19299,7 +19300,7 @@ begin
                 and ((NodeIndex < 2) or IsOperator(Nodes[NodeIndex - 2]))) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if ((not IsToken(Nodes[NodeIndex - 1]) or (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex <> kiNOT))
-                and ((NodeIndex < 1) or IsOperator(Nodes[NodeIndex - 1]))) then
+                and IsOperator(Nodes[NodeIndex - 1])) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if (NodeIndex + 1 = Nodes.Count) then
                 SetError(PE_IncompleteStmt)
@@ -20358,7 +20359,8 @@ begin
         if (DelimiterFound) then
           Children.Add(ParseSymbol(DelimiterType));
       end;
-    until (ErrorFound and not RootStmtList
+    until ((CurrentToken = 0)
+      or ErrorFound and not RootStmtList
       or (DelimiterType <> ttUnknown) and not DelimiterFound
       or (DelimiterType <> ttSemicolon) and (ErrorFound or EndOfStmt(CurrentToken))
       or (DelimiterType = ttSemicolon)
@@ -21676,7 +21678,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.Expr := ParseExpr([eoIn, eoAllFields]);
+  Nodes.Expr := ParseExpr([eoIn, eoAllFields, eoOperators]);
 
   if ((Nodes.Expr > 0)
     and ((NodePtr(Nodes.Expr)^.NodeType <> ntToken)

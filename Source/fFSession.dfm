@@ -563,7 +563,6 @@ object FSession: TFSession
           SearchEngine = FSQLEditorSearch
           WantTabs = True
           OnChange = FQueryBuilderEditorChange
-          OnStatusChange = FQueryBuilderEditorStatusChange
           FontSmoothing = fsmNone
         end
       end

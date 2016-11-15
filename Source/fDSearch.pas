@@ -166,9 +166,6 @@ procedure TDSearch.FBBackClick(Sender: TObject);
 var
   PageIndex: Integer;
 begin
-  if (Assigned(Search)) then
-    Search.Terminate();
-
   for PageIndex := PageControl.ActivePageIndex - 1 downto 0 do
     if (PageControl.Pages[PageIndex].Enabled) then
     begin
@@ -824,10 +821,7 @@ begin
     ExecuteSession := Session;
 
     if (Assigned(Search)) then
-    begin
       TerminateThread(Search.Handle, 0);
-      FreeAndNil(Search);
-    end;
     if (SearchOnly) then
     begin
       SetLength(Tables, 0);
@@ -912,6 +906,8 @@ begin
         TSTable(List[I]).InvalidateData();
     List.Free();
 
+    FBBack.Enabled := False;
+
     Search.Start();
   end;
 
@@ -920,6 +916,7 @@ begin
   else
     SetControlCursor(GProgress, crSQLWait);
 
+  FBBack.Enabled := False;
   FBForward.Enabled := False;
   FBForward.Default := False;
   FBCancel.Default := True;
@@ -1058,9 +1055,7 @@ begin
   if (Assigned(ReplaceSession)) then
     FreeAndNil(ReplaceSession);
 
-  FBForward.Enabled := False;
-  FBCancel.Enabled := True;
-
+  FBBack.Enabled := True;
   FBCancel.Caption := Preferences.LoadStr(231);
   if (Success) then
     FBCancel.ModalResult := mrOk

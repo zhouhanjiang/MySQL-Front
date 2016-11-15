@@ -410,9 +410,6 @@ procedure TDImport.FBBackClick(Sender: TObject);
 var
   PageIndex: Integer;
 begin
-  if (Assigned(Import)) then
-    Import.Terminate();
-
   for PageIndex := PageControl.ActivePageIndex - 1 downto 0 do
     if (PageControl.Pages[PageIndex].Enabled) then
     begin
@@ -1781,6 +1778,8 @@ begin
       end;
     end;
 
+    FBBack.Enabled := False;
+
     Import.Wnd := Self.Handle;
     Import.OnError := OnError;
     Import.OnUpdate := OnUpdate;
@@ -1830,7 +1829,7 @@ begin
   if (Assigned(Import)) then
   begin
     TerminateThread(Import.Handle, 0);
-    FreeAndNil(Import);
+    Import := nil;
   end;
 
   case (ImportType) of
@@ -1839,6 +1838,7 @@ begin
     itAccessFile: Import := TTImportAccess.Create(Session, Database, Filename);
     itExcelFile: Import := TTImportExcel.Create(Session, Database, Filename);
     itODBC: Import := TTImportODBC.Create(Session, Database, DODBC.DataSource, DODBC.Username, DODBC.Password);
+    else Import := nil;
   end;
   if (Assigned(Import)) then
     Import.OnTerminate := OnTerminate;
@@ -2066,6 +2066,7 @@ begin
     FreeAndNil(Import);
   end;
 
+  FBBack.Enabled := True;
   FBCancel.Caption := Preferences.LoadStr(231);
   if (Success) then
     FBCancel.ModalResult := mrOk

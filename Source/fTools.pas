@@ -4091,7 +4091,7 @@ begin
         TItem(Items[I]).Done := True;
       end;
 
-    if ((Success <> daAbort) and Assigned(DataHandle)) then
+    if (Assigned(DataHandle)) then
       Session.Connection.CloseResult(DataHandle);
   end;
 
@@ -6661,21 +6661,25 @@ begin
 
     if ((Success = daSuccess) and (Tables.Count > 0)) then
     begin
+      DataHandle := nil;
+
       for J := 0 to Tables.Count - 1 do
         if (Success = daSuccess) then
         begin
           if (J = 0) then
-            if ((Success = daAbort) and not Session.Connection.FirstResult(DataHandle, SQL)) then
+            if (not Session.Connection.FirstResult(DataHandle, SQL)) then
               DoError(DatabaseError(Session), nil, False, SQL)
           else
-            if ((Success = daSuccess) and not Session.Connection.NextResult(DataHandle)) then
+            if (not Session.Connection.NextResult(DataHandle)) then
               DoError(DatabaseError(Session), nil, False);
+
           if (Success = daSuccess) then
             for I := 0 to Items.Count - 1 do
               if ((Items[I] is TDBObjectItem) and (TDBObjectItem(Items[I]).DBObject = Tables[J])) then
               begin
                 SetLength(MaxFieldsCharLengths, Length(MaxFieldsCharLengths) + 1);
                 SetLength(MaxFieldsCharLengths[Length(MaxFieldsCharLengths) - 1], TSTable(Tables[J]).Fields.Count);
+
                 DataSet := TMySQLQuery.Create(nil);
                 DataSet.Open(DataHandle);
                 if (not DataSet.IsEmpty()) then
@@ -6684,7 +6688,9 @@ begin
                 DataSet.Free();
               end;
         end;
-      Session.Connection.CloseResult(DataHandle);
+
+      if (Assigned(DataHandle)) then
+        Session.Connection.CloseResult(DataHandle);
     end;
 
     Tables.Free();

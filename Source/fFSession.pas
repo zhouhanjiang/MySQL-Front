@@ -504,8 +504,6 @@ type
     procedure FQueryBuilderEditorChange(Sender: TObject);
     procedure FQueryBuilderEditorEnter(Sender: TObject);
     procedure FQueryBuilderEditorExit(Sender: TObject);
-    procedure FQueryBuilderEditorStatusChange(Sender: TObject;
-      Changes: TSynStatusChanges);
     procedure FQueryBuilderEnter(Sender: TObject);
     procedure FQueryBuilderExit(Sender: TObject);
     procedure FQueryBuilderResize(Sender: TObject);
@@ -2438,10 +2436,11 @@ begin
         FFilterEnabled.Enabled := FFilter.Text <> '';
       end;
 
-      {$IFNDEF Debug}
+      {.$IFNDEF Debug}
       // FastMM reports a memory leak with this code. 07.11.2012
+      // http://feedback.activedbsoft.com/topics/1177-maybe-a-memory-leak-in-aqb/#comment-3790
       FQueryBuilder.MetadataContainer.DefaultDatabaseNameStr := SelectedDatabase;
-      {$ENDIF}
+      {.$ENDIF}
 
       if (Window.ActiveControl = FNavigator) then
         FNavigatorSetMenuItems(FNavigator, FNavigator.Selected);
@@ -2931,7 +2930,12 @@ var
 begin
   Data := '';
 
-  if (Window.ActiveControl = FNavigator) then
+  if (not Assigned(Window.ActiveControl)) then
+  begin
+    MessageBeep(MB_ICONERROR);
+    Exit;
+  end
+  else if (Window.ActiveControl = FNavigator) then
   begin
     if (not Assigned(FNavigatorMenuNode.Parent)) then
       ImageIndex := -1
@@ -4563,7 +4567,6 @@ begin
 
   FQueryBuilder.MetadataProvider := Session.MetadataProvider;
   FQueryBuilder.SyntaxProvider := Session.SyntaxProvider;
-  FQueryBuilderEditorStatusChange(Self, []);
 
 
   FText.Modified := False;
@@ -7431,8 +7434,6 @@ procedure TFSession.FQueryBuilderEditorChange(Sender: TObject);
 begin
   FQueryBuilder.SQL := FQueryBuilderSynMemo.Lines.Text;
   PostMessage(Handle, UM_POST_BUILDER_QUERY_CHANGE, 0, 0);
-
-  FQueryBuilderEditorStatusChange(Sender, [scModified]);
 end;
 
 procedure TFSession.FQueryBuilderEditorEnter(Sender: TObject);
@@ -7479,47 +7480,6 @@ begin
     end;
 end;
 
-procedure TFSession.FQueryBuilderEditorStatusChange(Sender: TObject;
-  Changes: TSynStatusChanges);
-var
-  BevelWidth: Integer;
-  LineCount: Integer;
-  NewHeight: Integer;
-  ScrollBarInfo: TScrollBarInfo;
-begin
-  FQueryBuilderResize(Sender);
-
-  if (not SQueryBuilderSynMemoMoved) then
-  begin
-    BevelWidth := 0;
-    if (PQueryBuilderSynMemo.BevelInner in [bvLowered, bvRaised]) then
-      Inc(BevelWidth, PQueryBuilderSynMemo.BevelWidth);
-    if (PQueryBuilderSynMemo.BevelOuter in [bvLowered, bvRaised]) then
-      Inc(BevelWidth, PQueryBuilderSynMemo.BevelWidth);
-
-    ZeroMemory(@ScrollBarInfo, SizeOf(ScrollBarInfo));
-    ScrollBarInfo.cbSize := SizeOf(ScrollBarInfo);
-    GetScrollBarInfo(FQueryBuilderSynMemo.Handle, Integer(OBJID_HSCROLL), ScrollBarInfo);
-
-    LineCount := FQueryBuilderSynMemo.Lines.Count;
-    if (LineCount = 0) then
-      LineCount := 1;
-
-    NewHeight := LineCount * (FQueryBuilderSynMemo.Canvas.TextHeight('SELECT') + 1) + 2 * FQueryBuilderSynMemo.Top + 2 * BevelWidth;
-    if (ScrollBarInfo.rgstate[0] <> STATE_SYSTEM_INVISIBLE) then
-      Inc(NewHeight, GetSystemMetrics(SM_CYHSCROLL));
-    PQueryBuilderSynMemo.Constraints.MaxHeight := NewHeight;
-
-    if ((LineCount > 5) and (NewHeight > PContent.Height div 4)) then
-      NewHeight := PContent.Height div 4;
-
-    if (PQueryBuilderSynMemo.Height < NewHeight) then
-      PQueryBuilderSynMemo.Height := NewHeight;
-  end;
-
-  SynMemoStatusChange(FQueryBuilderSynMemo, Changes);
-end;
-
 procedure TFSession.FQueryBuilderEditorTabSheetEnter(Sender: TObject);
 begin
   StatusBarRefresh();
@@ -7541,6 +7501,8 @@ procedure TFSession.FQueryBuilderResize(Sender: TObject);
 var
   FBuilderEditorSelectList: TacQueryBuilderSelectListControl;
   I: Integer;
+  MaxHeight: Integer;
+  NewHeight: Integer;
   PSQLEditorBuilderSelectList: TacPanel;
   ScrollBarInfo: TScrollBarInfo;
 begin
@@ -7558,13 +7520,15 @@ begin
         ScrollBarInfo.cbSize := SizeOf(ScrollBarInfo);
         GetScrollBarInfo(FBuilderEditorSelectList.Handle, Integer(OBJID_HSCROLL), ScrollBarInfo);
 
-        if (ScrollBarInfo.rgstate[0] = STATE_SYSTEM_INVISIBLE) then
-          PSQLEditorBuilderSelectList.Height := (FBuilderEditorSelectList.DefaultRowHeight + 2) + FBuilderEditorSelectList.SelectList.Count * (FBuilderEditorSelectList.DefaultRowHeight + 1) + 1
-        else
-          PSQLEditorBuilderSelectList.Height := (FBuilderEditorSelectList.DefaultRowHeight + 2) + FBuilderEditorSelectList.SelectList.Count * (FBuilderEditorSelectList.DefaultRowHeight + 1) + 1 + GetSystemMetrics(SM_CYHSCROLL);
+        MaxHeight := (FBuilderEditorSelectList.DefaultRowHeight + 2) + 5 * (FBuilderEditorSelectList.DefaultRowHeight + 1) + 1;
+        if (ScrollBarInfo.rgstate[0] <> STATE_SYSTEM_INVISIBLE) then
+          Inc(MaxHeight, GetSystemMetrics(SM_CYHSCROLL));
+        NewHeight := (FBuilderEditorSelectList.DefaultRowHeight + 2) + FBuilderEditorSelectList.SelectList.Count * (FBuilderEditorSelectList.DefaultRowHeight + 1) + 1;
+        if (ScrollBarInfo.rgstate[0] <> STATE_SYSTEM_INVISIBLE) then
+          Inc(NewHeight, GetSystemMetrics(SM_CYHSCROLL));
 
-        if (PSQLEditorBuilderSelectList.Height > FQueryBuilder.Height div 2) then
-          PSQLEditorBuilderSelectList.Height := FQueryBuilder.Height div 2;
+        if (PSQLEditorBuilderSelectList.Height < MaxHeight) then
+          PSQLEditorBuilderSelectList.Height := NewHeight;
       end;
     end;
 end;
@@ -7593,8 +7557,6 @@ begin
     else
       FQueryBuilderSynMemo.Lines.Text := SQL + ';';
   end;
-
-  FQueryBuilderEditorStatusChange(FQueryBuilder, [scModified]);
 end;
 
 procedure TFSession.FQueryBuilderValidatePopupMenu(Sender: TacQueryBuilder;
@@ -12452,7 +12414,7 @@ begin
 
     if (NewSize < MinHeight) then
       NewSize := MinHeight
-    else if (NewSize > MaxHeight) then
+    else if ((NewSize > MaxHeight) and (MaxHeight > 0)) then
       NewSize := MaxHeight;
   end;
 

@@ -116,17 +116,17 @@ end;
 
 function UnescapeURL(const AParam: string): string;
 var
-  Size: DWord;
+  Len: DWord;
   UnescapedURL: PChar;
 begin
-  Size := Length(AParam) + 1;
-  GetMem(UnescapedURL, Size * SizeOf(UnescapedURL[0]));
+  Len := Length(AParam) + 1;
+  GetMem(UnescapedURL, Len * SizeOf(UnescapedURL[0]));
 
   try
-    if (UrlUnescape(PChar(AParam), UnescapedURL, @Size, 0) <> S_OK) then
+    if (UrlUnescape(PChar(AParam), UnescapedURL, @Len, 0) <> S_OK) then
       raise EConvertError.CreateFmt(SConvStrParseError, [AParam]);
 
-    Result := UnescapedURL;
+    SetString(Result, UnescapedURL, Len);
   finally
     if (Assigned(UnescapedURL)) then
       FreeMem(UnescapedURL);

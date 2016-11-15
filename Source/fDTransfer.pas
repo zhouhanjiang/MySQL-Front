@@ -174,9 +174,6 @@ procedure TDTransfer.FBBackClick(Sender: TObject);
 var
   PageIndex: Integer;
 begin
-  if (Assigned(Transfer)) then
-    Transfer.Terminate();
-
   for PageIndex := PageControl.ActivePageIndex - 1 downto 0 do
     if (PageControl.Pages[PageIndex].Enabled) then
     begin
@@ -710,6 +707,9 @@ begin
   begin
     Answer := IDYES;
 
+    if (Assigned(Transfer)) then
+      TerminateThread(Transfer.Handle, 0);
+
     Transfer := TTTransfer.Create(SourceSession, DestinationSession);
     Transfer.Wnd := Self.Handle;
     Transfer.Data := FData.Checked;
@@ -756,6 +756,10 @@ begin
       FDestination.Items.BeginUpdate();
       FDestination.Items.Clear();
       FDestination.Items.EndUpdate();
+
+      TSWhat.Enabled := False;
+
+      FBBack.Enabled := False;
 
       Transfer.Start();
     end;
@@ -931,8 +935,7 @@ begin
     FreeAndNil(Transfer);
   end;
 
-  TSWhat.Enabled := False;
-
+  FBBack.Enabled := True;
   FBCancel.Caption := Preferences.LoadStr(231);
   if (Success) then
     FBCancel.ModalResult := mrOk

@@ -1016,15 +1016,15 @@ begin
     begin
       CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
       CheckOnlineVersionThread.Execute();
-      CheckOnlineVersionThread.Free();
       FreeAndNil(CheckOnlineVersionThread);
     end;
 
-  Handled := OnlineProgramVersion <= Preferences.Version;
+  Handled := Preferences.Version >= OnlineProgramVersion;
 
-  if (Handled) then
+  if (Handled and IsConnectedToInternet()) then
   begin
     Report := string(EurekaExceptionRecord.LogText);
+
     if (Assigned(ActiveTab)) then
     begin
       Report := Report + #13#10;
@@ -1037,6 +1037,7 @@ begin
         Report := Report + Log[I] + #13#10;
       Log.Free();
     end;
+
     SendBugToDeveloper(Report);
   end;
 end;
@@ -1158,13 +1159,13 @@ begin
     TabControlRepaint.Delete(0);
   end;
   TabControlRepaint.Free();
+
+  if (Assigned(CheckOnlineVersionThread)) then
+    TerminateThread(CheckOnlineVersionThread.Handle, 0);
 end;
 
 procedure TWWindow.FormHide(Sender: TObject);
 begin
-  if (Assigned(CheckOnlineVersionThread)) then
-    TerminateThread(CheckOnlineVersionThread.Handle, 0);
-
   Preferences.WindowState := WindowState;
   if (WindowState = wsNormal) then
     begin Preferences.Top := Top; Preferences.Left := Left; Preferences.Height := Height; Preferences.Width := Width; end;
@@ -1262,7 +1263,6 @@ end;
 
 procedure TWWindow.OnlineVersionChecked(Sender: TObject);
 begin
-  CheckOnlineVersionThread := nil;
   PostMessage(Handle, UM_TERMINATE, 0, 0);
   if (OnlineRecommendedVersion > Preferences.Version) then
     PostMessage(Handle, UM_ONLINE_UPDATE_FOUND, 0, 0);

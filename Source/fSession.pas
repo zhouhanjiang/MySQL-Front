@@ -11001,7 +11001,17 @@ begin
   SQLParser.Free();
   if (UnparsableSQL <> '') then
   begin
-    UnparsableSQL := '# MySQL: ' + Self.Connection.ServerVersionStr + #13#10#13#10 + UnparsableSQL;
+    if (Connection.AnsiQuotes) then
+      UnparsableSQL := UnparsableSQL
+        + '# MySQL: ' + Self.Connection.ServerVersionStr + #13#10
+        + '# AnsiQuotes: Enabled' + #13#10
+        + #13#10
+        + UnparsableSQL
+    else
+      UnparsableSQL := UnparsableSQL
+        + '# MySQL: ' + Self.Connection.ServerVersionStr + #13#10
+        + #13#10
+        + UnparsableSQL;
     SendBugToDeveloper(UnparsableSQL);
   end;
 
@@ -11316,7 +11326,6 @@ begin
       UnparsableSQL := UnparsableSQL
         + '# MonitorExecutedStmts()' + #13#10
         + '# Error: ' + SQLParser.ErrorMessage + #13#10
-        + '# Hex: ' + SQLEscapeBin(SQL, True) + #13#10
         + Trim(SQL) + #13#10 + #13#10 + #13#10;
     end;
     SQLParser.Clear();

@@ -250,7 +250,6 @@ type
     FServerTimeout: Word;
     FServerVersionStr: string;
     FSQLMonitors: array of TMySQLMonitor;
-    FSyncThread: TSyncThread;
     FTerminateCS: TCriticalSection;
     FTerminatedThreads: TTerminatedThreads;
     FThreadDeep: Integer;
@@ -258,6 +257,7 @@ type
     FUsername: string;
     InMonitor: Boolean;
     InOnResult: Boolean;
+    KillThreadId: my_uint;
     SilentCount: Integer;
     SynchronCount: Integer;
     function GetNextCommandText(): string;
@@ -282,6 +282,7 @@ type
     FMultiStatements: Boolean;
     FRowsAffected: Int64;
     FSuccessfullExecutedSQLLength: Integer;
+    FSyncThread: TSyncThread;
     FWarningCount: Integer;
     TimeDiff: TDateTime;
     procedure DoAfterExecuteSQL(); virtual;
@@ -1892,7 +1893,6 @@ begin
   while (Count > 0) do
   begin
     TerminateThread(TThread(Items[0]).Handle, 1);
-    TThread(Items[0]).Free();
     inherited Delete(0);
   end;
 
@@ -2008,7 +2008,6 @@ end;
 function TMySQLConnection.TSyncThread.GetIsRunning(): Boolean;
 begin
   Result := not Terminated
-    and Assigned(RunExecute)
     and ((RunExecute.WaitFor(IGNORE) = wrSignaled) or not (State in [ssClose, ssReady]));
 end;
 
@@ -2075,16 +2074,15 @@ begin
     SynchronizingThreads.Delete(Index);
   SynchronizingThreadsCS.Leave();
 
-  if (Assigned(RunExecute) and (RunExecute.WaitFor(IGNORE) <> wrSignaled)) then
-  begin
-    Connection.TerminatedThreads.Add(Self);
-    inherited;
-    RunExecute.SetEvent();
-  end
+  inherited;
+
+  if (RunExecute.WaitFor(IGNORE) <> wrSignaled) then
+    RunExecute.SetEvent()
   else
   begin
     Connection.TerminatedThreads.Add(Self);
-    inherited;
+    if (Connection.SyncThread = Self) then
+      Connection.FSyncThread := nil;
   end;
 end;
 
@@ -2325,7 +2323,7 @@ begin
   FErrorSQL := '';
   FWarningCount := 0;
 
-  if (not Assigned(SyncThread)) then
+  if (not Assigned(SyncThread) or not Assigned(SyncThread.LibHandle)) then
     SyncDisconnected(nil)
   else
   begin
@@ -2424,10 +2422,17 @@ begin
   SyncThread.Mode := Mode;
   SyncThread.OnResult := OnResult;
   SyncThread.Done := Done;
-  SyncThread.SQL := SQL;
   SyncThread.SQLIndex := 1;
   SyncThread.StmtIndex := 0;
   SyncThread.StmtLengths.Clear();
+
+  if (KillThreadId = 0) then
+    SyncThread.SQL := SQL
+  else if (MySQLVersion < 50000) then
+    SyncThread.SQL := 'KILL ' + IntToStr(ThreadId) + ';' + #13#10 + SQL
+  else
+    SyncThread.SQL := 'KILL CONNECTION ' + IntToStr(ThreadId) + ';' + #13#10 + SQL;
+
 
   FErrorCode := DS_ASYNCHRON;
   FErrorMessage := '';
@@ -2439,7 +2444,7 @@ begin
   SQLIndex := 1;
   while (SQLIndex < Length(SyncThread.SQL)) do
   begin
-    StmtLength := SQLStmtLength(PChar(@SQL[SQLIndex]), Length(SQL) - (SQLIndex - 1));
+    StmtLength := SQLStmtLength(PChar(@SyncThread.SQL[SQLIndex]), Length(SyncThread.SQL) - (SQLIndex - 1));
     SyncThread.StmtLengths.Add(Pointer(StmtLength));
     Inc(SQLIndex, StmtLength);
   end;
@@ -2455,7 +2460,7 @@ begin
       Inc(SQLIndex, StmtLength);
     end;
 
-  if (SQL = '') then
+  if (SyncThread.SQL = '') then
     raise EDatabaseError.Create('Empty query')
   else if (SyncThread.StmtLengths.Count = 0) then
     Result := False
@@ -2941,7 +2946,6 @@ end;
 procedure TMySQLConnection.SyncConnecting(const SyncThread: TSyncThread);
 var
   ClientFlag: my_uint;
-  SQL: string;
 begin
   if (not Assigned(Lib)) then
   begin
@@ -3005,18 +3009,10 @@ begin
       and (Lib.mysql_get_server_version(SyncThread.LibHandle) >= 50503)) then
       Lib.mysql_set_character_set(SyncThread.LibHandle, 'utf8mb4');
 
-    if ((SyncThread.ErrorCode = 0) and (ThreadId > 0)) then
-    begin
-      if (MySQLVersion < 50000) then
-        SQL := 'KILL ' + IntToStr(ThreadId)
-      else
-        SQL := 'KILL CONNECTION ' + IntToStr(ThreadId);
-
-      Lib.mysql_real_query(SyncThread.LibHandle, my_char(AnsiString(SQL)), Length(SQL));
-    end;
-
     if (SyncThread.ErrorCode > 0) then
-      SyncDisconnecting(SyncThread);
+      SyncDisconnecting(SyncThread)
+    else if (ThreadId > 0) then
+      KillThreadId := ThreadId;
   end;
 end;
 
@@ -3274,10 +3270,20 @@ begin
   SyncThread.State := ssResult;
 
   if (SyncThread.StmtIndex < SyncThread.StmtLengths.Count) then
+  try
     WriteMonitor(@SyncThread.SQL[SyncThread.SQLIndex], Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]), ttResult);
+  except
+    on E: Exception do
+      begin
+        SetString(S, PChar(@SyncThread.SQL[SyncThread.SQLIndex]), Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]));
+        raise Exception.CreateFMT(E.Message + '  (Length: %d, SQL: %s)', [Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]), S]);
+      end;
+  end;
 
-  if (not Assigned(SyncThread.OnResult)) then
+  if (not Assigned(SyncThread.OnResult) or (KillThreadId > 0)) then
   begin
+    KillThreadId := 0;
+
     if (SyncThread.ErrorCode > 0) then
     begin
       DoError(SyncThread.ErrorCode, SyncThread.ErrorMessage);
@@ -3549,24 +3555,19 @@ end;
 procedure TMySQLConnection.Terminate();
 var
   S: string;
-  TempSyncThread: TSyncThread;
 begin
   TerminateCS.Enter();
 
-  TempSyncThread := FSyncThread;
-  FSyncThread := nil;
-
-  if (Assigned(TempSyncThread)) then
+  if (Assigned(SyncThread) and SyncThread.IsRunning) then
   begin
+    SyncThread.Terminate();
+
     {$IFDEF Debug}
       MessageBox(0, 'Terminate!', 'Warning', MB_OK + MB_ICONWARNING);
     {$ENDIF}
-    if (TempSyncThread.IsRunning) then
-    begin
-      S := '--> Connection terminated';
-      WriteMonitor(PChar(S), Length(S), ttInfo);
-    end;
-    TempSyncThread.Terminate();
+
+    S := '--> Connection terminated';
+    WriteMonitor(PChar(S), Length(S), ttInfo);
   end;
 
   TerminateCS.Leave();

@@ -31,7 +31,7 @@ type
   end;
 
 function CheckOnlineVersion(const Stream: TStringStream; var VersionStr: string; var SetupProgramURI: string): Boolean;
-procedure SendBugToDeveloper(const SQL: string);
+procedure SendBugToDeveloper(const Text: string);
 
 var
   OnlineProgramVersion: Integer;
@@ -59,7 +59,11 @@ begin
   SetupProgramURI := '';
 
   XML := NewXMLDocument();
-  XML.LoadFromStream(Stream, xetUnknown);
+  try
+    XML.LoadFromStream(Stream, xetUnknown);
+  except
+    // Corrupt PAD File.
+  end;
   if (XML.Active and (Assigned(XML.Node))) then
   begin
     PAD := XML.Node.ChildNodes.FindNode('XML_DIZ_INFO');
@@ -125,7 +129,7 @@ begin
   Result := (OnlineProgramVersion >= 0) and (SetupProgramURI <> '');
 end;
 
-procedure SendBugToDeveloper(const SQL: string);
+procedure SendBugToDeveloper(const Text: string);
 var
   Flags: DWORD;
   HTTPThread: THTTPThread;
@@ -135,9 +139,9 @@ begin
   Stream := TMemoryStream.Create();
 
   if (not CheckWin32Version(6)) then Flags := 0 else Flags := WC_ERR_INVALID_CHARS;
-  Size := WideCharToMultiByte(CP_UTF8, Flags, PChar(SQL), Length(SQL), nil, 0, nil, nil);
+  Size := WideCharToMultiByte(CP_UTF8, Flags, PChar(Text), Length(Text), nil, 0, nil, nil);
   Stream.SetSize(Size);
-  WideCharToMultiByte(CP_UTF8, Flags, PChar(SQL), Length(SQL), PAnsiChar(Stream.Memory), Stream.Size, nil, nil);
+  WideCharToMultiByte(CP_UTF8, Flags, PChar(Text), Length(Text), PAnsiChar(Stream.Memory), Stream.Size, nil, nil);
 
   HTTPThread := THTTPThread.Create(LoadStr(1010), Stream, nil);
   HTTPThread.Execute();
