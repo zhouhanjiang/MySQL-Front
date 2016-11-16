@@ -304,11 +304,18 @@ begin
 end;
 
 procedure TCheckOnlineVersionThread.Execute();
+var
+  SetupProgramURI: string;
+  VersionStr: string;
 begin
   inherited;
 
   if (ReturnValue = HTTP_STATUS_OK) then
+  begin
     Preferences.UpdateChecked := Now();
+
+    CheckOnlineVersion(PADFileStream, VersionStr, SetupProgramURI);
+  end;
 end;
 
 end.
