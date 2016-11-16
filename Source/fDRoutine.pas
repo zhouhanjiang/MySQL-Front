@@ -378,12 +378,12 @@ begin
 
   ActiveControl := FBCancel;
   if (PageControl.Visible) then
-    if (TSBasics.TabVisible) then
+    if (Assigned(Routine)) then
     begin
       PageControl.ActivePage := TSBasics;
       ActiveControl := FComment;
     end
-    else if (TSSource.TabVisible) then
+    else
     begin
       PageControl.ActivePage := TSSource;
       ActiveControl := FSource;

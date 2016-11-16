@@ -1033,7 +1033,7 @@ begin
       Report := Report + 'Version: ' + ActiveTab.Session.Connection.ServerVersionStr + #13#10;
       Report := Report + #13#10;
       Report := Report + 'SQL Log:' + #13#10;
-      Report := Report + StringOfChar('-', 40) + #13#10;
+      Report := Report + StringOfChar('-', 72) + #13#10;
       Log := TStringList.Create();
       Log.Text := ActiveTab.Session.Connection.BugMonitor.CacheText;
       if (Log.Count < 10) then FirstLine := 0 else FirstLine := Log.Count - 10;

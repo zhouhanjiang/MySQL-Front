@@ -74,13 +74,15 @@ object DTables: TDTables
     Top = 8
     Width = 321
     Height = 325
-    ActivePage = TSTables
+    ActivePage = TSBasics
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
     TabOrder = 4
-    object TSTables: TTabSheet
-      Caption = 'TSTables'
+    object TSBasics: TTabSheet
+      Caption = 'TSBasics'
+      ExplicitLeft = 0
+      ExplicitTop = 33
       DesignSize = (
         313
         297)
@@ -215,10 +217,6 @@ object DTables: TDTables
     object TSInformation: TTabSheet
       Caption = 'TSInformation'
       OnShow = TSInformationShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -344,10 +342,6 @@ object DTables: TDTables
       ParentShowHint = False
       ShowHint = True
       OnShow = TSExtrasShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -453,10 +447,6 @@ object DTables: TDTables
     object TSSource: TTabSheet
       Caption = 'TSSource'
       OnShow = TSSourceShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)

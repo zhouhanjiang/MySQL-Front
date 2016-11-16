@@ -367,7 +367,10 @@ begin
 
   ActiveControl := FBCancel;
   if (PageControl.Visible) then
+  begin
+    PageControl.ActivePage := TSBasics;
     ActiveControl := FName;
+  end;
 
   PostMessage(Self.Handle, UM_POST_SHOW, 0, 0);
 end;

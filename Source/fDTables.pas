@@ -22,7 +22,7 @@ type
     N1: TMenuItem;
     PSQLWait: TPanel;
     PageControl: TPageControl;
-    TSTables: TTabSheet;
+    TSBasics: TTabSheet;
     GBasics: TGroupBox_Ext;
     FLDatabase: TLabel;
     FLEngine: TLabel;
@@ -299,7 +299,7 @@ begin
 
       if (not Assigned(PageControl.ActivePage)) then
       begin
-        PageControl.ActivePage := TSTables;
+        PageControl.ActivePage := TSBasics;
         FBOkCheckEnabled(nil);
         ActiveControl := FEngine;
       end;
@@ -342,8 +342,6 @@ begin
   FBCheck.Enabled := True;
   FBFlush.Enabled := True;
 
-  PageControl.ActivePage := TSTables;
-
   PageControl.Visible := Database.Session.Update(Tables);
   PSQLWait.Visible := not PageControl.Visible;
   if (PageControl.Visible) then
@@ -359,7 +357,10 @@ begin
 
   ActiveControl := FBCancel;
   if (PageControl.Visible) then
+  begin
+    PageControl.ActivePage := TSBasics;
     ActiveControl := FEngine;
+  end;
 end;
 
 procedure TDTables.FCharsetChange(Sender: TObject);
@@ -473,7 +474,7 @@ begin
 
   PSQLWait.Caption := Preferences.LoadStr(882);
 
-  TSTables.Caption := Preferences.LoadStr(108);
+  TSBasics.Caption := Preferences.LoadStr(108);
   GBasics.Caption := Preferences.LoadStr(85);
   FLTablesCount.Caption := Preferences.LoadStr(617) + ':';
   FLDatabase.Caption := Preferences.LoadStr(38) + ':';

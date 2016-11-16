@@ -425,7 +425,7 @@ begin
   FBCheck.Enabled := True;
   FBFlush.Enabled := True;
 
-  TSInformation.TabVisible := not FName.Enabled;
+  TSInformation.TabVisible := Assigned(Database);
   TSExtras.TabVisible := Assigned(Database);
 
   FName.SelectAll();
@@ -434,12 +434,15 @@ begin
 
   ActiveControl := FBCancel;
   if (PageControl.Visible) then
+  begin
+    PageControl.ActivePage := TSBasics;
     if (FName.Enabled) then
       ActiveControl := FName
     else if (FCharset.Visible) then
       ActiveControl := FCharset
     else
       ActiveControl := FBCancel;
+  end;
 end;
 
 procedure TDDatabase.FSourceChange(Sender: TObject);
