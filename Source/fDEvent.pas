@@ -259,9 +259,8 @@ begin
       PageControl.Visible := True;
       PSQLWait.Visible := not PageControl.Visible;
 
-      if (not Assigned(PageControl.ActivePage)) then
+      if (ActiveControl = FBCancel) then
       begin
-        PageControl.ActivePage := TSBasics;
         FBOkCheckEnabled(nil);
         ActiveControl := FName;
       end;
@@ -353,7 +352,7 @@ begin
   msDelete.Action := MainAction('aEDelete'); msDelete.ShortCut := 0;
   msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;
 
-  PageControl.ActivePage := nil;
+  PageControl.ActivePage := TSBasics
 end;
 
 procedure TDEvent.FormHide(Sender: TObject);
@@ -364,7 +363,7 @@ begin
   Preferences.Event.Height := Height;
 
   FSource.Lines.Clear();
-  PageControl.ActivePage := nil;
+  PageControl.ActivePage := TSBasics;
 end;
 
 procedure TDEvent.FormShow(Sender: TObject);
@@ -445,12 +444,10 @@ begin
 
   FBOk.Enabled := PageControl.Visible and not Assigned(Event);
 
-  ActiveControl := FBCancel;
   if (PageControl.Visible) then
-  begin
-    PageControl.ActivePage := TSBasics;
-    ActiveControl := FName;
-  end;
+    ActiveControl := FName
+  else
+    ActiveControl := FBCancel;
 end;
 
 procedure TDEvent.FStartEnabledClick(Sender: TObject);

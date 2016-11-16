@@ -236,7 +236,7 @@ begin
 
   FReferenced.RowSelect := CheckWin32Version(6);
 
-  PageControl.ActivePage := nil;
+  PageControl.ActivePage := TSBasics;
 end;
 
 procedure TDRoutine.FormHide(Sender: TObject);
@@ -250,7 +250,7 @@ begin
   FReferenced.Items.Clear();
   FReferenced.Items.EndUpdate();
 
-  PageControl.ActivePage := nil;
+  PageControl.ActivePage := TSBasics;
 end;
 
 procedure TDRoutine.FormSessionEvent(const Event: TSSession.TEvent);
@@ -273,9 +273,8 @@ begin
       PageControl.Visible := True;
       PSQLWait.Visible := not PageControl.Visible;
 
-      if (not Assigned(PageControl.ActivePage)) then
+      if (ActiveControl = FBCancel) then
       begin
-        PageControl.ActivePage := TSBasics;
         FBOkCheckEnabled(nil);
         ActiveControl := FComment;
       end;
@@ -376,7 +375,6 @@ begin
 
   FBOk.Enabled := PageControl.Visible and not Assigned(Routine);
 
-  ActiveControl := FBCancel;
   if (PageControl.Visible) then
     if (Assigned(Routine)) then
     begin
@@ -387,7 +385,9 @@ begin
     begin
       PageControl.ActivePage := TSSource;
       ActiveControl := FSource;
-    end;
+    end
+  else
+    ActiveControl := FBCancel;
 end;
 
 procedure TDRoutine.FReferencedBuild();

@@ -311,7 +311,7 @@ begin
 
   FSource.Highlighter := MainHighlighter;
 
-  PageControl.ActivePage := nil;
+  PageControl.ActivePage := TSBasics;
 end;
 
 procedure TDDatabase.FormHide(Sender: TObject);
@@ -323,7 +323,7 @@ begin
 
   FSource.Lines.Clear();
 
-  PageControl.ActivePage := nil;
+  PageControl.ActivePage := TSBasics;
 end;
 
 procedure TDDatabase.FormSessionEvent(const Event: TSSession.TEvent);
@@ -343,7 +343,7 @@ begin
       PageControl.Visible := True;
       PSQLWait.Visible := not PageControl.Visible;
 
-      if (not Assigned(PageControl.ActivePage)) then
+      if (ActiveControl = FBCancel) then
       begin
         FBOkCheckEnabled(nil);
         if (FName.Enabled) then
@@ -434,15 +434,12 @@ begin
 
   ActiveControl := FBCancel;
   if (PageControl.Visible) then
-  begin
-    PageControl.ActivePage := TSBasics;
     if (FName.Enabled) then
       ActiveControl := FName
     else if (FCharset.Visible) then
       ActiveControl := FCharset
     else
       ActiveControl := FBCancel;
-  end;
 end;
 
 procedure TDDatabase.FSourceChange(Sender: TObject);

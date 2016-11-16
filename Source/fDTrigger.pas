@@ -172,9 +172,8 @@ begin
       PageControl.Visible := True;
       PSQLWait.Visible := not PageControl.Visible;
 
-      if (not Assigned(PageControl.ActivePage)) then
+      if (ActiveControl = FBCancel) then
       begin
-        PageControl.ActivePage := TSBasics;
         FBOkCheckEnabled(nil);
         ActiveControl := FName;
       end;
@@ -238,7 +237,7 @@ begin
   msDelete.Action := MainAction('aEDelete'); msDelete.ShortCut := 0;
   msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;
 
-  PageControl.ActivePage := nil;
+  PageControl.ActivePage := TSBasics;
 end;
 
 procedure TDTrigger.FormHide(Sender: TObject);
@@ -248,7 +247,7 @@ begin
   Preferences.Trigger.Width := Width;
   Preferences.Trigger.Height := Height;
 
-  PageControl.ActivePage := nil;
+  PageControl.ActivePage := TSBasics;
 
 end;
 
@@ -309,12 +308,10 @@ begin
 
   FBOk.Enabled := PageControl.Visible and not Assigned(Trigger);
 
-  ActiveControl := FBCancel;
   if (PageControl.Visible) then
-  begin
-    PageControl.ActivePage := TSBasics;
-    ActiveControl := FName;
-  end;
+    ActiveControl := FName
+  else
+    ActiveControl := FBCancel;
 end;
 
 procedure TDTrigger.FStatementChange(Sender: TObject);

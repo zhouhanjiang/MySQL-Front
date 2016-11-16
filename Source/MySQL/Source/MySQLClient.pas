@@ -940,9 +940,8 @@ begin
     Result := ''
   else
   begin
-    Len := WideCharToMultiByte(CodePage, 0, PChar(Str), Length(Str), nil, 0, nil, nil);
-    SetLength(Result, Len);
-    WideCharToMultiByte(CodePage, 0, PChar(Str), Length(Str), PAnsiChar(@Result[1]), Len, nil, nil);
+    SetLength(Result, WideCharToMultiByte(CodePage, 0, PChar(Str), Length(Str), nil, 0, nil, nil));
+    WideCharToMultiByte(CodePage, 0, PChar(Str), Length(Str), PAnsiChar(Result), Length(Result), nil, nil);
   end;
 end;
 
@@ -1144,7 +1143,7 @@ begin
           end;
         end;
       else
-        raise Exception.Create('Unknown IOType');
+        raise ERangeError.Create('Unknown IOType (' + IntToStr(Ord(IOType)) + ')');
     end;
   until (not Result or (BytesRead = BytesToRead));
 end;

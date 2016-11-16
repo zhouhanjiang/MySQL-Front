@@ -993,7 +993,7 @@ begin
   FReferenced.RowSelect := CheckWin32Version(6);
   FPartitions.RowSelect := CheckWin32Version(6);
 
-  PageControl.ActivePage := nil;
+  PageControl.ActivePage := TSBasics;
 end;
 
 procedure TDTable.FormDestroy(Sender: TObject);
@@ -1029,7 +1029,7 @@ begin
 
   FSource.Lines.Clear();
 
-  PageControl.ActivePage := nil;
+  PageControl.ActivePage := TSBasics;
 end;
 
 procedure TDTable.FormSessionEvent(const Event: TSSession.TEvent);
@@ -1055,9 +1055,8 @@ begin
       PageControl.Visible := True;
       PSQLWait.Visible := not PageControl.Visible;
 
-      if (not Assigned(PageControl.ActivePage)) then
+      if (ActiveControl = FBCancel) then
       begin
-        PageControl.ActivePage := TSBasics;
         FBOkCheckEnabled(nil);
         ActiveControl := FName;
       end;
@@ -1117,8 +1116,6 @@ begin
   FBFlush.Enabled := True;
 
   NewTable := TSBaseTable.Create(Database.Tables);
-
-  PageControl.ActivePage := TSBasics;
 
   if (not Assigned(Table)) then
   begin
@@ -1208,12 +1205,10 @@ begin
   FBOk.Enabled := PageControl.Visible and not Assigned(Table);
   FBCancel.Caption := Preferences.LoadStr(30);
 
-  ActiveControl := FBCancel;
   if (PageControl.Visible) then
-  begin
-    PageControl.ActivePage := TSBasics;
-    ActiveControl := FName;
-  end;
+    ActiveControl := FName
+  else
+    ActiveControl := FBCancel;
 end;
 
 procedure TDTable.FPartitionsNumberChange(Sender: TObject);

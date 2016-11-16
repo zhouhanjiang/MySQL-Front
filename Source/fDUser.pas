@@ -212,9 +212,8 @@ begin
       PageControl.Visible := True;
       PSQLWait.Visible := not PageControl.Visible;
 
-      if (not Assigned(PageControl.ActivePage)) then
+      if (ActiveControl = FBCancel) then
       begin
-        PageControl.ActivePage := TSBasics;
         FBOkCheckEnabled(nil);
         ActiveControl := FName;
       end;
@@ -271,7 +270,7 @@ begin
 
   FSource.Highlighter := MainHighlighter;
 
-  PageControl.ActivePage := nil;
+  PageControl.ActivePage := TSBasics;
 end;
 
 procedure TDUser.FormHide(Sender: TObject);
@@ -289,7 +288,7 @@ begin
   if (Assigned(NewUser)) then
     FreeAndNil(NewUser);
 
-  PageControl.ActivePage := nil;
+  PageControl.ActivePage := TSBasics;
 end;
 
 procedure TDUser.FormShow(Sender: TObject);
@@ -363,14 +362,10 @@ begin
 
   TSSource.TabVisible := Assigned(User);
 
-  PageControl.ActivePage := TSBasics;
-
-  ActiveControl := FBCancel;
   if (PageControl.Visible) then
-  begin
-    PageControl.ActivePage := TSBasics;
-    ActiveControl := FName;
-  end;
+    ActiveControl := FName
+  else
+    ActiveControl := FBCancel;
 
   PostMessage(Self.Handle, UM_POST_SHOW, 0, 0);
 end;

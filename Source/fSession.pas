@@ -7621,12 +7621,14 @@ begin
     FName := SQLParseValue(Parse);
 
     if (SQLParseKeyword(Parse, 'DEFAULT CHARACTER SET') or SQLParseKeyword(Parse, 'CHARACTER SET')) then
-      Charset := SQLParseValue(Parse)
+      FCharset := SQLParseValue(Parse)
     else
-      Charset := '';
+      FCharset := '';
 
     if (SQLParseKeyword(Parse, 'DEFAULT COLLATE') or SQLParseKeyword(Parse, 'COLLATE')) then
       FCollation := SQLParseValue(Parse)
+    else if (Assigned(Session.CharsetByName(FCharset))) then
+      FCollation := Session.CharsetByName(FCharset).DefaultCollation.Name
     else
       FCollation := '';
   end;

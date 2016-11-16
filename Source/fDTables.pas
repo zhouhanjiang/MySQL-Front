@@ -256,7 +256,7 @@ begin
     Height := Preferences.Table.Height;
   end;
 
-  PageControl.ActivePage := nil;
+  PageControl.ActivePage := TSBasics;
 end;
 
 procedure TDTables.FormHide(Sender: TObject);
@@ -266,7 +266,7 @@ begin
   Preferences.Table.Width := Width;
   Preferences.Table.Height := Height;
 
-  PageControl.ActivePage := nil;
+  PageControl.ActivePage := TSBasics;
 
   FSource.Lines.Clear();
 
@@ -297,9 +297,8 @@ begin
       PageControl.Visible := True;
       PSQLWait.Visible := not PageControl.Visible;
 
-      if (not Assigned(PageControl.ActivePage)) then
+      if (ActiveControl = FBCancel) then
       begin
-        PageControl.ActivePage := TSBasics;
         FBOkCheckEnabled(nil);
         ActiveControl := FEngine;
       end;
@@ -355,12 +354,10 @@ begin
   FBOk.Enabled := PageControl.Visible;
   FBCancel.Caption := Preferences.LoadStr(30);
 
-  ActiveControl := FBCancel;
   if (PageControl.Visible) then
-  begin
-    PageControl.ActivePage := TSBasics;
-    ActiveControl := FEngine;
-  end;
+    ActiveControl := FEngine
+  else
+    ActiveControl := FBCancel;
 end;
 
 procedure TDTables.FCharsetChange(Sender: TObject);
