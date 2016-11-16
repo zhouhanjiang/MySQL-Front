@@ -888,20 +888,14 @@ begin
   if (Event.EventType = etAfterExecuteSQL) then
     if (not GBasics.Visible and (ModalResult = mrNone)) then
     begin
-      GBasics.Visible := True;
-      GAttributes.Visible := GBasics.Visible;
-      PSQLWait.Visible := not GBasics.Visible;
-
-      // Debug 2016-11-15
-      if (not GBasics.Visible) then
-        raise ERangeError.Create(SRangeError);
-      if (PSQLWait.Visible) then
-        raise ERangeError.Create(SRangeError);
-      if (not FName.Enabled) then
-        raise ERangeError.Create(SRangeError);
-
-      ActiveControl := FName;
-      FBOkCheckEnabled(nil);
+      if (GBasics.Visible) then
+      begin
+        GBasics.Visible := True;
+        GAttributes.Visible := GBasics.Visible;
+        PSQLWait.Visible := not GBasics.Visible;
+        FBOkCheckEnabled(nil);
+        ActiveControl := FName;
+      end;
     end;
 end;
 
@@ -1073,6 +1067,15 @@ function TDField.GetType(): TSField.TFieldType;
 begin
   if (FFieldType.ItemIndex < 0) then
     Result := mfUnknown
+  else if (not Assigned(FFieldType)) then
+    // Debug 2016-11-16
+    raise ERangeError.Create(SRangeError)
+  else if (not Assigned(Table)) then
+    // Debug 2016-11-16
+    raise ERangeError.Create(SRangeError)
+  else if (not Assigned(Table.Session)) then
+    // Debug 2016-11-16
+    raise ERangeError.Create(SRangeError)
   else if (not Assigned(Table.Session.FieldTypeByCaption(FFieldType.Text))) then
     // Debug 2016-11-12
     raise ERangeError.CreateFMT(SPropertyOutOfRange + ' ("%s")', ['FFieldType.Text', FFieldType.Text])

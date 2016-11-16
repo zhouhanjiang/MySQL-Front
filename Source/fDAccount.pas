@@ -42,7 +42,6 @@ type
     GConnection: TGroupBox_Ext;
     procedure FBDatabaseClick(Sender: TObject);
     procedure FBHelpClick(Sender: TObject);
-    procedure FBOkCheckEnabled(Sender: TObject);
     procedure FConnectionTypeChange(Sender: TObject);
     procedure FHostExit(Sender: TObject);
     procedure FHTTPTunnelURIEnter(Sender: TObject);
@@ -76,7 +75,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  WinINet, UITypes,
+  WinINet, UITypes, IOUtils, Shlwapi,
   StrUtils,
   MySQLConsts,
   MySQLDB,
@@ -96,7 +95,7 @@ begin
   Result := FAccount;
 end;
 
-function ValidHostName(const HostName: string): Boolean;
+function ValidHostName(const HostName: string; const Port: Integer): Boolean;
 var
   URL: string;
   URLComponents: TURLComponents;
@@ -121,8 +120,13 @@ begin
   URLComponents.lpszUrlPath := @URLComponentsPath;
   URLComponents.lpszExtraInfo := @URLComponentsExtraInfo;
 
-  URL := 'mysql://' + HostName;
-  Result := (HostName <> '') and InternetCrackUrl(PChar(URL), Length(URL), 0, URLComponents);
+  if (Port = 0) then
+    Result := False
+  else
+  begin
+    URL := 'mysql://' + HostName + ':' + IntToStr(Port);
+    Result := (HostName <> '') and InternetCrackUrl(PChar(URL), Length(URL), 0, URLComponents);
+  end;
 end;
 
 { TDAccount *******************************************************************}
@@ -201,27 +205,12 @@ begin
   Application.HelpContext(HelpContext)
 end;
 
-procedure TDAccount.FBOkCheckEnabled(Sender: TObject);
-var
-  Name: string;
-begin
-  Name := Trim(FName.Text);
-
-  FBOk.Enabled := (not Assigned(Accounts.AccountByName(Name)) or Assigned(Account) and (Accounts.AccountByName(Name) = Account))
-    and ValidHostName(Trim(FHost.Text))
-    and ((Trim(FHost.Text) = LOCAL_HOST_NAMEDPIPE) or (FUDPort.Position > 0))
-    and ((FConnectionType.ItemIndex <> 1) or (Trim(FLibraryFilename.Text) <> ''))
-    and ((FConnectionType.ItemIndex <> 2) or ((Copy(Trim(FHTTPTunnelURI.Text), 1, 7) = 'http://') or (Copy(Trim(FHTTPTunnelURI.Text), 1, 8) = 'https://')));
-end;
-
 procedure TDAccount.FConnectionTypeChange(Sender: TObject);
 begin
   FLibraryFilename.Visible := FConnectionType.ItemIndex = 1;
   FHTTPTunnelURI.Visible := FConnectionType.ItemIndex = 2;
   FLLibraryFilename.Visible := FLibraryFilename.Visible;
   FLHTTPTunnelURI.Visible := FHTTPTunnelURI.Visible;
-
-  FBOkCheckEnabled(Sender);
 end;
 
 procedure TDAccount.FHostChange(Sender: TObject);
@@ -229,8 +218,6 @@ begin
   FPort.Visible := Trim(FHost.Text) <> LOCAL_HOST_NAMEDPIPE;
   FUDPort.Visible := FPort.Visible;
   FLPort.Visible := FPort.Visible;
-
-  FBOkCheckEnabled(Sender);
 end;
 
 procedure TDAccount.FHostExit(Sender: TObject);
@@ -281,34 +268,66 @@ begin
     if (Trim(FName.Text) = '') then
       FHostExit(Sender);
 
-    NewAccount := TPAccount.Create(Accounts);
-    if (Assigned(Account)) then
-      NewAccount.Assign(Account);
+    if (CanClose
+      and ((Trim(FName.Text) = '')
+        or not Assigned(Account) and Assigned(Accounts.AccountByName(Trim(FName.Text)))
+        or Assigned(Account) and (Accounts.AccountByName(Trim(FName.Text)) <> Account))) then
+      begin MessageBeep(MB_ICONERROR); ActiveControl := FName; CanClose := False; end;
 
-    NewAccount.Name := Trim(FName.Text);
-    NewAccount.Connection.Host := Trim(FHost.Text);
-    NewAccount.Connection.Port := FUDPort.Position;
-    case (FConnectionType.ItemIndex) of
-      0: NewAccount.Connection.LibraryType := fPreferences.ltBuiltIn;
-      1: NewAccount.Connection.LibraryType := fPreferences.ltDLL;
-      2: NewAccount.Connection.LibraryType := fPreferences.ltHTTP;
+    if (CanClose
+      and (Trim(FHost.Text) <> LOCAL_HOST_NAMEDPIPE) and (FUDPort.Position = 0)) then
+      begin MessageBeep(MB_ICONERROR); ActiveControl := FPort; CanClose := False; end;
+
+    if (CanClose
+      and (Trim(FHost.Text) <> LOCAL_HOST_NAMEDPIPE) and not ValidHostname(Trim(FHost.Text), FUDPort.Position)) then
+      begin MessageBeep(MB_ICONERROR); ActiveControl := FHost; CanClose := False; end;
+
+    if (CanClose
+      and (Trim(FHost.Text) <> LOCAL_HOST_NAMEDPIPE)
+      and (FUDPort.Position = 0)) then
+      begin MessageBeep(MB_ICONERROR); ActiveControl := FPort; CanClose := False; end;
+
+    if (CanClose
+      and (FConnectionType.ItemIndex = 1)
+      and not TPath.HasValidFileNameChars(FLibraryFilename.Text, False)) then
+      begin MessageBeep(MB_ICONERROR); ActiveControl := FLibraryFilename; CanClose := False; end;
+
+    if (CanClose
+      and (FConnectionType.ItemIndex = 2)
+      and not PathIsURL(PChar(FHTTPTunnelURI.Text))) then
+      begin MessageBeep(MB_ICONERROR); ActiveControl := FHTTPTunnelURI; CanClose := False; end;
+
+    if (CanClose) then
+    begin
+      NewAccount := TPAccount.Create(Accounts);
+      if (Assigned(Account)) then
+        NewAccount.Assign(Account);
+
+      NewAccount.Name := Trim(FName.Text);
+      NewAccount.Connection.Host := Trim(FHost.Text);
+      NewAccount.Connection.Port := FUDPort.Position;
+      case (FConnectionType.ItemIndex) of
+        0: NewAccount.Connection.LibraryType := fPreferences.ltBuiltIn;
+        1: NewAccount.Connection.LibraryType := fPreferences.ltDLL;
+        2: NewAccount.Connection.LibraryType := fPreferences.ltHTTP;
+      end;
+      NewAccount.Connection.LibraryFilename := Trim(FLibraryFilename.Text);
+      NewAccount.Connection.HTTPTunnelURI := Trim(FHTTPTunnelURI.Text);
+
+      NewAccount.Connection.Username := Trim(FUser.Text);
+      NewAccount.Connection.Password := Trim(FPassword.Text);
+      NewAccount.Connection.Database := ReplaceStr(Trim(FDatabase.Text), ';', ',');
+
+      Username := NewAccount.Connection.Username;
+      Password := NewAccount.Connection.Password;
+
+      if (not Assigned(Account)) then
+        Accounts.AddAccount(NewAccount)
+      else
+        Accounts.UpdateAccount(Account, NewAccount);
+
+      NewAccount.Free();
     end;
-    NewAccount.Connection.LibraryFilename := Trim(FLibraryFilename.Text);
-    NewAccount.Connection.HTTPTunnelURI := Trim(FHTTPTunnelURI.Text);
-
-    NewAccount.Connection.Username := Trim(FUser.Text);
-    NewAccount.Connection.Password := Trim(FPassword.Text);
-    NewAccount.Connection.Database := ReplaceStr(Trim(FDatabase.Text), ';', ',');
-
-    Username := NewAccount.Connection.Username;
-    Password := NewAccount.Connection.Password;
-
-    if (not Assigned(Account)) then
-      Accounts.AddAccount(NewAccount)
-    else
-      Accounts.UpdateAccount(Account, NewAccount);
-
-    NewAccount.Free();
   end;
 end;
 

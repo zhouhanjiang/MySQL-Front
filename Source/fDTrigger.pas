@@ -81,7 +81,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  StrUtils, SysConst,
+  StrUtils,
   fPreferences, SQLUtils;
 
 var
@@ -172,18 +172,12 @@ begin
       PageControl.Visible := True;
       PSQLWait.Visible := not PageControl.Visible;
 
-      // Debug 2016-11-15
-      if (not PageControl.Visible) then
-        raise ERangeError.Create(SRangeError);
-      if (PSQLWait.Visible) then
-        raise ERangeError.Create(SRangeError);
-      if (PageControl.ActivePage <> TSBasics) then
-        raise ERangeError.Create(SRangeError);
-      if (not FName.Enabled) then
-        raise ERangeError.Create(SRangeError);
-
-      ActiveControl := FName;
-      FBOkCheckEnabled(nil);
+      if (not Assigned(PageControl.ActivePage)) then
+      begin
+        PageControl.ActivePage := TSBasics;
+        FBOkCheckEnabled(nil);
+        ActiveControl := FName;
+      end;
     end;
   end;
 end;
@@ -244,7 +238,7 @@ begin
   msDelete.Action := MainAction('aEDelete'); msDelete.ShortCut := 0;
   msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;
 
-  PageControl.ActivePage := TSBasics;
+  PageControl.ActivePage := nil;
 end;
 
 procedure TDTrigger.FormHide(Sender: TObject);
@@ -254,7 +248,8 @@ begin
   Preferences.Trigger.Width := Width;
   Preferences.Trigger.Height := Height;
 
-  PageControl.ActivePage := TSBasics;
+  PageControl.ActivePage := nil;
+
 end;
 
 procedure TDTrigger.FormShow(Sender: TObject);

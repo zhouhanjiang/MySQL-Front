@@ -461,7 +461,6 @@ object WWindow: TWWindow
     object aOImport: TAction
       Category = 'Options'
       Caption = 'aOImport'
-      Visible = False
       OnExecute = aOImportExecute
     end
     object aEJobAddExport: TAction
@@ -1268,7 +1267,6 @@ object WWindow: TWWindow
     object aOExport: TAction
       Category = 'Options'
       Caption = 'aOExport'
-      Visible = False
       OnExecute = aOExportExecute
     end
   end

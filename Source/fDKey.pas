@@ -92,7 +92,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  StrUtils, Math, SysConst,
+  StrUtils, Math,
   MySQLDB;
 
 var
@@ -498,17 +498,8 @@ begin
       GBasics.Visible := True;
       GAttributes.Visible := GBasics.Visible;
       PSQLWait.Visible := not GBasics.Visible;
-
-      // Debug 2016-11-15
-      if (not GBasics.Visible) then
-        raise ERangeError.Create(SRangeError);
-      if (PSQLWait.Visible) then
-        raise ERangeError.Create(SRangeError);
-      if (not FName.Enabled) then
-        raise ERangeError.Create(SRangeError);
-
-      ActiveControl := FLName.FocusControl;
       FBOkCheckEnabled(nil);
+      ActiveControl := FLName.FocusControl;
     end;
   end;
 end;

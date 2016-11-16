@@ -1022,14 +1022,17 @@ begin
 
   Handled := Preferences.Version >= OnlineProgramVersion;
 
-  if (Handled and IsConnectedToInternet()) then
+  if (Handled and (OnlineProgramVersion > 0) and IsConnectedToInternet()) then
   begin
     Report := string(EurekaExceptionRecord.LogText);
 
     if (Assigned(ActiveTab)) then
     begin
+      Report := Report + 'MySQL:' + #13#10;
+      Report := Report + StringOfChar('-', Length('Version: ' + ActiveTab.Session.Connection.ServerVersionStr)) + #13#10;
+      Report := Report + 'Version: ' + ActiveTab.Session.Connection.ServerVersionStr + #13#10;
       Report := Report + #13#10;
-      Report := Report + 'SQL Log' + #13#10;
+      Report := Report + 'SQL Log:' + #13#10;
       Report := Report + '--------------------------------------------------------------------------------' + #13#10;
       Log := TStringList.Create();
       Log.Text := ActiveTab.Session.Connection.BugMonitor.CacheText;
@@ -1109,8 +1112,8 @@ begin
   aFExportAccess.Visible := (odAccess in ODBCDrivers) or (odAccess2003 in ODBCDrivers);
   aFExportExcel.Visible := (odExcel in ODBCDrivers) or (odExcel2003 in ODBCDrivers);
   aFExportODBC.Visible := ODBCEnv <> SQL_NULL_HANDLE;
-  aVJobs.Visible := CheckWin32Version(6);
-  miEJobs.Visible := CheckWin32Version(6);
+  aVJobs.Visible := False; // CheckWin32Version(6);
+  miEJobs.Visible := False; // CheckWin32Version(6);
   aHIndex.Enabled := FileExists(Application.HelpFile);
   aHUpdate.Enabled := IsConnectedToInternet() and (Preferences.SetupProgram = '');
 

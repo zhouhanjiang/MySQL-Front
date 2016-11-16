@@ -993,7 +993,7 @@ begin
   FReferenced.RowSelect := CheckWin32Version(6);
   FPartitions.RowSelect := CheckWin32Version(6);
 
-  PageControl.ActivePage := TSBasics; // TSInformationShow should not be called previously while the next showing
+  PageControl.ActivePage := nil;
 end;
 
 procedure TDTable.FormDestroy(Sender: TObject);
@@ -1029,7 +1029,7 @@ begin
 
   FSource.Lines.Clear();
 
-  PageControl.ActivePage := TSBasics; // TSInformationShow should not be called previously while the next showing
+  PageControl.ActivePage := nil;
 end;
 
 procedure TDTable.FormSessionEvent(const Event: TSSession.TEvent);
@@ -1055,18 +1055,12 @@ begin
       PageControl.Visible := True;
       PSQLWait.Visible := not PageControl.Visible;
 
-      // Debug 2016-11-15
-      if (not PageControl.Visible) then
-        raise ERangeError.Create(SRangeError);
-      if (PSQLWait.Visible) then
-        raise ERangeError.Create(SRangeError);
-      if (PageControl.ActivePage <> TSBasics) then
-        raise ERangeError.Create(SRangeError);
-      if (not FName.Enabled) then
-        raise ERangeError.Create(SRangeError);
-
-      ActiveControl := FName;
-      FBOkCheckEnabled(nil);
+      if (not Assigned(PageControl.ActivePage)) then
+      begin
+        PageControl.ActivePage := TSBasics;
+        FBOkCheckEnabled(nil);
+        ActiveControl := FName;
+      end;
     end;
   end;
 end;

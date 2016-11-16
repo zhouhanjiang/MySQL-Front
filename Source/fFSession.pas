@@ -302,7 +302,6 @@ type
     N34: TMenuItem;
     OpenDialog: TOpenDialog_Ext;
     PBlob: TPanel_Ext;
-    PBlobSpacer: TPanel_Ext;
     PQueryBuilder: TPanel_Ext;
     PQueryBuilderSynMemo: TPanel_Ext;
     PContent: TPanel_Ext;
@@ -4661,6 +4660,8 @@ begin
   end;
 
   SSideBar.Width := GetSystemMetrics(SM_CXFIXEDFRAME);
+  PDataBrowserSpacer.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
+  PObjectIDESpacer.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
   SQueryBuilderSynMemo.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
   SResult.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
   SBlob.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
@@ -5564,7 +5565,7 @@ var
   DBGrid: TMySQLDBGrid;
   SQL: string;
 begin
-  if (Sender is TMySQLDBGrid) then
+  if ((Sender is TMySQLDBGrid) and Assigned(TMySQLDBGrid(Sender).DataSource.DataSet)) then
   begin
     if (View = vIDE) then SQL := SQLTrimStmt(ActiveSynMemo.Text, Session.Connection.MySQLVersion) else SQL := '';
 
@@ -5828,6 +5829,12 @@ var
   URI: TUURI;
   View: TView;
 begin
+  // Debug 2016-11-16
+  if (not Assigned(Session)) then
+    raise ERangeError.Create(SRangeError)
+  else if (Sessions.IndexOf(Session) < 0) then
+    raise ERangeError.Create(SRangeError);
+
   Session.ReleaseEventProc(FormSessionEvent);
   Session.CreateDesktop := nil;
 
@@ -6788,7 +6795,7 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
     end;
   end;
 
-  function Compare(const ImageIndex: Integer; const Item1, Item2: TTreeNode): Integer;
+  function Compare(const Item1, Item2: TTreeNode): Integer;
   const
     ImageIndexSort = Chr(iiProcesses) + Chr(iiUsers) + Chr(iiVariables);
   begin
@@ -6802,7 +6809,7 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
       raise ERangeError.Create(SRangeError);
   end;
 
-  procedure InsertChild(const Node: TTreeNode; const Data: TObject);
+  procedure InsertOrUpdateChild(const Node: TTreeNode; const Data: TObject);
   var
     Added: Boolean;
     C: Integer;
@@ -6818,6 +6825,10 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
     Text: string;
     VirtualChild: TTreeNode;
   begin
+    // Debug 2016-11-16
+    if (not Assigned(Data)) then
+      raise ERangeError.Create(SRangeError);
+
     Index := 0;
     Child := Node.getFirstChild();
     while (Assigned(Child) and (Child.Data <> Data)) do
@@ -6846,7 +6857,7 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
           for I := OldMid to Mid - 1 do
             MidChild := MidChild.getNextSibling();
         OldMid := Mid;
-        C := Compare(Node.ImageIndex, MidChild, VirtualChild);
+        C := Compare(MidChild, VirtualChild);
         case (C) of
           -1: begin Left := Mid + 1; Index := Mid + 1; end;
           0: raise ERangeError.Create(SRangeError);
@@ -6963,13 +6974,13 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
           for I := 0 to SItems.Count - 1 do
             if (not (SItems is TSTriggers) or (TSTriggers(SItems)[I].Table = Event.Sender)) then
               if (not Add) then
-                InsertChild(Node, SItems[I])
+                InsertOrUpdateChild(Node, SItems[I])
               else
                 AddChild(Node, SItems[I]);
         end;
       etItemCreated:
         if (not (Event.Item is TSTrigger) or (Node.Count > 0)) then
-          InsertChild(Node, Event.Item);
+          InsertOrUpdateChild(Node, Event.Item);
       etItemAltered:
         begin
           Child := Node.getFirstChild();
@@ -6979,7 +6990,7 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
           begin
             Child.Text := Event.Item.Caption;
             Destination := Node.getFirstChild();
-            while (Assigned(Destination) and ((Destination = Child) or (Compare(Node.ImageIndex, Destination, Child) < 0))) do
+            while (Assigned(Destination) and ((Destination = Child) or (Compare(Destination, Child) < 0))) do
               Destination := Destination.getNextSibling();
             if (Assigned(Destination)) then
               Child.MoveTo(Destination, naInsert)
@@ -7431,11 +7442,9 @@ procedure TFSession.FQueryBuilderEditorChange(Sender: TObject);
 begin
   try
     FQueryBuilder.SQL := FQueryBuilderSynMemo.Lines.Text;
+    PostMessage(Handle, UM_POST_BUILDER_QUERY_CHANGE, 0, 0);
   except
-    on E: Exception do
-      raise Exception.Create(E.Message + '  SQL: ' + FQueryBuilderSynMemo.Lines.Text);
   end;
-  PostMessage(Handle, UM_POST_BUILDER_QUERY_CHANGE, 0, 0);
 end;
 
 procedure TFSession.FQueryBuilderEditorEnter(Sender: TObject);
@@ -8032,9 +8041,12 @@ begin
         FObjectIDEGrid.DataSource.DataSet := Routine.InputDataSet;
 
         for I := 0 to Routine.ParameterCount - 1 do
+        begin
+          FObjectIDEGrid.Columns[I].PickList.Clear();
           if (Routine.Parameter[I].FieldType = mfEnum) then
             for J := 0 to Length(Routine.Parameter[I].Items) - 1 do
               FObjectIDEGrid.Columns[I].PickList.Add(Routine.Parameter[I].Items[J]);
+        end;
       end;
     iiTrigger:
       if (not Session.Connection.InUse()) then
@@ -11777,7 +11789,7 @@ begin
   for I := 0 to TBBlob.ControlCount - 1 do
     if (TBBlob.Controls[I].Visible and (TBBlob.Controls[I] <> tbBlobSpacer)) then
       Inc(Widths, TBBlob.Controls[I].Width);
-  Inc(Widths, PBlobSpacer.Height + GetSystemMetrics(SM_CXVSCROLL));
+  Inc(Widths, GetSystemMetrics(SM_CXVSCROLL));
   tbBlobSpacer.Width := TBBlob.Width - Widths;
 
   if (Assigned(ToolBar.Images)) then
@@ -12136,7 +12148,8 @@ begin
       Window.ActiveControl := TempActiveControl;
   end;
 
-  StatusBarRefresh();
+  // StatusBar should be refreshed, after all events applied.
+  PostMessage(Handle, UM_STATUS_BAR_REFRESH, 0, 0);
 
   if (Assigned(Event) and ((Event.EventType in [etItemCreated, etItemAltered]) or ((Event.EventType in [etItemValid]) and (Event.Item is TSObject) and not TSObject(Event.Item).Valid)) and (Screen.ActiveForm = Window) and Wanted.Nothing) then
     Wanted.Update := Session.Update;
@@ -12480,9 +12493,9 @@ begin
       StatusBar.Panels[sbNavigation].Text := IntToStr(ActiveSynMemo.CaretXY.Line) + ':' + IntToStr(ActiveSynMemo.CaretXY.Char)
     else if (Window.ActiveControl = ActiveListView) then
     begin
-      // Debug 2016-11-13
+      // Debug 2016-11-16
       if (not (ActiveListView is TListView)) then
-        raise ERangeError.Create(SRangeError);
+        raise ERangeError.Create(SRangeError + ('ClassName: ' + ActiveListView.ClassName));
       // Debug 2016-11-16
       if (Assigned(ActiveListView.Selected) and not Assigned(ActiveListView.Selected.Data)) then
         raise ERangeError.Create(SRangeError);

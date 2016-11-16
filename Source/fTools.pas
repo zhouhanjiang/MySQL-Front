@@ -1000,10 +1000,18 @@ begin
     if ((Result = 0) and (TTool.TItem(Item1) is TTExport.TDBObjectItem)) then
     begin
       if (TTExport.TDBObjectItem(Item1).DBObject is TSBaseTable) then
+      begin
+        // Debug 2016-11-16
+        if (TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Source = '') then
+          raise ERangeError.Create(SRangeError)
+        else if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine)) then
+          raise ERangeError.Create(SRangeError);
+
         if (not TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine.IsMerge) then
           Index1 := 1
         else
-          Index1 := 2
+          Index1 := 2;
+      end
       else if (TTExport.TDBObjectItem(Item1).DBObject is TSFunction) then
         Index1 := 3
       else if (TTExport.TDBObjectItem(Item1).DBObject is TSView) then
@@ -1192,7 +1200,16 @@ begin
 
   Size := MaxCharSize * Len;
   Reallocate(Size);
-  Len := WideCharToAnsiChar(CodePage, PChar(Temp2.Mem), Len, Buffer.Write, Buffer.Size - Self.Size);
+  try
+    Len := WideCharToAnsiChar(CodePage, PChar(Temp2.Mem), Len, Buffer.Write, Buffer.Size - Self.Size);
+  except
+    // Debug 2016-11-16
+    on E: Exception do
+      if (WideCharToAnsiChar(CodePage, PChar(Temp2.Mem), Len, nil, 0) > Buffer.Size - Self.Size) then
+        raise ERangeError.Create(SRangeError)
+      else
+        raise E;
+  end;
   Buffer.Write := @Buffer.Write[Len];
 end;
 
@@ -7858,7 +7875,9 @@ begin
     begin
       DataSet.Open(DataHandle);
       if (not DataSet.Active) then
-        DoError(DatabaseError(Session), Item, False, SQL);
+        DoError(DatabaseError(Session), Item, False, SQL)
+      else if (DataSet.FieldCount = 0) then
+        raise ERangeError.CreateFMT(SRangeError + ' (FieldCount: %d, ErrorCode: %d, SQL: %s)', ['FieldCount', FieldCount, DataHandle.Connection.ErrorCode, DataSet.CommandText]);
     end;
 
     if (Success = daSuccess) then

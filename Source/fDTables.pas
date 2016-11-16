@@ -145,13 +145,6 @@ begin
   for I := 1 to Tables.Count - 1 do
     if (FRowType.Items.IndexOf(TSBaseTable(Tables[I]).DBRowTypeStr()) <> FRowType.ItemIndex) then
       FRowType.ItemIndex := 0;
-
-  PageControl.ActivePage := TSTables;
-
-  PageControl.Visible := True;
-  PSQLWait.Visible := not PageControl.Visible;
-
-  ActiveControl := FEngine;
 end;
 
 function TDTables.Execute(): Boolean;
@@ -273,7 +266,7 @@ begin
   Preferences.Table.Width := Width;
   Preferences.Table.Height := Height;
 
-  PageControl.ActivePage := nil; // TSInformationShow should not be called previously while the next showing
+  PageControl.ActivePage := nil;
 
   FSource.Lines.Clear();
 
@@ -297,13 +290,20 @@ begin
 
   if (Event.EventType = etAfterExecuteSQL) then
   begin
-    PageControl.Visible := True;
-    PSQLWait.Visible := not PageControl.Visible;
-
     if (WaitingForClose and (Event.Session.Connection.ErrorCode = 0)) then
       ModalResult := mrOK
-    else
-      FBOkCheckEnabled(nil);
+    else if (not PageControl.Visible and (ModalResult = mrNone)) then
+    begin
+      PageControl.Visible := True;
+      PSQLWait.Visible := not PageControl.Visible;
+
+      if (not Assigned(PageControl.ActivePage)) then
+      begin
+        PageControl.ActivePage := TSTables;
+        FBOkCheckEnabled(nil);
+        ActiveControl := FEngine;
+      end;
+    end;
   end;
 end;
 

@@ -2027,7 +2027,9 @@ end;
 
 procedure TDImport.UMPostAfterExecuteSQL(var Message: TMessage);
 begin
-  if (((DialogType = idtNormal) or (DialogType in [idtEditJob, idtExecuteJob]) and InitTSSelect()) and Assigned(FSelect.Selected)) then
+  if (((DialogType = idtNormal) or (DialogType in [idtEditJob, idtExecuteJob])
+    and InitTSSelect())
+    and Assigned(FSelect.Selected)) then
     SObject := TSObject(FSelect.Selected.Data);
 
   Message.Result := LRESULT(not Assigned(SObject) or SObject.Update());

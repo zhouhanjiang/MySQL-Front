@@ -849,9 +849,9 @@ object FSession: TFSession
       end
       object PDataBrowserSpacer: TPanel_Ext
         Left = 0
-        Top = 23
+        Top = 22
         Width = 467
-        Height = 2
+        Height = 3
         Align = alBottom
         BevelOuter = bvNone
         ParentBackground = False
@@ -871,9 +871,9 @@ object FSession: TFSession
       OnResize = PObjectIDEResize
       object PObjectIDESpacer: TPanel_Ext
         Left = 0
-        Top = 36
+        Top = 35
         Width = 467
-        Height = 2
+        Height = 3
         Align = alBottom
         BevelOuter = bvNone
         ParentBackground = False
@@ -883,7 +883,7 @@ object FSession: TFSession
         Left = 0
         Top = 0
         Width = 467
-        Height = 36
+        Height = 35
         HelpContext = 1122
         Align = alClient
         BorderStyle = bsNone
@@ -967,14 +967,16 @@ object FSession: TFSession
       Visible = False
       object FImage: TImage
         Left = 2
-        Top = 27
+        Top = 25
         Width = 463
-        Height = 30
+        Height = 32
         Align = alClient
         Center = True
         PopupMenu = MText
         Proportional = True
+        ExplicitTop = 27
         ExplicitWidth = 315
+        ExplicitHeight = 30
       end
       object PToolBarBlob: TPanel_Ext
         Left = 2
@@ -987,7 +989,7 @@ object FSession: TFSession
         DoubleBuffered = False
         ParentBackground = False
         ParentDoubleBuffered = False
-        TabOrder = 4
+        TabOrder = 3
         OnResize = PToolBarBlobResize
         object TBBlob: TToolBar
           Left = 0
@@ -1066,9 +1068,9 @@ object FSession: TFSession
       end
       object FText: TRichEdit
         Left = 2
-        Top = 27
+        Top = 25
         Width = 463
-        Height = 30
+        Height = 32
         Align = alClient
         BorderStyle = bsNone
         Font.Charset = ANSI_CHARSET
@@ -1091,9 +1093,9 @@ object FSession: TFSession
       end
       object FRTF: TRichEdit
         Left = 2
-        Top = 27
+        Top = 25
         Width = 463
-        Height = 30
+        Height = 32
         Align = alClient
         BorderStyle = bsNone
         Font.Charset = ANSI_CHARSET
@@ -1114,9 +1116,9 @@ object FSession: TFSession
       end
       object FHexEditor: TMPHexEditorEx
         Left = 2
-        Top = 27
+        Top = 25
         Width = 463
-        Height = 30
+        Height = 32
         Cursor = crIBeam
         BackupExtension = '.bak'
         PrintOptions.MarginLeft = 20
@@ -1140,7 +1142,7 @@ object FSession: TFSession
         OnKeyPress = FHexEditorKeyPress
         ParentFont = False
         PopupMenu = MText
-        TabOrder = 3
+        TabOrder = 2
         BytesPerRow = 16
         BytesPerColumn = 1
         Translation = tkAsIs
@@ -1165,16 +1167,6 @@ object FSession: TFSession
         OnChange = FHexEditorChange
         BytesPerBlock = 8
         SeparateBlocksInCharField = False
-      end
-      object PBlobSpacer: TPanel_Ext
-        Left = 2
-        Top = 25
-        Width = 463
-        Height = 2
-        Align = alTop
-        BevelOuter = bvNone
-        ParentBackground = False
-        TabOrder = 2
       end
     end
     object PWorkbench: TPanel_Ext

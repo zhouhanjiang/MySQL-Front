@@ -91,7 +91,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  StrUtils, SysConst,
+  StrUtils,
   fPreferences;
 
 var
@@ -311,7 +311,7 @@ begin
 
   FSource.Highlighter := MainHighlighter;
 
-  PageControl.ActivePage := TSBasics; // TSInformationShow should not be called previously while the next showing
+  PageControl.ActivePage := nil;
 end;
 
 procedure TDDatabase.FormHide(Sender: TObject);
@@ -323,7 +323,7 @@ begin
 
   FSource.Lines.Clear();
 
-  PageControl.ActivePage := TSBasics; // TSInformationShow should not be called previously while the next showing
+  PageControl.ActivePage := nil;
 end;
 
 procedure TDDatabase.FormSessionEvent(const Event: TSSession.TEvent);
@@ -343,18 +343,16 @@ begin
       PageControl.Visible := True;
       PSQLWait.Visible := not PageControl.Visible;
 
-      // Debug 2016-11-15
-      if (not PageControl.Visible) then
-        raise ERangeError.Create(SRangeError);
-      if (PSQLWait.Visible) then
-        raise ERangeError.Create(SRangeError);
-      if (PageControl.ActivePage <> TSBasics) then
-        raise ERangeError.Create(SRangeError);
-      if (not FName.Enabled) then
-        raise ERangeError.Create(SRangeError);
-
-      FBOkCheckEnabled(nil);
-      ActiveControl := FCharset;
+      if (not Assigned(PageControl.ActivePage)) then
+      begin
+        FBOkCheckEnabled(nil);
+        if (FName.Enabled) then
+          ActiveControl := FName
+        else if (FCharset.Visible) then
+          ActiveControl := FCharset
+        else
+          ActiveControl := FBCancel;
+      end;
     end;
   end;
 end;

@@ -89,7 +89,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  CommCtrl, Math, StrUtils, SysConst,
+  CommCtrl, Math, StrUtils,
   CommCtrl_Ext,
   SQLUtils, MySQLDB,
   fDUserRight, fPreferences;
@@ -159,6 +159,7 @@ begin
   NewUser.DeleteRight(FRights.Selected.Data);
   FRights.DeleteSelected();
 
+  FRightsSelectItem(FRights, nil, False);
   FBOkCheckEnabled(Sender);
 end;
 
@@ -211,18 +212,12 @@ begin
       PageControl.Visible := True;
       PSQLWait.Visible := not PageControl.Visible;
 
-      // Debug 2016-11-15
-      if (not PageControl.Visible) then
-        raise ERangeError.Create(SRangeError);
-      if (PSQLWait.Visible) then
-        raise ERangeError.Create(SRangeError);
-      if (PageControl.ActivePage <> TSBasics) then
-        raise ERangeError.Create(SRangeError);
-      if (not FName.Enabled) then
-        raise ERangeError.Create(SRangeError);
-
-      FBOkCheckEnabled(nil);
-      ActiveControl := FName;
+      if (not Assigned(PageControl.ActivePage)) then
+      begin
+        PageControl.ActivePage := TSBasics;
+        FBOkCheckEnabled(nil);
+        ActiveControl := FName;
+      end;
     end;
   end;
 end;
@@ -276,7 +271,7 @@ begin
 
   FSource.Highlighter := MainHighlighter;
 
-  PageControl.ActivePage := TSBasics;
+  PageControl.ActivePage := nil;
 end;
 
 procedure TDUser.FormHide(Sender: TObject);
@@ -294,7 +289,7 @@ begin
   if (Assigned(NewUser)) then
     FreeAndNil(NewUser);
 
-  PageControl.ActivePage := TSBasics;
+  PageControl.ActivePage := nil;
 end;
 
 procedure TDUser.FormShow(Sender: TObject);

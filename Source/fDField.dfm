@@ -162,7 +162,7 @@ object DField: TDField
     end
     object FDefaultSet: TListBox
       Left = 120
-      Top = 204
+      Top = 174
       Width = 189
       Height = 41
       Anchors = [akLeft, akTop, akRight]

@@ -62,17 +62,13 @@ object DUser: TDUser
     Top = 8
     Width = 321
     Height = 241
-    ActivePage = TSBasics
+    ActivePage = TSRights
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         213)
@@ -148,10 +144,6 @@ object DUser: TDUser
     object TSRights: TTabSheet
       Caption = 'TSRights'
       OnShow = TSRightsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         213)
@@ -207,10 +199,6 @@ object DUser: TDUser
     end
     object TSLimits: TTabSheet
       Caption = 'TSLimits'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         213)
@@ -324,10 +312,6 @@ object DUser: TDUser
     end
     object TSSource: TTabSheet
       Caption = 'TSSource'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         213)

@@ -322,7 +322,7 @@ begin
   msDelete.Action := MainAction('aEDelete'); msDelete.ShortCut := 0;
   msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;
 
-  PageControl.ActivePage := TSBasics;
+  PageControl.ActivePage := nil;
 
   FReferenced.RowSelect := CheckWin32Version(6);
 end;
@@ -345,7 +345,7 @@ begin
 
   FSource.Lines.Clear();
 
-  PageControl.ActivePage := TSBasics;
+  PageControl.ActivePage := nil;
 end;
 
 procedure TDView.FormSessionEvent(const Event: TSSession.TEvent);
@@ -368,18 +368,12 @@ begin
       PageControl.Visible := True;
       PSQLWait.Visible := not PageControl.Visible;
 
-      // Debug 2016-11-15
-      if (not PageControl.Visible) then
-        raise ERangeError.Create(SRangeError);
-      if (PSQLWait.Visible) then
-        raise ERangeError.Create(SRangeError);
-      if (PageControl.ActivePage <> TSBasics) then
-        raise ERangeError.Create(SRangeError);
-      if (not FName.Enabled) then
-        raise ERangeError.Create(SRangeError);
-
-      ActiveControl := FName;
-      FBOkCheckEnabled(nil);
+      if (not Assigned(PageControl.ActivePage)) then
+      begin
+        PageControl.ActivePage := TSBasics;
+        FBOkCheckEnabled(nil);
+        ActiveControl := FName;
+      end;
     end;
   end;
 end;

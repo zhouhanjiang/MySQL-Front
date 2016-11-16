@@ -70,7 +70,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  fPreferences, SysConst,
+  fPreferences,
   MySQLDB;
 
 var
@@ -325,20 +325,14 @@ begin
   begin
     if (not GBasics.Visible and (ModalResult = mrNone)) then
     begin
-      GBasics.Visible := True;
-      GAttributes.Visible := GBasics.Visible;
-      PSQLWait.Visible := not GBasics.Visible;
-
-      // Debug 2016-11-15
       if (not GBasics.Visible) then
-        raise ERangeError.Create(SRangeError);
-      if (PSQLWait.Visible) then
-        raise ERangeError.Create(SRangeError);
-      if (not FName.Enabled) then
-        raise ERangeError.Create(SRangeError);
-
-      ActiveControl := FName;
-      FBOkCheckEnabled(nil);
+      begin
+        GBasics.Visible := True;
+        GAttributes.Visible := GBasics.Visible;
+        PSQLWait.Visible := not GBasics.Visible;
+        FBOkCheckEnabled(nil);
+        ActiveControl := FName;
+      end;
     end;
 
     PostMessage(Handle, UM_POST_AFTEREXECUTESQL, 0, 0);

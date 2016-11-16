@@ -231,7 +231,7 @@ type
     destructor Destroy(); override;
     function GetSourceEx(const DropBeforeCreate: Boolean = False): string; virtual; abstract;
     procedure Invalidate(); override;
-    procedure PushBuildEvent(const SItemsEvents: Boolean = True); virtual;
+    procedure PushBuildEvent(const ItemsEvents: Boolean = True); virtual;
     function Update(): Boolean; override;
     property Database: TSDatabase read FDatabase;
     property DBObjects: TSDBObjects read GetDBObjects;
@@ -2420,11 +2420,11 @@ begin
   inherited;
 end;
 
-procedure TSDBObject.PushBuildEvent(const SItemsEvents: Boolean = True);
+procedure TSDBObject.PushBuildEvent(const ItemsEvents: Boolean = True);
 begin
   if (Valid) then
   begin
-    if (SItemsEvents) then
+    if (ItemsEvents) then
       Session.SendEvent(etItemsValid, Database, Items);
     Session.SendEvent(etItemValid, Database, Items, Self);
   end;
@@ -4044,7 +4044,7 @@ begin
   except
     // Sometimes, the MySQL server sends wrong encoded field comments.
     // This code allow the user to handle this table - but the comments are wrong.
-    if (Session.Connection.MySQLVersion >= 50000) then
+    if (Session.Connection.MySQLVersion >= 50100) then
       raise ERangeError.Create(SRangeError);
     SetString(RBS, TMySQLQuery(Field.DataSet).LibRow^[Field.FieldNo - 1], TMySQLQuery(Field.DataSet).LibLengths^[Field.FieldNo - 1]);
     SetSource(string(RBS));
@@ -5386,9 +5386,9 @@ begin
             if (not TryStrToInt64(DataSet.FieldByName('Max_data_length').AsString, TSBaseTable(Table[Index]).FMaxDataSize)) then TSBaseTable(Table[Index]).FMaxDataSize := 0;
             if (not TryStrToInt64(DataSet.FieldByName('Data_free').AsString, TSBaseTable(Table[Index]).FUnusedSize)) then TSBaseTable(Table[Index]).FUnusedSize := 0;
             if (not TryStrToInt64(DataSet.FieldByName('Auto_increment').AsString, TSBaseTable(Table[Index]).FAutoIncrement)) then TSBaseTable(Table[Index]).FAutoIncrement := 0;
-            TSBaseTable(Table[Index]).FCreated := DataSet.FieldByName('Create_time').AsDateTime;
-            TSBaseTable(Table[Index]).FUpdated := DataSet.FieldByName('Update_time').AsDateTime;
-            TSBaseTable(Table[Index]).FChecked := DataSet.FieldByName('Check_time').AsDateTime;
+            if (not TryStrToDateTime(DataSet.FieldByName('Create_time').AsString, TSBaseTable(Table[Index]).FCreated)) then TSBaseTable(Table[Index]).FCreated := 0;
+            if (not TryStrToDateTime(DataSet.FieldByName('Update_time').AsString, TSBaseTable(Table[Index]).FChecked)) then TSBaseTable(Table[Index]).FChecked := 0;
+            if (not TryStrToDateTime(DataSet.FieldByName('Check_time').AsString, TSBaseTable(Table[Index]).FUpdated)) then TSBaseTable(Table[Index]).FUpdated := 0;
             TSBaseTable(Table[Index]).FComment := DataSet.FieldByName('Comment').AsString;
           end
           else
@@ -5405,9 +5405,9 @@ begin
             if (not TryStrToInt64(DataSet.FieldByName('INDEX_LENGTH').AsString, TSBaseTable(Table[Index]).FIndexSize)) then TSBaseTable(Table[Index]).FIndexSize := 0;
             if (not TryStrToInt64(DataSet.FieldByName('DATA_FREE').AsString, TSBaseTable(Table[Index]).FUnusedSize)) then TSBaseTable(Table[Index]).FUnusedSize := 0;
             if (not TryStrToInt64(DataSet.FieldByName('AUTO_INCREMENT').AsString, TSBaseTable(Table[Index]).FAutoIncrement)) then TSBaseTable(Table[Index]).FAutoIncrement := 0;
-            TSBaseTable(Table[Index]).FCreated := DataSet.FieldByName('CREATE_TIME').AsDateTime;
-            TSBaseTable(Table[Index]).FUpdated := DataSet.FieldByName('UPDATE_TIME').AsDateTime;
-            TSBaseTable(Table[Index]).FChecked := DataSet.FieldByName('CHECK_TIME').AsDateTime;
+            if (not TryStrToDateTime(DataSet.FieldByName('CREATE_TIME').AsString, TSBaseTable(Table[Index]).FCreated)) then TSBaseTable(Table[Index]).FCreated := 0;
+            if (not TryStrToDateTime(DataSet.FieldByName('UPDATE_TIME').AsString, TSBaseTable(Table[Index]).FChecked)) then TSBaseTable(Table[Index]).FChecked := 0;
+            if (not TryStrToDateTime(DataSet.FieldByName('CHECK_TIME').AsString, TSBaseTable(Table[Index]).FUpdated)) then TSBaseTable(Table[Index]).FUpdated := 0;
             if (Assigned(DataSet.FindField('TABLE_COLLATION'))) then
               TSBaseTable(Table[Index]).FCollation := DataSet.FieldByName('TABLE_COLLATION').AsString;
             try

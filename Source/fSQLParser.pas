@@ -232,6 +232,7 @@ type
         ntFetchStmt,
         ntFlushStmt,
         ntFlushStmtOption,
+        ntFlushStmtOptionLogs,
         ntFunctionReturns,
         ntGetDiagnosticsStmt,
         ntGetDiagnosticsStmtStmtInfo,
@@ -731,6 +732,7 @@ type
         'ntFetchStmt',
         'ntFlushStmt',
         'ntFlushStmtOption',
+        'ntFlushStmtOptionLogs',
         'ntFunctionReturns',
         'ntGetDiagnosticsStmt',
         'ntGetDiagnosticsStmtStmtInfo',
@@ -3379,6 +3381,24 @@ type
           POption = ^TOption;
           TOption = packed record
           private type
+
+            PLogs = ^TLogs;
+            TLogs = packed record
+            private type
+              TNodes = packed record
+                LogTypeTag: TOffset;
+                LogTag: TOffset;
+                ChannelOptionValue: TOffset;
+              end;
+            private
+              Heritage: TRange;
+            private
+              Nodes: TNodes;
+              class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
+            public
+              property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
+            end;
+
             TNodes = packed record
               OptionTag: TOffset;
               TablesList: TOffset;
@@ -6163,6 +6183,7 @@ type
     kiENDS,
     kiENGINE,
     kiENGINES,
+    kiERROR,
     kiERRORS,
     kiESCAPE,
     kiESCAPED,
@@ -6198,6 +6219,7 @@ type
     kiFULL,
     kiFULLTEXT,
     kiFUNCTION,
+    kiGENERAL,
     kiGENERATED,
     kiGET,
     kiGLOBAL,
@@ -6381,6 +6403,7 @@ type
     kiREDUNDANT,
     kiREFERENCES,
     kiREGEXP,
+    kiRELAY,
     kiRELAYLOG,
     kiRELEASE,
     kiRELAY_LOG_FILE,
@@ -6435,6 +6458,7 @@ type
     kiSIGNED,
     kiSIMPLE,
     kiSLAVE,
+    kiSLOW,
     kiSNAPSHOT,
     kiSOCKET,
     kiSOME,
@@ -6799,6 +6823,7 @@ type
     function ParseFieldOrVariableIdent(): TOffset;
     function ParseFlushStmt(): TOffset;
     function ParseFlushStmtOption(): TOffset;
+    function ParseFlushStmtOptionLogs(): TOffset;
     function ParseForeignKeyIdent(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseFunctionIdent(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseFunctionParam(): TOffset;
@@ -7154,7 +7179,8 @@ const
     'WEEKDAY,WEEKOFYEAR,WEIGHT_STRING,WITHIN,X,Y,YEAR,YEARWEEK';
 
   MySQLKeywords =
-    'ANY,SOME,STATS_SAMPLE_PAGES,DUAL,TABLE_CHECKSUM,NEW,OLD,ONLINE,' +
+    'ANY,SOME,STATS_SAMPLE_PAGES,DUAL,TABLE_CHECKSUM,NEW,OLD,ONLINE,ERROR,' +
+    'SLOW,RELAY,GENERAL,' +
 
     'ACCOUNT,ACTION,ADD,AFTER,AGAINST,ALGORITHM,ALL,ALTER,ALWAYS,ANALYZE,AND,' +
     'AS,ASC,ASCII,AT,AUTO_INCREMENT,AVG_ROW_LENGTH,BEFORE,BEGIN,' +
@@ -9577,6 +9603,20 @@ begin
     Nodes := ANodes;
 
     Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
+  end;
+end;
+
+{ TSQLParser.TFlushStmtOption.TLogs *******************************************}
+
+class function TSQLParser.TFlushStmt.TOption.TLogs.Create(const AParser: TSQLParser; const ANodes: TLogs.TNodes): TOffset;
+begin
+  Result := TRange.Create(AParser, ntFlushStmtOptionLogs);
+
+  with PLogs(AParser.NodePtr(Result))^ do
+  begin
+    Nodes := ANodes;
+
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -13245,6 +13285,7 @@ begin
       ntFetchStmt: FormatFetchStmt(PFetchStmt(Node)^.Nodes);
       ntFlushStmt: DefaultFormatNode(@PFlushStmt(Node)^.Nodes, SizeOf(TFlushStmt.TNodes));
       ntFlushStmtOption: DefaultFormatNode(@TFlushStmt.POption(Node)^.Nodes, SizeOf(TFlushStmt.TOption.TNodes));
+      ntFlushStmtOptionLogs: DefaultFormatNode(@TFlushStmt.TOption.PLogs(Node)^.Nodes, SizeOf(TFlushStmt.TOption.TLogs.TNodes));
       ntDefaultFunc: FormatDefaultFunc(PDefaultFunc(Node)^.Nodes);
       ntFunctionReturns: DefaultFormatNode(@PFunctionReturns(Node)^.Nodes, SizeOf(TFunctionReturns.TNodes));
       ntGetDiagnosticsStmt: DefaultFormatNode(@PGetDiagnosticsStmt(Node)^.Nodes, SizeOf(TGetDiagnosticsStmt.TNodes));
@@ -14733,6 +14774,7 @@ begin
     ntFetchStmt: Result := SizeOf(TFetchStmt);
     ntFlushStmt: Result := SizeOf(TFlushStmt);
     ntFlushStmtOption: Result := SizeOf(TFlushStmt.TOption);
+    ntFlushStmtOptionLogs: Result := SizeOf(TFlushStmt.TOption.TLogs);
     ntFunctionReturns: Result := SizeOf(TFunctionReturns);
     ntGetDiagnosticsStmt: Result := SizeOf(TGetDiagnosticsStmt);
     ntGetDiagnosticsStmtStmtInfo: Result := SizeOf(TGetDiagnosticsStmt.TStmtInfo);
@@ -15512,9 +15554,9 @@ begin
     else
       Found := False;
 
-    if (not ErrorFound and Found) then
+    if (Found) then
     begin
-      Found := IsSymbol(ttComma);
+      Found := not ErrorFound and IsSymbol(ttComma);
       if (Found) then
       begin
         Comma := ParseSymbol(ttComma);
@@ -15522,9 +15564,9 @@ begin
           Specifications.Add(Comma);
       end;
     end;
-  until (ErrorFound or not Found);
+  until (ErrorFound or not Found or EndOfStmt(CurrentToken));
 
-  if (not ErrorFound and (Specifications.Count = 0)) then
+  if (not ErrorFound and ((Specifications.Count = 0) or Found)) then
     if (EndOfStmt(CurrentToken)) then
       SetError(PE_IncompleteStmt)
     else
@@ -19198,7 +19240,7 @@ begin
                 and ((NodeIndex < 2) or IsOperator(Nodes[NodeIndex - 2]))) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if ((not IsToken(Nodes[NodeIndex - 1]) or (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex <> kiNOT))
-                and (IsOperator(Nodes[NodeIndex - 1]) or not IsToken(Nodes[NodeIndex - 1]) and (NodePtr(Nodes[NodeIndex - 1])^.NodeType <> ntList) and (NodePtr(Nodes[NodeIndex - 1])^.NodeType <> ntSelectStmt))) then
+                and (IsOperator(Nodes[NodeIndex - 1]) or not IsToken(Nodes[NodeIndex - 1]) and (NodePtr(Nodes[NodeIndex - 1])^.NodeType <> ntDbIdent) and (NodePtr(Nodes[NodeIndex - 1])^.NodeType <> ntList) and (NodePtr(Nodes[NodeIndex - 1])^.NodeType <> ntSelectStmt))) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if (NodeIndex + 1 = Nodes.Count) then
                 SetError(PE_IncompleteStmt)
@@ -19472,6 +19514,9 @@ begin
 
   if (IsTag(kiHOSTS)) then
     Nodes.OptionTag := ParseTag(kiHOSTS)
+  else if (IsTag(kiLOGS)
+    or IsNextTag(1, kiLOGS)) then
+    Nodes.OptionTag := ParseFlushStmtOptionLogs()
   else if (IsTag(kiPRIVILEGES)) then
     Nodes.OptionTag := ParseTag(kiPRIVILEGES)
   else if (IsTag(kiSTATUS)) then
@@ -19496,6 +19541,35 @@ begin
     SetError(PE_UnexpectedToken);
 
   Result := TFlushStmt.TOption.Create(Self, Nodes);
+end;
+
+function TSQLParser.ParseFlushStmtOptionLogs(): TOffset;
+var
+  Nodes: TFlushStmt.TOption.TLogs.TNodes;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
+  if (IsTag(kiBINARY)) then
+    Nodes.LogTypeTag := ParseTag(kiBINARY)
+  else if (IsTag(kiENGINE)) then
+    Nodes.LogTypeTag := ParseTag(kiENGINE)
+  else if (IsTag(kiERROR)) then
+    Nodes.LogTypeTag := ParseTag(kiERROR)
+  else if (IsTag(kiGENERAL)) then
+    Nodes.LogTypeTag := ParseTag(kiGENERAL)
+  else if (IsTag(kiRELAY)) then
+    Nodes.LogTypeTag := ParseTag(kiRELAY)
+  else if (IsTag(kiSLOW)) then
+    Nodes.LogTypeTag := ParseTag(kiSLOW);
+
+  if (not ErrorFound) then
+    Nodes.LogTag := ParseTag(kiLOGS);
+
+  if (not ErrorFound) then
+    if (IsTag(kiFOR, kiCHANNEL)) then
+      Nodes.ChannelOptionValue := ParseValue(WordIndices(kiFOR, kiCHANNEL), vaNo, ParseDbIdent);
+
+  Result := TFlushStmt.TOption.TLogs.Create(Self, Nodes);
 end;
 
 function TSQLParser.ParseForeignKeyIdent(): TOffset;
@@ -23280,12 +23354,7 @@ begin
   SetString(Self.Text, Text, Length);
   CompletionList.SetActive(UseCompletionList);
 
-  try
-    FRoot := ParseRoot();
-  except
-    on E: Exception do
-      raise Exception.Create('SQLParser error: ' + E.Message + #13#10#13#10 + Self.Text);
-  end;
+  FRoot := ParseRoot();
 
   Result := (FirstError.Code = PE_Success) and Assigned(FirstStmt);
 end;
@@ -26361,6 +26430,7 @@ begin
     kiENGINES                       := IndexOf('ENGINES');
     kiEVENT                         := IndexOf('EVENT');
     kiEVENTS                        := IndexOf('EVENTS');
+    kiERROR                         := IndexOf('ERROR');
     kiERRORS                        := IndexOf('ERRORS');
     kiESCAPE                        := IndexOf('ESCAPE');
     kiESCAPED                       := IndexOf('ESCAPED');
@@ -26394,6 +26464,7 @@ begin
     kiFULL                          := IndexOf('FULL');
     kiFULLTEXT                      := IndexOf('FULLTEXT');
     kiFUNCTION                      := IndexOf('FUNCTION');
+    kiGENERAL                       := IndexOf('GENERAL');
     kiGENERATED                     := IndexOf('GENERATED');
     kiGET                           := IndexOf('GET');
     kiGLOBAL                        := IndexOf('GLOBAL');
@@ -26579,6 +26650,7 @@ begin
     kiREGEXP                        := IndexOf('REGEXP');
     kiRELAY_LOG_FILE                := IndexOf('RELAY_LOG_FILE');
     kiRELAY_LOG_POS                 := IndexOf('RELAY_LOG_POS');
+    kiRELAY                         := IndexOf('RELAY');
     kiRELAYLOG                      := IndexOf('RELAYLOG');
     kiRELEASE                       := IndexOf('RELEASE');
     kiRELOAD                        := IndexOf('RELOAD');
@@ -26631,6 +26703,7 @@ begin
     kiSIGNED                        := IndexOf('SIGNED');
     kiSIMPLE                        := IndexOf('SIMPLE');
     kiSLAVE                         := IndexOf('SLAVE');
+    kiSLOW                          := IndexOf('SLOW');
     kiSNAPSHOT                      := IndexOf('SNAPSHOT');
     kiSOCKET                        := IndexOf('SOCKET');
     kiSOME                          := IndexOf('SOME');
