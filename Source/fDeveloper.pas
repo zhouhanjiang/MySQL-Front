@@ -233,13 +233,13 @@ begin
         Method := POST;
         Headers := 'Content-Type: text/plain; charset=UTF-8' + #10
           + 'Content-Transfer-Encoding: binary' + #10
-          + 'Program-Version: ' + LoadStr(1000) + ' ' + Preferences.VersionStr + #10;
+          + 'Program-Version: ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor) + '.' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + #10;
         SetLength(Body, SendStream.Size);
         SendStream.Seek(0, soBeginning);
         SendStream.Read(PAnsiChar(Body)^, SendStream.Size);
         SendStream.Free();
       end;
-      Request := HttpOpenRequest(Client, Method, PChar(string(URLComponents.lpszUrlPath) + string(URLComponents.lpszExtraInfo)), 'HTTP/1.1', nil, nil, INTERNET_FLAG_RELOAD + INTERNET_FLAG_NO_CACHE_WRITE, 0);
+      Request := HttpOpenRequest(Client, Method, PChar(StrPas(URLComponents.lpszUrlPath) + StrPas(URLComponents.lpszExtraInfo)), 'HTTP/1.1', nil, nil, INTERNET_FLAG_RELOAD + INTERNET_FLAG_NO_CACHE_WRITE, 0);
 
       if (not Assigned(Request)) then
         ReturnValue := 1

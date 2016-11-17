@@ -2068,8 +2068,10 @@ begin
       begin
         NextPoint.TableB := Point.TableB;
         Point := NextPoint;
-        if (not Assigned(Point.LineB) or not Assigned(Point.LineB.PointB)) then
-          exit;
+        if (not Assigned(Point.LineB)) then
+          raise Exception.Create('LineB not assigned')
+        else if (not Assigned(Point.LineB.PointB)) then
+          raise Exception.Create('LineB.PointB not assigned');
         FreeSegment(Point.LineB.PointB, Point.LineB);
       end
       else

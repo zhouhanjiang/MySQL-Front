@@ -444,10 +444,9 @@ begin
 
   FBOk.Enabled := PageControl.Visible and not Assigned(Event);
 
+  ActiveControl := FBCancel;
   if (PageControl.Visible) then
-    ActiveControl := FName
-  else
-    ActiveControl := FBCancel;
+    ActiveControl := FName;
 end;
 
 procedure TDEvent.FStartEnabledClick(Sender: TObject);

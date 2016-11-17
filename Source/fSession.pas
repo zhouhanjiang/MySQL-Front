@@ -531,7 +531,6 @@ type
       property Table: TSTable read FTable;
     end;
   private
-    FFields: TSTableFields;
     function GetDataSet(): TDataSet;
     function GetTables(): TSTables; inline;
     function GetValidData(): Boolean;
@@ -540,7 +539,7 @@ type
   protected
     FDataSet: TDataSet;
     FFilterSQL: string;
-    function GetFields(): TSTableFields; virtual;
+    function GetFields(): TSTableFields; virtual; abstract;
     procedure SetName(const AName: string); override;
   public
     procedure Assign(const Source: TSTable); reintroduce; virtual;
@@ -618,6 +617,7 @@ type
     FCharset: string;
     FDelayKeyWrite: Boolean;
     FEngine: TSEngine;
+    FFields: TSBaseTableFields;
     FForeignKeys: TSForeignKeys;
     FIndexSize: Int64;
     FInsertMethod: TInsertMethod;
@@ -643,6 +643,7 @@ type
     procedure AddReference(const ReferencedTable: TSBaseTable);
     procedure Build(const DataSet: TMySQLQuery); override;
     procedure Build(const Field: TField); override;
+    function GetFields(): TSTableFields; override;
     function GetValid(): Boolean; override;
     procedure ParseCreateTable(const SQL: string); virtual;
     function SQLGetSource(): string; override;
@@ -710,6 +711,7 @@ type
     FAlgorithm: TAlgorithm;
     FCheckOption: TCheckOption;
     FDefiner: string;
+    FFields: TSViewFields;
     FSecurity: TSDBObject.TSecurity;
     FStmt: string;
     function GetValidFields(): Boolean; inline;
@@ -719,12 +721,14 @@ type
     FComment: string;
     procedure Build(const DataSet: TMySQLQuery); overload; override;
     procedure Build(const Field: TField); override;
+    function GetFields(): TSTableFields; override;
     function GetValid(): Boolean; override;
     function SQLGetSource(): string; override;
     property ValidFields: Boolean read GetValidFields;
   public
     procedure Assign(const Source: TSTable); override;
     constructor Create(const ACDBObjects: TSDBObjects; const AName: string = ''); override;
+    destructor Destroy(); override;
     function GetSourceEx(const DropBeforeCreate: Boolean = False): string; overload; override;
     procedure Invalidate(); override;
     property Algorithm: TAlgorithm read FAlgorithm write FAlgorithm;
@@ -1566,6 +1570,7 @@ const
 
 var
   Sessions: TSSessions;
+  TabSessions: TList;
 
 implementation {***************************************************************}
 
@@ -3679,7 +3684,7 @@ begin
   if (Assigned(FDataSet)) then
     FreeAndNil(FDataSet);
 
-  FFields.Assign(Source.Fields);
+  Fields.Assign(Source.Fields);
 end;
 
 constructor TSTable.Create(const ASDBObjects: TSDBObjects; const AName: string = '');
@@ -3687,12 +3692,6 @@ begin
   inherited Create(ASDBObjects, AName);
 
   FDataSet := nil;
-  if (Self is TSBaseTable) then
-    FFields := TSBaseTableFields.Create(Self)
-  else if (Self is TSView) then
-    FFields := TSViewFields.Create(Self)
-  else
-    raise Exception.Create(sUnknownToType);
 end;
 
 destructor TSTable.Destroy();
@@ -3701,13 +3700,11 @@ begin
 
   if (Assigned(FDataSet)) then
     FDataSet.Free();
-  if (Assigned(FFields)) then
-    FFields.Free();
 end;
 
 function TSTable.FieldByName(const FieldName: string): TSTableField;
 begin
-  Result := FFields.FieldByName(FieldName);
+  Result := Fields.FieldByName(FieldName);
 end;
 
 function TSTable.GetDataSet(): TDataSet;
@@ -3725,9 +3722,9 @@ begin
   Result := FDataSet;
 end;
 
-function TSTable.GetFields(): TSTableFields;
+function TSTable.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
 begin
-  Result := FFields;
+  raise EAbstractError.Create(SAbstractError);
 end;
 
 function TSTable.GetTables(): TSTables;
@@ -3755,11 +3752,6 @@ begin
     DataSet.Invalidate();
 end;
 
-function TSTable.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
-begin
-  raise EAbstractError.Create(SAbstractError);
-end;
-
 procedure TSTable.Open(const FilterSQL, QuickSearch: string; const ASortDef: TIndexDef; const Offset: Integer; const Limit: Integer);
 begin
   FFilterSQL := FilterSQL;
@@ -3783,20 +3775,20 @@ begin
   Result := False;
 end;
 
-procedure TSTable.SetName(const AName: string);
-begin
-  if (Session.LowerCaseTableNames = 1) then
-    inherited SetName(LowerCase(AName))
-  else
-    inherited SetName(AName);
-end;
-
 procedure TSTable.PushBuildEvent(const SItemsEvents: Boolean = True);
 begin
   inherited;
 
   if (Fields.Count > 0) then
     Session.SendEvent(etItemsValid, Self, Fields);
+end;
+
+procedure TSTable.SetName(const AName: string);
+begin
+  if (Session.LowerCaseTableNames = 1) then
+    inherited SetName(LowerCase(AName))
+  else
+    inherited SetName(AName);
 end;
 
 { TSPartition *****************************************************************}
@@ -3985,19 +3977,16 @@ begin
   FUpdated := TSBaseTable(Source).Updated;
   FValidStatus := TSBaseTable(Source).ValidStatus;
 
-  if (ValidSource) then
-  begin
-    FKeys.Assign(TSBaseTable(Source).Keys);
+  FKeys.Assign(TSBaseTable(Source).Keys);
 
-    FForeignKeys.FValid := True; // Do not allow GetSource!
-    FForeignKeys.Assign(TSBaseTable(Source).ForeignKeys);
+  FForeignKeys.FValid := True; // Do not allow GetSource!
+  FForeignKeys.Assign(TSBaseTable(Source).ForeignKeys);
 
-    if (Assigned(FPartitions) and (not Assigned(Database) or (Session.Connection.MySQLVersion < 50107))) then
-      FreeAndNil(FPartitions)
-    else if (not Assigned(FPartitions) and Assigned(Database) and (Session.Connection.MySQLVersion >= 50107)) then
-      FPartitions := TSPartitions.Create(Self);
-    if (Assigned(FPartitions) and Assigned(TSBaseTable(Source).Partitions)) then FPartitions.Assign(TSBaseTable(Source).Partitions);
-  end;
+  if (Assigned(FPartitions) and (not Assigned(Database) or (Session.Connection.MySQLVersion < 50107))) then
+    FreeAndNil(FPartitions)
+  else if (not Assigned(FPartitions) and Assigned(Database) and (Session.Connection.MySQLVersion >= 50107)) then
+    FPartitions := TSPartitions.Create(Self);
+  if (Assigned(FPartitions) and Assigned(TSBaseTable(Source).Partitions)) then FPartitions.Assign(TSBaseTable(Source).Partitions);
 
   if (Assigned(Source.Database) and Assigned(Database)) then
     if ((Session.Connection.MySQLVersion < 40101) and (Session.Connection.MySQLVersion < 40101) or (Source.Session.Connection.MySQLVersion >= 40101) and (Session.Connection.MySQLVersion >= 40101)) then
@@ -4042,6 +4031,10 @@ begin
   try
     inherited Build(Field);
   except
+    // Debug 2016-11-17
+    if (not Assigned(TMySQLQuery(Field.DataSet).LibRow^[Field.FieldNo - 1])) then
+      raise ERangeError.Create(SRangeError + ' Filename: ' + Field.FieldName);
+
     // Sometimes, the MySQL server sends wrong encoded field comments.
     // This code allow the user to handle this table - but the comments are wrong.
     if (Session.Connection.MySQLVersion >= 50100) then
@@ -4081,6 +4074,7 @@ begin
     FCharset := '';
   FDelayKeyWrite := False;
   FEngine := nil;
+  FFields := TSBaseTableFields.Create(Self);
   FIndexSize := -1;
   FInsertMethod := imNo;
   FMaxDataSize := -1;
@@ -4111,6 +4105,7 @@ begin
   inherited;
 
   FKeys.Free();
+  FFields.Free();
   FForeignKeys.Free();
   if (Assigned(FPartitions)) then
     FPartitions.Free();
@@ -4191,6 +4186,11 @@ end;
 function TSBaseTable.GetPrimaryKey(): TSKey;
 begin
   Result := IndexByName('');
+end;
+
+function TSBaseTable.GetFields(): TSTableFields;
+begin
+  Result := FFields;
 end;
 
 function TSBaseTable.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
@@ -4549,7 +4549,9 @@ begin
 
             if (SQLParseKeyword(Parse, 'VIRTUAL')) then
               NewField.Stored := msVirtual
-            else if (SQLParseKeyword(Parse, 'STORED')) then
+            else if ((Session.Connection.MariaDBVersion > 0) and SQLParseKeyword(Parse, 'PERSISTENT')) then
+              NewField.Stored := msStored
+            else if ((Session.Connection.MariaDBVersion = 0) and SQLParseKeyword(Parse, 'STORED')) then
               NewField.Stored := msStored;
 
             if (SQLParseKeyword(Parse, 'COMMENT')) then
@@ -5026,10 +5028,23 @@ begin
   inherited;
 
   FAlgorithm := vaUndefined;
-  FDefiner := '';
   FCheckOption := voNone;
+  FDefiner := '';
+  FFields := TSViewFields.Create(Self);
   FSecurity := seDefiner;
   FStmt := '';
+end;
+
+destructor TSView.Destroy();
+begin
+  FFields.Free();
+
+  inherited;
+end;
+
+function TSView.GetFields(): TSTableFields;
+begin
+  Result := FFields;
 end;
 
 function TSView.GetValid(): Boolean;
@@ -7764,7 +7779,10 @@ begin
           if (NewField.Stored = msVirtual) then
             SQLPart := SQLPart + ' VIRTUAL'
           else if (NewField.Stored = msStored) then
-            SQLPart := SQLPart + ' STORED';
+            if (Session.Connection.MariaDBVersion > 0) then
+              SQLPart := SQLPart + ' PERSISTENT'
+            else
+              SQLPart := SQLPart + ' STORED';
           if (NewField.Comment <> '') then
             SQLPart := SQLPart + ' COMMENT ' + SQLEscape(NewField.Comment);
           if (not NewField.NullAllowed) then
@@ -8447,7 +8465,7 @@ begin
     SQL := SQL + SQLUse();
 
   if (Assigned(Trigger)) then
-    SQL := SQL + 'DROP TRIGGER IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(Trigger.Name) + ';' + #13#10;
+    SQL := SQL + 'DROP TRIGGER ' + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(Trigger.Name) + ';' + #13#10;
 
   SQL := SQL + NewTrigger.GetSourceEx();
 
@@ -9303,6 +9321,10 @@ begin
   Add(mfMultiPolygon, 'MultiPolygon', False);
   Add(mfGeometryCollection, 'GeometryCollection', False);
   Add(mfJSON, 'JSON', False);
+
+  // Debug 2016-11-17
+  if (Count = 0) then
+    raise ERangeError.Create(SRangeError);
 end;
 
 function TSFieldTypes.FieldAvailable(const Engine: TSEngine; const MySQLFieldType: TSField.TFieldType): Boolean;
@@ -10652,6 +10674,12 @@ begin
 
     if (Assigned(Account)) then
       Account.LastLogin := Now();
+
+    // Debug 2016-11-17
+    if (not Assigned(FFieldTypes)) then
+      raise ERangeError.Create(SRangeError)
+    else if (FFieldTypes.Count = 0) then
+      raise ERangeError.Create(SRangeError);
   end;
 end;
 
@@ -10944,13 +10972,13 @@ begin
     begin
       if (Connection.MySQLVersion < 40101) then
       begin
-        SQL := SQL + 'DELETE FROM ' + Connection.EscapeIdentifier('mysql') + '.' + Connection.EscapeIdentifier('user')         + ' WHERE ' + Connection.EscapeIdentifier('User') + '=' + SQLEscape(User.Name) + ';' + #13#10;
-        SQL := SQL + 'DELETE FROM ' + Connection.EscapeIdentifier('mysql') + '.' + Connection.EscapeIdentifier('db')           + ' WHERE ' + Connection.EscapeIdentifier('User') + '=' + SQLEscape(User.Name) + ';' + #13#10;
-        SQL := SQL + 'DELETE FROM ' + Connection.EscapeIdentifier('mysql') + '.' + Connection.EscapeIdentifier('tables_priv')  + ' WHERE ' + Connection.EscapeIdentifier('User') + '=' + SQLEscape(User.Name) + ';' + #13#10;
-        SQL := SQL + 'DELETE FROM ' + Connection.EscapeIdentifier('mysql') + '.' + Connection.EscapeIdentifier('columns_priv') + ' WHERE ' + Connection.EscapeIdentifier('User') + '=' + SQLEscape(User.Name) + ';' + #13#10;
+        SQL := SQL + 'DELETE FROM ' + Connection.EscapeIdentifier('mysql') + '.' + Connection.EscapeIdentifier('user')         + ' WHERE ' + Connection.EscapeIdentifier('User') + '=' + SQLEscape(TSUser(List[I]).Name) + ';' + #13#10;
+        SQL := SQL + 'DELETE FROM ' + Connection.EscapeIdentifier('mysql') + '.' + Connection.EscapeIdentifier('db')           + ' WHERE ' + Connection.EscapeIdentifier('User') + '=' + SQLEscape(TSUser(List[I]).Name) + ';' + #13#10;
+        SQL := SQL + 'DELETE FROM ' + Connection.EscapeIdentifier('mysql') + '.' + Connection.EscapeIdentifier('tables_priv')  + ' WHERE ' + Connection.EscapeIdentifier('User') + '=' + SQLEscape(TSUser(List[I]).Name) + ';' + #13#10;
+        SQL := SQL + 'DELETE FROM ' + Connection.EscapeIdentifier('mysql') + '.' + Connection.EscapeIdentifier('columns_priv') + ' WHERE ' + Connection.EscapeIdentifier('User') + '=' + SQLEscape(TSUser(List[I]).Name) + ';' + #13#10;
       end
       else
-        SQL := SQL + 'DROP USER ' + EscapeUser(User.Name) + ';' + #13#10;
+        SQL := SQL + 'DROP USER ' + EscapeUser(TSUser(List[I]).Name) + ';' + #13#10;
       FlushPrivileges := True;
     end;
 
@@ -10979,6 +11007,9 @@ end;
 
 destructor TSSession.Destroy();
 begin
+  if (TabSessions.IndexOf(Self) >= 0) then
+    raise ERangeError.Create(SRangeError);
+
   Connection.UnRegisterClient(Self);
 
   SetLength(EventProcs, 0);

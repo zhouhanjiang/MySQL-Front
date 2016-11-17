@@ -391,10 +391,9 @@ begin
   FBOk.Default := FBOk.Visible;
   FBCancel.Default := not FBOk.Default;
 
+  ActiveControl := FBCancel;
   if (GBasics.Visible) then
-    ActiveControl := FName
-  else
-    ActiveControl := FBCancel;
+    ActiveControl := FName;
 end;
 
 procedure TDForeignKey.FParentDatabaseChange(Sender: TObject);

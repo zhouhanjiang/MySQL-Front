@@ -468,6 +468,7 @@ procedure TDTable.aPEditKeyExecute(Sender: TObject);
 begin
   DKey.Table := NewTable;
   DKey.Key := NewTable.Keys[FKeys.ItemIndex];
+  DKey.ModifyTableOnly := True;
   if (DKey.Execute()) then
   begin
     FIndicesRefresh(Sender);
@@ -1205,10 +1206,9 @@ begin
   FBOk.Enabled := PageControl.Visible and not Assigned(Table);
   FBCancel.Caption := Preferences.LoadStr(30);
 
+  ActiveControl := FBCancel;
   if (PageControl.Visible) then
-    ActiveControl := FName
-  else
-    ActiveControl := FBCancel;
+    ActiveControl := FName;
 end;
 
 procedure TDTable.FPartitionsNumberChange(Sender: TObject);

@@ -308,10 +308,9 @@ begin
 
   FBOk.Enabled := PageControl.Visible and not Assigned(Trigger);
 
+  ActiveControl := FBCancel;
   if (PageControl.Visible) then
-    ActiveControl := FName
-  else
-    ActiveControl := FBCancel;
+    ActiveControl := FName;
 end;
 
 procedure TDTrigger.FStatementChange(Sender: TObject);

@@ -391,7 +391,6 @@ end;
 function TDImport.Execute(): Boolean;
 begin
   ModalResult := mrNone;
-  PageControl.ActivePageIndex := -1;
 
   if ((ImportType in [itSQLFile, itTextFile, itAccessFile, itExcelFile]) and (Filename = '') and (DialogType = idtNormal)) then
     if (not GetFilename()) then
@@ -700,7 +699,7 @@ begin
   SendMessage(FErrorMessages.Handle, EM_SETTEXTMODE, TM_PLAINTEXT, 0);
   SendMessage(FErrorMessages.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
 
-  PageControl.ActivePage := nil; // Make sure, not ___OnShowPage will be executed
+  PageControl.ActivePage := nil;
   FDataSource.Text := '';
   FFilename.Text := '';
 end;
@@ -878,6 +877,8 @@ begin
   FCSVPreview.Items.EndUpdate();
 
   TableNames.Free();
+
+  PageControl.ActivePage := nil;
 end;
 
 procedure TDImport.FormSessionEvent(const Event: TSSession.TEvent);

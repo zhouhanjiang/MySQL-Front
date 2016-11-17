@@ -537,10 +537,9 @@ begin
 
   FBOk.Enabled := False;
 
+  ActiveControl := FBCancel;
   if (GBasics.Visible) then
-    ActiveControl := FLName.FocusControl
-  else
-    ActiveControl := FBCancel;
+    ActiveControl := FLName.FocusControl;
 end;
 
 procedure TDKey.FUniqueClick(Sender: TObject);

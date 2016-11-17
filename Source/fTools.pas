@@ -1803,7 +1803,7 @@ end;
 
 function TTImport.DoExecuteSQL(var SQL: string): Boolean;
 begin
-  Result := Session.Connection.ExecuteSQL(SQL);
+  Result := (SQL = '') or Session.Connection.ExecuteSQL(SQL);
   Inc(FWarningCount, Session.Connection.WarningCount);
   Delete(SQL, 1, Session.Connection.SuccessfullExecutedSQLLength);
   SQL := Trim(SQL);

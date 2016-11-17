@@ -370,11 +370,13 @@ begin
 
   FReferenced.Cursor := crDefault;
 
+  TSBasics.TabVisible := True;
   TSInformation.TabVisible := Assigned(Routine);
   TSReferenced.TabVisible := Assigned(Routine);
 
   FBOk.Enabled := PageControl.Visible and not Assigned(Routine);
 
+  ActiveControl := FBCancel;
   if (PageControl.Visible) then
     if (Assigned(Routine)) then
     begin
@@ -385,9 +387,7 @@ begin
     begin
       PageControl.ActivePage := TSSource;
       ActiveControl := FSource;
-    end
-  else
-    ActiveControl := FBCancel;
+    end;
 end;
 
 procedure TDRoutine.FReferencedBuild();

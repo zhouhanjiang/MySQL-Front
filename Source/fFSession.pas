@@ -1250,15 +1250,15 @@ begin
   if ((Results.Count < 5) and Assigned(FSession.Session.Account.HistoryXML)) then
   begin
     XML := FSession.Session.Account.HistoryXML.AddChild('sql');
-    if (not Data) then
-      XML.Attributes['type'] := 'statement'
-    else
-      XML.Attributes['type'] := 'query';
-    XML.AddChild('database').Text := DataHandle.Connection.DatabaseName;
-    XML.AddChild('datetime').Text := FloatToStr(DataHandle.Connection.ServerDateTime, FileFormatSettings);
-    if (not Data and (DataHandle.Connection.RowsAffected >= 0)) then
-      XML.AddChild('rows_affected').Text := IntToStr(DataHandle.Connection.RowsAffected);
     try
+      if (not Data) then
+        XML.Attributes['type'] := 'statement'
+      else
+        XML.Attributes['type'] := 'query';
+      XML.AddChild('database').Text := DataHandle.Connection.DatabaseName;
+      XML.AddChild('datetime').Text := FloatToStr(DataHandle.Connection.ServerDateTime, FileFormatSettings);
+      if (not Data and (DataHandle.Connection.RowsAffected >= 0)) then
+        XML.AddChild('rows_affected').Text := IntToStr(DataHandle.Connection.RowsAffected);
       XML.AddChild('sql').Text := CommandText;
       if (DataHandle.Connection.Info <> '') then
         XML.AddChild('info').Text := DataHandle.Connection.Info;
@@ -2163,8 +2163,8 @@ end;
 
 procedure TFSession.aDDeleteExecute(Sender: TObject);
 var
-  SItems: TList;
   I: Integer;
+  Items: TList;
   J: Integer;
   List: TList;
   Msg: string;
@@ -2174,41 +2174,41 @@ var
 begin
   Wanted.Clear();
 
-  SItems := TList.Create();
+  Items := TList.Create();
 
   if ((Window.ActiveControl = ActiveListView) and (ActiveListView.SelCount > 1)) then
   begin
     for I := 0 to ActiveListView.Items.Count - 1 do
       if (ActiveListView.Items[I].Selected) then
-        SItems.Add(ActiveListView.Items[I].Data);
+        Items.Add(ActiveListView.Items[I].Data);
   end
   else if ((Window.ActiveControl = ActiveWorkbench) and (ActiveWorkbench.SelCount > 1)) then
   begin
     for I := 0 to ActiveWorkbench.ControlCount - 1 do
       if ((ActiveWorkbench.Controls[I] is TWTable) and (TWTable(ActiveWorkbench.Controls[I]).Selected)) then
-        SItems.Add(TWTable(ActiveWorkbench.Controls[I]).BaseTable)
+        Items.Add(TWTable(ActiveWorkbench.Controls[I]).BaseTable)
       else if ((ActiveWorkbench.Controls[I] is TWForeignKey) and (TWForeignKey(ActiveWorkbench.Controls[I]).Selected)) then
-        SItems.Add(TWForeignKey(ActiveWorkbench.Controls[I]).BaseForeignKey);
+        Items.Add(TWForeignKey(ActiveWorkbench.Controls[I]).BaseForeignKey);
   end
   else if (Assigned(FocusedSItem)) then
-    SItems.Add(FocusedSItem);
+    Items.Add(FocusedSItem);
 
-  if (SItems.Count > 1) then
+  if (Items.Count > 1) then
     Msg := Preferences.LoadStr(413)
-  else if (SItems.Count = 1) then
+  else if (Items.Count = 1) then
   begin
-    if (TSItem(SItems[0]) is TSDatabase) then Msg := Preferences.LoadStr(146, TSItem(SItems[0]).Caption)
-    else if (TSItem(SItems[0]) is TSBaseTable) then Msg := Preferences.LoadStr(113, TSItem(SItems[0]).Caption)
-    else if (TSItem(SItems[0]) is TSView) then Msg := Preferences.LoadStr(748, TSItem(SItems[0]).Caption)
-    else if (TSItem(SItems[0]) is TSProcedure) then Msg := Preferences.LoadStr(772, TSItem(SItems[0]).Caption)
-    else if (TSItem(SItems[0]) is TSFunction) then Msg := Preferences.LoadStr(773, TSItem(SItems[0]).Caption)
-    else if (TSItem(SItems[0]) is TSEvent) then Msg := Preferences.LoadStr(813, TSItem(SItems[0]).Caption)
-    else if (TSItem(SItems[0]) is TSTrigger) then Msg := Preferences.LoadStr(787, TSItem(SItems[0]).Caption)
-    else if (TSItem(SItems[0]) is TSKey) then Msg := Preferences.LoadStr(162, TSItem(SItems[0]).Caption)
-    else if (TSItem(SItems[0]) is TSField) then Msg := Preferences.LoadStr(100, TSItem(SItems[0]).Caption)
-    else if (TSItem(SItems[0]) is TSForeignKey) then Msg := Preferences.LoadStr(692, TSItem(SItems[0]).Caption)
-    else if (TSItem(SItems[0]) is TSUser) then Msg := Preferences.LoadStr(428, TSItem(SItems[0]).Caption)
-    else if (TSItem(SItems[0]) is TSProcess) then Msg := Preferences.LoadStr(534, TSItem(SItems[0]).Caption);
+    if (TSItem(Items[0]) is TSDatabase) then Msg := Preferences.LoadStr(146, TSItem(Items[0]).Caption)
+    else if (TSItem(Items[0]) is TSBaseTable) then Msg := Preferences.LoadStr(113, TSItem(Items[0]).Caption)
+    else if (TSItem(Items[0]) is TSView) then Msg := Preferences.LoadStr(748, TSItem(Items[0]).Caption)
+    else if (TSItem(Items[0]) is TSProcedure) then Msg := Preferences.LoadStr(772, TSItem(Items[0]).Caption)
+    else if (TSItem(Items[0]) is TSFunction) then Msg := Preferences.LoadStr(773, TSItem(Items[0]).Caption)
+    else if (TSItem(Items[0]) is TSEvent) then Msg := Preferences.LoadStr(813, TSItem(Items[0]).Caption)
+    else if (TSItem(Items[0]) is TSTrigger) then Msg := Preferences.LoadStr(787, TSItem(Items[0]).Caption)
+    else if (TSItem(Items[0]) is TSKey) then Msg := Preferences.LoadStr(162, TSItem(Items[0]).Caption)
+    else if (TSItem(Items[0]) is TSField) then Msg := Preferences.LoadStr(100, TSItem(Items[0]).Caption)
+    else if (TSItem(Items[0]) is TSForeignKey) then Msg := Preferences.LoadStr(692, TSItem(Items[0]).Caption)
+    else if (TSItem(Items[0]) is TSUser) then Msg := Preferences.LoadStr(428, TSItem(Items[0]).Caption)
+    else if (TSItem(Items[0]) is TSProcess) then Msg := Preferences.LoadStr(534, TSItem(Items[0]).Caption);
   end
   else
     Msg := '';
@@ -2219,46 +2219,46 @@ begin
 
     Success := True;
 
-    for I := 0 to SItems.Count - 1 do
-      if ((TSItem(SItems[I]) is TSDatabase) or (TSItem(SItems[I]) is TSDBObject) or (TSItem(SItems[I]) is TSProcess)) then
+    for I := 0 to Items.Count - 1 do
+      if ((TSItem(Items[I]) is TSDatabase) or (TSItem(Items[I]) is TSDBObject) or (TSItem(Items[I]) is TSProcess)) then
       begin
-        List.Add(TSEntity(SItems[I]));
-        if (TSItem(SItems[I]) is TSBaseTable) then
-          for J := 0 to TSBaseTable(SItems[I]).TriggerCount - 1 do
-            List.Add(TSBaseTable(SItems[I]).Triggers[J]);
-        SItems[I] := nil;
+        List.Add(TSEntity(Items[I]));
+        if (TSItem(Items[I]) is TSBaseTable) then
+          for J := 0 to TSBaseTable(Items[I]).TriggerCount - 1 do
+            List.Add(TSBaseTable(Items[I]).Triggers[J]);
+        Items[I] := nil;
       end;
     if (Success and (List.Count > 0)) then
       Success := Session.DeleteEntities(List);
 
     Table := nil;
-    for I := 0 to SItems.Count - 1 do
-      if (TSItem(SItems[I]) is TSKey) then
-        Table := TSKey(SItems[I]).Table
-      else if (TSItem(SItems[I]) is TSBaseTableField) then
-        Table := TSBaseTableField(SItems[I]).Table
-      else if (TSItem(SItems[I]) is TSForeignKey) then
-        Table := TSForeignKey(SItems[I]).Table;
+    for I := 0 to Items.Count - 1 do
+      if (TSItem(Items[I]) is TSKey) then
+        Table := TSKey(Items[I]).Table
+      else if (TSItem(Items[I]) is TSBaseTableField) then
+        Table := TSBaseTableField(Items[I]).Table
+      else if (TSItem(Items[I]) is TSForeignKey) then
+        Table := TSForeignKey(Items[I]).Table;
     if (Success and Assigned(Table)) then
     begin
       NewTable := TSBaseTable.Create(Table.Database.Tables);
       NewTable.Assign(Table);
 
-      for I := SItems.Count - 1 downto 0 do
-        if ((TSItem(SItems[I]) is TSKey) and (TSKey(SItems[I]).Table = Table)) then
+      for I := Items.Count - 1 downto 0 do
+        if ((TSItem(Items[I]) is TSKey) and (TSKey(Items[I]).Table = Table)) then
         begin
-          NewTable.Keys.DeleteKey(NewTable.Keys[TSKey(SItems[I]).Index]);
-          SItems[I] := nil;
+          NewTable.Keys.DeleteKey(NewTable.Keys[TSKey(Items[I]).Index]);
+          Items[I] := nil;
         end
-        else if ((TSItem(SItems[I]) is TSBaseTableField) and (TSBaseTableField(SItems[I]).Table = Table)) then
+        else if ((TSItem(Items[I]) is TSBaseTableField) and (TSBaseTableField(Items[I]).Table = Table)) then
         begin
-          NewTable.Fields.DeleteField(NewTable.Fields[TSBaseTableField(SItems[I]).Index]);
-          SItems[I] := nil;
+          NewTable.Fields.DeleteField(NewTable.Fields[TSBaseTableField(Items[I]).Index]);
+          Items[I] := nil;
         end
-        else if ((TSItem(SItems[I]) is TSForeignKey) and (TSForeignKey(SItems[I]).Table = Table)) then
+        else if ((TSItem(Items[I]) is TSForeignKey) and (TSForeignKey(Items[I]).Table = Table)) then
         begin
-          NewTable.ForeignKeys.DeleteForeignKey(NewTable.ForeignKeys[TSForeignKey(SItems[I]).Index]);
-          SItems[I] := nil;
+          NewTable.ForeignKeys.DeleteForeignKey(NewTable.ForeignKeys[TSForeignKey(Items[I]).Index]);
+          Items[I] := nil;
         end;
 
       if (NewTable.Fields.Count = 0) then
@@ -2269,11 +2269,11 @@ begin
       NewTable.Free();
     end;
 
-    for I := 0 to SItems.Count - 1 do
-      if (TSItem(SItems[I]) is TSUser) then
+    for I := 0 to Items.Count - 1 do
+      if (TSItem(Items[I]) is TSUser) then
       begin
-        List.Add(TSUser(SItems[I]));
-        SItems[I] := nil;
+        List.Add(TSUser(Items[I]));
+        Items[I] := nil;
       end;
     if (Success and (List.Count > 0)) then
       Session.DeleteEntities(List);
@@ -2281,7 +2281,7 @@ begin
     List.Free();
   end;
 
-  SItems.Free();
+  Items.Free();
 end;
 
 procedure TFSession.aDDeleteRecordExecute(Sender: TObject);
@@ -2517,6 +2517,8 @@ begin
     end;
 
     OldAddress := Address;
+
+    KillTimer(Handle, tiShowSynCompletion);
   end;
 end;
 
@@ -2581,8 +2583,6 @@ begin
           DBObject := Database.ProcedureByName(URI.Param['object'])
         else if ((URI.Param['objecttype'] = 'function') and (URI.Param['object'] <> Null)) then
           DBObject := Database.FunctionByName(URI.Param['object'])
-        else if ((URI.Param['objecttype'] = 'trigger') and (URI.Param['object'] <> Null)) then
-          DBObject := Database.TriggerByName(URI.Param['object'])
         else if ((URI.Param['objecttype'] = 'event') and (URI.Param['object'] <> Null)) then
           DBObject := Database.EventByName(URI.Param['object'])
         else
@@ -2590,7 +2590,7 @@ begin
 
         if (not Assigned(DBObject)) then
           NotFound := True
-        else if ((DBObject is TSBaseTable) and (URI.Param['objecttype'] = 'trigger') and (URI.Param['object'] <> Null) and not DBObject.Update()) then
+        else if ((DBObject is TSBaseTable) and (URI.Param['objecttype'] = 'trigger') and (not TSBaseTable(DBObject).Update() or not Database.Triggers.Update())) then
           AllowChange := False;
       end;
     end;
@@ -3956,8 +3956,9 @@ end;
 
 procedure TFSession.aViewExecute(Sender: TObject);
 var
-  NewView: TView;
   AllowChange: Boolean;
+  Control: TWinControl; // Debug 2016-11-17
+  NewView: TView;
 begin
   if (Sender = MainAction('aVObjectBrowser')) then
     NewView := vObjects
@@ -4010,10 +4011,13 @@ begin
       vBrowser: if (PResult.Visible and Assigned(ActiveDBGrid)) then Window.ActiveControl := ActiveDBGrid;
       vIDE: if (PSynMemo.Visible and Assigned(ActiveSynMemo)) then Window.ActiveControl := ActiveSynMemo;
       vBuilder: if (PQueryBuilder.Visible) then
-        if (FQueryBuilder.Visible and Assigned(FQueryBuilderActiveWorkArea())) then
-          Window.ActiveControl := FQueryBuilderActiveWorkArea()
-        else
-          Window.ActiveControl := FQueryBuilderSynMemo;
+        begin
+          if (FQueryBuilder.Visible and Assigned(FQueryBuilderActiveWorkArea())) then
+            Control := FQueryBuilderActiveWorkArea()
+          else
+            Control := FQueryBuilderSynMemo;
+          Window.ActiveControl := Control;
+        end;
       vDiagram: if (PWorkbench.Visible) then Window.ActiveControl := ActiveWorkbench;
       vEditor,
       vEditor2,
@@ -5714,7 +5718,20 @@ var
   Pos: Integer;
   SortDef: TIndexDef;
 begin
-  if (not (ActiveDBGrid.Fields[Column.Index].DataType in [ftUnknown, ftWideMemo, ftBlob])) then
+  // Debug 2016-11-17
+  if (not Assigned(Column.Field)) then
+    if (not Assigned(Column.Grid)) then
+      raise ERangeError.Create(SRangeError)
+    else if (not Column.Grid.DataSource.Enabled) then
+      raise ERangeError.Create(SRangeError)
+    else if (not Assigned(Column.Grid.DataSource.DataSet)) then
+      raise ERangeError.Create(SRangeError)
+    else if (not (Column.Grid.DataSource.DataSet is TMySQLDataSet)) then
+      raise ERangeError.Create(SRangeError)
+    else
+      raise ERangeError.Create(SRangeError + ' (SQL: ' + TMySQLDataSet(Column.Grid.DataSource.DataSet).CommandText + ')');
+
+  if (not (Column.Field.DataType in [ftUnknown, ftWideMemo, ftBlob])) then
   begin
     SortDef := TIndexDef.Create(nil, '', '', []);
 
@@ -6569,6 +6586,10 @@ var
   Database: TSDatabase;
   Table: TSTable;
 begin
+  // Debug 2016-11-17
+  if (not Assigned(Node.Data)) then
+    raise ERangeError(SRangeError);
+
   if (Node.HasChildren) then
   begin
     Database := nil;
@@ -6668,7 +6689,9 @@ begin
       else
         Child := Child.getNextSibling();
 
-    if ((URI.Table = '') and ((URI.Param['objecttype'] = Null) or (URI.Param['object'] = Null))) then
+    if (not Assigned(DatabaseNode)) then
+      Result := nil
+    else if ((URI.Table = '') and ((URI.Param['objecttype'] = Null) or (URI.Param['object'] = Null))) then
       Result := DatabaseNode
     else
     begin
@@ -6799,6 +6822,10 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
   const
     ImageIndexSort = Chr(iiProcesses) + Chr(iiUsers) + Chr(iiVariables);
   begin
+    // Debug 2016-11-17
+    if (Item1.Data = Item2.Data) then
+      raise ERangeError.Create(SRangeError);
+
     if (GroupIDByImageIndex(Item1.ImageIndex) <> GroupIDByImageIndex(Item2.ImageIndex)) then
       Result := Sign(GroupIDByImageIndex(Item1.ImageIndex) - GroupIDByImageIndex(Item2.ImageIndex))
     else if (GroupIDByImageIndex(Item1.ImageIndex) = giSystemTools) then
@@ -7057,12 +7084,13 @@ begin
 
     FNavigator.Items.EndUpdate();
   end
-  else if (Event.Sender is TSDatabase) then
+  else if ((Event.Sender is TSDatabase) and not (Event.Items is TSTriggers)) then
   begin
     Database := TSDatabase(Event.Sender);
 
     Node := FNavigator.Items.getFirstNode().getFirstChild();
-    while (Assigned(Node) and (Node.Data <> Database)) do Node := Node.getNextSibling();
+    while (Assigned(Node) and (Node.Data <> Database)) do
+      Node := Node.getNextSibling();
 
     Node.HasChildren := not Database.Tables.Valid or (Database.Tables.Count > 0)
       or Assigned(Database.Routines) and (not Database.Routines.Valid or (Database.Routines.Count > 0))
@@ -7100,12 +7128,14 @@ begin
     Table := TSTable(Event.Sender);
 
     Node := FNavigator.Items.getFirstNode().getFirstChild();
-    while (Assigned(Node) and (Node.Data <> Table.Database)) do Node := Node.getNextSibling();
+    while (Assigned(Node) and (Node.Data <> Table.Database)) do
+      Node := Node.getNextSibling();
 
     if (Assigned(Node) and (not Node.HasChildren or Assigned(Node.getFirstChild()) or (Node = FNavigatorNodeToExpand))) then
     begin
       Node := Node.getFirstChild();
-      while (Assigned(Node) and (Node.Data <> Table)) do Node := Node.getNextSibling();
+      while (Assigned(Node) and (Node.Data <> Table)) do
+        Node := Node.getNextSibling();
 
       if (Assigned(Node) and (not Node.HasChildren or Assigned(Node.getFirstChild()) or (Node = FNavigatorNodeToExpand))) then
       begin
@@ -8039,6 +8069,9 @@ begin
         Routine := TSRoutine(FNavigator.Selected.Data);
 
         FObjectIDEGrid.DataSource.DataSet := Routine.InputDataSet;
+        // Debug 2016-11-17
+        if (Routine.ParameterCount > FObjectIDEGrid.Columns.Count) then
+          raise ERangeError.Create(SRangeError + '(' + IntToStr(Routine.ParameterCount) + ' > ' + IntToStr(FObjectIDEGrid.Columns.Count) + ')');
 
         for I := 0 to Routine.ParameterCount - 1 do
         begin
@@ -8236,11 +8269,6 @@ begin
     Result := nil;
 end;
 
-function TFSession.GetPath(): TFileName;
-begin
-  Result := ExcludeTrailingPathDelimiter(Preferences.Path);
-end;
-
 function TFSession.GetMenuDatabase(): TSDatabase;
 var
   Node: TTreeNode;
@@ -8257,6 +8285,11 @@ begin
     Result := TSDatabase(Node.Data)
   else
     Result := nil;
+end;
+
+function TFSession.GetPath(): TFileName;
+begin
+  Result := ExcludeTrailingPathDelimiter(Preferences.Path);
 end;
 
 function TFSession.GetSelectedDatabase(): string;
@@ -9137,8 +9170,13 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
     S: string;
     S2: string;
   begin
-    Assert(Item.Data = Data);
+    // Debug 2016-11-17
+    if (not Assigned(Data)) then
+      raise ERangeError.Create(SRangeError);
+    if (not Assigned(Item.Data)) then
+      raise ERangeError.Create(SRangeError);
 
+    Assert(Item.Data = Data);
 
     Item.SubItems.BeginUpdate();
     Item.SubItems.Clear();
@@ -10456,6 +10494,10 @@ var
   I: Integer;
   Rect: TRect;
 begin
+  // Debug 2016-11-17
+  if (not Assigned(ActiveListView)) then
+    raise ERangeError.Create(SRangeError);
+
   ListViewSelectItem(ActiveListView, ActiveListView.Selected, Assigned(ActiveListView.Selected));
 
   if (not BOOL(Header_GetItemRect(ListView_GetHeader(ActiveListView.Handle), 0, @Rect)) or (MList.PopupPoint.Y - ActiveListView.ClientOrigin.Y < Rect.Bottom)) then
@@ -12253,20 +12295,19 @@ var
   Table: TSTable;
   URI: TUURI;
 begin
-  AllowChange := True;
+  AllowChange := True; Node := nil;
   NewAddress := AAddress; // We need this, since in AddressChanging maybe Wanted.Address will be changed, but AAddress is Wanted.Address
   AddressChanging(nil, NewAddress, AllowChange);
-  if (not AllowChange and Wanted.Nothing) then
+  if (AllowChange) then
   begin
-    NewAddress := Session.Account.ExpandAddress('/');
-    AllowChange := True;
-    AddressChanging(nil, NewAddress, AllowChange);
+    Node := FNavigatorNodeByAddress(NewAddress);
+    AllowChange := Assigned(Node);
+    if (not AllowChange) then
+      Wanted.Address := Session.Account.ExpandAddress('/');
   end;
   if (AllowChange) then
   begin
     FAddress := NewAddress;
-
-    Node := FNavigatorNodeByAddress(NewAddress);
 
     ChangingEvent := FNavigator.OnChanging; FNavigator.OnChanging := nil;
     ChangeEvent := FNavigator.OnChange; FNavigator.OnChange := nil;
@@ -12493,6 +12534,11 @@ begin
       StatusBar.Panels[sbNavigation].Text := IntToStr(ActiveSynMemo.CaretXY.Line) + ':' + IntToStr(ActiveSynMemo.CaretXY.Char)
     else if (Window.ActiveControl = ActiveListView) then
     begin
+      // Debug 2016-11-17
+      if (not Assigned(Window.ActiveControl)) then
+        raise ERangeError.Create(SRangeError);
+      if (not Assigned(ActiveListView)) then
+        raise ERangeError.Create(SRangeError);
       // Debug 2016-11-16
       if (not (ActiveListView is TListView)) then
         raise ERangeError.Create(SRangeError + ('ClassName: ' + ActiveListView.ClassName));
@@ -14030,7 +14076,7 @@ begin
     tiShowSynCompletion:
       begin
         KillTimer(Handle, Message.TimerID);
-        if (Window.Active) then
+        if (Window.Active and (View in [vEditor, vEditor2, vEditor3])) then
         begin
           SynCompletion.Form.CurrentEditor := ActiveSynMemo;
           SynCompletion.ActivateCompletion();

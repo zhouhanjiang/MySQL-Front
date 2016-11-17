@@ -947,10 +947,9 @@ begin
 
   FBOk.Enabled := GBasics.Visible and not Assigned(Field);
 
+  ActiveControl := FBCancel;
   if (GBasics.Visible) then
-    ActiveControl := FName
-  else
-    ActiveControl := FBCancel;
+    ActiveControl := FName;
 end;
 
 procedure TDField.FRDefaultClick(Sender: TObject);

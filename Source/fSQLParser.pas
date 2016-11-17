@@ -3874,9 +3874,11 @@ type
           ColumnsTerminatedByValue: TOffset;
           EnclosedByValue: TOffset;
           EscapedByValue: TOffset;
-          LinesTag: TOffset;
-          StartingByValue: TOffset;
-          LinesTerminatedByValue: TOffset;
+          Lines: packed record
+            Tag: TOffset;
+            StartingByValue: TOffset;
+            TerminatedByValue: TOffset;
+          end;
           Ignore: packed record
             Tag: TOffset;
             NumberToken: TOffset;
@@ -13088,12 +13090,12 @@ begin
     FormatNode(Nodes.EscapedByValue, stReturnBefore);
     Commands.DecreaseIndent();
   end;
-  if (Nodes.LinesTag > 0) then
+  if (Nodes.Lines.Tag > 0) then
   begin
-    FormatNode(Nodes.LinesTag, stReturnBefore);
+    FormatNode(Nodes.Lines.Tag, stReturnBefore);
     Commands.IncreaseIndent();
-    FormatNode(Nodes.StartingByValue, stReturnBefore);
-    FormatNode(Nodes.LinesTerminatedByValue, stReturnBefore);
+    FormatNode(Nodes.Lines.StartingByValue, stReturnBefore);
+    FormatNode(Nodes.Lines.TerminatedByValue, stReturnBefore);
     Commands.DecreaseIndent();
   end;
   FormatNode(Nodes.Ignore.Tag, stReturnBefore);
@@ -18236,7 +18238,7 @@ begin
 
           if (EndOfStmt(CurrentToken)) then
           begin
-            CompletionList.AddList(ADbIdentType, TokenPtr(Nodes.TableIdent)^.AsString);
+            CompletionList.AddList(ADbIdentType, TokenPtr(Nodes.DatabaseIdent)^.AsString);
             Nodes.Ident := 0;
           end
           else
@@ -20466,6 +20468,7 @@ end;
 
 function TSQLParser.ParseLoadDataStmt(): TOffset;
 var
+  Found: Boolean;
   Nodes: TLoadDataStmt.TNodes;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
@@ -20523,33 +20526,50 @@ begin
       else
         Nodes.ColumnsTag := ParseTag(kiCOLUMNS);
 
-      if (not ErrorFound) then
-        if (IsTag(kiTERMINATED, kiBY)) then
-          Nodes.ColumnsTerminatedByValue := ParseValue(WordIndices(kiTERMINATED, kiBY), vaNo, ParseString);
-
-      if (not ErrorFound) then
-        if (IsTag(kiOPTIONALLY, kiENCLOSED, kiBY)) then
+      Found := True;
+      while (not ErrorFound and Found) do
+        if ((Nodes.ColumnsTerminatedByValue = 0) and IsTag(kiTERMINATED, kiBY)) then
+          Nodes.ColumnsTerminatedByValue := ParseValue(WordIndices(kiTERMINATED, kiBY), vaNo, ParseString)
+        else if ((Nodes.EnclosedByValue = 0) and IsTag(kiOPTIONALLY, kiENCLOSED, kiBY)) then
           Nodes.EnclosedByValue := ParseValue(WordIndices(kiOPTIONALLY, kiENCLOSED, kiBY), vaNo, ParseString)
-        else if (IsTag(kiENCLOSED, kiBY)) then
-          Nodes.EnclosedByValue := ParseValue(WordIndices(kiENCLOSED, kiBY), vaNo, ParseString);
+        else if ((Nodes.EnclosedByValue = 0) and IsTag(kiENCLOSED, kiBY)) then
+          Nodes.EnclosedByValue := ParseValue(WordIndices(kiENCLOSED, kiBY), vaNo, ParseString)
+        else if ((Nodes.EscapedByValue = 0) and IsTag(kiESCAPED, kiBY)) then
+          Nodes.EscapedByValue := ParseValue(WordIndices(kiESCAPED, kiBY), vaNo, ParseString)
+        else
+          Found := False;
 
-      if (not ErrorFound) then
-        if (IsTag(kiESCAPED, kiBY)) then
-          Nodes.EscapedByValue := ParseValue(WordIndices(kiESCAPED, kiBY), vaNo, ParseString);
+      if (not ErrorFound
+        and (Nodes.ColumnsTerminatedByValue = 0)
+        and (Nodes.EnclosedByValue = 0)
+        and (Nodes.EscapedByValue = 0)) then
+        if (EndOfStmt(CurrentToken)) then
+          SetError(PE_IncompleteStmt)
+        else
+          SetError(PE_UnexpectedToken);
     end;
 
   if (not ErrorFound) then
     if (IsTag(kiLINES)) then
     begin
-      Nodes.LinesTag := ParseTag(kiLINES);
+      Nodes.Lines.Tag := ParseTag(kiLINES);
 
-      if (not ErrorFound) then
-        if (IsTag(kiSTARTING, kiBY)) then
-          Nodes.StartingByValue := ParseValue(WordIndices(kiSTARTING, kiBY), vaNo, ParseString);
+      Found := True;
+      while (not ErrorFound and Found) do
+        if ((Nodes.Lines.StartingByValue = 0) and IsTag(kiSTARTING, kiBY)) then
+          Nodes.Lines.StartingByValue := ParseValue(WordIndices(kiSTARTING, kiBY), vaNo, ParseString)
+        else if ((Nodes.Lines.TerminatedByValue = 0) and IsTag(kiTERMINATED, kiBY)) then
+          Nodes.Lines.TerminatedByValue := ParseValue(WordIndices(kiTERMINATED, kiBY), vaNo, ParseString)
+        else
+          Found := False;
 
-      if (not ErrorFound) then
-        if (IsTag(kiTERMINATED, kiBY)) then
-          Nodes.LinesTerminatedByValue := ParseValue(WordIndices(kiTERMINATED, kiBY), vaNo, ParseString);
+      if (not ErrorFound
+        and (Nodes.Lines.StartingByValue = 0)
+        and (Nodes.Lines.TerminatedByValue = 0)) then
+        if (EndOfStmt(CurrentToken)) then
+          SetError(PE_IncompleteStmt)
+        else
+          SetError(PE_UnexpectedToken);
     end;
 
   if (IsTag(kiIGNORE)) then
@@ -21361,6 +21381,8 @@ end;
 function TSQLParser.ParseSelectStmt(const SubSelect: Boolean): TOffset;
 
   function ParseInto(): TSelectStmt.TIntoNodes;
+  var
+    Found: Boolean;
   begin
     FillChar(Result, SizeOf(Result), 0);
 
@@ -21386,19 +21408,27 @@ function TSQLParser.ParseSelectStmt(const SubSelect: Boolean): TOffset;
 
         if (Result.Fields.Tag > 0) then
         begin
-          if (not ErrorFound) then
-            if (IsTag(kiTERMINATED, kiBY)) then
-              Result.Fields.TerminatedByString := ParseValue(WordIndices(kiTERMINATED, kiBY), vaNo, ParseString);
-
-          if (not ErrorFound) then
-            if (IsTag(kiOPTIONALLY, kiENCLOSED, kiBY)) then
+          Found := True;
+          while (not ErrorFound and Found) do
+            if ((Result.Fields.TerminatedByString = 0) and IsTag(kiTERMINATED, kiBY)) then
+              Result.Fields.TerminatedByString := ParseValue(WordIndices(kiTERMINATED, kiBY), vaNo, ParseString)
+            else if ((Result.Fields.EnclosedByString = 0) and IsTag(kiOPTIONALLY, kiENCLOSED, kiBY)) then
               Result.Fields.EnclosedByString := ParseValue(WordIndices(kiOPTIONALLY, kiENCLOSED, kiBY), vaNo, ParseString)
-            else if (IsTag(kiENCLOSED, kiBY)) then
-              Result.Fields.EnclosedByString := ParseValue(WordIndices(kiENCLOSED, kiBY), vaNo, ParseString);
+            else if ((Result.Fields.EnclosedByString = 0) and IsTag(kiENCLOSED, kiBY)) then
+              Result.Fields.EnclosedByString := ParseValue(WordIndices(kiENCLOSED, kiBY), vaNo, ParseString)
+            else if ((Result.Fields.EscapedByString = 0) and IsTag(kiESCAPED, kiBY)) then
+              Result.Fields.EscapedByString := ParseValue(WordIndices(kiESCAPED, kiBY), vaNo, ParseString)
+            else
+              Found := False;
 
-          if (not ErrorFound) then
-            if (IsTag(kiESCAPED, kiBY)) then
-              Result.Fields.EscapedByString := ParseValue(WordIndices(kiENCLOSED, kiBY), vaNo, ParseString);
+          if (not ErrorFound
+            and (Result.Fields.TerminatedByString = 0)
+            and (Result.Fields.EnclosedByString = 0)
+            and (Result.Fields.EscapedByString = 0)) then
+            if (EndOfStmt(CurrentToken)) then
+              SetError(PE_IncompleteStmt)
+            else
+              SetError(PE_UnexpectedToken);
         end;
       end;
 
@@ -21407,13 +21437,22 @@ function TSQLParser.ParseSelectStmt(const SubSelect: Boolean): TOffset;
         begin
           Result.Lines.Tag := ParseTag(kiLINES);
 
-          if (not ErrorFound) then
-            if (IsTag(kiSTARTING, kiBY)) then
-              Result.Lines.StartingByString := ParseValue(WordIndices(kiSTARTING, kiBY), vaNo, ParseString);
+          Found := True;
+          while (not ErrorFound and Found) do
+            if ((Result.Lines.StartingByString = 0) and IsTag(kiSTARTING, kiBY)) then
+              Result.Lines.StartingByString := ParseValue(WordIndices(kiSTARTING, kiBY), vaNo, ParseString)
+            else if ((Result.Lines.TerminatedByString = 0) and IsTag(kiTERMINATED, kiBY)) then
+              Result.Lines.TerminatedByString := ParseValue(WordIndices(kiTERMINATED, kiBY), vaNo, ParseString)
+            else
+              Found := False;
 
-          if (not ErrorFound) then
-            if (IsTag(kiTERMINATED, kiBY)) then
-              Result.Lines.TerminatedByString := ParseValue(WordIndices(kiTERMINATED, kiBY), vaNo, ParseString);
+          if (not ErrorFound
+            and (Result.Lines.StartingByString = 0)
+            and (Result.Lines.TerminatedByString = 0)) then
+            if (EndOfStmt(CurrentToken)) then
+              SetError(PE_IncompleteStmt)
+            else
+              SetError(PE_UnexpectedToken);
         end;
     end
     else if (IsTag(kiINTO, kiDUMPFILE)) then
@@ -24921,9 +24960,9 @@ begin
         CMP AX,'.'                       // Dot?
         JE IPAddressLE                   // Yes!
         CMP AX,'0'                       // Digit?
-        JB UnexpectedChar                // No!
+        JB Finish                        // No!
         CMP AX,'9'
-        JA UnexpectedChar                // No!
+        JA Finish                        // No!
       IPAddressLE:
         ADD ESI,2                        // Next character in SQL
         LOOP IPAddressL

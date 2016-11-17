@@ -814,6 +814,7 @@ begin
     Tab.Visible := False;
     Tab.Free();
 
+    TabSessions.Delete(TabSessions.IndexOf(Session));
     Session.Free();
 
     TBTabControl.Visible := Preferences.TabsVisible or not Preferences.TabsVisible and (FSessions.Count >= 2);
@@ -1031,6 +1032,7 @@ begin
       Report := Report + 'MySQL:' + #13#10;
       Report := Report + StringOfChar('-', Length('Version: ' + ActiveTab.Session.Connection.ServerVersionStr)) + #13#10;
       Report := Report + 'Version: ' + ActiveTab.Session.Connection.ServerVersionStr + #13#10;
+      Report := Report + 'LibraryType: ' + IntToStr(Ord(ActiveTab.Session.Connection.LibraryType)) + #13#10;
       Report := Report + #13#10;
       Report := Report + 'SQL Log:' + #13#10;
       Report := Report + StringOfChar('-', 72) + #13#10;
@@ -1063,6 +1065,8 @@ var
   I: Integer;
   Foldername: array [0..MAX_PATH] of Char;
 begin
+  TabSessions := TList.Create();
+
   DisableApplicationActivate := False;
   MouseDownPoint := Point(-1, -1);
   OnlineRecommendedUpdateFound := False;
@@ -1166,6 +1170,8 @@ begin
 
   if (Assigned(CheckOnlineVersionThread)) then
     TerminateThread(CheckOnlineVersionThread.Handle, 0);
+
+  TabSessions.Free();
 end;
 
 procedure TWWindow.FormHide(Sender: TObject);
@@ -1542,13 +1548,18 @@ begin
       DAccounts.Session := TSSession.Create(Sessions, DAccounts.Account);
       DConnecting.Session := DAccounts.Session;
       if (not DConnecting.Execute()) then
-        FreeAndNil(DConnecting.Session);
+      begin
+        DConnecting.Session.Free();
+        DConnecting.Session := nil;
+      end;
     end;
   end;
   if (not Assigned(DAccounts.Session) and not DAccounts.Execute()) then
     FSession := nil
   else
   begin
+    TabSessions.Add(DAccounts.Session);
+
     Perform(UM_DEACTIVATETAB, 0, 0);
 
     if (FSessions.Count = 0) then
@@ -2006,7 +2017,6 @@ begin
     begin
       MenuItem := TMenuItem.Create(Owner);
       MenuItem.Caption := '&' + IntToStr(miFReopen.Count) + ' ' + Tab.Session.Account.Desktop.Files[I].Filename;
-      MenuItem.Enabled := FileExists(Tab.Session.Account.Desktop.Files[I].Filename);
       MenuItem.OnClick := miFReopenClick;
       MenuItem.Tag := I;
       miFReopen.Add(MenuItem);

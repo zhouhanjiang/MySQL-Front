@@ -2862,7 +2862,8 @@ begin
   Clear();
 
   for I := 0 to XML.ChildNodes.Count - 1 do
-    if (XML.ChildNodes[I].NodeName = 'file') then
+    if ((XML.ChildNodes[I].NodeName = 'file')
+      and FileExists(XML.ChildNodes[I].Text)) then
     begin
       inherited Add(TPAccount.TFile.Create(Self));
       Files[Count - 1].LoadFromXML(XML.ChildNodes[I]);

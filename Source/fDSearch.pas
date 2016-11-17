@@ -361,6 +361,7 @@ begin
     end;
   end;
 
+  ExecuteSession := nil;
   Wanted.Node := nil;
   Wanted.Page := nil;
   FErrorMessages.Visible := not SearchOnly;
@@ -771,7 +772,6 @@ procedure TDSearch.TSExecuteShow(Sender: TObject);
   end;
 
 var
-  Session: TSSession;
   Database: TSDatabase;
   I: Integer;
   J: Integer;
@@ -792,8 +792,8 @@ begin
 
   Node := FSelect.Selected;
   while (Assigned(Node.Parent)) do Node := Node.Parent;
-  Session := TSSession(Node.Data);
-  InitializeNode(Session, FSelect.Selected);
+  ExecuteSession := TSSession(Node.Data);
+  InitializeNode(ExecuteSession, FSelect.Selected);
 
   if (not Assigned(Wanted.Page)) then
   begin
@@ -818,8 +818,6 @@ begin
     if (FRRegExpr.Checked) then
       Include(Preferences.Replace.Options, roRegExpr);
 
-    ExecuteSession := Session;
-
     if (Assigned(Search)) then
       TerminateThread(Search.Handle, 0);
     if (SearchOnly) then
@@ -835,12 +833,12 @@ begin
     end
     else
     begin
-      ReplaceSession := TSSession.Create(fSession.Sessions, ExecuteSession.Account);
-      DConnecting.Session := ReplaceSession;
+      DConnecting.Session := TSSession.Create(fSession.Sessions, ExecuteSession.Account);
       if (not DConnecting.Execute()) then
-        FreeAndNil(ReplaceSession)
+        DConnecting.Session.Free()
       else
       begin
+        ReplaceSession := DConnecting.Session;
         Search := TTReplace.Create(ExecuteSession, ReplaceSession);
 
         TTReplace(Search).Wnd := Self.Handle;
@@ -1048,12 +1046,9 @@ begin
   begin
     Search.WaitFor();
     FreeAndNil(Search);
-  end;
 
-  if (Assigned(ExecuteSession)) then
-    ExecuteSession := nil;
-  if (Assigned(ReplaceSession)) then
-    FreeAndNil(ReplaceSession);
+    ReplaceSession.Free();
+  end;
 
   FBBack.Enabled := True;
   FBCancel.Caption := Preferences.LoadStr(231);

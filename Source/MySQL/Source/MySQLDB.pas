@@ -3011,9 +3011,7 @@ begin
       Lib.mysql_set_character_set(SyncThread.LibHandle, 'utf8mb4');
 
     if (SyncThread.ErrorCode > 0) then
-      SyncDisconnecting(SyncThread)
-    else if (ThreadId > 0) then
-      KillThreadId := ThreadId;
+      SyncDisconnecting(SyncThread);
   end;
 end;
 
@@ -3170,6 +3168,8 @@ procedure TMySQLConnection.SyncExecuted(const SyncThread: TSyncThread);
 var
   CLStmt: TSQLCLStmt;
   Data: my_char;
+  DataSet: TMySQLQuery;
+  I: Integer;
   Info: my_char;
   Len: Integer;
   Name: string;
@@ -3297,7 +3297,18 @@ begin
         SyncHandledResult(SyncThread);
       end
       else if ((SyncThread.State = ssResult) and Assigned(SyncThread.ResHandle)) then
-        raise Exception.Create('Query has not been handled: ' + SyncThread.CommandText);
+      begin
+        DataSet := TMySQLQuery.Create(nil);
+        DataSet.Open(SyncThread);
+        S := '';
+        for I := 0 to DataSet.FieldCount - 1 do
+        begin
+          if (I > 0) then S := S + ',';
+          S := S + DataSet.Fields[I].FieldName;
+        end;
+        DataSet.Free();
+        raise Exception.Create('Query has not been handled: ' + SyncThread.CommandText + ', FieldNames: ' + S);
+      end;
     finally
       InOnResult := False;
     end;
@@ -3510,7 +3521,7 @@ end;
 
 procedure TMySQLConnection.SyncPing(const SyncThread: TSyncThread);
 begin
-  if (Lib.LibraryType <> ltHTTP) then
+  if ((Lib.LibraryType <> ltHTTP) and Assigned(SyncThread.LibHandle)) then
     Lib.mysql_ping(SyncThread.LibHandle);
 end;
 
@@ -3553,6 +3564,8 @@ begin
 
   if (Assigned(SyncThread) and SyncThread.IsRunning) then
   begin
+    KillThreadId := SyncThread.ThreadId;
+
     SyncThread.Terminate();
 
     {$IFDEF Debug}
@@ -6008,7 +6021,7 @@ begin
     if (Connection.Connected) then
       for I := 0 to Fields.Count - 1 do
       begin
-        if ((Fields[I].AutoGenerateValue = arAutoInc) and (Fields[I].IsNull or (Fields[I].AsLargeInt = 0))) then
+        if ((Fields[I].AutoGenerateValue = arAutoInc) and (Fields[I].IsNull or (Fields[I].AsLargeInt = 0)) and (Connection.InsertId > 0)) then
           Fields[I].AsLargeInt := Connection.InsertId;
         if (Fields[I].Required and Fields[I].IsNull and (Fields[I].DefaultExpression <> '')) then
           Fields[I].AsString := SQLUnescape(Fields[I].DefaultExpression);

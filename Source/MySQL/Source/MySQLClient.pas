@@ -933,8 +933,6 @@ begin
 end;
 
 function TMySQL_IO.EncodeString(const Str: string): RawByteString;
-var
-  Len: Integer;
 begin
   if (Str = '') then
     Result := ''
@@ -1948,7 +1946,10 @@ end;
 
 function MYSQL.info(): my_char;
 begin
-  Result := my_char(finfo);
+  if (finfo = '') then
+    Result := nil
+  else
+    Result := my_char(finfo);
 end;
 
 function MYSQL.insert_id(): my_ulonglong;

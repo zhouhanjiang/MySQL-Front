@@ -437,9 +437,7 @@ begin
     if (FName.Enabled) then
       ActiveControl := FName
     else if (FCharset.Visible) then
-      ActiveControl := FCharset
-    else
-      ActiveControl := FBCancel;
+      ActiveControl := FCharset;
 end;
 
 procedure TDDatabase.FSourceChange(Sender: TObject);

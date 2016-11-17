@@ -383,7 +383,6 @@ end;
 
 function TDExport.Execute(): Boolean;
 begin
-  PageControl.ActivePageIndex := -1;
   ModalResult := mrNone;
 
   Filename := '';
@@ -730,7 +729,7 @@ begin
   SendMessage(FErrorMessages.Handle, EM_SETTEXTMODE, TM_PLAINTEXT, 0);
   SendMessage(FErrorMessages.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
 
-  PageControl.ActivePage := nil; // Make sure, not ___OnShowPage will be executed
+  PageControl.ActivePage := nil;
 
   ExportType := etSQLFile;
 end;

@@ -89,7 +89,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  CommCtrl, Math, StrUtils,
+  CommCtrl, Math, StrUtils, SysConst,
   CommCtrl_Ext,
   SQLUtils, MySQLDB,
   fDUserRight, fPreferences;
@@ -362,10 +362,9 @@ begin
 
   TSSource.TabVisible := Assigned(User);
 
+  ActiveControl := FBCancel;
   if (PageControl.Visible) then
-    ActiveControl := FName
-  else
-    ActiveControl := FBCancel;
+    ActiveControl := FName;
 
   PostMessage(Self.Handle, UM_POST_SHOW, 0, 0);
 end;
@@ -381,6 +380,10 @@ var
   I: Integer;
   Item: TListItem;
 begin
+  // Debug 2016-11-17
+  if (NewUser.RightCount = 0) then
+    raise ERangeError.Create(SRangeError);
+
   FRights.Clear();
 
   for I := 0 to NewUser.RightCount - 1 do
