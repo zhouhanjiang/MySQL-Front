@@ -254,9 +254,9 @@ begin
       FBOk.Enabled := False;
     end;
 
+    NewForeignKey.Free();
     if (NewTable <> Table) then
       NewTable.Free();
-    NewForeignKey.Free();
   end;
 end;
 

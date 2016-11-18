@@ -18294,7 +18294,7 @@ begin
     Elements.Add(Nodes.TableIdent);
     Elements.Add(TBinaryOp.Create(Self, Nodes.TableDot, Nodes.Ident));
     FillChar(ListNodes, SizeOf(ListNodes), 0);
-    Result := TList.Create(Self, ListNodes, ttDot, @Elements);
+    Result := TList.Create(Self, ListNodes, ttUnknown, @Elements);
   end
   else
     Result := TDbIdent.Create(Self, DbIdentType, Nodes);
@@ -25942,10 +25942,14 @@ begin
                   HTML := HTML
                     + '<tr><td>DbIdentType:</td><td>&nbsp;</td><td>' + DbIdentTypeToString[PDbIdent(Node)^.DbIdentType] + '</td></tr>';
                 ntList:
-                  if (Assigned(PList(Node)^.FirstElement)) then
+                  begin
                     HTML := HTML
-                      + '<tr><td>FirstElement Offset:</td><td>&nbsp;</td><td>' + IntToStr(PNode(PList(Node)^.FirstElement)^.Offset) + '</td></tr>'
-                      + '<tr><td>ElementCount:</td><td>&nbsp;</td><td>' + IntToStr(PList(Node)^.ChildCount) + '</td></tr>';
+                      + '<tr><td>DelimiterType:</td><td>&nbsp;</td><td>' + HTMLEscape(TokenTypeToString[PList(Node)^.DelimiterType]) + '</td></tr>';
+                    if (Assigned(PList(Node)^.FirstElement)) then
+                      HTML := HTML
+                        + '<tr><td>FirstElement Offset:</td><td>&nbsp;</td><td>' + IntToStr(PNode(PList(Node)^.FirstElement)^.Offset) + '</td></tr>'
+                        + '<tr><td>ElementCount:</td><td>&nbsp;</td><td>' + IntToStr(PList(Node)^.ChildCount) + '</td></tr>';
+                  end;
                 ntSelectStmtTableJoin:
                   HTML := HTML
                     + '<tr><td>JoinType:</td><td>&nbsp;</td><td>' + JoinTypeToString[TSelectStmt.PTableJoin(Node)^.JoinType] + '</td></tr>';

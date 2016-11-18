@@ -431,9 +431,9 @@ begin
       FBOk.Enabled := False;
     end;
 
+    NewKey.Free();
     if (NewTable <> Table) then
       NewTable.Free();
-    NewKey.Free();
   end;
 end;
 

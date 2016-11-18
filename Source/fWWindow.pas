@@ -429,7 +429,7 @@ type
     procedure EurekaLogCustomDataRequest(
       EurekaExceptionRecord: TEurekaExceptionRecord; DataFields: TStrings);
     procedure EurekaLogExceptionNotify(
-      EurekaExceptionRecord: TEurekaExceptionRecord; var Handled: Boolean);
+      EurekaExceptionRecord: TEurekaExceptionRecord; var Handle: Boolean);
     {$ENDIF}
     function GetActiveTab(): TFSession;
     function GetNewTabIndex(Sender: TObject; X, Y: Integer): Integer;
@@ -999,7 +999,7 @@ begin
 end;
 
 procedure TWWindow.EurekaLogExceptionNotify(
-  EurekaExceptionRecord: TEurekaExceptionRecord; var Handled: Boolean);
+  EurekaExceptionRecord: TEurekaExceptionRecord; var Handle: Boolean);
 var
   FirstLine: Integer;
   I: Integer;
@@ -1021,9 +1021,9 @@ begin
       FreeAndNil(CheckOnlineVersionThread);
     end;
 
-  Handled := Preferences.Version >= OnlineProgramVersion;
+  Handle := Preferences.Version >= OnlineProgramVersion;
 
-  if (Handled) then
+  if (Handle) then
   begin
     Report := string(EurekaExceptionRecord.LogText);
 
@@ -1038,7 +1038,7 @@ begin
       Report := Report + StringOfChar('-', 72) + #13#10;
       Log := TStringList.Create();
       Log.Text := ActiveTab.Session.Connection.BugMonitor.CacheText;
-      if (Log.Count < 10) then FirstLine := 0 else FirstLine := Log.Count - 10;
+      if (Log.Count < 20) then FirstLine := 0 else FirstLine := Log.Count - 20;
       for I := FirstLine to Log.Count - 1 do
         Report := Report + Log[I] + #13#10;
       Log.Free();

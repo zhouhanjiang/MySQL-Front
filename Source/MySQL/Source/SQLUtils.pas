@@ -141,6 +141,7 @@ const
   KSQLSecurityDefiner: PChar = 'SQL SECURITY DEFINER';
   KSQLSecurityInvoker: PChar = 'SQL SECURITY INVOKER';
   KTable: PChar = 'TABLE';
+  KThen: PChar = 'THEN';
   KTemporary: PChar = 'TEMPORARY';
   KTrigger: PChar = 'TRIGGER';
   KUpdate: PChar = 'UPDATE';
@@ -2506,10 +2507,11 @@ function SQLStmtLength(const SQL: PChar; const Length: Integer; const Delimited:
 label
   Start, StartCase, StartIf, StartLoop, StartRepeat, StartWhile, StartCompound,
   SimpelStmtL, SimpelStmtLE,
-  Body, BodyL, BodyCase, BodyIf, BodyIf2, BodyIf3, BodyLoop, BodyRepeat, BodyWhile, BodyEnd,
+  Body, BodyL, BodyCase, BodyIf, BodyIf2, BodyIf3, BodyIfFunc, BodyLoop, BodyRepeat, BodyWhile, BodyEnd,
   BodyChar, BodyCharTL, BodyCharE,
   BodyEndCase, BodyEndIf, BodyEndLoop, BodyEndRepeat, BodyEndWhile, BodyEndCompound, BodyLE,
-  BodyBracket, BodyBracketL, BodyBracketLE,
+  BodyBracket,
+  BracketArea, BracketAreaL, BracketAreaE,
   Complete, Complete2, Complete3, Complete4,
   Finish;
 const
@@ -2669,7 +2671,7 @@ begin
           CMP ECX,0                        // All characters handled?
           JZ Finish                        // Yes!
           CMP WORD PTR [ESI],'('           // IF as function?
-          JE BodyLE                        // Yes!
+          JE BodyIfFunc                    // Yes!
           PUSH ESI
           PUSH ECX
           MOV EAX,[KNot]
@@ -2688,6 +2690,17 @@ begin
           POP ECX
           POP ESI
           JE BodyLE
+          INC IfDeep
+          JMP BodyLE
+        BodyIfFunc:
+          LODSW                            // Character -> AX
+          CALL BracketArea
+          CALL Trim                        // Empty characters?
+          CMP ECX,0                        // All characters handled?
+          JZ Finish                        // Yes!
+          MOV EAX,[KThen]
+          CALL CompareKeyword              // 'THEN'?
+          JNE BodyLE                       // No!
           INC IfDeep
           JMP BodyLE
         BodyLoop:
@@ -2798,28 +2811,34 @@ begin
           JMP Complete
 
         BodyBracket:
-          INC BracketDeep                  // One open bracket found
-        BodyBracketL:
-          CALL Trim                        // Step over empty characters
-          CMP ECX,0                        // All characters handled?
-          JZ BodyLE                        // Yes!
-          CALL MoveString                  // Step over quoted string
-          CMP ECX,0                        // All characters handled?
-          JZ BodyLE                        // Yes!
-          LODSW                            // Character -> AX
-          DEC ECX                          // One character handled
-          CMP AX,'('                       // Another open bracket?
-          JE BodyBracket                   // Yes!
-          CMP AX,')'                       // Closing bracket?
-          JNE BodyBracketL                 // No!
-          DEC BracketDeep                  // One bracket closed
-          CMP BracketDeep,0                // All brackets are closed?
-          JNE BodyBracketL                 // No!
+          CALL BracketArea
 
         BodyLE:
           CMP ECX,0                        // All characters handled?
           JNZ BodyL                        // No!
           JMP Finish
+
+        // -------------------
+
+        BracketArea:
+          INC BracketDeep                  // One open bracket found
+        BracketAreaL:
+          CALL Trim                        // Step over empty characters
+          CMP ECX,0                        // All characters handled?
+          JZ BodyLE                        // Yes!
+          CALL MoveString                  // Step over quoted string
+          CMP ECX,0                        // All characters handled?
+          JZ BracketAreaE                  // Yes!
+          LODSW                            // Character -> AX
+          DEC ECX                          // One character handled
+          CMP AX,'('                       // Another open bracket?
+          JE BracketArea                   // Yes!
+          CMP AX,')'                       // Closing bracket?
+          JNE BracketAreaL                 // No!
+          DEC BracketDeep                  // One bracket closed
+          JNZ BracketAreaL                 // Furhter brackets open!
+        BracketAreaE:
+          RET
 
         // -------------------
 

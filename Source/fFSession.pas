@@ -6999,7 +6999,7 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
 
           Add := not Assigned(Node.getFirstChild());
           for I := 0 to SItems.Count - 1 do
-            if (not (SItems is TSTriggers) or (TSTriggers(SItems)[I].Table = Event.Sender)) then
+            if (not (SItems is TSTriggers) or (TSTriggers(SItems)[I].Table = Node.Data)) then
               if (not Add) then
                 InsertOrUpdateChild(Node, SItems[I])
               else
@@ -7123,9 +7123,12 @@ begin
       FNavigator.Items.EndUpdate();
     end;
   end
-  else if (Event.Sender is TSTable) then
+  else if ((Event.Sender is TSTable) or (Event.Item is TSTrigger) and Assigned(TSTrigger(Event.Item).Table)) then
   begin
-    Table := TSTable(Event.Sender);
+    if (Event.Item is TSTrigger) then
+      Table := TSTrigger(Event.Item).Table
+    else
+      Table := TSTable(Event.Sender);
 
     Node := FNavigator.Items.getFirstNode().getFirstChild();
     while (Assigned(Node) and (Node.Data <> Table.Database)) do
@@ -8069,9 +8072,7 @@ begin
         Routine := TSRoutine(FNavigator.Selected.Data);
 
         FObjectIDEGrid.DataSource.DataSet := Routine.InputDataSet;
-        // Debug 2016-11-17
-        if (Routine.ParameterCount > FObjectIDEGrid.Columns.Count) then
-          raise ERangeError.Create(SRangeError + '(' + IntToStr(Routine.ParameterCount) + ' > ' + IntToStr(FObjectIDEGrid.Columns.Count) + ')');
+        FObjectIDEGrid.DataSource.Enabled := Assigned(FObjectIDEGrid.DataSource.DataSet);
 
         for I := 0 to Routine.ParameterCount - 1 do
         begin
@@ -8169,13 +8170,15 @@ var
 begin
   case (View) of
     vIDE:
-      case (SelectedImageIndex) of
-        iiView: Result := Desktop(TSView(FNavigator.Selected.Data)).SynMemo;
-        iiProcedure,
-        iiFunction: Result := Desktop(TSRoutine(FNavigator.Selected.Data)).SynMemo;
-        iiTrigger: Result := Desktop(TSTrigger(FNavigator.Selected.Data)).SynMemo;
-        iiEvent: Result := Desktop(TSEvent(FNavigator.Selected.Data)).SynMemo;
-        else Result := nil;
+      begin
+        case (SelectedImageIndex) of
+          iiView: Result := Desktop(TSView(FNavigator.Selected.Data)).SynMemo;
+          iiProcedure,
+          iiFunction: Result := Desktop(TSRoutine(FNavigator.Selected.Data)).SynMemo;
+          iiTrigger: Result := Desktop(TSTrigger(FNavigator.Selected.Data)).SynMemo;
+          iiEvent: Result := Desktop(TSEvent(FNavigator.Selected.Data)).SynMemo;
+          else Result := nil;
+        end;
       end;
     vBuilder:
       Result := FQueryBuilderSynMemo;
@@ -9618,9 +9621,24 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
           ListView.Columns.EndUpdate();
         end;
       etItemValid:
-        for I := 0 to ListView.Items.Count - 1 do
-          if (ListView.Items[I].Data = Event.Item) then
-            UpdateItem(ListView.Items[I], Event.Item);
+        begin
+          if (Event.Item is TSTrigger) then
+          begin
+            Add := True;
+            for I := 0 to ListView.Items.Count - 1 do
+              if (ListView.Items[I].Data = Event.Item) then
+              begin
+                UpdateItem(ListView.Items[I], Event.Item);
+                Add := False;
+              end;
+            if (Add) then
+              InsertOrUpdateItem(Kind, Event.Item);
+          end
+          else
+            for I := 0 to ListView.Items.Count - 1 do
+              if (ListView.Items[I].Data = Event.Item) then
+                UpdateItem(ListView.Items[I], Event.Item);
+        end;
       etItemCreated:
         begin
           Item := InsertOrUpdateItem(Kind, Event.Item);
@@ -9758,9 +9776,12 @@ begin
         end;
       lkTable:
         begin
-          if (Event.Sender is TSTable) then
+          if ((Event.Sender is TSTable) or (Event.Item is TSTrigger) and (TSTrigger(Event.Item).Table = Pointer(ListView.Tag))) then
           begin
-            Table := TSTable(Event.Sender);
+            if (Event.Item is TSTrigger) then
+              Table := TSTrigger(Event.Item).Table
+            else
+              Table := TSTable(Event.Sender);
             ListView.Items.BeginUpdate();
             ListView.DisableAlign();
             if (Table is TSBaseTable) then
@@ -12110,6 +12131,7 @@ var
   I: Integer;
   S1: string;
   S2: string;
+  Table: TSTable;
   TempActiveControl: TWinControl;
 begin
   LeftMousePressed := False;
@@ -12133,7 +12155,7 @@ begin
         ListViewUpdate(Event, VariablesListView)
       else if (Event.Sender is TSSession) then
         ListViewUpdate(Event, FServerListView)
-      else if (Event.Sender is TSDatabase) then
+      else if ((Event.Sender is TSDatabase) and not (Event.Items is TSTriggers)) then
       begin
         ListViewUpdate(Event, FServerListView);
         if (not (Event.Items is TSTriggers)) then
@@ -12145,10 +12167,14 @@ begin
             if (Assigned(TSTriggers(Event.Items)[I].Table)) then
               ListViewUpdate(Event, Desktop(TSTriggers(Event.Items)[I].Table).ListView);
       end
-      else if (Event.Sender is TSTable) then
+      else if ((Event.Sender is TSTable) or (Event.Item is TSTrigger) and Assigned(TSTrigger(Event.Item).Table)) then
       begin
-        ListViewUpdate(Event, Desktop(TSTable(Event.Sender).Database).ListView);
-        ListViewUpdate(Event, Desktop(TSTable(Event.Sender)).ListView);
+        if (Event.Item is TSTrigger) then
+          Table := TSTrigger(Event.Item).Table
+        else
+          Table := TSTable(Event.Sender);
+        ListViewUpdate(Event, Desktop(Table.Database).ListView);
+        ListViewUpdate(Event, Desktop(Table).ListView);
       end;
     end;
 

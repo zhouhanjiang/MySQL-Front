@@ -353,7 +353,9 @@ begin
     PSQLWait.Visible := not PageControl.Visible;
 
     if (PageControl.Visible) then
-      Built();
+      Built()
+    else
+      FBRightsEdit.Enabled := False;
   end;
 
   FUserConnections.Visible := Session.Connection.MySQLVersion >= 50003;

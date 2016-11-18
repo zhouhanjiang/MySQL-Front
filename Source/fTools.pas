@@ -178,6 +178,7 @@ type
     FWarningCount: Integer;
     OLD_FOREIGN_KEY_CHECKS: string;
     OLD_UNIQUE_CHECKS: string;
+    SQLExecuted: TEvent;
   protected
     FieldMappings: array of TFieldMapping;
     procedure AfterExecute(); override;
@@ -1791,6 +1792,7 @@ begin
   FWarningCount := 0;
 
   Data := False;
+  SQLExecuted := TEvent.Create(nil, False, False, '');
   Structure := False;
 end;
 
@@ -1798,15 +1800,24 @@ destructor TTImport.Destroy();
 begin
   Close();
 
+  SQLExecuted.Free();
+
   inherited;
 end;
 
 function TTImport.DoExecuteSQL(var SQL: string): Boolean;
 begin
-  Result := (SQL = '') or Session.Connection.ExecuteSQL(SQL);
-  Inc(FWarningCount, Session.Connection.WarningCount);
-  Delete(SQL, 1, Session.Connection.SuccessfullExecutedSQLLength);
-  SQL := Trim(SQL);
+  if (SQL = '') then
+    Result := True
+  else
+  begin
+    Session.Connection.SendSQL(SQL, SQLExecuted);
+    SQLExecuted.WaitFor(INFINITE);
+    Inc(FWarningCount, Session.Connection.WarningCount);
+    Delete(SQL, 1, Session.Connection.SuccessfullExecutedSQLLength);
+    SQL := Trim(SQL);
+    Result := Session.Connection.ErrorCode = 0;
+  end;
 end;
 
 procedure TTImport.DoUpdateGUI();

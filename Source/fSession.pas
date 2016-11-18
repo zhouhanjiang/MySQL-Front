@@ -112,7 +112,7 @@ type
     function SQLGetItems(const Name: string = ''): string; virtual; abstract;
   public
     procedure Clear(); override;
-    constructor Create(const ASession: TSSession); reintroduce; virtual;
+    constructor Create(const ASession: TSSession); reintroduce;
     procedure Invalidate(); virtual;
     procedure PushBuildEvent(const Sender: TObject); virtual;
     function Update(): Boolean; virtual;
@@ -3029,7 +3029,7 @@ begin
   AutoIncrement := False;
   Binary := False;
   if (Table is TSBaseTable) then
-    Collation := TSBaseTable(Table).Collation;
+    FCollation := TSBaseTable(Table).Collation;
   Comment := '';
   Default := '';
   DefaultSize := 0;
@@ -3172,8 +3172,6 @@ end;
 procedure TSBaseTableField.Clear();
 begin
   inherited;
-
-  FCollation := '';
 
   OnUpdate := '';
   OnUpdateSize := 0;
@@ -6361,6 +6359,10 @@ function TSTrigger.GetInputDataSet(): TMySQLDataSet;
 begin
   if (not Assigned(FInputDataSet)) then
   begin
+    // Debug 2016-11-18
+    if (FTableName = '') then
+      raise ERangeError.Create(SRangeError);
+
     FInputDataSet := TMySQLDataSet.Create(nil);
     FInputDataSet.Connection := Session.Connection;
     FInputDataSet.CommandText := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(FTableName) + ' LIMIT 0';
@@ -6655,7 +6657,11 @@ begin
           else if (StrIComp(PChar(DataSet.FieldByName('ACTION_TIMING').AsString), 'AFTER') = 0) then
             Trigger[Index].FTiming := ttAfter
           else
-            raise ERangeError.Create(SRangeError)
+            raise ERangeError.Create(SRangeError);
+
+          // Debug 2016-11-17
+          if (Trigger[Index].FTableName = '') then
+            raise ERangeError.Create(SRangeError);
         end;
         Trigger[Index].FValid := True;
 
@@ -8952,9 +8958,9 @@ begin
       Result := Result + ' WHERE ' + Session.Connection.EscapeIdentifier('VARIABLE_NAME') + '=' + SQLEscape(Name);
     Result := Result + ';' + #13#10;
   end
-  else if (Session.Connection.MySQLVersion < 50714) then
+  else if (Session.Connection.MySQLVersion < 50715) then
   // PERFORMANCE_SCHEMA.SESSION_VARIABLES should be available in 5.7.8 and higher.
-  // But a user reported not to have it on your 5.7.12 server.
+  // But a user reported not to have it on your 5.7.14 server.
   begin
     Result := 'SHOW SESSION VARIABLES';
     if (Name <> '') then
@@ -10300,6 +10306,10 @@ end;
 
 function TSUsers.GetValid(): Boolean;
 begin
+  // Debug 2016-11-18
+  if (not Assigned(Session)) then
+    raise ERangeError.Create(SRangeError);
+
   Result := Assigned(Session.UserRights) and not Session.UserRights.RGrant or inherited;
 end;
 

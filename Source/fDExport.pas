@@ -1156,6 +1156,7 @@ begin
       PageControl.ActivePageIndex := I;
   CheckActivePageChange(PageControl.ActivePageIndex);
 
+  FBForward.Enabled := True;
   FBCancel.Enabled := True;
   FBCancel.ModalResult := mrCancel;
 

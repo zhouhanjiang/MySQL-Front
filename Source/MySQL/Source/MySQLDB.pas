@@ -3298,8 +3298,15 @@ begin
       end
       else if ((SyncThread.State = ssResult) and Assigned(SyncThread.ResHandle)) then
       begin
+        if (Lib.mysql_num_fields(SyncThread.ResHandle) = 0) then
+          raise ERangeError.Create(SRangeError);
+
         DataSet := TMySQLQuery.Create(nil);
         DataSet.Open(SyncThread);
+
+        if (not DataSet.Active) then
+          raise ERangeError.Create(SRangeError);
+
         S := '';
         for I := 0 to DataSet.FieldCount - 1 do
         begin
@@ -3533,6 +3540,10 @@ begin
   Assert(SyncThread.State = ssReceivingResult);
   Assert(SyncThread.DataSet is TMySQLDataSet);
   DataSet := TMySQLDataSet(SyncThread.DataSet);
+
+  // Debug
+  if (not Assigned(SyncThread.ResHandle)) then
+    raise ERangeError.Create(SRangeError);
 
   repeat
     if (SyncThread.Terminated) then
@@ -5345,7 +5356,7 @@ end;
 function TMySQLDataSet.AllocInternRecordBuffer(): PInternRecordBuffer;
 begin
   try
-    New(Result);
+    GetMem(Result, SizeOf(Result^));
   except
     Result := nil;
   end;
@@ -5525,7 +5536,7 @@ begin
   if (Assigned(InternRecordBuffer^.OldData)) then
     FreeMem(InternRecordBuffer^.OldData);
 
-  Dispose(InternRecordBuffer);
+  FreeMem(InternRecordBuffer);
 end;
 
 procedure TMySQLDataSet.FreeRecordBuffer(var Buffer: TRecordBuffer);

@@ -855,9 +855,9 @@ begin
         FBOk.Enabled := False;
       end;
 
+      NewField.Free();
       if (NewTable <> Table) then
         NewTable.Free();
-      NewField.Free();
     end;
   end;
 end;
