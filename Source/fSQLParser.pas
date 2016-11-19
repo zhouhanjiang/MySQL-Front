@@ -6589,9 +6589,9 @@ type
       Length: Integer;
       Line: Integer;
       Pos: PChar;
+      SQL: string;
     end;
     ReservedWordList: TWordList;
-    Text: string;
     TokenBuffer: record
       Count: Integer;
       Items: array [0 .. 50 - 1] of TTokenBufferItem;
@@ -7028,7 +7028,7 @@ type
     function FormatSQL(): string;
     function GetSQL(): string;
     function LoadFromFile(const Filename: string): Boolean;
-    function ParseSQL(const Text: PChar; const Length: Integer; const UseCompletionList: Boolean = False): Boolean; overload;
+    function ParseSQL(const SQL: PChar; const Length: Integer; const UseCompletionList: Boolean = False): Boolean; overload;
     function ParseSQL(const Text: string; const AUseCompletionList: Boolean = False): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     procedure SaveToFile(const Filename: string; const FileType: TFileType = ftSQL);
     property AnsiQuotes: Boolean read FAnsiQuotes write FAnsiQuotes;
@@ -8026,7 +8026,7 @@ begin
   if (Parser.IsToken(Offset)) then
     Result := Parser.TokenPtr(Offset)^.Text
   else if (NodeType = ntRoot) then
-    Result := Parser.Text
+    Result := Parser.ParseHandle.SQL
   else
     TSQLParser.PRange(@Self)^.Text;
 end;
@@ -8237,7 +8237,7 @@ end;
 
 function TSQLParser.TToken.GetPos(): Integer;
 begin
-  Result := Integer(FText - PChar(Parser.Text));
+  Result := Integer(FText - PChar(Parser.ParseHandle.SQL));
 end;
 
 function TSQLParser.TToken.GetText(): string;
@@ -11728,7 +11728,7 @@ begin
   ParseHandle.Length := 0;
   ParseHandle.Line := 0;
   ParseHandle.Pos := nil;
-  Text := '';
+  ParseHandle.SQL := '';
   FRoot := 0;
   TokenBuffer.Count := 0;
   {$IFDEF Debug}
@@ -14314,7 +14314,7 @@ end;
 
 function TSQLParser.GetErrorPos(): Integer;
 begin
-  Result := FirstError.Pos - @Text[1];
+  Result := FirstError.Pos - @ParseHandle.SQL[1];
 end;
 
 function TSQLParser.GetFirstStmt(): PStmt;
@@ -14640,20 +14640,20 @@ begin
         else if ((BytesRead >= DWord(Length(BOM_UTF8))) and (CompareMem(Mem, BOM_UTF8, StrLen(BOM_UTF8)))) then
         begin
           Len := MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, @Mem[Length(BOM_UTF8)], BytesRead - DWord(Length(BOM_UTF8)), nil, 0);
-          SetLength(Text, Len);
-          MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, @Mem[Length(BOM_UTF8)], BytesRead - DWord(Length(BOM_UTF8)), @Text[1], Len);
+          SetLength(ParseHandle.SQL, Len);
+          MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, @Mem[Length(BOM_UTF8)], BytesRead - DWord(Length(BOM_UTF8)), @ParseHandle.SQL[1], Len);
         end
         else if ((BytesRead >= DWord(Length(BOM_UNICODE_LE))) and (CompareMem(Mem, BOM_UNICODE_LE, StrLen(BOM_UNICODE_LE)))) then
         begin
           Len := (BytesRead - DWord(Length(BOM_UNICODE_LE))) div SizeOf(WideChar);
-          SetLength(Text, Len);
-          MoveMemory(@Text[1], @Mem[Length(BOM_UNICODE_LE)], Len * SizeOf(WideChar));
+          SetLength(ParseHandle.SQL, Len);
+          MoveMemory(PChar(ParseHandle.SQL), @Mem[Length(BOM_UNICODE_LE)], Len * SizeOf(WideChar));
         end
         else
         begin
           Len := MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS, Mem, BytesRead, nil, 0);
-          SetLength(Text, Len);
-          MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS, Mem, BytesRead, @Text[1], Len);
+          SetLength(ParseHandle.SQL, Len);
+          MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS, Mem, BytesRead, PChar(ParseHandle.SQL), Length(ParseHandle.SQL));
         end;
 
         FreeMem(Mem);
@@ -21285,8 +21285,8 @@ begin
     ttStrings := [ttIdent, ttString];
   end;
 
-  ParseHandle.Pos := PChar(Text);
-  ParseHandle.Length := Length(Text);
+  ParseHandle.Pos := PChar(ParseHandle.SQL);
+  ParseHandle.Length := Length(ParseHandle.SQL);
   ParseHandle.Line := 1;
 
   if (ParseHandle.Length = 0) then
@@ -23386,14 +23386,19 @@ begin
   Result := TSignalStmt.TInformation.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseSQL(const Text: PChar; const Length: Integer; const UseCompletionList: Boolean = False): Boolean;
+function TSQLParser.ParseSQL(const SQL: PChar; const Length: Integer; const UseCompletionList: Boolean = False): Boolean;
 begin
   Clear();
 
-  SetString(Self.Text, Text, Length);
+  SetString(ParseHandle.SQL, SQL, Length);
   CompletionList.SetActive(UseCompletionList);
 
-  FRoot := ParseRoot();
+  try
+    FRoot := ParseRoot();
+  except
+    on E: Exception do
+      raise Exception.Create(E.Message + ' SQL: ' + StrPas(SQL));
+  end;
 
   Result := (FirstError.Code = PE_Success) and Assigned(FirstStmt);
 end;

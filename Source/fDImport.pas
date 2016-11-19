@@ -723,6 +723,9 @@ begin
   Preferences.Import.Width := Width;
   Preferences.Import.Height := Height;
 
+  if (Assigned(Import) and Import.Suspended) then
+    FreeAndNil(Import);
+
   if (ModalResult = mrOk) then
     if (DialogType in [idtNormal]) then
     begin

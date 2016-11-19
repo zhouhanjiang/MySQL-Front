@@ -950,7 +950,7 @@ begin
     if (not Assigned(Table)) then
       CanClose := Database.AddBaseTable(NewTable)
     else
-      CanClose := Database.UpdateTable(Table, NewTable);
+      CanClose := Database.UpdateBaseTable(Table, NewTable);
 
     if (Assigned(Table) or not CanClose) then
       FCreatedName := ''

@@ -223,7 +223,7 @@ begin
     for I := 0 to Tables.Count - 1 do
       UpdateTableNames.Add(TSBaseTable(Tables[I]).Name);
 
-    CanClose := Database.UpdateTables(UpdateTableNames, FDefaultCharset.Text, FCollation.Text, FEngine.Text, TSTableField.TRowType(FRowType.ItemIndex));
+    CanClose := Database.UpdateBaseTables(UpdateTableNames, FDefaultCharset.Text, FCollation.Text, FEngine.Text, TSTableField.TRowType(FRowType.ItemIndex));
 
     UpdateTableNames.Free();
 

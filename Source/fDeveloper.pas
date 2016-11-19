@@ -41,6 +41,9 @@ implementation {***************************************************************}
 
 uses
   XMLIntf, XMLDoc, ActiveX, SysUtils,
+  {$IFDEF EurekaLog}
+  ExceptionLog,
+  {$ENDIF}
   fPreferences;
 
 {******************************************************************************}
@@ -187,6 +190,10 @@ var
   URLComponentsUserName: array [0 .. INTERNET_MAX_USER_NAME_LENGTH] of Char;
   Method: PChar;
 begin
+  {$IFDEF EurekaLog}
+  try
+  {$ENDIF}
+
   ReturnValue := 0; RequestTry := 0; Error := False;
 
   URLComponents.dwStructSize := SizeOf(URLComponents);
@@ -256,14 +263,15 @@ begin
             if (HttpQueryInfo(Request, HTTP_QUERY_CONTENT_LENGTH, @Buffer, Size, Index)) then
               FileSize := StrToInt(PChar(@Buffer));
 
-            repeat
-              Success := InternetReadFile(Request, @Buffer, SizeOf(Buffer), Size);
-              if (Success and (Size > 0)) then
-                ReceiveStream.Write(Buffer, Size);
+            if (Assigned(ReceiveStream)) then
+              repeat
+                Success := InternetReadFile(Request, @Buffer, SizeOf(Buffer), Size);
+                if (Success and (Size > 0)) then
+                  ReceiveStream.Write(Buffer, Size);
 
-              if (not Terminated and Assigned(OnProgress) and (ReceiveStream.Size < FileSize)) then
-                OnProgress(Self, ReceiveStream.Size, FileSize);
-            until (Terminated or (Success and (Size = 0)));
+                if (not Terminated and Assigned(OnProgress) and (ReceiveStream.Size < FileSize)) then
+                  OnProgress(Self, ReceiveStream.Size, FileSize);
+              until (Terminated or (Success and (Size = 0)));
 
             Size := SizeOf(Buffer); Index := 0;
             if (Terminated or not HttpQueryInfo(Request, HTTP_QUERY_STATUS_CODE, @Buffer, Size, Index)) then
@@ -285,6 +293,12 @@ begin
 
   if (not Terminated and Assigned(OnProgress)) then
     OnProgress(Self, ReceiveStream.Size, ReceiveStream.Size);
+
+  {$IFDEF EurekaLog}
+  except
+    StandardEurekaNotify(GetLastExceptionObject(), GetLastExceptionAddress());
+  end;
+  {$ENDIF}
 end;
 
 { TCheckOnlineVersionThread ***************************************************}

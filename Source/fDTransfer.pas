@@ -842,7 +842,8 @@ begin
 
   List := TList.Create();
   for I := 0 to FSource.SelectionCount - 1 do
-    if (TObject(FSource.Selections[I].Data) is TSDatabase) then
+    if ((TObject(FSource.Selections[I].Data) is TSDatabase)
+      or (TObject(FSource.Selections[I].Data) is TSBaseTable)) then
       List.Add(FSource.Selections[I].Data);
   Node := FSource.Selected;
   while (Assigned(Node.Parent)) do Node := Node.Parent;
@@ -861,9 +862,6 @@ begin
     for I := 0 to FSource.SelectionCount - 1 do
       if (TObject(FSource.Selections[I].Data) is TSDatabase) then
       begin
-        TSDatabase(FSource.Selections[I].Data).Session.Connection.BeginSynchron();
-        TSDatabase(FSource.Selections[I].Data).Update();
-        TSDatabase(FSource.Selections[I].Data).Session.Connection.EndSynchron();
         for J := 0 to TSDatabase(FSource.Selections[I].Data).Tables.Count - 1 do
           if (TSDatabase(FSource.Selections[I].Data).Tables[J] is TSBaseTable) then
             FData.Enabled := True;
@@ -874,7 +872,7 @@ begin
 
   FData.Checked := FData.Checked and FData.Enabled;
 
-  TSExecute.Enabled := not Assigned(Wanted.Page) and (FStructure.Checked or FData.Checked);
+  TSExecute.Enabled := not Assigned(Wanted.Page) and FStructure.Checked;
   CheckActivePageChange(TSWhat.PageIndex);
 end;
 

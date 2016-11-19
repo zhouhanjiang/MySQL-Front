@@ -294,12 +294,12 @@ type
     procedure DoError(const AErrorCode: Integer; const AErrorMessage: string); virtual;
     procedure DoVariableChange(const Name, NewValue: string); virtual;
     function GetErrorMessage(const AHandle: MySQLConsts.MYSQL): string; virtual;
-    function ExecuteSQL(const Mode: TSyncThread.TMode; const Synchron: Boolean; const SQL: string;
-      const OnResult: TResultEvent = nil; const Done: TEvent = nil): Boolean; overload; virtual;
     function GetConnected(): Boolean; override;
     function GetInsertId(): my_ulonglong; virtual;
     function GetDataFileAllowed(): Boolean; virtual;
     function GetMaxAllowedServerPacket(): Integer; virtual;
+    function InternExecuteSQL(const Mode: TSyncThread.TMode; const Synchron: Boolean; const SQL: string;
+      const OnResult: TResultEvent = nil; const Done: TEvent = nil): Boolean; overload; virtual;
     function LibDecode(const Text: my_char; const Length: my_int = -1): string; virtual;
     function LibEncode(const Value: string): RawByteString; virtual;
     function LibPack(const Value: string): RawByteString; virtual;
@@ -352,7 +352,7 @@ type
     function InUse(): Boolean; virtual;
     function NextResult(const DataHandle: TDataResult): Boolean; virtual;
     function SendSQL(const SQL: string; const Done: TEvent): Boolean; overload; virtual;
-    function SendSQL(const SQL: string; const OnResult: TResultEvent = nil): Boolean; overload; virtual;
+    function SendSQL(const SQL: string; const OnResult: TResultEvent = nil; const Done: TEvent = nil): Boolean; overload; virtual;
     procedure Terminate(); virtual;
     property AnsiQuotes: Boolean read FAnsiQuotes write SetAnsiQuotes;
     property BugMonitor: TMySQLMonitor read FBugMonitor;
@@ -518,7 +518,6 @@ type
       property Received: TEvent read FRecordReceived;
     end;
   private
-    BookmarkCounter: DWord;
     DeleteBookmarks: array of TBookmark;
     FCachedUpdates: Boolean;
     FCanModify: Boolean;
@@ -2390,10 +2389,91 @@ end;
 
 function TMySQLConnection.ExecuteSQL(const SQL: string; const OnResult: TResultEvent = nil): Boolean;
 begin
-  Result := ExecuteSQL(smSQL, True, SQL, OnResult);
+  Result := InternExecuteSQL(smSQL, True, SQL, OnResult);
 end;
 
-function TMySQLConnection.ExecuteSQL(const Mode: TSyncThread.TMode; const Synchron: Boolean;
+function TMySQLConnection.FirstResult(out DataHandle: TMySQLConnection.TDataResult; const SQL: string): Boolean;
+begin
+  Result := InternExecuteSQL(smDataHandle, True, SQL);
+
+  DataHandle := SyncThread;
+end;
+
+function TMySQLConnection.GetConnected(): Boolean;
+begin
+  Result := FConnected;
+end;
+
+function TMySQLConnection.GetDataFileAllowed(): Boolean;
+begin
+  Result := Assigned(Lib) and not (Lib.FLibraryType in [ltHTTP]);
+end;
+
+function TMySQLConnection.GetErrorMessage(const AHandle: MySQLConsts.MYSQL): string;
+var
+  RBS: RawByteString;
+begin
+  RBS := Lib.mysql_error(AHandle);
+  try
+    Result := LibDecode(my_char(RBS));
+  except
+    Result := string(RBS);
+  end;
+end;
+
+function TMySQLConnection.GetHandle(): MySQLConsts.MYSQL;
+begin
+  if (not Assigned(SyncThread)) then
+    Result := nil
+  else
+    Result := SyncThread.LibHandle;
+end;
+
+function TMySQLConnection.GetInfo(): string;
+var
+  Info: my_char;
+begin
+  if (not Assigned(Handle)) then
+    Result := ''
+  else
+  begin
+    Info := Lib.mysql_info(Handle);
+    try
+      Result := '--> ' + LibDecode(Info);
+    except
+      Result := '--> ' + string(Info);
+    end;
+  end;
+end;
+
+function TMySQLConnection.GetInsertId(): my_ulonglong;
+begin
+  if (not Assigned(Handle)) then
+    Result := 0
+  else
+    Result := Lib.mysql_insert_id(Handle);
+end;
+
+function TMySQLConnection.GetMaxAllowedServerPacket(): Integer;
+begin
+  // MAX_ALLOWED_PACKET Constante of the Server - SizeOf(COM_QUERY)
+  Result := 1 * 1024 * 1024 - 1;
+end;
+
+function TMySQLConnection.GetNextCommandText(): string;
+begin
+  if (not Assigned(SyncThread) or not SyncThread.IsRunning) then
+    Result := ''
+  else
+    Result := SyncThread.NextCommandText;
+end;
+
+function TMySQLConnection.GetServerDateTime(): TDateTime;
+begin
+  Result := Now() + TimeDiff;
+end;
+
+function TMySQLConnection.InternExecuteSQL(const Mode: TSyncThread.TMode; const Synchron: Boolean;
   const SQL: string; const OnResult: TResultEvent = nil; const Done: TEvent = nil): Boolean;
 var
   CLStmt: TSQLCLStmt;
@@ -2404,6 +2484,7 @@ var
 begin
   Assert(SQL <> '');
   Assert(not Assigned(Done) or (Mode = smSQL));
+  Assert(not Assigned(Done) or (Done.WaitFor(IGNORE) <> wrSignaled));
 
   if (InOnResult) then
     raise Exception.Create(SOutOfSync + ' (in OnResult): ' + SyncThread.CommandText);
@@ -2504,87 +2585,6 @@ begin
       Result := False;
     end;
   end;
-end;
-
-function TMySQLConnection.FirstResult(out DataHandle: TMySQLConnection.TDataResult; const SQL: string): Boolean;
-begin
-  Result := ExecuteSQL(smDataHandle, True, SQL);
-
-  DataHandle := SyncThread;
-end;
-
-function TMySQLConnection.GetConnected(): Boolean;
-begin
-  Result := FConnected;
-end;
-
-function TMySQLConnection.GetDataFileAllowed(): Boolean;
-begin
-  Result := Assigned(Lib) and not (Lib.FLibraryType in [ltHTTP]);
-end;
-
-function TMySQLConnection.GetErrorMessage(const AHandle: MySQLConsts.MYSQL): string;
-var
-  RBS: RawByteString;
-begin
-  RBS := Lib.mysql_error(AHandle);
-  try
-    Result := LibDecode(my_char(RBS));
-  except
-    Result := string(RBS);
-  end;
-end;
-
-function TMySQLConnection.GetHandle(): MySQLConsts.MYSQL;
-begin
-  if (not Assigned(SyncThread)) then
-    Result := nil
-  else
-    Result := SyncThread.LibHandle;
-end;
-
-function TMySQLConnection.GetInfo(): string;
-var
-  Info: my_char;
-begin
-  if (not Assigned(Handle)) then
-    Result := ''
-  else
-  begin
-    Info := Lib.mysql_info(Handle);
-    try
-      Result := '--> ' + LibDecode(Info);
-    except
-      Result := '--> ' + string(Info);
-    end;
-  end;
-end;
-
-function TMySQLConnection.GetInsertId(): my_ulonglong;
-begin
-  if (not Assigned(Handle)) then
-    Result := 0
-  else
-    Result := Lib.mysql_insert_id(Handle);
-end;
-
-function TMySQLConnection.GetMaxAllowedServerPacket(): Integer;
-begin
-  // MAX_ALLOWED_PACKET Constante of the Server - SizeOf(COM_QUERY)
-  Result := 1 * 1024 * 1024 - 1;
-end;
-
-function TMySQLConnection.GetNextCommandText(): string;
-begin
-  if (not Assigned(SyncThread) or not SyncThread.IsRunning) then
-    Result := ''
-  else
-    Result := SyncThread.NextCommandText;
-end;
-
-function TMySQLConnection.GetServerDateTime(): TDateTime;
-begin
-  Result := Now() + TimeDiff;
 end;
 
 function TMySQLConnection.InUse(): Boolean;
@@ -2818,12 +2818,12 @@ end;
 
 function TMySQLConnection.SendSQL(const SQL: string; const Done: TEvent): Boolean;
 begin
-  Result := ExecuteSQL(smSQL, False, SQL, TResultEvent(nil), Done) and not UseSyncThread();
+  Result := InternExecuteSQL(smSQL, False, SQL, TResultEvent(nil), Done) and not UseSyncThread();
 end;
 
-function TMySQLConnection.SendSQL(const SQL: string; const OnResult: TResultEvent = nil): Boolean;
+function TMySQLConnection.SendSQL(const SQL: string; const OnResult: TResultEvent = nil; const Done: TEvent = nil): Boolean;
 begin
-  Result := ExecuteSQL(smSQL, False, SQL, OnResult) and not UseSyncThread();
+  Result := InternExecuteSQL(smSQL, False, SQL, OnResult, Done) and not UseSyncThread();
 end;
 
 procedure TMySQLConnection.SetAnsiQuotes(const AAnsiQuotes: Boolean);
@@ -3541,7 +3541,7 @@ begin
   Assert(SyncThread.DataSet is TMySQLDataSet);
   DataSet := TMySQLDataSet(SyncThread.DataSet);
 
-  // Debug
+  // Debug 2016-11-18
   if (not Assigned(SyncThread.ResHandle)) then
     raise ERangeError.Create(SRangeError);
 
@@ -4429,11 +4429,30 @@ begin
 end;
 
 procedure TMySQLWideStringField.GetText(var Text: string; DisplayText: Boolean);
+var
+  LibLengths: MYSQL_LENGTHS;
+  LibRow: MYSQL_ROW;
 begin
   if (IsNull) then
     Text := ''
   else
-    Text := TMySQLQuery(DataSet).Connection.LibDecode(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+  begin
+    LibRow := TMySQLQuery(DataSet).LibRow;
+    LibLengths := TMySQLQuery(DataSet).LibLengths;
+
+    try
+      Text := TMySQLQuery(DataSet).Connection.LibDecode(LibRow^[FieldNo - 1], LibLengths^[FieldNo - 1]);
+    except
+      raise ERangeError.Create('Error while decoding data from the database server.' + #10#10
+        + 'SQL query: ' + TMySQLQuery(DataSet).CommandText + #10
+        + 'Field: ' + FieldName + #10
+        + 'Raw data: "' + string(StrPas(LibRow^[FieldNo - 1])) + '"' + #10
+        + 'Hex data: ' + SQLEscapeBin(LibRow^[FieldNo - 1], LibLengths^[FieldNo - 1], True) + #10
+        + 'Character set: ' + TMySQLQuery(DataSet).Connection.Charset + #10
+        + 'Windows codepage: '  + IntToStr(TMySQLQuery(DataSet).Connection.CodePage) + #10
+        + 'Connection type: ' + IntToStr(Ord(TMySQLQuery(DataSet).Connection.LibraryType)));
+    end;
+  end;
 end;
 
 procedure TMySQLWideStringField.SetAsDateTime(Value: TDateTime);
@@ -5143,7 +5162,7 @@ begin
       else
         SQL := SQLSelect();
 
-      Connection.ExecuteSQL(smDataSet, True, SQL, SetActiveEvent);
+      Connection.InternExecuteSQL(smDataSet, True, SQL, SetActiveEvent);
     end;
 end;
 
@@ -5442,7 +5461,7 @@ begin
   FSortDef := TIndexDef.Create(nil, '', '', []);
   TableName := '';
 
-  BookmarkSize := SizeOf(BookmarkCounter);
+  BookmarkSize := SizeOf(InternRecordBuffers[0]);
 
   SetUniDirectional(False);
   FilterOptions := [foNoPartialCompare];
@@ -6063,7 +6082,7 @@ begin
     SQL := CommandText
   else
     SQL := SQLSelect();
-  if (Connection.ExecuteSQL(smDataSet, True, SQL)) then
+  if (Connection.InternExecuteSQL(smDataSet, True, SQL)) then
     Connection.SyncBindDataSet(Self);
 end;
 
@@ -7360,7 +7379,7 @@ function TMySQLTable.LoadNextRecords(const AllRecords: Boolean = False): Boolean
 begin
   RecordsReceived.ResetEvent();
 
-  Result := Connection.ExecuteSQL(smDataSet, True, SQLSelect(AllRecords));
+  Result := Connection.InternExecuteSQL(smDataSet, True, SQLSelect(AllRecords));
   if (Result) then
   begin
     Connection.SyncBindDataSet(Self);

@@ -178,7 +178,6 @@ type
     FWarningCount: Integer;
     OLD_FOREIGN_KEY_CHECKS: string;
     OLD_UNIQUE_CHECKS: string;
-    SQLExecuted: TEvent;
   protected
     FieldMappings: array of TFieldMapping;
     procedure AfterExecute(); override;
@@ -1708,7 +1707,7 @@ begin
   if (Data and (Session.Connection.MySQLVersion >= 40014)) then
   begin
     SQL := 'SET UNIQUE_CHECKS=' + OLD_UNIQUE_CHECKS + ',FOREIGN_KEY_CHECKS=' + OLD_FOREIGN_KEY_CHECKS + ';' + #13#10;
-    while ((Success = daSuccess) and not Session.Connection.ExecuteSQL(SQL)) do
+    while ((Success = daSuccess) and not Session.SendSQL(SQL)) do
       DoError(DatabaseError(Session), nil, True, SQL);
     if (Success = daFail) then Success := daSuccess;
   end;
@@ -1768,7 +1767,7 @@ begin
     end;
 
     SQL := 'SET UNIQUE_CHECKS=OFF,FOREIGN_KEY_CHECKS=OFF;';
-    while ((Success = daSuccess) and not Session.Connection.ExecuteSQL(SQL)) do
+    while ((Success = daSuccess) and not Session.SendSQL(SQL)) do
       DoError(DatabaseError(Session), nil, True, SQL);
     if (Success = daFail) then Success := daSuccess;
   end;
@@ -1792,15 +1791,12 @@ begin
   FWarningCount := 0;
 
   Data := False;
-  SQLExecuted := TEvent.Create(nil, False, False, '');
   Structure := False;
 end;
 
 destructor TTImport.Destroy();
 begin
   Close();
-
-  SQLExecuted.Free();
 
   inherited;
 end;
@@ -1811,12 +1807,15 @@ begin
     Result := True
   else
   begin
-    Session.Connection.SendSQL(SQL, SQLExecuted);
-    SQLExecuted.WaitFor(INFINITE);
+    Result := Session.SendSQL(SQL);
     Inc(FWarningCount, Session.Connection.WarningCount);
-    Delete(SQL, 1, Session.Connection.SuccessfullExecutedSQLLength);
-    SQL := Trim(SQL);
-    Result := Session.Connection.ErrorCode = 0;
+    if (Result) then
+      SQL := ''
+    else
+    begin
+      Delete(SQL, 1, Session.Connection.SuccessfullExecutedSQLLength);
+      SQL := Trim(SQL);
+    end;
   end;
 end;
 
@@ -1888,15 +1887,10 @@ begin
       if (Structure) then
       begin
         Table := Database.TableByName(TTImport.TItem(Items[I]).DestinationTableName);
-
         if (Assigned(Table)) then
-        begin
-          Session.Connection.BeginSynchron();
           while ((Success = daSuccess) and not Database.DeleteObject(Table)) do
             DoError(DatabaseError(Session), Items[I], True);
-          Session.Connection.EndSynchron();
-          if (Success = daFail) then Success := daSuccess;
-        end;
+
         if (Success = daSuccess) then
         begin
           SetLength(FieldMappings, 0);
@@ -2708,20 +2702,16 @@ begin
 
   NewTable.Name := Session.ApplyIdentifierName(Item.DestinationTableName);
 
-  Session.Connection.BeginSynchron();
   while ((Success = daSuccess) and not Database.AddBaseTable(NewTable)) do
     DoError(DatabaseError(Session), Item, True);
-  Session.Connection.EndSynchron();
 
   NewTable.Free();
 
   if (Success = daSuccess) then
   begin
     NewTable := Database.BaseTableByName(Item.DestinationTableName);
-    Session.Connection.BeginSynchron();
     while ((Success <> daAbort) and not NewTable.Update()) do
       DoError(DatabaseError(Session), Item, True);
-    Session.Connection.EndSynchron();
 
     for I := 0 to HeadlineNameCount - 1 do
       AddField(NewTable.Fields[I], HeadlineNames[I]);
@@ -3393,10 +3383,8 @@ begin
 
     NewTable.Name := Session.ApplyIdentifierName(Item.DestinationTableName);
 
-    Session.Connection.BeginSynchron();
     while ((Success = daSuccess) and not Database.AddBaseTable(NewTable)) do
       DoError(DatabaseError(Session), Item, True);
-    Session.Connection.EndSynchron();
   end;
 
   NewTable.Free();
@@ -7571,7 +7559,7 @@ begin
   if (Data and (DestinationSession.Connection.MySQLVersion >= 40014)) then
   begin
     SQL := 'SET UNIQUE_CHECKS=' + OLD_UNIQUE_CHECKS + ', FOREIGN_KEY_CHECKS=' + OLD_FOREIGN_KEY_CHECKS + ';' + #13#10;
-    while ((Success = daRetry) and not DestinationSession.Connection.ExecuteSQL(SQL)) do
+    while ((Success = daRetry) and not DestinationSession.SendSQL(SQL)) do
       DoError(DatabaseError(DestinationSession), nil, True, SQL);
     if (Success = daFail) then Success := daSuccess;
   end;
@@ -7656,7 +7644,7 @@ begin
     end;
 
     SQL := 'SET UNIQUE_CHECKS=OFF, FOREIGN_KEY_CHECKS=OFF;';
-    while ((Success = daSuccess) and not DestinationSession.Connection.ExecuteSQL(SQL)) do
+    while ((Success = daSuccess) and not DestinationSession.SendSQL(SQL)) do
       DoError(DatabaseError(DestinationSession), nil, True, SQL);
 
     if (Success = daFail) then Success := daSuccess;
@@ -7672,9 +7660,14 @@ end;
 
 function TTTransfer.DoExecuteSQL(const Session: TSSession; var SQL: string): Boolean;
 begin
-  Result := Session.Connection.ExecuteSQL(SQL);
-  Delete(SQL, 1, Session.Connection.SuccessfullExecutedSQLLength);
-  SQL := Trim(SQL);
+  Result := Session.SendSQL(SQL);
+  if (Result) then
+    SQL := ''
+  else
+  begin
+    Delete(SQL, 1, Session.Connection.SuccessfullExecutedSQLLength);
+    SQL := Trim(SQL);
+  end;
 end;
 
 procedure TTTransfer.ExecuteEvent(const Item: TTool.TDBObjectItem);
@@ -7689,21 +7682,15 @@ begin
   DestinationEvent := DestinationDatabase.EventByName(SourceEvent.Name);
 
   if (Assigned(DestinationEvent)) then
-  begin
-    DestinationSession.Connection.BeginSynchron();
     while ((Success = daSuccess) and not DestinationDatabase.DeleteObject(DestinationEvent)) do
       DoError(DatabaseError(DestinationSession), Item, True);
-    DestinationSession.Connection.EndSynchron();
-  end;
 
   NewDestinationEvent := TSEvent.Create(DestinationDatabase.Events);
 
   NewDestinationEvent.Assign(SourceEvent);
 
-  DestinationSession.Connection.BeginSynchron();
   while ((Success = daSuccess) and not DestinationDatabase.AddEvent(NewDestinationEvent)) do
     DoError(DatabaseError(DestinationSession), Item, True);
-  DestinationSession.Connection.EndSynchron();
 
   NewDestinationEvent.Free();
 
@@ -7725,12 +7712,8 @@ begin
     DestinationRoutine := DestinationDatabase.FunctionByName(SourceRoutine.Name);
 
   if (Assigned(DestinationRoutine)) then
-  begin
-    DestinationSession.Connection.BeginSynchron();
     while ((Success = daSuccess) and not DestinationDatabase.DeleteObject(DestinationRoutine)) do
       DoError(DatabaseError(DestinationSession), Item, True);
-    DestinationSession.Connection.EndSynchron();
-  end;
 
   if (SourceRoutine.RoutineType = rtProcedure) then
     NewDestinationRoutine := TSProcedure.Create(DestinationDatabase.Routines)
@@ -7739,10 +7722,8 @@ begin
 
   NewDestinationRoutine.Assign(SourceRoutine);
 
-  DestinationSession.Connection.BeginSynchron();
   while ((Success = daSuccess) and not DestinationDatabase.AddRoutine(NewDestinationRoutine)) do
     DoError(DatabaseError(DestinationSession), Item, True);
-  DestinationSession.Connection.EndSynchron();
 
   NewDestinationRoutine.Free();
 
@@ -7764,10 +7745,8 @@ begin
 
   if (Session = DestinationSession) then
   begin
-    DestinationSession.Connection.BeginSynchron();
     while ((Success = daSuccess) and not DestinationDatabase.CloneTable(SourceTable, Item.DBObject.Name, Data)) do
       DoError(DatabaseError(Session), Item, True);
-    DestinationSession.Connection.EndSynchron();
 
 
     DestinationTable := DestinationDatabase.TableByName(Item.DBObject.Name);
@@ -7783,10 +7762,8 @@ begin
     if (Structure and not Assigned(DestinationDatabase)) then
     begin
       DestinationDatabase := TSDatabase.Create(DestinationSession.Databases, TItem(Item).DestinationDatabaseName);
-      DestinationSession.Connection.BeginSynchron();
       while ((Success = daSuccess) and not DestinationSession.AddDatabase(DestinationDatabase)) do
         DoError(DatabaseError(DestinationSession), Item, True);
-      DestinationSession.Connection.EndSynchron();
       DestinationDatabase.Free();
 
       DestinationDatabase := DestinationSession.DatabaseByName(TItem(Item).DestinationDatabaseName);
@@ -7816,10 +7793,8 @@ begin
       begin
         NewTrigger := TSTrigger.Create(DestinationDatabase.Tables);
         NewTrigger.Assign(SourceDatabase.Triggers[I]);
-        DestinationSession.Connection.BeginSynchron();
         while ((Success = daSuccess) and not DestinationDatabase.AddTrigger(NewTrigger)) do
           DoError(DatabaseError(DestinationSession), Item, True);
-        DestinationSession.Connection.EndSynchron();
         NewTrigger.Free();
       end;
 
@@ -8172,12 +8147,8 @@ begin
   DestinationTable := DestinationDatabase.TableByName(SourceTable.Name);
 
   if (Assigned(DestinationTable)) then
-  begin
-    DestinationSession.Connection.BeginSynchron();
     while ((Success = daSuccess) and not DestinationDatabase.DeleteObject(DestinationTable)) do
       DoError(DatabaseError(DestinationSession), Item, True);
-    DestinationSession.Connection.EndSynchron();
-  end;
 
   if (SourceTable is TSBaseTable) then
   begin
@@ -8194,10 +8165,8 @@ begin
 
     NewDestinationBaseTable.AutoIncrement := 0;
 
-    DestinationSession.Connection.BeginSynchron();
     while ((Success = daSuccess) and not DestinationDatabase.AddBaseTable(NewDestinationBaseTable)) do
       DoError(DatabaseError(DestinationSession), Item, True);
-    DestinationSession.Connection.EndSynchron();
 
     NewDestinationBaseTable.Free();
   end
@@ -8207,10 +8176,8 @@ begin
     NewDestinationView.Assign(SourceTable);
     NewDestinationView.Name := DestinationSession.ApplyIdentifierName(NewDestinationView.Name);
 
-    DestinationSession.Connection.BeginSynchron();
     while ((Success = daSuccess) and not DestinationDatabase.AddView(NewDestinationView)) do
       DoError(DatabaseError(DestinationSession), Item, True);
-    DestinationSession.Connection.EndSynchron();
 
     NewDestinationView.Free();
   end;
@@ -8266,7 +8233,6 @@ end;
 procedure TTSearch.AfterExecute();
 begin
   Session.Connection.EndSilent();
-  Session.Connection.EndSynchron();
 
   inherited;
 end;
@@ -8276,7 +8242,6 @@ begin
   inherited;
 
   Session.Connection.BeginSilent();
-  Session.Connection.BeginSynchron(); // We're still in a thread
 end;
 
 constructor TTSearch.Create(const ASession: TSSession);
@@ -8290,9 +8255,14 @@ end;
 
 function TTSearch.DoExecuteSQL(const Session: TSSession; var SQL: string): Boolean;
 begin
-  Result := Session.Connection.ExecuteSQL(SQL);
-  Delete(SQL, 1, Session.Connection.SuccessfullExecutedSQLLength);
-  SQL := Trim(SQL);
+  Result := Session.SendSQL(SQL);
+  if (Result) then
+    SQL := ''
+  else
+  begin
+    Delete(SQL, 1, Session.Connection.SuccessfullExecutedSQLLength);
+    SQL := Trim(SQL);
+  end;
 end;
 
 procedure TTSearch.Execute();
@@ -8765,7 +8735,7 @@ begin
   end;
   SQL := 'UPDATE ' + Session.Connection.EscapeIdentifier(Item.DatabaseName) + '.' + Session.Connection.EscapeIdentifier(Item.TableName) + ' SET ' + SQL + ';';
 
-  while ((Success <> daAbort) and not Session.Connection.ExecuteSQL(SQL)) do
+  while ((Success <> daAbort) and not Session.SendSQL(SQL)) do
     DoError(DatabaseError(Session), Item, True, SQL);
 
   Item.RecordsDone := Session.Connection.RowsAffected;

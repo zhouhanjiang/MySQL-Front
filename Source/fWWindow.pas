@@ -1036,12 +1036,7 @@ begin
       Report := Report + #13#10;
       Report := Report + 'SQL Log:' + #13#10;
       Report := Report + StringOfChar('-', 72) + #13#10;
-      Log := TStringList.Create();
-      Log.Text := ActiveTab.Session.Connection.BugMonitor.CacheText;
-      if (Log.Count < 20) then FirstLine := 0 else FirstLine := Log.Count - 20;
-      for I := FirstLine to Log.Count - 1 do
-        Report := Report + Log[I] + #13#10;
-      Log.Free();
+      Report := Report + '...' + RightStr(ActiveTab.Session.Connection.BugMonitor.CacheText, 1000) + #13#10;
     end;
 
     SendBugToDeveloper(Report);
@@ -1545,13 +1540,11 @@ begin
     DAccounts.Account := Accounts.AccountByURI(PChar(Message.LParam));
     if (Assigned(DAccounts.Account)) then
     begin
-      DAccounts.Session := TSSession.Create(Sessions, DAccounts.Account);
-      DConnecting.Session := DAccounts.Session;
+      DConnecting.Session := TSSession.Create(Sessions, DAccounts.Account);
       if (not DConnecting.Execute()) then
-      begin
-        DConnecting.Session.Free();
-        DConnecting.Session := nil;
-      end;
+        DConnecting.Session.Free()
+      else
+        DAccounts.Session := DConnecting.Session;
     end;
   end;
   if (not Assigned(DAccounts.Session) and not DAccounts.Execute()) then

@@ -2264,7 +2264,7 @@ begin
       if (NewTable.Fields.Count = 0) then
         Success := Table.Database.DeleteObject(NewTable)
       else
-        Success := Table.Database.UpdateTable(Table, NewTable);
+        Success := Table.Database.UpdateBaseTable(Table, NewTable);
 
       NewTable.Free();
     end;
@@ -11379,7 +11379,7 @@ begin
                     end;
 
                   Session.Connection.BeginSynchron();
-                  Database.UpdateTable(Table, NewTable);
+                  Database.UpdateBaseTable(Table, NewTable);
                   Session.Connection.EndSynchron();
 
                   for I := 1 to StringList.Count - 1 do
@@ -11517,7 +11517,16 @@ begin
             else PResultVisible := False;
           end;
         vBuilder:
-          PResultVisible := Assigned(Desktop(TSDatabase(FNavigator.Selected.Data)).BuilderDBGrid);
+          begin
+            // Debug 2016-11-19
+            if (not Assigned(FNavigator.Selected)) then
+              raise ERangeError.Create(SRangeError);
+            if (not (FNavigator.Selected.ImageIndex in [iiDatabase, iiSystemDatabase])) then
+              raise ERangeError.Create(SRangeError);
+            if (not (TObject(FNavigator.Selected.Data) is TSDatabase)) then
+              raise ERangeError.Create(SRangeError);
+            PResultVisible := Assigned(Desktop(TSDatabase(FNavigator.Selected.Data)).BuilderDBGrid);
+          end;
         vEditor,
         vEditor2,
         vEditor3:
@@ -11910,7 +11919,7 @@ begin
     NewBaseTable := TSBaseTable.Create(BaseTable.Database.Tables);
     NewBaseTable.Assign(BaseTable);
     NewBaseTable.KeyByCaption(SItem.Caption).Name := NewName;
-    Result := BaseTable.Database.UpdateTable(BaseTable, NewBaseTable);
+    Result := BaseTable.Database.UpdateBaseTable(BaseTable, NewBaseTable);
     NewBaseTable.Free();
   end
   else if (SItem is TSBaseTableField) then
@@ -11920,7 +11929,7 @@ begin
     NewBaseTable := TSBaseTable.Create(BaseTable.Database.Tables);
     NewBaseTable.Assign(BaseTable);
     NewBaseTable.FieldByName(SItem.Name).Name := NewName;
-    Result := BaseTable.Database.UpdateTable(BaseTable, NewBaseTable);
+    Result := BaseTable.Database.UpdateBaseTable(BaseTable, NewBaseTable);
     NewBaseTable.Free();
   end
   else if (SItem is TSForeignKey) then
@@ -11930,7 +11939,7 @@ begin
     NewBaseTable := TSBaseTable.Create(BaseTable.Database.Tables);
     NewBaseTable.Assign(BaseTable);
     NewBaseTable.ForeignKeyByName(SItem.Name).Name := NewName;
-    Result := BaseTable.Database.UpdateTable(BaseTable, NewBaseTable);
+    Result := BaseTable.Database.UpdateBaseTable(BaseTable, NewBaseTable);
     NewBaseTable.Free();
   end
   else if (SItem is TSUser) then

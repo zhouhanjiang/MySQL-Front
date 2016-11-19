@@ -242,7 +242,7 @@ begin
 
     if (not ModifyTableOnly) then
     begin
-      CanClose := Table.Database.UpdateTable(Table, NewTable);
+      CanClose := Table.Database.UpdateBaseTable(Table, NewTable);
 
       if (not CanClose) then
       begin

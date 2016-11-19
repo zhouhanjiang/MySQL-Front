@@ -3,7 +3,7 @@ unit fSession;
 interface {********************************************************************}
 
 uses
-  SysUtils, Classes, Windows,
+  SysUtils, Classes, Windows, SyncObjs,
   DB,
   acMYSQLSynProvider, acQBEventMetaProvider,
   SQLUtils, MySQLDB, MySQLConsts,
@@ -1010,9 +1010,9 @@ type
     function SQLTruncateTable(const Table: TSBaseTable): string; virtual;
     property ValidSources: Boolean read GetValidSources;
   public
+    function AddBaseTable(const NewTable: TSBaseTable): Boolean; virtual;
     function AddEvent(const NewEvent: TSEvent): Boolean; virtual;
     function AddRoutine(const NewRoutine: TSRoutine): Boolean; virtual;
-    function AddBaseTable(const NewTable: TSBaseTable): Boolean; virtual;
     function AddTrigger(const NewTrigger: TSTrigger): Boolean; virtual;
     function AddView(const NewView: TSView): Boolean; virtual;
     procedure Assign(const Source: TSObject); reintroduce; virtual;
@@ -1038,10 +1038,10 @@ type
     function TriggerByName(const TriggerName: string): TSTrigger; virtual;
     function Update(): Boolean; overload; override;
     function Update(const Status: Boolean): Boolean; overload; virtual;
+    function UpdateBaseTable(const Table, NewTable: TSBaseTable): Boolean; virtual;
+    function UpdateBaseTables(const TableNames: TStringList; const ACharset, ACollation, AEngine: string; const ARowType: TSTableField.TRowType): Boolean; virtual;
     function UpdateEvent(const Event, NewEvent: TSEvent): Boolean; virtual;
     function UpdateRoutine(const Routine: TSRoutine; const NewRoutine: TSRoutine): Boolean; overload; virtual;
-    function UpdateTable(const Table, NewTable: TSBaseTable): Boolean; virtual;
-    function UpdateTables(const TableNames: TStringList; const ACharset, ACollation, AEngine: string; const ARowType: TSTableField.TRowType): Boolean; virtual;
     function UpdateTrigger(const Trigger, NewTrigger: TSTrigger): Boolean; virtual;
     function UpdateView(const View, NewView: TSView): Boolean; virtual;
     function ViewByName(const TableName: string): TSView; overload; virtual;
@@ -1422,8 +1422,9 @@ type
       constructor Create(const ASession: TSSession);
     end;
     TCreateDesktop = function (const CObject: TSObject): TSObject.TDesktop of object;
-    TEventProc = procedure (const AEvent: TEvent) of object;
+    TEventProc = procedure (const AEvent: TSSession.TEvent) of object;
   private
+    ConnectionEvent: SyncObjs.TEvent;
     EventProcs: array of TEventProc;
     FAccount: TPAccount;
     FCharsets: TSCharsets;
@@ -1457,7 +1458,7 @@ type
     procedure BuildUser(const DataSet: TMySQLQuery);
     procedure ConnectChange(Sender: TObject; Connecting: Boolean);
     procedure DatabaseChange(const Connection: TMySQLConnection; const NewName: string);
-    procedure DoSendEvent(const AEvent: TEvent);
+    procedure DoSendEvent(const AEvent: TSSession.TEvent);
     function GetCaption(): string;
     function GetCharset(): string;
     function GetCollation(): string;
@@ -1472,8 +1473,8 @@ type
     UnparsableSQL: string;
     procedure MonitorLog(const Connection: TMySQLConnection; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
     procedure MonitorExecutedStmts(const Connection: TMySQLConnection; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
-    procedure SendEvent(const EventType: TEvent.TEventType; const Sender: TObject; const Items: TSItems = nil; const Item: TSItem = nil); overload;
-    procedure SendEvent(const EventType: TEvent.TEventType); overload;
+    procedure SendEvent(const EventType: TSSession.TEvent.TEventType; const Sender: TObject; const Items: TSItems = nil; const Item: TSItem = nil); overload;
+    procedure SendEvent(const EventType: TSSession.TEvent.TEventType); overload;
     function SessionResult(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
       const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
     property Sessions: TSSessions read FSessions;
@@ -1504,6 +1505,7 @@ type
     function PluginByName(const PluginName: string): TSPlugin;
     function ProcessByThreadId(const ThreadId: Longword): TSProcess;
     procedure RegisterEventProc(const AEventProc: TEventProc);
+    function SendSQL(const SQL: string; const OnResult: TMySQLConnection.TResultEvent = nil): Boolean;
     procedure ReleaseEventProc(const AEventProc: TEventProc);
     function TableName(const Name: string): string;
     function TableNameCmp(const Name1, Name2: string): Integer; inline;
@@ -3762,7 +3764,7 @@ begin
   DataSet.QuickSearch := QuickSearch;
   DataSet.SortDef.Assign(ASortDef);
 
-  Session.Connection.SendSQL(DataSet.SQLSelect(), OpenEvent);
+  Session.SendSQL(DataSet.SQLSelect(), OpenEvent);
 end;
 
 function TSTable.OpenEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
@@ -4138,7 +4140,7 @@ begin
   if (Session.Connection.DatabaseName <> Name) then
     SQL := Database.SQLUse() + SQL;
 
-  Result := Session.Connection.SendSQL(SQL);
+  Result := Session.SendSQL(SQL);
 
   InvalidateData();
 end;
@@ -4235,6 +4237,10 @@ end;
 
 function TSBaseTable.GetValid(): Boolean;
 begin
+  // Debug 2016-11-19
+  if (not Assigned(Fields)) then
+    raise ERangeError.Create(SRangeError);
+
   Result := inherited and (Fields.Count > 0) and ValidStatus;
 end;
 
@@ -5919,7 +5925,7 @@ begin
           else raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%s)', [Parameter[I].Name, Session.FieldTypeByMySQLFieldType(Parameter[I].FieldType).Name]);
         end;
       Field.FieldName := Parameter[I].Name;
-      Field.Name := ReplaceStr(ReplaceStr(Field.FieldName, ' ', '_'), '.', '_');
+      Field.Name := ReplaceStr(ReplaceStr(ReplaceStr(Parameter[I].Name, ' ', '_'), '.', '_'), '$', '_');
       Field.DataSet := FInputDataSet;
     end;
 
@@ -7013,6 +7019,12 @@ end;
 
 { TSDatabase ******************************************************************}
 
+function TSDatabase.AddBaseTable(const NewTable: TSBaseTable): Boolean;
+begin
+  NewTable.FForeignKeys.FValid := True;
+  Result := UpdateBaseTable(nil, NewTable);
+end;
+
 function TSDatabase.AddEvent(const NewEvent: TSEvent): Boolean;
 begin
   Result := UpdateEvent(nil, NewEvent);
@@ -7021,12 +7033,6 @@ end;
 function TSDatabase.AddRoutine(const NewRoutine: TSRoutine): Boolean;
 begin
   Result := UpdateRoutine(nil, NewRoutine);
-end;
-
-function TSDatabase.AddBaseTable(const NewTable: TSBaseTable): Boolean;
-begin
-  NewTable.FForeignKeys.FValid := True;
-  Result := UpdateTable(nil, NewTable);
 end;
 
 function TSDatabase.AddTrigger(const NewTrigger: TSTrigger): Boolean;
@@ -7121,7 +7127,7 @@ begin
 
     SQL := Self.Tables.SQLGetStatus(Tables);
 
-    Session.Connection.SendSQL(SQL, Session.SessionResult);
+    Session.SendSQL(SQL, Session.SessionResult);
   end;
 end;
 
@@ -7207,7 +7213,7 @@ begin
   if (Session.Connection.DatabaseName <> Name) then
     SQL := SQLUse() + SQL;
 
-  Result := Session.Connection.SendSQL(SQL, Session.SessionResult);
+  Result := Session.SendSQL(SQL, Session.SessionResult);
 end;
 
 function TSDatabase.CloneTable(const Table: TSTable; const NewTableName: string; const Data: Boolean): Boolean;
@@ -7296,7 +7302,7 @@ begin
   else
     SQL := '';
 
-  Result := (SQL = '') or Session.Connection.SendSQL(SQL, Session.SessionResult);
+  Result := (SQL = '') or Session.SendSQL(SQL, Session.SessionResult);
 end;
 
 constructor TSDatabase.Create(const ADatabases: TSDatabases; const AName: string = '');
@@ -7370,7 +7376,7 @@ begin
 
   WorkingList.Free();
 
-  Result := (SQL = '') or Session.Connection.SendSQL(SQL);
+  Result := (SQL = '') or Session.SendSQL(SQL);
 end;
 
 function TSDatabase.FlushTables(const Tables: TList): Boolean;
@@ -7392,7 +7398,7 @@ begin
   if (Session.Connection.DatabaseName <> Name) then
     SQL := SQLUse() + SQL;
 
-  Result := Session.Connection.SendSQL(SQL, Session.SessionResult);
+  Result := Session.SendSQL(SQL, Session.SessionResult);
 end;
 
 procedure TSDatabase.FreeDesktop();
@@ -7621,7 +7627,7 @@ begin
     if (Session.Connection.DatabaseName <> Name) then
       SQL := SQLUse() + SQL;
 
-    Result := Session.Connection.SendSQL(SQL, Session.SessionResult);
+    Result := Session.SendSQL(SQL, Session.SessionResult);
   end;
 end;
 
@@ -7698,7 +7704,7 @@ begin
     else
     begin
       SQL := 'RENAME TABLE ' + Session.Connection.EscapeIdentifier(Table.Database.Name) + '.' + Session.Connection.EscapeIdentifier(Table.Name) + ' TO ' + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(NewTableName) + ';' + #13#10;
-      Result := Session.Connection.SendSQL(SQL, Session.SessionResult);
+      Result := Session.SendSQL(SQL, Session.SessionResult);
     end;
   end;
 end;
@@ -8252,6 +8258,89 @@ begin
   List.Free();
 end;
 
+function TSDatabase.UpdateBaseTable(const Table, NewTable: TSBaseTable): Boolean;
+var
+  I: Integer;
+  List: TList;
+  SQL: string;
+begin
+  if (Assigned(Table)) then
+    for I := 0 to NewTable.Fields.Count - 1 do
+      if (NewTable.Fields[I].FieldType in TextFieldTypes) then
+      begin
+        if ((NewTable.Fields[I].Charset = Table.Charset) or (NewTable.Fields[I].Charset = '') and (NewTable.Charset <> Table.Charset)) then
+          NewTable.Fields[I].Charset := NewTable.Charset;
+        if ((NewTable.Fields[I].Collation = Table.Collation) or (NewTable.Fields[I].Collation = '') and (NewTable.Collation <> Table.Collation)) then
+          NewTable.Fields[I].Collation := NewTable.Collation;
+      end;
+
+  List := TList.Create();
+  List.Add(NewTable);
+
+  SQL := SQLAlterTable(Table, NewTable)
+    + NewTable.SQLGetSource()
+    + Tables.SQLGetStatus(List);
+
+  if (Session.Connection.DatabaseName <> Name) then
+    SQL := SQLUse() + SQL;
+
+  List.Free();
+
+  Result := Session.SendSQL(SQL, Session.SessionResult);
+end;
+
+function TSDatabase.UpdateBaseTables(const TableNames: TStringList; const ACharset, ACollation, AEngine: string; const ARowType: TSTableField.TRowType): Boolean;
+var
+  I: Integer;
+  J: Integer;
+  NewTable: TSBaseTable;
+  SQL: string;
+  Table: TSBaseTable;
+begin
+  SQL := '';
+
+  NewTable := TSBaseTable.Create(Tables);
+
+  for I := 0 to TableNames.Count - 1 do
+    if (TableByName(TableNames.Strings[I]) is TSBaseTable) then
+    begin
+      Table := BaseTableByName(TableNames.Strings[I]);
+
+      if ((lstrcmpi(PChar(ACharset), PChar(Table.Charset)) = 0)
+        or (lstrcmpi(PChar(ACollation), PChar(Table.Collation)) <> 0)
+        or (Session.EngineByName(AEngine) <> Table.Engine)
+        or (ARowType <> Table.RowType)) then
+      begin
+        NewTable.Assign(Table);
+        if (ACharset <> '') then
+        begin
+          NewTable.Charset := ACharset;
+
+          for J := 0 to NewTable.Fields.Count - 1 do
+            if (NewTable.Fields[J].FieldType in TextFieldTypes) then
+            begin
+              if ((NewTable.Charset <> Table.Charset) and ((NewTable.Fields[J].Charset = Table.Charset) or (NewTable.Fields[J].Charset = ''))) then
+                NewTable.Fields[J].Charset := NewTable.Charset;
+              if ((NewTable.Collation <> Table.Collation) and ((NewTable.Fields[J].Collation = Table.Collation) or (NewTable.Fields[J].Collation = ''))) then
+                NewTable.Fields[J].Collation := NewTable.Collation;
+            end;
+        end;
+        if (ACollation <> '') then NewTable.Collation := ACollation;
+        if (AEngine <> '') then NewTable.Engine := Session.EngineByName(AEngine);
+        if (ARowType <> mrUnknown) then NewTable.RowType := ARowType;
+
+        SQL := SQL + SQLAlterTable(Table, NewTable);
+
+        if (Session.Connection.DatabaseName <> Name) then
+          SQL := SQLUse() + SQL;
+      end;
+    end;
+
+  NewTable.Free();
+
+  Result := (SQL = '') or Session.SendSQL(SQL, Session.SessionResult);
+end;
+
 function TSDatabase.UpdateEvent(const Event, NewEvent: TSEvent): Boolean;
 var
   SQL: string;
@@ -8310,7 +8399,7 @@ begin
       SQL := 'ALTER EVENT ' + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(Event.Name) + #13#10 + TrimRight(SQL) + ';' + #13#10;
     SQL := SQL + NewEvent.SQLGetSource();
 
-    Result := Session.Connection.SendSQL(SQL, Session.SessionResult);
+    Result := Session.SendSQL(SQL, Session.SessionResult);
   end;
 end;
 
@@ -8363,7 +8452,9 @@ begin
 
   Result := Session.Connection.ExecuteSQL(SQL, Session.SessionResult);
 
-  // Warum verliert die MySQL Datenbank den Multi Stmt Status ??? (Fixed in 5.0.67 - auch schon vorher?)
+  // MySQL server bug: If the CREATE / ALTER PROCEDURE / FUNCTION statement fails,
+  // the server looses the multi statement state.
+  // This bug is fixed in MySQL 5.0.67 - also earlier?
   if (not Result
     and (Session.Connection.MySQLVersion < 50067)
     and Session.Connection.MultiStatements
@@ -8376,89 +8467,6 @@ begin
     Session.Connection.ExecuteSQL(Routine.Source);
     Session.StmtMonitor.OnMonitor := Session.MonitorExecutedStmts;
   end;
-end;
-
-function TSDatabase.UpdateTable(const Table, NewTable: TSBaseTable): Boolean;
-var
-  I: Integer;
-  List: TList;
-  SQL: string;
-begin
-  if (Assigned(Table)) then
-    for I := 0 to NewTable.Fields.Count - 1 do
-      if (NewTable.Fields[I].FieldType in TextFieldTypes) then
-      begin
-        if ((NewTable.Fields[I].Charset = Table.Charset) or (NewTable.Fields[I].Charset = '') and (NewTable.Charset <> Table.Charset)) then
-          NewTable.Fields[I].Charset := NewTable.Charset;
-        if ((NewTable.Fields[I].Collation = Table.Collation) or (NewTable.Fields[I].Collation = '') and (NewTable.Collation <> Table.Collation)) then
-          NewTable.Fields[I].Collation := NewTable.Collation;
-      end;
-
-  List := TList.Create();
-  List.Add(NewTable);
-
-  SQL := SQLAlterTable(Table, NewTable)
-    + NewTable.SQLGetSource()
-    + Tables.SQLGetStatus(List);
-
-  if (Session.Connection.DatabaseName <> Name) then
-    SQL := SQLUse() + SQL;
-
-  List.Free();
-
-  Result := Session.Connection.SendSQL(SQL, Session.SessionResult);
-end;
-
-function TSDatabase.UpdateTables(const TableNames: TStringList; const ACharset, ACollation, AEngine: string; const ARowType: TSTableField.TRowType): Boolean;
-var
-  I: Integer;
-  J: Integer;
-  NewTable: TSBaseTable;
-  SQL: string;
-  Table: TSBaseTable;
-begin
-  SQL := '';
-
-  NewTable := TSBaseTable.Create(Tables);
-
-  for I := 0 to TableNames.Count - 1 do
-    if (TableByName(TableNames.Strings[I]) is TSBaseTable) then
-    begin
-      Table := BaseTableByName(TableNames.Strings[I]);
-
-      if ((lstrcmpi(PChar(ACharset), PChar(Table.Charset)) = 0)
-        or (lstrcmpi(PChar(ACollation), PChar(Table.Collation)) <> 0)
-        or (Session.EngineByName(AEngine) <> Table.Engine)
-        or (ARowType <> Table.RowType)) then
-      begin
-        NewTable.Assign(Table);
-        if (ACharset <> '') then
-        begin
-          NewTable.Charset := ACharset;
-
-          for J := 0 to NewTable.Fields.Count - 1 do
-            if (NewTable.Fields[J].FieldType in TextFieldTypes) then
-            begin
-              if ((NewTable.Charset <> Table.Charset) and ((NewTable.Fields[J].Charset = Table.Charset) or (NewTable.Fields[J].Charset = ''))) then
-                NewTable.Fields[J].Charset := NewTable.Charset;
-              if ((NewTable.Collation <> Table.Collation) and ((NewTable.Fields[J].Collation = Table.Collation) or (NewTable.Fields[J].Collation = ''))) then
-                NewTable.Fields[J].Collation := NewTable.Collation;
-            end;
-        end;
-        if (ACollation <> '') then NewTable.Collation := ACollation;
-        if (AEngine <> '') then NewTable.Engine := Session.EngineByName(AEngine);
-        if (ARowType <> mrUnknown) then NewTable.RowType := ARowType;
-
-        SQL := SQL + SQLAlterTable(Table, NewTable);
-
-        if (Session.Connection.DatabaseName <> Name) then
-          SQL := SQLUse() + SQL;
-      end;
-    end;
-
-  NewTable.Free();
-
-  Result := (SQL = '') or Session.Connection.SendSQL(SQL, Session.SessionResult);
 end;
 
 function TSDatabase.UpdateTrigger(const Trigger, NewTrigger: TSTrigger): Boolean;
@@ -8480,7 +8488,9 @@ begin
 
   Result := Session.Connection.ExecuteSQL(SQL, Session.SessionResult);
 
-  // Warum verliert die MySQL Datenbank den Multi Stmt Status ??? (Fixed in 5.0.67 - auch schon vorher?)
+  // MySQL server bug: If the CREATE / ALTER TRIGGER statement fails,
+  // the server looses the multi statement state.
+  // This bug is fixed in MySQL 5.0.67 - also earlier?
   if (Result
     and (Session.Connection.MySQLVersion < 50067)
     and Session.Connection.MultiStatements
@@ -8548,7 +8558,7 @@ begin
   if (Session.Connection.DatabaseName <> Name) then
     SQL := SQLUse() + SQL;
 
-  Result := (SQL = '') or Session.Connection.SendSQL(SQL, Session.SessionResult);
+  Result := (SQL = '') or Session.SendSQL(SQL, Session.SessionResult);
 end;
 
 function TSDatabase.ViewByName(const TableName: string): TSView;
@@ -10740,6 +10750,7 @@ begin
   FConnection := TSConnection.Create(Self);
   Sessions.Add(Self);
 
+  ConnectionEvent := SyncObjs.TEvent.Create(nil, False, False, '');
   SetLength(EventProcs, 0);
   FCurrentUser := '';
   FInformationSchema := nil;
@@ -11002,7 +11013,7 @@ begin
   if (FlushPrivileges) then
     SQL := SQL + 'FLUSH PRIVILEGES;' + #13#10;
 
-  Result := (SQL = '') or Connection.SendSQL(SQL, SessionResult);
+  Result := (SQL = '') or SendSQL(SQL, SessionResult);
 end;
 
 function TSSession.DeleteProcess(const Process: TSProcess): Boolean;
@@ -11061,11 +11072,12 @@ begin
   end;
 
   FConnection.Free();
+  ConnectionEvent.Free();
 
   inherited;
 end;
 
-procedure TSSession.DoSendEvent(const AEvent: TEvent);
+procedure TSSession.DoSendEvent(const AEvent: TSSession.TEvent);
 var
   I: Integer;
 begin
@@ -11848,7 +11860,7 @@ begin
   end;
 end;
 
-procedure TSSession.SendEvent(const EventType: TEvent.TEventType; const Sender: TObject; const Items: TSItems = nil; const Item: TSItem = nil);
+procedure TSSession.SendEvent(const EventType: TSSession.TEvent.TEventType; const Sender: TObject; const Items: TSItems = nil; const Item: TSItem = nil);
 var
   Event: TEvent;
 begin
@@ -11859,6 +11871,22 @@ begin
   Event.Item := Item;
   DoSendEvent(Event);
   Event.Free();
+end;
+
+function TSSession.SendSQL(const SQL: string; const OnResult: TMySQLConnection.TResultEvent = nil): Boolean;
+begin
+  Assert((GetCurrentThreadId() = MainThreadId) or (ConnectionEvent.WaitFor(IGNORE) <> wrSignaled));
+
+  if (GetCurrentThreadId() = MainThreadId) then
+    Result := Connection.SendSQL(SQL, OnResult)
+  else
+    Result := Connection.SendSQL(SQL, OnResult, ConnectionEvent);
+
+  if (GetCurrentThreadId() <> MainThreadId) then
+  begin
+    ConnectionEvent.WaitFor(INFINITE);
+    Result := Connection.ErrorCode = 0;
+  end;
 end;
 
 function TSSession.SessionResult(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
@@ -12174,7 +12202,7 @@ begin
   FCreateDesktop := ACreateDesktop;
 end;
 
-procedure TSSession.SendEvent(const EventType: TEvent.TEventType);
+procedure TSSession.SendEvent(const EventType: TSSession.TEvent.TEventType);
 var
   Event: TEvent;
 begin
@@ -12350,7 +12378,7 @@ begin
   Tables.Free();
   List.Free();
 
-  Result := (SQL = '') or Connection.SendSQL(SQL, SessionResult);
+  Result := (SQL = '') or SendSQL(SQL, SessionResult);
 end;
 
 function TSSession.UpdateDatabase(const Database, NewDatabase: TSDatabase): Boolean;
@@ -12382,7 +12410,7 @@ begin
   SQL := SQL
     + NewDatabase.SQLGetSource();
 
-  Result := (SQL = '') or Connection.SendSQL(SQL, SessionResult);
+  Result := (SQL = '') or SendSQL(SQL, SessionResult);
 end;
 
 procedure TSSession.UpdateIndexDefs(const DataSet: TMySQLQuery; const IndexDefs: TIndexDefs);
@@ -12717,7 +12745,7 @@ begin
   if (not Assigned(User) and (NewUser.NewPassword <> '') or Assigned(User) and (NewUser.NewPassword <> User.RawPassword) and (NewUser.RightCount > 0)) then
     SQL := SQL + 'SET PASSWORD FOR ' + EscapeUser(NewUser.Name) + '=PASSWORD(' + SQLEscape(NewUser.NewPassword) + ');' + #13#10;
 
-  Result := (SQL = '') or Connection.SendSQL(SQL);
+  Result := (SQL = '') or SendSQL(SQL);
 end;
 
 function TSSession.UpdateVariable(const Variable, NewVariable: TSVariable; const UpdateModes: TSVariable.TUpdateModes): Boolean;
@@ -12737,7 +12765,7 @@ begin
 
   SQL := SQL + Variables.SQLGetItems(Variable.Name);
 
-  Result := (SQL = '') or Connection.SendSQL(SQL, SessionResult);
+  Result := (SQL = '') or SendSQL(SQL, SessionResult);
 end;
 
 function TSSession.UserByCaption(const Caption: string): TSUser;
