@@ -135,7 +135,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  Consts, StrUtils, CommCtrl, RichEdit,
+  Consts, StrUtils, CommCtrl, RichEdit, SysConst,
   SQLUtils,
   fURI,
   fDConnecting;
@@ -522,6 +522,14 @@ begin
   begin
     URI := TUURI.Create('');
 
+    // Debug 2016-11-21
+    if (FTables.Selected.Index < Length(Tables)) then
+      raise ERangeError.Create(SRangeError);
+    if (FTables.Selected.Index >= Length(Tables)) then
+      raise ERangeError.Create(SRangeError);
+    if (not Assigned(Tables[FTables.Selected.Index].Account)) then
+      raise ERangeError.Create(SRangeError);
+
     URI.Scheme := 'mysql';
     URI.Host := Tables[FTables.Selected.Index].Account.Connection.Host;
     URI.Port := Tables[FTables.Selected.Index].Account.Connection.Port;
@@ -654,7 +662,7 @@ begin
   if ((Success in [daAbort, daFail]) and (ErrorMsg <> '')) then
   begin
     FErrors.Caption := IntToStr(TTool(Sender).ErrorCount);
-    FErrorMessages.Lines.Add(ErrorMsg);
+    FErrorMessages.Text := FErrorMessages.Text + ErrorMsg;
   end;
 end;
 

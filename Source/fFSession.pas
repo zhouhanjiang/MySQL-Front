@@ -1570,7 +1570,7 @@ begin
 
   FSession.DataSetAfterOpen(DataSet);
 
-  DBGrid.ReadOnly := Table is TSSystemView;
+  DBGrid.ReadOnly := (Table is TSSystemView5) or (Table is TSSystemView8);
 end;
 
 procedure TFSession.TTableDesktop.DataSetAfterRefresh(DataSet: TDataSet);
@@ -2291,6 +2291,10 @@ var
 begin
   Wanted.Clear();
 
+  // How can it be, that ActiveDBGrid is not assiged, but this code is executed???
+  if (not Assigned(ActiveDBGrid)) then
+    raise ERangeError.Create(SRangeError + 'Address: ' + Address);
+
   if (MsgBox(Preferences.LoadStr(176), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = ID_YES) then
   begin
     if (ActiveDBGrid.SelectedRows.Count = 0) then
@@ -2939,8 +2943,7 @@ begin
     begin
       ImageIndex := FNavigatorMenuNode.Parent.ImageIndex;
       case (FNavigatorMenuNode.ImageIndex) of
-        iiDatabase,
-        iiSystemView: Data := Data + 'Database='    + FNavigatorMenuNode.Text + #13#10;
+        iiDatabase:   Data := Data + 'Database='    + FNavigatorMenuNode.Text + #13#10;
         iiBaseTable:  Data := Data + 'Table='       + FNavigatorMenuNode.Text + #13#10;
         iiView:       Data := Data + 'View='        + FNavigatorMenuNode.Text + #13#10;
         iiProcedure:  Data := Data + 'Procedure='   + FNavigatorMenuNode.Text + #13#10;
@@ -2965,8 +2968,7 @@ begin
     for I := 0 to ActiveListView.Items.Count - 1 do
       if (ActiveListView.Items[I].Selected) then
         case (ActiveListView.Items[I].ImageIndex) of
-          iiDatabase,
-          iiSystemView: Data := Data + 'Database='   + ActiveListView.Items[I].Caption + #13#10;
+          iiDatabase:   Data := Data + 'Database='   + ActiveListView.Items[I].Caption + #13#10;
           iiBaseTable:  Data := Data + 'Table='      + ActiveListView.Items[I].Caption + #13#10;
           iiView:       Data := Data + 'View='       + ActiveListView.Items[I].Caption + #13#10;
           iiProcedure:  Data := Data + 'Procedure='  + ActiveListView.Items[I].Caption + #13#10;
@@ -3134,8 +3136,13 @@ begin
   end
   else if (Assigned(ActiveDBGrid) and (Window.ActiveControl = ActiveDBGrid.InplaceEditor)) then
   begin
-    ActiveDBGrid.DataSource.DataSet.Edit();
-    ActiveDBGrid.InplaceEditor.PasteFromClipboard()
+    if (ActiveDBGrid.SelectedField.ReadOnly) then
+      MessageBeep(MB_ICONERROR)
+    else
+    begin
+      ActiveDBGrid.DataSource.DataSet.Edit();
+      ActiveDBGrid.InplaceEditor.PasteFromClipboard();
+    end;
   end
   else if ((Window.ActiveControl = FNavigator) or Assigned(ActiveListView) and (Window.ActiveControl = ActiveListView)) then
   begin
@@ -4016,6 +4023,11 @@ begin
             Control := FQueryBuilderActiveWorkArea()
           else
             Control := FQueryBuilderSynMemo;
+
+          // Debug 2016-11-20
+          if (not Assigned(Control)) then
+            raise ERangeError.Create(SRangeError);
+
           Window.ActiveControl := Control;
         end;
       vDiagram: if (PWorkbench.Visible) then Window.ActiveControl := ActiveWorkbench;
@@ -4068,13 +4080,21 @@ begin
             iiDatabase,
             iiSystemDatabase: TSDatabase(FNavigator.Selected.Data).Invalidate();
             iiBaseTable,
-            iiSystemView:
+            iiSystemView,
+            iiView:
               begin
+                // Debug 2016-11-21
+                if (not Assigned(FNavigator.Selected.Data)) then
+                  raise ERangeError.Create(SRangeError);
+                if (not (TObject(FNavigator.Selected.Data) is TSTable)) then
+                  raise ERangeError.Create(SRangeError);
+
                 TSTable(FNavigator.Selected.Data).Invalidate();
-                if (Assigned(TSDatabase(FNavigator.Selected.Parent.Data).Triggers)) then
-                  TSDatabase(FNavigator.Selected.Parent.Data).Triggers.Invalidate();
+
+                if ((TSTable(FNavigator.Selected.Data) is TSBaseTable) and
+                  Assigned(TSBaseTable(FNavigator.Selected.Data).Database.Triggers)) then
+                  TSBaseTable(FNavigator.Selected.Data).Database.Triggers.Invalidate();
               end;
-            iiView: TSView(FNavigator.Selected.Data).Invalidate();
             iiProcedure: TSProcedure(FNavigator.Selected.Data).Invalidate();
             iiFunction: TSFunction(FNavigator.Selected.Data).Invalidate();
             iiEvent: TSEvent(FNavigator.Selected.Data).Invalidate();
@@ -5511,7 +5531,7 @@ begin
 
   // Debug 2016-11-12
   if (not Assigned(ActiveDBGrid)) then
-    raise ERangeError.Create(SRangeError)
+    raise ERangeError.Create(SRangeError + 'Address: ' + Address)
   else if (not Assigned(ActiveDBGrid.DataSource)) then
     raise ERangeError.Create(SRangeError)
   else if (not Assigned(ActiveDBGrid.DataSource.DataSet)) then
@@ -5718,20 +5738,11 @@ var
   Pos: Integer;
   SortDef: TIndexDef;
 begin
-  // Debug 2016-11-17
-  if (not Assigned(Column.Field)) then
-    if (not Assigned(Column.Grid)) then
-      raise ERangeError.Create(SRangeError)
-    else if (not Column.Grid.DataSource.Enabled) then
-      raise ERangeError.Create(SRangeError)
-    else if (not Assigned(Column.Grid.DataSource.DataSet)) then
-      raise ERangeError.Create(SRangeError)
-    else if (not (Column.Grid.DataSource.DataSet is TMySQLDataSet)) then
-      raise ERangeError.Create(SRangeError)
-    else
-      raise ERangeError.Create(SRangeError + ' (SQL: ' + TMySQLDataSet(Column.Grid.DataSource.DataSet).CommandText + ')');
+  // 2016-11-21
+  // Why is it possible, that Column.Grid.DataSource.Enabled is False???
 
-  if (not (Column.Field.DataType in [ftUnknown, ftWideMemo, ftBlob])) then
+  if (Column.Grid.DataSource.Enabled
+    and not (Column.Field.DataType in [ftUnknown, ftWideMemo, ftBlob])) then
   begin
     SortDef := TIndexDef.Create(nil, '', '', []);
 
@@ -6376,8 +6387,7 @@ begin
     SourceNode := TFSession(TTreeView_Ext(Source).Owner).MouseDownNode;
 
     case (SourceNode.ImageIndex) of
-      iiDatabase,
-      iiSystemView: Objects := Objects + 'Database='    + SourceNode.Text + #13#10;
+      iiDatabase:   Objects := Objects + 'Database='    + SourceNode.Text + #13#10;
       iiBaseTable:  Objects := Objects + 'Table='       + SourceNode.Text + #13#10;
       iiView:       Objects := Objects + 'View='        + SourceNode.Text + #13#10;
       iiProcedure:  Objects := Objects + 'Procedure='   + SourceNode.Text + #13#10;
@@ -6401,8 +6411,7 @@ begin
     for I := 0 to TListView(Source).Items.Count - 1 do
       if (TListView(Source).Items[I].Selected) then
         case (TListView(Source).Items[I].ImageIndex) of
-          iiDatabase,
-          iiSystemView: Objects := Objects + 'Database='   + TListView(Source).Items[I].Caption + #13#10;
+          iiDatabase:   Objects := Objects + 'Database='   + TListView(Source).Items[I].Caption + #13#10;
           iiBaseTable:  Objects := Objects + 'Table='      + TListView(Source).Items[I].Caption + #13#10;
           iiView:       Objects := Objects + 'View='       + TListView(Source).Items[I].Caption + #13#10;
           iiProcedure:  Objects := Objects + 'Procedure='  + TListView(Source).Items[I].Caption + #13#10;
@@ -6825,6 +6834,9 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
     // Debug 2016-11-17
     if (Item1.Data = Item2.Data) then
       raise ERangeError.Create(SRangeError);
+    // Debug 2016-11-21
+    if (TObject(Item1.Data) is TSItem) then ;
+    if (TObject(Item2.Data) is TSItem) then ;
 
     if (GroupIDByImageIndex(Item1.ImageIndex) <> GroupIDByImageIndex(Item2.ImageIndex)) then
       Result := Sign(GroupIDByImageIndex(Item1.ImageIndex) - GroupIDByImageIndex(Item2.ImageIndex))
@@ -6925,7 +6937,7 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
     Child.Data := Data;
     Child.ImageIndex := ImageIndexByData(Data);
     Child.Text := Text;
-    if (Added and (Child.ImageIndex in [iiDatabase, iiSystemDatabase, iiSystemView, iiBaseTable, iiView])) then
+    if (Added and (Child.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiSystemView, iiView])) then
       Child.HasChildren := True;
     if (Assigned(Child)) then
       SetNodeBoldState(Child, (Child.ImageIndex = iiKey) and TSKey(Child.Data).PrimaryKey or (Child.ImageIndex in [iiField, iiVirtualField]) and TSTableField(Child.Data).InPrimaryKey);
@@ -6951,7 +6963,7 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
     Child.Data := Data;
     Child.ImageIndex := ImageIndexByData(Data);
     Child.Text := Text;
-    if (Child.ImageIndex in [iiDatabase, iiSystemDatabase, iiSystemView, iiBaseTable, iiView]) then
+    if (Child.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiSystemView, iiView]) then
       Child.HasChildren := True;
     if (Assigned(Child)) then
       SetNodeBoldState(Child, (Child.ImageIndex = iiKey) and TSKey(Child.Data).PrimaryKey or (Child.ImageIndex in [iiField, iiVirtualField]) and TSTableField(Child.Data).InPrimaryKey);
@@ -8450,7 +8462,8 @@ begin
     Result := iiSystemDatabase
   else if (TObject(Data) is TSDatabase) then
     Result := iiDatabase
-  else if (TObject(Data) is TSSystemView) then
+  else if ((TObject(Data) is TSSystemView5)
+    or (TObject(Data) is TSSystemView8)) then
     Result := iiSystemView
   else if (TObject(Data) is TSBaseTable) then
     Result := iiBaseTable
@@ -8465,7 +8478,8 @@ begin
   else if (TObject(Data) is TSKey) then
     Result := iiKey
   else if (TObject(Data) is TSTableField) then
-    if (TSTableField(Data).Table is TSSystemView) then
+    if ((TSTableField(Data).Table is TSSystemView5)
+      or (TSTableField(Data).Table is TSSystemView8)) then
       Result := iiSystemViewField
     else if (TSTableField(Data).Table is TSView) then
       Result := iiViewField
@@ -8568,6 +8582,12 @@ var
   String2: string;
   SortRec: ^TListViewSortRec;
 begin
+  // Debug 2016-11-21
+  if (not Assigned(Item1.Data)) then
+    raise ERangeError.Create(SRangeError);
+  if (not Assigned(Item2.Data)) then
+    raise ERangeError.Create(SRangeError);
+
   SortRec := @TListViewSortRec(Pointer(Data)^);
 
   Compare := 0;
@@ -9007,7 +9027,7 @@ var
   MenuItem: TMenuItem;
 begin
   if (not TListView(Sender).IsEditing()) then
-    if ((Sender = ActiveListView) and (Key = VK_BACK)) then
+    if ((Sender = ActiveListView) and (Key = VK_BACK) and Assigned(FNavigator.Selected.Parent)) then
       FNavigator.Selected := FNavigator.Selected.Parent
     else if ((Key = Ord('A')) and (Shift = [ssCtrl])) then
       MainAction('aESelectAll').Execute()
@@ -9223,7 +9243,8 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
     else if (Data is TSTable) then
     begin
       Item.GroupID := giTables;
-      if (Data is TSSystemView) then
+      if ((Data is TSSystemView5)
+        or (Data is TSSystemView8)) then
         Item.ImageIndex := iiSystemView
       else if (Data is TSBaseTable) then
         Item.ImageIndex := iiBaseTable
@@ -9369,7 +9390,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
         Item.SubItems.Add(S);
         if (Session.Connection.MySQLVersion >= 40100) then
           Item.SubItems.Add(TSBaseTableField(Data).Comment);
-        if (TSBaseTableField(Data).Table is TSSystemView) then
+        if (TSBaseTableField(Data).Table is TSSystemView5) then
           Item.ImageIndex := iiSystemViewField
         else
           Item.ImageIndex := iiField;
@@ -10014,8 +10035,7 @@ begin
               mlEProperties.Action := MainAction('aDEditDatabase')
             else
               case (Item.ImageIndex) of
-                iiBaseTable,
-                iiSystemView: mlEProperties.Action := MainAction('aDEditTable');
+                iiBaseTable: mlEProperties.Action := MainAction('aDEditTable');
                 iiView: mlEProperties.Action := MainAction('aDEditView');
                 iiProcedure,
                 iiFunction: mlEProperties.Action := MainAction('aDEditRoutine');
@@ -10085,10 +10105,6 @@ begin
                 iiForeignKey: mlEProperties.Action := MainAction('aDEditForeignKey');
                 iiTrigger: mlEProperties.Action := MainAction('aDEditTrigger');
               end;
-          end;
-        iiSystemView:
-          begin
-            MainAction('aECopy').Enabled := (ListView.SelCount >= 1);
           end;
         iiView:
           begin
@@ -10860,6 +10876,9 @@ begin
     begin
       if (URI.Param['view'] = 'browser') then
       begin
+        if (not (FNavigator.Selected.ImageIndex in [iiBaseTable, iiSystemView, iiView])) then
+          raise ERangeError.Create(SRangeError);
+
         if (Desktop(TSTable(FNavigator.Selected.Data)).Table.ValidData) then
         begin
            if (Desktop(TSTable(FNavigator.Selected.Data)).Table.DataSet.Offset > 0) then
@@ -11517,16 +11536,7 @@ begin
             else PResultVisible := False;
           end;
         vBuilder:
-          begin
-            // Debug 2016-11-19
-            if (not Assigned(FNavigator.Selected)) then
-              raise ERangeError.Create(SRangeError);
-            if (not (FNavigator.Selected.ImageIndex in [iiDatabase, iiSystemDatabase])) then
-              raise ERangeError.Create(SRangeError);
-            if (not (TObject(FNavigator.Selected.Data) is TSDatabase)) then
-              raise ERangeError.Create(SRangeError);
-            PResultVisible := Assigned(Desktop(TSDatabase(FNavigator.Selected.Data)).BuilderDBGrid);
-          end;
+          PResultVisible := Assigned(Desktop(TSDatabase(FNavigator.Selected.Data)).BuilderDBGrid);
         vEditor,
         vEditor2,
         vEditor3:
@@ -12287,7 +12297,7 @@ begin
       or (AView in [vEditor, vEditor2, vEditor3]) and not (SelectedImageIndex in [iiServer, iiDatabase, iiSystemDatabase])) then
     begin
       if (URI.Database = '') then
-        URI.Database := Session.Connection.DatabaseName;
+        URI.Database := LastSelectedDatabase;
       URI.Table := '';
       URI.Param['objecttype'] := Null;
       URI.Param['object'] := Null;
@@ -12580,6 +12590,9 @@ begin
       // Debug 2016-11-16
       if (Assigned(ActiveListView.Selected) and not Assigned(ActiveListView.Selected.Data)) then
         raise ERangeError.Create(SRangeError);
+      // Debug 2016-11-21
+      if (Assigned(ActiveListView.Selected)) then
+        if (TObject(ActiveListView.Selected.Data) is TSKey) then ;
 
       if (Assigned(ActiveListView.Selected) and (TObject(ActiveListView.Selected.Data) is TSKey)) then
         StatusBar.Panels[sbNavigation].Text := Preferences.LoadStr(377) + ': ' + IntToStr(TSKey(ActiveListView.Selected.Data).Index + 1)
@@ -12635,7 +12648,7 @@ begin
     begin
       if (SelCount > 0) then
         StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(888, IntToStr(SelCount))
-      else if ((View = vBrowser) and (SelectedImageIndex in [iiBaseTable, iiSystemView]) and not Session.Connection.InUse() and TSBaseTable(FNavigator.Selected.Data).ValidData and TSBaseTable(FNavigator.Selected.Data).DataSet.LimitedDataReceived and (TSBaseTable(FNavigator.Selected.Data).RecordCount >= 0)) then
+      else if ((View = vBrowser) and (SelectedImageIndex in [iiBaseTable]) and not Session.Connection.InUse() and TSBaseTable(FNavigator.Selected.Data).ValidData and TSBaseTable(FNavigator.Selected.Data).DataSet.LimitedDataReceived and (TSBaseTable(FNavigator.Selected.Data).RecordCount >= 0)) then
         StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(889, FormatFloat('#,##0', Count, LocaleFormatSettings), FormatFloat('#,##0', TSBaseTable(FNavigator.Selected.Data).RecordCount, LocaleFormatSettings))
       else if (Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet)) then
         StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(887, FormatFloat('#,##0', ActiveDBGrid.DataSource.DataSet.RecordCount, LocaleFormatSettings));

@@ -1001,10 +1001,9 @@ end;
 procedure TWWindow.EurekaLogExceptionNotify(
   EurekaExceptionRecord: TEurekaExceptionRecord; var Handle: Boolean);
 var
-  FirstLine: Integer;
   I: Integer;
-  Log: TStringList;
   Report: string;
+  SQL: PChar;
 begin
   for I := 0 to FSessions.Count - 1 do
     try TFSession(FSessions[I]).CrashRescue(); except end;
@@ -1029,6 +1028,13 @@ begin
 
     if (Assigned(ActiveTab)) then
     begin
+      if (ImportState > 0) then
+      begin
+        Report := Report + 'Import:' + #13#10;
+        Report := Report + StringOfChar('-', Length('Import: ' + IntToStr(ImportState))) + #13#10;
+        Report := Report + 'ImportState: ' + IntToStr(ImportState) + #13#10;
+      end;
+
       Report := Report + 'MySQL:' + #13#10;
       Report := Report + StringOfChar('-', Length('Version: ' + ActiveTab.Session.Connection.ServerVersionStr)) + #13#10;
       Report := Report + 'Version: ' + ActiveTab.Session.Connection.ServerVersionStr + #13#10;
@@ -1036,7 +1042,15 @@ begin
       Report := Report + #13#10;
       Report := Report + 'SQL Log:' + #13#10;
       Report := Report + StringOfChar('-', 72) + #13#10;
-      Report := Report + '...' + RightStr(ActiveTab.Session.Connection.BugMonitor.CacheText, 1000) + #13#10;
+      if (Length(ActiveTab.Session.Connection.BugMonitor.CacheText) < 1000) then
+        SQL := PChar(ActiveTab.Session.Connection.BugMonitor.CacheText)
+      else
+      begin
+        SQL := PChar(@ActiveTab.Session.Connection.BugMonitor.CacheText[Length(ActiveTab.Session.Connection.BugMonitor.CacheText) - 1000]);
+        while ((StrLen(SQL) > 0) and not CharInSet(SQL[0], [#10, #13])) do SQL := PChar(@SQL[1]);
+        while ((StrLen(SQL) > 0) and CharInSet(SQL[0], [#10, #13])) do SQL := PChar(@SQL[1]);
+      end;
+      Report := Report + StrPas(SQL);
     end;
 
     SendBugToDeveloper(Report);

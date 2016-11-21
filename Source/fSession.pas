@@ -700,9 +700,6 @@ type
     property ValidStatus: Boolean read FValidStatus;
   end;
 
-  TSSystemView = class(TSBaseTable)
-  end;
-
   TSView = class(TSTable)
   type
     TAlgorithm = (vaUndefined, vaMerge, vaTemptable);
@@ -737,6 +734,12 @@ type
     property Fields: TSViewFields read GetViewFields;
     property Security: TSDBObject.TSecurity read FSecurity write FSecurity;
     property Stmt: string read FStmt write FStmt;
+  end;
+
+  TSSystemView5 = class(TSBaseTable)
+  end;
+
+  TSSystemView8 = class(TSView)
   end;
 
   TSTables = class(TSDBObjects)
@@ -1721,8 +1724,9 @@ end;
 
 procedure TSItem.Assign(const Source: TSItem);
 begin
-  Assert(Assigned(Source) and (Source is TSItem));
-
+  // Debug 2016-11-21
+  if (not Assigned(Source)) then
+    raise ERangeError.Create(SRangeError);
 
   FName := Source.Name;
 end;
@@ -3224,10 +3228,7 @@ begin
     Index := NewField.FieldBefore.Index + 1;
 
   if (NewField is TSBaseTableField) then
-  begin
-    Assert(Self is TSBaseTableFields);
-    Insert(Index, TSBaseTableField.Create(TSBaseTableFields(Self)));
-  end
+    Insert(Index, TSBaseTableField.Create(TSBaseTableFields(Self)))
   else if (NewField is TSViewField) then
     Insert(Index, TSViewField.Create(Self))
   else
@@ -4029,16 +4030,12 @@ var
   RBS: RawByteString;
 begin
   try
-    inherited Build(Field);
+    inherited;
   except
-    // Debug 2016-11-17
-    if (not Assigned(TMySQLQuery(Field.DataSet).LibRow^[Field.FieldNo - 1])) then
-      raise ERangeError.Create(SRangeError + ' Filename: ' + Field.FieldName);
-
     // Sometimes, the MySQL server sends wrong encoded field comments.
     // This code allow the user to handle this table - but the comments are wrong.
-    if (Session.Connection.MySQLVersion >= 50100) then
-      raise ERangeError.Create(SRangeError);
+    if (Session.Connection.MySQLVersion >= 50000) then
+      SetSource(Field.AsString);
     SetString(RBS, TMySQLQuery(Field.DataSet).LibRow^[Field.FieldNo - 1], TMySQLQuery(Field.DataSet).LibLengths^[Field.FieldNo - 1]);
     SetSource(string(RBS));
   end;
@@ -5314,11 +5311,17 @@ begin
         if (InsertIndex(Name, Index)) then
         begin
           if (Database = Session.PerformanceSchema) then
-            NewTable := TSSystemView.Create(Self, Name, True)
+            if (Session.Connection.MySQLVersion < 80000) then
+              NewTable := TSSystemView5.Create(Self, Name, True)
+            else
+              NewTable := TSSystemView8.Create(Self, Name)
           else if ((Session.Connection.MySQLVersion < 50002) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'BASE TABLE') = 0) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'ERROR') = 0)) then
             NewTable := TSBaseTable.Create(Self, Name)
           else if ((StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'SYSTEM VIEW') = 0) or ((50000 <= Session.Connection.MySQLVersion) and (Session.Connection.MySQLVersion < 50012) and (Database = Session.InformationSchema)) or (Database = Session.PerformanceSchema)) then
-            NewTable := TSSystemView.Create(Self, Name, True)
+            if (Session.Connection.MySQLVersion < 80000) then
+              NewTable := TSSystemView5.Create(Self, Name, True)
+            else
+              NewTable := TSSystemView8.Create(Self, Name)
           else if (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'VIEW') = 0) then
             NewTable := TSView.Create(Self, Name)
           else
@@ -5368,11 +5371,17 @@ begin
         if (InsertIndex(Name, Index)) then
         begin
           if (Database = Session.PerformanceSchema) then
-            NewTable := TSSystemView.Create(Self, Name, True)
+            if (Session.Connection.MySQLVersion < 80000) then
+              NewTable := TSSystemView5.Create(Self, Name, True)
+            else
+              NewTable := TSSystemView8.Create(Self, Name)
           else if ((Session.Connection.MySQLVersion < 50002) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'BASE TABLE') = 0) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'ERROR') = 0)) then
             NewTable := TSBaseTable.Create(Self, Name)
           else if ((StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'SYSTEM VIEW') = 0) or ((50000 <= Session.Connection.MySQLVersion) and (Session.Connection.MySQLVersion < 50012) and (Database = Session.InformationSchema)) or (Database = Session.PerformanceSchema)) then
-            NewTable := TSSystemView.Create(Self, Name, True)
+            if (Session.Connection.MySQLVersion < 80000) then
+              NewTable := TSSystemView5.Create(Self, Name, True)
+            else
+              NewTable := TSSystemView8.Create(Self, Name)
           else if (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'VIEW') = 0) then
             NewTable := TSView.Create(Self, Name)
           else
@@ -5395,7 +5404,7 @@ begin
             else
               TSBaseTable(Table[Index]).FEngine := Session.EngineByName(DataSet.FieldByName('Engine').AsString);
             TSBaseTable(Table[Index]).FRowType := StrToMySQLRowType(DataSet.FieldByName('Row_format').AsString);
-            if (TSBaseTable(Table[Index]) is TSSystemView) then
+            if (TSBaseTable(Table[Index]) is TSSystemView5) then
               TSBaseTable(Table[Index]).FRecordCount := -1
             else
               if (not TryStrToInt64(DataSet.FieldByName('Rows').AsString, TSBaseTable(Table[Index]).FRecordCount)) then TSBaseTable(Table[Index]).FRecordCount := 0;
@@ -5414,7 +5423,7 @@ begin
           begin
             TSBaseTable(Table[Index]).FEngine := Session.EngineByName(DataSet.FieldByName('ENGINE').AsString);
             TSBaseTable(Table[Index]).RowType := StrToMySQLRowType(DataSet.FieldByName('ROW_FORMAT').AsString);
-            if (TSBaseTable(Table[Index]) is TSSystemView) then
+            if (TSBaseTable(Table[Index]) is TSSystemView5) then
               TSBaseTable(Table[Index]).FRecordCount := -1
             else
               if (not TryStrToInt64(DataSet.FieldByName('TABLE_ROWS').AsString, TSBaseTable(Table[Index]).FRecordCount)) then TSBaseTable(Table[Index]).FRecordCount := 0;
@@ -8736,9 +8745,9 @@ end;
 
 function TSDatabases.NameCmp(const Name1, Name2: string): Integer;
 begin
-  if ((StrIComp(PChar(Name1), INFORMATION_SCHEMA) = 0) and (StrIComp(PChar(Name2), INFORMATION_SCHEMA) = 0)) then
+  if ((lstrcmpi(PChar(Name1), INFORMATION_SCHEMA) = 0) and (lstrcmpi(PChar(Name2), INFORMATION_SCHEMA) = 0)) then
     Result := 0
-  else if ((StrIComp(PChar(Name1), PERFORMANCE_SCHEMA) = 0) and (StrIComp(PChar(Name2), PERFORMANCE_SCHEMA) = 0)) then
+  else if ((lstrcmpi(PChar(Name1), PERFORMANCE_SCHEMA) = 0) and (lstrcmpi(PChar(Name2), PERFORMANCE_SCHEMA) = 0)) then
     Result := 0
   else if (Session.LowerCaseTableNames = 0) then
     Result := lstrcmp(PChar(Name1), PChar(Name2))
@@ -9623,6 +9632,9 @@ begin
       // Debug 2016-11-11
       if (not TryStrToUInt64(Name, ThreadId)) then
         raise ERangeError.CreateFmt(SPropertyOutOfRange, ['ID']);
+      // Debug 2016-11-21
+      if (Name = '') then
+        raise ERangeError.Create(SRangeError);
 
       if (InsertIndex(Name, Index)) then
         if (Index < Count) then
@@ -9819,18 +9831,26 @@ end;
 { TSUser **********************************************************************}
 
 function TSUser.AddRight(const NewUserRight: TSUserRight): Boolean;
+type
+  Tstrcmp = function (lpString1, lpString2: PWideChar): Integer; stdcall;
 var
   I: Integer;
   Index: Integer;
+  strcmp: Tstrcmp;
 begin
+  if (Session.LowerCaseTableNames = 0) then
+    strcmp := lstrcmp
+  else
+    strcmp := lstrcmpi;
+
   Index := FRights.Count;
   for I := FRights.Count - 1 downto 0 do
-    if (lstrcmpi(PChar(NewUserRight.DatabaseName), PChar(Rights[I].DatabaseName)) < 0) then
+    if (strcmp(PChar(NewUserRight.DatabaseName), PChar(Rights[I].DatabaseName)) < 0) then
       Index := I
-    else if (lstrcmpi(PChar(NewUserRight.DatabaseName), PChar(Rights[I].DatabaseName)) = 0) then
-      if ((lstrcmpi(PChar(NewUserRight.TableName), PChar(Rights[I].TableName)) < 0) and (NewUserRight.ProcedureName = '') and (NewUserRight.FunctionName = '')) then
+    else if (strcmp(PChar(NewUserRight.DatabaseName), PChar(Rights[I].DatabaseName)) = 0) then
+      if ((strcmp(PChar(NewUserRight.TableName), PChar(Rights[I].TableName)) < 0) and (NewUserRight.ProcedureName = '') and (NewUserRight.FunctionName = '')) then
         Index := I
-      else if ((lstrcmpi(PChar(NewUserRight.TableName), PChar(Rights[I].TableName)) = 0) and (NewUserRight.ProcedureName = '') and (NewUserRight.FunctionName = '')) then
+      else if ((strcmp(PChar(NewUserRight.TableName), PChar(Rights[I].TableName)) = 0) and (NewUserRight.ProcedureName = '') and (NewUserRight.FunctionName = '')) then
         if ((lstrcmpi(PChar(NewUserRight.FieldName), PChar(Rights[I].FieldName)) < 0) and (NewUserRight.ProcedureName = '') and (NewUserRight.FunctionName = '')) then
           Index := I
         else if (lstrcmpi(PChar(NewUserRight.ProcedureName), PChar(Rights[I].ProcedureName)) < 0) then
@@ -11058,14 +11078,14 @@ begin
   if (UnparsableSQL <> '') then
   begin
     if (Connection.AnsiQuotes) then
-      UnparsableSQL := UnparsableSQL
-        + '# MySQL: ' + Self.Connection.ServerVersionStr + #13#10
+      UnparsableSQL :=
+        '# MySQL: ' + Self.Connection.ServerVersionStr + #13#10
         + '# AnsiQuotes: Enabled' + #13#10
         + #13#10
         + UnparsableSQL
     else
-      UnparsableSQL := UnparsableSQL
-        + '# MySQL: ' + Self.Connection.ServerVersionStr + #13#10
+      UnparsableSQL :=
+        '# MySQL: ' + Self.Connection.ServerVersionStr + #13#10
         + #13#10
         + UnparsableSQL;
     SendBugToDeveloper(UnparsableSQL);
@@ -11164,13 +11184,13 @@ function TSSession.EscapeUser(const User: string; const IdentifierQuoting: Boole
 var
   Count: Integer;
   Host: string;
-  I: Integer;
   Username: string;
 begin
-  Count := Length(User);
-  for I := 1 to Length(User) do
-    if (User[I] = '@') then
-      Count := I - 1;
+  Count := Pos('@', User);
+  if (Count = 0) then
+    Count := Length(User)
+  else
+    Dec(Count);
   Username := Copy(User, 1, Count);
   if (Count < Length(User)) then
     Host := Copy(User, Count + 2, Length(User) - Count)
@@ -11968,7 +11988,7 @@ begin
               Result := DatabaseByName(SQLParseValue(Parse)).Columns.Build(DataSet, True)
           else if (TableNameCmp(ObjectName, 'ENGINES') = 0) then
             Result := Engines.Build(DataSet, True, not SQLParseEnd(Parse))
-          else if ((TableNameCmp(ObjectName, 'EVENTS') = 0) and SQLParseEnd(Parse)) then
+          else if ((TableNameCmp(ObjectName, 'EVENTS') = 0) and (SQLParseKeyword(Parse, 'ORDER') or SQLParseEnd(Parse))) then
             Result := BuildEvents(DataSet)
           else if ((TableNameCmp(ObjectName, 'EVENTS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'EVENT_SCHEMA') = 0) and SQLParseChar(Parse, '=')) then
           begin
@@ -11992,7 +12012,7 @@ begin
                 Result := Table.ReferencedRequester.BuildBaseTableReferences(DataSet);
             end;
           end
-          else if ((TableNameCmp(ObjectName, 'ROUTINES') = 0) and SQLParseEnd(Parse)) then
+          else if ((TableNameCmp(ObjectName, 'ROUTINES') = 0) and (SQLParseKeyword(Parse, 'ORDER') or SQLParseEnd(Parse))) then
             Result := BuildRoutines(DataSet)
           else if ((TableNameCmp(ObjectName, 'ROUTINES') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'ROUTINE_SCHEMA') = 0) and SQLParseChar(Parse, '=')) then
           begin
@@ -12003,14 +12023,14 @@ begin
             Result := Variables.Build(DataSet, True, not SQLParseEnd(Parse))
           else if (TableNameCmp(ObjectName, 'SCHEMATA') = 0) then
             Result := Databases.Build(DataSet, True, not SQLParseEnd(Parse))
-          else if ((TableNameCmp(ObjectName, 'TABLES') = 0) and SQLParseEnd(Parse)) then
+          else if ((TableNameCmp(ObjectName, 'TABLES') = 0) and (SQLParseKeyword(Parse, 'ORDER') or SQLParseEnd(Parse))) then
             Result := BuildTables(DataSet)
           else if ((TableNameCmp(ObjectName, 'TABLES') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'TABLE_SCHEMA') = 0) and SQLParseChar(Parse, '=')) then
           begin
             Database := DatabaseByName(SQLParseValue(Parse));
             Result := Database.Tables.Build(DataSet, True, SQLParseKeyword(Parse, 'AND') and SQLParseValue(Parse, 'TABLE_NAME'));
           end
-          else if ((TableNameCmp(ObjectName, 'TRIGGERS') = 0) and SQLParseEnd(Parse)) then
+          else if ((TableNameCmp(ObjectName, 'TRIGGERS') = 0) and (SQLParseKeyword(Parse, 'ORDER') or SQLParseEnd(Parse))) then
             Result := BuildTriggers(DataSet)
           else if ((TableNameCmp(ObjectName, 'TRIGGERS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'EVENT_OBJECT_SCHEMA') = 0) and SQLParseChar(Parse, '=')) then
           begin
@@ -12368,10 +12388,10 @@ begin
 
   if (not Assigned(Objects) and Status and not Valid and (Connection.MySQLVersion >= 50002) and (Account.Connection.Database = '')) then
   begin
-    SQL := SQL + 'SELECT * FROM ' + Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Connection.EscapeIdentifier('TABLES') + ';' + #13#10;
-    if (Connection.MySQLVersion >= 50010) then SQL := SQL + 'SELECT * FROM ' + Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Connection.EscapeIdentifier('TRIGGERS') + ';' + #13#10;
-    if (Connection.MySQLVersion >= 50004) then SQL := SQL + 'SELECT * FROM ' + Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Connection.EscapeIdentifier('ROUTINES') + ';' + #13#10;
-    if (Connection.MySQLVersion >= 50106) then SQL := SQL + 'SELECT * FROM ' + Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Connection.EscapeIdentifier('EVENTS') + ';' + #13#10;
+    SQL := SQL + 'SELECT * FROM ' + Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Connection.EscapeIdentifier('TABLES') + ' ORDER BY ' + Connection.EscapeIdentifier('TABLE_SCHEMA') + ',' + Connection.EscapeIdentifier('TABLE_NAME') + ';' + #13#10;
+    if (Connection.MySQLVersion >= 50004) then SQL := SQL + 'SELECT * FROM ' + Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Connection.EscapeIdentifier('ROUTINES') + ' ORDER BY ' + Connection.EscapeIdentifier('ROUTINE_SCHEMA') + ',' + Connection.EscapeIdentifier('ROUTINE_NAME') + ';' + #13#10;
+    if (Connection.MySQLVersion >= 50010) then SQL := SQL + 'SELECT * FROM ' + Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Connection.EscapeIdentifier('TRIGGERS') + ' ORDER BY ' + Connection.EscapeIdentifier('TRIGGER_SCHEMA') + ',' + Connection.EscapeIdentifier('TRIGGER_NAME') + ';' + #13#10;
+    if (Connection.MySQLVersion >= 50106) then SQL := SQL + 'SELECT * FROM ' + Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Connection.EscapeIdentifier('EVENTS') + ' ORDER BY ' + Connection.EscapeIdentifier('EVENT_SCHEMA') + ',' + Connection.EscapeIdentifier('EVENT_NAME') + ';' + #13#10;
   end;
 
 

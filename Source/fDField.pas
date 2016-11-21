@@ -103,7 +103,6 @@ type
     procedure FRDefaultClick(Sender: TObject);
     procedure FRDefaultNullKeyDown(Sender: TObject; var Key: Word;
       Shift: TShiftState);
-    procedure UpDown1Click(Sender: TObject; Button: TUDBtnType);
     procedure FUDMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
   private
@@ -1167,11 +1166,6 @@ begin
   FBHelp.Caption := Preferences.LoadStr(167);
   FBOk.Caption := Preferences.LoadStr(29);
   FBCancel.Caption := Preferences.LoadStr(30);
-end;
-
-procedure TDField.UpDown1Click(Sender: TObject; Button: TUDBtnType);
-begin
-  Write;
 end;
 
 initialization

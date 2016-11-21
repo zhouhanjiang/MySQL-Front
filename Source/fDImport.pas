@@ -244,7 +244,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  CommDlg, Dlgs, Math, StrUtils, RichEdit,
+  CommDlg, Dlgs, Math, StrUtils, RichEdit, SysConst,
   SQLUtils, CSVUtils,
   fDLogin, fDODBC;
 
@@ -1597,7 +1597,7 @@ begin
   if (((Success in [daAbort, daFail]) or (Error.ErrorType = TE_Warning)) and (ErrorMsg <> '')) then
   begin
     FErrors.Caption := IntToStr(TTool(Sender).ErrorCount);
-    FErrorMessages.Lines.Add(ErrorMsg);
+    FErrorMessages.Text := FErrorMessages.Text + ErrorMsg;
   end;
 end;
 
@@ -2034,7 +2034,12 @@ begin
   if (((DialogType = idtNormal) or (DialogType in [idtEditJob, idtExecuteJob])
     and InitTSSelect())
     and Assigned(FSelect.Selected)) then
+  begin
+    // Debug 2016-11-21
+    if (not (TObject(FSelect.Selected.Data) is TSObject)) then
+      raise ERangeError.Create(SRangeError);
     SObject := TSObject(FSelect.Selected.Data);
+  end;
 
   Message.Result := LRESULT(not Assigned(SObject) or SObject.Update());
   if (Boolean(Message.Result)) then

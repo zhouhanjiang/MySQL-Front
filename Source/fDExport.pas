@@ -1725,7 +1725,7 @@ begin
   if ((Success in [daAbort, daFail]) and (ErrorMsg <> '')) then
   begin
     FErrors.Caption := IntToStr(TTool(Sender).ErrorCount);
-    FErrorMessages.Lines.Add(ErrorMsg);
+    FErrorMessages.Text := FErrorMessages.Text + ErrorMsg;
   end;
 end;
 

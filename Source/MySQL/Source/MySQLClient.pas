@@ -57,12 +57,12 @@ type
     DecompressedBuffer: TBuffer;
     PacketBuffer: TBuffer;
     PacketNr: Byte;
-    UseCompression: Boolean;
     function ReceivePacket(): Boolean;
   protected
+    UseCompression: Boolean;
     function CreatePacket(const AIOType: TMySQL_IO.TType;
       const Host: RawByteString; const Port, Timeout: my_uint): Boolean; virtual;
-    procedure ClosePacket(); virtual;
+    procedure Close(); override;
     function FlushPacketBuffers(): Boolean; virtual;
     procedure FreeBuffer(var Buffer: TBuffer); virtual;
     function GetPacketSize(): my_int; virtual;
@@ -120,6 +120,14 @@ type
   end;
 
   MYSQL = class(TMySQL_Packet)
+  protected const
+    CLIENT_CAPABILITIES  = CLIENT_LONG_PASSWORD or
+                           CLIENT_LONG_FLAG or
+                           CLIENT_LOCAL_FILES or
+                           CLIENT_PROTOCOL_41 or
+                           CLIENT_TRANSACTIONS or
+                           CLIENT_SECURE_CONNECTION or
+                           CLIENT_SESSION_TRACK;
   private
     FieldCount: my_uint;
     FSQLState: array [0 .. SQLSTATE_LENGTH - 1] of AnsiChar;
@@ -166,7 +174,7 @@ type
       Index: Integer;
       VariablenValue: Boolean;
     end;
-    procedure ClosePacket(); override;
+    procedure Close(); override;
     function ExecuteCommand(const Command: enum_server_command; const Bin: my_char; const Size: my_int; const Retry: Boolean): my_int; virtual;
     function GetCodePage(): Cardinal; override;
     function ReadRow(var Row: MYSQL_RES.PRow): my_int; virtual;
@@ -175,7 +183,6 @@ type
     function Seterror(const AErrNo: my_uint; const AError: RawByteString = ''): my_uint; override;
   public
     constructor Create(); override;
-    destructor Destroy(); override;
     function affected_rows(): my_ulonglong; virtual;
     function character_set_name(): my_char; virtual;
     function dump_debug_info(): my_int; virtual;
@@ -299,14 +306,6 @@ const
   MYSQL_CLIENT_VERSION  = 40101;
   NET_HEADER_SIZE       = 4;
   PROTOCOL_VERSION      = 10;
-
-  CLIENT_CAPABILITIES  = CLIENT_LONG_PASSWORD or
-                         CLIENT_LONG_FLAG or
-                         CLIENT_LOCAL_FILES or
-                         CLIENT_PROTOCOL_41 or
-                         CLIENT_TRANSACTIONS or
-                         CLIENT_SECURE_CONNECTION or
-                         CLIENT_SESSION_TRACK;
 
 type
   TWSAConnectByNameA = function(
@@ -897,8 +896,7 @@ end;
 
 destructor TMySQL_IO.Destroy();
 begin
-  if (IOType <> itNone) then
-    Close();
+  Close();
 
   inherited;
 end;
@@ -1205,7 +1203,7 @@ end;
 
 { TMySQL_File *****************************************************************}
 
-procedure TMySQL_Packet.ClosePacket();
+procedure TMySQL_Packet.Close();
 var
   C: AnsiChar;
 begin
@@ -1217,7 +1215,7 @@ begin
     FlushPacketBuffers();
   end;
 
-  Close();
+  inherited;
 
   FreeBuffer(CompressedBuffer);
   FreeBuffer(DecompressedBuffer);
@@ -1785,7 +1783,7 @@ begin
   Result := my_char(fcharacter_set_name);
 end;
 
-procedure MYSQL.ClosePacket();
+procedure MYSQL.Close();
 begin
   if (Assigned(fres)) then
     FreeAndNil(fres);
@@ -1839,13 +1837,6 @@ begin
   fwarning_count := 0;
   SERVER_CAPABILITIES := 0;
   SERVER_STATUS := 0;
-end;
-
-destructor MYSQL.Destroy();
-begin
-  ClosePacket();
-
-  inherited;
 end;
 
 function MYSQL.dump_debug_info(): my_int;
@@ -2279,7 +2270,9 @@ var
   S: string;
   Salt: RawByteString;
 begin
-  if (IOType = itNone) then
+  if (IOType <> itNone) then
+    Seterror(CR_ALREADY_CONNECTED)
+  else
   begin
     if (host = '') then
       fhost := LOCAL_HOST
@@ -2462,7 +2455,7 @@ begin
 
   if (errno() <> 0) then
   begin
-    ClosePacket();
+    Close();
     Result := nil;
   end
   else

@@ -301,8 +301,7 @@ type
         ntShowCharacterSetStmt,
         ntShowCollationStmt,
         ntShowColumnsStmt,
-        ntShowCountErrorsStmt,
-        ntShowCountWarningsStmt,
+        ntShowCountStmt,
         ntShowCreateDatabaseStmt,
         ntShowCreateEventStmt,
         ntShowCreateFunctionStmt,
@@ -454,8 +453,7 @@ type
         stShowCharacterSet,
         stShowCollation,
         stShowColumns,
-        stShowCountErrors,
-        stShowCountWarnings,
+        stShowCount,
         stShowCreateDatabase,
         stShowCreateEvent,
         stShowCreateFunction,
@@ -623,6 +621,7 @@ type
         ditForeignKey,
         ditPartition,
         ditUser,
+        ditConstraint,
         ditAlias,
         ditEngine,
         ditCharset,
@@ -801,8 +800,7 @@ type
         'ntShowCharacterSetStmt',
         'ntShowCollationStmt',
         'ntShowColumnsStmt',
-        'ntShowCountErrorsStmt',
-        'ntShowCountWarningsStmt',
+        'ntShowCountStmt',
         'ntShowCreateDatabaseStmt',
         'ntShowCreateEventStmt',
         'ntShowCreateFunctionStmt',
@@ -954,8 +952,7 @@ type
         'stShowCharacterSet',
         'stShowCollation',
         'stShowColumns',
-        'stShowCountErrors',
-        'stShowCountWarnings',
+        'stShowCount',
         'stShowCreateDatabase',
         'stShowCreateEvent',
         'stShowCreateFunction',
@@ -1123,6 +1120,7 @@ type
         'ditForeignKey',
         'ditPartition',
         'ditUser',
+        'ditConstraint',
         'ditAlias',
         'ditEngine',
         'ditCharset',
@@ -1233,8 +1231,7 @@ type
         ntShowCharacterSetStmt,
         ntShowCollationStmt,
         ntShowColumnsStmt,
-        ntShowCountErrorsStmt,
-        ntShowCountWarningsStmt,
+        ntShowCountStmt,
         ntShowCreateDatabaseStmt,
         ntShowCreateEventStmt,
         ntShowCreateFunctionStmt,
@@ -1453,8 +1450,7 @@ type
         ntShowCharacterSetStmt,
         ntShowCollationStmt,
         ntShowColumnsStmt,
-        ntShowCountErrorsStmt,
-        ntShowCountWarningsStmt,
+        ntShowCountStmt,
         ntShowCreateDatabaseStmt,
         ntShowCreateEventStmt,
         ntShowCreateFunctionStmt,
@@ -2599,7 +2595,8 @@ type
         private type
           TNodes = packed record
             AddTag: TOffset;
-            ConstraintNode: TOffset;
+            ConstraintTag: TOffset;
+            ConstraintIdent: TOffset;
             ForeignKeyTag: TOffset;
             NameIdent: TOffset;
             ColumnNameList: TOffset;
@@ -2619,7 +2616,8 @@ type
         private type
           TNodes = packed record
             AddTag: TOffset;
-            ConstraintNode: TOffset;
+            ConstraintTag: TOffset;
+            ConstraintIdent: TOffset;
             KeyTag: TOffset;
             KeyIdent: TOffset;
             IndexTypeTag: TOffset;
@@ -2969,7 +2967,7 @@ type
       private type
         TNodes = packed record
           StmtTag: TOffset;
-          Ident: TOffset;
+          IdentList: TOffset;
           ConditionTag: TOffset;
           ForTag: TOffset;
           ErrorCode: TOffset;
@@ -2990,7 +2988,7 @@ type
       private type
         TNodes = packed record
           StmtTag: TOffset;
-          Ident: TOffset;
+          IdentList: TOffset;
           CursorTag: TOffset;
           SelectStmt: TOffset;
         end;
@@ -4857,28 +4855,13 @@ type
         property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
-      PShowCountErrorsStmt = ^TShowCountErrorsStmt;
-      TShowCountErrorsStmt = packed record
+      PShowCountStmt = ^TShowCountStmt;
+      TShowCountStmt = packed record
       private type
         TNodes = packed record
           StmtTag: TOffset;
-          CountFuncCall: TOffset;
-        end;
-      private
-        Heritage: TStmt;
-      private
-        Nodes: TNodes;
-        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
-      public
-        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
-      end;
-
-      PShowCountWarningsStmt = ^TShowCountWarningsStmt;
-      TShowCountWarningsStmt = packed record
-      private type
-        TNodes = packed record
-          StmtTag: TOffset;
-          CountFuncCall: TOffset;
+          CountFunc: TOffset;
+          KindTag: TOffset;
         end;
       private
         Heritage: TStmt;
@@ -6772,8 +6755,8 @@ type
     function ParseCreateTableStmtDefinition(): TOffset; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseCreateTableStmtDefinition(const AlterTableStmt: Boolean): TOffset; overload;
     function ParseCreateTableStmtDefinitionPartitionNames(): TOffset;
-    function ParseCreateTableStmtForeignKey(const ConstraintNode: TOffset; const AddTag: TOffset): TOffset;
-    function ParseCreateTableStmtKey(const ConstraintNode: TOffset; const AddTag: TOffset): TOffset;
+    function ParseCreateTableStmtForeignKey(const ConstraintTag, ConstraintIdent, AddTag: TOffset): TOffset;
+    function ParseCreateTableStmtKey(const ConstraintTag, ConstraintIdent, AddTag: TOffset): TOffset;
     function ParseCreateTableStmtKeyColumn(): TOffset;
     function ParseCreateTableStmtPartition(): TOffset; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseCreateTableStmtPartition(const AddTag: TOffset): TOffset; overload;
@@ -6791,11 +6774,11 @@ type
     function ParseDbIdent(const ADbIdentType: TDbIdentType; const FullQualified: Boolean = True; const JokerAllowed: Boolean = False): TOffset; overload;
     function ParseDefinerValue(): TOffset;
     function ParseDeallocatePrepareStmt(): TOffset;
-    function ParseDeclareStmt(): TOffset;
-    function ParseDeclareConditionStmt(): TOffset;
-    function ParseDeclareCursorStmt(): TOffset;
-    function ParseDeclareHandlerStmt(): TOffset;
+    function ParseDeclareConditionStmt(const StmtTag: TOffset; const IdentList: TOffset): TOffset;
+    function ParseDeclareCursorStmt(const StmtTag: TOffset; const IdentList: TOffset): TOffset;
+    function ParseDeclareHandlerStmt(const StmtTag: TOffset): TOffset;
     function ParseDeclareHandlerStmtCondition(): TOffset;
+    function ParseDeclareStmt(): TOffset;
     function ParseDefaultFunc(): TOffset;
     function ParseDeleteStmt(): TOffset;
     function ParseDoStmt(): TOffset;
@@ -6906,8 +6889,7 @@ type
     function ParseShowCharacterSetStmt(): TOffset;
     function ParseShowCollationStmt(): TOffset;
     function ParseShowColumnsStmt(): TOffset;
-    function ParseShowCountErrorsStmt(): TOffset;
-    function ParseShowCountWarningsStmt(): TOffset;
+    function ParseShowCountStmt(): TOffset;
     function ParseShowCreateDatabaseStmt(): TOffset;
     function ParseShowCreateEventStmt(): TOffset;
     function ParseShowCreateFunctionStmt(): TOffset;
@@ -10740,27 +10722,13 @@ begin
   end;
 end;
 
-{ TSQLParser.TShowCountErrorsStmt *********************************************}
+{ TSQLParser.TShowCountStmt ***************************************************}
 
-class function TSQLParser.TShowCountErrorsStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowCountStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
-  Result := TStmt.Create(AParser, stShowCountErrors);
+  Result := TStmt.Create(AParser, stShowCount);
 
-  with PShowCountErrorsStmt(AParser.NodePtr(Result))^ do
-  begin
-    Nodes := ANodes;
-
-    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
-  end;
-end;
-
-{ TSQLParser.TShowCountWarningsStmt *******************************************}
-
-class function TSQLParser.TShowCountWarningsStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
-begin
-  Result := TStmt.Create(AParser, stShowCountWarnings);
-
-  with PShowCountWarningsStmt(AParser.NodePtr(Result))^ do
+  with PShowCountStmt(AParser.NodePtr(Result))^ do
   begin
     Nodes := ANodes;
 
@@ -12355,7 +12323,8 @@ end;
 procedure TSQLParser.FormatCreateTableStmtKey(const Nodes: TCreateTableStmt.TKey.TNodes);
 begin
   FormatNode(Nodes.AddTag, stSpaceAfter);
-  FormatNode(Nodes.ConstraintNode, stSpaceAfter);
+  FormatNode(Nodes.ConstraintTag, stSpaceAfter);
+  FormatNode(Nodes.ConstraintIdent, stSpaceAfter);
   FormatNode(Nodes.KeyTag);
   FormatNode(Nodes.KeyIdent, stSpaceBefore);
   FormatNode(Nodes.IndexTypeTag, stSpaceBefore);
@@ -12647,7 +12616,7 @@ end;
 procedure TSQLParser.FormatDeclareCursorStmt(const Nodes: TDeclareCursorStmt.TNodes);
 begin
   FormatNode(Nodes.StmtTag);
-  FormatNode(Nodes.Ident, stSpaceBefore);
+  FormatNode(Nodes.IdentList, stSpaceBefore);
   FormatNode(Nodes.CursorTag, stSpaceBefore);
   Commands.IncreaseIndent();
   FormatNode(Nodes.SelectStmt, stReturnBefore);
@@ -13356,8 +13325,7 @@ begin
       ntShowCharacterSetStmt: DefaultFormatNode(@PShowCharacterSetStmt(Node)^.Nodes, SizeOf(TShowCharacterSetStmt.TNodes));
       ntShowCollationStmt: DefaultFormatNode(@PShowCollationStmt(Node)^.Nodes, SizeOf(TShowCollationStmt.TNodes));
       ntShowColumnsStmt: DefaultFormatNode(@PShowColumnsStmt(Node)^.Nodes, SizeOf(TShowColumnsStmt.TNodes));
-      ntShowCountErrorsStmt: DefaultFormatNode(@PShowCountErrorsStmt(Node)^.Nodes, SizeOf(TShowCountErrorsStmt.TNodes));
-      ntShowCountWarningsStmt: DefaultFormatNode(@PShowCountWarningsStmt(Node)^.Nodes, SizeOf(TShowCountWarningsStmt.TNodes));
+      ntShowCountStmt: DefaultFormatNode(@PShowCountStmt(Node)^.Nodes, SizeOf(TShowCountStmt.TNodes));
       ntShowCreateDatabaseStmt: DefaultFormatNode(@PShowCreateDatabaseStmt(Node)^.Nodes, SizeOf(TShowCreateDatabaseStmt.TNodes));
       ntShowCreateEventStmt: DefaultFormatNode(@PShowCreateEventStmt(Node)^.Nodes, SizeOf(TShowCreateEventStmt.TNodes));
       ntShowCreateFunctionStmt: DefaultFormatNode(@PShowCreateFunctionStmt(Node)^.Nodes, SizeOf(TShowCreateFunctionStmt.TNodes));
@@ -14094,7 +14062,7 @@ begin
   else if ((Token.UsageType = utDbIdent)
     and ((Token.TokenType = ttMySQLIdent)
       or (Token.TokenType = ttDQIdent) and AnsiQuotes)
-      or (Token.DbIdentType in [ditDatabase, ditTable, ditProcedure, ditFunction, ditTrigger, ditEvent, ditKey, ditField, ditForeignKey, ditPartition, ditAlias])) then
+      or (Token.DbIdentType in [ditDatabase, ditTable, ditProcedure, ditFunction, ditTrigger, ditEvent, ditKey, ditField, ditForeignKey, ditPartition, ditConstraint, ditAlias])) then
     if (AnsiQuotes) then
       Commands.Write(SQLEscape(Token.AsString, '"'))
     else
@@ -14845,8 +14813,7 @@ begin
     ntShowCharacterSetStmt: Result := SizeOf(TShowCharacterSetStmt);
     ntShowCollationStmt: Result := SizeOf(TShowCollationStmt);
     ntShowColumnsStmt: Result := SizeOf(TShowColumnsStmt);
-    ntShowCountErrorsStmt: Result := SizeOf(TShowCountErrorsStmt);
-    ntShowCountWarningsStmt: Result := SizeOf(TShowCountWarningsStmt);
+    ntShowCountStmt: Result := SizeOf(TShowCountStmt);
     ntShowCreateDatabaseStmt: Result := SizeOf(TShowCreateDatabaseStmt);
     ntShowCreateEventStmt: Result := SizeOf(TShowCreateEventStmt);
     ntShowCreateFunctionStmt: Result := SizeOf(TShowCreateFunctionStmt);
@@ -15543,7 +15510,7 @@ begin
       Specifications.Add(ParseValue(WordIndices(kiOPTIMIZE, kiPARTITION), vaNo, ParseCreateTableStmtDefinitionPartitionNames))
     else if (IsTag(kiREBUILD, kiPARTITION)) then
       Specifications.Add(ParseValue(WordIndices(kiREBUILD, kiPARTITION), vaNo, ParseCreateTableStmtDefinitionPartitionNames))
-    else if (IsTag(kiREMOVE, kiPARTITION)) then
+    else if (IsTag(kiREMOVE, kiPARTITIONING)) then
       Specifications.Add(ParseTag(kiREMOVE, kiPARTITIONING))
     else if (IsTag(kiREORGANIZE, kiPARTITION)) then
       Specifications.Add(ParseAlterTableStmtReorganizePartition())
@@ -17247,43 +17214,43 @@ end;
 function TSQLParser.ParseCreateTableStmtDefinition(const AlterTableStmt: Boolean): TOffset;
 var
   AddTag: TOffset;
-  ConstraintNode: TOffset;
+  ConstraintIdent: TOffset;
+  ConstraintTag: TOffset;
 begin
   AddTag := 0;
   if (AlterTableStmt) then
     AddTag := ParseTag(kiADD);
 
-  ConstraintNode := 0;
-  if (IsTag(kiCONSTRAINT)) then
-    if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.TokenType in ttIdents)
-      and not IsNextTag(1, kiPRIMARY)
-      and not IsNextTag(1, kiFOREIGN)
-      and not IsNextTag(1, kiUNIQUE)) then
-      ConstraintNode := ParseValue(kiCONSTRAINT, vaNo, ParseDbIdent)
-    else if (not EndOfStmt(NextToken[1])
-      and ((TokenPtr(NextToken[1])^.TokenType = ttString) or (TokenPtr(NextToken[1])^.TokenType = ttDQIdent) and not AnsiQuotes)) then
-      ConstraintNode := ParseValue(kiCONSTRAINT, vaNo, ParseString)
-    else
-      ConstraintNode := ParseTag(kiCONSTRAINT);
+  ConstraintTag := 0; ConstraintIdent := 0;
+  if (not ErrorFound) then
+    if (IsTag(kiCONSTRAINT)) then
+    begin
+      ConstraintTag := ParseTag(kiCONSTRAINT);
+
+      if (not IsTag(kiPRIMARY, kiKEY)
+        and not IsTag(kiFOREIGN, kiKEY)
+        and not IsTag(kiUNIQUE)) then
+        ConstraintIdent := ParseDbIdent(ditConstraint);
+    end;
 
   if (IsTag(kiPRIMARY, kiKEY)
     or IsTag(kiUNIQUE, kiINDEX)
     or IsTag(kiUNIQUE, kiKEY)
     or IsTag(kiUNIQUE)
-    or (ConstraintNode = 0) and IsTag(kiFULLTEXT, kiINDEX)
-    or (ConstraintNode = 0) and IsTag(kiFULLTEXT, kiKEY)
-    or (ConstraintNode = 0) and IsTag(kiSPATIAL, kiINDEX)
-    or (ConstraintNode = 0) and IsTag(kiSPATIAL, kiKEY)
-    or (ConstraintNode = 0) and IsTag(kiINDEX)
-    or (ConstraintNode = 0) and IsTag(kiKEY)) then
-    Result := ParseCreateTableStmtKey(ConstraintNode, AddTag)
+    or (ConstraintTag = 0) and IsTag(kiFULLTEXT, kiINDEX)
+    or (ConstraintTag = 0) and IsTag(kiFULLTEXT, kiKEY)
+    or (ConstraintTag = 0) and IsTag(kiSPATIAL, kiINDEX)
+    or (ConstraintTag = 0) and IsTag(kiSPATIAL, kiKEY)
+    or (ConstraintTag = 0) and IsTag(kiINDEX)
+    or (ConstraintTag = 0) and IsTag(kiKEY)) then
+    Result := ParseCreateTableStmtKey(ConstraintTag, ConstraintIdent, AddTag)
   else if (IsTag(kiFOREIGN, kiKEY)) then
-    Result := ParseCreateTableStmtForeignKey(ConstraintNode, AddTag)
-  else if ((AddTag = 0) and (ConstraintNode = 0) and IsTag(kiCHECK)) then
+    Result := ParseCreateTableStmtForeignKey(ConstraintTag, ConstraintIdent, AddTag)
+  else if ((AddTag = 0) and (ConstraintTag = 0) and IsTag(kiCHECK)) then
     Result := ParseCreateTableStmtCheck()
-  else if ((ConstraintNode = 0) and IsTag(kiPARTITION)) then
+  else if ((ConstraintTag = 0) and IsTag(kiPARTITION)) then
     Result := ParseCreateTableStmtPartition(AddTag)
-  else if (ConstraintNode = 0) then
+  else if (ConstraintTag = 0) then
     if (not AlterTableStmt) then
       Result := ParseCreateTableStmtField(fatNone, AddTag)
     else
@@ -17308,7 +17275,7 @@ begin
     Result := ParseList(False, ParsePartitionIdent);
 end;
 
-function TSQLParser.ParseCreateTableStmtForeignKey(const ConstraintNode: TOffset; const AddTag: TOffset): TOffset;
+function TSQLParser.ParseCreateTableStmtForeignKey(const ConstraintTag, ConstraintIdent, AddTag: TOffset): TOffset;
 var
   Nodes: TCreateTableStmt.TForeignKey.TNodes;
 begin
@@ -17316,7 +17283,9 @@ begin
 
   Nodes.AddTag := AddTag;
 
-  Nodes.ConstraintNode := ConstraintNode;
+  Nodes.ConstraintTag := ConstraintTag;
+
+  Nodes.ConstraintIdent := ConstraintIdent;
 
   if (not ErrorFound) then
     Nodes.ForeignKeyTag := ParseTag(kiFOREIGN, kiKEY);
@@ -17334,7 +17303,7 @@ begin
   Result := TCreateTableStmt.TForeignKey.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseCreateTableStmtKey(const ConstraintNode: TOffset; const AddTag: TOffset): TOffset;
+function TSQLParser.ParseCreateTableStmtKey(const ConstraintTag, ConstraintIdent, AddTag: TOffset): TOffset;
 var
   Found: Boolean;
   KeyName: Boolean;
@@ -17345,7 +17314,9 @@ begin
 
   Nodes.AddTag := AddTag;
 
-  Nodes.ConstraintNode := ConstraintNode;
+  Nodes.ConstraintTag := ConstraintTag;
+
+  Nodes.ConstraintIdent := ConstraintIdent;
 
   KeyName := True; KeyType := False;
   if (not ErrorFound) then
@@ -17646,8 +17617,7 @@ begin
     end;
 
   if (not ErrorFound) then
-    if (IsSymbol(ttOpenBracket)
-      and (not IsNextTag(1, kiSELECT))) then
+    if (IsSymbol(ttOpenBracket) and not IsNextTag(1, kiSELECT)) then
       Nodes.DefinitionList := ParseList(True, ParseCreateTableStmtPartition);
 
   Result := TCreateTableStmt.TPartitionOptions.Create(Self, Nodes);
@@ -18167,9 +18137,9 @@ function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
       Result := 0;
     end
     else if ((TokenPtr(CurrentToken)^.TokenType = ttIdent) and (QualifiedIdentifier or (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0))
-      or (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent)
-      or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and (AnsiQuotes or (ADbIdentType in [ditAlias]))
-      or (TokenPtr(CurrentToken)^.TokenType = ttString) and (ADbIdentType in [ditAlias])
+      or (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent) and not (ADbIdentType in [ditCharset, ditCollation])
+      or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and (AnsiQuotes or (ADbIdentType in [ditCharset, ditCollation, ditConstraint, ditAlias]))
+      or (TokenPtr(CurrentToken)^.TokenType = ttString) and (ADbIdentType in [ditCharset, ditCollation, ditConstraint, ditAlias])
       or (TokenPtr(CurrentToken)^.OperatorType = otMulti) and JokerAllowed and (ADbIdentType in [ditDatabase, ditTable, ditProcedure, ditFunction, ditField])) then
     begin
       TokenPtr(CurrentToken)^.FOperatorType := otNone;
@@ -18334,28 +18304,7 @@ begin
   Result := TDeallocatePrepareStmt.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseDeclareStmt(): TOffset;
-var
-  Nodes: TDeclareStmt.TNodes;
-begin
-  FillChar(Nodes, SizeOf(Nodes), 0);
-
-  Nodes.StmtTag := ParseTag(kiDECLARE);
-
-  if (not ErrorFound) then
-    Nodes.IdentList := ParseList(False, ParseDbIdent);
-
-  if (not ErrorFound) then
-    Nodes.TypeNode := ParseDatatype();
-
-  if (not ErrorFound) then
-    if (IsTag(kiDEFAULT)) then
-      Nodes.DefaultValue := ParseValue(kiDEFAULT, vaNo, ParseExpr);
-
-  Result := TDeclareStmt.Create(Self, Nodes);
-end;
-
-function TSQLParser.ParseDeclareConditionStmt(): TOffset;
+function TSQLParser.ParseDeclareConditionStmt(const StmtTag: TOffset; const IdentList: TOffset): TOffset;
 var
   Nodes: TDeclareConditionStmt.TNodes;
 begin
@@ -18363,8 +18312,7 @@ begin
 
   Nodes.StmtTag := ParseTag(kiDECLARE);
 
-  if (not ErrorFound) then
-    Nodes.Ident := ParseDbIdent();
+  Nodes.IdentList := IdentList;
 
   if (not ErrorFound) then
     Nodes.ConditionTag := ParseTag(kiCONDITION, kiFOR);
@@ -18390,16 +18338,15 @@ begin
   Result := TDeclareConditionStmt.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseDeclareCursorStmt(): TOffset;
+function TSQLParser.ParseDeclareCursorStmt(const StmtTag: TOffset; const IdentList: TOffset): TOffset;
 var
   Nodes: TDeclareCursorStmt.TNodes;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.StmtTag := ParseTag(kiDECLARE);
+  Nodes.StmtTag := StmtTag;
 
-  if (not ErrorFound) then
-    Nodes.Ident := ParseDbIdent();
+  Nodes.IdentList := IdentList;
 
   if (not ErrorFound) then
     Nodes.CursorTag := ParseTag(kiCURSOR, kiFOR);
@@ -18410,13 +18357,13 @@ begin
   Result := TDeclareCursorStmt.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseDeclareHandlerStmt(): TOffset;
+function TSQLParser.ParseDeclareHandlerStmt(const StmtTag: TOffset): TOffset;
 var
   Nodes: TDeclareHandlerStmt.TNodes;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.StmtTag := ParseTag(kiDECLARE);
+  Nodes.StmtTag := StmtTag;
 
   if (not ErrorFound) then
     if (IsTag(kiCONTINUE)) then
@@ -18466,6 +18413,49 @@ begin
     SetError(PE_IncompleteStmt)
   else
     SetError(PE_UnexpectedToken);
+end;
+
+function TSQLParser.ParseDeclareStmt(): TOffset;
+var
+  Nodes: TDeclareStmt.TNodes;
+  IdentList: TOffset;
+  StmtTag: TOffset;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
+  StmtTag := ParseTag(kiDECLARE);
+
+  if (ErrorFound) then
+  begin
+    SetError(PE_Unknown);
+    Result := 0;
+  end
+  else if (IsTag(kiCONTINUE, kiHANDLER)
+    or IsTag(kiEXIT, kiHANDLER)
+    or IsTag(kiUNDO, kiHANDLER)) then
+    Result := ParseDeclareHandlerStmt(StmtTag)
+  else
+  begin
+    IdentList := ParseList(False, ParseDbIdent);
+
+    if (not ErrorFound and IsTag(kiCONDITION, kiFOR)) then
+      Result := ParseDeclareConditionStmt(StmtTag, IdentList)
+    else if (not ErrorFound and IsTag(kiCURSOR, kiFOR)) then
+      Result := ParseDeclareCursorStmt(StmtTag, IdentList)
+    else
+    begin
+      Nodes.IdentList := IdentList;
+
+      if (not ErrorFound) then
+        Nodes.TypeNode := ParseDatatype();
+
+      if (not ErrorFound) then
+        if (IsTag(kiDEFAULT)) then
+          Nodes.DefaultValue := ParseValue(kiDEFAULT, vaNo, ParseExpr);
+
+      Result := TDeclareStmt.Create(Self, Nodes);
+    end;
+  end;
 end;
 
 function TSQLParser.ParseDefaultFunc(): TOffset;
@@ -18952,7 +18942,7 @@ begin
         Nodes.Add(ApplyCurrentToken(utString))
       else if (TokenPtr(CurrentToken)^.TokenType = ttAt) then
         Nodes.Add(ParseVariableIdent())
-      else if (TokenPtr(CurrentToken)^.TokenType = ttOpenBracket) then
+      else if (IsSymbol(ttOpenBracket)) then
         if (IsNextTag(1, kiSELECT)) then
           Nodes.Add(ParseSubSelectStmt())
         else
@@ -19067,8 +19057,8 @@ begin
             or (TokenPtr(CurrentToken)^.KeywordIndex = kiUNKNOWN)) then
           Nodes.Add(ApplyCurrentToken(utDbIdent))
         else if (IsNextSymbol(1, ttDot)) then
-          if (not EndOfStmt(NextToken[2]) and (TokenPtr(NextToken[2])^.TokenType in ttIdents)
-            and not EndOfStmt(NextToken[3]) and (TokenPtr(NextToken[3])^.TokenType = ttOpenBracket)) then
+          if (EndOfStmt(NextToken[2]) and (TokenPtr(NextToken[2])^.TokenType in ttIdents)
+            and EndOfStmt(NextToken[3]) and (TokenPtr(NextToken[3])^.TokenType = ttOpenBracket)) then
             Nodes.Add(ParseDefaultFunc()) // Db.Func()
           else
             Nodes.Add(ParseDbIdent(ditField, True, eoAllFields in Options)) // Tbl.Clmn or Db.Tbl.Clmn
@@ -19240,9 +19230,6 @@ begin
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)
                 and ((NodeIndex < 2) or IsOperator(Nodes[NodeIndex - 2]))) then
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex])
-              else if ((not IsToken(Nodes[NodeIndex - 1]) or (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex <> kiNOT))
-                and (IsOperator(Nodes[NodeIndex - 1]) or not IsToken(Nodes[NodeIndex - 1]) and (NodePtr(Nodes[NodeIndex - 1])^.NodeType <> ntDbIdent) and (NodePtr(Nodes[NodeIndex - 1])^.NodeType <> ntList) and (NodePtr(Nodes[NodeIndex - 1])^.NodeType <> ntSelectStmt))) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if (NodeIndex + 1 = Nodes.Count) then
                 SetError(PE_IncompleteStmt)
@@ -19517,7 +19504,12 @@ begin
   if (IsTag(kiHOSTS)) then
     Nodes.OptionTag := ParseTag(kiHOSTS)
   else if (IsTag(kiLOGS)
-    or IsNextTag(1, kiLOGS)) then
+    or IsTag(kiBINARY, kiLOGS)
+    or IsTag(kiENGINE, kiLOGS)
+    or IsTag(kiERROR, kiLOGS)
+    or IsTag(kiGENERAL, kiLOGS)
+    or IsTag(kiRELAY, kiLOGS)
+    or IsTag(kiSLOW, kiLOGS)) then
     Nodes.OptionTag := ParseFlushStmtOptionLogs()
   else if (IsTag(kiPRIVILEGES)) then
     Nodes.OptionTag := ParseTag(kiPRIVILEGES)
@@ -20160,8 +20152,7 @@ begin
     end
     else if (IsTag(kiSELECT)) then
       Nodes.SelectStmt := ParseSelectStmt(True)
-    else if (IsSymbol(ttOpenBracket)
-      and IsNextTag(1, kiSELECT)) then
+    else if (IsSymbol(ttOpenBracket) and IsNextTag(1, kiSELECT)) then
       Nodes.SelectStmt := ParseSelectStmt(True)
     else if (not EndOfStmt(CurrentToken)) then
     begin
@@ -22503,54 +22494,24 @@ begin
   Result := TShowColumnsStmt.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseShowCountErrorsStmt(): TOffset;
+function TSQLParser.ParseShowCountStmt(): TOffset;
 var
-  Nodes: TShowCountErrorsStmt.TNodes;
+  Nodes: TShowCountStmt.TNodes;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
   Nodes.StmtTag := ParseTag(kiSHOW);
 
   if (not ErrorFound) then
-    if (EndOfStmt(NextToken[3])) then
-      SetError(PE_IncompleteStmt)
-    else if (TokenPtr(CurrentToken)^.TokenType <> ttIdent) then
-      SetError(PE_UnexpectedToken)
-    else if (TokenPtr(NextToken[1])^.TokenType <> ttOpenBracket) then
-      SetError(PE_UnexpectedToken, NextToken[1])
-    else if (TokenPtr(NextToken[2])^.OperatorType <> otMulti) then
-      SetError(PE_UnexpectedToken, NextToken[2])
-    else if (TokenPtr(NextToken[3])^.TokenType <> ttCloseBracket) then
-      SetError(PE_UnexpectedToken, NextToken[3])
-    else
-      Nodes.CountFuncCall := ParseCountFunc();
-
-  Result := TShowCountErrorsStmt.Create(Self, Nodes);
-end;
-
-function TSQLParser.ParseShowCountWarningsStmt(): TOffset;
-var
-  Nodes: TShowCountWarningsStmt.TNodes;
-begin
-  FillChar(Nodes, SizeOf(Nodes), 0);
-
-  Nodes.StmtTag := ParseTag(kiSHOW);
+    Nodes.CountFunc := ParseCountFunc();
 
   if (not ErrorFound) then
-    if (EndOfStmt(NextToken[3])) then
-      SetError(PE_IncompleteStmt)
-    else if (TokenPtr(CurrentToken)^.TokenType <> ttIdent) then
-      SetError(PE_UnexpectedToken)
-    else if (TokenPtr(NextToken[1])^.TokenType <> ttOpenBracket) then
-      SetError(PE_UnexpectedToken, NextToken[1])
-    else if (TokenPtr(NextToken[2])^.OperatorType <> otMulti) then
-      SetError(PE_UnexpectedToken, NextToken[2])
-    else if (TokenPtr(NextToken[3])^.TokenType <> ttCloseBracket) then
-      SetError(PE_UnexpectedToken, NextToken[3])
+    if (IsTag(kiERRORS)) then
+      Nodes.KindTag := ParseTag(kiERRORS)
     else
-      Nodes.CountFuncCall := ParseCountFunc();
+      Nodes.KindTag := ParseTag(kiWARNINGS);
 
-  Result := TShowCountWarningsStmt.Create(Self, Nodes);
+  Result := TShowCountStmt.Create(Self, Nodes);
 end;
 
 function TSQLParser.ParseShowCreateDatabaseStmt(): TOffset;
@@ -23519,12 +23480,6 @@ begin
     Result := ParseCreateStmt()
   else if (IsTag(kiDEALLOCATE)) then
     Result := ParseDeallocatePrepareStmt()
-  else if (InCompound and IsTag(kiDECLARE) and IsNextTag(2, kiCONDITION)) then
-    Result := ParseDeclareConditionStmt()
-  else if (InCompound and IsTag(kiDECLARE) and IsNextTag(2, kiCURSOR)) then
-    Result := ParseDeclareCursorStmt()
-  else if (InCompound and IsTag(kiDECLARE) and IsNextTag(2, kiHANDLER)) then
-    Result := ParseDeclareHandlerStmt()
   else if (InCompound and IsTag(kiDECLARE)) then
     Result := ParseDeclareStmt()
   else if (IsTag(kiDELETE)) then
@@ -23654,12 +23609,10 @@ begin
     Result := ParseShowCollationStmt()
   else if (IsTag(kiSHOW, kiCOLUMNS)) then
     Result := ParseShowColumnsStmt()
-  else if (IsTag(kiSHOW) and IsNextTag(5, kiERRORS)) then // SHOW COUNT(*) ERRORS
-    Result := ParseShowCountErrorsStmt()
+  else if (IsTag(kiSHOW) and (StrLIComp(PChar(TokenPtr(NextToken[1])^.Text), 'COUNT', 5) = 0)) then
+    Result := ParseShowCountStmt()
   else if (IsTag(kiSHOW, kiFIELDS)) then
     Result := ParseShowColumnsStmt()
-  else if (IsTag(kiSHOW) and IsNextTag(5, kiWARNINGS)) then // SHOW COUNT(*) WARINGS
-    Result := ParseShowCountWarningsStmt()
   else if (IsTag(kiSHOW, kiCREATE, kiDATABASE)) then
     Result := ParseShowCreateDatabaseStmt()
   else if (IsTag(kiSHOW, kiCREATE, kiEVENT)) then

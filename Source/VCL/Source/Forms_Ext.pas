@@ -150,7 +150,7 @@ begin
 
   DoubleBuffered := True;
   MouseDownPoint := Point(-1, -1);
-  FShowGripper := not IsWine();
+  FShowGripper := True; // not IsWine();
 end;
 
 procedure TForm_Ext.CreateWindowHandle(const Params: TCreateParams);
