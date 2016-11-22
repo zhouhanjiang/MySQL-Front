@@ -4008,11 +4008,12 @@ begin
         begin
           // Debug 2016-11-21
           if (TSBaseTable(TTExport.TDBObjectItem(Items[I]).DBObject).Source = '') then
-            raise ERangeError.Create(SRangeError)
-          else if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Items[I]).DBObject).Engine)) then
+            raise ERangeError.Create(SRangeError);
+          if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Items[I]).DBObject).Engine)) then
             raise ERangeError.Create(SRangeError);
 
-          DataTable := TDBObjectItem(Items[I]).DBObject is TSBaseTable and not TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine.IsMerge;
+          DataTable := TDBObjectItem(Items[I]).DBObject is TSBaseTable;
+          DataTable := DataTable and not TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine.IsMerge;
         end
         else if (Self is TTTransfer) then
           DataTable := TDBObjectItem(Items[I]).DBObject is TSBaseTable and (TTTransfer(Self).DestinationSession <> Session)

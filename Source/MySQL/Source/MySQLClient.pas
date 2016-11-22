@@ -2367,12 +2367,18 @@ begin
         begin
           CharsetNr := 0;
 
-          for I := 0 to Length(MySQL_Collations) - 1 do
-            if ((lstrcmpiA(MySQL_Collations[I].CharsetName, PAnsiChar(fcharacter_set_name)) = 0) and MySQL_Collations[I].Default) then
-            begin
-              CharsetNr := MySQL_Collations[I].CharsetNr;
-              fcharacter_set_name := MySQL_Collations[I].CharsetName;
-            end;
+          if ((get_server_version() >= 50503) and (StrIComp(PAnsiChar(fcharacter_set_name), 'utf8') = 0)) then
+          begin
+            CharsetNr := 45;
+            fcharacter_set_name := 'utf8mb4';
+          end
+          else
+            for I := 0 to Length(MySQL_Collations) - 1 do
+              if ((StrIComp(MySQL_Collations[I].CharsetName, PAnsiChar(fcharacter_set_name)) = 0) and MySQL_Collations[I].Default) then
+              begin
+                CharsetNr := MySQL_Collations[I].CharsetNr;
+                fcharacter_set_name := MySQL_Collations[I].CharsetName;
+              end;
           if (CharsetNr = 0) then
             Seterror(CR_CANT_READ_CHARSET, EncodeString(Format(CLIENT_ERRORS[CR_CANT_READ_CHARSET - CR_MIN_ERROR], [fcharacter_set_name])));
         end;

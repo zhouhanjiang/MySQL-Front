@@ -25440,15 +25440,12 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  if (IsSymbol(ttAt)) then
-  begin
-    Nodes.At1Token := ParseSymbol(ttAt);
+  Nodes.At1Token := ParseSymbol(ttAt);
 
-    if (not ErrorFound and IsSymbol(ttAt)) then
-    begin
-      Nodes.At2Token := Nodes.At1Token;
-      Nodes.At1Token := ParseSymbol(ttAt);
-    end;
+  if (not ErrorFound and IsSymbol(ttAt)) then
+  begin
+    Nodes.At2Token := Nodes.At1Token;
+    Nodes.At1Token := ParseSymbol(ttAt);
   end;
 
   if (not ErrorFound and (Nodes.At1Token > 0)) then

@@ -2228,6 +2228,7 @@ end;
 destructor TMySQLConnection.Destroy();
 var
   I: Integer;
+  TempSyncThread: TSyncThread;
 begin
   Asynchron := False;
   Close();
@@ -2235,14 +2236,19 @@ begin
   while (DataSetCount > 0) do
     DataSets[0].Free();
 
+  TempSyncThread := SyncThread;
   TerminateCS.Enter();
   if (Assigned(SyncThread)) then
     SyncThread.Terminate();
-  for I := 0 to TerminatedThreads.Count - 1 do
+  TerminateCS.Leave();
+  if (Assigned(TempSyncThread)) then
   begin
-    TerminateThread(TThread(TerminatedThreads[I]).Handle, 0);
-    TThread(TerminatedThreads[I]).Free();
+    TempSyncThread.WaitFor();
+    TempSyncThread.Free();
   end;
+  TerminateCS.Enter();
+  for I := 0 to TerminatedThreads.Count - 1 do
+    TerminateThread(TThread(TerminatedThreads[I]).Handle, 0);
   TerminateCS.Leave();
   TerminatedThreads.Free();
 
@@ -5057,7 +5063,7 @@ begin
               end
               else if (LibField.table_length > 0) then
                 Field.Origin := '"' + Connection.LibDecode(LibField.table) + '".' + Field.Origin;
-            Field.ReadOnly := Field.Origin = '';
+            Field.ReadOnly := LibField.table = '';
             if ((Connection.Lib.Version >= 40101) and (LibField.db_length > 0)) then
               if (DName = '') then
                 DName := Connection.LibDecode(LibField.db)

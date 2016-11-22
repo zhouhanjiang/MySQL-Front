@@ -1041,11 +1041,11 @@ begin
       Report := Report + #13#10;
       Report := Report + 'SQL Log:' + #13#10;
       Report := Report + StringOfChar('-', 72) + #13#10;
-      if (Length(ActiveTab.Session.Connection.BugMonitor.CacheText) < 1000) then
+      if (Length(ActiveTab.Session.Connection.BugMonitor.CacheText) < 500) then
         SQL := PChar(ActiveTab.Session.Connection.BugMonitor.CacheText)
       else
       begin
-        SQL := PChar(@ActiveTab.Session.Connection.BugMonitor.CacheText[Length(ActiveTab.Session.Connection.BugMonitor.CacheText) - 1000]);
+        SQL := PChar(@ActiveTab.Session.Connection.BugMonitor.CacheText[Length(ActiveTab.Session.Connection.BugMonitor.CacheText) - 500]);
         while ((StrLen(SQL) > 0) and not CharInSet(SQL[0], [#10, #13])) do SQL := PChar(@SQL[1]);
         while ((StrLen(SQL) > 0) and CharInSet(SQL[0], [#10, #13])) do SQL := PChar(@SQL[1]);
       end;

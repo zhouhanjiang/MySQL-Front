@@ -1070,7 +1070,7 @@ implementation {***************************************************************}
 uses
   MMSystem, Math, DBConsts, Clipbrd, DBCommon, ShellAPI, Variants, Types,
   XMLDoc, Themes, StrUtils, UxTheme, FileCtrl, SysConst, RichEdit, UITypes,
-  ShLwApi, Consts,
+  ShLwApi, Consts, ComObj,
   acQBLocalizer, acQBStrings,
   CommCtrl_Ext, StdActns_Ext,
   MySQLConsts, SQLUtils,
@@ -1270,7 +1270,8 @@ begin
         FSession.Session.Account.HistoryXML.ChildNodes.Delete(0);
       FSession.FSQLHistoryRefresh(nil);
     except
-      FSession.Session.Account.HistoryXML.ChildNodes.Delete(FSession.Session.Account.HistoryXML.ChildNodes.Count - 1);
+      on E: EOleException do
+        FSession.Session.Account.HistoryXML.ChildNodes.Delete(FSession.Session.Account.HistoryXML.ChildNodes.Count - 1);
     end;
   end;
 
@@ -4110,7 +4111,8 @@ begin
       vEditor,
       vEditor2,
       vEditor3:
-        if ((PResult.Visible or (View = vBrowser)) and (ActiveDBGrid.DataSource.DataSet is TMySQLDataSet) and (TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).CommandText <> '')) then
+        if (((View = vBrowser) or PResult.Visible)
+          and (ActiveDBGrid.DataSource.DataSet is TMySQLDataSet)) then
         begin
           AllowRefresh := ActiveDBGrid.DataSource.DataSet.Active;
 
@@ -8040,24 +8042,23 @@ function TFSession.GetActiveDBGrid(): TMySQLDBGrid;
 var
   I: Integer;
 begin
-  Result := nil;
-
-  if (Assigned(FNavigator.Selected)) then
-    case (View) of
-      vBrowser:
-        if (TObject(FNavigator.Selected.Data) is TSTable) then
-          Result := Desktop(TSTable(FNavigator.Selected.Data)).CreateDBGrid();
-      vIDE:
-        if (TObject(FNavigator.Selected.Data) is TSRoutine) then
-          Result := Desktop(TSRoutine(FNavigator.Selected.Data)).ActiveDBGrid;
-      vBuilder:
-        if (TObject(FNavigator.Selected.Data) is TSDatabase) then
-          Result := Desktop(TSDatabase(FNavigator.Selected.Data)).BuilderDBGrid;
-      vEditor,
-      vEditor2,
-      vEditor3:
-        if (not Assigned(SQLEditors[View])) then Result := nil else Result := SQLEditors[View].ActiveDBGrid;
-    end;
+  case (View) of
+    vBrowser:
+      Result := Desktop(TSTable(FNavigator.Selected.Data)).CreateDBGrid();
+    vIDE:
+      Result := Desktop(TSRoutine(FNavigator.Selected.Data)).ActiveDBGrid;
+    vBuilder:
+      Result := Desktop(TSDatabase(FNavigator.Selected.Data)).BuilderDBGrid;
+    vEditor,
+    vEditor2,
+    vEditor3:
+      if (not Assigned(SQLEditors[View])) then
+        Result := nil
+      else
+        Result := SQLEditors[View].ActiveDBGrid;
+    else
+      Result := nil;
+  end;
 
   if (Assigned(Result)) then
   begin

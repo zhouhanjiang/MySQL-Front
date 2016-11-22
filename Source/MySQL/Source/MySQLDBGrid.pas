@@ -733,15 +733,7 @@ begin
     if not (dgAlwaysShowEditor in Options) then
       HideEditor();
   end
-  else if ((Key = Ord('A')) and (Shift = [ssCtrl])) then
-    SelectAll()
-  else if (((Key = Ord('X')) and (Shift = [ssCtrl]) or (Key = VK_DELETE) and (Shift = [ssShift])) and (SelectedRows.Count = 0)) then
-    EditCutExecute()
-  else if ((Key = Ord('C')) and (Shift = [ssCtrl]) or (Key = VK_INSERT) and (Shift = [ssCtrl])) then
-    EditCopyExecute()
-  else if ((Key = Ord('V')) and (Shift = [ssCtrl]) or (Key = VK_INSERT) and (Shift = [ssShift])) then
-    PasteFromClipboard()
-  else if ((Key = VK_DELETE) and (Shift = [])) then
+  else if ((Key = VK_DELETE) and (Shift = []) and not ReadOnly and not SelectedField.ReadOnly) then
     EditDeleteExecute()
   else if ((Key = VK_DOWN) and (Shift = [ssAlt]) and (Columns[SelectedIndex].ButtonStyle = cbsEllipsis)) then
     EditButtonClick()
