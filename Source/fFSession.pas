@@ -760,11 +760,11 @@ type
     TViewDesktop = class(TTableDesktop)
     private
       FSynMemo: TSynMemo;
-      function GetSynMemo(): TSynMemo;
     public
       constructor Create(const AFClient: TFSession; const AView: TSView);
+      function CreateSynMemo(): TSynMemo;
       destructor Destroy(); override;
-      property SynMemo: TSynMemo read GetSynMemo;
+      property SynMemo: TSynMemo read FSynMemo;
     end;
 
     TRoutineDesktop = class(TSObjectDesktop)
@@ -780,36 +780,36 @@ type
       Results: TList;
       TCResult: TTabControl;
       function GetActiveDBGrid(): TMySQLDBGrid;
-      function GetSynMemo(): TSynMemo; virtual;
       procedure TCResultChange(Sender: TObject);
     public
       procedure CloseIDEResult();
       constructor Create(const AFClient: TFSession; const ARoutine: TSRoutine);
+      function CreateSynMemo(): TSynMemo; virtual;
       destructor Destroy(); override;
       function IDEResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
         const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
       property ActiveDBGrid: TMySQLDBGrid read GetActiveDBGrid;
-      property SynMemo: TSynMemo read GetSynMemo;
+      property SynMemo: TSynMemo read FSynMemo;
     end;
 
     TTriggerDesktop = class(TSObjectDesktop)
     private
       FSynMemo: TSynMemo;
-      function GetSynMemo(): TSynMemo;
     public
       constructor Create(const AFClient: TFSession; const ATrigger: TSTrigger);
+      function CreateSynMemo(): TSynMemo;
       destructor Destroy(); override;
-      property SynMemo: TSynMemo read GetSynMemo;
+      property SynMemo: TSynMemo read FSynMemo;
     end;
 
     TEventDesktop = class(TSObjectDesktop)
     private
       FSynMemo: TSynMemo;
-      function GetSynMemo(): TSynMemo; virtual;
     public
       constructor Create(const AFClient: TFSession; const AEvent: TSEvent);
+      function CreateSynMemo(): TSynMemo;
       destructor Destroy(); override;
-      property SynMemo: TSynMemo read GetSynMemo;
+      property SynMemo: TSynMemo read FSynMemo;
     end;
 
     TWanted = class
@@ -1722,15 +1722,7 @@ begin
   FSynMemo := nil;
 end;
 
-destructor TFSession.TViewDesktop.Destroy();
-begin
-  if (Assigned(SynMemo)) then
-    SynMemo.Free;
-
-  inherited;
-end;
-
-function TFSession.TViewDesktop.GetSynMemo(): TSynMemo;
+function TFSession.TViewDesktop.CreateSynMemo(): TSynMemo;
 begin
   if (not Assigned(FSynMemo) and TSView(SObject).Valid) then
   begin
@@ -1739,6 +1731,14 @@ begin
   end;
 
   Result := FSynMemo;
+end;
+
+destructor TFSession.TViewDesktop.Destroy();
+begin
+  if (Assigned(SynMemo)) then
+    SynMemo.Free;
+
+  inherited;
 end;
 
 { TFSession.TRoutineDesktop ***************************************************}
@@ -1771,6 +1771,17 @@ begin
   Results := nil;
 end;
 
+function TFSession.TRoutineDesktop.CreateSynMemo(): TSynMemo;
+begin
+  if (not Assigned(FSynMemo) and TSRoutine(SObject).Valid) then
+  begin
+    FSynMemo := FSession.CreateSynMemo(SObject);
+    FSynMemo.Text := TSRoutine(SObject).Source;
+  end;
+
+  Result := FSynMemo;
+end;
+
 destructor TFSession.TRoutineDesktop.Destroy();
 begin
   CloseIDEResult();
@@ -1792,17 +1803,6 @@ begin
     Result := TResult(Results[0]^).DBGrid
   else
     Result := TResult(Results[TCResult.TabIndex]^).DBGrid;
-end;
-
-function TFSession.TRoutineDesktop.GetSynMemo(): TSynMemo;
-begin
-  if (not Assigned(FSynMemo) and TSRoutine(SObject).Valid) then
-  begin
-    FSynMemo := FSession.CreateSynMemo(SObject);
-    FSynMemo.Text := TSRoutine(SObject).Source;
-  end;
-
-  Result := FSynMemo;
 end;
 
 function TFSession.TRoutineDesktop.IDEResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
@@ -1866,15 +1866,7 @@ begin
   FSynMemo := nil;
 end;
 
-destructor TFSession.TTriggerDesktop.Destroy();
-begin
-  inherited;
-
-  if (Assigned(SynMemo)) then
-    SynMemo.Free();
-end;
-
-function TFSession.TTriggerDesktop.GetSynMemo(): TSynMemo;
+function TFSession.TTriggerDesktop.CreateSynMemo(): TSynMemo;
 begin
   if (not Assigned(FSynMemo) and TSTrigger(SObject).Valid) then
   begin
@@ -1883,6 +1875,14 @@ begin
   end;
 
   Result := FSynMemo;
+end;
+
+destructor TFSession.TTriggerDesktop.Destroy();
+begin
+  if (Assigned(SynMemo)) then
+    SynMemo.Free();
+
+  inherited;
 end;
 
 { TFSession.TEventDesktop *****************************************************}
@@ -1894,15 +1894,7 @@ begin
   FSynMemo := nil;
 end;
 
-destructor TFSession.TEventDesktop.Destroy();
-begin
-  inherited;
-
-  if (Assigned(SynMemo)) then
-    SynMemo.Free();
-end;
-
-function TFSession.TEventDesktop.GetSynMemo(): TSynMemo;
+function TFSession.TEventDesktop.CreateSynMemo(): TSynMemo;
 begin
   if (not Assigned(FSynMemo) and TSEvent(SObject).Valid) then
   begin
@@ -1911,6 +1903,14 @@ begin
   end;
 
   Result := FSynMemo;
+end;
+
+destructor TFSession.TEventDesktop.Destroy();
+begin
+  if (Assigned(SynMemo)) then
+    SynMemo.Free();
+
+  inherited;
 end;
 
 { TFSession.TWanted ***********************************************************}
@@ -8184,11 +8184,11 @@ begin
     vIDE:
       begin
         case (SelectedImageIndex) of
-          iiView: Result := Desktop(TSView(FNavigator.Selected.Data)).SynMemo;
+          iiView: Result := Desktop(TSView(FNavigator.Selected.Data)).CreateSynMemo();
           iiProcedure,
-          iiFunction: Result := Desktop(TSRoutine(FNavigator.Selected.Data)).SynMemo;
-          iiTrigger: Result := Desktop(TSTrigger(FNavigator.Selected.Data)).SynMemo;
-          iiEvent: Result := Desktop(TSEvent(FNavigator.Selected.Data)).SynMemo;
+          iiFunction: Result := Desktop(TSRoutine(FNavigator.Selected.Data)).CreateSynMemo();
+          iiTrigger: Result := Desktop(TSTrigger(FNavigator.Selected.Data)).CreateSynMemo();
+          iiEvent: Result := Desktop(TSEvent(FNavigator.Selected.Data)).CreateSynMemo();
           else Result := nil;
         end;
       end;

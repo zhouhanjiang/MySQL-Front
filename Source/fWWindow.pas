@@ -814,7 +814,6 @@ begin
     Tab.Visible := False;
     Tab.Free();
 
-    TabSessions.Delete(TabSessions.IndexOf(Session));
     Session.Free();
 
     TBTabControl.Visible := Preferences.TabsVisible or not Preferences.TabsVisible and (FSessions.Count >= 2);
@@ -1074,8 +1073,6 @@ var
   I: Integer;
   Foldername: array [0..MAX_PATH] of Char;
 begin
-  TabSessions := TList.Create();
-
   DisableApplicationActivate := False;
   MouseDownPoint := Point(-1, -1);
   OnlineRecommendedUpdateFound := False;
@@ -1179,8 +1176,6 @@ begin
 
   if (Assigned(CheckOnlineVersionThread)) then
     TerminateThread(CheckOnlineVersionThread.Handle, 0);
-
-  TabSessions.Free();
 end;
 
 procedure TWWindow.FormHide(Sender: TObject);
@@ -1565,8 +1560,6 @@ begin
     FSession := nil
   else
   begin
-    TabSessions.Add(DAccounts.Session);
-
     Perform(UM_DEACTIVATETAB, 0, 0);
 
     if (FSessions.Count = 0) then

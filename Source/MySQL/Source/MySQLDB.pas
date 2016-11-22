@@ -229,7 +229,7 @@ type
     FConnected: Boolean;
     FErrorCode: Integer;
     FErrorMessage: string;
-    FErrorSQL: string;
+    FErrorCommandText: string;
     FHost: string;
     FHostInfo: string;
     FHTTPAgent: string;
@@ -313,19 +313,20 @@ type
     procedure SetCharset(const ACharset: string); virtual;
     procedure SetConnected(Value: Boolean); override;
     function SQLUse(const DatabaseName: string): string; virtual;
-    procedure SyncBindDataSet(const DataSet: TMySQLQuery); virtual;
-    procedure SyncConnecting(const SyncThread: TSyncThread); virtual;
-    procedure SyncConnected(const SyncThread: TSyncThread); virtual;
-    procedure SyncDisconnecting(const SyncThread: TSyncThread); virtual;
-    procedure SyncDisconnected(const SyncThread: TSyncThread); virtual;
-    procedure SyncExecute(const SyncThread: TSyncThread); virtual;
-    procedure SyncExecuted(const SyncThread: TSyncThread); virtual;
-    procedure SyncExecutingFirst(const SyncThread: TSyncThread); virtual;
-    procedure SyncExecutingNext(const SyncThread: TSyncThread); virtual;
-    procedure SyncHandledResult(const SyncThread: TSyncThread); virtual;
-    procedure SyncPing(const SyncThread: TSyncThread); virtual;
-    procedure SyncReceivingResult(const SyncThread: TSyncThread); virtual;
-    procedure SyncReleaseDataSet(const DataSet: TMySQLQuery); virtual;
+    procedure SyncAfterExecuteSQL(const SyncThread: TSyncThread);
+    procedure SyncBindDataSet(const DataSet: TMySQLQuery);
+    procedure SyncConnecting(const SyncThread: TSyncThread);
+    procedure SyncConnected(const SyncThread: TSyncThread);
+    procedure SyncDisconnecting(const SyncThread: TSyncThread);
+    procedure SyncDisconnected(const SyncThread: TSyncThread);
+    procedure SyncExecute(const SyncThread: TSyncThread);
+    procedure SyncExecuted(const SyncThread: TSyncThread);
+    procedure SyncExecutingFirst(const SyncThread: TSyncThread);
+    procedure SyncExecutingNext(const SyncThread: TSyncThread);
+    procedure SyncHandledResult(const SyncThread: TSyncThread);
+    procedure SyncPing(const SyncThread: TSyncThread);
+    procedure SyncReceivingResult(const SyncThread: TSyncThread);
+    procedure SyncReleaseDataSet(const DataSet: TMySQLQuery);
     procedure UnRegisterSQLMonitor(const AMySQLMonitor: TMySQLMonitor); virtual;
     procedure WriteMonitor(const AText: PChar; const Length: Integer; const ATraceType: TMySQLMonitor.TTraceType); virtual;
     property CharsetNr: Byte read FCharsetNr;
@@ -362,7 +363,7 @@ type
     property HTTPAgent: string read FHTTPAgent write FHTTPAgent;
     property ErrorCode: Integer read FErrorCode;
     property ErrorMessage: string read FErrorMessage;
-    property ErrorSQL: string read FErrorSQL;
+    property ErrorCommandText: string read FErrorCommandText;
     property ExecutedStmts: Integer read FExecutedStmts;
     property ExecutionTime: TDateTime read FExecutionTime;
     property FormatSettings: TFormatSettings read FFormatSettings;
@@ -2054,7 +2055,9 @@ begin
             begin
               Connection.SyncExecute(Self);
               RunExecute.SetEvent();
-            end;
+            end
+            else if (State = ssReady) then
+              Connection.SyncAfterExecuteSQL(Self);
         end;
       ssDisconnecting:
         Connection.SyncDisconnected(Self);
@@ -2235,18 +2238,13 @@ begin
   TerminateCS.Enter();
   if (Assigned(SyncThread)) then
     SyncThread.Terminate();
-  TerminateCS.Leave();
-  if (Assigned(SyncThread)) then
-  begin
-    SyncThread.WaitFor();
-    SyncThread.Free();
-  end;
   for I := 0 to TerminatedThreads.Count - 1 do
   begin
     TerminateThread(TThread(TerminatedThreads[I]).Handle, 0);
     TThread(TerminatedThreads[I]).Free();
   end;
-  TerminatedThreads.Free(); FTerminatedThreads := nil;
+  TerminateCS.Leave();
+  TerminatedThreads.Free();
 
   ExecuteSQLDone.Free();
   TerminateCS.Free();
@@ -2272,7 +2270,7 @@ begin
   FExecutionTime := 0;
   FErrorCode := DS_ASYNCHRON;
   FErrorMessage := '';
-  FErrorSQL := '';
+  FErrorCommandText := '';
   FWarningCount := 0;
 
   if (Assigned(SyncThread) and (SyncThread.State <> ssClose)) then
@@ -2317,7 +2315,7 @@ begin
 
   FErrorCode := DS_ASYNCHRON;
   FErrorMessage := '';
-  FErrorSQL := '';
+  FErrorCommandText := '';
   FWarningCount := 0;
 
   if (not Assigned(SyncThread) or not Assigned(SyncThread.LibHandle)) then
@@ -2351,9 +2349,9 @@ begin
   FErrorCode := AErrorCode;
   FErrorMessage := AErrorMessage;
   if (not Assigned(SyncThread)) then
-    FErrorSQL := ''
+    FErrorCommandText := ''
   else
-    FErrorSQL := SyncThread.CommandText + ';' + #13#10;
+    FErrorCommandText := SyncThread.CommandText + ';' + #13#10;
 
   if (SilentCount = 0) then
     if (not Assigned(FOnSQLError)) then
@@ -2515,7 +2513,7 @@ begin
 
   FErrorCode := DS_ASYNCHRON;
   FErrorMessage := '';
-  FErrorSQL := '';
+  FErrorCommandText := '';
   FWarningCount := 0;
   FSuccessfullExecutedSQLLength := 0; FExecutedStmts := 0;
   FRowsAffected := -1; FExecutionTime := 0;
@@ -2923,6 +2921,19 @@ begin
   Result := 'USE ' + EscapeIdentifier(DatabaseName) + ';' + #13#10;
 end;
 
+procedure TMySQLConnection.SyncAfterExecuteSQL(const SyncThread: TSyncThread);
+begin
+  FExecutionTime := SyncThread.ExecutionTime;
+
+  if (FErrorCode = 0) then
+    SyncThread.SQL := '';
+
+  DoAfterExecuteSQL();
+
+  if (Assigned(SyncThread.Done)) then
+    SyncThread.Done.SetEvent();
+end;
+
 procedure TMySQLConnection.SyncBindDataSet(const DataSet: TMySQLQuery);
 begin
   Assert(Assigned(SyncThread));
@@ -3166,8 +3177,6 @@ procedure TMySQLConnection.SyncExecuted(const SyncThread: TSyncThread);
 var
   CLStmt: TSQLCLStmt;
   Data: my_char;
-  DataSet: TMySQLQuery;
-  I: Integer;
   Info: my_char;
   Len: Integer;
   Name: string;
@@ -3295,25 +3304,7 @@ begin
         SyncHandledResult(SyncThread);
       end
       else if ((SyncThread.State = ssResult) and Assigned(SyncThread.ResHandle)) then
-      begin
-        if (Lib.mysql_num_fields(SyncThread.ResHandle) = 0) then
-          raise ERangeError.Create(SRangeError);
-
-        DataSet := TMySQLQuery.Create(nil);
-        DataSet.Open(SyncThread);
-
-        if (not DataSet.Active) then
-          raise ERangeError.Create(SRangeError);
-
-        S := '';
-        for I := 0 to DataSet.FieldCount - 1 do
-        begin
-          if (I > 0) then S := S + ',';
-          S := S + DataSet.Fields[I].FieldName;
-        end;
-        DataSet.Free();
-        raise Exception.Create('Query has not been handled: ' + SyncThread.CommandText + ', FieldNames: ' + S);
-      end;
+        raise Exception.Create('Query has not been handled: ' + SyncThread.CommandText);
     finally
       InOnResult := False;
     end;
@@ -3321,6 +3312,9 @@ begin
 
   if ((SyncThread.Mode = smSQL) and (SyncThread.State = ssResult)) then
     SyncHandledResult(SyncThread);
+
+  if (SyncThread.State = ssReady) then
+    SyncAfterExecuteSQL(SyncThread);
 end;
 
 procedure TMySQLConnection.SyncExecutingFirst(const SyncThread: TSyncThread);
@@ -3509,19 +3503,6 @@ begin
     SyncThread.State := ssExecutingFirst
   else
     SyncThread.State := ssReady;
-
-  if (SyncThread.State = ssReady) then
-  begin
-    FExecutionTime := SyncThread.ExecutionTime;
-
-    if (FErrorCode = 0) then
-      SyncThread.SQL := '';
-
-    DoAfterExecuteSQL();
-
-    if (Assigned(SyncThread.Done)) then
-      SyncThread.Done.SetEvent();
-  end;
 end;
 
 procedure TMySQLConnection.SyncPing(const SyncThread: TSyncThread);

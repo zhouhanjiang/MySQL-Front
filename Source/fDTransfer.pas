@@ -405,9 +405,8 @@ begin
     TE_Database:
       begin
         Msg := Preferences.LoadStr(165, IntToStr(Error.Session.Connection.ErrorCode), Error.Session.Connection.ErrorMessage);
-        ErrorMsg := SQLUnwrapStmt(Error.Session.Connection.ErrorMessage, Error.Session.Connection.MySQLVersion);
-        if (Error.Session.Connection.ErrorCode > 0) then
-          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Error.Session.Connection.ErrorCode) + ')';
+        ErrorMsg := Error.ErrorMessage
+          + ' (#' + IntToStr(Error.ErrorCode) + ') - ' + Trim(Error.Session.Connection.ErrorCommandText);
       end;
     TE_File:
       begin
@@ -633,22 +632,33 @@ begin
   List := TList.Create();
   case (FSource.Selected.ImageIndex) of
     iiDatabase:
-      for I := 0 to FSource.Selected.Parent.Count - 1 do
-        if (not Assigned(Wanted.Page)) then
+      begin
+        for I := 0 to FSource.Selected.Parent.Count - 1 do
+          if (FSource.Selected.Parent.Item[I].Selected) then
+            List.Add(TSDatabase(FSource.Selected.Parent.Item[I].Data));
+        if (not SourceSession.Update(List, FData.Checked)) then
+          Wanted.Page := TSExecute
+        else
         begin
-          Database := SourceSession.DatabaseByName(FSource.Selected.Parent[I].Text);
-          if (not Database.Update()) then
-            Wanted.Page := TSExecute
-          else
-          begin
-            for J := 0 to Database.Tables.Count - 1 do
-              List.Add(Database.Tables[J]);
-            for J := 0 to Database.Routines.Count - 1 do
-              List.Add(Database.Routines[J]);
-            for J := 0 to Database.Events.Count - 1 do
-              List.Add(Database.Events[J]);
-          end;
+          List.Clear();
+          for I := 0 to FSource.Selected.Parent.Count - 1 do
+            if (FSource.Selected.Parent.Item[I].Selected) then
+            begin
+              Database := SourceSession.DatabaseByName(FSource.Selected.Parent[I].Text);
+              for J := 0 to Database.Tables.Count - 1 do
+                List.Add(Database.Tables[J]);
+              if (Assigned(Database.Routines)) then
+                for J := 0 to Database.Routines.Count - 1 do
+                  List.Add(Database.Routines[J]);
+              if (Assigned(Database.Triggers)) then
+                for J := 0 to Database.Triggers.Count - 1 do
+                  List.Add(Database.Triggers[J]);
+              if (Assigned(Database.Events)) then
+                for J := 0 to Database.Events.Count - 1 do
+                  List.Add(Database.Events[J]);
+            end;
         end;
+      end;
     iiBaseTable,
     iiView,
     iiProcedure,
@@ -660,7 +670,7 @@ begin
             List.Add(FSource.Selected.Parent.Item[I].Data);
       end;
   end;
-  if (not Assigned(Wanted.Page) and not SourceSession.Update(List)) then
+  if (not Assigned(Wanted.Page) and not SourceSession.Update(List, FData.Checked)) then
     Wanted.Page := TSExecute;
   List.Free();
 
@@ -670,8 +680,8 @@ begin
   begin
     Node := FDestination.Selected;
     while (Assigned(Node.Parent)) do Node := Node.Parent;
-    DestinationSession := TSSession(Node.Data);
-    if (not DestinationSession.Update()) then
+    DestinationSession := GetSession(Node);
+    if (not DestinationSession.Databases.Update()) then
       Wanted.Page := TSExecute;
   end;
 
@@ -682,15 +692,22 @@ begin
     case (FSource.Selected.ImageIndex) of
       iiDatabase:
         for I := 0 to FSource.Selected.Parent.Count - 1 do
-        begin
-          Database := SourceSession.DatabaseByName(FSource.Selected.Parent[I].Text);
-          if (List.IndexOf(Database) < 0) then
-            List.Add(Database);
-        end;
+          if (FSource.Selected.Parent[I].Selected) then
+          begin
+            Database := DestinationSession.DatabaseByName(FSource.Selected.Parent[I].Text);
+            if (Assigned(Database)) then
+              List.Add(Database);
+          end;
       iiBaseTable,
       iiView:
-        if (List.IndexOf(TSDatabase(FDestination.Selected.Data).Tables) < 0) then
-          List.Add(TSDatabase(FDestination.Selected.Data).Tables);
+        begin
+          if (List.IndexOf(TSDatabase(FDestination.Selected.Data).Tables) < 0) then
+            List.Add(TSDatabase(FDestination.Selected.Data).Tables);
+          if ((FSource.Selected.ImageIndex = iiBaseTable)
+            and Assigned(TSDatabase(FDestination.Selected.Data).Triggers)
+            and (List.IndexOf(TSDatabase(FDestination.Selected.Data).Triggers) < 0)) then
+            List.Add(TSDatabase(FDestination.Selected.Data).Triggers);
+        end;
       iiProcedure,
       iiFunction:
         if (List.IndexOf(TSDatabase(FDestination.Selected.Data).Routines) < 0) then
@@ -915,11 +932,8 @@ begin
     Wanted.Node := nil;
     Node.Expand(False);
   end
-  else if (Assigned(Wanted.Page)) then
-  begin
+  else if (Assigned(Wanted.Page) and Assigned(Wanted.Page.OnShow)) then
     Wanted.Page.OnShow(nil);
-    Wanted.Page := nil;
-  end;
 end;
 
 procedure TDTransfer.UMTerminate(var Message: TMessage);

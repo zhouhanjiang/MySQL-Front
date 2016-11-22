@@ -1847,17 +1847,17 @@ begin
 
   ProgressInfos.TimeDone := Now() - StartTime;
 
-  if ((ProgressInfos.RecordsDone = 0) and (ProgressInfos.ObjectsDone = 0)) then
+  if ((ProgressInfos.RecordsSum = 0) and (ProgressInfos.ObjectsDone = 0) or (ProgressInfos.RecordsSum > 0) and (ProgressInfos.RecordsDone = 0)) then
   begin
     ProgressInfos.Progress := 0;
     ProgressInfos.TimeSum := 0;
   end
-  else if (ProgressInfos.RecordsDone = 0) then
+  else if ((ProgressInfos.RecordsSum = 0) and (ProgressInfos.ObjectsDone < ProgressInfos.ObjectsSum)) then
   begin
     ProgressInfos.Progress := Round(ProgressInfos.ObjectsDone / ProgressInfos.ObjectsSum * 100);
     ProgressInfos.TimeSum := ProgressInfos.TimeDone / ProgressInfos.ObjectsDone * ProgressInfos.ObjectsSum;
   end
-  else if (ProgressInfos.RecordsDone < ProgressInfos.RecordsSum) then
+  else if ((ProgressInfos.RecordsSum > 0) and (ProgressInfos.RecordsDone < ProgressInfos.RecordsSum)) then
   begin
     ProgressInfos.Progress := Round(ProgressInfos.RecordsDone / ProgressInfos.RecordsSum * 100);
     ProgressInfos.TimeSum := ProgressInfos.TimeDone / ProgressInfos.RecordsDone * ProgressInfos.RecordsSum;
@@ -2306,7 +2306,7 @@ begin
 
   ProgressInfos.TimeDone := Now() - StartTime;
 
-  if ((ProgressInfos.RecordsDone = 0) or (ProgressInfos.RecordsSum = 0)) then
+  if (ProgressInfos.RecordsDone = 0) then
   begin
     ProgressInfos.Progress := 0;
     ProgressInfos.TimeSum := 0;
@@ -2619,8 +2619,6 @@ begin
       while ((Success = daSuccess) and not DoExecuteSQL(SQL)) do
         DoError(DatabaseError(Session), Items[0], True, SQL);
     end;
-
-  if (Success = daFail) then Success := daSuccess;
 
   if (not Assigned(Text)) then
     AfterExecute();
@@ -3948,17 +3946,17 @@ begin
 
     ProgressInfos.TimeDone := Now() - StartTime;
 
-    if ((ProgressInfos.RecordsDone = 0) and (ProgressInfos.ObjectsDone = 0)) then
+    if ((ProgressInfos.RecordsSum = 0) and (ProgressInfos.ObjectsDone = 0) or (ProgressInfos.RecordsSum > 0) and (ProgressInfos.RecordsDone = 0)) then
     begin
       ProgressInfos.Progress := 0;
       ProgressInfos.TimeSum := 0;
     end
-    else if (ProgressInfos.RecordsDone = 0) then
+    else if ((ProgressInfos.RecordsSum = 0) and (ProgressInfos.ObjectsDone < ProgressInfos.ObjectsSum)) then
     begin
       ProgressInfos.Progress := Round(ProgressInfos.ObjectsDone / ProgressInfos.ObjectsSum * 100);
       ProgressInfos.TimeSum := ProgressInfos.TimeDone / ProgressInfos.ObjectsDone * ProgressInfos.ObjectsSum;
     end
-    else if (ProgressInfos.RecordsDone < ProgressInfos.RecordsSum) then
+    else if ((ProgressInfos.RecordsSum > 0) and (ProgressInfos.RecordsDone < ProgressInfos.RecordsSum)) then
     begin
       ProgressInfos.Progress := Round(ProgressInfos.RecordsDone / ProgressInfos.RecordsSum * 100);
       ProgressInfos.TimeSum := ProgressInfos.TimeDone / ProgressInfos.RecordsDone * ProgressInfos.RecordsSum;
@@ -8722,7 +8720,7 @@ begin
 
     ProgressInfos.TimeDone := Now() - StartTime;
 
-    if ((ProgressInfos.RecordsDone = 0) and (ProgressInfos.ObjectsDone = 0)) then
+    if (ProgressInfos.ObjectsDone = 0) then
     begin
       ProgressInfos.Progress := 0;
       ProgressInfos.TimeSum := 0;

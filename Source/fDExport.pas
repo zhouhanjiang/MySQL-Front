@@ -1684,9 +1684,8 @@ begin
     TE_Database:
       begin
         Msg := Preferences.LoadStr(165, IntToStr(Session.Connection.ErrorCode), Session.Connection.ErrorMessage);
-        ErrorMsg := SQLUnwrapStmt(Session.Connection.ErrorMessage, Session.Connection.MySQLVersion);
-        if (Session.Connection.ErrorCode > 0) then
-          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Session.Connection.ErrorCode) + ')';
+        ErrorMsg := Error.ErrorMessage
+          + ' (#' + IntToStr(Error.ErrorCode) + ') - ' + Trim(Session.Connection.ErrorCommandText);
       end;
     TE_File:
       begin

@@ -1575,7 +1575,6 @@ const
 
 var
   Sessions: TSSessions;
-  TabSessions: TList;
 
 implementation {***************************************************************}
 
@@ -10770,7 +10769,7 @@ begin
   FConnection := TSConnection.Create(Self);
   Sessions.Add(Self);
 
-  ConnectionEvent := SyncObjs.TEvent.Create(nil, False, False, '');
+  ConnectionEvent := SyncObjs.TEvent.Create(nil, True, False, '');
   SetLength(EventProcs, 0);
   FCurrentUser := '';
   FInformationSchema := nil;
@@ -11048,9 +11047,6 @@ end;
 
 destructor TSSession.Destroy();
 begin
-  if (TabSessions.IndexOf(Self) >= 0) then
-    raise ERangeError.Create(SRangeError);
-
   Connection.UnRegisterClient(Self);
 
   SetLength(EventProcs, 0);
@@ -11895,7 +11891,10 @@ end;
 
 function TSSession.SendSQL(const SQL: string; const OnResult: TMySQLConnection.TResultEvent = nil): Boolean;
 begin
-  Assert((GetCurrentThreadId() = MainThreadId) or (ConnectionEvent.WaitFor(IGNORE) <> wrSignaled));
+//  Assert(ConnectionEvent.WaitFor(IGNORE) <> wrSignaled);
+
+  if (GetCurrentThreadId() <> MainThreadId) then
+    ConnectionEvent.ResetEvent();
 
   if (GetCurrentThreadId() = MainThreadId) then
     Result := Connection.SendSQL(SQL, OnResult)

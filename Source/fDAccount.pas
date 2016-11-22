@@ -120,7 +120,7 @@ begin
   URLComponents.lpszUrlPath := @URLComponentsPath;
   URLComponents.lpszExtraInfo := @URLComponentsExtraInfo;
 
-  if (Port = 0) then
+  if ((HostName = '') or (Port = 0)) then
     Result := False
   else
   begin
@@ -271,7 +271,7 @@ begin
     if (CanClose
       and ((Trim(FName.Text) = '')
         or not Assigned(Account) and Assigned(Accounts.AccountByName(Trim(FName.Text)))
-        or Assigned(Account) and (Accounts.AccountByName(Trim(FName.Text)) <> Account))) then
+        or Assigned(Account) and Assigned(Accounts.AccountByName(Trim(FName.Text))) and (Accounts.AccountByName(Trim(FName.Text)) <> Account))) then
       begin MessageBeep(MB_ICONERROR); ActiveControl := FName; CanClose := False; end;
 
     if (CanClose

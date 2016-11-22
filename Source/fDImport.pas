@@ -1539,10 +1539,8 @@ begin
     TE_Database:
       begin
         Msg := Preferences.LoadStr(165, IntToStr(Error.Session.Connection.ErrorCode), Error.Session.Connection.ErrorMessage);
-        ErrorMsg := Error.ErrorMessage;
-        if (Error.ErrorCode > 0) then
-          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Error.ErrorCode) + ')';
-        ErrorMsg := ErrorMsg + ' - ' + Trim(Session.Connection.ErrorSQL);
+        ErrorMsg := Error.ErrorMessage
+          + ' (#' + IntToStr(Error.ErrorCode) + ') - ' + Trim(Session.Connection.ErrorCommandText);
       end;
     TE_File:
       begin

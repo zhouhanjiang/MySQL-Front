@@ -23609,7 +23609,7 @@ begin
     Result := ParseShowCollationStmt()
   else if (IsTag(kiSHOW, kiCOLUMNS)) then
     Result := ParseShowColumnsStmt()
-  else if (IsTag(kiSHOW) and (StrLIComp(PChar(TokenPtr(NextToken[1])^.Text), 'COUNT', 5) = 0)) then
+  else if (IsTag(kiSHOW) and not EndOfStmt(NextToken[1]) and (StrLIComp(PChar(TokenPtr(NextToken[1])^.Text), 'COUNT', 5) = 0)) then
     Result := ParseShowCountStmt()
   else if (IsTag(kiSHOW, kiFIELDS)) then
     Result := ParseShowColumnsStmt()
