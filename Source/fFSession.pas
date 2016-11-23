@@ -5605,11 +5605,16 @@ var
 begin
   if ((Sender is TMySQLDBGrid) and Assigned(TMySQLDBGrid(Sender).DataSource.DataSet)) then
   begin
-    // Debug 2016-11-23
-    if (not Assigned(ActiveSynMemo)) then
-      raise ERangeError.Create(SRangeError);
+    if (View <> vIDE) then
+      SQL := ''
+    else
+    begin
+      // Debug 2016-11-23
+      if (not Assigned(ActiveSynMemo)) then
+        raise ERangeError.Create(SRangeError);
 
-    if (View = vIDE) then SQL := SQLTrimStmt(ActiveSynMemo.Text, Session.Connection.MySQLVersion) else SQL := '';
+      SQL := SQLTrimStmt(ActiveSynMemo.Text, Session.Connection.MySQLVersion);
+    end;
 
     DBGrid := TMySQLDBGrid(Sender);
 
