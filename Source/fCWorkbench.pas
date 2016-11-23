@@ -386,7 +386,7 @@ type
 implementation {***************************************************************}
 
 uses
-  ExtCtrls, Math, Dialogs, StdActns, Consts, UITypes,
+  ExtCtrls, Math, Dialogs, StdActns, Consts, UITypes, SysConst,
   fPreferences;
 
 var
@@ -1459,6 +1459,10 @@ begin
         NewPoint := Link.CreateSegment(Self, Coord(NewPosition.X, Position.Y), Self, Assigned(Link.ParentTable) and Assigned(LineA) and not Assigned(LineB))
       else
         NewPoint := Link.CreateSegment(Self, Coord(Position.X, NewPosition.Y), Self, Assigned(Link.ParentTable) and Assigned(LineA) and not Assigned(LineB));
+
+      // Debug 2016-11-23
+      if (not Assigned(NewPoint)) then
+        raise ERangeError.Create(SRangeError);
       NewPoint.MouseDown(mbLeft, [], (PointSize - 1) div 2, (PointSize - 1) div 2);
       NewPoint.MoveState := msAutomatic;
 
@@ -2046,6 +2050,7 @@ var
   I: Integer;
   NextPoint: TWLinkPoint;
   Point: TWLinkPoint;
+  PreviousPoint: TWLinkPoint;
   TempTable: TWTable;
 begin
   for I := 0 to PointCount - 1 do
@@ -2056,57 +2061,74 @@ begin
   end;
 
   Point := LastPoint;
-  while (Assigned(Point) and (Point <> Self)) do
+  if (not Assigned(Point)) then
+    raise Exception.Create('LastPoint not assigned');
+  while ((Point <> Self) and (PointCount > 2)) do
   begin
-    NextPoint := Point.LineA.PointA;
+    PreviousPoint := Point.LineA.PointA;
 
-    if ((Workbench.TableAt(NextPoint.Position) = ParentTable)
-      and (Assigned(ParentTable) and (ParentTable <> ChildTable))) then
+    if ((ParentTable <> ChildTable)
+      and (Workbench.TableAt(PreviousPoint.Position) = ParentTable)) then
     begin
-      Point.MoveTo(Point, [], NextPoint.Position);
-      if ((Sender = NextPoint) or (NextPoint = Self)) then
+      Point.MoveTo(Point, [], PreviousPoint.Position);
+      if ((PreviousPoint <> Sender) and (PreviousPoint <> Self)) then
       begin
-        NextPoint.TableB := Point.TableB;
-        Point := NextPoint;
-        if (not Assigned(Point.LineB)) then
-          raise Exception.Create('LineB not assigned')
-        else if (not Assigned(Point.LineB.PointB)) then
-          raise Exception.Create('LineB.PointB not assigned');
-        FreeSegment(Point.LineB.PointB, Point.LineB);
+        FreeSegment(Point.LineA.PointA, Point.LineA);
+        continue;
+      end
+      else if (Point = LastPoint) then
+      begin
+        PreviousPoint.TableB := Point.TableB;
+        Point := PreviousPoint;
       end
       else
-        FreeSegment(Point.LineA.PointA, Point.LineA);
+      begin
+        PreviousPoint.TableB := Point.TableB;
+        if (not Assigned(PreviousPoint.LineB)) then
+          raise Exception.Create('PreviousPoint.LineB not assigned')
+        else if (not Assigned(PreviousPoint.LineB.PointB)) then
+          raise Exception.Create('PreviousPoint.LineB.PointB not assigned');
+        Point := PreviousPoint;
+        FreeSegment(Point.LineB.PointB, Point.LineB);
+      end;
     end;
 
     if (not Assigned(Point.LineA)) then
-      Point := nil
+      raise Exception.Create('Point.LineA not assigned')
+    else if (not Assigned(Point.LineA.PointA)) then
+      raise Exception.Create('Point.LineA.PointA not assigned')
     else
       Point := Point.LineA.PointA;
   end;
 
   Point := Self;
-  while (Assigned(Point) and (Point <> LastPoint)) do
+  while ((Point <> LastPoint) and (PointCount > 2)) do
   begin
     NextPoint := Point.LineB.PointB;
 
-    if ((Workbench.TableAt(NextPoint.Position) = ChildTable)
-      and (Assigned(ParentTable) and (ParentTable <> ChildTable) or (Point.Index > 2))) then
+    if (((ParentTable <> ChildTable) or (Point.Index > 2))
+      and (Workbench.TableAt(NextPoint.Position) = ChildTable)) then
     begin
       Point.MoveTo(Point, [], NextPoint.Position);
-      if ((Sender = NextPoint) or (NextPoint = Self)) then
+      if ((NextPoint <> Sender) and (NextPoint <> Self)) then
+      begin
+        FreeSegment(Point.LineB.PointB, Point.LineB);
+        continue;
+      end
+      else
       begin
         TempTable := Point.TableA;
         Point := NextPoint;
         FreeSegment(Point.LineA.PointA, Point.LineA);
         if (Assigned(TempTable)) then
           Point.TableA := TempTable;
-      end
-      else
-        FreeSegment(Point.LineB.PointB, Point.LineB);
+      end;
     end;
 
     if (not Assigned(Point.LineB)) then
-      Point := nil
+      raise Exception.Create('Point.LineB not assigned')
+    else if (not Assigned(Point.LineB.PointB)) then
+      raise Exception.Create('Point.LineB.PointB not assigned')
     else
       Point := Point.LineB.PointB;
   end;
@@ -2227,6 +2249,9 @@ procedure TWLink.FreeSegment(const Point: TWLinkPoint; const Line: TWLinkLine);
 var
   TempPoint: TWLinkPoint;
 begin
+  if (Point is TWLink) then
+    raise ERangeError.Create('Point is TWLink');
+
   if (Line = Point.LineA) then
   begin
     if (Assigned(Point.ControlB)) then
@@ -2300,7 +2325,7 @@ begin
     0: Result := TableA;
     1:
       if (not Assigned(LastPoint)) then
-        Result := nil
+        raise Exception.Create('LastPoint not assigned')
       else
         Result := LastPoint.TableB;
     else raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Index']);
@@ -3562,9 +3587,6 @@ begin
   Sections.LoadFromXML(XML);
 
 
-  Database.Session.ReleaseEventProc(SessionEvent);
-  Database.Session.Connection.BeginSynchron();
-
   Database.Tables.Update();
   List := TList.Create();
   for I := 0 to XML.ChildNodes.Count - 1 do
@@ -3572,22 +3594,14 @@ begin
     begin
       BaseTable := Database.BaseTableByName(XML.ChildNodes[I].Attributes['name']);
       if (Assigned(BaseTable)) then
-        List.Add(BaseTable);
+        if (BaseTable.ValidSource) then
+          BaseTable.PushBuildEvent()
+        else
+          List.Add(BaseTable);
     end;
   Database.Session.Update(List);
   List.Free();
 
-  Database.Session.Connection.EndSynchron();
-  Database.Session.RegisterEventProc(SessionEvent);
-
-
-  for I := 0 to XML.ChildNodes.Count - 1 do
-    if (XML.ChildNodes[I].NodeName = 'table') then
-    begin
-      BaseTable := Database.BaseTableByName(XML.ChildNodes[I].Attributes['name']);
-      if (Assigned(BaseTable)) then
-        BaseTable.PushBuildEvent();
-    end;
 
   FModified := False;
 end;

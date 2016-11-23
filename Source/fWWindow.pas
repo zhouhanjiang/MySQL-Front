@@ -1032,6 +1032,7 @@ begin
         Report := Report + 'Import:' + #13#10;
         Report := Report + StringOfChar('-', Length('Import: ' + IntToStr(ImportState))) + #13#10;
         Report := Report + 'ImportState: ' + IntToStr(ImportState) + #13#10;
+        Report := Report + #13#10;
       end;
 
       Report := Report + 'MySQL:' + #13#10;

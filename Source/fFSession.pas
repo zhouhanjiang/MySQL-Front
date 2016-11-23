@@ -1545,6 +1545,11 @@ begin
       DataSource.Enabled := False;
     end;
     FDBGrid := FSession.CreateDBGrid(PDBGrid, DataSource);
+
+    // Debug 2016-11-23
+    if (not Assigned(Table)) then
+      raise ERangeError.Create(SRangeError);
+
     DataSource.DataSet := Table.DataSet;
   end;
 
@@ -1802,6 +1807,9 @@ begin
     Result := nil
   else if (not Assigned(TCResult)) then
     Result := TResult(Results[0]^).DBGrid
+  else if (not Assigned(Results[TCResult.TabIndex])) then
+    // Debug 2016-11-23
+    raise ERangeError.Create(SRangeError)
   else
     Result := TResult(Results[TCResult.TabIndex]^).DBGrid;
 end;
@@ -5147,6 +5155,10 @@ end;
 
 procedure TFSession.DataSetAfterClose(DataSet: TDataSet);
 begin
+  // Debug 2016-11-22
+  if (not (Self is TFSession)) then
+    raise ERangeError.Create(SRangeError);
+
   PBlob.Visible := False; SBlob.Visible := PBlob.Visible;
   if (PResult.Align = alClient) then
   begin
@@ -5157,8 +5169,8 @@ begin
   end;
 
   PResult.Visible := False; SResult.Visible := False;
-  PQueryBuilder.Update(); // TSynMemo aktualisiert leider nicht sofort nach Änderung von TSynMemo.Align
-  PSynMemo.Update(); // TSynMemo aktualisiert leider nicht sofort nach Änderung von TSynMemo.Align
+  PQueryBuilder.Update(); // TSynMemo does not update immediately after a change of TSynMemo.Align
+  PSynMemo.Update(); // TSynMemo does not update immediately after a change of TSynMemo.Align
 
   aDPrev.Enabled := False;
   aDNext.Enabled := False;
@@ -5593,6 +5605,10 @@ var
 begin
   if ((Sender is TMySQLDBGrid) and Assigned(TMySQLDBGrid(Sender).DataSource.DataSet)) then
   begin
+    // Debug 2016-11-23
+    if (not Assigned(ActiveSynMemo)) then
+      raise ERangeError.Create(SRangeError);
+
     if (View = vIDE) then SQL := SQLTrimStmt(ActiveSynMemo.Text, Session.Connection.MySQLVersion) else SQL := '';
 
     DBGrid := TMySQLDBGrid(Sender);
@@ -6839,6 +6855,11 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
     // Debug 2016-11-21
     if (TObject(Item1.Data) is TSItem) then ;
     if (TObject(Item2.Data) is TSItem) then ;
+    // Debug 2016-11-23
+    if (not Assigned(Item1.Data)) then
+      raise ERangeError.Create(SRangeError);
+    if (not Assigned(Item2.Data)) then
+      raise ERangeError.Create(SRangeError);
 
     if (GroupIDByImageIndex(Item1.ImageIndex) <> GroupIDByImageIndex(Item2.ImageIndex)) then
       Result := Sign(GroupIDByImageIndex(Item1.ImageIndex) - GroupIDByImageIndex(Item2.ImageIndex))
@@ -6943,6 +6964,10 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
       Child.HasChildren := True;
     if (Assigned(Child)) then
       SetNodeBoldState(Child, (Child.ImageIndex = iiKey) and TSKey(Child.Data).PrimaryKey or (Child.ImageIndex in [iiField, iiVirtualField]) and TSTableField(Child.Data).InPrimaryKey);
+
+    // Debug 2016-11-23
+    if (not Assigned(Child.Data)) then
+      raise ERangeError.Create(SRangeError);
   end;
 
   procedure AddChild(const Node: TTreeNode; const Data: TObject);
@@ -7699,6 +7724,12 @@ begin
   if (ListView = ActiveListView) then
     ActiveListView := nil;
 
+  // Debug 2016-11-23
+  if (not Assigned(ListView)) then
+    raise ERangeError.Create(SRangeError);
+  if (not (TObject(ListView) is TListView)) then
+    raise ERangeError.Create(SRangeError);
+
   ListView.OnChanging := nil;
   ListView.Items.BeginUpdate();
   ListView.Items.Clear();
@@ -8046,7 +8077,14 @@ begin
     vBrowser:
       Result := Desktop(TSTable(FNavigator.Selected.Data)).CreateDBGrid();
     vIDE:
-      Result := Desktop(TSRoutine(FNavigator.Selected.Data)).ActiveDBGrid;
+      begin
+        // Debug 2016-11-23
+        if (not Assigned(FNavigator.Selected.Data)) then
+          raise ERangeError.Create(SRangeError);
+        if (not (TObject(FNavigator.Selected.Data) is TSRoutine)) then
+          raise ERangeError.Create(SRangeError);
+        Result := Desktop(TSRoutine(FNavigator.Selected.Data)).ActiveDBGrid;
+      end;
     vBuilder:
       Result := Desktop(TSDatabase(FNavigator.Selected.Data)).BuilderDBGrid;
     vEditor,
@@ -8062,6 +8100,10 @@ begin
 
   if (Assigned(Result)) then
   begin
+    // Debug 2016-11-23
+    if (not Assigned(aDDeleteRecord)) then
+      raise ERangeError.Create(SRangeError);
+
     aDDeleteRecord.DataSource := Result.DataSource;
     aDInsertRecord.DataSource := Result.DataSource;
     Result.DataSource.OnDataChange := DBGridDataSourceDataChange;
@@ -9199,6 +9241,9 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
       raise ERangeError.Create(SRangeError);
     if (not Assigned(Item.Data)) then
       raise ERangeError.Create(SRangeError);
+    // Debug 2016-11-23
+    if (Item.Data <> Data) then
+      raise ERangeError.Create(SRangeError);
 
     Assert(Item.Data = Data);
 
@@ -9210,8 +9255,10 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
       Item.GroupID := giDatabases;
       if (Data is TSSystemDatabase) then
         Item.ImageIndex := iiSystemDatabase
-      else
-        Item.ImageIndex := iiDatabase;
+      else if (Data is TSDatabase) then
+        Item.ImageIndex := iiDatabase
+      else // Debug 2016-11-23
+        raise ERangeError.Create(SRangeError);
       Item.Caption := TSDatabase(Data).Caption;
 
       Item.SubItems.Clear();
@@ -10877,7 +10924,10 @@ begin
     begin
       if (URI.Param['view'] = 'browser') then
       begin
+        // Debug 2016-11-23
         if (not (FNavigator.Selected.ImageIndex in [iiBaseTable, iiSystemView, iiView])) then
+          raise ERangeError.Create(SRangeError);
+        if (not Assigned(FNavigator.Selected.Data)) then
           raise ERangeError.Create(SRangeError);
 
         if (Desktop(TSTable(FNavigator.Selected.Data)).Table.ValidData) then
@@ -13610,9 +13660,9 @@ end;
 procedure TFSession.UMCloseTabQuery(var Message: TMessage);
 var
   CanClose: Boolean;
-  SObject: TSObject;
   I: Integer;
   J: Integer;
+  SObject: TSObject;
   SynMemo: TSynMemo;
   View: TView;
 begin
@@ -13633,9 +13683,8 @@ begin
             for J := 0 to FNavigator.Items.Count - 1 do
               if (FNavigator.Items[J].Data = SObject) then
               begin
-                FNavigator.Selected := FNavigator.Items[J];
-                Self.View := vIDE;
-                Window.ActiveControl := SynMemo;
+                Address := NavigatorNodeToAddress(FNavigator.Items[J]);
+                Window.ActiveControl := ActiveSynMemo;
                 case (MsgBox(Preferences.LoadStr(584, SObject.Name), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
                   IDYES: MainAction('aDPostObject').Execute();
                   IDCANCEL: CanClose := False;

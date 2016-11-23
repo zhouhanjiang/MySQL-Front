@@ -450,7 +450,6 @@ type
       const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean; virtual;
     procedure SetCommandText(const ACommandText: string); virtual;
     procedure SetConnection(const AConnection: TMySQLConnection); virtual;
-    function SQLSelect(): string; overload; virtual;
     procedure UpdateIndexDefs(); override;
     property Handle: MySQLConsts.MYSQL_RES read GetHandle;
     property IndexDefs: TIndexDefs read FIndexDefs;
@@ -632,8 +631,8 @@ type
     procedure InternalClose(); override;
     procedure InternalLast(); override;
     procedure InternalOpen(); override;
-    function SQLSelect(): string; overload; override;
-    function SQLSelect(const IgnoreLimit: Boolean): string; overload; virtual;
+    function SQLSelect(): string; overload;
+    function SQLSelect(const IgnoreLimit: Boolean): string; overload;
   public
     constructor Create(AOwner: TComponent); override;
     function LoadNextRecords(const AllRecords: Boolean = False): Boolean; virtual;
@@ -3230,7 +3229,7 @@ begin
           end;
         until (Lib.mysql_session_track_get_next(SyncThread.LibHandle, SESSION_TRACK_SYSTEM_VARIABLES, Data, Size) <> 0);
 
-    if (SyncThread.CLStmts[SyncThread.StmtIndex]) then
+    if ((SyncThread.StmtIndex < Length(SyncThread.CLStmts)) and SyncThread.CLStmts[SyncThread.StmtIndex]) then
     begin
       if ((SyncThread.StmtIndex < SyncThread.StmtLengths.Count)
         and (SQLParseCLStmt(CLStmt, @SyncThread.SQL[SyncThread.SQLIndex], Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]), MySQLVersion))) then
@@ -3310,7 +3309,10 @@ begin
         SyncHandledResult(SyncThread);
       end
       else if ((SyncThread.State = ssResult) and Assigned(SyncThread.ResHandle)) then
-        raise Exception.Create('Query has not been handled: ' + SyncThread.CommandText);
+        if (SyncThread.CommandText <> '') then
+          raise Exception.Create('Query has not been handled: ' + SyncThread.CommandText)
+        else
+          raise Exception.Create('Query has not been handled: ' + SQLEscapeBin(SyncThread.SQL, True));
     finally
       InOnResult := False;
     end;
@@ -3642,16 +3644,6 @@ end;
 
 function TMySQLBitField.GetIsNull(): Boolean;
 begin
-  if (not Assigned(DataSet)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (not (DataSet is TMySQLQuery)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (FieldNo - 1 >= TMySQLQuery(DataSet).FieldCount) then
-    // Debug 2016-11-21
-    raise ERangeError.Create(SRangeError);
-
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -3708,16 +3700,6 @@ end;
 
 function TMySQLBlobField.GetIsNull(): Boolean;
 begin
-  if (not Assigned(DataSet)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (not (DataSet is TMySQLQuery)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (FieldNo - 1 >= TMySQLQuery(DataSet).FieldCount) then
-    // Debug 2016-11-21
-    raise ERangeError.Create(SRangeError);
-
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -3751,16 +3733,6 @@ end;
 
 function TMySQLByteField.GetIsNull(): Boolean;
 begin
-  if (not Assigned(DataSet)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (not (DataSet is TMySQLQuery)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (FieldNo - 1 >= TMySQLQuery(DataSet).FieldCount) then
-    // Debug 2016-11-21
-    raise ERangeError.Create(SRangeError);
-
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -3781,16 +3753,6 @@ end;
 
 function TMySQLDateField.GetIsNull(): Boolean;
 begin
-  if (not Assigned(DataSet)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (not (DataSet is TMySQLQuery)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (FieldNo - 1 >= TMySQLQuery(DataSet).FieldCount) then
-    // Debug 2016-11-21
-    raise ERangeError.Create(SRangeError);
-
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -3833,16 +3795,6 @@ end;
 
 function TMySQLDateTimeField.GetIsNull(): Boolean;
 begin
-  if (not Assigned(DataSet)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (not (DataSet is TMySQLQuery)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (FieldNo - 1 >= TMySQLQuery(DataSet).FieldCount) then
-    // Debug 2016-11-21
-    raise ERangeError.Create(SRangeError);
-
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -3883,16 +3835,6 @@ end;
 
 function TMySQLExtendedField.GetIsNull(): Boolean;
 begin
-  if (not Assigned(DataSet)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (not (DataSet is TMySQLQuery)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (FieldNo - 1 >= TMySQLQuery(DataSet).FieldCount) then
-    // Debug 2016-11-21
-    raise ERangeError.Create(SRangeError);
-
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -3913,16 +3855,6 @@ end;
 
 function TMySQLFloatField.GetIsNull(): Boolean;
 begin
-  if (not Assigned(DataSet)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (not (DataSet is TMySQLQuery)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (FieldNo - 1 >= TMySQLQuery(DataSet).FieldCount) then
-    // Debug 2016-11-21
-    raise ERangeError.Create(SRangeError);
-
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -3943,17 +3875,7 @@ end;
 
 function TMySQLIntegerField.GetIsNull(): Boolean;
 begin
-  if (not Assigned(DataSet)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (not (DataSet is TMySQLQuery)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (FieldNo - 1 >= TMySQLQuery(DataSet).FieldCount) then
-    // Debug 2016-11-21
-    raise ERangeError.Create(SRangeError);
-
-    Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLIntegerField.GetText(var Text: string; DisplayText: Boolean);
@@ -3983,16 +3905,6 @@ end;
 
 function TMySQLLargeWordField.GetIsNull(): Boolean;
 begin
-  if (not Assigned(DataSet)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (not (DataSet is TMySQLQuery)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (FieldNo - 1 >= TMySQLQuery(DataSet).FieldCount) then
-    // Debug 2016-11-21
-    raise ERangeError.Create(SRangeError);
-
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -4028,16 +3940,6 @@ end;
 
 function TMySQLLongWordField.GetIsNull(): Boolean;
 begin
-  if (not Assigned(DataSet)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (not (DataSet is TMySQLQuery)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (FieldNo - 1 >= TMySQLQuery(DataSet).FieldCount) then
-    // Debug 2016-11-21
-    raise ERangeError.Create(SRangeError);
-
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -4058,16 +3960,6 @@ end;
 
 function TMySQLShortIntField.GetIsNull(): Boolean;
 begin
-  if (not Assigned(DataSet)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (not (DataSet is TMySQLQuery)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (FieldNo - 1 >= TMySQLQuery(DataSet).FieldCount) then
-    // Debug 2016-11-21
-    raise ERangeError.Create(SRangeError);
-
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -4088,16 +3980,6 @@ end;
 
 function TMySQLSingleField.GetIsNull(): Boolean;
 begin
-  if (not Assigned(DataSet)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (not (DataSet is TMySQLQuery)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (FieldNo - 1 >= TMySQLQuery(DataSet).FieldCount) then
-    // Debug 2016-11-21
-    raise ERangeError.Create(SRangeError);
-
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -4118,16 +4000,6 @@ end;
 
 function TMySQLSmallIntField.GetIsNull(): Boolean;
 begin
-  if (not Assigned(DataSet)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (not (DataSet is TMySQLQuery)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (FieldNo - 1 >= TMySQLQuery(DataSet).FieldCount) then
-    // Debug 2016-11-21
-    raise ERangeError.Create(SRangeError);
-
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -4159,16 +4031,6 @@ end;
 
 function TMySQLStringField.GetIsNull(): Boolean;
 begin
-  if (not Assigned(DataSet)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (not (DataSet is TMySQLQuery)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (FieldNo - 1 >= TMySQLQuery(DataSet).FieldCount) then
-    // Debug 2016-11-21
-    raise ERangeError.Create(SRangeError);
-
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -4235,16 +4097,6 @@ end;
 
 function TMySQLTimeField.GetIsNull(): Boolean;
 begin
-  if (not Assigned(DataSet)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (not (DataSet is TMySQLQuery)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (FieldNo - 1 >= TMySQLQuery(DataSet).FieldCount) then
-    // Debug 2016-11-21
-    raise ERangeError.Create(SRangeError);
-
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -4314,16 +4166,6 @@ end;
 
 function TMySQLTimeStampField.GetIsNull(): Boolean;
 begin
-  if (not Assigned(DataSet)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (not (DataSet is TMySQLQuery)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (FieldNo - 1 >= TMySQLQuery(DataSet).FieldCount) then
-    // Debug 2016-11-21
-    raise ERangeError.Create(SRangeError);
-
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -4406,16 +4248,6 @@ end;
 
 function TMySQLWideMemoField.GetIsNull(): Boolean;
 begin
-  if (not Assigned(DataSet)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (not (DataSet is TMySQLQuery)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (FieldNo - 1 >= TMySQLQuery(DataSet).FieldCount) then
-    // Debug 2016-11-21
-    raise ERangeError.Create(SRangeError);
-
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -4454,16 +4286,6 @@ end;
 
 function TMySQLWideStringField.GetIsNull(): Boolean;
 begin
-  if (not Assigned(DataSet)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (not (DataSet is TMySQLQuery)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (FieldNo - 1 >= TMySQLQuery(DataSet).FieldCount) then
-    // Debug 2016-11-21
-    raise ERangeError.Create(SRangeError);
-
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -4498,13 +4320,17 @@ begin
         + 'Hex data: ' + SQLEscapeBin(LibRow^[FieldNo - 1], LibLengths^[FieldNo - 1], True) + #10
         + 'Character set: ' + TMySQLQuery(DataSet).Connection.Charset + #10
         + 'Windows codepage: '  + IntToStr(TMySQLQuery(DataSet).Connection.CodePage) + #10
-        + 'Connection type: ' + IntToStr(Ord(TMySQLQuery(DataSet).Connection.LibraryType));
+        + 'Connection type: ' + IntToStr(Ord(TMySQLQuery(DataSet).Connection.LibraryType)) + #10;
 
       for I := 0 to DataSet.FieldCount - 1 do
         if (DataSet.Fields[I].IsIndexField) then
           try
-            Msg := Msg
-              + DataSet.Fields[I].FieldName + ': ' + DataSet.Fields[I].AsString + #10;
+            Msg := Msg + DataSet.Fields[I].FieldName + ': ';
+            try
+              Msg := Msg + DataSet.Fields[I].AsString + #10;
+            finally
+              Msg := Msg + '???' + #10;
+            end;
           except
           end;
 
@@ -4527,16 +4353,6 @@ end;
 
 function TMySQLWordField.GetIsNull(): Boolean;
 begin
-  if (not Assigned(DataSet)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (not (DataSet is TMySQLQuery)) then
-    // Debug 2016-11-10
-    raise ERangeError.CreateFMT(SPropertyOutOfRange, ['DataSet'])
-  else if (FieldNo - 1 >= TMySQLQuery(DataSet).FieldCount) then
-    // Debug 2016-11-21
-    raise ERangeError.Create(SRangeError);
-
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -4780,9 +4596,11 @@ end;
 function TMySQLQuery.GetLibRow(): MYSQL_ROW;
 begin
   Assert(Active);
-  Assert(Assigned(ActiveBuffer()));
 
-  Result := PRecordBufferData(ActiveBuffer())^.LibRow;
+  if (not Assigned(ActiveBuffer())) then
+    Result := nil
+  else
+    Result := PRecordBufferData(ActiveBuffer())^.LibRow;
 end;
 
 function TMySQLQuery.GetIsIndexField(Field: TField): Boolean;
@@ -5218,10 +5036,10 @@ begin
       inherited
     else
     begin
-      if (CommandType <> ctTable) then
-        SQL := CommandText
+      if ((CommandType = ctTable) and (Self is TMySQLTable)) then
+        SQL := TMySQLTable(Self).SQLSelect()
       else
-        SQL := SQLSelect();
+        SQL := CommandText;
 
       Connection.InternExecuteSQL(smDataSet, True, SQL, SetActiveEvent);
     end;
@@ -5301,11 +5119,6 @@ begin
       ftWideString: Result := SQLEscape(Connection.LibDecode(Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]));
       else raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%d)', [Field.Name, Integer(Field.DataType)]);
     end;
-end;
-
-function TMySQLQuery.SQLSelect(): string;
-begin
-  raise EAbstractError.Create(SAbstractError);
 end;
 
 procedure TMySQLQuery.UpdateIndexDefs();
@@ -6144,10 +5957,10 @@ begin
 
   RecordsReceived.ResetEvent();
 
-  if (CommandType = ctQuery) then
-    SQL := CommandText
+  if ((CommandType = ctTable) and (Self is TMySQLTable)) then
+    SQL := TMySQLTable(Self).SQLSelect()
   else
-    SQL := SQLSelect();
+    SQL := CommandText;
   if (Connection.InternExecuteSQL(smDataSet, True, SQL)) then
     Connection.SyncBindDataSet(Self);
 end;
@@ -7496,7 +7309,11 @@ var
   FirstField: Boolean;
   Pos: Integer;
 begin
-  Result := inherited SQLSelect();
+  Result := 'SELECT * FROM ';
+  if (DatabaseName <> '') then
+    Result := Result + Connection.EscapeIdentifier(DatabaseName) + '.';
+  Result := Result + Connection.EscapeIdentifier(CommandText);
+
   if (SortDef.Fields <> '') then
   begin
     Result := Result + ' ORDER BY ';
@@ -7518,6 +7335,7 @@ begin
       FirstField := False;
     until (FieldName = '');
   end;
+
   if (Limit = 0) then
     RequestedRecordCount := $7fffffff
   else

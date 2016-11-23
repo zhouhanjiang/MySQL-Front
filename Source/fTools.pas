@@ -824,7 +824,7 @@ begin
   Result := S;
 end;
 
-function ODBCError(const HandleType: SQLSMALLINT; const Handle: SQLHANDLE; const ReturnCode: SQLRETURN = -50): TTool.TError;
+function ODBCError(const HandleType: SQLSMALLINT; const Handle: SQLHANDLE): TTool.TError;
 var
   cbMessageText: SQLSMALLINT;
   MessageText: PSQLTCHAR;
@@ -846,10 +846,7 @@ begin
     SQL_INVALID_HANDLE:
       Result.ErrorMessage := 'Invalid ODBC Handle.';
     SQL_NO_DATA:
-      if (ReturnCode = -50) then
-        raise Exception.Create('Unknown ODBC Error (No Data)')
-      else
-        raise Exception.Create('Unknown ODBC Error (' + IntToStr(ReturnCode) + ')')
+      raise Exception.Create('Unknown ODBC Error (No Data)');
   end;
 end;
 
@@ -1790,6 +1787,7 @@ end;
 
 constructor TTImport.Create(const ASession: TSSession; const ADatabase: TSDatabase);
 begin
+ImportState := 1;
   inherited Create();
 
   FDatabase := ADatabase;
@@ -1798,11 +1796,14 @@ begin
 
   Data := False;
   Structure := False;
+ImportState := 2;
 end;
 
 destructor TTImport.Destroy();
 begin
   Close();
+
+ImportState := 0;
 
   inherited;
 end;
@@ -1881,60 +1882,60 @@ begin
   try
   {$ENDIF}
 
-ImportState := 1;
+ImportState := 11;
   BeforeExecute();
 
-ImportState := 2;
+ImportState := 12;
   Open();
 
-ImportState := 3;
+ImportState := 13;
   for I := 0 to Items.Count - 1 do
     if (Success <> daAbort) then
     begin
       Success := daSuccess;
 
-ImportState := 4;
+ImportState := 14;
       if (Structure) then
       begin
-ImportState := 5;
+ImportState := 15;
         Table := Database.TableByName(TTImport.TItem(Items[I]).DestinationTableName);
         if (Assigned(Table)) then
           while ((Success = daSuccess) and not Database.DeleteObject(Table)) do
             DoError(DatabaseError(Session), Items[I], True);
 
-ImportState := 6;
+ImportState := 16;
         if (Success = daSuccess) then
         begin
           SetLength(FieldMappings, 0);
           ExecuteTableStructure(TTImport.TItem(Items[I]));
         end;
-ImportState := 7;
+ImportState := 17;
       end;
 
-ImportState := 8;
+ImportState := 18;
       if ((Success = daSuccess) and Data) then
       begin
-ImportState := 9;
+ImportState := 19;
         Table := Database.TableByName(TTImport.TItem(Items[I]).DestinationTableName);
-ImportState := 10;
+ImportState := 20;
 
         if (not Assigned(Table)) then
           raise Exception.Create('Table "' + TTImport.TItem(Items[I]).DestinationTableName + '" does not exists.');
 
-ImportState := 11;
+ImportState := 21;
         ExecuteTableData(TTImport.TItem(Items[I]), Database.TableByName(TTImport.TItem(Items[I]).DestinationTableName));
-ImportState := 12;
+ImportState := 22;
       end;
 
       Items[I].Done := True;
 
       if (Success = daFail) then Success := daSuccess;
-ImportState := 13;
+ImportState := 23;
     end;
 
-ImportState := 14;
+ImportState := 24;
   AfterExecute();
-ImportState := 15;
+ImportState := 25;
 
   {$IFDEF EurekaLog}
   except
@@ -2890,7 +2891,7 @@ begin
   begin
     FRecNo := 0;
     if (FileContent.Str = '') then
-      FirstRecordFilePos := SizeOf(Char)
+      FirstRecordFilePos := BOMLength
     else
       case (CodePage) of
         CP_Unicode: FirstRecordFilePos := BOMLength + (FileContent.Index - 1) * SizeOf(Char);
@@ -3588,14 +3589,14 @@ begin
             Inc(Size, Min(ODBCDataSize, cbData));
           end;
         until (ReturnCode <> SQL_SUCCESS_WITH_INFO);
-        if (not SQL_SUCCEEDED(ReturnCode)) then
+        if (not SQL_SUCCEEDED(ReturnCode) and (ReturnCode <> SQL_NO_DATA)) then
         begin
-          DoError(ODBCError(SQL_HANDLE_STMT, Stmt, ReturnCode), Item, False);
+          DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
           Values.Write('NULL', 4);
         end
         else if ((Size = 0) and (cbData = SQL_NULL_DATA)) then
           Values.Write('NULL', 4)
-        else
+        else if (ReturnCode = SQL_SUCCESS) then
           Values.WriteText(PChar(ODBCMem), Size div SizeOf(Char));
       end;
     SQL_BINARY,
@@ -3616,14 +3617,14 @@ begin
             Inc(Size, Min(ODBCDataSize, cbData));
           end;
         until (ReturnCode <> SQL_SUCCESS_WITH_INFO);
-        if (not SQL_SUCCEEDED(ReturnCode)) then
+        if (not SQL_SUCCEEDED(ReturnCode) and (ReturnCode <> SQL_NO_DATA)) then
         begin
-          DoError(ODBCError(SQL_HANDLE_STMT, Stmt, ReturnCode), Item, False);
+          DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
           Values.Write('NULL', 4);
         end
         else if (cbData = SQL_NULL_DATA) then
           Values.Write('NULL', 4)
-        else
+        else if (ReturnCode <> SQL_NO_DATA) then
         begin
           S := SQLEscapeBin(ODBCMem, Size, False);
           Values.Write(PChar(S), Length(S));
@@ -3699,14 +3700,14 @@ begin
               Inc(Size, cbData);
             end;
           until (ReturnCode <> SQL_SUCCESS_WITH_INFO);
-          if (not SQL_SUCCEEDED(ReturnCode)) then
+          if (not SQL_SUCCEEDED(ReturnCode) and (ReturnCode <> SQL_NO_DATA)) then
           begin
-            DoError(ODBCError(SQL_HANDLE_STMT, Stmt, ReturnCode), Item, False);
+            DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
             Values.Write(PAnsiChar('NULL'), 4);
           end
           else if ((Size = 0) and (cbData = SQL_NULL_DATA) and FieldMappings[I].DestinationField.NullAllowed) then
             Values.Write(PAnsiChar('NULL'), 4)
-          else
+          else if (ReturnCode <> SQL_NO_DATA) then
             Values.WriteText(PChar(ODBCMem), Size div SizeOf(Char));
         end;
       SQL_BINARY,
@@ -3727,14 +3728,14 @@ begin
               Inc(Size, Min(ODBCDataSize, cbData));
             end;
           until (ReturnCode <> SQL_SUCCESS_WITH_INFO);
-          if (not SQL_SUCCEEDED(ReturnCode)) then
+          if (not SQL_SUCCEEDED(ReturnCode) and (ReturnCode <> SQL_NO_DATA)) then
           begin
-            DoError(ODBCError(SQL_HANDLE_STMT, Stmt, ReturnCode), Item, False);
+            DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
             Values.Write(PAnsiChar('NULL'), 4);
           end
           else if ((Size = 0) and (cbData = SQL_NULL_DATA) and FieldMappings[I].DestinationField.NullAllowed) then
             Values.Write(PAnsiChar('NULL'), 4)
-          else
+          else if (ReturnCode <> SQL_NO_DATA) then
             Values.WriteBinary(my_char(ODBCMem), Size);
         end;
       else
@@ -3977,6 +3978,7 @@ var
   DataTable: Boolean;
   DataTables: TList;
   DataTablesIndex: Integer;
+  DBObjectItem: TDBObjectItem;
   FieldNames: string;
   I: Integer;
   Index: Integer;
@@ -4012,7 +4014,12 @@ begin
           if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Items[I]).DBObject).Engine)) then
             raise ERangeError.Create(SRangeError);
 
-          DataTable := TDBObjectItem(Items[I]).DBObject is TSBaseTable;
+          // Debug 2016-11-23
+          DBObjectItem := TDBObjectItem(Items[I]);
+          if (DBObjectItem.ClassType <> TDBObjectItem) then
+            raise ERangeError.Create(SRangeError);
+
+          DataTable := DBObjectItem.DBObject is TSBaseTable;
           DataTable := DataTable and not TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine.IsMerge;
         end
         else if (Self is TTTransfer) then
@@ -6369,7 +6376,7 @@ begin
     ReturnCode := SQLExecute(Stmt);
     if (not SQL_SUCCEEDED(ReturnCode) and (ReturnCode <> SQL_NEED_DATA)) then
     begin
-      Error := ODBCError(SQL_HANDLE_STMT, Stmt, ReturnCode);
+      Error := ODBCError(SQL_HANDLE_STMT, Stmt);
       Error.ErrorMessage := Error.ErrorMessage;
       DoError(Error, nil, False);
     end;

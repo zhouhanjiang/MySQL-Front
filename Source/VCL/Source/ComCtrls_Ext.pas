@@ -78,6 +78,7 @@ end;
 
 procedure TTreeView_Ext.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
+  B: Boolean; // Debug 2016-11-23
   Child: TTreeNode;
   Node: TTreeNode;
   NodeIndex: Integer;
@@ -90,11 +91,13 @@ begin
 
   inherited;
 
-  if (MultiSelect
-    and Assigned(ShiftDownSelected)
-    and Assigned(Node)
-    and (ShiftDownSelected.Parent = Node.Parent)
-    and (Shift = [ssShift, ssLeft])) then
+  B := MultiSelect;
+  B := B and Assigned(ShiftDownSelected);
+  B := B and Assigned(Node);
+  B := B and (ShiftDownSelected.Parent = Node.Parent);
+  B := B and (Shift = [ssShift, ssLeft]);
+
+  if (B) then
   begin
     OldSelectedIndex := ShiftDownSelected.Parent.IndexOf(ShiftDownSelected);
     NodeIndex := Node.Parent.IndexOf(Node);

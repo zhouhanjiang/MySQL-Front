@@ -522,7 +522,7 @@ type
       FQuickSearch: string;
       FTable: TSTable;
     protected
-      function SQLSelect(const IgnoreLimit: Boolean = False): string; override;
+      function SQLSelect(const IgnoreLimit: Boolean = False): string;
     public
       constructor Create(const ATable: TSTable); reintroduce; virtual;
       procedure Invalidate(); virtual;
@@ -550,7 +550,7 @@ type
     procedure Invalidate(); override;
     procedure InvalidateData(); virtual;
     procedure Open(const FilterSQL, QuickSearch: string; const ASortDef: TIndexDef; const Offset: Integer; const Limit: Integer); virtual;
-    procedure PushBuildEvent(const SItemsEvents: Boolean = True); override;
+    procedure PushBuildEvent(const ItemsEvents: Boolean = True); override;
     property DataSet: TDataSet read GetDataSet;
     property Fields: TSTableFields read GetFields;
     property Index: Integer read GetIndex;
@@ -3775,9 +3775,14 @@ begin
   Result := False;
 end;
 
-procedure TSTable.PushBuildEvent(const SItemsEvents: Boolean = True);
+procedure TSTable.PushBuildEvent(const ItemsEvents: Boolean = True);
 begin
-  inherited;
+  if (ValidSource) then
+  begin
+    if (ItemsEvents) then
+      Session.SendEvent(etItemsValid, Database, Items);
+    Session.SendEvent(etItemValid, Database, Items, Self);
+  end;
 
   if (Fields.Count > 0) then
     Session.SendEvent(etItemsValid, Self, Fields);
@@ -4237,7 +4242,9 @@ begin
   if (not Assigned(Fields)) then
     raise ERangeError.Create(SRangeError);
 
-  Result := inherited and (Fields.Count > 0) and ValidStatus;
+  Result := inherited and ValidStatus;
+
+  Assert(not Result or (Fields.Count > 0));
 end;
 
 procedure TSBaseTable.InvalidateData();
@@ -6380,9 +6387,7 @@ begin
     FInputDataSet := TMySQLDataSet.Create(nil);
     FInputDataSet.Connection := Session.Connection;
     FInputDataSet.CommandText := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(FTableName) + ' LIMIT 0';
-    Session.Connection.BeginSynchron();
     FInputDataSet.Open();
-    Session.Connection.EndSynchron();
     if (not FInputDataSet.Active) then
       FreeAndNil(FInputDataSet)
     else
@@ -10769,7 +10774,7 @@ begin
   FConnection := TSConnection.Create(Self);
   Sessions.Add(Self);
 
-  ConnectionEvent := SyncObjs.TEvent.Create(nil, True, False, '');
+  ConnectionEvent := SyncObjs.TEvent.Create(nil, False, False, '');
   SetLength(EventProcs, 0);
   FCurrentUser := '';
   FInformationSchema := nil;
@@ -11891,10 +11896,7 @@ end;
 
 function TSSession.SendSQL(const SQL: string; const OnResult: TMySQLConnection.TResultEvent = nil): Boolean;
 begin
-//  Assert(ConnectionEvent.WaitFor(IGNORE) <> wrSignaled);
-
-  if (GetCurrentThreadId() <> MainThreadId) then
-    ConnectionEvent.ResetEvent();
+  Assert(ConnectionEvent.WaitFor(IGNORE) <> wrSignaled);
 
   if (GetCurrentThreadId() = MainThreadId) then
     Result := Connection.SendSQL(SQL, OnResult)

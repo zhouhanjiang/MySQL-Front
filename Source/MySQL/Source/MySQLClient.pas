@@ -3,7 +3,7 @@
 interface {********************************************************************}
 
 uses
-  Windows, SyncObjs, WinSock,
+  Windows, SyncObjs, WinSock, Classes,
   SysUtils,
   MySQLConsts;
 
@@ -52,6 +52,7 @@ type
     end;
     TClientStatus = (MYSQL_STATUS_READY, MYSQL_STATUS_GET_RESULT, MYSQL_STATUS_USE_RESULT);
   private
+    BuffersMem: TList; // Debug 2016-11-23
     CompPacketNr: Byte;
     CompressedBuffer: TBuffer;
     DecompressedBuffer: TBuffer;
@@ -82,6 +83,7 @@ type
     function WritePacket(const Value: RawByteString; const NTS: Boolean = True): Boolean; overload; virtual;
   public
     constructor Create(); override;
+    destructor Destroy(); override;
   end;
 
   MYSQL_RES = class
@@ -293,8 +295,7 @@ const
 implementation {***************************************************************}
 
 uses
-  Classes,
-  ZLib, StrUtils;
+  ZLib, StrUtils, SysConst;
 
 const
   AF_INET6 = 23;
@@ -1226,9 +1227,20 @@ constructor TMySQL_Packet.Create();
 begin
   inherited;
 
+  BuffersMem := TList.Create();
   FillChar(CompressedBuffer, SizeOf(CompressedBuffer), #0);
   FillChar(DecompressedBuffer, SizeOf(DecompressedBuffer), #0);
   FillChar(PacketBuffer, SizeOf(PacketBuffer), #0);
+end;
+
+destructor TMySQL_Packet.Destroy();
+begin
+  inherited;
+
+  // Debug 2016-11-23
+  if (BuffersMem.Count > 0) then
+    raise ERangeError.Create(SRangeError);
+  BuffersMem.Free();
 end;
 
 function TMySQL_Packet.CreatePacket(const AIOType: TMYSQL_IO.TType;
@@ -1322,7 +1334,15 @@ end;
 procedure TMySQL_Packet.FreeBuffer(var Buffer: TBuffer);
 begin
   if (Assigned(Buffer.Mem)) then
+  begin
+    // Debug 2016-11-23
+    if (BuffersMem.IndexOf(Buffer.Mem) < 0) then
+      raise ERangeError.Create(SRangeError)
+    else
+      BuffersMem.Delete(BuffersMem.IndexOf(Buffer.Mem));
+
     FreeMem(Buffer.Mem);
+  end;
   ZeroMemory(@Buffer, SizeOf(Buffer));
 end;
 
@@ -1504,7 +1524,13 @@ begin
     Buffer.MemSize := (((Buffer.Size + NeededSize - 1) div NET_BUFFER_LENGTH) + 1) * NET_BUFFER_LENGTH;
 
     try
+      if (Assigned(Buffer.Mem)) then
+        if (BuffersMem.IndexOf(Buffer.Mem) < 0) then
+          raise ERangeError.Create(SRangeError)
+        else
+          BuffersMem.Delete(BuffersMem.IndexOf(Buffer.Mem));
       ReallocMem(Buffer.Mem, Buffer.MemSize);
+      BuffersMem.Add(Buffer.Mem);
     except
       FreeBuffer(Buffer);
       Seterror(CR_OUT_OF_MEMORY);
@@ -1583,9 +1609,17 @@ function TMySQL_Packet.ReceivePacket(): Boolean;
                 if (Result) then
                 begin
                   if (Assigned(DecompressedBuffer.Mem)) then
+                  begin
+                    if (BuffersMem.IndexOf(DecompressedBuffer.Mem) < 0) then
+                      raise ERangeError.Create(SRangeError)
+                    else
+                      BuffersMem.Delete(BuffersMem.IndexOf(DecompressedBuffer.Mem));
                     FreeMem(DecompressedBuffer.Mem);
+                    DecompressedBuffer.Mem := nil;
+                  end;
                   try
                     ZDecompress(CompressedBuffer.Mem, CompressedBuffer.Size, Pointer(DecompressedBuffer.Mem), DecompressedSize);
+                    BuffersMem.Add(DecompressedBuffer.Mem);
                   except
                     Result := Seterror(CR_UNKNOWN_ERROR) = 0;
                   end;

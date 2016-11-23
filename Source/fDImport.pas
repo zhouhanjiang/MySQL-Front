@@ -1601,7 +1601,10 @@ end;
 
 procedure TDImport.OnTerminate(Sender: TObject);
 begin
-  PostMessage(Handle, UM_TERMINATE, WPARAM(not Import.Terminated), 0);
+  if (not Assigned(Import)) then
+    PostMessage(Handle, UM_TERMINATE, WPARAM(False), 0)
+  else
+    PostMessage(Handle, UM_TERMINATE, WPARAM(not Import.Terminated), 0);
 end;
 
 procedure TDImport.OnUpdate(const AProgressInfos: TTool.TProgressInfos);
@@ -1687,7 +1690,9 @@ begin
   FDoneTime.Caption := '';
   FProgressBar.Position := 0;
   FErrors.Caption := '0';
-  FErrorMessages.Lines.Clear();
+//  FErrorMessages.Lines.Clear();
+  // Debug 2016-11-23
+  SetWindowText(FErrorMessages.Handle, '');
 
   if (not Assigned(Import)) then
     TSJobHide(Self);
