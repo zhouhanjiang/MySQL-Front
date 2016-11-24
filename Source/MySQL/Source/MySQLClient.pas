@@ -52,7 +52,6 @@ type
     end;
     TClientStatus = (MYSQL_STATUS_READY, MYSQL_STATUS_GET_RESULT, MYSQL_STATUS_USE_RESULT);
   private
-    BuffersMem: TList; // Debug 2016-11-23
     CompPacketNr: Byte;
     CompressedBuffer: TBuffer;
     DecompressedBuffer: TBuffer;
@@ -83,7 +82,6 @@ type
     function WritePacket(const Value: RawByteString; const NTS: Boolean = True): Boolean; overload; virtual;
   public
     constructor Create(); override;
-    destructor Destroy(); override;
   end;
 
   MYSQL_RES = class
@@ -162,7 +160,7 @@ type
     fport: Cardinal;
     freconnect: Boolean;
     fres: MYSQL_RES;
-    fserver_info: my_char;
+    fserver_info: RawByteString;
     fserver_version: my_uint;
     fstat: RawByteString;
     fthread_id: my_uint;
@@ -1227,20 +1225,9 @@ constructor TMySQL_Packet.Create();
 begin
   inherited;
 
-  BuffersMem := TList.Create();
   FillChar(CompressedBuffer, SizeOf(CompressedBuffer), #0);
   FillChar(DecompressedBuffer, SizeOf(DecompressedBuffer), #0);
   FillChar(PacketBuffer, SizeOf(PacketBuffer), #0);
-end;
-
-destructor TMySQL_Packet.Destroy();
-begin
-  inherited;
-
-  // Debug 2016-11-23
-  if (BuffersMem.Count > 0) then
-    raise ERangeError.Create(SRangeError);
-  BuffersMem.Free();
 end;
 
 function TMySQL_Packet.CreatePacket(const AIOType: TMYSQL_IO.TType;
@@ -1334,15 +1321,7 @@ end;
 procedure TMySQL_Packet.FreeBuffer(var Buffer: TBuffer);
 begin
   if (Assigned(Buffer.Mem)) then
-  begin
-    // Debug 2016-11-23
-    if (BuffersMem.IndexOf(Buffer.Mem) < 0) then
-      raise ERangeError.Create(SRangeError)
-    else
-      BuffersMem.Delete(BuffersMem.IndexOf(Buffer.Mem));
-
     FreeMem(Buffer.Mem);
-  end;
   ZeroMemory(@Buffer, SizeOf(Buffer));
 end;
 
@@ -1524,13 +1503,7 @@ begin
     Buffer.MemSize := (((Buffer.Size + NeededSize - 1) div NET_BUFFER_LENGTH) + 1) * NET_BUFFER_LENGTH;
 
     try
-      if (Assigned(Buffer.Mem)) then
-        if (BuffersMem.IndexOf(Buffer.Mem) < 0) then
-          raise ERangeError.Create(SRangeError)
-        else
-          BuffersMem.Delete(BuffersMem.IndexOf(Buffer.Mem));
       ReallocMem(Buffer.Mem, Buffer.MemSize);
-      BuffersMem.Add(Buffer.Mem);
     except
       FreeBuffer(Buffer);
       Seterror(CR_OUT_OF_MEMORY);
@@ -1609,17 +1582,9 @@ function TMySQL_Packet.ReceivePacket(): Boolean;
                 if (Result) then
                 begin
                   if (Assigned(DecompressedBuffer.Mem)) then
-                  begin
-                    if (BuffersMem.IndexOf(DecompressedBuffer.Mem) < 0) then
-                      raise ERangeError.Create(SRangeError)
-                    else
-                      BuffersMem.Delete(BuffersMem.IndexOf(DecompressedBuffer.Mem));
-                    FreeMem(DecompressedBuffer.Mem);
-                    DecompressedBuffer.Mem := nil;
-                  end;
+                    FreeBuffer(DecompressedBuffer);
                   try
                     ZDecompress(CompressedBuffer.Mem, CompressedBuffer.Size, Pointer(DecompressedBuffer.Mem), DecompressedSize);
-                    BuffersMem.Add(DecompressedBuffer.Mem);
                   except
                     Result := Seterror(CR_UNKNOWN_ERROR) = 0;
                   end;
@@ -1629,7 +1594,7 @@ function TMySQL_Packet.ReceivePacket(): Boolean;
                   if (DecompressedSize <> Integer(UncompressedSize)) then
                   begin
                     // Debug 2016-11-10
-                    raise ERangeError.CreateFMT('Range Error: %d <> %d, Version: %s', [DecompressedSize, UncompressedSize, string(StrPas(MYSQL(Self).fserver_info))]);
+                    raise ERangeError.CreateFMT('Range Error: %d <> %d, Version: %s', [DecompressedSize, UncompressedSize, string(MYSQL(Self).fserver_info)]);
 //                    Result := Seterror(CR_SERVER_HANDSHAKE_ERR) = 0;
                   end
                   else
@@ -1829,8 +1794,8 @@ begin
   StateInfo.Data := '';
   StateInfo.Index := 0;
   SERVER_CAPABILITIES := 0;
-  if (Assigned(fserver_info)) then
-    begin FreeMem(fserver_info); fserver_info := nil; end;
+  fserver_info := '';
+  fserver_version := 0;
   SERVER_STATUS := 0;
   FillChar(FSQLState, SizeOf(FSQLState), #0);
   fthread_id := 0;
@@ -1862,7 +1827,8 @@ begin
   fpasswd := '';
   fport := MYSQL_PORT;
   freconnect := False;
-  fserver_info := nil;
+  fserver_info := '';
+  fserver_version := 0;
   StateInfo.Data := '';
   StateInfo.Index := 0;
   fthread_id := 0;
@@ -1958,15 +1924,12 @@ end;
 
 function MYSQL.get_server_info(): my_char;
 begin
-  Result := fserver_info;
+  Result := my_char(fserver_info);
 end;
 
 function MYSQL.get_server_version(): my_int;
 begin
-  if (not Assigned(fserver_info)) then
-    Result := 0
-  else
-    Result := fserver_version;
+  Result := fserver_version;
 end;
 
 function MYSQL.info(): my_char;
@@ -2347,7 +2310,7 @@ begin
       Seterror(CR_VERSION_ERROR, EncodeString(Format(CLIENT_ERRORS[CR_VERSION_ERROR - CR_MIN_ERROR], [ProtocolVersion, PROTOCOL_VERSION])))
     else
     begin
-      ReadPacket(RBS); ReallocMem(fserver_info, Length(RBS) + 1); StrPCopy(fserver_info, RBS);
+      ReadPacket(fserver_info);
       ReadPacket(fthread_id, 4);
       ReadPacket(Salt);
       ReadPacket(SERVER_CAPABILITIES, 2);

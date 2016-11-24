@@ -129,15 +129,12 @@ begin
     InternetCloseHandle(Handle);
   end;
 
-  if (Assigned(SendBuffer.Mem)) then
-  begin
-    FreeMem(SendBuffer.Mem);
-    ZeroMemory(@SendBuffer, SizeOf(SendBuffer));
-  end;
-
   SID := '';
 
   inherited;
+
+  if (Assigned(SendBuffer.Mem)) then
+    FreeBuffer(SendBuffer);
 end;
 
 constructor MYSQL.Create();
@@ -355,7 +352,7 @@ var
   EndingCommentLength: Integer;
   Packet: my_char;
   PacketLen: Integer;
-  SQL: PChar;
+  SQL: string;
   SQLIndex: Integer;
   SQLLen: Integer;
   SQLStmtLen: Integer;
@@ -373,18 +370,16 @@ begin
     GetMem(Packet, Size);
 
     SQLLen := MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, Bin, Size, nil, 0);
-
-    GetMem(SQL, SQLLen * SizeOf(SQL[0]));
-
-    MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, Bin, Size, SQL, SQLLen);
+    SetLength(SQL, SQLLen);
+    MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, Bin, Size, PChar(SQL), Length(SQL));
 
     SQLIndex := 0;
     while (SQLIndex < SQLLen) do
     begin
-      SQLStmtLen := SQLStmtLength(@SQL[SQLIndex], SQLLen - SQLIndex);
+      SQLStmtLen := SQLStmtLength(@PChar(SQL)[SQLIndex], SQLLen - SQLIndex);
 
-      StmtLen := SQLTrimStmt(@SQL[SQLIndex], SQLStmtLen, get_server_version(), StartingCommentLength, EndingCommentLength);
-      if ((StmtLen > 0) and (SQL[SQLIndex + StartingCommentLength + StmtLen - 1] = ';')) then
+      StmtLen := SQLTrimStmt(@PChar(SQL)[SQLIndex], SQLStmtLen, get_server_version(), StartingCommentLength, EndingCommentLength);
+      if ((StmtLen > 0) and (SQL[SQLIndex + StartingCommentLength + StmtLen - 1 - 1] = ';')) then
       begin
         Inc(EndingCommentLength);
         Dec(StmtLen);
@@ -392,7 +387,7 @@ begin
 
       if (StmtLen > 0) then
       begin
-        PacketLen := WideCharToMultiByte(CodePage, 0, PChar(@SQL[SQLIndex + StartingCommentLength]), StmtLen, Packet, Size, nil, nil);
+        PacketLen := WideCharToMultiByte(CodePage, 0, PChar(@PChar(SQL)[SQLIndex + StartingCommentLength]), StmtLen, Packet, Size, nil, nil);
 
         if (GetPacketSize() > 0) then
           SetPacketPointer(1, PACKET_CURRENT);
@@ -403,7 +398,6 @@ begin
       Inc(SQLIndex, SQLStmtLen);
     end;
 
-    FreeMem(SQL);
     FreeMem(Packet);
   end
   else
@@ -565,7 +559,7 @@ begin
                 Seterror(CR_VERSION_ERROR, EncodeString(Format(CLIENT_ERRORS[CR_VERSION_ERROR - CR_MIN_ERROR], [ProtocolVersion, PROTOCOL_VERSION])))
               else
               begin
-                ReadPacket(RBS); ReallocMem(fserver_info, Length(RBS) + 1); StrPCopy(fserver_info, RBS);
+                ReadPacket(fserver_info);
                 ReadPacket(fthread_id, 4);
                 ReadPacket(Salt);
                 ReadPacket(SERVER_CAPABILITIES, 2);
@@ -724,8 +718,7 @@ end;
 
 function MYSQL.Send(const Buffer; const BytesToWrite: my_uint): Boolean;
 begin
-  Result := (SendBuffer.Size + BytesToWrite <= SendBuffer.MemSize)
-    or ReallocBuffer(SendBuffer, SendBuffer.Size + BytesToWrite);
+  Result := ReallocBuffer(SendBuffer, SendBuffer.Size + BytesToWrite);
 
   if (Result) then
   begin

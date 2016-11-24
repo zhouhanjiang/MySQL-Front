@@ -500,13 +500,13 @@ type
       Y: Integer);
     procedure FQueryBuilderDragOver(Sender, Source: TObject; X, Y: Integer;
       State: TDragState; var Accept: Boolean);
-    procedure FQueryBuilderEditorChange(Sender: TObject);
-    procedure FQueryBuilderEditorEnter(Sender: TObject);
-    procedure FQueryBuilderEditorExit(Sender: TObject);
     procedure FQueryBuilderEnter(Sender: TObject);
     procedure FQueryBuilderExit(Sender: TObject);
     procedure FQueryBuilderResize(Sender: TObject);
     procedure FQueryBuilderSQLUpdated(Sender: TObject);
+    procedure FQueryBuilderSynMemoChange(Sender: TObject);
+    procedure FQueryBuilderSynMemoEnter(Sender: TObject);
+    procedure FQueryBuilderSynMemoExit(Sender: TObject);
     procedure FQueryBuilderValidatePopupMenu(Sender: TacQueryBuilder;
       AControlOwner: TacQueryBuilderControlOwner; AForControl: TControl;
       APopupMenu: TPopupMenu);
@@ -1250,29 +1250,29 @@ begin
   if ((Results.Count < 5) and Assigned(FSession.Session.Account.HistoryXML)) then
   begin
     XML := FSession.Session.Account.HistoryXML.AddChild('sql');
+    if (not Data) then
+      XML.Attributes['type'] := 'statement'
+    else
+      XML.Attributes['type'] := 'query';
+    XML.AddChild('database').Text := DataHandle.Connection.DatabaseName;
+    XML.AddChild('datetime').Text := FloatToStr(DataHandle.Connection.ServerDateTime, FileFormatSettings);
+    if (not Data and (DataHandle.Connection.RowsAffected >= 0)) then
+      XML.AddChild('rows_affected').Text := IntToStr(DataHandle.Connection.RowsAffected);
     try
-      if (not Data) then
-        XML.Attributes['type'] := 'statement'
-      else
-        XML.Attributes['type'] := 'query';
-      XML.AddChild('database').Text := DataHandle.Connection.DatabaseName;
-      XML.AddChild('datetime').Text := FloatToStr(DataHandle.Connection.ServerDateTime, FileFormatSettings);
-      if (not Data and (DataHandle.Connection.RowsAffected >= 0)) then
-        XML.AddChild('rows_affected').Text := IntToStr(DataHandle.Connection.RowsAffected);
       XML.AddChild('sql').Text := CommandText;
-      if (DataHandle.Connection.Info <> '') then
-        XML.AddChild('info').Text := DataHandle.Connection.Info;
-      XML.AddChild('execution_time').Text := FloatToStr(DataHandle.Connection.ExecutionTime, FileFormatSettings);
-      if (DataHandle.Connection.Connected and (DataHandle.Connection.InsertId > 0)) then
-        XML.AddChild('insert_id').Text := IntToStr(DataHandle.Connection.InsertId);
-
-      while (FSession.Session.Account.HistoryXML.ChildNodes.Count > 100) do
-        FSession.Session.Account.HistoryXML.ChildNodes.Delete(0);
-      FSession.FSQLHistoryRefresh(nil);
     except
-      on E: EOleException do
-        FSession.Session.Account.HistoryXML.ChildNodes.Delete(FSession.Session.Account.HistoryXML.ChildNodes.Count - 1);
+      raise ERangeError.Create(SRangeError);
     end;
+    if (DataHandle.Connection.Info <> '') then
+      XML.AddChild('info').Text := DataHandle.Connection.Info;
+    XML.AddChild('execution_time').Text := FloatToStr(DataHandle.Connection.ExecutionTime, FileFormatSettings);
+    if (DataHandle.Connection.Connected and (DataHandle.Connection.InsertId > 0)) then
+      XML.AddChild('insert_id').Text := IntToStr(DataHandle.Connection.InsertId);
+
+    while (FSession.Session.Account.HistoryXML.ChildNodes.Count > 100) do
+      FSession.Session.Account.HistoryXML.ChildNodes.Delete(0);
+    FSession.FSQLHistoryRefresh(nil);
+    FSession.Session.Account.HistoryXML.ChildNodes.Delete(FSession.Session.Account.HistoryXML.ChildNodes.Count - 1);
   end;
 
   if (DataHandle.Connection.ErrorCode > 0) then
@@ -5711,6 +5711,7 @@ begin
     else if (aVBlobText.Visible and not (Key in [VK_F2, VK_TAB, VK_DOWN, VK_UP, VK_LEFT, VK_RIGHT, VK_HOME, VK_END, VK_PRIOR, VK_NEXT, VK_APPS, VK_SHIFT, VK_CONTROL, VK_MENU])) then
     begin
       aVBlobText.Checked := True;
+      Window.ActiveControl := FText;
       if (Key = VK_RETURN) then
       begin
         SendMessage(FText.Handle, WM_VSCROLL, SB_BOTTOM, 0);
@@ -7515,29 +7516,6 @@ begin
   end
 end;
 
-procedure TFSession.FQueryBuilderEditorChange(Sender: TObject);
-begin
-  try
-    FQueryBuilder.SQL := FQueryBuilderSynMemo.Lines.Text;
-    PostMessage(Handle, UM_POST_BUILDER_QUERY_CHANGE, 0, 0);
-  except
-  end;
-end;
-
-procedure TFSession.FQueryBuilderEditorEnter(Sender: TObject);
-begin
-  SQLBuilder.OnSQLUpdated := nil;
-
-  SynMemoEnter(Sender);
-end;
-
-procedure TFSession.FQueryBuilderEditorExit(Sender: TObject);
-begin
-  SynMemoExit(Sender);
-
-  SQLBuilder.OnSQLUpdated := FQueryBuilderSQLUpdated;
-end;
-
 function TFSession.FQueryBuilderEditorPageControl(): TacPageControl;
 begin
   Result := TacQueryBuilderPageControl(FindChildByClassType(FQueryBuilder, TacQueryBuilderPageControl));
@@ -7582,7 +7560,7 @@ end;
 
 procedure TFSession.FQueryBuilderExit(Sender: TObject);
 begin
-  FQueryBuilderSynMemo.OnChange := FQueryBuilderEditorChange;
+  FQueryBuilderSynMemo.OnChange := FQueryBuilderSynMemoChange;
 end;
 
 procedure TFSession.FQueryBuilderResize(Sender: TObject);
@@ -7636,7 +7614,7 @@ begin
   while (Pos('  ', S) > 0) do
     S := ReplaceStr(S, '  ', ' ');
   if (S = 'SELECT *') then
-    FQueryBuilderSynMemo.Lines.Text := ''
+    FQueryBuilderSynMemo.Lines.Clear()
   else
   begin
     if ((Length(SQL) < 80) and Assigned(Session)) then SQL := SQLUnwrapStmt(SQL, Session.Connection.MySQLVersion);
@@ -7645,6 +7623,29 @@ begin
     else
       FQueryBuilderSynMemo.Lines.Text := SQL + ';';
   end;
+end;
+
+procedure TFSession.FQueryBuilderSynMemoChange(Sender: TObject);
+begin
+  try
+    FQueryBuilder.SQL := FQueryBuilderSynMemo.Lines.Text;
+    PostMessage(Handle, UM_POST_BUILDER_QUERY_CHANGE, 0, 0);
+  except
+  end;
+end;
+
+procedure TFSession.FQueryBuilderSynMemoEnter(Sender: TObject);
+begin
+  SQLBuilder.OnSQLUpdated := nil;
+
+  SynMemoEnter(Sender);
+end;
+
+procedure TFSession.FQueryBuilderSynMemoExit(Sender: TObject);
+begin
+  SynMemoExit(Sender);
+
+  SQLBuilder.OnSQLUpdated := FQueryBuilderSQLUpdated;
 end;
 
 procedure TFSession.FQueryBuilderValidatePopupMenu(Sender: TacQueryBuilder;
@@ -8082,13 +8083,10 @@ begin
     vBrowser:
       Result := Desktop(TSTable(FNavigator.Selected.Data)).CreateDBGrid();
     vIDE:
-      begin
-        // Debug 2016-11-23
-        if (not Assigned(FNavigator.Selected.Data)) then
-          raise ERangeError.Create(SRangeError);
-        if (not (TObject(FNavigator.Selected.Data) is TSRoutine)) then
-          raise ERangeError.Create(SRangeError);
-        Result := Desktop(TSRoutine(FNavigator.Selected.Data)).ActiveDBGrid;
+      case (FNavigator.Selected.ImageIndex) of
+        iiProcedure,
+        iiFunction: Result := Desktop(TSRoutine(FNavigator.Selected.Data)).ActiveDBGrid;
+        else Result := nil;
       end;
     vBuilder:
       Result := Desktop(TSDatabase(FNavigator.Selected.Data)).BuilderDBGrid;
@@ -11764,8 +11762,8 @@ begin
     FQuickSearch.Left := TBQuickSearchEnabled.Left - PDataBrowserDummy.FQuickSearch.Width;
     FQuickSearch.Width := PDataBrowserDummy.FQuickSearch.Width;
 
-    TBFilterEnabled.Width := TBFilterEnabled.Height;
-    TBFilterEnabled.Left := FQuickSearch.Left - (PDataBrowserDummy.FQuickSearch.Left - PDataBrowserDummy.TBFilterEnabled.Left);
+    TBFilterEnabled.Left := FQuickSearch.Left - PDataBrowserDummy.TBFilterEnabled.Width;
+    TBFilterEnabled.Width := PDataBrowserDummy.TBFilterEnabled.Width;
     FFilter.Left := PDataBrowserDummy.FFilter.Left;
     FFilter.Width := TBFilterEnabled.Left - FFilter.Left;
   end;
@@ -12623,21 +12621,26 @@ end;
 
 procedure TFSession.StatusBarRefresh(const Immediately: Boolean = False);
 var
+  Control: TControl;
   Count: Integer;
   QueryBuilderWorkArea: TacQueryBuilderWorkArea;
   SelCount: Integer;
 begin
   if (Assigned(StatusBar) and (Immediately or (tsActive in FrameState)) and not (csDestroying in ComponentState) and Assigned(Window)) then
   begin
+    Control := Window.ActiveControl;
     if (not Assigned(Window.ActiveControl)) then
       StatusBar.Panels[sbNavigation].Text := ''
     else if (Window.ActiveControl = ActiveSynMemo) then
       StatusBar.Panels[sbNavigation].Text := IntToStr(ActiveSynMemo.CaretXY.Line) + ':' + IntToStr(ActiveSynMemo.CaretXY.Char)
     else if (Window.ActiveControl = ActiveListView) then
     begin
-      // Debug 2016-11-17
+      // Debug 2016-11-24
       if (not Assigned(Window.ActiveControl)) then
-        raise ERangeError.Create(SRangeError);
+        if (Control <> Window.ActiveControl) then
+          raise ERangeError.Create(SRangeError)
+        else
+          raise ERangeError.Create(SRangeError);
       if (not Assigned(ActiveListView)) then
         raise ERangeError.Create(SRangeError);
       // Debug 2016-11-16
@@ -13441,7 +13444,6 @@ const
 var
   Input: TInput;
 begin
-  Window.ActiveControl := FText;
   if (Message.WParam <> 0) then
   begin
     ZeroMemory(@Input, SizeOf(Input));
@@ -14467,7 +14469,11 @@ begin
   if (Control is TWTable) then
   begin
     if (Assigned(TWTable(Control).BaseTable)) then
-      Result := TWTable(Control).BaseTable.Update()
+    begin
+      Session.Connection.BeginSynchron();
+      Result := TWTable(Control).BaseTable.Update();
+      Session.Connection.EndSynchron();
+    end
     else
     begin
       DTable.Database := Control.Workbench.Database;

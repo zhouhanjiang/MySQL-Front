@@ -1692,7 +1692,12 @@ begin
   FErrors.Caption := '0';
 //  FErrorMessages.Lines.Clear();
   // Debug 2016-11-23
+try
   SetWindowText(FErrorMessages.Handle, '');
+except
+  on E: Exception do
+    raise Exception.Create(E.Message + ' (SetWindowText)');
+end;
 
   if (not Assigned(Import)) then
     TSJobHide(Self);
@@ -2033,6 +2038,8 @@ begin
 end;
 
 procedure TDImport.UMPostAfterExecuteSQL(var Message: TMessage);
+var
+  Result: Boolean; // Debug 2016-11-24
 begin
   if (((DialogType = idtNormal) or (DialogType in [idtEditJob, idtExecuteJob])
     and InitTSSelect())
@@ -2042,9 +2049,15 @@ begin
     if (not (TObject(FSelect.Selected.Data) is TSObject)) then
       raise ERangeError.Create(SRangeError);
     SObject := TSObject(FSelect.Selected.Data);
+
+    Result := not Assigned(SObject);
+    if (not Result) then
+      SObject.Update();
   end;
 
-  Message.Result := LRESULT(not Assigned(SObject) or SObject.Update());
+  Result := not Assigned(SObject);
+  Result := Result or SObject.Update();
+  Message.Result := LRESULT(Result);
   if (Boolean(Message.Result)) then
   begin
     if (Assigned(WantedNodeExpand)) then

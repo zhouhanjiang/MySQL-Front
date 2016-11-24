@@ -24,7 +24,7 @@
 			<VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
 			<DCC_DcpOutput>..\Bin</DCC_DcpOutput>
 			<DCC_BplOutput>$(BDS)\Projects\Bpl</DCC_BplOutput>
-			<DCC_Define>FullDebugModeInIDE;ClearLogFileOnStartup;$(DCC_Define)</DCC_Define>
+			<DCC_Define>FullDebugMode;ClearLogFileOnStartup;$(DCC_Define)</DCC_Define>
 			<DCC_AssertionsAtRuntime>false</DCC_AssertionsAtRuntime>
 			<DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
 			<DCC_IOChecking>false</DCC_IOChecking>

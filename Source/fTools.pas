@@ -824,7 +824,7 @@ begin
   Result := S;
 end;
 
-function ODBCError(const HandleType: SQLSMALLINT; const Handle: SQLHANDLE): TTool.TError;
+function ODBCError(const HandleType: SQLSMALLINT; const Handle: SQLHANDLE; const ReturnCode: SQLRETURN = -50): TTool.TError;
 var
   cbMessageText: SQLSMALLINT;
   MessageText: PSQLTCHAR;
@@ -846,7 +846,10 @@ begin
     SQL_INVALID_HANDLE:
       Result.ErrorMessage := 'Invalid ODBC Handle.';
     SQL_NO_DATA:
-      raise Exception.Create('Unknown ODBC Error (No Data)');
+      if (ReturnCode <> -50) then
+        raise Exception.Create('Unknown ODBC Error (' + IntToStr(ReturnCode) + ')')
+      else
+        raise Exception.Create('Unknown ODBC Error (No Data)');
   end;
 end;
 
@@ -3548,9 +3551,11 @@ begin
     SQL_TYPE_DATE,
     SQL_TYPE_TIME,
     SQL_TYPE_TIMESTAMP:
-      if (not SQL_SUCCEEDED(SQLGetData(Stmt, Index + 1, SQL_C_CHAR, ODBCData, ODBCDataSize, @cbData))) then
       begin
-        DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
+        ReturnCode := SQLGetData(Stmt, Index + 1, SQL_C_CHAR, ODBCData, ODBCDataSize, @cbData);
+      if (not SQL_SUCCEEDED(ReturnCode)) then
+      begin
+        DoError(ODBCError(SQL_HANDLE_STMT, Stmt, ReturnCode), Item, False);
         Values.Write('NULL', 4)
       end
       else if (cbData = SQL_NULL_DATA) then
@@ -3566,6 +3571,7 @@ begin
         Values.WriteData(PAnsiChar(ODBCData), cbData div SizeOf(SQLACHAR) - 2, not (FieldMappings[Index].DestinationField.FieldType in NotQuotedFieldTypes))
       else
         Values.WriteData(PAnsiChar(ODBCData), cbData div SizeOf(SQLACHAR), not (FieldMappings[Index].DestinationField.FieldType in NotQuotedFieldTypes));
+      end;
     SQL_UNKNOWN_TYPE,
     SQL_CHAR,
     SQL_VARCHAR,
@@ -3798,6 +3804,7 @@ var
   Connected: Boolean;
   ConnStrIn: string;
   ConnStrOut: array [0 .. 1024] of SQLTCHAR;
+  ReturnCode: SQLRETURN;
 begin
   if (DBC = SQL_NULL_HANDLE) then
   begin
@@ -3811,9 +3818,10 @@ begin
         ConnStrIn := 'Driver={' + DriverAccess2003 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True'
       else
         ConnStrIn := 'Driver={' + DriverAccess + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
-      Connected := SQL_SUCCEEDED(SQLDriverConnect(DBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE));
+      ReturnCode := SQLDriverConnect(DBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE);
+      Connected := SQL_SUCCEEDED(ReturnCode);
       if (not Connected) then
-        DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False);
+        DoError(ODBCError(SQL_HANDLE_DBC, DBC, ReturnCode), nil, False);
     end;
   end;
 end;
@@ -3833,6 +3841,7 @@ var
   Connected: Boolean;
   ConnStrIn: string;
   ConnStrOut: array [0 .. 1024] of SQLTCHAR;
+  ReturnCode: SQLRETURN;
 begin
   if (DBC = SQL_NULL_HANDLE) then
   begin
@@ -3846,9 +3855,10 @@ begin
         ConnStrIn := 'Driver={' + DriverExcel2003 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True'
       else
         ConnStrIn := 'Driver={' + DriverExcel + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
-      Connected := SQL_SUCCEEDED(SQLDriverConnect(DBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE));
+      ReturnCode := SQLDriverConnect(DBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE);
+      Connected := SQL_SUCCEEDED(ReturnCode);
       if (not Connected) then
-        DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False);
+        DoError(ODBCError(SQL_HANDLE_DBC, DBC, ReturnCode), nil, False);
     end;
   end;
 end;
@@ -3981,6 +3991,7 @@ var
   DBObjectItem: TDBObjectItem;
   FieldNames: string;
   I: Integer;
+  Item: Pointer;
   Index: Integer;
   J: Integer;
   Objects: TList;
@@ -4014,8 +4025,11 @@ begin
           if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Items[I]).DBObject).Engine)) then
             raise ERangeError.Create(SRangeError);
 
-          // Debug 2016-11-23
-          DBObjectItem := TDBObjectItem(Items[I]);
+          // Debug 2016-11-24
+          if (not Assigned(Items)) then
+            raise ERangeError.Create(SRangeError);
+          Item := Items.Items[I];
+          DBObjectItem := TDBObjectItem(Item);
           if (DBObjectItem.ClassType <> TDBObjectItem) then
             raise ERangeError.Create(SRangeError);
 

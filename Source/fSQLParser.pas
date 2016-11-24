@@ -6797,8 +6797,6 @@ type
     function ParseEngineIdent(): TOffset;
     function ParseExecuteStmt(): TOffset;
     function ParseExplainStmt(): TOffset;
-// Why is this comment needed inside the Delphi XE2 IDE?
-// Without it, a call of ParseExpr() crashes at "ParseExpr([eoIn])"
     function ParseExpr(): TOffset; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseExpr(const Options: TExprOptions): TOffset; overload;
     function ParseExtractFunc(): TOffset;
@@ -17999,11 +17997,17 @@ begin
       if (not ErrorFound) then
         if (((DatatypeIndex = diDEC)
             or (DatatypeIndex = diDECIMAL)
-            or (DatatypeIndex = diDOUBLE)
-            or (DatatypeIndex = diFLOAT)
-            or (DatatypeIndex = diNUMERIC)
-            or (DatatypeIndex = diREAL))
+            or (DatatypeIndex = diNUMERIC))
           and IsSymbol(ttComma)) then
+        begin
+          Nodes.CommaToken := ParseSymbol(ttComma);
+
+          if (not ErrorFound) then
+            Nodes.DecimalsToken := ParseInteger();
+        end
+        else if (((DatatypeIndex = diDOUBLE)
+            or (DatatypeIndex = diFLOAT)
+            or (DatatypeIndex = diREAL))) then
         begin
           Nodes.CommaToken := ParseSymbol(ttComma);
 
@@ -19057,8 +19061,8 @@ begin
             or (TokenPtr(CurrentToken)^.KeywordIndex = kiUNKNOWN)) then
           Nodes.Add(ApplyCurrentToken(utDbIdent))
         else if (IsNextSymbol(1, ttDot)) then
-          if (EndOfStmt(NextToken[2]) and (TokenPtr(NextToken[2])^.TokenType in ttIdents)
-            and EndOfStmt(NextToken[3]) and (TokenPtr(NextToken[3])^.TokenType = ttOpenBracket)) then
+          if (not EndOfStmt(NextToken[2]) and (TokenPtr(NextToken[2])^.TokenType in ttIdents)
+            and not EndOfStmt(NextToken[3]) and (TokenPtr(NextToken[3])^.TokenType = ttOpenBracket)) then
             Nodes.Add(ParseDefaultFunc()) // Db.Func()
           else
             Nodes.Add(ParseDbIdent(ditField, True, eoAllFields in Options)) // Tbl.Clmn or Db.Tbl.Clmn
@@ -20204,7 +20208,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.FieldToken := ParseFieldIdent();
+  Nodes.FieldToken := ParseDbIdent(ditField);
 
   if (not ErrorFound) then
     if (EndOfStmt(CurrentToken)) then

@@ -1316,6 +1316,11 @@ procedure TWLinkPoint.MoveTo(const Sender: TWControl; const Shift: TShiftState; 
       AntiControl := ControlB;
       Line := LineA;
       NextLine := Point.LineA;
+
+      // Debug 2016-11-24
+      if (Assigned(NextLine) and not Assigned(NextLine.PointB)) then
+        raise ERangeError.Create(SRangeError);
+
       AntiLine := LineB;
       if (not Assigned(NextLine)) then
         NextPoint := nil
@@ -1328,6 +1333,11 @@ procedure TWLinkPoint.MoveTo(const Sender: TWControl; const Shift: TShiftState; 
       AntiControl := ControlA;
       Line := LineB;
       NextLine := Point.LineB;
+
+      // Debug 2016-11-24
+      if (Assigned(NextLine) and not Assigned(NextLine.PointA)) then
+        raise ERangeError.Create(SRangeError);
+
       AntiLine := LineA;
       if (not Assigned(NextLine)) then
         NextPoint := nil
@@ -1462,6 +1472,9 @@ begin
 
       // Debug 2016-11-23
       if (not Assigned(NewPoint)) then
+        raise ERangeError.Create(SRangeError);
+      // Debug 2016-11-24
+      if (not (TObject(NewPoint) is TWLinkPoint)) then
         raise ERangeError.Create(SRangeError);
       NewPoint.MouseDown(mbLeft, [], (PointSize - 1) div 2, (PointSize - 1) div 2);
       NewPoint.MoveState := msAutomatic;
@@ -2050,7 +2063,6 @@ var
   I: Integer;
   NextPoint: TWLinkPoint;
   Point: TWLinkPoint;
-  PreviousPoint: TWLinkPoint;
   TempTable: TWTable;
 begin
   for I := 0 to PointCount - 1 do
@@ -2058,79 +2070,6 @@ begin
     Points[I].MoveState := msNormal;
     Points[I].MouseDownPosition := Coord(-1, -1);
     Points[I].MouseDownPoint := Types.Point(-1, -1);
-  end;
-
-  Point := LastPoint;
-  if (not Assigned(Point)) then
-    raise Exception.Create('LastPoint not assigned');
-  while ((Point <> Self) and (PointCount > 2)) do
-  begin
-    PreviousPoint := Point.LineA.PointA;
-
-    if ((ParentTable <> ChildTable)
-      and (Workbench.TableAt(PreviousPoint.Position) = ParentTable)) then
-    begin
-      Point.MoveTo(Point, [], PreviousPoint.Position);
-      if ((PreviousPoint <> Sender) and (PreviousPoint <> Self)) then
-      begin
-        FreeSegment(Point.LineA.PointA, Point.LineA);
-        continue;
-      end
-      else if (Point = LastPoint) then
-      begin
-        PreviousPoint.TableB := Point.TableB;
-        Point := PreviousPoint;
-      end
-      else
-      begin
-        PreviousPoint.TableB := Point.TableB;
-        if (not Assigned(PreviousPoint.LineB)) then
-          raise Exception.Create('PreviousPoint.LineB not assigned')
-        else if (not Assigned(PreviousPoint.LineB.PointB)) then
-          raise Exception.Create('PreviousPoint.LineB.PointB not assigned');
-        Point := PreviousPoint;
-        FreeSegment(Point.LineB.PointB, Point.LineB);
-      end;
-    end;
-
-    if (not Assigned(Point.LineA)) then
-      raise Exception.Create('Point.LineA not assigned')
-    else if (not Assigned(Point.LineA.PointA)) then
-      raise Exception.Create('Point.LineA.PointA not assigned')
-    else
-      Point := Point.LineA.PointA;
-  end;
-
-  Point := Self;
-  while ((Point <> LastPoint) and (PointCount > 2)) do
-  begin
-    NextPoint := Point.LineB.PointB;
-
-    if (((ParentTable <> ChildTable) or (Point.Index > 2))
-      and (Workbench.TableAt(NextPoint.Position) = ChildTable)) then
-    begin
-      Point.MoveTo(Point, [], NextPoint.Position);
-      if ((NextPoint <> Sender) and (NextPoint <> Self)) then
-      begin
-        FreeSegment(Point.LineB.PointB, Point.LineB);
-        continue;
-      end
-      else
-      begin
-        TempTable := Point.TableA;
-        Point := NextPoint;
-        FreeSegment(Point.LineA.PointA, Point.LineA);
-        if (Assigned(TempTable)) then
-          Point.TableA := TempTable;
-      end;
-    end;
-
-    if (not Assigned(Point.LineB)) then
-      raise Exception.Create('Point.LineB not assigned')
-    else if (not Assigned(Point.LineB.PointB)) then
-      raise Exception.Create('Point.LineB.PointB not assigned')
-    else
-      Point := Point.LineB.PointB;
   end;
 
   Point := Self;

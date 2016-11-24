@@ -522,7 +522,7 @@ type
       FQuickSearch: string;
       FTable: TSTable;
     protected
-      function SQLSelect(const IgnoreLimit: Boolean = False): string;
+      function SQLSelect(const IgnoreLimit: Boolean = False): string; override;
     public
       constructor Create(const ATable: TSTable); reintroduce; virtual;
       procedure Invalidate(); virtual;
@@ -3783,6 +3783,10 @@ begin
       Session.SendEvent(etItemsValid, Database, Items);
     Session.SendEvent(etItemValid, Database, Items, Self);
   end;
+
+  // Debug
+  if (not Assigned(Fields)) then
+    raise ERangeError.Create(SRangeError);
 
   if (Fields.Count > 0) then
     Session.SendEvent(etItemsValid, Self, Fields);
@@ -10923,7 +10927,7 @@ var
   SQL: string;
 begin
   Connection.BeginSynchron();
-  Update(List); // We need the Source for the references
+  Update(List); // We need the sources for the references
   Connection.EndSynchron();
 
   List.Sort(Compare);

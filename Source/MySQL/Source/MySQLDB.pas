@@ -632,7 +632,7 @@ type
     procedure InternalLast(); override;
     procedure InternalOpen(); override;
     function SQLSelect(): string; overload;
-    function SQLSelect(const IgnoreLimit: Boolean): string; overload;
+    function SQLSelect(const IgnoreLimit: Boolean): string; overload; virtual;
   public
     constructor Create(AOwner: TComponent); override;
     function LoadNextRecords(const AllRecords: Boolean = False): Boolean; virtual;
@@ -3551,7 +3551,8 @@ begin
     end;
   until (not Assigned(LibRow) or (SyncThread.ErrorCode <> 0));
 
-  DataSet.InternAddRecord(nil, nil);
+  if (not SyncThread.Terminated) then
+    DataSet.InternAddRecord(nil, nil);
 end;
 
 procedure TMySQLConnection.Terminate();
@@ -5278,6 +5279,7 @@ end;
 function TMySQLDataSet.BookmarkToInternBufferIndex(const Bookmark: TBookmark): Integer;
 var
   I: Integer;
+  P: Pointer;
 begin
   Result := -1;
 
@@ -5286,7 +5288,11 @@ begin
     I := 0;
     while ((Result < 0) and (I < InternRecordBuffers.Count)) do
     begin
-      if (PPointer(@Bookmark[0])^ = InternRecordBuffers[I]) then
+      // Debug 2016-11-24
+      if (Length(Bookmark) = 0) then
+        raise ERangeError.Create(SRangeError);
+      P := PPointer(@Bookmark[0])^;
+      if (P = InternRecordBuffers[I]) then
         Result := I;
       Inc(I);
     end;
@@ -5475,6 +5481,7 @@ end;
 
 function TMySQLDataSet.GetLibRow(): MYSQL_ROW;
 begin
+  // Debug 2016-11-23
   if (not Active) then
   else if (not Assigned(ActiveBuffer())) then
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
@@ -6113,7 +6120,11 @@ begin
   if (Assigned(DestData)) then
     FreeMem(DestData);
 
-  MemSize := SizeOf(DestData^) + FieldCount * (SizeOf(DestData^.LibLengths^[0]) + SizeOf(DestData^.LibRow^[0]));
+  // Debug 2016-11-24
+  MemSize := FieldCount;
+  MemSize := SizeOf(DestData^) + MemSize * (SizeOf(DestData^.LibLengths^[0]) + SizeOf(DestData^.LibRow^[0]));
+//  MemSize := SizeOf(DestData^) + FieldCount * (SizeOf(DestData^.LibLengths^[0]) + SizeOf(DestData^.LibRow^[0]));
+
   for I := 0 to FieldCount - 1 do
     Inc(MemSize, SourceData^.LibLengths^[I]);
   try
@@ -7373,13 +7384,13 @@ end;
 //var
 //  Len: Integer;
 //  RBS: RawByteString;
-//  S: string;
+//  SQL: string;
 initialization
-//  RBS := HexToStr('BFB9BEE0');
-//  SetLength(S, Length(RBS));
-//  Len := AnsiCharToWideChar(65001, PAnsiChar(RBS), Length(RBS), PChar(S), Length(S));
-//  SetLength(S, Len);
-//
+//  RBS := HexToStr('4B494C4C20434F4E4E454354494F4E2031383B0D0A53484F5720435245415445205441424C452060746D616C6C602E607473736869603B0D0A');
+//  SetLength(SQL, Length(RBS));
+//  Len := AnsiCharToWideChar(65001, PAnsiChar(RBS), Length(RBS), PChar(SQL), Length(SQL));
+//  SetLength(SQL, Len);
+
   MySQLConnectionOnSynchronize := nil;
   SynchronizingThreads := TList.Create();
   SynchronizingThreadsCS := TCriticalSection.Create();

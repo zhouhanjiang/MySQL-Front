@@ -180,7 +180,7 @@ end;
 
 procedure TDAccounts.FormHide(Sender: TObject);
 begin
-  if (ModalResult <> mrCancel) then
+  if (ModalResult = mrOk) then
     Accounts.Default := Accounts.AccountByName(FAccounts.Selected.Caption);
 
   Preferences.Accounts.Height := Height;

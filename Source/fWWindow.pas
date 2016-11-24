@@ -613,6 +613,9 @@ begin
   SaveDialog.DefaultExt := '.zip';
   if (SaveDialog.Execute()) then
   begin
+    Preferences.Save();
+    Accounts.Save();
+
     ZipFile := TZipFile.Create();
     ZipFile.Open(SaveDialog.FileName, zmWrite);
     ZipFile.Add(Preferences.Filename);

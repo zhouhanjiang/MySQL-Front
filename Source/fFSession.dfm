@@ -545,8 +545,8 @@ object FSession: TFSession
           TabOrder = 0
           OnDragDrop = SynMemoDragDrop
           OnDragOver = SynMemoDragOver
-          OnEnter = FQueryBuilderEditorEnter
-          OnExit = FQueryBuilderEditorExit
+          OnEnter = FQueryBuilderSynMemoEnter
+          OnExit = FQueryBuilderSynMemoExit
           BorderStyle = bsNone
           Gutter.AutoSize = True
           Gutter.DigitCount = 2
@@ -562,7 +562,8 @@ object FSession: TFSession
           ScrollHintFormat = shfTopToBottom
           SearchEngine = FSQLEditorSearch
           WantTabs = True
-          OnChange = FQueryBuilderEditorChange
+          OnChange = FQueryBuilderSynMemoChange
+          OnStatusChange = SynMemoStatusChange
           FontSmoothing = fsmNone
         end
       end
@@ -790,9 +791,9 @@ object FSession: TFSession
         end
       end
       object FFilter: TComboBox_Ext
-        Left = 136
+        Left = 142
         Top = 0
-        Width = 198
+        Width = 174
         Height = 22
         TabOrder = 5
         OnChange = FFilterChange
@@ -801,7 +802,7 @@ object FSession: TFSession
         OnKeyPress = FFilterKeyPress
       end
       object TBFilterEnabled: TToolBar
-        Left = 340
+        Left = 316
         Top = 0
         Width = 31
         Height = 23
@@ -819,17 +820,16 @@ object FSession: TFSession
         end
       end
       object FQuickSearch: TEdit
-        Left = 380
+        Left = 347
         Top = 0
-        Width = 136
-        Height = 21
-        AutoSize = False
+        Width = 140
+        Height = 22
         TabOrder = 7
         OnChange = FQuickSearchChange
         OnKeyPress = FQuickSearchKeyPress
       end
       object TBQuickSearchEnabled: TToolBar
-        Left = 516
+        Left = 487
         Top = 0
         Width = 23
         Height = 22
@@ -840,7 +840,6 @@ object FSession: TFSession
         object FQuickSearchEnabled: TToolButton
           Left = 0
           Top = 0
-          Caption = ' '
           Enabled = False
           ImageIndex = 89
           Style = tbsCheck
