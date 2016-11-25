@@ -25,7 +25,7 @@
 			<DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
 			<DCC_Namespace>Vcl;Vcl.Imaging;Vcl.Shell;System;Xml;Data;Winapi;Bde;System.Win;$(DCC_Namespace)</DCC_Namespace>
 			<DCC_UsePackage>vcl;rtl;vclimg;dbrtl;vcldb;xmlrtl;bdertl;DISQLite3_D2010;MySQL;Win32_Extensions;TPerlRegEx_D2010;$(DCC_UsePackage)</DCC_UsePackage>
-			<DCC_UnitSearchPath>FastMM\Bin;TPerlRegEx\Bin;SynopsePDF\Bin;FreeSQLParser\Source;SynEdit\Resource;SynEdit\Bin;MPHexEditor\Resource;MPHexEditor\Bin;QueryBuilder\Resource;QueryBuilder\Bin;ShellBrowser\Bin;ShellBrowser\Resource;Win32\Bin;MySQL\Source;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+			<DCC_UnitSearchPath>FastMM\Bin;TPerlRegEx\Bin;SynopsePDF\Bin;SynEdit\Resource;SynEdit\Bin;MPHexEditor\Resource;MPHexEditor\Bin;QueryBuilder\Resource;QueryBuilder\Bin;ShellBrowser\Bin;ShellBrowser\Resource;Win32\Bin;MySQL\Source;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
 			<DCC_RangeChecking>true</DCC_RangeChecking>
 			<DCC_IntegerOverflowCheck>true</DCC_IntegerOverflowCheck>
 			<DCC_Optimize>false</DCC_Optimize>
@@ -58,127 +58,127 @@
 			<DCCReference Include="VCL\Source\ComCtrls_Ext.pas"/>
 			<DCCReference Include="VCL\Source\CommCtrl_Ext.pas"/>
 			<DCCReference Include="VCL\Source\Forms_Ext.pas"/>
-			<DCCReference Include="fDeveloper.pas"/>
-			<DCCReference Include="fJob.pas"/>
-			<DCCReference Include="fPreferences.pas"/>
-			<DCCReference Include="fSession.pas"/>
-			<DCCReference Include="fSQLParser.pas"/>
-			<DCCReference Include="fTools.pas"/>
-			<DCCReference Include="fURI.pas"/>
-			<DCCReference Include="fBase.pas"/>
-			<DCCReference Include="fDAccount.pas">
+			<DCCReference Include="uDeveloper.pas"/>
+			<DCCReference Include="uJob.pas"/>
+			<DCCReference Include="uPreferences.pas"/>
+			<DCCReference Include="uSession.pas"/>
+			<DCCReference Include="uSQLParser.pas"/>
+			<DCCReference Include="uTools.pas"/>
+			<DCCReference Include="uURI.pas"/>
+			<DCCReference Include="uBase.pas"/>
+			<DCCReference Include="uDAccount.pas">
 				<Form>DAccount</Form>
 			</DCCReference>
-			<DCCReference Include="fDAccounts.pas">
+			<DCCReference Include="uDAccounts.pas">
 				<Form>DAccounts</Form>
 			</DCCReference>
-			<DCCReference Include="fDConnecting.pas">
+			<DCCReference Include="uDConnecting.pas">
 				<Form>DConnecting</Form>
 			</DCCReference>
-			<DCCReference Include="fDDatabase.pas">
+			<DCCReference Include="uDDatabase.pas">
 				<Form>DDatabase</Form>
 			</DCCReference>
-			<DCCReference Include="fDDatabases.pas">
+			<DCCReference Include="uDDatabases.pas">
 				<Form>DDatabases</Form>
 			</DCCReference>
-			<DCCReference Include="fDEvent.pas">
+			<DCCReference Include="uDEvent.pas">
 				<Form>DEvent</Form>
 			</DCCReference>
-			<DCCReference Include="fDExecutingSQL.pas">
+			<DCCReference Include="uDExecutingSQL.pas">
 				<Form>DExecutingSQL</Form>
 			</DCCReference>
-			<DCCReference Include="fDExport.pas">
+			<DCCReference Include="uDExport.pas">
 				<Form>DExport</Form>
 			</DCCReference>
-			<DCCReference Include="fDField.pas">
+			<DCCReference Include="uDField.pas">
 				<Form>DField</Form>
 			</DCCReference>
-			<DCCReference Include="fDForeignKey.pas">
+			<DCCReference Include="uDForeignKey.pas">
 				<Form>DForeignKey</Form>
 			</DCCReference>
-			<DCCReference Include="fDImport.pas">
+			<DCCReference Include="uDImport.pas">
 				<Form>DImport</Form>
 			</DCCReference>
-			<DCCReference Include="fDInfo.pas">
+			<DCCReference Include="uDInfo.pas">
 				<Form>DInfo</Form>
 			</DCCReference>
-			<DCCReference Include="fDInstallUpdate.pas">
-				<Form>DInstallUpdate</Form>
-			</DCCReference>
-			<DCCReference Include="fDKey.pas">
+			<DCCReference Include="uDKey.pas">
 				<Form>DIndex</Form>
 			</DCCReference>
-			<DCCReference Include="fDLogin.pas">
+			<DCCReference Include="uDLogin.pas">
 				<Form>DDBLogin</Form>
 			</DCCReference>
-			<DCCReference Include="fDODBC.pas">
+			<DCCReference Include="uDODBC.pas">
 				<Form>DDBODBC</Form>
 			</DCCReference>
-			<DCCReference Include="fDOptions.pas">
+			<DCCReference Include="uDOptions.pas">
 				<Form>DOptions</Form>
 			</DCCReference>
-			<DCCReference Include="fDPartition.pas">
+			<DCCReference Include="uDPartition.pas">
 				<Form>DPartition</Form>
 			</DCCReference>
-			<DCCReference Include="fDPaste.pas">
+			<DCCReference Include="uDPaste.pas">
 				<Form>DPaste</Form>
 			</DCCReference>
-			<DCCReference Include="fDQuickFilter.pas">
+			<DCCReference Include="uDQuickFilter.pas">
 				<Form>DQuickFilter</Form>
 			</DCCReference>
-			<DCCReference Include="fDRoutine.pas">
+			<DCCReference Include="uDRoutine.pas">
 				<Form>DRoutine</Form>
 			</DCCReference>
-			<DCCReference Include="fDSearch.pas">
+			<DCCReference Include="uDSearch.pas">
 				<Form>DSearch</Form>
 			</DCCReference>
-			<DCCReference Include="fDSegment.pas">
+			<DCCReference Include="uDSegment.pas">
 				<Form>DSegment</Form>
 			</DCCReference>
-			<DCCReference Include="fDSelection.pas">
+			<DCCReference Include="uDSelection.pas">
 				<Form>DSelection</Form>
 			</DCCReference>
-			<DCCReference Include="fDServer.pas">
+			<DCCReference Include="uDServer.pas">
 				<Form>DServer</Form>
 			</DCCReference>
-			<DCCReference Include="fDSQLHelp.pas">
+			<DCCReference Include="uDSQLHelp.pas">
 				<Form>DSQLHelp</Form>
 			</DCCReference>
-			<DCCReference Include="fDStatement.pas">
+			<DCCReference Include="uDStatement.pas">
 				<Form>DStatement</Form>
 			</DCCReference>
-			<DCCReference Include="fDTable.pas">
+			<DCCReference Include="uDTable.pas">
 				<Form>DTable</Form>
 			</DCCReference>
-			<DCCReference Include="fDTables.pas">
+			<DCCReference Include="uDTables.pas">
 				<Form>DTables</Form>
 			</DCCReference>
-			<DCCReference Include="fDTransfer.pas">
+			<DCCReference Include="uDTransfer.pas">
 				<Form>DTransfer</Form>
 			</DCCReference>
-			<DCCReference Include="fDTrigger.pas">
+			<DCCReference Include="uDTrigger.pas">
 				<Form>DTrigger</Form>
 			</DCCReference>
-			<DCCReference Include="fDUser.pas">
+			<DCCReference Include="uDUpdate.pas">
+				<Form>DUpdate</Form>
+			</DCCReference>
+			<DCCReference Include="uDUser.pas">
 				<Form>DUser</Form>
 			</DCCReference>
-			<DCCReference Include="fDUserRight.pas">
+			<DCCReference Include="uDUserRight.pas">
 				<Form>DUserRight</Form>
 			</DCCReference>
-			<DCCReference Include="fDVariable.pas">
+			<DCCReference Include="uDVariable.pas">
 				<Form>DVariable</Form>
 			</DCCReference>
-			<DCCReference Include="fDView.pas">
+			<DCCReference Include="uDView.pas">
 				<Form>DView</Form>
 			</DCCReference>
-			<DCCReference Include="fCWorkbench.pas"/>
-			<DCCReference Include="fFSession.pas">
+			<DCCReference Include="uCWorkbench.pas"/>
+			<DCCReference Include="uFSession.pas">
 				<Form>FSession</Form>
 			</DCCReference>
-			<DCCReference Include="fPDataBrowserDummy.pas">
+			<DCCReference Include="uPDataBrowserDummy.pas">
 				<Form>PDataBrowserDummy</Form>
 			</DCCReference>
-			<DCCReference Include="fWWindow.pas">
+			<DCCReference Include="uWWindow.pas">
 				<Form>WWindow</Form>
 			</DCCReference>
 			<BuildConfiguration Include="Base">

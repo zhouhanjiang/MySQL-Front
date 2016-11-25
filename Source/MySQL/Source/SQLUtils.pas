@@ -1816,6 +1816,7 @@ begin
     DDLStmt.NewDatabaseName := '';
     Result := SQLParseObjectName(Parse, DDLStmt.NewDatabaseName, DDLStmt.NewObjectName);
   end;
+  Result := Result and (DDLStmt.ObjectName <> '');
 end;
 
 function SQLParseDMLStmt(out DMLStmt: TSQLDMLStmt; const SQL: PChar; const Len: Integer; const Version: Integer): Boolean;
@@ -2035,7 +2036,7 @@ label
   Unquoted, UnquotedL, Unquoted1, Unquoted2, UnquotedTerminatorsL, UnquotedC, UnquotedLE,
   Finish, FinishE;
 const
-  Terminators: PChar = #9#10#13#32'",.:;=`'; // Characters, terminating the value
+  Terminators: PChar = #9#10#13#32'",-.:;=`'; // Characters, terminating the value
 var
   BracketDeep: Integer;
   Len: Integer;

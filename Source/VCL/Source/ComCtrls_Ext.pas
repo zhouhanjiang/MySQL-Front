@@ -28,7 +28,7 @@ procedure Register();
 implementation {***************************************************************}
 
 uses
-  StdActns, StdCtrls, Math, Graphics;
+  StdActns, StdCtrls, Math, Graphics, SysConst;
 
 procedure Register();
 begin
@@ -94,6 +94,16 @@ begin
   B := MultiSelect;
   B := B and Assigned(ShiftDownSelected);
   B := B and Assigned(Node);
+
+  // Debug 2016-11-25
+  if (B) then
+    if (not (TObject(ShiftDownSelected) is TTreeNode)) then
+      raise ERangeError.Create(SRangeError);
+  if (B) then
+    if (not (TObject(Node) is TTreeNode)) then
+      raise ERangeError.Create(SRangeError);
+
+ B := B and Assigned(Node.Parent); // Debug 2016-11-25
   B := B and (ShiftDownSelected.Parent = Node.Parent);
   B := B and (Shift = [ssShift, ssLeft]);
 

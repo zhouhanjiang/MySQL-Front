@@ -3283,7 +3283,6 @@ begin
   end;
 
 
-  SyncThread.State := ssResult;
 
   if (not Assigned(SyncThread.OnResult) or (KillThreadId > 0)) then
   begin
@@ -3294,10 +3293,20 @@ begin
       DoError(SyncThread.ErrorCode, SyncThread.ErrorMessage);
       SyncThread.State := ssReady;
       SyncHandledResult(SyncThread);
-    end;
+    end
+    else if ((SyncThread.Mode = smSQL) and Assigned(SyncThread.ResHandle)) then
+    begin
+      SyncThread.State := ssReceivingResult;
+      while (Assigned(Lib.mysql_fetch_row(SyncThread.ResHandle))) do ;
+      SyncHandledResult(SyncThread);
+    end
+    else
+      SyncThread.State := ssResult;
   end
   else
   begin
+    SyncThread.State := ssResult;
+
     InOnResult := True;
     try
       if (not SyncThread.OnResult(SyncThread.ErrorCode, SyncThread.ErrorMessage, SyncThread.WarningCount,
@@ -4657,7 +4666,7 @@ begin
   if (Assigned(SyncThread)) then
     Connection.SyncReleaseDataSet(Self);
 
-  FIndexDefs.Clear();
+  IndexDefs.Clear();
 
   FieldDefs.Clear();
   Fields.Clear();
@@ -5124,11 +5133,11 @@ end;
 
 procedure TMySQLQuery.UpdateIndexDefs();
 begin
-  if (not Assigned(Handle) and not FIndexDefs.Updated) then
+  if (not Assigned(Handle) and not IndexDefs.Updated) then
   begin
     if (Assigned(Connection.OnUpdateIndexDefs)) then
-      Connection.OnUpdateIndexDefs(Self, FIndexDefs);
-    FIndexDefs.Updated := True;
+      Connection.OnUpdateIndexDefs(Self, IndexDefs);
+    IndexDefs.Updated := True;
   end;
 end;
 
@@ -6731,9 +6740,9 @@ begin
     if (not (Self is TMySQLTable)) then
     begin
       Index := nil;
-      for I := 0 to FIndexDefs.Count - 1 do
-        if (not Assigned(Index) and (ixUnique in FIndexDefs[I].Options)) then
-          Index := FIndexDefs[I];
+      for I := 0 to IndexDefs.Count - 1 do
+        if (not Assigned(Index) and (ixUnique in IndexDefs[I].Options)) then
+          Index := IndexDefs[I];
       FCanModify := Assigned(Index);
 
       if (not FCanModify and SQLCreateParse(Parse, PChar(CommandText), Length(CommandText), Connection.MySQLVersion) and SQLParseKeyword(Parse, 'SELECT') and SQLParseChar(Parse, '*') and SQLParseKeyword(Parse, 'FROM')) then
@@ -6759,7 +6768,7 @@ begin
 
           if (Found) then
           begin
-            Index := FIndexDefs.AddIndexDef();
+            Index := IndexDefs.AddIndexDef();
             Index.Name := '';
             Index.Options := [ixPrimary, ixUnique, ixCaseInsensitive];
             for I := 0 to FieldCount - 1 do
@@ -6774,9 +6783,9 @@ begin
     end;
 
     Index := nil;
-    for I := 0 to FIndexDefs.Count - 1 do
-      if (not Assigned(Index) and (ixUnique in FIndexDefs[I].Options)) then
-        Index := FIndexDefs[I];
+    for I := 0 to IndexDefs.Count - 1 do
+      if (not Assigned(Index) and (ixUnique in IndexDefs[I].Options)) then
+        Index := IndexDefs[I];
 
     if (Assigned(Index)) then
     begin
