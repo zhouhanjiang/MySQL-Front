@@ -1,4 +1,4 @@
-object DUpdate: TDInstallUpdate
+object DUpdate: TDUpdate
   Left = 458
   Top = 281
   BorderIcons = []
