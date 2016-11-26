@@ -4313,7 +4313,10 @@ begin
     if (not MoveFile(PChar(Preferences.UserPath + 'Accounts\Accounts.xml'), PChar(Filename))) then
       RaiseLastOSError()
     else
+    try
       CreateSymbolicLink(PChar(Preferences.UserPath + 'Accounts\Accounts.xml'), PChar(Filename), 0);
+    except
+    end;
 
   Open();
 end;

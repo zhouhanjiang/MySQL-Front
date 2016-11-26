@@ -8,7 +8,6 @@ uses
   ActnCtrls, StdCtrls, ToolWin,
   {$IFDEF EurekaLog}
   ExceptionLog,
-  JclDebug,
   {$ENDIF}
   SynEditHighlighter, SynHighlighterSQL,
   ExtCtrls_Ext, Forms_Ext, StdCtrls_Ext, ComCtrls_Ext, Dialogs_Ext, StdActns_Ext,
@@ -347,6 +346,7 @@ type
     ToolButton5: TToolButton;
     ToolButton7: TToolButton;
     ToolButton1: TToolButton;
+    Button1: TButton;
     procedure aDCreateParentExecute(Sender: TObject);
     procedure aEFindExecute(Sender: TObject);
     procedure aEReplaceExecute(Sender: TObject);
@@ -391,6 +391,7 @@ type
       Y: Integer);
     procedure aOExportExecute(Sender: TObject);
     procedure aOImportExecute(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
   const
     tiDeactivate = 1;
   type
@@ -781,6 +782,11 @@ begin
   MsgBox(Preferences.LoadStr(533, FindText), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
 end;
 
+procedure TWWindow.Button1Click(Sender: TObject);
+begin
+raise Exception.Create('Test Message');
+end;
+
 function TWWindow.CloseAll(): Boolean;
 var
   I: Integer;
@@ -1011,9 +1017,7 @@ var
   I: Integer;
   Report: string;
   SQL: PChar;
-var
-  LocationInfo: TJclLocationInfo;
-  StackInfoList: TJclStackInfoList;
+  StringList: TStringList;
 begin
   for I := 0 to FSessions.Count - 1 do
     try TFSession(FSessions[I]).CrashRescue(); except end;
@@ -1038,7 +1042,16 @@ begin
       Preferences.ObsoleteVersion := Preferences.Version;
 
 
-    Report := string(EurekaExceptionRecord.LogText);
+    Report := LoadStr(1000) + ' ' + Preferences.VersionStr;
+    Report := Report + EurekaExceptionRecord.ExceptionObject.ClassName + #13#10;
+    if (EurekaExceptionRecord.ExceptionObject is Exception) then
+      Report := Report + Exception(EurekaExceptionRecord.ExceptionObject).Message + #13#10;
+    Report := Report + #13#10#13#10;
+
+    StringList := TStringList.Create();
+    CallStackToStrings(EurekaExceptionRecord.CallStack, StringList);
+    Report := Report + StringList.Text;
+    StringList.Free();
 
     if (Assigned(ActiveTab)) then
     begin
@@ -1066,29 +1079,6 @@ begin
         while ((StrLen(SQL) > 0) and CharInSet(SQL[0], [#10, #13])) do SQL := PChar(@SQL[1]);
       end;
       Report := Report + StrPas(SQL);
-    end;
-
-
-    Report := Report + 'Type:    ' + EurekaExceptionRecord.ExceptionObject.ClassName + #13#10;
-    if (EurekaExceptionRecord.ExceptionObject is Exception) then
-      Report := Report + 'Message: ' + Exception(EurekaExceptionRecord.ExceptionObject).Message + #13#10;
-
-    try
-      StackInfoList := JclCreateStackList(True, 0, ExceptAddr);
-      for I := 0 to StackInfoList.Count - 1 do
-      begin
-        LocationInfo := GetLocationInfo(StackInfoList.Items[I].CallerAddr);
-//        if (LocationInfo.LineNumber > 0) then
-        begin
-          Report := Report + LocationInfo.UnitName + '|';
-          if (Pos('$', LocationInfo.ProcedureName) = 0) then
-            Report := Report + LocationInfo.ProcedureName + '|'
-          else
-            Report := Report + Copy(LocationInfo.ProcedureName, 1, Pos('$', LocationInfo.ProcedureName) - 1) + '|';
-          Report := Report + IntToStr(LocationInfo.LineNumber) + #13#10;
-        end;
-      end;
-    except
     end;
 
     SendBugToDeveloper(Report);

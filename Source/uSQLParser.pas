@@ -202,6 +202,7 @@ type
         ntCreateTableStmtPartitionOptions,
         ntCreateTableStmtReference,
         ntCreateTriggerStmt,
+        ntCreateTriggerStmtFieldIdent,
         ntCreateUserStmt,
         ntCreateViewStmt,
         ntDatatype,
@@ -701,6 +702,7 @@ type
         'ntCreateTableStmtPartitionOptions',
         'ntCreateTableStmtReference',
         'ntCreateTriggerStmt',
+        'ntCreateTriggerStmtFieldIdent',
         'ntCreateUserStmt',
         'ntCreateViewStmt',
         'ntDatatype',
@@ -1172,6 +1174,7 @@ type
         ntCreateTablespaceStmt,
         ntCreateTableStmt,
         ntCreateTriggerStmt,
+        ntCreateTriggerStmtFieldIdent,
         ntCreateUserStmt,
         ntCreateViewStmt,
         ntDeallocatePrepareStmt,
@@ -2767,6 +2770,24 @@ type
       PCreateTriggerStmt = ^TCreateTriggerStmt;
       TCreateTriggerStmt = packed record
       private type
+
+        PFieldIdent = ^TFieldIdent;
+        TFieldIdent = packed record
+        private type
+          TNodes = packed record
+            ScopeTag: TOffset;
+            Dot: TOffset;
+            FieldIdent: TOffset;
+          end;
+        private
+          Heritage: TRange;
+        private
+          Nodes: TNodes;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
+        public
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
+        end;
+
         TNodes = packed record
           CreateTag: TOffset;
           OrReplaceTag: TOffset;
@@ -6622,6 +6643,7 @@ type
     procedure FormatCreateTableStmtPartitionOptions(const Nodes: TCreateTableStmt.TPartitionOptions.TNodes);
     procedure FormatCreateTableStmtReference(const Nodes: TCreateTableStmt.TReference.TNodes);
     procedure FormatCreateTriggerStmt(const Nodes: TCreateTriggerStmt.TNodes);
+    procedure FormatCreateTriggerStmtFieldIdent(const Nodes: TCreateTriggerStmt.TFieldIdent.TNodes);
     procedure FormatCreateUserStmt(const Nodes: TCreateUserStmt.TNodes);
     procedure FormatCreateViewStmt(const Nodes: TCreateViewStmt.TNodes);
     procedure FormatComments(const Token: PToken; Start: Boolean = False);
@@ -6764,6 +6786,7 @@ type
     function ParseCreateTableStmtReference(): TOffset;
     function ParseCreateTableStmtUnion(): TOffset;
     function ParseCreateTriggerStmt(const CreateTag, OrReplaceTag, DefinerValue: TOffset): TOffset;
+    function ParseCreateTriggerStmtFieldIdent(): TOffset;
     function ParseCreateUserStmt(const StmtTag: TOffset; const OrReplaceTag: TOffset = 0): TOffset;
     function ParseCreateViewStmt(const CreateTag, OrReplaceTag, AlgorithmValue, DefinerValue, SQLSecurityTag: TOffset): TOffset;
     function ParseDatabaseIdent(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
@@ -8138,6 +8161,9 @@ begin
     Result := ditUnknown
   else if (Heritage.ParentNode^.NodeType in FuncNodeTypes) then
     Result := ditFunction
+  else if ((Heritage.ParentNode^.NodeType = ntCreateTriggerStmtFieldIdent)
+    and (Offset = TCreateTriggerStmt.PFieldIdent(Heritage.ParentNode)^.Nodes.FieldIdent)) then
+    Result := ditField
   else if (Heritage.ParentNode^.NodeType <> ntDbIdent) then
     Result := ditUnknown
   else if (PDbIdent(Heritage.ParentNode)^.Nodes.DatabaseIdent = Offset) then
@@ -9118,6 +9144,20 @@ begin
   Result := TRange.Create(AParser, ntCreateTableStmtReference);
 
   with PReference(AParser.NodePtr(Result))^ do
+  begin
+    Nodes := ANodes;
+
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
+  end;
+end;
+
+{ TSQLParser.TCreateTriggerStmt.TFieldIdent ***********************************}
+
+class function TSQLParser.TCreateTriggerStmt.TFieldIdent.Create(const AParser: TSQLParser; const ANodes: TFieldIdent.TNodes): TOffset;
+begin
+  Result := TRange.Create(AParser, ntCreateTriggerStmtFieldIdent);
+
+  with PFieldIdent(AParser.NodePtr(Result))^ do
   begin
     Nodes := ANodes;
 
@@ -12424,6 +12464,13 @@ begin
   FormatNode(Nodes.Stmt, stReturnBefore);
 end;
 
+procedure TSQLParser.FormatCreateTriggerStmtFieldIdent(const Nodes: TCreateTriggerStmt.TFieldIdent.TNodes);
+begin
+  FormatNode(Nodes.ScopeTag);
+  FormatNode(Nodes.Dot);
+  FormatNode(Nodes.FieldIdent);
+end;
+
 procedure TSQLParser.FormatCreateUserStmt(const Nodes: TCreateUserStmt.TNodes);
 begin
   FormatNode(Nodes.StmtTag);
@@ -13225,6 +13272,7 @@ begin
       ntCreateTableStmtPartitionOptions: FormatCreateTableStmtPartitionOptions(TCreateTableStmt.PPartitionOptions(Node)^.Nodes);
       ntCreateTableStmtReference: FormatCreateTableStmtReference(TCreateTableStmt.PReference(Node)^.Nodes);
       ntCreateTriggerStmt: FormatCreateTriggerStmt(PCreateTriggerStmt(Node)^.Nodes);
+      ntCreateTriggerStmtFieldIdent: FormatCreateTriggerStmtFieldIdent(TCreateTriggerStmt.PFieldIdent(Node)^.Nodes);
       ntCreateUserStmt: FormatCreateUserStmt(PCreateUserStmt(Node)^.Nodes);
       ntCreateViewStmt: FormatCreateViewStmt(PCreateViewStmt(Node)^.Nodes);
       ntDatatype: FormatDatatype(PDatatype(Node)^.Nodes);
@@ -13975,7 +14023,9 @@ begin
     or (Token.UsageType = utDbIdent) and (Token.KeywordIndex = kiFALSE)
     or (Token.UsageType = utDbIdent) and (Token.KeywordIndex = kiNULL)
     or (Token.UsageType = utDbIdent) and (Token.KeywordIndex = kiTRUE)
-    or (Token.UsageType = utDbIdent) and (Token.KeywordIndex = kiUNKNOWN)) then
+    or (Token.UsageType = utDbIdent) and (Token.KeywordIndex = kiUNKNOWN)
+    or (Token.ParentNode^.NodeType = ntCreateTriggerStmtFieldIdent)
+      and (Token.Offset = TCreateTriggerStmt.PFieldIdent(Token.ParentNode)^.Nodes.ScopeTag)) then
   begin
     Token.GetText(Text, Length);
 
@@ -14712,6 +14762,7 @@ begin
     ntCreateTableStmtPartitionOptions: Result := SizeOf(TCreateTableStmt.TPartitionOptions);
     ntCreateTableStmtReference: Result := SizeOf(TCreateTableStmt.TReference);
     ntCreateTriggerStmt: Result := SizeOf(TCreateTriggerStmt);
+    ntCreateTriggerStmtFieldIdent: Result := SizeOf(TCreateTriggerStmt.TFieldIdent);
     ntCreateUserStmt: Result := SizeOf(TCreateUserStmt);
     ntCreateViewStmt: Result := SizeOf(TCreateViewStmt);
     ntDatatype: Result := SizeOf(TDatatype);
@@ -17756,6 +17807,26 @@ begin
   Result := TCreateTriggerStmt.Create(Self, Nodes);
 end;
 
+function TSQLParser.ParseCreateTriggerStmtFieldIdent(): TOffset;
+var
+  Nodes: TCreateTriggerStmt.TFieldIdent.TNodes;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
+  if (IsTag(kiNEW)) then
+    Nodes.ScopeTag := ParseTag(kiNEW)
+  else
+    Nodes.ScopeTag := ParseTag(kiOLD);
+
+  if (not ErrorFound) then
+    Nodes.Dot := ParseSymbol(ttDot);
+
+  if (not ErrorFound) then
+    Nodes.FieldIdent := ParseFieldIdent();
+
+  Result := TCreateTriggerStmt.TFieldIdent.Create(Self, Nodes);
+end;
+
 function TSQLParser.ParseCreateUserStmt(const StmtTag: TOffset; const OrReplaceTag: TOffset = 0): TOffset;
 var
   Found: Boolean;
@@ -18157,10 +18228,9 @@ function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
   end;
 
 var
-  Elements: TOffsetList;
   DbIdentType: TDbIdentType;
-  ListNodes: TList.TNodes;
   Nodes: TDbIdent.TNodes;
+  TriggerFieldIdent: TCreateTriggerStmt.TFieldIdent.TNodes;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
   DbIdentType := ADbIdentType;
@@ -18264,11 +18334,10 @@ begin
     Result := Nodes.Ident
   else if (InCreateTriggerStmt and (Nodes.DatabaseIdent = 0) and IsToken(Nodes.TableIdent) and ((TokenPtr(Nodes.TableIdent)^.KeywordIndex = kiNEW) or (TokenPtr(Nodes.TableIdent)^.KeywordIndex = kiOLD))) then
   begin
-    Elements.Init();
-    Elements.Add(Nodes.TableIdent);
-    Elements.Add(TBinaryOp.Create(Self, Nodes.TableDot, Nodes.Ident));
-    FillChar(ListNodes, SizeOf(ListNodes), 0);
-    Result := TList.Create(Self, ListNodes, ttUnknown, @Elements);
+    TriggerFieldIdent.ScopeTag := Nodes.TableIdent;
+    TriggerFieldIdent.Dot := Nodes.TableDot;
+    TriggerFieldIdent.FieldIdent := Nodes.Ident;
+    Result := TCreateTriggerStmt.TFieldIdent.Create(Self, TriggerFieldIdent);
   end
   else
     Result := TDbIdent.Create(Self, DbIdentType, Nodes);
@@ -20074,7 +20143,11 @@ function TSQLParser.ParseIfStmt(): TOffset;
       if (not IsTag(kiELSEIF)
         and not IsTag(kiELSE)
         and not IsTag(kiEND, kiIF)) then
-        Nodes.StmtList := ParseList(False, ParsePL_SQLStmt, ttSemicolon);
+        Nodes.StmtList := ParseList(False, ParsePL_SQLStmt, ttSemicolon)
+      else if (EndOfStmt(CurrentToken)) then
+        SetError(PE_IncompleteStmt)
+      else
+        SetError(PE_UnexpectedToken);
 
     Result := TIfStmt.TBranch.Create(Self, Nodes);
   end;
@@ -20096,12 +20169,6 @@ begin
       Branches.Add(ParseBranch())
     else
       Found := False;
-
-  if (not ErrorFound and (Branches.Count = 1)) then
-    if (EndOfStmt(CurrentToken)) then
-      SetError(PE_IncompleteStmt)
-    else
-      SetError(PE_UnexpectedToken);
 
   if (not ErrorFound) then
     if (IsTag(kiELSE)) then
@@ -22289,7 +22356,11 @@ begin
       Nodes.ScopeTag := ParseTag(kiSESSION);
 
   if (not ErrorFound) then
-    Nodes.VariableIdent := ParseVariableIdent();
+    if (InCreateTriggerStmt
+      and (IsTag(kiNEW) or IsTag(kiOLD))) then
+      Nodes.VariableIdent := ParseCreateTriggerStmtFieldIdent()
+    else
+      Nodes.VariableIdent := ParseVariableIdent();
 
   if (not ErrorFound) then
     if (EndOfStmt(CurrentToken)) then

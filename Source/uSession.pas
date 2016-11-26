@@ -8623,10 +8623,6 @@ begin
       else
         Name := DataSet.FieldByName('SCHEMA_NAME').AsString;
 
-      // Debug 2016-11-25
-      if (Name = '') then
-        raise ERangeError.Create(SRangeError);
-
       Found := ((NameCmp(Name, INFORMATION_SCHEMA) = 0)
         or (NameCmp(Name, PERFORMANCE_SCHEMA) = 0));
       for I := 0 to Length(DatabaseNames) - 1 do
@@ -8675,10 +8671,6 @@ begin
     for I := 0 to Length(DatabaseNames) - 1 do
     begin
       Name := DatabaseNames[I];
-
-      // Debug 2016-11-25
-      if (Name = '') then
-        raise ERangeError.Create(SRangeError);
 
       if (Session.Databases.NameCmp(Name, INFORMATION_SCHEMA) = 0) then
       begin
@@ -10865,7 +10857,7 @@ var
   Database: TSDatabase;
 begin
   Database := DatabaseByName(NewName);
-  if (not Assigned(Database)) then
+  if (not Assigned(Database) and (NewName <> '')) then
   begin
     Database := TSDatabase.Create(Databases, NewName);
     Databases.Add(Database, True);

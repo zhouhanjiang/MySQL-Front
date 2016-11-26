@@ -9,7 +9,7 @@ Used packages:
 ==============
 
 FastMM:
-https://github.com/pleriche/FastMM4
+https://github.com/pleriche/FastMM4/
 
 TPerlRegEx:
 http://www.regular-expressions.info/delphi.html
@@ -18,7 +18,7 @@ Synopse PDF:
 http://synopse.info/fossil/wiki?name=PDF+Engine
 
 Unicode SynEdit:
-http://synedit.svn.sourceforge.net/viewvc/synedit/
+https://github.com/SynEdit/SynEdit/
 
 Active Query Builder VCL Edition:
 http://www.activequerybuilder.com/
