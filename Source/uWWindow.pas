@@ -346,7 +346,6 @@ type
     ToolButton5: TToolButton;
     ToolButton7: TToolButton;
     ToolButton1: TToolButton;
-    Button1: TButton;
     procedure aDCreateParentExecute(Sender: TObject);
     procedure aEFindExecute(Sender: TObject);
     procedure aEReplaceExecute(Sender: TObject);
@@ -1042,7 +1041,7 @@ begin
       Preferences.ObsoleteVersion := Preferences.Version;
 
 
-    Report := LoadStr(1000) + ' ' + Preferences.VersionStr;
+    Report := LoadStr(1000) + ' ' + Preferences.VersionStr + #13#10#13#10;
     Report := Report + EurekaExceptionRecord.ExceptionObject.ClassName + #13#10;
     if (EurekaExceptionRecord.ExceptionObject is Exception) then
       Report := Report + Exception(EurekaExceptionRecord.ExceptionObject).Message + #13#10;
