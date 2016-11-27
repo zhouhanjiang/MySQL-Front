@@ -2,7 +2,7 @@ object WWindow: TWWindow
   Left = 387
   Top = 161
   Caption = 'WWindow'
-  ClientHeight = 449
+  ClientHeight = 450
   ClientWidth = 683
   Color = clBtnFace
   Constraints.MinHeight = 485
@@ -32,7 +32,7 @@ object WWindow: TWWindow
     Left = 0
     Top = 80
     Width = 683
-    Height = 348
+    Height = 349
     Align = alClient
     BevelOuter = bvNone
     Color = clAppWorkSpace
@@ -65,7 +65,7 @@ object WWindow: TWWindow
   end
   object StatusBar: TStatusBar
     Left = 0
-    Top = 428
+    Top = 429
     Width = 683
     Height = 21
     Panels = <
@@ -114,6 +114,7 @@ object WWindow: TWWindow
       Width = 691
       Height = 52
       AutoSize = True
+      GradientEndColor = 14079702
       TabOrder = 0
       Transparent = True
       object tbVRefresh: TToolButton
@@ -413,6 +414,7 @@ object WWindow: TWWindow
     Width = 561
     Height = 22
     Align = alNone
+    GradientEndColor = 14079702
     TabOrder = 0
     Transparent = False
     Visible = False

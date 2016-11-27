@@ -24,7 +24,7 @@ type
     FEntieredRecords: TLabel;
     FEntieredObjects: TLabel;
     FEntieredTime: TLabel;
-    FErrorMessages: TRichEdit;
+    FErrorMessages: TMemo_Ext;
     FErrors: TLabel;
     FLDone: TLabel;
     FLEntiered: TLabel;
@@ -104,7 +104,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  StrUtils, CommCtrl, RichEdit, Consts,
+  StrUtils, CommCtrl, Consts,
   SQLUtils,
   uPreferences,
   uDConnecting, uDExecutingSQL;
@@ -247,9 +247,6 @@ begin
 
   FSource.Images := Preferences.Images;
   FDestination.Images := Preferences.Images;
-
-  SendMessage(FErrorMessages.Handle, EM_SETTEXTMODE, TM_PLAINTEXT, 0);
-  SendMessage(FErrorMessages.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
 
   FStructure.Checked := Preferences.Transfer.Structure;
   FData.Checked := Preferences.Transfer.Data;
@@ -419,7 +416,7 @@ begin
       else if ((Sender is TTTransfer) and (Error.Session = TTTransfer(Sender).DestinationSession)) then
         Msg := Preferences.LoadStr(722, TTTransfer.TItem(Item).DBObject.Name)
       else
-        raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Sender | Error.Session'])
+        raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Sender | Error.Session']);
     else
       Msg := Error.ErrorMessage;
   end;
@@ -945,6 +942,10 @@ begin
   if (Assigned(Transfer)) then
   begin
     Transfer.WaitFor();
+
+    if (Success and (Transfer.WarningCount > 0)) then
+      MsgBox(Preferences.LoadStr(932, IntToStr(Transfer.WarningCount)), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
+
     FreeAndNil(Transfer);
   end;
 

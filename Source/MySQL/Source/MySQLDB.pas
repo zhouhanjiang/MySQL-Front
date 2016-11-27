@@ -2478,8 +2478,10 @@ function TMySQLConnection.InternExecuteSQL(const Mode: TSyncThread.TMode; const 
   const SQL: string; const OnResult: TResultEvent = nil; const Done: TEvent = nil): Boolean;
 var
   CLStmt: TSQLCLStmt;
+  EndingCommentLength: Integer;
   SetNames: Boolean;
   SQLIndex: Integer;
+  StartingCommentLength: Integer;
   StmtIndex: Integer;
   StmtLength: Integer;
 begin
@@ -2523,16 +2525,19 @@ begin
   FSuccessfullExecutedSQLLength := 0; FExecutedStmts := 0;
   FRowsAffected := -1; FExecutionTime := 0;
 
-  SQLIndex := 1;
-  while (SQLIndex < Length(SyncThread.SQL)) do
+  SQLTrimStmt(PChar(SyncThread.SQL), Length(SyncThread.SQL), MySQLVersion,
+    StartingCommentLength, EndingCommentLength);
+
+  SQLIndex := 1 + StartingCommentLength;
+  while (SQLIndex < Length(SyncThread.SQL) - EndingCommentLength) do
   begin
-    StmtLength := SQLStmtLength(PChar(@SyncThread.SQL[SQLIndex]), Length(SyncThread.SQL) - (SQLIndex - 1));
+    StmtLength := SQLStmtLength(PChar(@SyncThread.SQL[SQLIndex]), Length(SyncThread.SQL) - EndingCommentLength - (SQLIndex - 1));
     SyncThread.StmtLengths.Add(Pointer(StmtLength));
     Inc(SQLIndex, StmtLength);
   end;
 
   SetLength(SyncThread.CLStmts, SyncThread.StmtLengths.Count);
-  SQLIndex := 1; SetNames := False;
+  SQLIndex := 1 + StartingCommentLength; SetNames := False;
   for StmtIndex := 0 to SyncThread.StmtLengths.Count - 1 do
     if (not SetNames) then
     begin
@@ -3193,7 +3198,7 @@ begin
 
   FErrorCode := SyncThread.ErrorCode;
   FErrorMessage := SyncThread.ErrorMessage;
-  FWarningCount := SyncThread.WarningCount;
+  Inc(FWarningCount, SyncThread.WarningCount);
   FThreadId := SyncThread.LibThreadId;
 
   if (SyncThread.StmtIndex < SyncThread.StmtLengths.Count) then
@@ -3539,6 +3544,9 @@ begin
 
   // Debug 2016-11-18
   if (not Assigned(SyncThread.ResHandle)) then
+    raise ERangeError.Create(SRangeError);
+  // Debug 2016-11-27
+  if (not Assigned(SyncThread.DataSet)) then
     raise ERangeError.Create(SRangeError);
 
   repeat

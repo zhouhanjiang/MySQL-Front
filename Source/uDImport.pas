@@ -43,7 +43,7 @@ type
     FEntieredObjects: TLabel;
     FEntieredRecords: TLabel;
     FEntieredTime: TLabel;
-    FErrorMessages: TRichEdit;
+    FErrorMessages: TMemo_Ext;
     FErrors: TLabel;
     FExcelFile: TRadioButton;
     FFilename: TEdit;
@@ -244,7 +244,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  CommDlg, Dlgs, Math, StrUtils, RichEdit, SysConst,
+  CommDlg, Dlgs, Math, StrUtils, SysConst,
   SQLUtils, CSVUtils,
   uDLogin, uDODBC;
 
@@ -349,6 +349,10 @@ begin
   FBForward.Default := PageControl.ActivePage <> TSExecute;
   FBCancel.Default := not FBForward.Default;
   FBCancel.Caption := Preferences.LoadStr(30);
+
+  // Debug 2016-11-26
+  if (not Assigned(Self)) then
+    raise ERangeError.Create(SRangeError);
 end;
 
 procedure TDImport.ClearTSFields(Sender: TObject);
@@ -695,9 +699,6 @@ begin
   FQuoteNothing.Checked := Preferences.Import.CSV.Quote = qtNone;
   FQuoteStrings.Checked := Preferences.Import.CSV.Quote = qtStrings;
   FQuoteChar.Text := Preferences.Import.CSV.QuoteChar;
-
-  SendMessage(FErrorMessages.Handle, EM_SETTEXTMODE, TM_PLAINTEXT, 0);
-  SendMessage(FErrorMessages.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
 
   PageControl.ActivePage := nil;
   FDataSource.Text := '';
@@ -1557,11 +1558,6 @@ begin
           Msg := Error.ErrorMessage + ' (#' + IntToStr(Error.ErrorCode) + ')';
         ErrorMsg := Msg;
       end;
-    TE_Warning:
-      begin
-        Msg := '';
-        ErrorMsg := Error.ErrorMessage;
-      end;
     else
       begin
         Msg := Error.ErrorMessage;
@@ -1569,30 +1565,25 @@ begin
       end;
   end;
 
-  if (Error.ErrorType = TE_Warning) then
-    Success := daFail
+  if (not ShowRetry) then
+    Flags := MB_OK + MB_ICONERROR
   else
-  begin
-    if (not ShowRetry) then
-      Flags := MB_OK + MB_ICONERROR
-    else
-      Flags := MB_CANCELTRYCONTINUE + MB_ICONERROR;
-    if (MsgBoxHelpContext <> 0) then
-      Flags := Flags or MB_HELP;
-    DisableApplicationActivate := True;
-    case (MsgBox(Msg, Preferences.LoadStr(45), Flags)) of
-      IDOK,
-      IDCANCEL,
-      IDABORT: Success := daAbort;
-      IDRETRY,
-      IDTRYAGAIN: Success := daRetry;
-      IDCONTINUE,
-      IDIGNORE: Success := daFail;
-    end;
-    DisableApplicationActivate := False;
+    Flags := MB_CANCELTRYCONTINUE + MB_ICONERROR;
+  if (MsgBoxHelpContext <> 0) then
+    Flags := Flags or MB_HELP;
+  DisableApplicationActivate := True;
+  case (MsgBox(Msg, Preferences.LoadStr(45), Flags)) of
+    IDOK,
+    IDCANCEL,
+    IDABORT: Success := daAbort;
+    IDRETRY,
+    IDTRYAGAIN: Success := daRetry;
+    IDCONTINUE,
+    IDIGNORE: Success := daFail;
   end;
+  DisableApplicationActivate := False;
 
-  if (((Success in [daAbort, daFail]) or (Error.ErrorType = TE_Warning)) and (ErrorMsg <> '')) then
+  if ((Success in [daAbort, daFail]) and (ErrorMsg <> '')) then
   begin
     FErrors.Caption := IntToStr(TTool(Sender).ErrorCount);
     FErrorMessages.Text := FErrorMessages.Text + ErrorMsg;
@@ -1690,13 +1681,7 @@ begin
   FDoneTime.Caption := '';
   FProgressBar.Position := 0;
   FErrors.Caption := '0';
-//  FErrorMessages.Lines.Clear();
-  // Debug 2016-11-23
-try
-  SetWindowText(FErrorMessages.Handle, '');
-except
-  raise Exception.Create('SetWindowText failed');
-end;
+  FErrorMessages.Lines.Clear();
 
   if (not Assigned(Import)) then
     TSJobHide(Self);
@@ -2059,7 +2044,7 @@ begin
   if (not Result) then
     if (not (TObject(SObject) is TSObject)) then
       raise ERangeError.Create(SRangeError);
-  Result := Result or SObject.Update();
+  Result := Result or (ImportType = itSQLFile) or SObject.Update();
   Message.Result := LRESULT(Result);
   if (Boolean(Message.Result)) then
   begin
@@ -2093,6 +2078,10 @@ begin
   if (Assigned(Import)) then
   begin
     Import.WaitFor();
+
+    if (Success and (Import.WarningCount > 0)) then
+      MsgBox(Preferences.LoadStr(932, IntToStr(Import.WarningCount)), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
+
     FreeAndNil(Import);
   end;
 

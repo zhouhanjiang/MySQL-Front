@@ -63,7 +63,13 @@ end;
 procedure TTreeView_Ext.KeyDown(var Key: Word; Shift: TShiftState);
 begin
   if (ssShift in Shift) then
+  begin
     ShiftDownSelected := Selected;
+
+    // Debug 2016-11-26
+    if (not (TObject(ShiftDownSelected) is TTreeNode)) then
+      raise ERangeError.Create(SRangeError);
+  end;
 
   inherited;
 end;
@@ -97,13 +103,16 @@ begin
 
   // Debug 2016-11-25
   if (B) then
-    if (not (TObject(ShiftDownSelected) is TTreeNode)) then
-      raise ERangeError.Create(SRangeError);
+    if (Assigned(ShiftDownSelected) and not (TObject(ShiftDownSelected) is TTreeNode)) then
+      if (TObject(ShiftDownSelected) is TObject) then
+        raise ERangeError.Create(SRangeError + ' - ' + TObject(ShiftDownSelected).ClassName)
+      else
+        raise ERangeError.Create(SRangeError);
   if (B) then
     if (not (TObject(Node) is TTreeNode)) then
       raise ERangeError.Create(SRangeError);
 
- B := B and Assigned(Node.Parent); // Debug 2016-11-25
+  B := B and Assigned(Node.Parent); // Debug 2016-11-25
   B := B and (ShiftDownSelected.Parent = Node.Parent);
   B := B and (Shift = [ssShift, ssLeft]);
 

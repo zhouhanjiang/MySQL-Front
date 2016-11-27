@@ -55,6 +55,10 @@ unit SynHighlighterSQL;
 
 interface
 
+{$IFDEF SYN_COMPILER_12_UP}
+  {$DEFINE USE_TABLE_DICTIONARY}
+{$ENDIF}
+
 uses
 {$IFDEF SYN_CLX}
   Types,
@@ -71,6 +75,9 @@ uses
   SynHighlighterHashEntries,
   SynUnicode,
 {$ENDIF}
+  {$IFDEF USE_TABLE_DICTIONARY}
+  Generics.Collections,
+  {$ENDIF}
   SysUtils,
   Classes;
 
@@ -78,7 +85,7 @@ type
   TtkTokenKind = (tkComment, tkDatatype, tkDefaultPackage, tkException,
     tkFunction, tkIdentifier, tkKey, tkNull, tkNumber, tkSpace, tkPLSQL,
     tkSQLPlus, tkString, tkSymbol, tkTableName, tkUnknown, tkVariable,
-    tkConditionalComment, tkDelimitedIdentifier);
+    tkConditionalComment, tkDelimitedIdentifier, tkProcName);
 
   TRangeState = (rsUnknown, rsComment, rsString, rsConditionalComment);
 
@@ -91,7 +98,11 @@ type
     fRange: TRangeState;
     fTokenID: TtkTokenKind;
     fKeywords: TSynHashEntryList;
+    fProcNames: TUnicodeStrings;
     fTableNames: TUnicodeStrings;
+    {$IFDEF USE_TABLE_DICTIONARY}
+    fTableDict: TDictionary<string, Boolean>;
+    {$ENDIF}
     fFunctionNames: TUniCodeStrings;
     fDialect: TSQLDialect;
     fCommentAttri: TSynHighlighterAttributes;
@@ -110,6 +121,7 @@ type
     fStringAttri: TSynHighlighterAttributes;
     fSymbolAttri: TSynHighlighterAttributes;
     fTableNameAttri: TSynHighlighterAttributes;
+    fProcNameAttri: TSynHighlighterAttributes;
     fVariableAttri: TSynHighlighterAttributes;
     function HashKey(Str: PWideChar): Integer;
     function IdentKind(MayBe: PWideChar): TtkTokenKind;
@@ -118,8 +130,11 @@ type
     procedure SetTableNames(const Value: TUnicodeStrings);
     procedure SetFunctionNames(const Value: TUnicodeStrings);
     procedure PutFunctionNamesInKeywordList;
+    procedure FunctionNamesChanged(Sender: TObject);
+    procedure ProcNamesChanged(Sender: TObject);
     procedure TableNamesChanged(Sender: TObject);
     procedure InitializeKeywordLists;
+    procedure PutProcNamesInKeywordList;
     procedure PutTableNamesInKeywordList;
     procedure AndSymbolProc;
     procedure AsciiCharProc;
@@ -145,6 +160,7 @@ type
     procedure VariableProc;
     procedure UnknownProc;
     procedure AnsiCProc;
+    procedure SetProcNames(const Value: TUnicodeStrings);
   protected
     function GetSampleSource: UnicodeString; override;
     function IsFilterStored: Boolean; override;
@@ -198,8 +214,11 @@ type
       write fStringAttri;
     property SymbolAttri: TSynHighlighterAttributes read fSymbolAttri
       write fSymbolAttri;
+    property ProcNameAttri: TSynHighlighterAttributes read fProcNameAttri
+      write fProcNameAttri;
     property TableNameAttri: TSynHighlighterAttributes read fTableNameAttri
       write fTableNameAttri;
+    property ProcNames: TUnicodeStrings read fProcNames write SetProcNames;
     property TableNames: TUnicodeStrings read fTableNames write SetTableNames;
     property FunctionNames: TUnicodeStrings read fFunctionNames write SetFunctionNames;
     property VariableAttri: TSynHighlighterAttributes read fVariableAttri
@@ -335,7 +354,7 @@ const
     'FAST,FAST_START_IO_TARGET,FAST_START_MTTR_TARGET,' +
     'FAST_START_PARALLEL_ROLLBACK,FILE,FILE_MAPPING,FILESYSTEMIO_OPTIONS,' +
     'FIXED_DATE,FLUSH,FOR,FORCE,FOREIGN,FORTRAN,FREELIST,FREELISTS,FRESH,' +
-    'FROM,FROM_TZ,FUNCTIONS,GC_FILES_TO_LOCKS,GENERATED,GLOBAL,' +
+    'FROM,FROM_TZ,FUNCTIONS,FULL,GC_FILES_TO_LOCKS,GENERATED,GLOBAL,' +
     'GLOBAL_CONTEXT_POOL_SIZE,GLOBAL_NAME,GLOBAL_NAMES,GLOBALLY,GO,GRANT,' +
     'GROUP,GROUPS,HASH,HASH_AREA_SIZE,HASH_JOIN_ENABLED,HASHKEYS,HAVING,HEAP,' +
     'HI_SHARED_MEMORY_ADDRESS,HIERARCHY,HS_AUTOREGISTER,IDENTIFIED,IDLE_TIME,' +
@@ -344,7 +363,7 @@ const
     'INSTANCE_GROUPS,INSTANCE_NAME,INSTANCE_NUMBER,INT,INTERSECT,INTO,' +
     'INVALIDATE,IS,ISOLATION,JAVA,JAVA_MAX_SESSIONSPACE_SIZE,JAVA_POOL_SIZE,' +
     'JAVA_SOFT_SESSIONSPACE_LIMIT,JOB_QUEUE_PROCESSES,JOIN,KEEP,KEY,KILL,' +
-    'LARGE_POOL_SIZE,LAYERLISTS,LEVEL,LIBRARY,LICENSE_MAX_SESSIONS,' +
+    'LARGE_POOL_SIZE,LAYERLISTS,LEFT,LEVEL,LIBRARY,LICENSE_MAX_SESSIONS,' +
     'LICENSE_MAX_USERS,LICENSE_SESSIONS_WARNING,LIKE,LIMIT,LINK,LIST,LOB,' +
     'LOCAL,LOCAL_LISTENER,LOCATOR,LOCK,LOCK_NAME_SPACE,LOCK_SGA,' +
     'LOG_ARCHIVE_DEST,LOG_ARCHIVE_DUPLEX_DEST,LOG_ARCHIVE_FORMAT,' +
@@ -375,7 +394,7 @@ const
     'OPTION,OR,ORACLE_TRACE_COLLECTION_NAME,ORACLE_TRACE_COLLECTION_PATH,' +
     'ORACLE_TRACE_COLLECTION_SIZE,ORACLE_TRACE_ENABLE,' +
     'ORACLE_TRACE_FACILITY_NAME,ORACLE_TRACE_FACILITY_PATH,ORDER,' +
-    'OS_AUTHENT_PREFIX,OS_ROLES,OUTLINE,OVERFLOW,OWN,PACKAGES,PARALLEL,' +
+    'OS_AUTHENT_PREFIX,OS_ROLES,OUTER,OUTLINE,OVERFLOW,OWN,PACKAGES,PARALLEL,' +
     'PARALLEL_ADAPTIVE_MULTI_USER,PARALLEL_AUTOMATIC_TUNING,' +
     'PARALLEL_EXECUTION_MESSAGE_SIZE,PARALLEL_INSTANCE_GROUP,' +
     'PARALLEL_MAX_SERVERS,PARALLEL_MIN_PERCENT,PARALLEL_MIN_SERVERS,' +
@@ -391,13 +410,13 @@ const
     'PRIMARY,PRIOR,PRIVATE_SGA,PRIVILEGES,PROCESSES,PROFILE,PUBLIC,QUERY,' +
     'QUERY_REWRITE_ENABLED,QUERY_REWRITE_INTEGRITY,QUIESCE,QUOTA,' +
     'RDBMS_SERVER_DN,READ,READ_ONLY_OPEN_DELAYED,REBUILD,RECORDS_PER_BLOCK,' +
-    'RECOVER,RECOVERABLE,RECOVERY,RECOVERY_PARALLELISM,RECYCLE,REDUCED,' +
+    'RECOVER,RECOVERABLE,RECOVERY,RECOVERY_PARALLELISM,RECYCLE,RECYCLEBIN,REDUCED,' +
     'REFERENCES,REFRESH,REGISTER,RELY,REMOTE_ARCHIVE_ENABLE,' +
     'REMOTE_DEPENDENCIES_MODE,REMOTE_LISTENER,REMOTE_LOGIN_PASSWORDFILE,' +
     'REMOTE_OS_AUTHENT,REMOTE_OS_ROLES,RENAME,' +
     'REPLICATION_DEPENDENCY_TRACKING,RESET,RESETLOGS,RESIZE,RESOLVE,RESOLVER,' +
     'RESOURCE,RESOURCE_LIMIT,RESOURCE_MANAGER_PLAN,RESTRICT,RESTRICTED,' +
-    'RESUMABLE,RESUME,REUSE,REVOKE,REWRITE,RNDS,RNPS,ROLE,ROLES,' +
+    'RESUMABLE,RESUME,REUSE,REVOKE,REWRITE,RIGHT,RNDS,RNPS,ROLE,ROLES,' +
     'ROLLBACK_SEGMENTS,ROW,ROW_LOCKING,ROWDEPENDENCIES,ROWLABEL,ROWNUM,' +
     'ROWS,SAMPLE,SCN,SCOPE,SECTION,SEGMENT,SELECT,SELECTIVITY,SEQUENCE,' +
     'SERIAL_REUSE,SERVICE_NAMES,SESSION,SESSION_CACHED_CURSORS,' +
@@ -726,7 +745,7 @@ const
     'COMPAT,COMPATIBILITY,CON,CONN,COPY,COPYC,COPYCOMMIT,COPYTYPECHECK,DEF,' +
     'DEFINE,DESC,DESCR,DESCRI,DESCRIB,DESCRIBE,DISC,DISCO,DISCON,DISCONN,' +
     'DISCONNE,DISCONNEC,DISCONNECT,EA,ECHO,EDITF,EDITFILE,EMB,' +
-    'EMBEDDED,ESC,EXEC,EXECUTE,FAILURE,FEED,FEEDBACK,FLAGGER,FLU,FULL,GET,' +
+    'EMBEDDED,ESC,EXEC,EXECUTE,FAILURE,FEED,FEEDBACK,FLAGGER,FLU,GET,' +
     'HEA,HEADING,HEADS,HEADSEP,HELP,HO,HOST,INPUT,INTERMED,INTERMEDIATE,INV,' +
     'INVISIBLE,LIN,LINESIZE,LO,LOBOF,LOBOFFSET,LOGON,LOGSOURCE,LONGC,' +
     'LONGCHUNKSIZE,MARKUP,MAXDATA,MIX,MIXED,NATIVE,NEWP,NEWPAGE,NUM,' +
@@ -880,7 +899,7 @@ const
     'DELETE,DESC,DESCENDING,DESCRIBE,DESCRIPTOR,DISCONNECT,DISTINCT,DO,' +
     'DOMAIN,DROP,ECHO,EDIT,ELSE,END,ENTRY_POINT,ESCAPE,EVENT,EXCEPTION,' +
     'EXECUTE,EXISTS,EXIT,EXTERN,EXTERNAL,EXTRACT,FETCH,FILE,FILTER,FOR,' +
-    'FOREIGN,FROM,FULL,FUNCTION,GDSCODE,GENERATOR,GLOBAL,GRANT,' +
+    'FOREIGN,FOUND,FROM,FULL,FUNCTION,GDSCODE,GENERATOR,GLOBAL,GOTO,GRANT,' +
     'GROUP,GROUP_COMMIT_WAIT,GROUP_COMMIT_WAIT_TIME,HAVING,HELP,HOUR,IF,' +
     'IMMEDIATE,IN,INACTIVE,INDEX,INDICATOR,INIT,INNER,INPUT,INPUT_TYPE,' +
     'INSERT,INT,INTO,IS,ISOLATION,ISQL,JOIN,KEY,LC_MESSAGES,LC_TYPE,LEFT,' +
@@ -998,12 +1017,12 @@ const
 
     // Charsets
     'armscii8,big5,cp1250,cp1251,cp1256,cp1257,cp850,cp852,' +
-		'cp866,cp932,dec8,eucjpms,euckr,gb18030,gb2312,gbk,geostd8,greek,hebrew,' +
-		'hp8,keybcs2,koi8r,koi8u,latin1,latin2,latin5,latin7,macce,macroman,sjis,' +
-		'swe7,tis620,ucs2,ujis,utf16,utf16le,utf32,utf8,utf8mb4,' +
+    'cp866,cp932,dec8,eucjpms,euckr,gb18030,gb2312,gbk,geostd8,greek,hebrew,' +
+    'hp8,keybcs2,koi8r,koi8u,latin1,latin2,latin5,latin7,macce,macroman,sjis,' +
+    'swe7,tis620,ucs2,ujis,utf16,utf16le,utf32,utf8,utf8mb4,' +
 
     '_armscii8,_big5,_cp1250,_cp1251,_cp1256,_cp1257,_cp850,' +
-		'_cp852,_cp866,_cp932,_dec8,_eucjpms,_euckr,_gb18030,_gb2312,_gbk,' +
+    '_cp852,_cp866,_cp932,_dec8,_eucjpms,_euckr,_gb18030,_gb2312,_gbk,' +
     '_geostd8,_greek,_hebrew,_hp8,_keybcs2,_koi8r,_koi8u,_latin1,_latin2,' +
     '_latin5,_latin7,_macce,_macroman,_sjis,_swe7,_tis620,_ucs2,_ujis,_utf16,' +
     '_utf16le,_utf32,_utf8,_utf8mb4,' +
@@ -1289,7 +1308,10 @@ begin
     inc(Str);
   end;
   Result := Result and $FF; // 255
-  fStringLen := Str - fToIdent;
+  if Assigned(fToIdent) then
+    fStringLen := Str - fToIdent
+  else
+    fStringLen := 0;
 end;
 
 function TSynSQLSyn.IdentKind(MayBe: PWideChar): TtkTokenKind;
@@ -1310,7 +1332,12 @@ begin
       end;
     Entry := Entry.Next;
   end;
-  Result := tkIdentifier;
+  {$IFDEF USE_TABLE_DICTIONARY}
+  if fTableDict.ContainsKey(SynWideLowerCase(Copy(StrPas(fToIdent), 1, fStringLen))) then
+    Result := tkTableName
+  else
+  {$ENDIF}
+    Result := tkIdentifier;
 end;
 
 constructor TSynSQLSyn.Create(AOwner: TComponent);
@@ -1320,11 +1347,18 @@ begin
   fCaseSensitive := False;
 
   fKeywords := TSynHashEntryList.Create;
+
+  fProcNames := TUnicodeStringList.Create;
+  TUnicodeStringList(fProcNames).OnChange := ProcNamesChanged;
+
   fTableNames := TUnicodeStringList.Create;
   TUnicodeStringList(fTableNames).OnChange := TableNamesChanged;
+  {$IFDEF USE_TABLE_DICTIONARY}
+  fTableDict := TDictionary<string, Boolean>.Create;
+  {$ENDIF}
 
   fFunctionNames := TunicodeStringList.Create;
-  TUnicodeStringList(fFunctionNames).OnChange := TableNamesChanged;
+  TUnicodeStringList(fFunctionNames).OnChange := FunctionNamesChanged;
 
   fCommentAttri := TSynHighlighterAttributes.Create(SYNS_AttrComment, SYNS_FriendlyAttrComment);
   fCommentAttri.Style := [fsItalic];
@@ -1367,6 +1401,8 @@ begin
   AddAttribute(fStringAttri);
   fSymbolAttri := TSynHighlighterAttributes.Create(SYNS_AttrSymbol, SYNS_FriendlyAttrSymbol);
   AddAttribute(fSymbolAttri);
+  fProcNameAttri := TSynHighlighterAttributes.Create(SYNS_AttrProcName, SYNS_FriendlyAttrProcName);
+  AddAttribute(fProcNameAttri);
   fTableNameAttri := TSynHighlighterAttributes.Create(SYNS_AttrTableName, SYNS_FriendlyAttrTableName);
   AddAttribute(fTableNameAttri);
   fVariableAttri := TSynHighlighterAttributes.Create(SYNS_AttrVariable, SYNS_FriendlyAttrVariable);
@@ -1381,7 +1417,11 @@ end;
 destructor TSynSQLSyn.Destroy;
 begin
   fKeywords.Free;
+  fProcNames.Free;
   fTableNames.Free;
+  {$IFDEF USE_TABLE_DICTIONARY}
+  fTableDict.Free;
+  {$ENDIF}
   fFunctionNames.Free;
   inherited Destroy;
 end;
@@ -1580,6 +1620,16 @@ begin
   fTokenID := tkSymbol;
   Inc(Run);
   if CharInSet(fLine[Run], ['=', '+']) then Inc(Run);
+end;
+
+procedure TSynSQLSyn.FunctionNamesChanged(Sender: TObject);
+begin
+  InitializeKeywordLists;
+end;
+
+procedure TSynSQLSyn.ProcNamesChanged(Sender: TObject);
+begin
+  InitializeKeywordLists;
 end;
 
 procedure TSynSQLSyn.SlashProc;
@@ -1864,6 +1914,7 @@ begin
     tkSQLPlus: Result := fSQLPlusAttri;
     tkString: Result := fStringAttri;
     tkSymbol: Result := fSymbolAttri;
+    tkProcName: Result := fProcNameAttri;
     tkTableName: Result := fTableNameAttri;
     tkVariable: Result := fVariableAttri;
     tkUnknown: Result := fIdentifierAttri;
@@ -1899,10 +1950,8 @@ begin
       Result := True;
     '-':
       Result := fDialect = sqlStandard;
-    '#':                          // TODO: check this case, ANSI code wasn't clear here if this is exclusively Oracle
+    '#', '$':                          // TODO: check this case, ANSI code wasn't clear here if this is exclusively Oracle
       Result := fDialect in [sqlOracle, sqlNexus];
-    '$':                          // TODO: check this case, ANSI code wasn't clear here if this is exclusively Oracle
-      Result := fDialect in [sqlMySQL, sqlOracle, sqlNexus];
     '@':
       Result := fDialect in [sqlMSSQL7, sqlMSSQL2K];
      '!', '^', '{', '}','~':
@@ -1951,7 +2000,12 @@ begin
       Entry := Entry.Next;
     end;
     if not Assigned(Entry) then
+    {$IFDEF USE_TABLE_DICTIONARY}
+      if not fTableDict.ContainsKey(SynWideLowerCase(fTableNames[i])) then
+        fTableDict.Add(SynWideLowerCase(fTableNames[i]), True);
+    {$ELSE}
       DoAddKeyword(fTableNames[i], Ord(tkTableName));
+    {$ENDIF}
   end;
 end;
 
@@ -1974,15 +2028,43 @@ begin
   end;
 end;
 
+procedure TSynSQLSyn.PutProcNamesInKeywordList;
+var
+  i: Integer;
+  Entry: TSynHashEntry;
+begin
+  for i := 0 to fProcNames.Count - 1 do
+  begin
+    Entry := fKeywords[HashKey(PWideChar(fProcNames[i]))];
+    while Assigned(Entry) do
+    begin
+      if SynWideLowerCase(Entry.Keyword) = SynWideLowerCase(fProcNames[i]) then
+        Break;
+      Entry := Entry.Next;
+    end;
+    if not Assigned(Entry) then
+      DoAddKeyword(fProcNames[i], Ord(tkProcName));
+  end;
+end;
+
 procedure TSynSQLSyn.InitializeKeywordLists;
 var
   I: Integer;
 begin
+{$IFDEF LIST_CLEAR_NOT_VIRTUAL}
+  fKeywords.DeleteEntries;
+{$ELSE}
   fKeywords.Clear;
+{$ENDIF}
+  {$IFDEF USE_TABLE_DICTIONARY}
+  fTableDict.Clear;
+  {$ENDIF}
+  fToIdent := nil;
 
   for I := 0 to Ord(High(TtkTokenKind)) - 1 do
     EnumerateKeywords(I, GetKeywords(I), IsIdentChar, DoAddKeyword);
 
+  PutProcNamesInKeywordList;
   PutTableNamesInKeywordList;
   PutFunctionNamesInKeywordList;
   DefHighlightChange(Self);
@@ -1999,7 +2081,12 @@ end;
 
 procedure TSynSQLSyn.SetFunctionNames(const Value: TUnicodeStrings);
 begin
-  fFunctionNames := Value;
+  fFunctionNames.Assign(Value);
+end;
+
+procedure TSynSQLSyn.SetProcNames(const Value: TUnicodeStrings);
+begin
+  fProcNames.Assign(Value);
 end;
 
 function TSynSQLSyn.GetSampleSource: UnicodeString;

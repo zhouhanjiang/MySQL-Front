@@ -67,7 +67,6 @@ type
     DataSetFirst: TDataSetFirst;
     DataSetLast: TDataSetLast;
     DataSetPost: TDataSetPost;
-    FBlobSearch: TEdit;
     FFilter: TComboBox_Ext;
     FFilterEnabled: TToolButton;
     FGridDataSource: TDataSource;
@@ -76,7 +75,7 @@ type
     FJobs: TListView;
     FLimit: TEdit;
     FLimitEnabled: TToolButton;
-    FLog: TRichEdit;
+    FLog: TMemo_Ext;
     FNavigator: TTreeView_Ext;
     FObjectIDEGrid: TMySQLDBGrid;
     FOffset: TEdit;
@@ -89,7 +88,7 @@ type
     FSQLEditorSearch: TSynEditSearch;
     FSQLEditorSynMemo: TSynMemo;
     FSQLHistory: TTreeView_Ext;
-    FText: TRichEdit;
+    FText: TMemo_Ext;
     FUDLimit: TUpDown;
     FUDOffset: TUpDown;
     ghmGoto: TMenuItem;
@@ -346,7 +345,6 @@ type
     tbBlobHTML: TToolButton;
     tbBlobImage: TToolButton;
     tbBlobRTF: TToolButton;
-    tbBlobSpacer: TPanel_Ext;
     tbBlobText: TToolButton;
     tbBrowser: TToolButton;
     tbBuilder: TToolButton;
@@ -452,8 +450,6 @@ type
       Y: Integer);
     procedure DBGridTitleClick(Column: TColumn);
     procedure FBlobResize(Sender: TObject);
-    procedure FBlobSearchChange(Sender: TObject);
-    procedure FBlobSearchKeyPress(Sender: TObject; var Key: Char);
     procedure PDataBrowserResize(Sender: TObject);
     procedure FFilesEnter(Sender: TObject);
     procedure FFilterChange(Sender: TObject);
@@ -473,7 +469,6 @@ type
     procedure FLimitEnabledClick(Sender: TObject);
     procedure FLogEnter(Sender: TObject);
     procedure FLogExit(Sender: TObject);
-    procedure FLogSelectionChange(Sender: TObject);
     procedure FNavigatorChange(Sender: TObject; Node: TTreeNode);
     procedure FNavigatorChange2(Sender: TObject; Node: TTreeNode);
     procedure FNavigatorChanging(Sender: TObject; Node: TTreeNode;
@@ -1534,6 +1529,8 @@ begin
 end;
 
 function TFSession.TTableDesktop.CreateDBGrid(): TMySQLDBGrid;
+var
+  DataSet: TDataSet;
 begin
   if (not Assigned(FDBGrid)) then
   begin
@@ -1549,8 +1546,14 @@ begin
     // Debug 2016-11-23
     if (not Assigned(Table)) then
       raise ERangeError.Create(SRangeError);
+    // Debug 2016-11-27
+    if (not (TObject(Table) is TSTable)) then
+      raise ERangeError.Create(SRangeError);
+    if (not (TObject(DataSource) is TDataSource)) then
+      raise ERangeError.Create(SRangeError);
 
-    DataSource.DataSet := Table.DataSet;
+    DataSet := Table.DataSet;
+    DataSource.DataSet := DataSet;
   end;
 
   Result := FDBGrid;
@@ -2189,18 +2192,38 @@ begin
   begin
     for I := 0 to ActiveListView.Items.Count - 1 do
       if (ActiveListView.Items[I].Selected) then
+      begin
+        // Debug 2016-11-26
+        if (not (TObject(ActiveListView.Items[I].Data) is TSItem)) then
+          raise ERangeError.Create(SRangeError);
         Items.Add(ActiveListView.Items[I].Data);
+      end;
   end
   else if ((Window.ActiveControl = ActiveWorkbench) and (ActiveWorkbench.SelCount > 1)) then
   begin
     for I := 0 to ActiveWorkbench.ControlCount - 1 do
       if ((ActiveWorkbench.Controls[I] is TWTable) and (TWTable(ActiveWorkbench.Controls[I]).Selected)) then
-        Items.Add(TWTable(ActiveWorkbench.Controls[I]).BaseTable)
+      begin
+        // Debug 2016-11-26
+        if (not (TObject(TWTable(ActiveWorkbench.Controls[I]).BaseTable) is TSItem)) then
+          raise ERangeError.Create(SRangeError);
+        Items.Add(TWTable(ActiveWorkbench.Controls[I]).BaseTable);
+      end
       else if ((ActiveWorkbench.Controls[I] is TWForeignKey) and (TWForeignKey(ActiveWorkbench.Controls[I]).Selected)) then
+      begin
+        // Debug 2016-11-26
+        if (not (TObject(TWForeignKey(ActiveWorkbench.Controls[I]).BaseForeignKey) is TSItem)) then
+          raise ERangeError.Create(SRangeError);
         Items.Add(TWForeignKey(ActiveWorkbench.Controls[I]).BaseForeignKey);
+      end;
   end
   else if (Assigned(FocusedSItem)) then
+  begin
+    // Debug 2016-11-26
+    if (not (TObject(FocusedSItem) is TSItem)) then
+      raise ERangeError.Create(SRangeError);
     Items.Add(FocusedSItem);
+  end;
 
   if (Items.Count > 1) then
     Msg := Preferences.LoadStr(413)
@@ -3120,7 +3143,7 @@ begin
   DSearch.Session := Session;
   DSearch.Database := Session.DatabaseByName(SelectedDatabase);
   DSearch.SearchOnly := True;
-  DSearch.Frame := Self;
+  DSearch.Tab := Self;
   DSearch.Execute();
 end;
 
@@ -3342,7 +3365,7 @@ begin
   DSearch.Session := Session;
   DSearch.Database := Session.DatabaseByName(SelectedDatabase);
   DSearch.SearchOnly := False;
-  DSearch.Frame := Self;
+  DSearch.Tab := Self;
   DSearch.Execute();
   Wanted.Update := Session.Update;
 end;
@@ -3533,7 +3556,8 @@ var
 begin
   SItem := FocusedSItem;
 
-  if ((Sender is TAction) and ((SItem is TSDatabase) and not TSDatabase(SItem).Update()) or ((SItem is TSTable) and not TSTable(SItem).Update())) then
+  if ((Sender is TAction)
+    and ((SItem is TSDatabase) and not TSDatabase(SItem).Update()) or ((SItem is TSTable) and not TSTable(SItem).Update())) then
     Wanted.Action := TAction(Sender)
   else
   begin
@@ -3952,7 +3976,6 @@ begin
     FHTML.Visible := (Sender = aVBlobHTML) or not Assigned(Sender) and aVBlobHTML.Checked;
   FImage.Visible := (Sender = aVBlobImage) or not Assigned(Sender) and aVBlobImage.Checked;
   FHexEditor.Visible := (Sender = aVBlobHexEditor) or not Assigned(Sender) and aVBlobHexEditor.Checked;
-  FBlobSearch.Visible := aVBlobText.Checked;
   PToolBarBlobResize(Sender);
 
   if (FText.Visible) then
@@ -3965,9 +3988,6 @@ begin
     FImageShow(Sender)
   else if (FHexEditor.Visible) then
     FHexEditorShow(Sender);
-
-  if (CheckWin32Version(6)) then
-    SendMessage(FBlobSearch.Handle, EM_SETCUEBANNER, 0, LParam(PChar(Preferences.LoadStr(424))));
 end;
 
 procedure TFSession.aViewExecute(Sender: TObject);
@@ -4750,9 +4770,6 @@ begin
   PQueryBuilderSynMemo.Constraints.MinHeight :=
     (FQueryBuilderSynMemo.Canvas.TextHeight('SELECT') + 1) + 2 * FQueryBuilderSynMemo.Top + 2 * BevelWidth
     + GetSystemMetrics(SM_CYHSCROLL);
-
-  SendMessage(FLog.Handle, EM_SETTEXTMODE, TM_PLAINTEXT, 0);
-  SendMessage(FLog.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
 end;
 
 function TFSession.CreateDesktop(const CObject: TSObject): TSObject.TDesktop;
@@ -5159,7 +5176,16 @@ begin
   if (not (Self is TFSession)) then
     raise ERangeError.Create(SRangeError);
 
-  PBlob.Visible := False; SBlob.Visible := PBlob.Visible;
+  // Debug 2016-11-26
+  if (not Assigned(Self)) then
+    raise ERangeError.Create(SRangeError);
+  if (not Assigned(PBlob)) then
+    raise ERangeError.Create(SRangeError);
+  if (not Assigned(SBlob)) then
+    raise ERangeError.Create(SRangeError);
+
+  PBlob.Visible := False;
+  SBlob.Visible := PBlob.Visible;
   if (PResult.Align = alClient) then
   begin
     PResult.Align := alBottom;
@@ -5998,31 +6024,6 @@ begin
   FText.Repaint();
 end;
 
-procedure TFSession.FBlobSearchChange(Sender: TObject);
-begin
-  if (FBlobSearch.Text <> '') then
-  begin
-    TSearchFind_Ext(MainAction('aSSearchFind')).Control := FText;
-    TSearchFind_Ext(MainAction('aSSearchFind')).Dialog.FindText := FBlobSearch.Text;
-    TSearchFind_Ext(MainAction('aSSearchFind')).FindFirst := Assigned(Sender);
-    TSearchFind_Ext(MainAction('aSSearchFind')).Search(Sender);
-  end;
-end;
-
-procedure TFSession.FBlobSearchKeyPress(Sender: TObject; var Key: Char);
-begin
-  if (Ord(Key) = VK_ESCAPE) then
-  begin
-    FBlobSearch.Text := '';
-    Key := #0;
-  end
-  else if ((Ord(Key) = VK_RETURN) and (FText.Text <> '')) then
-  begin
-    FBlobSearchChange(nil);
-    Key := #0;
-  end;
-end;
-
 procedure TFSession.FFilesEnter(Sender: TObject);
 begin
   miHOpen.ShortCut := VK_RETURN;
@@ -6304,31 +6305,16 @@ end;
 
 procedure TFSession.FLogEnter(Sender: TObject);
 begin
-  MainAction('aECopyToFile').OnExecute := SaveSQLFile;
-
   MainAction('aSSearchReplace').Enabled := False;
 
   MainAction('aHIndex').ShortCut := 0;
   MainAction('aHSQL').ShortCut := ShortCut(VK_F1, []);
-
-  FLogSelectionChange(Sender);
-  StatusBarRefresh();
 end;
 
 procedure TFSession.FLogExit(Sender: TObject);
 begin
-  MainAction('aECopyToFile').Enabled := False;
-
   MainAction('aHIndex').ShortCut := ShortCut(VK_F1, []);
   MainAction('aHSQL').ShortCut := 0;
-end;
-
-procedure TFSession.FLogSelectionChange(Sender: TObject);
-begin
-  if (PLog.Visible and (Window.ActiveControl = FLog)) then
-    MainAction('aECopyToFile').Enabled := FLog.SelText <> '';
-
-  StatusBarRefresh();
 end;
 
 procedure TFSession.FLogUpdate();
@@ -6499,7 +6485,7 @@ end;
 
 procedure TFSession.FNavigatorEdited(Sender: TObject; Node: TTreeNode; var S: string);
 begin
-  if (not RenameSItem(FocusedSItem, S)) then
+  if (not RenameSItem(Node.Data, S)) then
     S := Node.Text;
 end;
 
@@ -6632,6 +6618,9 @@ begin
       iiSystemDatabase:
         begin
           Database := TSDatabase(Node.Data);
+          // Debug 2016-11-26
+          if (not Assigned(Database)) then
+            raise ERangeError.Create(SRangeError);
           AllowExpansion := AllowExpansion and Database.Update();
         end;
       iiBaseTable,
@@ -6639,6 +6628,9 @@ begin
       iiView:
         begin
           Table := TSTable(Node.Data);
+          // Debug 2016-11-26
+          if (not Assigned(Table)) then
+            raise ERangeError.Create(SRangeError);
           AllowExpansion := AllowExpansion and Table.Update();
         end;
     end;
@@ -8843,7 +8835,11 @@ end;
 procedure TFSession.ListViewEdited(Sender: TObject; Item: TListItem;
   var S: string);
 begin
-  if (not RenameSItem(FocusedSItem, S)) then
+  // Debug 2016-11-27
+  if (not Assigned(Item)) then
+    raise ERangeError.Create(SRangeError);
+
+  if (not RenameSItem(Item.Data, S)) then
     S := Item.Caption;
 end;
 
@@ -10937,8 +10933,11 @@ begin
           raise ERangeError.Create(SRangeError);
         if (not Assigned(FNavigator.Selected.Data)) then
           raise ERangeError.Create(SRangeError);
+        // Debug 2016-11-27
+        if (not (TObject(FNavigator.Selected.Data) is TSTable)) then
+          raise ERangeError.Create(SRangeError);
 
-        if (Desktop(TSTable(FNavigator.Selected.Data)).Table.ValidData) then
+        if (TSTable(FNavigator.Selected.Data).ValidData) then
         begin
            if (Desktop(TSTable(FNavigator.Selected.Data)).Table.DataSet.Offset > 0) then
             URI.Param['offset'] := IntToStr(Desktop(TSTable(FNavigator.Selected.Data)).Table.DataSet.Offset);
@@ -11117,17 +11116,34 @@ begin
     Rect.Right := Rect.Left + CloseButton.Bitmap.Width + 2;
     Rect.Bottom := Rect.Top + CloseButton.Bitmap.Height + 2;
 
-    if (PtInRect(Rect, Point(X, Y))) then
+    if (StyleServices.Enabled) then
     begin
-      SetCapture(Panel.Handle);
-
-      if (PtInRect(Rect, PanelMouseDownPoint)) then
-        Frame3D(Panel.Canvas, Rect, clDkGray, clWhite, 1)
-      else
-        Frame3D(Panel.Canvas, Rect, clWhite, clDkGray, 1);
+      if (PtInRect(Rect, Point(X, Y))) then
+        if (PanelMouseDownPoint.X < 0) then
+          StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle,
+            StyleServices.GetElementDetails(twSmallCloseButtonHot),
+            Rect)
+        else
+          StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle,
+            StyleServices.GetElementDetails(twSmallCloseButtonPushed),
+            Rect)
+      else if (ReleaseCapture()) then
+        StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle,
+          StyleServices.GetElementDetails(twSmallCloseButtonNormal),
+          Rect);
     end
-    else if (ReleaseCapture()) then
-      Frame3D(Panel.Canvas, Rect, Panel.Color, Panel.Color, 1);
+    else
+      if (PtInRect(Rect, Point(X, Y))) then
+      begin
+        SetCapture(Panel.Handle);
+
+        if (PtInRect(Rect, PanelMouseDownPoint)) then
+          Frame3D(Panel.Canvas, Rect, clDkGray, clWhite, 1)
+        else
+          Frame3D(Panel.Canvas, Rect, clWhite, clDkGray, 1);
+      end
+      else if (ReleaseCapture()) then
+        Frame3D(Panel.Canvas, Rect, Panel.Color, Panel.Color, 1);
   end;
 end;
 
@@ -11168,7 +11184,15 @@ end;
 
 procedure TFSession.PanelPaint(Sender: TObject);
 begin
-  if ((Sender is TPanel_Ext) and Assigned(CloseButton)) then
+  if (StyleServices.Enabled) then
+    StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle,
+      StyleServices.GetElementDetails(twSmallCloseButtonNormal),
+      Rect(
+        TPanel_Ext(Sender).Width - CloseButton.Bitmap.Width - GetSystemMetrics(SM_CXEDGE),
+        GetSystemMetrics(SM_CYEDGE),
+        TPanel_Ext(Sender).Width - GetSystemMetrics(SM_CXEDGE),
+        GetSystemMetrics(SM_CYEDGE) + CloseButton.Bitmap.Height))
+  else if ((Sender is TPanel_Ext) and Assigned(CloseButton)) then
     TPanel_Ext(Sender).Canvas.Draw(TPanel_Ext(Sender).Width - CloseButton.Bitmap.Width - GetSystemMetrics(SM_CXEDGE), GetSystemMetrics(SM_CYEDGE), CloseButton.Bitmap)
 end;
 
@@ -11241,10 +11265,14 @@ var
   NewKey: TSKey;
   NewTable: TSBaseTable;
   NewTrigger: TSTrigger;
-  SourceSession: TSSession;
   SourceDatabase: TSDatabase;
+  SourceField: TSField;
+  SourceForeignKey: TSForeignKey;
+  SourceKey: TSKey;
   SourceRoutine: TSRoutine;
+  SourceSession: TSSession;
   SourceTable: TSBaseTable;
+  SourceTrigger: TSTrigger;
   SourceURI: TUURI;
   SourceUser: TSUser;
   SourceView: TSView;
@@ -11411,8 +11439,8 @@ begin
                 MessageBeep(MB_ICONERROR)
               else
               begin
-                Database := Session.DatabaseByName(Node.Parent.Text);
-                Table := Database.BaseTableByName(Node.Text);
+                Database := TSDatabase(Node.Parent.Data);
+                Table := TSBaseTable(Node.Data);
 
                 DExecutingSQL.Update := Table.Update;
                 if (Table.Valid or DExecutingSQL.Execute()) then
@@ -11425,13 +11453,20 @@ begin
                     begin
                       Name := CopyName(StringList.ValueFromIndex[I], NewTable.Fields);
 
-                      NewField := TSBaseTableField.Create(NewTable.Fields);
-                      NewField.Assign(SourceTable.FieldByName(StringList.ValueFromIndex[I]));
-                      TSBaseTableField(NewField).OriginalName := '';
-                      NewField.Name := Name;
-                      NewField.FieldBefore := NewTable.Fields[NewTable.Fields.Count - 1];
-                      NewTable.Fields.AddField(NewField);
-                      NewField.Free();
+                      SourceField := SourceTable.FieldByName(StringList.ValueFromIndex[I]);
+
+                      if (not Assigned(SourceField)) then
+                        MessageBeep(MB_ICONERROR)
+                      else
+                      begin
+                        NewField := TSBaseTableField.Create(NewTable.Fields);
+                        NewField.Assign(SourceField);
+                        TSBaseTableField(NewField).OriginalName := '';
+                        NewField.Name := Name;
+                        NewField.FieldBefore := NewTable.Fields[NewTable.Fields.Count - 1];
+                        NewTable.Fields.AddField(NewField);
+                        NewField.Free();
+                      end;
                     end;
 
                   for I := 1 to StringList.Count - 1 do
@@ -11439,21 +11474,35 @@ begin
                     begin
                       Name := CopyName(StringList.ValueFromIndex[I], NewTable.Keys);
 
-                      NewKey := TSKey.Create(NewTable.Keys);
-                      NewKey.Assign(SourceTable.IndexByName(StringList.ValueFromIndex[I]));
-                      NewKey.Name := Name;
-                      NewTable.Keys.AddKey(NewKey);
-                      NewKey.Free();
+                      SourceKey := SourceTable.KeyByName(StringList.ValueFromIndex[I]);
+
+                      if (not Assigned(SourceKey)) then
+                        MessageBeep(MB_ICONERROR)
+                      else
+                      begin
+                        NewKey := TSKey.Create(NewTable.Keys);
+                        NewKey.Assign(SourceKey);
+                        NewKey.Name := Name;
+                        NewTable.Keys.AddKey(NewKey);
+                        NewKey.Free();
+                      end;
                     end
                     else if (StringList.Names[I] = 'ForeignKey') then
                     begin
                       Name := CopyName(StringList.ValueFromIndex[I], NewTable.ForeignKeys);
 
-                      NewForeignKey := TSForeignKey.Create(NewTable.ForeignKeys);
-                      NewForeignKey.Assign(SourceTable.ForeignKeyByName(StringList.ValueFromIndex[I]));
-                      NewForeignKey.Name := Name;
-                      NewTable.ForeignKeys.AddForeignKey(NewForeignKey);
-                      NewForeignKey.Free();
+                      SourceForeignKey := SourceTable.ForeignKeyByName(StringList.ValueFromIndex[I]);
+
+                      if (not Assigned(SourceForeignKey)) then
+                        MessageBeep(MB_ICONERROR)
+                      else
+                      begin
+                        NewForeignKey := TSForeignKey.Create(NewTable.ForeignKeys);
+                        NewForeignKey.Assign(SourceForeignKey);
+                        NewForeignKey.Name := Name;
+                        NewTable.ForeignKeys.AddForeignKey(NewForeignKey);
+                        NewForeignKey.Free();
+                      end;
                     end;
 
                   Session.Connection.BeginSynchron();
@@ -11463,16 +11512,28 @@ begin
                   for I := 1 to StringList.Count - 1 do
                     if (StringList.Names[I] = 'Trigger') then
                     begin
-                      Name := CopyName(StringList.ValueFromIndex[I], Database.Triggers);
+                      DExecutingSQL.Session := SourceSession;
+                      DExecutingSQL.Update := SourceDatabase.Triggers.Update;
+                      if (not Assigned(SourceDatabase) or not SourceDatabase.Triggers.Valid and not DExecutingSQL.Execute()) then
+                        SourceTrigger := nil
+                      else
+                        SourceTrigger := SourceDatabase.TriggerByName(StringList.ValueFromIndex[I]);
 
-                      NewTrigger := TSTrigger.Create(Database.Triggers);
-                      NewTrigger.Assign(SourceDatabase.TriggerByName(StringList.ValueFromIndex[I]));
-                      NewTrigger.Name := Name;
-                      NewTrigger.TableName := NewTable.Name;
-                      Session.Connection.BeginSynchron();
-                      Database.AddTrigger(NewTrigger);
-                      Session.Connection.EndSynchron();
-                      NewTrigger.Free();
+                      if (not Assigned(SourceTrigger)) then
+                        MessageBeep(MB_ICONERROR)
+                      else
+                      begin
+                        Name := CopyName(StringList.ValueFromIndex[I], Database.Triggers);
+
+                        NewTrigger := TSTrigger.Create(Database.Triggers);
+                        NewTrigger.Assign(SourceTrigger);
+                        NewTrigger.Name := Name;
+                        NewTrigger.TableName := NewTable.Name;
+                        Session.Connection.BeginSynchron();
+                        Database.AddTrigger(NewTrigger);
+                        Session.Connection.EndSynchron();
+                        NewTrigger.Free();
+                      end;
                     end;
 
                   NewTable.Free();
@@ -11922,17 +11983,7 @@ begin
 end;
 
 procedure TFSession.PToolBarBlobResize(Sender: TObject);
-var
-  I: Integer;
-  Widths: Integer;
 begin
-  Widths := 0;
-  for I := 0 to TBBlob.ControlCount - 1 do
-    if (TBBlob.Controls[I].Visible and (TBBlob.Controls[I] <> tbBlobSpacer)) then
-      Inc(Widths, TBBlob.Controls[I].Width);
-  Inc(Widths, GetSystemMetrics(SM_CXVSCROLL));
-  tbBlobSpacer.Width := TBBlob.Width - Widths;
-
   if (Assigned(ToolBar.Images)) then
   begin
     TBBlob.ButtonHeight := Max(ToolBar.Images.Height + 6, ToolBar.Canvas.TextHeight('I') + 10);
@@ -11957,9 +12008,7 @@ begin
   begin
     Table := TSTable(SItem);
 
-    Table.Database.RenameTable(Table, NewName);
-
-    Result := False;
+    Result := Table.Database.RenameTable(Table, NewName);
   end
   else if (SItem is TSTrigger) then
   begin
@@ -12669,8 +12718,6 @@ begin
       StatusBar.Panels[sbNavigation].Text := IntToStr(ActiveDBGrid.DataSource.DataSet.RecNo + 1) + ':' + IntToStr(ActiveDBGrid.SelectedField.FieldNo)
     else if (Window.ActiveControl = FText) then
       StatusBar.Panels[sbNavigation].Text := IntToStr(FText.CaretPos.Y + 1) + ':' + IntToStr(FText.CaretPos.X + 1)
-    else if (Window.ActiveControl = FLog) then
-      StatusBar.Panels[sbNavigation].Text := IntToStr(FLog.CaretPos.Y + 1) + ':' + IntToStr(FLog.CaretPos.X + 1)
     else
       StatusBar.Panels[sbNavigation].Text := '';
 
@@ -13616,10 +13663,7 @@ begin
   begin
     SendMessage(FFilter.Handle, CB_SETCUEBANNER, 0, LParam(PChar(Preferences.LoadStr(209))));
     SendMessage(FQuickSearch.Handle, EM_SETCUEBANNER, 0, LParam(PChar(Preferences.LoadStr(424))));
-    SendMessage(FBlobSearch.Handle, EM_SETCUEBANNER, 0, LParam(PChar(Preferences.LoadStr(424))));
   end;
-
-  FBlobSearch.Hint := Preferences.LoadStr(424);
 
   if (not Preferences.Editor.CurrRowBGColorEnabled) then
     FSQLEditorSynMemo.ActiveLineColor := clNone
@@ -14097,7 +14141,16 @@ begin
       if ((TObject(FNavigator.Selected.Data) is TSTable) and not TSTable(FNavigator.Selected.Data).ValidData) then
         TableOpen(nil);
     vIDE:
-      TSDBObject(FNavigator.Selected.Data).Update();
+      begin
+        // Debug 2016-11-26
+        if (not Assigned(FNavigator.Selected)) then
+          raise ERangeError.Create(SRangeError);
+        if (not Assigned(FNavigator.Selected.Data)) then
+          raise ERangeError.Create(SRangeError);
+        if (not (TObject(FNavigator.Selected.Data) is TSDBObject)) then
+          raise ERangeError.Create(SRangeError);
+        TSDBObject(FNavigator.Selected.Data).Update();
+      end;
     vDiagram:
       if (not Assigned(ActiveWorkbench) and Assigned(FNavigator.Selected)) then
       begin

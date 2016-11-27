@@ -70,6 +70,10 @@ object DSearch: TDSearch
       Caption = 'TSSelect'
       TabVisible = False
       OnShow = TSSelectShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -121,6 +125,10 @@ object DSearch: TDSearch
       Caption = 'TSFOptions'
       TabVisible = False
       OnShow = TSFOptionsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -207,6 +215,10 @@ object DSearch: TDSearch
       Caption = 'TSROptions'
       TabVisible = False
       OnShow = TSROptionsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -314,6 +326,10 @@ object DSearch: TDSearch
       TabVisible = False
       OnResize = TSExecuteResize
       OnShow = TSExecuteShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -467,7 +483,7 @@ object DSearch: TDSearch
           BevelOuter = bvLowered
           ParentBackground = False
           TabOrder = 0
-          object FErrorMessages: TRichEdit
+          object FErrorMessages: TMemo_Ext
             Left = 2
             Top = 2
             Width = 304
@@ -489,6 +505,7 @@ object DSearch: TDSearch
             ScrollBars = ssBoth
             TabOrder = 1
             WordWrap = False
+            HideScrollBars = False
           end
           object FTables: TListView_Ext
             Left = 2
@@ -511,6 +528,7 @@ object DSearch: TDSearch
             TabStop = False
             ViewStyle = vsReport
             OnDblClick = FTablesDblClick
+            OnKeyPress = FTablesKeyPress
           end
         end
       end

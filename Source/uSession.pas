@@ -660,7 +660,7 @@ type
     function GetSourceEx(const DropBeforeCreate: Boolean = False): string; override;
     procedure InvalidateData(); override;
     function KeyByCaption(const Caption: string): TSKey; virtual;
-    function IndexByName(const Name: string): TSKey; virtual;
+    function KeyByName(const Name: string): TSKey; virtual;
     function KeyByDataSet(const DataSet: TSTable.TDataSet): TSKey; virtual;
     procedure Invalidate(); override;
     procedure InvalidateStatus(); virtual;
@@ -3785,8 +3785,10 @@ begin
     Session.SendEvent(etItemValid, Database, Items, Self);
   end;
 
-  // Debug
+  // Debug 2016-11-27
   if (not Assigned(Fields)) then
+    raise ERangeError.Create(SRangeError);
+  if (not (TObject(Fields) is TSTableFields)) then
     raise ERangeError.Create(SRangeError);
 
   if (Fields.Count > 0) then
@@ -4189,7 +4191,7 @@ end;
 
 function TSBaseTable.GetPrimaryKey(): TSKey;
 begin
-  Result := IndexByName('');
+  Result := KeyByName('');
 end;
 
 function TSBaseTable.GetFields(): TSTableFields;
@@ -4266,10 +4268,10 @@ begin
   Delete(IndexName, Pos(' (' + Preferences.LoadStr(377), IndexName), Length(IndexName) - Pos(' (' + Preferences.LoadStr(377), IndexName) + 2);
   if (IndexName = Preferences.LoadStr(154)) then IndexName := '';
 
-  Result := IndexByName(IndexName);
+  Result := KeyByName(IndexName);
 end;
 
-function TSBaseTable.IndexByName(const Name: string): TSKey;
+function TSBaseTable.KeyByName(const Name: string): TSKey;
 var
   Index: Integer;
 begin

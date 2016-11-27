@@ -21,12 +21,17 @@ type
 
   TMemo_Ext = class(TMemo)
   private
+    FHideScrollBars: Boolean;
     FInsertMode: Boolean;
+    procedure CalcScrollBars();
   protected
     procedure KeyPress(var Key: Char); override;
   public
+    procedure Change(); override;
     constructor Create(AOwner: TComponent); override;
+    procedure Resize(); override;
   published
+    property HideScrollBars: Boolean read FHideScrollBars write FHideScrollBars default True;
     property InsertMode: Boolean read FInsertMode write FInsertMode default True;
   end;
 
@@ -137,11 +142,48 @@ end;
 
 { TMemo_Ext *******************************************************************}
 
+procedure TMemo_Ext.CalcScrollBars();
+var
+  DC: HDC;
+  Format: UINT;
+  Rect: TRect;
+  Wnd: HWND;
+begin
+  if (HideScrollBars and (WindowHandle > 0)) then
+    if (Text = '') then
+      ShowScrollBar(WindowHandle, SB_BOTH, False)
+    else
+    begin
+      Wnd := WindowHandle;
+      DC := GetDeviceContext(Wnd);
+      SelectObject(DC, Font.Handle);
+      if (not WordWrap) then
+        Format := DT_CALCRECT or DT_NOPREFIX
+      else
+        Format := DT_CALCRECT or DT_NOPREFIX or DT_WORDBREAK;
+      Rect := ClientRect;
+      Wnd := Handle;
+      if (DrawText(DC, PChar(Text), Length(Text), Rect, Format) > 0) then
+      begin
+        ShowScrollBar(WindowHandle, SB_HORZ, Rect.Width >= ClientWidth);
+        ShowScrollBar(WindowHandle, SB_VERT, Rect.Height >= ClientHeight);
+      end;
+    end;
+end;
+
+procedure TMemo_Ext.Change();
+begin
+  inherited;
+
+  CalcScrollBars();
+end;
+
 constructor TMemo_Ext.Create(AOwner: TComponent);
 begin
   inherited;
 
-  InsertMode := True;
+  FHideScrollBars := True;
+  FInsertMode := True;
 end;
 
 procedure TMemo_Ext.KeyPress(var Key: Char);
@@ -150,6 +192,13 @@ begin
     SelLength := 1;
 
  inherited;
+end;
+
+procedure TMemo_Ext.Resize();
+begin
+  inherited;
+
+  CalcScrollBars();
 end;
 
 end.

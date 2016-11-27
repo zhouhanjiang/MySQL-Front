@@ -948,6 +948,10 @@ object DImport: TDImport
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -972,7 +976,7 @@ object DImport: TDImport
           BevelOuter = bvLowered
           ParentBackground = False
           TabOrder = 0
-          object FErrorMessages: TRichEdit
+          object FErrorMessages: TMemo_Ext
             Left = 2
             Top = 2
             Width = 304
@@ -994,6 +998,7 @@ object DImport: TDImport
             ScrollBars = ssBoth
             TabOrder = 0
             WordWrap = False
+            HideScrollBars = False
           end
         end
       end

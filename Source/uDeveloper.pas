@@ -147,7 +147,8 @@ begin
   WideCharToMultiByte(CP_UTF8, Flags, PChar(Text), Length(Text), PAnsiChar(Stream.Memory), Stream.Size, nil, nil);
 
   HTTPThread := THTTPThread.Create(LoadStr(1010), Stream, nil);
-  HTTPThread.Execute();
+  HTTPThread.FreeOnTerminate := True;
+  HTTPThread.Start();
   HTTPThread.Free();
 end;
 

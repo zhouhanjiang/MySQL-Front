@@ -36,7 +36,7 @@ type
     FEntieredRecords: TLabel;
     FEntieredObjects: TLabel;
     FEntieredTime: TLabel;
-    FErrorMessages: TRichEdit;
+    FErrorMessages: TMemo_Ext;
     FErrors: TLabel;
     FExcelFile: TRadioButton;
     FSourceField1: TComboBox_Ext;
@@ -253,7 +253,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  Registry, Math, StrUtils, RichEdit, DBCommon, SysConst,
+  Math, StrUtils, DBCommon, SysConst,
   SQLUtils,
   uDLogin, uDODBC;
 
@@ -725,9 +725,6 @@ begin
   FDatabaseNodeAttribute.Text := Preferences.Export.XML.Database.NodeAttribute;
 
   FMonthly.Visible := CheckWin32Version(6, 1);
-
-  SendMessage(FErrorMessages.Handle, EM_SETTEXTMODE, TM_PLAINTEXT, 0);
-  SendMessage(FErrorMessages.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
 
   PageControl.ActivePage := nil;
 

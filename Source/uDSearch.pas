@@ -10,12 +10,6 @@ uses
   uBase, uFSession;
 
 type
-  TDSTableItem = record
-    Account: TPAccount;
-    DatabaseName: string;
-    TableName: string;
-  end;
-
   TDSearch = class(TForm_Ext)
     FBBack: TButton;
     FBCancel: TButton;
@@ -27,7 +21,7 @@ type
     FEntieredRecords: TLabel;
     FEntieredTables: TLabel;
     FEntieredTime: TLabel;
-    FErrorMessages: TRichEdit;
+    FErrorMessages: TMemo_Ext;
     FErrors: TLabel;
     FFFindText: TComboBox_Ext;
     FFMatchCase: TCheckBox;
@@ -95,6 +89,7 @@ type
       var AllowChange: Boolean);
     procedure TSExecuteResize(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
+    procedure FTablesKeyPress(Sender: TObject; var Key: Char);
   private
     ExecuteSession: TSSession;
     ProgressInfos: TTool.TProgressInfos;
@@ -105,7 +100,6 @@ type
       Session: TSSession;
     end;
     Space: Integer;
-    Tables: array of TDSTableItem;
     Wanted: record
       Node: TTreeNode;
       Page: TTabSheet;
@@ -123,7 +117,7 @@ type
   public
     Session: TSSession;
     Database: TSDatabase;
-    Frame: TFSession;
+    Tab: TFSession;
     SearchOnly: Boolean;
     function Execute(): Boolean;
   end;
@@ -135,7 +129,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  Consts, StrUtils, CommCtrl, RichEdit, SysConst,
+  Consts, StrUtils, CommCtrl, SysConst,
   SQLUtils,
   uURI,
   uDConnecting;
@@ -260,9 +254,6 @@ begin
   FRRegExpr.Checked := roRegExpr in Preferences.Replace.Options;
   FRRegExprClick(Sender);
 
-  SendMessage(FErrorMessages.Handle, EM_SETTEXTMODE, TM_PLAINTEXT, 0);
-  SendMessage(FErrorMessages.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
-
   PageControl.ActivePage := nil; // Make sure, not ___OnShowPage will be executed
 end;
 
@@ -280,6 +271,9 @@ begin
   FSelect.Items.BeginUpdate();
   FSelect.Items.Clear();
   FSelect.Items.EndUpdate();
+  FTables.Items.BeginUpdate();
+  FTables.Items.Clear();
+  FTables.Items.EndUpdate();
 
   for I := 0 to Length(Sessions) - 1 do
     if (Assigned(Sessions[I].Session)) then
@@ -427,7 +421,7 @@ var
   Database: TSDatabase;
   I: Integer;
   NewNode: TTreeNode;
-  Table: TSBaseTable;
+  Table: TSTable;
   TreeView: TTreeView_Ext;
 begin
   TreeView := TTreeView_Ext(Sender);
@@ -464,7 +458,7 @@ begin
         iiDatabase:
           begin
             Session := TSSession(Node.Parent.Data);
-            Database := Session.DatabaseByName(Node.Text);
+            Database := TSDatabase(Node.Data);
             if ((not Database.Tables.Update() or not Session.Update(Database.Tables))) then
               Wanted.Node := Node
             else
@@ -482,9 +476,7 @@ begin
           end;
         iiBaseTable:
           begin
-            Session := TSSession(Node.Parent.Parent.Data);
-            Database := Session.DatabaseByName(Node.Parent.Text);
-            Table := Database.BaseTableByName(Node.Text);
+            Table := TSTable(Node.Data);
             if (not Table.Update()) then
               Wanted.Node := Node
             else
@@ -492,7 +484,10 @@ begin
               for I := 0 to Table.Fields.Count - 1 do
               begin
                 NewNode := TreeView.Items.AddChild(Node, Table.Fields[I].Name);
-                NewNode.ImageIndex := iiField;
+                if (Table is TSBaseTable) then
+                  NewNode.ImageIndex := iiField
+                else
+                  NewNode.ImageIndex := iiViewField;
                 NewNode.Data := Table.Fields[I];
               end;
               Node.HasChildren := Assigned(Node.getFirstChild());
@@ -516,35 +511,27 @@ procedure TDSearch.FTablesDblClick(Sender: TObject);
 var
   Result: Boolean;
   URI: TUURI;
-  ViewFrame: TFSession;
+  FSession: TFSession;
 begin
   if (Assigned(FTables.Selected)) then
   begin
     URI := TUURI.Create('');
 
-    // Debug 2016-11-21
-    if (FTables.Selected.Index < Length(Tables)) then
-      raise ERangeError.Create(SRangeError);
-    if (FTables.Selected.Index >= Length(Tables)) then
-      raise ERangeError.Create(SRangeError);
-    if (not Assigned(Tables[FTables.Selected.Index].Account)) then
-      raise ERangeError.Create(SRangeError);
-
     URI.Scheme := 'mysql';
-    URI.Host := Tables[FTables.Selected.Index].Account.Connection.Host;
-    URI.Port := Tables[FTables.Selected.Index].Account.Connection.Port;
-    URI.Database := Tables[FTables.Selected.Index].DatabaseName;
-    URI.Table := Tables[FTables.Selected.Index].TableName;
+    URI.Host := TSTable(FTables.Selected.Data).Database.Session.Account.Connection.Host;
+    URI.Port := TSTable(FTables.Selected.Data).Database.Session.Account.Connection.Port;
+    URI.Database := TSTable(FTables.Selected.Data).Database.Name;
+    URI.Table := TSTable(FTables.Selected.Data).Name;
     URI.Param['view'] := 'browser';
 
-    if (Assigned(Frame)) then
-      ViewFrame := Frame
+    if (Assigned(Tab)) then
+      FSession := Tab
     else
-      ViewFrame := TFSession(Tables[FTables.Selected.Index].Account.Tab());
+      FSession := TFSession(TSTable(FTables.Selected.Data).Database.Session.Account.Tab());
 
     Result := True;
-    if (Assigned(ViewFrame)) then
-      ViewFrame.Address := URI.Address
+    if (Assigned(FSession)) then
+      FSession.Address := URI.Address
     else
       Result := Boolean(SendMessage(Application.MainForm.Handle, UM_ADDTAB, 0, LPARAM(URI.Address)));
 
@@ -553,6 +540,14 @@ begin
     if (Result) then
       FBCancel.Click();
   end;
+end;
+
+procedure TDSearch.FTablesKeyPress(Sender: TObject; var Key: Char);
+begin
+  if (Key = #13) then
+    FTablesDblClick(Sender)
+  else
+    MessageBeep(MB_ICONERROR);
 end;
 
 function TDSearch.GetSession(const TreeNode: TTreeNode): TSSession;
@@ -667,31 +662,13 @@ end;
 
 procedure TDSearch.OnSearched(const AItem: TTSearch.TItem);
 var
-  Found: Boolean;
-  I: Integer;
   Item: TListItem;
 begin
   if (AItem.Done and (AItem.RecordsFound > 0)) then
   begin
-    Found := False;
-    for I := 0 to Length(Tables) - 1 do
-      if ((Tables[I].Account = ExecuteSession.Account) and (Tables[I].DatabaseName = AItem.DatabaseName) and (Tables[I].TableName = AItem.TableName)) then
-        Found := True;
-
-    if (not Found) then
-    begin
-      SetLength(Tables, Length(Tables) + 1);
-
-      Tables[Length(Tables) - 1].Account := ExecuteSession.Account;
-      Tables[Length(Tables) - 1].DatabaseName := AItem.DatabaseName;
-      Tables[Length(Tables) - 1].TableName := AItem.TableName;
-
-      Item := FTables.Items.Add();
-      if (not (FSelect.Selected.ImageIndex in [iiDatabase, iiBaseTable, iiField])) then
-        Item.Caption := Item.Caption + ExecuteSession.Account.Name + '.';
-      Item.Caption := Item.Caption + AItem.DatabaseName + '.';
-      Item.Caption := Item.Caption + AItem.TableName + ' (' + IntToStr(AItem.RecordsFound) + ')';
-    end;
+    Item := FTables.Items.Add();
+    Item.Caption := AItem.DatabaseName + '.' + AItem.TableName + ' (' + IntToStr(AItem.RecordsFound) + ')';
+    Item.Data := ExecuteSession.DatabaseByName(AItem.DatabaseName).TableByName(AItem.TableName);
   end;
 end;
 
@@ -785,7 +762,7 @@ var
   K: Integer;
   List: TList;
   Node: TTreeNode;
-  Table: TSBaseTable;
+  Table: TSTable;
 begin
   FEntieredTables.Caption := '';
   FDoneTables.Caption := '';
@@ -796,6 +773,9 @@ begin
   FProgressBar.Position := 0;
   FErrors.Caption := '0';
   FErrorMessages.Lines.Clear();
+  FTables.Items.BeginUpdate();
+  FTables.Items.Clear();
+  FTables.Items.EndUpdate();
 
   Node := FSelect.Selected;
   while (Assigned(Node.Parent)) do Node := Node.Parent;
@@ -829,8 +809,6 @@ begin
       TerminateThread(Search.Handle, 0);
     if (SearchOnly) then
     begin
-      SetLength(Tables, 0);
-
       Search := TTSearch.Create(ExecuteSession);
       Search.Wnd := Self.Handle;
       Search.FindText := Trim(FFFindText.Text);
@@ -865,17 +843,15 @@ begin
     for I := 0 to FSelect.Items.Count - 1 do
       if (FSelect.Items[I].Selected) then
       begin
-        if (FSelect.Selected.ImageIndex = iiField) then
+        if (FSelect.Selected.ImageIndex in [iiField, iiViewField]) then
         begin
-          Database := ExecuteSession.DatabaseByName(FSelect.Items[I].Parent.Parent.Text);
-          Table := Database.BaseTableByName(FSelect.Items[I].Parent.Text);
+          Table := TSTable(FSelect.Items[I].Parent.Data);
           List.Add(Table);
           Search.Add(Table, Table.FieldByName(FSelect.Items[I].Text));
         end
-        else if (FSelect.Items[I].ImageIndex = iiBaseTable) then
+        else if (FSelect.Items[I].ImageIndex in [iiBaseTable, iiView]) then
         begin
-          Database := ExecuteSession.DatabaseByName(FSelect.Items[I].Parent.Text);
-          Table := Database.BaseTableByName(FSelect.Items[I].Text);
+          Table := TSTable(FSelect.Items[I].Data);
           List.Add(Table);
           Search.Add(Table, nil);
         end
@@ -883,26 +859,24 @@ begin
         begin
           Database := ExecuteSession.DatabaseByName(FSelect.Items[I].Text);
           for J := 0 to Database.Tables.Count - 1 do
-            if (Database.Tables[J] is TSBaseTable) then
-            begin
-              Table := TSBaseTable(Database.Tables[J]);
-              List.Add(Table);
-              Search.Add(Table, nil);
-            end;
+          begin
+            Table := Database.Tables[J];
+            List.Add(Table);
+            Search.Add(Table, nil);
+          end;
         end
-        else // iiConnection
+        else // iiServer
         begin
           for K := 0 to ExecuteSession.Databases.Count - 1 do
           begin
             Database := ExecuteSession.Databases[K];
             if (not (Database is TSSystemDatabase)) then
               for J := 0 to Database.Tables.Count - 1 do
-                if (Database.Tables[J] is TSBaseTable) then
-                begin
-                  Table := TSBaseTable(Database.Tables[J]);
-                  List.Add(Table);
-                  Search.Add(Table, nil);
-                end;
+              begin
+                Table := Database.Tables[J];
+                List.Add(Table);
+                Search.Add(Table, nil);
+              end;
           end;
         end;
       end;

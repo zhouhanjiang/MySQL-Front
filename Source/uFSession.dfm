@@ -251,7 +251,7 @@ object FSession: TFSession
     ParentBackground = False
     TabOrder = 2
     OnResize = PLogResize
-    object FLog: TRichEdit
+    object FLog: TMemo_Ext
       Left = 19
       Top = 2
       Width = 570
@@ -260,13 +260,13 @@ object FSession: TFSession
       TabStop = False
       Align = alClient
       BorderStyle = bsNone
+      Constraints.MinHeight = 35
       Font.Charset = ANSI_CHARSET
       Font.Color = clWindowText
       Font.Height = -11
       Font.Name = 'Courier New'
       Font.Style = []
       HideSelection = False
-      Constraints.MinHeight = 35
       ParentFont = False
       PopupMenu = MLog
       ReadOnly = True
@@ -276,7 +276,6 @@ object FSession: TFSession
       WordWrap = False
       OnEnter = FLogEnter
       OnExit = FLogExit
-      OnSelectionChange = FLogSelectionChange
     end
     object PLogHeader: TPanel_Ext
       Left = 2
@@ -915,8 +914,8 @@ object FSession: TFSession
         TabOrder = 2
         Visible = False
         object BINSERT: TButton
-          Left = 8
-          Top = 8
+          Left = 6
+          Top = 10
           Width = 89
           Height = 25
           Caption = 'INSERT'
@@ -1044,28 +1043,9 @@ object FSession: TFSession
             Grouped = True
             Style = tbsCheck
           end
-          object tbBlobSpacer: TPanel_Ext
-            Left = 405
-            Top = 0
-            Width = 49
-            Height = 22
-            BevelOuter = bvNone
-            ParentBackground = False
-            TabOrder = 1
-          end
-          object FBlobSearch: TEdit
-            Left = 454
-            Top = 0
-            Width = 136
-            Height = 22
-            AutoSize = False
-            TabOrder = 0
-            OnChange = FBlobSearchChange
-            OnKeyPress = FBlobSearchKeyPress
-          end
         end
       end
-      object FText: TRichEdit
+      object FText: TMemo_Ext
         Left = 2
         Top = 25
         Width = 463
@@ -1080,7 +1060,6 @@ object FSession: TFSession
         HideSelection = False
         ParentFont = False
         PopupMenu = MText
-        ScrollBars = ssVertical
         TabOrder = 0
         WantTabs = True
         OnChange = FTextChange

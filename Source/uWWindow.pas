@@ -400,7 +400,6 @@ type
       Rect: TRect;
     end;
   private
-    CloseButton: TPicture;
     CheckOnlineVersionThread: TCheckOnlineVersionThread;
     {$IFDEF EurekaLog}
     EurekaLog: TEurekaLog;
@@ -481,11 +480,11 @@ uses
   uDConnecting, uDInfo, uDUpdate;
 
 function IsConnectedToInternet(): Boolean;
-var
-  ConnectionTypes: DWORD;
+//var
+//  ConnectionTypes: DWORD;
 begin
-  ConnectionTypes := INTERNET_CONNECTION_MODEM + INTERNET_CONNECTION_LAN + INTERNET_CONNECTION_PROXY;
-  Result := InternetGetConnectedState(@ConnectionTypes, 0);
+//  ConnectionTypes := INTERNET_CONNECTION_MODEM + INTERNET_CONNECTION_LAN + INTERNET_CONNECTION_PROXY;
+  Result := InternetGetConnectedState(nil, 0);
 end;
 
 { TWWindow ********************************************************************}
@@ -503,7 +502,7 @@ begin
   begin
     DSearch.Session := nil;
     DSearch.SearchOnly := True;
-    DSearch.Frame := nil;
+    DSearch.Tab := nil;
     DSearch.Execute();
   end;
 end;
@@ -516,7 +515,7 @@ begin
   begin
     DSearch.Session := nil;
     DSearch.SearchOnly := False;
-    DSearch.Frame := nil;
+    DSearch.Tab := nil;
     DSearch.Execute();
   end;
 end;
@@ -933,7 +932,6 @@ end;
 
 destructor TWWindow.Destroy();
 begin
-  FreeAndNil(CloseButton);
   FreeAndNil(FSessions);
   FreeAndNil(Accounts);
 
@@ -1041,27 +1039,37 @@ begin
       Preferences.ObsoleteVersion := Preferences.Version;
 
 
-    Report := LoadStr(1000) + ' ' + Preferences.VersionStr + #13#10#13#10;
-    Report := Report + EurekaExceptionRecord.ExceptionObject.ClassName + #13#10;
+    Report := LoadStr(1000) + ' ' + Preferences.VersionStr + #13#10;
+    Report := Report + #13#10;
+    Report := Report + EurekaExceptionRecord.ExceptionObject.ClassName + ':' + #13#10;
     if (EurekaExceptionRecord.ExceptionObject is Exception) then
       Report := Report + Exception(EurekaExceptionRecord.ExceptionObject).Message + #13#10;
-    Report := Report + #13#10#13#10;
+    Report := Report + #13#10;
 
     StringList := TStringList.Create();
     CallStackToStrings(EurekaExceptionRecord.CallStack, StringList);
-    Report := Report + StringList.Text;
+    Report := Report + Trim(StringList.Text) + #13#10;
     StringList.Free();
 
     if (Assigned(ActiveTab)) then
     begin
       if (ImportState > 0) then
       begin
+        Report := Report + #13#10;
         Report := Report + 'Import:' + #13#10;
         Report := Report + StringOfChar('-', Length('Import: ' + IntToStr(ImportState))) + #13#10;
         Report := Report + 'ImportState: ' + IntToStr(ImportState) + #13#10;
-        Report := Report + #13#10;
       end;
 
+      if (ExportState > 0) then
+      begin
+        Report := Report + #13#10;
+        Report := Report + 'Export:' + #13#10;
+        Report := Report + StringOfChar('-', Length('Export: ' + IntToStr(ExportState))) + #13#10;
+        Report := Report + 'ExportState: ' + IntToStr(ExportState) + #13#10;
+      end;
+
+      Report := Report + #13#10;
       Report := Report + 'MySQL:' + #13#10;
       Report := Report + StringOfChar('-', Length('Version: ' + ActiveTab.Session.Connection.ServerVersionStr)) + #13#10;
       Report := Report + 'Version: ' + ActiveTab.Session.Connection.ServerVersionStr + #13#10;
@@ -1165,23 +1173,6 @@ begin
     SaveDialog.InitialDir := 'C:\'
   else
     SaveDialog.InitialDir := StrPas(PChar(@Foldername[0]));
-
-  CloseButton := TPicture.Create();
-  if (StyleServices.Enabled) then
-  begin
-    CloseButton.Bitmap.Height := (GetSystemMetrics(SM_CYCAPTION) - 1) - (GetSystemMetrics(SM_CYEDGE) - 1) - GetSystemMetrics(SM_CYEDGE) - 4 + 1;
-    if (CloseButton.Bitmap.Height > TabControl.Images.Height - 2) then
-      CloseButton.Bitmap.Height := TabControl.Images.Height - 2;
-
-    CloseButton.Bitmap.Width := CloseButton.Bitmap.Height
-  end
-  else
-  begin
-    CloseButton.Bitmap.Height := (GetSystemMetrics(SM_CYCAPTION) - 1) - (GetSystemMetrics(SM_CYEDGE) - 1) - GetSystemMetrics(SM_CYEDGE) - 4;
-    CloseButton.Bitmap.Width := CloseButton.Bitmap.Height;
-    if (CloseButton.Bitmap.Height <= 11) then CloseButton.Bitmap.Width := CloseButton.Bitmap.Width + 1;
-  end;
-  DrawCloseBitmap(CloseButton.Bitmap);
 
   for I := 0 to StatusBar.Panels.Count - 1 do
     StatusBar.Panels[I].Text := '';

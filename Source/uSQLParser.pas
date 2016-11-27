@@ -19160,20 +19160,40 @@ begin
         else
           case (TokenPtr(Nodes[NodeIndex])^.OperatorType) of
             otCase,
-            otDot:
+            otDot,
+            otNot:
               SetError(PE_UnexpectedToken, Nodes[NodeIndex]);
-            otBinary,
-            otInvertBits,
-            otNot,
-            otUnaryMinus,
-            otUnaryNot,
-            otUnaryPlus:
+            otBinary:
               if (NodeIndex + 1 = Nodes.Count) then
                 SetError(PE_IncompleteStmt)
+              else if (IsOperator(Nodes[NodeIndex + 1])) then
+                SetError(PE_UnexpectedToken, Nodes[NodeIndex + 1])
               else
               begin
                 Nodes[NodeIndex] := TUnaryOp.Create(Self, Nodes[NodeIndex], Nodes[NodeIndex + 1]);
                 Nodes.Delete(NodeIndex + 1);
+              end;
+            otInvertBits,
+            otUnaryMinus,
+            otUnaryNot,
+            otUnaryPlus:
+              begin
+                while ((NodeIndex + 1 < Nodes.Count)
+                  and IsToken(Nodes[NodeIndex + 1]) and (TokenPtr(Nodes[NodeIndex + 1])^.OperatorType in [otInvertBits, otUnaryMinus, otUnaryNot, otUnaryPlus])) do
+                  Inc(NodeIndex);
+                if (NodeIndex + 1 = Nodes.Count) then
+                  SetError(PE_IncompleteStmt)
+                else if (IsOperator(Nodes[NodeIndex + 1])) then
+                  SetError(PE_UnexpectedToken, Nodes[NodeIndex + 1])
+                else
+                  repeat
+                    Nodes[NodeIndex] := TUnaryOp.Create(Self, Nodes[NodeIndex], Nodes[NodeIndex + 1]);
+                    Nodes.Delete(NodeIndex + 1);
+                    if ((NodeIndex = 0) or not IsToken(Nodes[NodeIndex - 1]) or not (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType in [otInvertBits, otUnaryMinus, otUnaryNot, otUnaryPlus])) then
+                      break
+                    else
+                      Dec(NodeIndex);
+                  until (False);
               end;
             otAnd,
             otAssign,
@@ -20452,7 +20472,7 @@ begin
     Nodes.StmtTag := ParseTag(kiKILL);
 
   if (not ErrorFound) then
-    Nodes.ProcessIdToken := ParseExpr();
+    Nodes.ProcessIdToken := ParseInteger();
 
   Result := TKillStmt.Create(Self, Nodes);
 end;
@@ -24169,7 +24189,7 @@ label
     IdentString, IdentString2, IdentStringE,
   Quoted, QuotedL, QuotedL2, QuotedLE, QuotedE, QuotedE2, QuotedE3,
     QuotedSecondQuoter, QuotedSecondQuoterL, QuotedSecondQuoterLE,
-  Numeric, NumericL, NumericDot, NumericExp, NumericExpSign, NumericLE, NumericE, NumericHex,
+  Numeric, NumericL, NumericDot, NumericExp, NumericExpSign, NumericAlpha, NumericLE, NumericE, NumericHex,
   HexODBC, HexODBCL, HexODBCLE, HexODBCE,
   HexSQL, HexSQLL, HexSQLLE, HexSQLE,
   Bit, BitL, BitLE, BitE,
@@ -24368,12 +24388,6 @@ begin
         MOV TokenType,ttDot
         MOV OperatorType,otDot
         JMP SingleChar
-//        CMP EAX,$0030002E                // ".0" ?
-//        JB SingleChar                    // Before!
-//        CMP EAX,$0039002E                // ".9" ?
-//        JA SingleChar                    // After!
-//        MOV OperatorType,otNone
-//        JMP Numeric
       SelMySQLCode:
         CMP AX,'/'                       // "/" ?
         JNE SelHexODBCHigh               // No!
@@ -24846,13 +24860,13 @@ begin
         CMP AX,'A'                       // "A"?
         JB Finish                        // Before!
         CMP AX,'Z'                       // "Z"?
-        JBE Ident                        // Yes!
+        JBE NumericAlpha                 // Yes!
         CMP AX,'_'                       // "_"?
-        JE Ident                         // Yes!
+        JE NumericAlpha                  // Yes!
         CMP AX,'a'                       // "z"?
         JB Finish                        // Before!
         CMP AX,'z'                       // "z"?
-        JBE Ident                        // Yes!
+        JBE NumericAlpha                 // Yes!
         CMP AX,127                       // Extended character?
         JBE Finish                       // No!
         JMP Ident
@@ -24884,6 +24898,10 @@ begin
         DEC ECX                          // One character handled
         JZ IncompleteToken               // End of SQL!
         JMP NumericL
+      NumericAlpha:
+        CMP DotFound,False               // "." in Token?
+        JE Ident                         // No!
+        JMP Finish
       NumericLE:
         ADD ESI,2                        // Next character in SQL
         DEC ECX

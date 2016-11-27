@@ -2771,7 +2771,11 @@ begin
   View.SaveToXML(XMLNode(XML, 'view', True));
 
   if (XML.OwnerDocument.Modified and ForceDirectories(ExtractFilePath(Filename))) then
-    try XML.OwnerDocument.SaveToFile(Filename); except end; // We do not know about problems.
+    try
+      // We do not have to know about problems.
+      XML.OwnerDocument.SaveToFile(Filename);
+    except
+    end;
 end;
 
 { TPAccount.TFile *************************************************************}

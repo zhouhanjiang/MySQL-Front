@@ -50,7 +50,7 @@ type
       property Items[Index: Integer]: TItem read GetItem; default;
       property Tool: TTool read FTool;
     end;
-    TErrorType = (TE_Database, TE_NoPrimaryIndex, TE_File, TE_ODBC, TE_XML, TE_Warning, TE_OutOfMemory, TE_CharacterSet);
+    TErrorType = (TE_Database, TE_NoPrimaryIndex, TE_File, TE_ODBC, TE_XML, TE_OutOfMemory, TE_CharacterSet);
     TError = record
       ErrorType: TErrorType;
       ErrorCode: Integer;
@@ -195,7 +195,6 @@ type
     procedure Open(); virtual;
     property Database: TSDatabase read FDatabase;
     property Session: TSSession read FSession;
-    property WarningCount: Integer read FWarningCount;
   public
     Charset: string;
     Collation: string;
@@ -210,6 +209,7 @@ type
     constructor Create(const ASession: TSSession; const ADatabase: TSDatabase);
     destructor Destroy(); override;
     procedure Execute(); override;
+    property WarningCount: Integer read FWarningCount;
   end;
 
   TTImportFile = class(TTImport)
@@ -392,6 +392,7 @@ type
     procedure Add(const ADBGrid: TDBGrid); overload; virtual;
     procedure Add(const ADBObject: TSDBObject); overload; inline;
     constructor Create(const ASession: TSSession);
+    destructor Destroy(); override;
     procedure Execute(); override;
     property Session: TSSession read FSession;
   end;
@@ -667,6 +668,7 @@ type
     end;
   private
     FDestinationSession: TSSession;
+    FWarningCount: Integer;
     OLD_FOREIGN_KEY_CHECKS: string;
     OLD_UNIQUE_CHECKS: string;
     function DoExecuteSQL(const Session: TSSession; var SQL: string): Boolean;
@@ -682,6 +684,7 @@ type
     procedure Add(const ADBObject: TSDBObject; const ADestinationDatabaseName: string); virtual;
     constructor Create(const ASourceSession, ADestinationSession: TSSession);
     property DestinationSession: TSSession read FDestinationSession;
+    property WarningCount: Integer read FWarningCount;
   end;
 
   TTSearch = class(TTool)
@@ -704,16 +707,16 @@ type
     procedure BeforeExecute(); override;
     function DoExecuteSQL(const Session: TSSession; var SQL: string): Boolean;
     procedure DoUpdateGUI(); override;
-    procedure ExecuteDefault(const Item: TItem; const Table: TSBaseTable); virtual;
-    procedure ExecuteMatchCase(const Item: TItem; const Table: TSBaseTable); virtual;
-    procedure ExecuteWholeValue(const Item: TItem; const Table: TSBaseTable); virtual;
+    procedure ExecuteDefault(const Item: TItem; const Table: TSTable); virtual;
+    procedure ExecuteMatchCase(const Item: TItem; const Table: TSTable); virtual;
+    procedure ExecuteWholeValue(const Item: TItem; const Table: TSTable); virtual;
     property Session: TSSession read FSession;
   public
     FindText: string;
     MatchCase: Boolean;
     WholeValue: Boolean;
     RegExpr: Boolean;
-    procedure Add(const Table: TSBaseTable; const Field: TSTableField = nil); virtual;
+    procedure Add(const Table: TSTable; const Field: TSTableField = nil); virtual;
     constructor Create(const ASession: TSSession);
     procedure Execute(); override;
     property OnSearched: TOnSearched read FOnSearched write FOnSearched;
@@ -723,7 +726,7 @@ type
   private
     FReplaceSession: TSSession;
   protected
-    procedure ExecuteMatchCase(const Item: TTSearch.TItem; const Table: TSBaseTable); override;
+    procedure ExecuteMatchCase(const Item: TTSearch.TItem; const Table: TSTable); override;
     property ReplaceSession: TSSession read FReplaceSession;
   public
     ReplaceText: string;
@@ -743,6 +746,8 @@ var
   ODBCEnv: SQLHENV;
   ODBCDrivers: set of (odAccess, odAccess2003, odExcel, odExcel2003);
 
+  // Debug 2016-11-26
+  ExportState: Integer = 0;
   // Debug 2016-11-21
   ImportState: Integer = 0;
 
@@ -1806,9 +1811,10 @@ destructor TTImport.Destroy();
 begin
   Close();
 
-ImportState := 0;
+ImportState := 30;
 
   inherited;
+ImportState := 0;
 end;
 
 function TTImport.DoExecuteSQL(var SQL: string): Boolean;
@@ -2056,24 +2062,7 @@ begin
           if ((Success <> daSuccess) or (Session.Connection.ErrorCode > 0))  then
             DoError(DatabaseError(Session), Item, False);
 
-          if ((Success = daSuccess) and (Session.Connection.WarningCount > 0)) then
-          begin
-            DataSet := TMySQLQuery.Create(nil);
-            DataSet.Connection := Session.Connection;
-            DataSet.CommandText := 'SHOW WARNINGS';
-
-            DataSet.Open();
-            if (DataSet.Active and not DataSet.IsEmpty()) then
-            begin
-              Error.ErrorType := TE_Warning;
-              Error.ErrorCode := 1;
-              repeat
-                Error.ErrorMessage := Error.ErrorMessage + Trim(DataSet.FieldByName('Message').AsString) + #13#10;
-              until (not DataSet.FindNext());
-              DoError(Error, Item, False);
-            end;
-            DataSet.Free();
-          end;
+          Inc(FWarningCount, Session.Connection.WarningCount);
 
           DataFileBuffer.Free();
         end;
@@ -2195,19 +2184,15 @@ begin
         while ((Success = daSuccess) and (SQL <> '') and not DoExecuteSQL(SQL)) do
           DoError(DatabaseError(Session), Item, True, SQL);
 
+        Inc(FWarningCount, Session.Connection.WarningCount);
+
         Delete(SQL, 1, Session.Connection.SuccessfullExecutedSQLLength);
       end;
 
       while ((Success = daSuccess) and (SQL <> '') and not DoExecuteSQL(SQL)) do
         DoError(DatabaseError(Session), Item, True, SQL);
 
-      if (WarningCount > 0) then
-      begin
-        Error.ErrorType := TE_Warning;
-        Error.ErrorCode := 1;
-        Error.ErrorMessage := Error.ErrorMessage + IntToStr(WarningCount) + ' Unknown Warning(s)';
-        DoError(Error, Item, False);
-      end;
+      Inc(FWarningCount, Session.Connection.WarningCount);
 
       SQLStmt.Free();
     end;
@@ -3319,7 +3304,7 @@ begin
       begin
         Name := Session.ApplyIdentifierName(IndexName);
         if ((UpperCase(Name) = 'PRIMARY') or (UpperCase(Name) = 'PRIMARYKEY')) then Name := '';
-        Key := NewTable.IndexByName(Name);
+        Key := NewTable.KeyByName(Name);
 
         if (not Assigned(Key)) then
         begin
@@ -3330,7 +3315,7 @@ begin
           NewTable.Keys.AddKey(Key);
           Key.Free();
 
-          Key := NewTable.IndexByName(Name);
+          Key := NewTable.KeyByName(Name);
         end;
 
         if (Assigned(Key)) then
@@ -3350,7 +3335,7 @@ begin
     SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
 
 
-    if ((NewTable.Keys.Count > 0) and not Assigned(NewTable.IndexByName(''))) then
+    if ((NewTable.Keys.Count > 0) and not Assigned(NewTable.KeyByName(''))) then
     begin
       Key := nil;
       for I := NewTable.Keys.Count - 1 downto 0 do
@@ -3819,9 +3804,12 @@ begin
       else
         ConnStrIn := 'Driver={' + DriverAccess + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
       ReturnCode := SQLDriverConnect(DBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE);
-      Connected := SQL_SUCCEEDED(ReturnCode);
-      if (not Connected) then
-        DoError(ODBCError(SQL_HANDLE_DBC, DBC, ReturnCode), nil, False);
+      if (SQL_SUCCEEDED(ReturnCode)) then
+        Connected := True
+      else if ((ReturnCode = SQL_ERROR) or (ReturnCode = SQL_SUCCESS_WITH_INFO)) then
+        DoError(ODBCError(SQL_HANDLE_DBC, DBC, ReturnCode), nil, False)
+      else
+        Success := daAbort;
     end;
   end;
 end;
@@ -3856,9 +3844,12 @@ begin
       else
         ConnStrIn := 'Driver={' + DriverExcel + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
       ReturnCode := SQLDriverConnect(DBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE);
-      Connected := SQL_SUCCEEDED(ReturnCode);
-      if (not Connected) then
-        DoError(ODBCError(SQL_HANDLE_DBC, DBC, ReturnCode), nil, False);
+      if (SQL_SUCCEEDED(ReturnCode)) then
+        Connected := True
+      else if ((ReturnCode = SQL_ERROR) or (ReturnCode = SQL_SUCCESS_WITH_INFO)) then
+        DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False)
+      else
+        Success := daAbort;
     end;
   end;
 end;
@@ -3926,12 +3917,23 @@ end;
 
 constructor TTExport.Create(const ASession: TSSession);
 begin
+ExportState := 1;
   inherited Create();
 
   FSession := ASession;
 
   Data := False;
   Structure := False;
+ExportState := 2;
+end;
+
+destructor TTExport.Destroy();
+begin
+ExportState := 30;
+
+  inherited;
+
+ExportState := 0;
 end;
 
 procedure TTExport.DoUpdateGUI();
@@ -3998,6 +4000,7 @@ var
   SQL: string;
   Table: TSTable;
 begin
+ExportState := 11;
   {$IFDEF EurekaLog}
   try
   {$ENDIF}
@@ -4006,9 +4009,11 @@ begin
 
   DataTables := TList.Create();
 
+ExportState := 11;
   SQL := '';
   if ((Success = daSuccess) and Data) then
   begin
+ExportState := 12;
     for I := 0 to Items.Count - 1 do
       if (Items[I] is TDBGridItem) then
         if (TDBGridItem(Items[I]).DBGrid.SelectedRows.Count > 0) then
@@ -4023,16 +4028,6 @@ begin
           if (not Assigned(Items)) then
             raise ERangeError.Create(SRangeError);
 
-          // Debug 2016-11-25
-          if (TSBaseTable(TTExport.TDBObjectItem(Items[I]).DBObject).Source = '') then
-            raise ERangeError.Create(SRangeError);
-          if ((TTExport.TDBObjectItem(Items[I]).DBObject is TSBaseTable)
-            and not Assigned(TSBaseTable(TTExport.TDBObjectItem(Items[I]).DBObject).Engine)) then
-            raise ERangeError.Create(SRangeError);
-
-          // Debug 2016-11-24
-          if (not Assigned(Items)) then
-            raise ERangeError.Create(SRangeError);
           Item := Items.Items[I];
           DBObjectItem := TDBObjectItem(Item);
           if (DBObjectItem.ClassType <> TDBObjectItem) then
@@ -4055,6 +4050,7 @@ begin
         end;
       end;
 
+ExportState := 13;
     for I := 0 to DataTables.Count - 1 do
     begin
       Table := TSBaseTable(DataTables[I]);
@@ -4086,19 +4082,23 @@ begin
     end;
   end;
 
+ExportState := 14;
   if (Success <> daAbort) then
   begin
     Success := daSuccess;
     ExecuteHeader();
   end;
 
+ExportState := 15;
   if (Success <> daAbort) then
   begin
+ExportState := 16;
     DataHandle := nil;
 
     for I := 0 to Items.Count - 1 do
       if (Success <> daAbort) then
       begin
+ExportState := 17;
         if ((Success <> daAbort) and ((I = 0) or (TDBObjectItem(Items[I]).DBObject.Database <> TDBObjectItem(Items[I - 1]).DBObject.Database))) then
         begin
           Success := daSuccess;
@@ -4109,6 +4109,7 @@ begin
             ExecuteDatabaseHeader(TDBObjectItem(Items[I]).DBObject.Database);
         end;
 
+ExportState := 18;
         if (Success <> daAbort) then
         begin
           Success := daSuccess;
@@ -4148,6 +4149,7 @@ begin
           end;
         end;
 
+ExportState := 19;
         if ((Success <> daAbort) and ((I = Items.Count - 1) or (TDBObjectItem(Items[I + 1]).DBObject.Database <> TDBObjectItem(Items[I]).DBObject.Database))) then
         begin
           Success := daSuccess;
@@ -4158,11 +4160,14 @@ begin
             ExecuteDatabaseFooter(TDBObjectItem(Items[I]).DBObject.Database);
         end;
 
+ExportState := 20;
         TItem(Items[I]).Done := True;
       end;
 
+ExportState := 21;
     if (Assigned(DataHandle)) then
       Session.Connection.CloseResult(DataHandle);
+ExportState := 22;
   end;
 
   if (Success <> daAbort) then
@@ -4171,8 +4176,10 @@ begin
     ExecuteFooter();
   end;
 
+ExportState := 23;
   AfterExecute();
 
+ExportState := 24;
   DataTables.Free();
 
   {$IFDEF EurekaLog}
@@ -4180,6 +4187,7 @@ begin
     StandardEurekaNotify(GetLastExceptionObject(), GetLastExceptionAddress());
   end;
   {$ENDIF}
+ExportState := 25;
 end;
 
 procedure TTExport.ExecuteDatabaseFooter(const Database: TSDatabase);
@@ -6512,6 +6520,7 @@ var
   Error: TTool.TError;
   ErrorCode: DWord;
   ErrorMsg: PChar;
+  ReturnCode: SQLRETURN;
   Size: Word;
 begin
   if (not Access2003) then
@@ -6541,12 +6550,21 @@ begin
     end
     else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @DBC))) then
       DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False)
-    else if (not SQL_SUCCEEDED(SQLDriverConnect(DBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE))) then
-      DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False)
-    else if (not SQL_SUCCEEDED(SQLSetConnectAttr(DBC, SQL_ATTR_AUTOCOMMIT, SQLPOINTER(SQL_AUTOCOMMIT_OFF), 1))) then
-      DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False)
-    else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, DBC, @Stmt))) then
-      DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False);
+    else
+    begin
+      ReturnCode := SQLDriverConnect(DBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE);
+      if (not SQL_SUCCEEDED(ReturnCode)) then
+      begin
+        if ((ReturnCode = SQL_ERROR) or (ReturnCode = SQL_SUCCESS_WITH_INFO)) then
+          DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False)
+        else
+          Success := daAbort;
+      end
+      else if (not SQL_SUCCEEDED(SQLSetConnectAttr(DBC, SQL_ATTR_AUTOCOMMIT, SQLPOINTER(SQL_AUTOCOMMIT_OFF), 1))) then
+        DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False)
+      else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, DBC, @Stmt))) then
+        DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False);
+    end;
   end;
 
   inherited;
@@ -6585,6 +6603,7 @@ var
   cbConnStrOut: SQLSMALLINT;
   ConnStrIn: string;
   ConnStrOut: array [0 .. 1024] of SQLTCHAR;
+  ReturnCode: SQLRETURN;
 begin
   if (Success = daSuccess) then
   begin
@@ -6595,10 +6614,19 @@ begin
 
     if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @DBC))) then
       DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False)
-    else if (not SQL_SUCCEEDED(SQLDriverConnect(DBC, Application.Handle, PSQLTCHAR(ConnStrIn), Length(ConnStrIn), PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE))) then
-      DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False)
-    else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, DBC, @Stmt))) then
-      DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False);
+    else
+    begin
+      ReturnCode := SQLDriverConnect(DBC, Application.Handle, PSQLTCHAR(ConnStrIn), Length(ConnStrIn), PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE);
+      if (not SQL_SUCCEEDED(ReturnCode)) then
+      begin
+        if ((ReturnCode = SQL_ERROR) or (ReturnCode = SQL_SUCCESS_WITH_INFO)) then
+          DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False)
+        else
+          Success := daAbort;
+      end
+      else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, DBC, @Stmt))) then
+        DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False);
+    end;
   end;
 
   inherited;
@@ -7710,6 +7738,8 @@ begin
   inherited Create(ASourceSession);
 
   FDestinationSession := ADestinationSession;
+
+  FWarningCount := 0;
 end;
 
 function TTTransfer.DoExecuteSQL(const Session: TSSession; var SQL: string): Boolean;
@@ -7748,6 +7778,8 @@ begin
 
   NewDestinationEvent.Free();
 
+  Inc(FWarningCount, DestinationSession.Connection.WarningCount);
+
   if (Success = daFail) then Success := daSuccess;
 end;
 
@@ -7778,6 +7810,8 @@ begin
 
   while ((Success = daSuccess) and not DestinationDatabase.AddRoutine(NewDestinationRoutine)) do
     DoError(DatabaseError(DestinationSession), Item, True);
+
+  Inc(FWarningCount, DestinationSession.Connection.WarningCount);
 
   NewDestinationRoutine.Free();
 
@@ -7847,8 +7881,12 @@ begin
       begin
         NewTrigger := TSTrigger.Create(DestinationDatabase.Tables);
         NewTrigger.Assign(SourceDatabase.Triggers[I]);
+
         while ((Success = daSuccess) and not DestinationDatabase.AddTrigger(NewTrigger)) do
           DoError(DatabaseError(DestinationSession), Item, True);
+
+        Inc(FWarningCount, DestinationSession.Connection.WarningCount);
+
         NewTrigger.Free();
       end;
 
@@ -7866,6 +7904,7 @@ var
   DestinationDatabase: TSDatabase;
   DestinationField: TSTableField;
   DestinationTable: TSBaseTable;
+  Error: TError;
   EscapedFieldName: array of string;
   EscapedTableName: string;
   FieldCount: Integer;
@@ -8020,6 +8059,8 @@ begin
             if (DestinationSession.Connection.ErrorCode <> 0) then
               DoError(DatabaseError(DestinationSession), Item, False, SQL);
 
+            Inc(FWarningCount, DestinationSession.Connection.WarningCount);
+
             DataFileBuffer.Free();
           end;
 
@@ -8158,6 +8199,8 @@ begin
         while ((Success = daSuccess) and not DoExecuteSQL(DestinationSession, SQL)) do
           DoError(DatabaseError(DestinationSession), Item, True, SQL);
 
+        Inc(FWarningCount, DestinationSession.Connection.WarningCount);
+
         if (Assigned(ValueBuffer.Mem)) then
           FreeMem(ValueBuffer.Mem);
         ValuesBuffer.Free();
@@ -8171,7 +8214,11 @@ begin
         SQL := SQL + 'UNLOCK TABLES;' + #13#10;
         if (DestinationSession.Connection.Lib.LibraryType <> MySQLDB.ltHTTP) then
           SQL := SQL + 'ROLLBACK;' + #13#10;
-        DoExecuteSQL(DestinationSession, SQL);
+
+        while ((Success = daSuccess) and not DoExecuteSQL(DestinationSession, SQL)) do
+          DoError(DatabaseError(DestinationSession), Item, True, SQL);
+
+        Inc(FWarningCount, DestinationSession.Connection.WarningCount);
       end;
 
       SQLExecuted.Free();
@@ -8186,6 +8233,7 @@ procedure TTTransfer.ExecuteTableStructure(const Item: TItem);
 var
   DestinationDatabase: TSDatabase;
   DestinationTable: TSTable;
+  Error: TError;
   I: Integer;
   J: Integer;
   Modified: Boolean;
@@ -8222,6 +8270,8 @@ begin
     while ((Success = daSuccess) and not DestinationDatabase.AddBaseTable(NewDestinationBaseTable)) do
       DoError(DatabaseError(DestinationSession), Item, True);
 
+    Inc(FWarningCount, DestinationSession.Connection.WarningCount);
+
     NewDestinationBaseTable.Free();
   end
   else
@@ -8232,6 +8282,8 @@ begin
 
     while ((Success = daSuccess) and not DestinationDatabase.AddView(NewDestinationView)) do
       DoError(DatabaseError(DestinationSession), Item, True);
+
+    Inc(FWarningCount, DestinationSession.Connection.WarningCount);
 
     NewDestinationView.Free();
   end;
@@ -8258,7 +8310,7 @@ end;
 
 { TTSearch ********************************************************************}
 
-procedure TTSearch.Add(const Table: TSBaseTable; const Field: TSTableField = nil);
+procedure TTSearch.Add(const Table: TSTable; const Field: TSTableField = nil);
 var
   Found: Boolean;
   NewItem: TItem;
@@ -8324,7 +8376,7 @@ var
   Database: TSDatabase;
   I: Integer;
   J: Integer;
-  Table: TSBaseTable;
+  Table: TSTable;
 begin
   {$IFDEF EurekaLog}
   try
@@ -8335,7 +8387,7 @@ begin
   for I := 0 to Items.Count - 1 do
     if (Success = daSuccess) then
     begin
-      Table := Session.DatabaseByName(TItem(Items[I]).DatabaseName).BaseTableByName(TItem(Items[I]).TableName);
+      Table := Session.DatabaseByName(TItem(Items[I]).DatabaseName).TableByName(TItem(Items[I]).TableName);
 
       if (Length(TItem(Items[I]).FieldNames) = 0) then
       begin
@@ -8344,7 +8396,8 @@ begin
           TItem(Items[I]).FieldNames[J] := Table.Fields[J].Name;
       end;
 
-      TItem(Items[I]).RecordsSum := Table.RecordCount;
+      if (Table is TSBaseTable) then
+        TItem(Items[I]).RecordsSum := TSBaseTable(Table).RecordCount;
 
       DoUpdateGUI();
     end;
@@ -8356,7 +8409,7 @@ begin
       if (Success = daSuccess) then
       begin
         Database := Session.DatabaseByName(TItem(Items[I]).DatabaseName);
-        Table := Database.BaseTableByName(TItem(Items[I]).TableName);
+        Table := Database.TableByName(TItem(Items[I]).TableName);
 
         if (RegExpr or (not WholeValue and not MatchCase)) then
           ExecuteDefault(TItem(Items[I]), Table)
@@ -8388,7 +8441,7 @@ begin
   {$ENDIF}
 end;
 
-procedure TTSearch.ExecuteDefault(const Item: TItem; const Table: TSBaseTable);
+procedure TTSearch.ExecuteDefault(const Item: TItem; const Table: TSTable);
 var
   Buffer: TStringBuffer;
   DataSet: TMySQLQuery;
@@ -8634,7 +8687,7 @@ begin
   end;
 end;
 
-procedure TTSearch.ExecuteMatchCase(const Item: TItem; const Table: TSBaseTable);
+procedure TTSearch.ExecuteMatchCase(const Item: TItem; const Table: TSTable);
 var
   DataSet: TMySQLQuery;
   I: Integer;
@@ -8664,7 +8717,7 @@ begin
   DataSet.Free();
 end;
 
-procedure TTSearch.ExecuteWholeValue(const Item: TItem; const Table: TSBaseTable);
+procedure TTSearch.ExecuteWholeValue(const Item: TItem; const Table: TSTable);
 var
   DataSet: TMySQLQuery;
   I: Integer;
@@ -8776,7 +8829,7 @@ begin
   FReplaceSession := AReplaceSession;
 end;
 
-procedure TTReplace.ExecuteMatchCase(const Item: TTSearch.TItem; const Table: TSBaseTable);
+procedure TTReplace.ExecuteMatchCase(const Item: TTSearch.TItem; const Table: TSTable);
 var
   I: Integer;
   SQL: string;
