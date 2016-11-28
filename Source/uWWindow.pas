@@ -1298,7 +1298,8 @@ end;
 procedure TWWindow.OnlineVersionChecked(Sender: TObject);
 begin
   PostMessage(Handle, UM_TERMINATE, 0, 0);
-  if (OnlineRecommendedVersion > Preferences.Version) then
+  if ((OnlineRecommendedVersion > Preferences.Version)
+    or (OnlineProgramVersion > Preferences.ObsoleteVersion)) then
     PostMessage(Handle, UM_ONLINE_UPDATE_FOUND, 0, 0);
 end;
 

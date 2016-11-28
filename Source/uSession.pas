@@ -2000,6 +2000,16 @@ begin
   if (SQL <> '') then
     SQL := SQL + ';' + #13#10;
   SetSource(SQL);
+
+  if (Now() <= Session.ParseEndDate) then
+  begin
+    if (not Session.SQLParser.ParseSQL(SQL)) then
+      Session.UnparsableSQL := Session.UnparsableSQL
+        + '# SetSource()' + #13#10
+        + '# Error: ' + Session.SQLParser.ErrorMessage + #13#10
+        + Trim(SQL) + #13#10 + #13#10 + #13#10;
+    Session.SQLParser.Clear();
+  end;
 end;
 
 constructor TSObject.Create(const AItems: TSItems; const AName: string = '');
@@ -11375,7 +11385,6 @@ var
   DatabaseName: string;
   DDLStmt: TSQLDDLStmt;
   DMLStmt: TSQLDMLStmt;
-  EndingCommentLength: Integer;
   Event: TSEvent;
   First: Boolean;
   Index: Integer;
@@ -11387,14 +11396,12 @@ var
   Process: TSProcess;
   Routine: TSRoutine;
   SQL: string;
-  StartingCommentLength: Integer;
   Table: TSTable;
   Trigger: TSTrigger;
   User: TSUser;
   Variable: TSVariable;
 begin
-  if ((Now() <= ParseEndDate)
-    and (SQLTrimStmt(Text, Len, Connection.MySQLVersion, StartingCommentLength, EndingCommentLength) > 0)) then
+  if (Now() <= ParseEndDate) then
   begin
     SetString(SQL, Text, Len);
     if ((Connection.ErrorCode = ER_PARSE_ERROR) and SQLParser.ParseSQL(SQL)) then

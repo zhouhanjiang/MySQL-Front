@@ -21563,6 +21563,7 @@ function TSQLParser.ParseSelectStmt(const SubSelect: Boolean): TOffset;
   end;
 
 var
+  Element: PChild;
   Found: Boolean;
   Nodes: TSelectStmt.TNodes;
 begin
@@ -21604,7 +21605,23 @@ begin
       Found := False;
 
   if (not ErrorFound) then
+  begin
     Nodes.ColumnsList := ParseList(False, ParseSelectStmtColumn);
+
+    if (not ErrorFound and (Nodes.ColumnsList > 0)) then
+    begin
+      Element := PList(NodePtr(Nodes.ColumnsList))^.FirstElement;
+      if (Assigned(Element)) then
+        Element := PList(NodePtr(Nodes.ColumnsList))^.GetNextElement(Element);
+      while (not ErrorFound and Assigned(Element)) do
+      begin
+        if (IsToken(TSelectStmt.PColumn(Element)^.Nodes.Expr)
+          and (TokenPtr(TSelectStmt.PColumn(Element)^.Nodes.Expr)^.AsString = '*')) then
+          SetError(PE_UnexpectedToken, TSelectStmt.PColumn(Element)^.Nodes.Expr);
+        Element := PList(NodePtr(Nodes.ColumnsList))^.GetNextElement(Element);
+      end;
+    end;
+  end;
 
   if (not ErrorFound) then
     if (IsTag(kiINTO)) then

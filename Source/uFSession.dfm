@@ -1707,12 +1707,6 @@ object FSession: TFSession
     object smN1: TMenuItem
       Caption = '-'
     end
-    object smECopyToFile: TMenuItem
-      Caption = 'aECopyToFile'
-    end
-    object N11: TMenuItem
-      Caption = '-'
-    end
     object smESelectAll: TMenuItem
       Caption = 'aESelectAll'
     end

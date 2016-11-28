@@ -276,7 +276,6 @@ type
     N09: TMenuItem;
     N1: TMenuItem;
     N10: TMenuItem;
-    N11: TMenuItem;
     N12: TMenuItem;
     N13: TMenuItem;
     N14: TMenuItem;
@@ -333,7 +332,6 @@ type
     SExplorer: TSplitter_Ext;
     SLog: TSplitter_Ext;
     smECopy: TMenuItem;
-    smECopyToFile: TMenuItem;
     smEEmpty: TMenuItem;
     smESelectAll: TMenuItem;
     SQLBuilder: TacSQLBuilderPlainText;
@@ -1283,9 +1281,9 @@ begin
   end
   else
   begin
-    if (DataHandle.Connection.WarningCount > 0) then
+    if (WarningCount > 0) then
     begin
-      Msg := Preferences.LoadStr(922, IntToStr(DataHandle.Connection.WarningCount) + ' Warning(s)');
+      Msg := Preferences.LoadStr(922, IntToStr(WarningCount) + ' Warning(s)');
       Msg := Msg
         + #10#10
         + 'Statement:' + #10
@@ -3851,32 +3849,8 @@ begin
 end;
 
 procedure TFSession.aHSQLExecute(Sender: TObject);
-
-  function FLogWordAtCursor(): string;
-  var
-    Index: Integer;
-    Len: Integer;
-    Line: string;
-    LineIndex: Integer;
-  begin
-    LineIndex := FLog.Perform(EM_EXLINEFROMCHAR, 0, FLog.SelStart);
-    Index := FLog.SelStart - FLog.Perform(EM_LINEINDEX, LineIndex, 0);
-    Line := FLog.Lines[LineIndex];
-    while ((Index > 1) and not CharInSet(Line[Index - 1], [#9, #10, #13, ' ', '"', '`', '.', ',', ')', ']', '=', ';'])) do Dec(Index);
-    Len := 0;
-    while ((Len <= Length(Line) - Index) and not CharInSet(Line[Index + Len], [#9, #10, #13, ' ', '"', '`', '.', ',', '(', '[', '=', ';'])) do Inc(Len);
-    Result := copy(Line, Index, Len);
-  end;
-
 begin
-  if (Window.ActiveControl = FLog) then
-  begin
-    if (FLog.SelText <> '') then
-      DSQLHelp.Keyword := FLog.SelText
-    else
-      DSQLHelp.Keyword := FLogWordAtCursor()
-  end
-  else if (Assigned(ActiveSynMemo) and (Window.ActiveControl = ActiveSynMemo)) then
+  if (Assigned(ActiveSynMemo) and (Window.ActiveControl = ActiveSynMemo)) then
     if (ActiveSynMemo.SelText <> '') then
       DSQLHelp.Keyword := ActiveSynMemo.SelText
     else if (ActiveSynMemo.WordAtCursor <> '') then
@@ -4262,7 +4236,7 @@ begin
     FLogUpdate();
   end
   else
-    SendMessage(FLog.Handle, WM_SETTEXT, 0, 0);
+    FLog.Lines.Clear();
 
   FormResize(Sender);
 end;
@@ -4556,7 +4530,6 @@ begin
   tmESelectAll.Action := MainAction('aESelectAll');
 
   smECopy.Action := MainAction('aECopy');
-  smECopyToFile.Action := MainAction('aECopyToFile');
   smESelectAll.Action := MainAction('aESelectAll');
 
 
@@ -6318,13 +6291,10 @@ begin
 end;
 
 procedure TFSession.FLogUpdate();
-var
-  Text: string;
 begin
   if (MainAction('aVSQLLog').Checked) then
   begin
-    Text := Session.SQLMonitor.CacheText;
-    SendMessage(FLog.Handle, WM_SETTEXT, 0, LPARAM(PChar(Text)));
+    FLog.Text := Session.SQLMonitor.CacheText;
 
     PLogResize(nil);
   end;

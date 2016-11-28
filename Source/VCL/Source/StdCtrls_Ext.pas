@@ -24,6 +24,7 @@ type
     FHideScrollBars: Boolean;
     FInsertMode: Boolean;
     procedure CalcScrollBars();
+    procedure WMSetText(var Message: TWMSetText); message WM_SETTEXT;
   protected
     procedure KeyPress(var Key: Char); override;
   public
@@ -147,9 +148,10 @@ var
   DC: HDC;
   Format: UINT;
   Rect: TRect;
+  Show: Boolean;
   Wnd: HWND;
 begin
-  if (HideScrollBars and (WindowHandle > 0)) then
+  if (HideScrollBars and (WindowHandle > 0) and CheckWin32Version(6)) then
     if (Text = '') then
       ShowScrollBar(WindowHandle, SB_BOTH, False)
     else
@@ -165,8 +167,17 @@ begin
       Wnd := Handle;
       if (DrawText(DC, PChar(Text), Length(Text), Rect, Format) > 0) then
       begin
-        ShowScrollBar(WindowHandle, SB_HORZ, Rect.Width >= ClientWidth);
-        ShowScrollBar(WindowHandle, SB_VERT, Rect.Height >= ClientHeight);
+        Show := Rect.Height >= ClientHeight;
+        ShowScrollBar(WindowHandle, SB_VERT, Show);
+        if (not Show) then
+          ShowScrollBar(WindowHandle, SB_HORZ, Rect.Width >= ClientWidth)
+        else
+        begin
+          Rect := ClientRect;
+          Rect.Width := Rect.Width - GetSystemMetrics(SM_CYVSCROLL);
+          if (DrawText(DC, PChar(Text), Length(Text), Rect, Format) > 0) then
+            ShowScrollBar(WindowHandle, SB_HORZ, Rect.Width >= ClientWidth)
+        end;
       end;
     end;
 end;
@@ -195,6 +206,13 @@ begin
 end;
 
 procedure TMemo_Ext.Resize();
+begin
+  inherited;
+
+  CalcScrollBars();
+end;
+
+procedure TMemo_Ext.WMSetText(var Message: TWMSetText);
 begin
   inherited;
 

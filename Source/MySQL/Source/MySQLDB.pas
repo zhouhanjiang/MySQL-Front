@@ -2478,10 +2478,8 @@ function TMySQLConnection.InternExecuteSQL(const Mode: TSyncThread.TMode; const 
   const SQL: string; const OnResult: TResultEvent = nil; const Done: TEvent = nil): Boolean;
 var
   CLStmt: TSQLCLStmt;
-  EndingCommentLength: Integer;
   SetNames: Boolean;
   SQLIndex: Integer;
-  StartingCommentLength: Integer;
   StmtIndex: Integer;
   StmtLength: Integer;
 begin
@@ -2525,19 +2523,17 @@ begin
   FSuccessfullExecutedSQLLength := 0; FExecutedStmts := 0;
   FRowsAffected := -1; FExecutionTime := 0;
 
-  SQLTrimStmt(PChar(SyncThread.SQL), Length(SyncThread.SQL), MySQLVersion,
-    StartingCommentLength, EndingCommentLength);
-
-  SQLIndex := 1 + StartingCommentLength;
-  while (SQLIndex < Length(SyncThread.SQL) - EndingCommentLength) do
+  SQLIndex := 1;
+  while (SQLIndex < Length(SyncThread.SQL)) do
   begin
-    StmtLength := SQLStmtLength(PChar(@SyncThread.SQL[SQLIndex]), Length(SyncThread.SQL) - EndingCommentLength - (SQLIndex - 1));
-    SyncThread.StmtLengths.Add(Pointer(StmtLength));
+    StmtLength := SQLStmtLength(PChar(@SyncThread.SQL[SQLIndex]), Length(SyncThread.SQL) - (SQLIndex - 1));
+    if (StmtLength > 0) then
+      SyncThread.StmtLengths.Add(Pointer(StmtLength));
     Inc(SQLIndex, StmtLength);
   end;
 
   SetLength(SyncThread.CLStmts, SyncThread.StmtLengths.Count);
-  SQLIndex := 1 + StartingCommentLength; SetNames := False;
+  SQLIndex := 1; SetNames := False;
   for StmtIndex := 0 to SyncThread.StmtLengths.Count - 1 do
     if (not SetNames) then
     begin
