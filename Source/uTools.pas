@@ -4620,6 +4620,7 @@ end;
 procedure TTExportSQL.ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
   Content: string;
+  FieldInfo: TFieldInfo;
   First: Boolean;
   I: Integer;
   ReadOnlyFields: Boolean;
@@ -4702,10 +4703,10 @@ begin
 
       SQLInsertPrefix := SQLInsertPrefix + ' (';
       for I := 0 to Length(Fields) - 1 do
-      begin
-        if (I > 0) then SQLInsertPrefix := SQLInsertPrefix + ',';
-        SQLInsertPrefix := SQLInsertPrefix + Session.Connection.EscapeIdentifier(Fields[I].FieldName);
-      end;
+        begin
+          if (I > 0) then SQLInsertPrefix := SQLInsertPrefix + ',';
+          SQLInsertPrefix := SQLInsertPrefix + Session.Connection.EscapeIdentifier(Fields[I].FieldName);
+        end;
       SQLInsertPrefix := SQLInsertPrefix + ')';
 
       SQLInsertPrefix := SQLInsertPrefix + ' VALUES ';

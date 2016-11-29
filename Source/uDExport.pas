@@ -1801,6 +1801,7 @@ end;
 procedure TDExport.TSExecuteShow(Sender: TObject);
 var
   Answer: Integer;
+  FieldInfo: TFieldInfo;
   I: Integer;
 begin
   Session.ReleaseEventProc(FormSessionEvent);
@@ -1948,13 +1949,16 @@ begin
       Export.Add(DBGrid);
 
       if (Length(FSourceFields) = 0) then
+      begin
         for I := 0 to DBGrid.FieldCount - 1 do
-        begin
-          SetLength(Export.Fields, Length(Export.Fields) + 1);
-          Export.Fields[Length(Export.Fields) - 1] := DBGrid.Fields[I];
-          SetLength(Export.DestinationFields, Length(Export.DestinationFields) + 1);
-          Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := DBGrid.Fields[I].DisplayName;
-        end
+          if ((ExportType <> etSQLFile) or (GetFieldInfo(DBGrid.Fields[I].Origin, FieldInfo) and (FieldInfo.TableName = TMySQLDataSet(DBGrid.DataSource.DataSet).TableName))) then
+          begin
+            SetLength(Export.Fields, Length(Export.Fields) + 1);
+            Export.Fields[Length(Export.Fields) - 1] := DBGrid.Fields[I];
+            SetLength(Export.DestinationFields, Length(Export.DestinationFields) + 1);
+            Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := DBGrid.Fields[I].DisplayName;
+          end;
+      end
       else
         for I := 0 to Length(FSourceFields) - 1 do
           if (FSourceFields[I].ItemIndex > 0) then
