@@ -251,7 +251,7 @@ object FSession: TFSession
     ParentBackground = False
     TabOrder = 2
     OnResize = PLogResize
-    object FLog: TMemo_Ext
+    object FLog: TRichEdit
       Left = 19
       Top = 2
       Width = 570
@@ -260,13 +260,13 @@ object FSession: TFSession
       TabStop = False
       Align = alClient
       BorderStyle = bsNone
-      Constraints.MinHeight = 35
       Font.Charset = ANSI_CHARSET
       Font.Color = clWindowText
       Font.Height = -11
       Font.Name = 'Courier New'
       Font.Style = []
       HideSelection = False
+      Constraints.MinHeight = 35
       ParentFont = False
       PopupMenu = MLog
       ReadOnly = True
@@ -1045,7 +1045,7 @@ object FSession: TFSession
           end
         end
       end
-      object FText: TMemo_Ext
+      object FText: TRichEdit
         Left = 2
         Top = 25
         Width = 463

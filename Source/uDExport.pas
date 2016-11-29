@@ -3,7 +3,7 @@ unit uDExport;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
+  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, RichEdit,
   Dialogs, ComCtrls, ExtCtrls, StdCtrls, DB, DBGrids,
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext, Dialogs_Ext,
   MySQLDB,
@@ -36,7 +36,7 @@ type
     FEntieredRecords: TLabel;
     FEntieredObjects: TLabel;
     FEntieredTime: TLabel;
-    FErrorMessages: TMemo_Ext;
+    FErrorMessages: TRichEdit;
     FErrors: TLabel;
     FExcelFile: TRadioButton;
     FSourceField1: TComboBox_Ext;
@@ -725,6 +725,9 @@ begin
   FDatabaseNodeAttribute.Text := Preferences.Export.XML.Database.NodeAttribute;
 
   FMonthly.Visible := CheckWin32Version(6, 1);
+
+  SendMessage(FErrorMessages.Handle, EM_SETTEXTMODE, TM_PLAINTEXT, 0);
+  SendMessage(FErrorMessages.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
 
   PageControl.ActivePage := nil;
 

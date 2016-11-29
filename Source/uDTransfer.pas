@@ -4,7 +4,7 @@ interface {********************************************************************}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, ComCtrls, ExtCtrls, StdCtrls, DB, Menus,
+  Dialogs, ComCtrls, ExtCtrls, StdCtrls, DB, Menus, RichEdit,
   ComCtrls_Ext, Forms_Ext, ExtCtrls_Ext, StdCtrls_Ext,
   MySQLDB,
   uSession, uTools,
@@ -24,7 +24,7 @@ type
     FEntieredRecords: TLabel;
     FEntieredObjects: TLabel;
     FEntieredTime: TLabel;
-    FErrorMessages: TMemo_Ext;
+    FErrorMessages: TRichEdit;
     FErrors: TLabel;
     FLDone: TLabel;
     FLEntiered: TLabel;
@@ -247,6 +247,9 @@ begin
 
   FSource.Images := Preferences.Images;
   FDestination.Images := Preferences.Images;
+
+  SendMessage(FErrorMessages.Handle, EM_SETTEXTMODE, TM_PLAINTEXT, 0);
+  SendMessage(FErrorMessages.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
 
   FStructure.Checked := Preferences.Transfer.Structure;
   FData.Checked := Preferences.Transfer.Data;

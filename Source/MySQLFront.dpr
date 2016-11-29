@@ -43,7 +43,6 @@ uses
   uDExecutingSQL in 'uDExecutingSQL.pas' {DExecutingSQL},
   uDExport in 'uDExport.pas' {DExport},
   uDField in 'uDField.pas' {DField},
-  uDForeignKey in 'uDForeignKey.pas' {DForeignKey},
   uDImport in 'uDImport.pas' {DImport},
   uDInfo in 'uDInfo.pas' {DInfo},
   uDKey in 'uDKey.pas' {DIndex},

@@ -142,7 +142,12 @@ begin
 
   FFields.Items.BeginUpdate();
   for I := 0 to Table.Fields.Count - 1 do
+  begin
     FFields.Items.Add(Table.Fields[I].Name);
+    for J := 0 to Length(ForeignKey.Fields) - 1 do
+      if (Table.Fields.NameCmp(ForeignKey.Fields[J].Name, Table.Fields[I].Name) = 0) then
+        FFields.Selected[I] := True;
+  end;
   FFields.Items.EndUpdate();
 
   FName.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
@@ -325,14 +330,11 @@ begin
   begin
     if (not GBasics.Visible and (ModalResult = mrNone)) then
     begin
-      if (not GBasics.Visible) then
-      begin
-        GBasics.Visible := True;
-        GAttributes.Visible := GBasics.Visible;
-        PSQLWait.Visible := not GBasics.Visible;
-        FBOkCheckEnabled(nil);
-        ActiveControl := FName;
-      end;
+      GBasics.Visible := True;
+      GAttributes.Visible := GBasics.Visible;
+      PSQLWait.Visible := not GBasics.Visible;
+      FBOkCheckEnabled(nil);
+      ActiveControl := FName;
     end;
 
     PostMessage(Handle, UM_POST_AFTEREXECUTESQL, 0, 0);

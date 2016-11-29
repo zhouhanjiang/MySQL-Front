@@ -217,7 +217,7 @@ type
     end;
 
   private
-    ExecuteSQLDone: TEvent;
+    DataHandleEvent: TEvent;
     FAfterExecuteSQL: TNotifyEvent;
     FAnsiQuotes: Boolean;
     FAsynchron: Boolean;
@@ -314,6 +314,7 @@ type
     procedure SetConnected(Value: Boolean); override;
     function SQLUse(const DatabaseName: string): string; virtual;
     procedure SyncAfterExecuteSQL(const SyncThread: TSyncThread);
+    procedure SyncBeforeExecuteSQL(const SyncThread: TSyncThread);
     procedure SyncBindDataSet(const DataSet: TMySQLQuery);
     procedure SyncConnecting(const SyncThread: TSyncThread);
     procedure SyncConnected(const SyncThread: TSyncThread);
@@ -528,7 +529,7 @@ type
     FLocateNext: Boolean;
     FRecordsReceived: TEvent;
     FSortDef: TIndexDef;
-    TableName: string;
+    FTableName: string;
     function AllocInternRecordBuffer(): PInternRecordBuffer;
     function BookmarkToInternBufferIndex(const Bookmark: TBookmark): Integer;
     procedure FreeInternRecordBuffer(const InternRecordBuffer: PInternRecordBuffer);
@@ -599,6 +600,7 @@ type
     property DataSize: Int64 read FDataSize;
     property LocateNext: Boolean read FLocateNext write FLocateNext;
     property SortDef: TIndexDef read FSortDef;
+    property TableName: string read FTableName;
   published
     property CachedUpdates: Boolean read FCachedUpdates write FCachedUpdates default False;
     property AfterCancel;
@@ -2033,16 +2035,26 @@ begin
     case (State) of
       ssConnecting:
         Connection.SyncConnected(Self);
+      ssReady:
+        begin
+          Connection.SyncBeforeExecuteSQL(Self);
+          Connection.SyncExecute(Self);
+          RunExecute.SetEvent();
+        end;
       ssExecutingFirst,
       ssExecutingNext:
         begin
           Connection.SyncExecuted(Self);
           if (Mode in [smSQL, smDataSet]) then
+          begin
             if (State in [ssExecutingNext, ssExecutingFirst]) then
             begin
               Connection.SyncExecute(Self);
               RunExecute.SetEvent();
             end;
+          end
+          else if (Assigned(Done)) then
+            Done.SetEvent();
         end;
 	    ssReceivingResult:
         begin
@@ -2140,8 +2152,13 @@ end;
 procedure TMySQLConnection.CloseResult(const DataHandle: TDataResult);
 begin
   TerminateCS.Enter();
-  if (Asynchron and (DataHandle.State <> ssReady)) then
-    DataHandle.Terminate();
+  if (DataHandle.State <> ssReady) then
+    DataHandle.Terminate()
+  else
+  begin
+    SyncAfterExecuteSQL(DataHandle);
+    DataHandleEvent.WaitFor(INFINITE);
+  end;
   TerminateCS.Leave();
 end;
 
@@ -2178,7 +2195,7 @@ begin
   FFormatSettings.DateSeparator := '-';
   FFormatSettings.TimeSeparator := ':';
 
-  ExecuteSQLDone := TEvent.Create(nil, False, False, 'ExecuteSQLDone');
+  DataHandleEvent := TEvent.Create(nil, False, False, '');
   FAfterExecuteSQL := nil;
   FAnsiQuotes := False;
   FAsynchron := False;
@@ -2251,7 +2268,7 @@ begin
   TerminateCS.Leave();
   TerminatedThreads.Free();
 
-  ExecuteSQLDone.Free();
+  DataHandleEvent.Free();
   TerminateCS.Free();
   FBugMonitor.Free();
 
@@ -2395,7 +2412,11 @@ end;
 
 function TMySQLConnection.FirstResult(out DataHandle: TMySQLConnection.TDataResult; const SQL: string): Boolean;
 begin
-  Result := InternExecuteSQL(smDataHandle, True, SQL);
+  Assert(GetCurrentThreadId() <> MainThreadId);
+
+  InternExecuteSQL(smDataHandle, False, SQL, TResultEvent(nil), DataHandleEvent);
+  DataHandleEvent.WaitFor(INFINITE);
+  Result := SyncThread.ErrorCode = 0;
 
   DataHandle := SyncThread;
 end;
@@ -2480,11 +2501,11 @@ var
   CLStmt: TSQLCLStmt;
   SetNames: Boolean;
   SQLIndex: Integer;
+  SQLLength: Integer;
   StmtIndex: Integer;
   StmtLength: Integer;
 begin
   Assert(SQL <> '');
-  Assert(not Assigned(Done) or (Mode = smSQL));
   Assert(not Assigned(Done) or (Done.WaitFor(IGNORE) <> wrSignaled));
 
   if (InOnResult) then
@@ -2524,11 +2545,12 @@ begin
   FRowsAffected := -1; FExecutionTime := 0;
 
   SQLIndex := 1;
-  while (SQLIndex < Length(SyncThread.SQL)) do
+  SQLLength := Length(SyncThread.SQL);
+  while ((SQLLength > 0) and CharInSet(SyncThread.SQL[SQLLength], [#9, #10, #13, ' '])) do Dec(SQLLength);
+  while (SQLIndex < SQLLength) do
   begin
-    StmtLength := SQLStmtLength(PChar(@SyncThread.SQL[SQLIndex]), Length(SyncThread.SQL) - (SQLIndex - 1));
-    if (StmtLength > 0) then
-      SyncThread.StmtLengths.Add(Pointer(StmtLength));
+    StmtLength := SQLStmtLength(PChar(@SyncThread.SQL[SQLIndex]), SQLLength - (SQLIndex - 1));
+    SyncThread.StmtLengths.Add(Pointer(StmtLength));
     Inc(SQLIndex, StmtLength);
   end;
 
@@ -2552,40 +2574,29 @@ begin
     DoError(DS_SET_NAMES, StrPas(DATASET_ERRORS[DS_SET_NAMES - DS_MIN_ERROR]));
     Result := False;
   end
-  else
+  else if (Synchron or not UseSyncThread()) then
   begin
-    DoBeforeExecuteSQL();
-
-    SyncThread.State := ssExecutingFirst;
-
-    if (Mode = smDataHandle) then
-    begin
+    SyncBeforeExecuteSQL(SyncThread);
+    repeat
       SyncExecute(SyncThread);
       SyncExecutingFirst(SyncThread);
       SyncExecuted(SyncThread);
-      Result := SyncThread.ErrorCode = 0;
-    end
-    else if (Synchron or not UseSyncThread()) then
-    begin
-      repeat
+      while (SyncThread.State = ssExecutingNext) do
+      begin
         SyncExecute(SyncThread);
-        SyncExecutingFirst(SyncThread);
+        SyncExecutingNext(SyncThread);
         SyncExecuted(SyncThread);
-        while (SyncThread.State = ssExecutingNext) do
-        begin
-          SyncExecute(SyncThread);
-          SyncExecutingNext(SyncThread);
-          SyncExecuted(SyncThread);
-        end;
-      until (SyncThread.State <> ssExecutingFirst);
-      Result := SyncThread.ErrorCode = 0;
-    end
+      end;
+    until (SyncThread.State <> ssExecutingFirst);
+    Result := SyncThread.ErrorCode = 0;
+  end
+  else
+  begin
+    if (GetCurrentThreadId() = MainThreadId) then
+      SyncThread.Synchronize()
     else
-    begin
-      SyncExecute(SyncThread);
-      SyncThread.RunExecute.SetEvent();
-      Result := False;
-    end;
+      MySQLConnectionSynchronizeRequest(SyncThread);
+    Result := False;
   end;
 end;
 
@@ -2804,9 +2815,8 @@ begin
   if (not Assigned(DataHandle)) then
     raise ERangeError.CreateFmt(SPropertyOutOfRange, ['DataHandle']);
 
-  SyncExecute(DataHandle);
-  SyncExecutingNext(DataHandle);
-  SyncExecuted(DataHandle);
+  SyncThread.RunExecute.SetEvent();
+  DataHandleEvent.WaitFor(INFINITE);
 
   Result := DataHandle.ErrorCode = 0;
 end;
@@ -2938,6 +2948,13 @@ begin
 
   if (Assigned(SyncThread.Done)) then
     SyncThread.Done.SetEvent();
+end;
+
+procedure TMySQLConnection.SyncBeforeExecuteSQL(const SyncThread: TSyncThread);
+begin
+  DoBeforeExecuteSQL();
+
+  SyncThread.State := ssExecutingFirst;
 end;
 
 procedure TMySQLConnection.SyncBindDataSet(const DataSet: TMySQLQuery);
@@ -5352,7 +5369,7 @@ begin
   FLocateNext := False;
   FRecordsReceived := TEvent.Create(nil, True, False, '');
   FSortDef := TIndexDef.Create(nil, '', '', []);
-  TableName := '';
+  FTableName := '';
 
   BookmarkSize := SizeOf(InternRecordBuffers[0]);
 
@@ -5836,7 +5853,7 @@ begin
   inherited;
 
   if (Self is TMySQLTable) then
-    TableName := CommandText
+    FTableName := CommandText
   else
   begin
     UniqueTableName := True;
@@ -5844,12 +5861,12 @@ begin
       if (GetFieldInfo(Fields[I].Origin, FieldInfo)) then
       begin
         if (TableName = '') then
-          TableName := FieldInfo.TableName;
+          FTableName := FieldInfo.TableName;
         UniqueTableName := UniqueTableName and ((TableName = '') or (TableName = FieldInfo.TableName));
       end;
 
     if (not UniqueTableName) then
-      TableName := '';
+      FTableName := '';
   end;
 end;
 
@@ -6763,7 +6780,7 @@ begin
           and ((SQLParseKeyword(Parse, 'FROM') or SQLParseKeyword(Parse, 'WHERE') or SQLParseKeyword(Parse, 'GROUP BY') or SQLParseKeyword(Parse, 'HAVING') or SQLParseKeyword(Parse, 'ORDER BY') or SQLParseKeyword(Parse, 'LIMIT') or SQLParseEnd(Parse)))) then
         begin
           FDatabaseName := DName;
-          TableName := TName;
+          FTableName := TName;
           FCanModify := True;
 
           Found := False;

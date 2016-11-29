@@ -59,10 +59,6 @@ object DTransfer: TDTransfer
       TabVisible = False
       OnResize = TSSelectResize
       OnShow = TSSelectShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         436
         271)
@@ -153,10 +149,6 @@ object DTransfer: TDTransfer
       Caption = 'TSWhat'
       TabVisible = False
       OnShow = TSWhatShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         436
         271)
@@ -201,10 +193,6 @@ object DTransfer: TDTransfer
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         436
         271)
@@ -358,7 +346,7 @@ object DTransfer: TDTransfer
           BevelOuter = bvLowered
           ParentBackground = False
           TabOrder = 0
-          object FErrorMessages: TMemo_Ext
+          object FErrorMessages: TRichEdit
             Left = 2
             Top = 2
             Width = 409
@@ -380,7 +368,6 @@ object DTransfer: TDTransfer
             ScrollBars = ssBoth
             TabOrder = 0
             WordWrap = False
-            HideScrollBars = False
           end
         end
       end

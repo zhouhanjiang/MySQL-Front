@@ -887,14 +887,11 @@ begin
   if (Event.EventType = etAfterExecuteSQL) then
     if (not GBasics.Visible and (ModalResult = mrNone)) then
     begin
-      if (GBasics.Visible) then
-      begin
-        GBasics.Visible := True;
-        GAttributes.Visible := GBasics.Visible;
-        PSQLWait.Visible := not GBasics.Visible;
-        FBOkCheckEnabled(nil);
-        ActiveControl := FName;
-      end;
+      GBasics.Visible := True;
+      GAttributes.Visible := GBasics.Visible;
+      PSQLWait.Visible := not GBasics.Visible;
+      FBOkCheckEnabled(nil);
+      ActiveControl := FName;
     end;
 end;
 

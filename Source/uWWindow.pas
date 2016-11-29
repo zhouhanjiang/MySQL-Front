@@ -346,6 +346,7 @@ type
     ToolButton5: TToolButton;
     ToolButton7: TToolButton;
     ToolButton1: TToolButton;
+    Button1: TButton;
     procedure aDCreateParentExecute(Sender: TObject);
     procedure aEFindExecute(Sender: TObject);
     procedure aEReplaceExecute(Sender: TObject);
@@ -1053,22 +1054,6 @@ begin
 
     if (Assigned(ActiveTab)) then
     begin
-      if (ImportState > 0) then
-      begin
-        Report := Report + #13#10;
-        Report := Report + 'Import:' + #13#10;
-        Report := Report + StringOfChar('-', Length('Import: ' + IntToStr(ImportState))) + #13#10;
-        Report := Report + 'ImportState: ' + IntToStr(ImportState) + #13#10;
-      end;
-
-      if (ExportState > 0) then
-      begin
-        Report := Report + #13#10;
-        Report := Report + 'Export:' + #13#10;
-        Report := Report + StringOfChar('-', Length('Export: ' + IntToStr(ExportState))) + #13#10;
-        Report := Report + 'ExportState: ' + IntToStr(ExportState) + #13#10;
-      end;
-
       Report := Report + #13#10;
       Report := Report + 'MySQL:' + #13#10;
       Report := Report + StringOfChar('-', Length('Version: ' + ActiveTab.Session.Connection.ServerVersionStr)) + #13#10;

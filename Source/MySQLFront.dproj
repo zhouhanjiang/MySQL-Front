@@ -93,9 +93,6 @@
 			<DCCReference Include="uDField.pas">
 				<Form>DField</Form>
 			</DCCReference>
-			<DCCReference Include="uDForeignKey.pas">
-				<Form>DForeignKey</Form>
-			</DCCReference>
 			<DCCReference Include="uDImport.pas">
 				<Form>DImport</Form>
 			</DCCReference>

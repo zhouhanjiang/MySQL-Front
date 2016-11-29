@@ -107,7 +107,7 @@ type
     FValid: Boolean;
     function Add(const AEntity: TSEntity; const SendEvent: Boolean = False): Integer; virtual;
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean; virtual;
-    procedure Delete(const AEntity: TSEntity); overload; virtual;
+    procedure Delete(const AEntity: TSEntity; const SendEvent: Boolean = True); overload; virtual;
     function GetValid(): Boolean; virtual;
     function SQLGetItems(const Name: string = ''): string; virtual; abstract;
   public
@@ -159,7 +159,7 @@ type
   TSObjects = class(TSEntities)
   protected
     function Add(const AEntity: TSEntity; const SendEvent: Boolean = False): Integer; override;
-    procedure Delete(const AEntity: TSEntity); override;
+    procedure Delete(const AEntity: TSEntity; const SendEvent: Boolean = True); override;
   public
     procedure Invalidate(); override;
   end;
@@ -244,7 +244,7 @@ type
     FDatabase: TSDatabase;
   protected
     function Add(const AEntity: TSEntity; const SendEvent: Boolean = False): Integer; override;
-    procedure Delete(const AEntity: TSEntity); override;
+    procedure Delete(const AEntity: TSEntity; const SendEvent: Boolean = True); override;
   public
     constructor Create(const ADatabase: TSDatabase); reintroduce; virtual;
     property Database: TSDatabase read FDatabase;
@@ -750,7 +750,7 @@ type
     function Add(const AEntity: TSEntity; const SendEvent: Boolean = False): Integer; override;
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean; overload; override;
     function BuildViewFields(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean): Boolean;
-    procedure Delete(const AEntity: TSEntity); override;
+    procedure Delete(const AEntity: TSEntity; const SendEvent: Boolean = True); override;
     function SQLGetItems(const Name: string = ''): string; override;
     function SQLGetStatus(const List: TList = nil): string;
     function SQLGetViewFields(): string;
@@ -1075,7 +1075,7 @@ type
     function GetDatabase(Index: Integer): TSDatabase; inline;
   protected
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean; override;
-    procedure Delete(const AEntity: TSEntity); override;
+    procedure Delete(const AEntity: TSEntity; const SendEvent: Boolean = True); override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     function NameCmp(const Name1, Name2: string): Integer; override;
@@ -1383,7 +1383,7 @@ type
     function GetUser(Index: Integer): TSUser; inline;
   protected
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean; override;
-    procedure Delete(const AEntity: TSEntity); override;
+    procedure Delete(const AEntity: TSEntity; const SendEvent: Boolean = True); override;
     function GetValid(): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
@@ -1921,7 +1921,7 @@ begin
   FValid := False;
 end;
 
-procedure TSEntities.Delete(const AEntity: TSEntity);
+procedure TSEntities.Delete(const AEntity: TSEntity; const SendEvent: Boolean = True);
 var
   Index: Integer;
 begin
@@ -2107,7 +2107,7 @@ begin
     Session.SendEvent(etItemCreated, Session, Self, AEntity);
 end;
 
-procedure TSObjects.Delete(const AEntity: TSEntity);
+procedure TSObjects.Delete(const AEntity: TSEntity; const SendEvent: Boolean = True);
 var
   Index: Integer;
 begin
@@ -2119,7 +2119,8 @@ begin
   begin
     Delete(Index);
 
-    Session.SendEvent(etItemDropped, Session, Self, AEntity);
+    if (SendEvent) then
+      Session.SendEvent(etItemDropped, Session, Self, AEntity);
   end;
 
   AEntity.Free();
@@ -2560,7 +2561,7 @@ begin
   FDatabase := ADatabase;
 end;
 
-procedure TSDBObjects.Delete(const AEntity: TSEntity);
+procedure TSDBObjects.Delete(const AEntity: TSEntity; const SendEvent: Boolean = True);
 var
   Index: Integer;
 begin
@@ -2572,10 +2573,11 @@ begin
   begin
     Delete(Index);
 
-    Session.SendEvent(etItemDropped, Database, Self, AEntity);
-  end;
+    if (SendEvent) then
+      Session.SendEvent(etItemDropped, Database, Self, AEntity);
 
-  AEntity.Free();
+    AEntity.Free();
+  end;
 end;
 
 { TSKeyColumn *****************************************************************}
@@ -5364,8 +5366,7 @@ begin
       while (DeleteList.Count > 0) do
       begin
         Index := IndexOf(DeleteList.Items[0]);
-        Item[Index].Free();
-        Delete(Index);
+        Delete(TSEntity(Item[Index]));
         DeleteList.Delete(0);
       end;
     DeleteList.Free();
@@ -5500,8 +5501,7 @@ begin
       while (DeleteList.Count > 0) do
       begin
         Index := IndexOf(DeleteList.Items[0]);
-        Item[Index].Free();
-        Delete(Index);
+        Delete(TSEntity(Item[Index]));
         DeleteList.Delete(0);
       end;
     DeleteList.Free();
@@ -5639,7 +5639,7 @@ begin
   Result := False;
 end;
 
-procedure TSTables.Delete(const AEntity: TSEntity);
+procedure TSTables.Delete(const AEntity: TSEntity; const SendEvent: Boolean = True);
 begin
   if (Assigned(Database.Columns)) then Database.Columns.Invalidate();
 
@@ -6309,8 +6309,7 @@ begin
     while (DeleteList.Count > 0) do
     begin
       Index := IndexOf(DeleteList.Items[0]);
-      Item[Index].Free();
-      Delete(Index);
+      Delete(TSEntity(Item[Index]));
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
@@ -6711,8 +6710,7 @@ begin
     while (DeleteList.Count > 0) do
     begin
       Index := IndexOf(DeleteList.Items[0]);
-      Item[Index].Free();
-      Delete(Index);
+      Delete(TSEntity(Item[Index]));
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
@@ -6975,8 +6973,7 @@ begin
     while (DeleteList.Count > 0) do
     begin
       Index := IndexOf(DeleteList.Items[0]);
-      Item[Index].Free();
-      Delete(Index);
+      Delete(TSEntity(Item[Index]));
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
@@ -8706,8 +8703,7 @@ begin
     while (DeleteList.Count > 0) do
     begin
       Index := IndexOf(DeleteList.Items[0]);
-      Item[Index].Free();
-      Delete(Index);
+      Delete(TSEntity(Item[Index]));
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
@@ -8727,7 +8723,7 @@ begin
     Session.SendEvent(etItemsValid, Session, Self);
 end;
 
-procedure TSDatabases.Delete(const AEntity: TSEntity);
+procedure TSDatabases.Delete(const AEntity: TSEntity; const SendEvent: Boolean = True);
 var
   I: Integer;
   J: Integer;
@@ -8960,8 +8956,7 @@ begin
     while (DeleteList.Count > 0) do
     begin
       Index := IndexOf(DeleteList.Items[0]);
-      Item[Index].Free();
-      Delete(Index);
+      Delete(TSEntity(Item[Index]));
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
@@ -9152,8 +9147,7 @@ begin
     while (DeleteList.Count > 0) do
     begin
       Index := IndexOf(DeleteList.Items[0]);
-      Item[Index].Free();
-      Delete(Index);
+      Delete(TSEntity(Item[Index]));
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
@@ -9244,8 +9238,7 @@ begin
     while (DeleteList.Count > 0) do
     begin
       Index := IndexOf(DeleteList.Items[0]);
-      Item[Index].Free();
-      Delete(Index);
+      Delete(TSEntity(Item[Index]));
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
@@ -9496,8 +9489,7 @@ begin
     while (DeleteList.Count > 0) do
     begin
       Index := IndexOf(DeleteList.Items[0]);
-      Item[Index].Free();
-      Delete(Index);
+      Delete(TSEntity(Item[Index]));
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
@@ -9588,8 +9580,7 @@ begin
     while (DeleteList.Count > 0) do
     begin
       Index := IndexOf(DeleteList.Items[0]);
-      Item[Index].Free();
-      Delete(Index);
+      Delete(TSEntity(Item[Index]));
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
@@ -9708,8 +9699,7 @@ begin
     while (DeleteList.Count > 0) do
     begin
       Index := IndexOf(DeleteList.Items[0]);
-      Item[Index].Free();
-      Delete(Index);
+      Delete(TSEntity(Item[Index]));
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
@@ -10326,8 +10316,7 @@ begin
       if (Items[0] = Session.User) then
         Session.FUser := nil;
       Index := IndexOf(DeleteList.Items[0]);
-      Item[Index].Free();
-      Delete(Index);
+      Delete(TSEntity(Item[Index]));
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
@@ -10340,7 +10329,7 @@ begin
     Session.SendEvent(etItemsValid, Session, Self);
 end;
 
-procedure TSUsers.Delete(const AEntity: TSEntity);
+procedure TSUsers.Delete(const AEntity: TSEntity; const SendEvent: Boolean = True);
 begin
   if (AEntity = Session.FUser) then
     Session.FUser := nil;
@@ -10929,12 +10918,13 @@ end;
 
 function TSSession.DeleteEntities(const List: TList): Boolean;
 var
+  CycleProtection: Integer;
   Database: TSDatabase;
   FlushPrivileges: Boolean;
   I: Integer;
-  Index: Integer;
   Identifiers: string;
   J: Integer;
+  K: Integer;
   SQL: string;
 begin
   Connection.BeginSynchron();
@@ -10943,20 +10933,21 @@ begin
 
   List.Sort(Compare);
 
-  I := 0;
-  while (I <= List.Count - 2) do
+  I := 0; CycleProtection := List.Count * List.Count;
+  while ((I < List.Count) and (CycleProtection >= 0)) do
   begin
-    if ((TObject(List[I]) is TSDBObject) and (Assigned(TSDBObject(List[I]).References))) then
+    if (TObject(List[I]) is TSDBObject) then
       for J := 0 to TSDBObject(List[I]).References.Count - 1 do
-      begin
-        Index := List.IndexOf(TSDBObject(List[I]).References[J].DBObject);
-        if ((0 <= Index) and (Index < I)) then
-        begin
-          List.Move(Index, I);
-          Dec(I);
-        end;
-      end;
+        for K := I - 1 downto 0 do
+          if ((TObject(List[K]) is TSDBObject)
+            and (TSDBObject(List[K]) = TSDBObject(List[I]).References[J].DBObject)) then
+          begin
+            List.Move(K, I);
+            Dec(I);
+          end;
+
     Inc(I);
+    Dec(CycleProtection);
   end;
 
   Database := nil; FlushPrivileges := False;
@@ -11387,7 +11378,6 @@ var
   DMLStmt: TSQLDMLStmt;
   Event: TSEvent;
   First: Boolean;
-  Index: Integer;
   NextDDLStmt: TSQLDDLStmt;
   NextSQL: string;
   ObjectName: string;
@@ -11441,12 +11431,12 @@ begin
           dtAlter:
             begin
               Database := DatabaseByName(DDLStmt.ObjectName);
-              if (Assigned(Database)) then
-                Database.Invalidate()
+              if (not Assigned(Database)) then
+                Databases.Add(TSDatabase.Create(Databases, DDLStmt.ObjectName), True)
               else
               begin
-                Index := Databases.Add(TSDatabase.Create(Databases, DDLStmt.ObjectName));
-                SendEvent(etItemCreated, Database, Databases, Databases[Index]);
+                Database.Invalidate();
+                SendEvent(etItemAltered, Self, Databases, Database);
               end;
             end;
           dtDrop:
@@ -11508,11 +11498,13 @@ begin
                 dtAlterRename:
                   begin
                     Table := Database.TableByName(DDLStmt.ObjectName);
-                    if (Assigned(Table)) then
+                    if (not Assigned(Table)) then
+                      Database.Tables.Add(TSBaseTable.Create(Database.Tables, DDLStmt.ObjectName))
+                    else
                     begin
                       if (DDLStmt.DefinitionType = dtAlterRename) then
                       begin
-                        if (Databases.NameCmp(DDLStmt.NewDatabaseName, Database.Name) <> 0) then
+                        if (DatabaseByName(DDLStmt.NewDatabaseName) <> Database) then
                           SendEvent(etItemDropped, Table.Database, Table.Tables, Table);
                         Table.SetDatabase(Database);
                         Table.Name := DDLStmt.NewObjectName;
@@ -11534,11 +11526,13 @@ begin
                     and (SQLParseKeyword(Parse, 'TABLE') or SQLParseKeyword(Parse, 'VIEW'))) then
                   begin
                     SQLParseKeyword(Parse, 'IF EXISTS');
-                    First := True;
+                    First := True; Database := nil;
                     repeat
                       DatabaseName := Connection.DatabaseName;
                       if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
                       begin
+                        if (Assigned(Database) and (Database <> DatabaseByName(DatabaseName))) then
+                          SendEvent(etItemsValid, Database, Database.Tables);
                         Database := DatabaseByName(DatabaseName);
                         Table := Database.TableByName(ObjectName);
                         if (Assigned(Table)) then
@@ -11552,11 +11546,12 @@ begin
                             and (NextDDLStmt.ObjectName = DDLStmt.ObjectName)) then
                             // will be handled in the next Stmt
                           else
-                            Database.Tables.Delete(Table);
+                            Database.Tables.Delete(Table, False);
                         end;
                       end;
                       First := False;
                     until (not SQLParseChar(Parse, ','));
+                    SendEvent(etItemsValid, Database, Database.Tables);
                   end;
               end;
             otFunction,
@@ -11582,8 +11577,16 @@ begin
                       Routine := Database.ProcedureByName(DDLStmt.ObjectName)
                     else
                       Routine := Database.FunctionByName(DDLStmt.ObjectName);
-                    Routine.Invalidate();
-                    SendEvent(etItemAltered, Database, Database.Routines, Routine);
+                    if (not Assigned(Routine)) then
+                      if (DDLStmt.ObjectType = otProcedure) then
+                        Database.Routines.Add(TSRoutine.Create(Database.Routines, DDLStmt.ObjectName))
+                      else
+                        Database.Routines.Add(TSFunction.Create(Database.Routines, DDLStmt.ObjectName))
+                    else
+                    begin
+                      Routine.Invalidate();
+                      SendEvent(etItemAltered, Database, Database.Routines, Routine);
+                    end;
                   end;
                 dtDrop:
                   begin
@@ -11613,6 +11616,28 @@ begin
                       Trigger.Invalidate()
                     else
                       Database.Triggers.Add(TSTrigger.Create(Database.Triggers, DDLStmt.ObjectName), True);
+                  end;
+                dtAlter,
+                dtAlterRename:
+                  begin
+                    Trigger := Database.TriggerByName(DDLStmt.ObjectName);
+                    if (DDLStmt.DefinitionType = dtAlterRename) then
+                    begin
+                      if (DatabaseByName(DDLStmt.NewDatabaseName) <> Database) then
+                        SendEvent(etItemDropped, Trigger.Database, Trigger.Triggers, Trigger);
+                      Trigger.SetDatabase(DatabaseByName(DDLStmt.NewDatabaseName));
+                      Trigger.Name := DDLStmt.NewObjectName;
+                    end;
+                    if (not Assigned(Trigger)) then
+                      Database.Triggers.Add(TSTrigger.Create(Database.Triggers, DDLStmt.ObjectName))
+                    else
+                    begin
+                      if (Trigger.Database <> Database) then
+                        Database.Invalidate()
+                      else
+                        Trigger.Invalidate();
+                      SendEvent(etItemAltered, Database, Database.Triggers, Trigger);
+                    end;
                   end;
                 dtDrop:
                   begin
@@ -11646,19 +11671,21 @@ begin
                     Event := Database.EventByName(DDLStmt.ObjectName);
                     if (DDLStmt.DefinitionType = dtAlterRename) then
                     begin
-                      if (Databases.NameCmp(DDLStmt.NewDatabaseName, Database.Name) <> 0) then
+                      if (DatabaseByName(DDLStmt.NewDatabaseName) <> Database) then
                         SendEvent(etItemDropped, Event.Database, Event.Events, Event);
                       Event.SetDatabase(DatabaseByName(DDLStmt.NewDatabaseName));
                       Event.Name := DDLStmt.NewObjectName;
                     end;
-                    if (Event.Database <> Database) then
-                      Event.Database.Invalidate()
+                    if (not Assigned(Event)) then
+                      Database.Events.Add(TSEvent.Create(Database.Events, DDLStmt.ObjectName))
                     else
-                      Event.Invalidate();
-                    if (Databases.NameCmp(DDLStmt.NewDatabaseName, Database.Name) <> 0) then
-                      SendEvent(etItemDropped, Event.Database, Event.Events, Event)
-                    else
+                    begin
+                      if (Event.Database <> Database) then
+                        Database.Invalidate()
+                      else
+                        Event.Invalidate();
                       SendEvent(etItemAltered, Database, Database.Events, Event);
+                    end;
                   end;
                 dtDrop:
                   begin
@@ -11913,10 +11940,8 @@ begin
   if (GetCurrentThreadId() = MainThreadId) then
     Result := Connection.SendSQL(SQL, OnResult)
   else
-    Result := Connection.SendSQL(SQL, OnResult, ConnectionEvent);
-
-  if (GetCurrentThreadId() <> MainThreadId) then
   begin
+    Connection.SendSQL(SQL, OnResult, ConnectionEvent);
     ConnectionEvent.WaitFor(INFINITE);
     Result := Connection.ErrorCode = 0;
   end;

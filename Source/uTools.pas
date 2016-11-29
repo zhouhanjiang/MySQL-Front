@@ -746,11 +746,6 @@ var
   ODBCEnv: SQLHENV;
   ODBCDrivers: set of (odAccess, odAccess2003, odExcel, odExcel2003);
 
-  // Debug 2016-11-26
-  ExportState: Integer = 0;
-  // Debug 2016-11-21
-  ImportState: Integer = 0;
-
 implementation {***************************************************************}
 
 uses
@@ -1795,7 +1790,6 @@ end;
 
 constructor TTImport.Create(const ASession: TSSession; const ADatabase: TSDatabase);
 begin
-ImportState := 1;
   inherited Create();
 
   FDatabase := ADatabase;
@@ -1804,17 +1798,13 @@ ImportState := 1;
 
   Data := False;
   Structure := False;
-ImportState := 2;
 end;
 
 destructor TTImport.Destroy();
 begin
   Close();
 
-ImportState := 30;
-
   inherited;
-ImportState := 0;
 end;
 
 function TTImport.DoExecuteSQL(var SQL: string): Boolean;
@@ -1891,60 +1881,45 @@ begin
   try
   {$ENDIF}
 
-ImportState := 11;
   BeforeExecute();
 
-ImportState := 12;
   Open();
 
-ImportState := 13;
   for I := 0 to Items.Count - 1 do
     if (Success <> daAbort) then
     begin
       Success := daSuccess;
 
-ImportState := 14;
       if (Structure) then
       begin
-ImportState := 15;
         Table := Database.TableByName(TTImport.TItem(Items[I]).DestinationTableName);
         if (Assigned(Table)) then
           while ((Success = daSuccess) and not Database.DeleteObject(Table)) do
             DoError(DatabaseError(Session), Items[I], True);
 
-ImportState := 16;
         if (Success = daSuccess) then
         begin
           SetLength(FieldMappings, 0);
           ExecuteTableStructure(TTImport.TItem(Items[I]));
         end;
-ImportState := 17;
       end;
 
-ImportState := 18;
       if ((Success = daSuccess) and Data) then
       begin
-ImportState := 19;
         Table := Database.TableByName(TTImport.TItem(Items[I]).DestinationTableName);
-ImportState := 20;
 
         if (not Assigned(Table)) then
           raise Exception.Create('Table "' + TTImport.TItem(Items[I]).DestinationTableName + '" does not exists.');
 
-ImportState := 21;
         ExecuteTableData(TTImport.TItem(Items[I]), Database.TableByName(TTImport.TItem(Items[I]).DestinationTableName));
-ImportState := 22;
       end;
 
       Items[I].Done := True;
 
       if (Success = daFail) then Success := daSuccess;
-ImportState := 23;
     end;
 
-ImportState := 24;
   AfterExecute();
-ImportState := 25;
 
   {$IFDEF EurekaLog}
   except
@@ -2416,7 +2391,7 @@ begin
           begin
             Index := 1 + Length(FileContent.Str);
             Len := Integer(ReadSize - (FileBuffer.Index - BytesPerSector));
-            SetLength(FileContent.Str, Length(FileContent.Str) + Len div SizeOf(Char));
+            SetLength(FileContent.Str, Length(FileContent.Str) + (Index - 1 + Len) div SizeOf(Char));
             MoveMemory(@FileContent.Str[Index], @FileBuffer.Mem[FileBuffer.Index], Len);
             FileBuffer.Index := BytesPerSector;
           end;
@@ -3917,23 +3892,17 @@ end;
 
 constructor TTExport.Create(const ASession: TSSession);
 begin
-ExportState := 1;
   inherited Create();
 
   FSession := ASession;
 
   Data := False;
   Structure := False;
-ExportState := 2;
 end;
 
 destructor TTExport.Destroy();
 begin
-ExportState := 30;
-
   inherited;
-
-ExportState := 0;
 end;
 
 procedure TTExport.DoUpdateGUI();
@@ -4000,7 +3969,6 @@ var
   SQL: string;
   Table: TSTable;
 begin
-ExportState := 11;
   {$IFDEF EurekaLog}
   try
   {$ENDIF}
@@ -4009,11 +3977,9 @@ ExportState := 11;
 
   DataTables := TList.Create();
 
-ExportState := 11;
   SQL := '';
   if ((Success = daSuccess) and Data) then
   begin
-ExportState := 12;
     for I := 0 to Items.Count - 1 do
       if (Items[I] is TDBGridItem) then
         if (TDBGridItem(Items[I]).DBGrid.SelectedRows.Count > 0) then
@@ -4050,7 +4016,6 @@ ExportState := 12;
         end;
       end;
 
-ExportState := 13;
     for I := 0 to DataTables.Count - 1 do
     begin
       Table := TSBaseTable(DataTables[I]);
@@ -4082,23 +4047,19 @@ ExportState := 13;
     end;
   end;
 
-ExportState := 14;
   if (Success <> daAbort) then
   begin
     Success := daSuccess;
     ExecuteHeader();
   end;
 
-ExportState := 15;
   if (Success <> daAbort) then
   begin
-ExportState := 16;
     DataHandle := nil;
 
     for I := 0 to Items.Count - 1 do
       if (Success <> daAbort) then
       begin
-ExportState := 17;
         if ((Success <> daAbort) and ((I = 0) or (TDBObjectItem(Items[I]).DBObject.Database <> TDBObjectItem(Items[I - 1]).DBObject.Database))) then
         begin
           Success := daSuccess;
@@ -4109,7 +4070,6 @@ ExportState := 17;
             ExecuteDatabaseHeader(TDBObjectItem(Items[I]).DBObject.Database);
         end;
 
-ExportState := 18;
         if (Success <> daAbort) then
         begin
           Success := daSuccess;
@@ -4149,7 +4109,6 @@ ExportState := 18;
           end;
         end;
 
-ExportState := 19;
         if ((Success <> daAbort) and ((I = Items.Count - 1) or (TDBObjectItem(Items[I + 1]).DBObject.Database <> TDBObjectItem(Items[I]).DBObject.Database))) then
         begin
           Success := daSuccess;
@@ -4160,14 +4119,11 @@ ExportState := 19;
             ExecuteDatabaseFooter(TDBObjectItem(Items[I]).DBObject.Database);
         end;
 
-ExportState := 20;
         TItem(Items[I]).Done := True;
       end;
 
-ExportState := 21;
     if (Assigned(DataHandle)) then
       Session.Connection.CloseResult(DataHandle);
-ExportState := 22;
   end;
 
   if (Success <> daAbort) then
@@ -4176,10 +4132,8 @@ ExportState := 22;
     ExecuteFooter();
   end;
 
-ExportState := 23;
   AfterExecute();
 
-ExportState := 24;
   DataTables.Free();
 
   {$IFDEF EurekaLog}
@@ -4187,7 +4141,6 @@ ExportState := 24;
     StandardEurekaNotify(GetLastExceptionObject(), GetLastExceptionAddress());
   end;
   {$ENDIF}
-ExportState := 25;
 end;
 
 procedure TTExport.ExecuteDatabaseFooter(const Database: TSDatabase);
@@ -4223,7 +4176,8 @@ begin
   if (Success <> daAbort) then
   begin
     Success := daSuccess;
-    ExecuteTableHeader(Table, Fields, DataSet);
+
+    ExecuteTableHeader(Table, Fields, DataSet)
   end;
 
   if (Success <> daAbort) then
@@ -4518,40 +4472,30 @@ var
 begin
   inherited;
 
-  I := 0; CycleProtection := Items.Count - 1; Database := nil;
-  while (I < Items.Count) do
+  I := 0; CycleProtection := Items.Count * Items.Count;
+  while ((I < Items.Count) and (CycleProtection >= 0)) do
   begin
-    NewIndex := I;
-
     if (Items[I] is TDBObjectItem) then
-    begin
+      for J := 0 to TDBObjectItem(Items[I]).DBObject.References.Count - 1 do
+        for K := I - 1 downto 0 do
+          if ((Items[K] is TDBObjectItem)
+            and (TDBObjectItem(Items[K]).DBObject = TDBObjectItem(Items[I]).DBObject.References[J].DBObject)) then
+          begin
+            Items.Move(K, I);
+            Dec(I);
+          end;
+
+    Inc(I);
+    Dec(CycleProtection);
+  end;
+
+  Database := nil;
+  for I := 0 to Items.Count - 1 do
+    if (Items[I] is TDBObjectItem) then
       if (not Assigned(Database)) then
         Database := TDBObjectItem(Items[I]).DBObject.Database
       else if (TDBObjectItem(Items[I]).DBObject.Database <> Database) then
         UseDatabaseStmts := True;
-
-      if (Assigned(TDBObjectItem(Items[I]).DBObject.References)) then
-        for J := 0 to TDBObjectItem(Items[I]).DBObject.References.Count - 1 do
-        begin
-          DBObject := TDBObjectItem(Items[I]).DBObject.References[J].DBObject;
-          for K := I to Items.Count - 1 do
-            if ((K <> I) and (Items[K] is TDBObjectItem)
-              and (TDBObjectItem(Items[K]).DBObject = DBObject)) then
-              NewIndex := Max(NewIndex, K);
-        end;
-    end;
-
-    if ((NewIndex > I) and (CycleProtection > 0)) then
-    begin
-      Items.Move(I, NewIndex);
-      Dec(CycleProtection);
-    end
-    else
-    begin
-      Inc(I);
-      CycleProtection := Items.Count - I - 1;
-    end;
-  end;
 end;
 
 constructor TTExportSQL.Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
@@ -4696,51 +4640,80 @@ begin
     Content := Content + Table.GetSourceEx(DropStmts);
   end;
 
-  if ((Table is TSBaseTable) and Assigned(DataSet)) then
+  if (Assigned(DataSet)) then
   begin
     Content := Content + #13#10;
-    Content := Content + '#' + #13#10;
-    Content := Content + '# Data for table "' + Table.Name + '"' + #13#10;
-    Content := Content + '#' + #13#10;
-    Content := Content + #13#10;
 
-    if (DropStmts and TSBaseTable(Table).Engine.IsMyISAM and not DataSet.IsEmpty()) then
-      Content := Content + '/*!40000 ALTER TABLE ' + Session.Connection.EscapeIdentifier(Table.Name) + ' DISABLE KEYS */;' + #13#10;
+    if (Table is TSBaseTable) then
+    begin
+      Content := Content + '#' + #13#10;
+      Content := Content + '# Data for table "' + Table.Name + '"' + #13#10;
+      Content := Content + '#' + #13#10;
+      Content := Content + #13#10;
+
+      if (DropStmts and TSBaseTable(Table).Engine.IsMyISAM and not DataSet.IsEmpty()) then
+        Content := Content + '/*!40000 ALTER TABLE ' + Session.Connection.EscapeIdentifier(Table.Name) + ' DISABLE KEYS */;' + #13#10;
+    end;
   end;
 
   if (Content <> '') then
     WriteContent(Content);
 
-  if (Data and (Table is TSBaseTable)) then
+  if (Data) then
   begin
+
     ReadOnlyFields := False;
     for I := 0 to Length(Fields) - 1 do
       if (Fields[I].ReadOnly) then
-        ReadOnlyFields := True;;
+        ReadOnlyFields := True;
 
-    if (ReplaceData) then
-      SQLInsertPrefix := 'REPLACE INTO '
-    else
-      SQLInsertPrefix := 'INSERT INTO ';
-
-    SQLInsertPrefix := SQLInsertPrefix + Session.Connection.EscapeIdentifier(Table.Name);
-
-    if (not Structure or ReadOnlyFields) then
+    if (Table is TSBaseTable) then
     begin
-      SQLInsertPrefix := SQLInsertPrefix + ' (';
-      First := True;
-      for I := 0 to Length(Fields) - 1 do
-        if (not Fields[I].ReadOnly) then
-        begin
-          if (First) then First:= False else SQLInsertPrefix := SQLInsertPrefix + ',';
-          SQLInsertPrefix := SQLInsertPrefix + Session.Connection.EscapeIdentifier(Fields[I].FieldName);
-        end;
-      SQLInsertPrefix := SQLInsertPrefix + ')';
-    end;
+      if (ReplaceData) then
+        SQLInsertPrefix := 'REPLACE INTO '
+      else
+        SQLInsertPrefix := 'INSERT INTO ';
+      SQLInsertPrefix := SQLInsertPrefix + Session.Connection.EscapeIdentifier(Table.Name);
 
-    SQLInsertPrefix := SQLInsertPrefix + ' VALUES ';
-    SQLInsertPostfix := ';' + #13#10;
-    SQLInsertLen := 0;
+      if (not Structure or ReadOnlyFields) then
+      begin
+        SQLInsertPrefix := SQLInsertPrefix + ' (';
+        First := True;
+        for I := 0 to Length(Fields) - 1 do
+          if (not Fields[I].ReadOnly) then
+          begin
+            if (First) then First:= False else SQLInsertPrefix := SQLInsertPrefix + ',';
+            SQLInsertPrefix := SQLInsertPrefix + Session.Connection.EscapeIdentifier(Fields[I].FieldName);
+          end;
+        SQLInsertPrefix := SQLInsertPrefix + ')';
+      end;
+
+      SQLInsertPrefix := SQLInsertPrefix + ' VALUES ';
+      SQLInsertPostfix := ';' + #13#10;
+      SQLInsertLen := 0;
+    end
+    else if ((DataSet is TMySQLDataSet) and (TMySQLDataSet(DataSet).TableName <> '')) then
+    begin
+      if (ReplaceData) then
+        SQLInsertPrefix := 'REPLACE INTO '
+      else
+        SQLInsertPrefix := 'INSERT INTO ';
+      SQLInsertPrefix := SQLInsertPrefix + Session.Connection.EscapeIdentifier(TMySQLDataSet(DataSet).TableName);
+
+      SQLInsertPrefix := SQLInsertPrefix + ' (';
+      for I := 0 to Length(Fields) - 1 do
+      begin
+        if (I > 0) then SQLInsertPrefix := SQLInsertPrefix + ',';
+        SQLInsertPrefix := SQLInsertPrefix + Session.Connection.EscapeIdentifier(Fields[I].FieldName);
+      end;
+      SQLInsertPrefix := SQLInsertPrefix + ')';
+
+      SQLInsertPrefix := SQLInsertPrefix + ' VALUES ';
+      SQLInsertPostfix := ';' + #13#10;
+      SQLInsertLen := 0;
+    end
+    else
+      raise ERangeError.Create(SRangeError);
   end;
 end;
 
@@ -7655,44 +7628,31 @@ procedure TTTransfer.BeforeExecute();
 var
   CycleProtection: Integer;
   DataSet: TMySQLQuery;
-  DBObject: TSDBObject;
   I: Integer;
   J: Integer;
   K: Integer;
-  NewIndex: Integer;
   SQL: string;
 begin
   inherited;
 
-  DestinationSession.Connection.BeginSilent();
-
-  I := 0; CycleProtection := Items.Count - 1;
-  while (I < Items.Count) do
+  I := 0; CycleProtection := Items.Count * Items.Count;
+  while ((I < Items.Count) and (CycleProtection >= 0)) do
   begin
-    NewIndex := I;
-
     if (Items[I] is TDBObjectItem) then
-      if (Assigned(TDBObjectItem(Items[I]).DBObject.References)) then
-        for J := 0 to TDBObjectItem(Items[I]).DBObject.References.Count - 1 do
-        begin
-          DBObject := TDBObjectItem(Items[I]).DBObject.References[J].DBObject;
-          for K := I to Items.Count - 1 do
-            if ((K <> I) and (Items[K] is TDBObjectItem)
-              and (TDBObjectItem(Items[K]).DBObject = DBObject)) then
-              NewIndex := Max(NewIndex, K);
-        end;
+      for J := 0 to TDBObjectItem(Items[I]).DBObject.References.Count - 1 do
+        for K := I - 1 downto 0 do
+          if ((Items[K] is TDBObjectItem)
+            and (TDBObjectItem(Items[K]).DBObject = TDBObjectItem(Items[I]).DBObject.References[J].DBObject)) then
+          begin
+            Items.Move(K, I);
+            Dec(I);
+          end;
 
-    if ((NewIndex > I) and (CycleProtection > 0)) then
-    begin
-      Items.Move(I, NewIndex);
-      Dec(CycleProtection);
-    end
-    else
-    begin
-      Inc(I);
-      CycleProtection := Items.Count - I - 1;
-    end;
+    Inc(I);
+    Dec(CycleProtection);
   end;
+
+  DestinationSession.Connection.BeginSilent();
 
   if (Data and (DestinationSession.Connection.MySQLVersion >= 40014)) then
   begin

@@ -4,7 +4,7 @@ interface {********************************************************************}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Menus,
-  Dialogs, StdCtrls, ComCtrls, DB, ExtCtrls,
+  Dialogs, StdCtrls, ComCtrls, DB, ExtCtrls, RichEdit,
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext,
   uSession, uPreferences, uTools,
   uBase, uFSession;
@@ -21,7 +21,7 @@ type
     FEntieredRecords: TLabel;
     FEntieredTables: TLabel;
     FEntieredTime: TLabel;
-    FErrorMessages: TMemo_Ext;
+    FErrorMessages: TRichEdit;
     FErrors: TLabel;
     FFFindText: TComboBox_Ext;
     FFMatchCase: TCheckBox;
@@ -253,6 +253,9 @@ begin
   FRWholeValue.Checked := roWholeValue in Preferences.Replace.Options;
   FRRegExpr.Checked := roRegExpr in Preferences.Replace.Options;
   FRRegExprClick(Sender);
+
+  SendMessage(FErrorMessages.Handle, EM_SETTEXTMODE, TM_PLAINTEXT, 0);
+  SendMessage(FErrorMessages.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
 
   PageControl.ActivePage := nil; // Make sure, not ___OnShowPage will be executed
 end;

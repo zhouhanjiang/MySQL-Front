@@ -75,7 +75,7 @@ type
     FJobs: TListView;
     FLimit: TEdit;
     FLimitEnabled: TToolButton;
-    FLog: TMemo_Ext;
+    FLog: TRichEdit;
     FNavigator: TTreeView_Ext;
     FObjectIDEGrid: TMySQLDBGrid;
     FOffset: TEdit;
@@ -88,7 +88,7 @@ type
     FSQLEditorSearch: TSynEditSearch;
     FSQLEditorSynMemo: TSynMemo;
     FSQLHistory: TTreeView_Ext;
-    FText: TMemo_Ext;
+    FText: TRichEdit;
     FUDLimit: TUpDown;
     FUDOffset: TUpDown;
     ghmGoto: TMenuItem;
@@ -4743,6 +4743,9 @@ begin
   PQueryBuilderSynMemo.Constraints.MinHeight :=
     (FQueryBuilderSynMemo.Canvas.TextHeight('SELECT') + 1) + 2 * FQueryBuilderSynMemo.Top + 2 * BevelWidth
     + GetSystemMetrics(SM_CYHSCROLL);
+
+  SendMessage(FLog.Handle, EM_SETTEXTMODE, TM_PLAINTEXT, 0);
+  SendMessage(FLog.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
 end;
 
 function TFSession.CreateDesktop(const CObject: TSObject): TSObject.TDesktop;
@@ -6486,7 +6489,12 @@ begin
   begin
     Table := TSBaseTable(FocusedSItem);
     if (MsgBox(Preferences.LoadStr(375, Table.Name), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES) then
+    begin
       Table.Empty();
+
+      if ((View = vBrowser) and (FNavigator.Selected.Data = Table)) then
+        Wanted.Update := UpdateAfterAddressChanged;
+    end;
   end
   else if (FocusedSItem is TSBaseTableField) then
   begin
@@ -6499,6 +6507,9 @@ begin
       Table.EmptyFields(List);
       Table.Update();
       List.Free();
+
+      if ((View = vBrowser) and (FNavigator.Selected.Data = Table)) then
+        Wanted.Update := UpdateAfterAddressChanged;
     end;
   end;
 end;
@@ -7062,7 +7073,6 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
   end;
 
 var
-  Child: TTreeNode;
   ChangeEvent: TTVChangedEvent;
   ChangingEvent: TTVChangingEvent;
   Database: TSDatabase;
@@ -7099,33 +7109,21 @@ begin
     while (Assigned(Node) and (Node.Data <> Database)) do
       Node := Node.getNextSibling();
 
-    Node.HasChildren := not Database.Tables.Valid or (Database.Tables.Count > 0)
-      or Assigned(Database.Routines) and (not Database.Routines.Valid or (Database.Routines.Count > 0))
-      or Assigned(Database.Events) and (not Database.Events.Valid or (Database.Events.Count > 0));
-
     if (Assigned(Node) and (not Node.HasChildren or Assigned(Node.getFirstChild()) or (Node = FNavigatorNodeToExpand))) then
     begin
       FNavigator.Items.BeginUpdate();
 
-      if (not (Event.Items is TSTriggers)) then
-      begin
-        UpdateGroup(Node, giTriggers, Event.Items);
+      Expanded := Node.Expanded;
 
-        Node.HasChildren := Assigned(Node.getFirstChild())
-          or not Database.Tables.Valid or (Database.Tables.Count > 0)
-          or (Assigned(Database.Routines) and ((Database.Routines.Count > 0) or not Database.Routines.Valid))
-          or (Assigned(Database.Events) and ((Database.Events.Count > 0) or not Database.Events.Valid));
-      end
-      else if (Event.Item is TSTrigger) then
-      begin
-        Child := Node.getFirstChild();
-        while (Assigned(Child)) do
-        begin
-          if (TObject(Child.Data) = TSTrigger(Event.Item).Table) then
-            UpdateGroup(Child, giTables, Event.Items);
-          Child := Child.getNextSibling();
-        end;
-      end;
+      if (Event.Items is TSTables) then
+        UpdateGroup(Node, giTables, Event.Items)
+      else if (Event.Items is TSRoutines) then
+        UpdateGroup(Node, giRoutines, Event.Items)
+      else if (Event.Items is TSEvents) then
+        UpdateGroup(Node, giEvents, Event.Items);
+
+      Node.HasChildren := Assigned(Node.getFirstChild());
+      Node.Expanded := Expanded;
 
       FNavigator.Items.EndUpdate();
     end;
@@ -7141,7 +7139,7 @@ begin
     while (Assigned(Node) and (Node.Data <> Table.Database)) do
       Node := Node.getNextSibling();
 
-    if (Assigned(Node) and (not Node.HasChildren or Assigned(Node.getFirstChild()) or (Node = FNavigatorNodeToExpand))) then
+    if (Assigned(Node)) then
     begin
       Node := Node.getFirstChild();
       while (Assigned(Node) and (Node.Data <> Table)) do

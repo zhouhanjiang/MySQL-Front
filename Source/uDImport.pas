@@ -3,7 +3,7 @@ unit uDImport;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
+  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, RichEdit,
   Dialogs, ComCtrls, ExtCtrls, StdCtrls, DB, DBTables, Consts, Contnrs,
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext, Dialogs_Ext,
   MySQLDB,
@@ -43,7 +43,7 @@ type
     FEntieredObjects: TLabel;
     FEntieredRecords: TLabel;
     FEntieredTime: TLabel;
-    FErrorMessages: TMemo_Ext;
+    FErrorMessages: TRichEdit;
     FErrors: TLabel;
     FExcelFile: TRadioButton;
     FFilename: TEdit;
@@ -699,6 +699,9 @@ begin
   FQuoteNothing.Checked := Preferences.Import.CSV.Quote = qtNone;
   FQuoteStrings.Checked := Preferences.Import.CSV.Quote = qtStrings;
   FQuoteChar.Text := Preferences.Import.CSV.QuoteChar;
+
+  SendMessage(FErrorMessages.Handle, EM_SETTEXTMODE, TM_PLAINTEXT, 0);
+  SendMessage(FErrorMessages.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
 
   PageControl.ActivePage := nil;
   FDataSource.Text := '';
@@ -1541,7 +1544,7 @@ begin
       begin
         Msg := Preferences.LoadStr(165, IntToStr(Error.Session.Connection.ErrorCode), Error.Session.Connection.ErrorMessage);
         ErrorMsg := Error.ErrorMessage
-          + ' (#' + IntToStr(Error.ErrorCode) + ') - ' + Trim(Session.Connection.ErrorCommandText);
+          + ' (#' + IntToStr(Error.ErrorCode) + ') - ' + Trim(Session.Connection.ErrorCommandText) + #13#10;
       end;
     TE_File:
       begin

@@ -149,7 +149,6 @@ begin
   HTTPThread := THTTPThread.Create(LoadStr(1010), Stream, nil);
   HTTPThread.FreeOnTerminate := True;
   HTTPThread.Start();
-  HTTPThread.Free();
 end;
 
 { THTTPThread *****************************************************************}

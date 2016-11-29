@@ -140,6 +140,7 @@ type
       public
         procedure Add(const Node: TOffset);
         procedure Delete(const Index: Integer; const Count: Integer = 1);
+        function IndexOf(const Node: TOffset): Integer;
         procedure Init();
         property Count: Integer read FCount;
         property Node[Index: Integer]: TOffset read Get write Put; default;
@@ -7071,7 +7072,7 @@ implementation {***************************************************************}
 
 uses
   Windows,
-  Classes, SysUtils, StrUtils, SysConst,
+  Classes, SysUtils, StrUtils, SysConst, Math,
   SQLUtils;
 
 resourcestring
@@ -7835,6 +7836,29 @@ begin
   Assert((0 <= Index) and (Index < Count));
 
   Result := FNodes^[Index];
+end;
+
+function TSQLParser.TOffsetList.IndexOf(const Node: TOffset): Integer;
+type
+  Tstrcmp = function (lpString1, lpString2: PWideChar): Integer; stdcall;
+var
+  Left: Integer;
+  Mid: Integer;
+  Right: Integer;
+begin
+  Result := -1;
+
+  Left := 0;
+  Right := Count - 1;
+  while (Left <= Right) do
+  begin
+    Mid := (Right - Left) div 2 + Left;
+    case (Sign(FNodes^[Mid] - Node)) of
+      -1: Left := Mid + 1;
+      0: begin Result := Mid; break; end;
+      1: Right := Mid - 1;
+    end;
+  end;
 end;
 
 procedure TSQLParser.TOffsetList.Init();
@@ -14024,7 +14048,8 @@ begin
     or (Token.UsageType = utDbIdent) and (Token.KeywordIndex = kiNULL)
     or (Token.UsageType = utDbIdent) and (Token.KeywordIndex = kiTRUE)
     or (Token.UsageType = utDbIdent) and (Token.KeywordIndex = kiUNKNOWN)
-    or (Token.ParentNode^.NodeType = ntCreateTriggerStmtFieldIdent)
+    or Assigned(Token.ParentNode)
+      and (Token.ParentNode^.NodeType = ntCreateTriggerStmtFieldIdent)
       and (Token.Offset = TCreateTriggerStmt.PFieldIdent(Token.ParentNode)^.Nodes.ScopeTag)) then
   begin
     Token.GetText(Text, Length);
@@ -14137,11 +14162,8 @@ begin
       Dec(Length);
     end;
     SetLength(S, SQLUnescape(Text, Length, nil, 0));
-    if (System.Length(S) > 0) then
-    begin
-      SQLUnescape(Text, Length, @S[1], System.Length(S));
-      Commands.Write(SQLEscape(S));
-    end;
+    SQLUnescape(Text, Length, @S[1], System.Length(S));
+    Commands.Write(SQLEscape(S));
   end
   else
   begin
@@ -17405,7 +17427,7 @@ begin
       Nodes.IndexTypeTag := ParseTag(kiUSING, kiHASH);
 
   if (not ErrorFound) then
-    Nodes.KeyColumnList := ParseList(True, ParseCreateTableStmtKeyColumn);
+    Nodes.KeyColumnList := ParseList(True, ParseCreateTableStmtKeyColumn, ttComma, False);
 
   if (not ErrorFound and KeyType and (Nodes.IndexTypeTag = 0)) then
     if (IsTag(kiUSING, kiBTREE)) then
@@ -18211,7 +18233,10 @@ function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
       SetError(PE_IncompleteStmt);
       Result := 0;
     end
-    else if ((TokenPtr(CurrentToken)^.TokenType = ttIdent) and (QualifiedIdentifier or (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0))
+    else if ((TokenPtr(CurrentToken)^.TokenType = ttIdent)
+        and (QualifiedIdentifier
+          or (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0)
+          or (ADbIdentType = ditCharset) and (StrLIComp(TokenPtr(CurrentToken)^.FText, 'binary', 6) = 0))
       or (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent) and not (ADbIdentType in [ditCharset, ditCollation])
       or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and (AnsiQuotes or (ADbIdentType in [ditCharset, ditCollation, ditConstraint, ditAlias]))
       or (TokenPtr(CurrentToken)^.TokenType = ttString) and (ADbIdentType in [ditCharset, ditCollation, ditConstraint, ditAlias])
@@ -18517,6 +18542,8 @@ begin
       Result := ParseDeclareCursorStmt(StmtTag, IdentList)
     else
     begin
+      Nodes.StmtTag := StmtTag;
+
       Nodes.IdentList := IdentList;
 
       if (not ErrorFound) then
@@ -19160,10 +19187,10 @@ begin
         else
           case (TokenPtr(Nodes[NodeIndex])^.OperatorType) of
             otCase,
-            otDot,
-            otNot:
+            otDot:
               SetError(PE_UnexpectedToken, Nodes[NodeIndex]);
-            otBinary:
+            otBinary,
+            otNot:
               if (NodeIndex + 1 = Nodes.Count) then
                 SetError(PE_IncompleteStmt)
               else if (IsOperator(Nodes[NodeIndex + 1])) then
