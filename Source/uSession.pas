@@ -189,6 +189,7 @@ type
     function Add(Item: Pointer): Integer;
     procedure Clear(); override;
     constructor Create(const ADBObject: TSDBObject); virtual;
+    property DBObject: TSDBObject read FDBObject;
     property References[Index: Integer]: TSReference read GetReference; default;
     property Session: TSSession read GetSession;
   end;
@@ -2183,12 +2184,17 @@ begin
 
   Reference := TSReference(Item);
 
-  for I := 0 to Count - 1 do
-    if (Reference.DBObject = References[I].DBObject) then
-    begin
-      FreeAndNil(Reference);
-      break;
-    end;
+  if (not Assigned(Reference.DBObject)) then
+    FreeAndNil(Reference)
+  else if (Reference.DBObject = DBObject) then
+    FreeAndNil(Reference)
+  else
+    for I := 0 to Count - 1 do
+      if (Reference.DBObject = References[I].DBObject) then
+      begin
+        FreeAndNil(Reference);
+        break;
+      end;
 
   if (not Assigned(Reference)) then
     Result := -1
@@ -5896,11 +5902,10 @@ begin
           mfChar,
           mfVarChar:
             begin
-              if ((Parameter[I].Size < 256) and ((Parameter[I].Size < 65535) or (Session.Connection.MySQLVersion < 50000))) then
-                Field := TMySQLWideStringField.Create(nil)
+              if ((Parameter[I].Size <= $5555) and (Session.Connection.MySQLVersion >= 50000)) then
+                begin Field := TMySQLWideStringField.Create(Session.Connection); Field.Size := 65535; end
               else
-                Field := TMySQLWideMemoField.Create(nil);
-              if (Parameter[I].Size > 0) then Field.Size := Parameter[I].Size;
+                begin Field := TMySQLWideMemoField.Create(Session.Connection); Field.Size := Parameter[I].Size; end;
               Field.Tag := Session.CharsetByName(Database.Charset).CodePage;
             end;
           mfBinary,

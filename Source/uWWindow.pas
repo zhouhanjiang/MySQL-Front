@@ -993,7 +993,6 @@ procedure TWWindow.EurekaLogExceptionNotify(
 var
   I: Integer;
   Report: string;
-  SQL: PChar;
   StringList: TStringList;
 begin
   for I := 0 to FSessions.Count - 1 do
@@ -1461,9 +1460,7 @@ begin
   begin
     Tab := TFSession(FSessions[Index]);
 
-    S := Tab.Session.Account.Connection.Host;
-    if (Tab.Session.Account.Connection.Port <> MYSQL_PORT) then
-      S := S + ':' + IntToStr(Tab.Session.Account.Connection.Port);
+    S := Tab.Session.Caption;
     if (Tab.ToolBarData.Caption <> '') then
       S := S + ' - ' + Tab.ToolBarData.Caption;
     TabControl.Hint := S;
@@ -1992,7 +1989,7 @@ begin
 
   while (miFReopen.Count > 1) do
     miFReopen.Delete(0);
-  miFReopen.Enabled := Assigned(Tab) and (Tab.ToolBarData.View in [vEditor, vEditor2, vEditor3]) and (Tab.Session.Account.Desktop.Files.Count > 0);
+  miFReopen.Enabled := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vEditor, vEditor2, vEditor3]) and (Tab.Session.Account.Desktop.Files.Count > 0);
   if (miFReopen.Enabled) then
   begin
     for I := 0 to Tab.Session.Account.Desktop.Files.Count - 1 do

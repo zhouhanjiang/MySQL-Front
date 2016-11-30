@@ -3885,6 +3885,7 @@ procedure TFSession.aViewExecute(Sender: TObject);
 var
   AllowChange: Boolean;
   Control: TWinControl; // Debug 2016-11-17
+  I: Integer;
   NewView: TView;
 begin
   if (Sender = MainAction('aVObjectBrowser')) then
@@ -3953,7 +3954,17 @@ begin
       vDiagram: if (PWorkbench.Visible) then Window.ActiveControl := ActiveWorkbench;
       vEditor,
       vEditor2,
-      vEditor3: if (PSynMemo.Visible) then Window.ActiveControl := ActiveSynMemo;
+      vEditor3: if (PSynMemo.Visible) then
+        begin
+          // Debug 2016-11-30
+          if (not ActiveSynMemo.Visible) then
+            raise ERangeError.Create(SRangeError);
+          for I := 0 to PSynMemo.ControlCount - 1 do
+            if ((PSynMemo.Controls[I] <> ActiveSynMemo)
+              and PSynMemo.Controls[I].Visible) then
+              raise ERangeError.Create(SRangeError + '(' + PSynMemo.Controls[I].ClassName + ')');
+          Window.ActiveControl := ActiveSynMemo;
+        end;
     end;
   end;
 end;
@@ -5816,7 +5827,14 @@ begin
       if ((SQLEditors[View].Filename <> '') and not SQLEditors[View].SynMemo.Modified) then
         Session.Account.Desktop.EditorContent[ToolbarTabByView[View]] := ''
       else
+      begin
+        // Debug 2016-11-30
+        if (not Assigned(SQLEditors[View])) then
+          raise ERangeError.Create(SRangeError);
+        if (not Assigned(SQLEditors[View].SynMemo)) then
+          raise ERangeError.Create(SRangeError);
         Session.Account.Desktop.EditorContent[ToolbarTabByView[View]] := SQLEditors[View].SynMemo.Text;
+      end;
   Session.Account.Desktop.FoldersHeight := PFolders.Height;
 
   if (Assigned(FFiles)) then
@@ -7421,28 +7439,18 @@ begin
 end;
 
 procedure TFSession.FQueryBuilderSQLUpdated(Sender: TObject);
-var
-  S: string;
-  SQL: string;
 begin
   FQueryBuilderEditorPageControlCheckStyle();
 
-  SQL := Trim(SQLBuilder.SQL);
-  if (UpperCase(RightStr(SQL, 4)) = 'FROM') then
-    SQL := Trim(LeftStr(SQL, Length(SQL) - 4));
-
-  S := Trim(ReplaceStr(ReplaceStr(SQL, #13, ' '), #10, ' '));
-  while (Pos('  ', S) > 0) do
-    S := ReplaceStr(S, '  ', ' ');
-  if (S = 'SELECT *') then
-    FQueryBuilderSynMemo.Lines.Clear()
+  if ((SQLBuilder.SQL = '')
+    or not Assigned(Session)
+    or Session.SQLParser.ParseSQL(SQLBuilder.SQL)) then
+    FQueryBuilderSynMemo.Lines.Text := SQLBuilder.SQL
   else
   begin
-    if ((Length(SQL) < 80) and Assigned(Session)) then SQL := SQLUnwrapStmt(SQL, Session.Connection.MySQLVersion);
-    if (SQL = '') then
-      FQueryBuilderSynMemo.Lines.Clear()
-    else
-      FQueryBuilderSynMemo.Lines.Text := SQL + ';';
+    FQueryBuilderSynMemo.Lines.Text := Session.SQLParser.FormatSQL();
+
+    Session.SQLParser.Clear();
   end;
 end;
 
@@ -12085,17 +12093,17 @@ begin
     if ((Event.EventType = etItemValid)) then
       if ((Event.Item is TSView) and Assigned(Desktop(TSView(Event.Item)).SynMemo)) then
         Desktop(TSView(Event.Item)).SynMemo.Text := TSView(Event.Item).Stmt + #13#10
-      else if ((Event.Item is TSRoutine) and Assigned(Desktop(TSRoutine(Event.Item)).SynMemo)) then
+      else if ((Event.Item is TSRoutine) and Assigned(Desktop(TSRoutine(Event.Item)).CreateSynMemo())) then
       begin
         Desktop(TSRoutine(Event.Item)).SynMemo.Text := TSRoutine(Event.Item).Source;
         PContentChange(nil);
       end
-      else if ((Event.Item is TSTrigger) and Assigned(Desktop(TSTrigger(Event.Item)).SynMemo)) then
+      else if ((Event.Item is TSTrigger) and Assigned(Desktop(TSTrigger(Event.Item)).CreateSynMemo())) then
       begin
         Desktop(TSTrigger(Event.Item)).SynMemo.Text := TSTrigger(Event.Item).Source;
         PContentChange(nil);
       end
-      else if ((Event.Item is TSEvent) and Assigned(Desktop(TSEvent(Event.Item)).SynMemo)) then
+      else if ((Event.Item is TSEvent) and Assigned(Desktop(TSEvent(Event.Item)).CreateSynMemo())) then
       begin
         Desktop(TSEvent(Event.Item)).SynMemo.Text := TSEvent(Event.Item).Stmt;
         Desktop(TSEvent(Event.Item)).SynMemo.Modified := False;

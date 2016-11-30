@@ -3704,12 +3704,17 @@ begin
 end;
 
 function TMySQLBitField.GetIsNull(): Boolean;
+var
+  LibRow: MYSQL_ROW;
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
 
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  LibRow := TMySQLQuery(DataSet).LibRow;
+
+  Result := not Assigned(LibRow);
+  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLBitField.GetText(var Text: string; DisplayText: Boolean);
@@ -3764,12 +3769,17 @@ begin
 end;
 
 function TMySQLBlobField.GetIsNull(): Boolean;
+var
+  LibRow: MYSQL_ROW;
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
 
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  LibRow := TMySQLQuery(DataSet).LibRow;
+
+  Result := not Assigned(LibRow);
+  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLBlobField.GetText(var Text: string; DisplayText: Boolean);
@@ -3801,12 +3811,17 @@ begin
 end;
 
 function TMySQLByteField.GetIsNull(): Boolean;
+var
+  LibRow: MYSQL_ROW;
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
 
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  LibRow := TMySQLQuery(DataSet).LibRow;
+
+  Result := not Assigned(LibRow);
+  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLByteField.GetText(var Text: string; DisplayText: Boolean);
@@ -3825,12 +3840,17 @@ begin
 end;
 
 function TMySQLDateField.GetIsNull(): Boolean;
+var
+  LibRow: MYSQL_ROW;
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
 
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  LibRow := TMySQLQuery(DataSet).LibRow;
+
+  Result := not Assigned(LibRow);
+  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLDateField.GetText(var Text: string; DisplayText: Boolean);
@@ -3871,12 +3891,17 @@ begin
 end;
 
 function TMySQLDateTimeField.GetIsNull(): Boolean;
+var
+  LibRow: MYSQL_ROW;
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
 
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  LibRow := TMySQLQuery(DataSet).LibRow;
+
+  Result := not Assigned(LibRow);
+  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLDateTimeField.GetText(var Text: string; DisplayText: Boolean);
@@ -3915,12 +3940,17 @@ begin
 end;
 
 function TMySQLExtendedField.GetIsNull(): Boolean;
+var
+  LibRow: MYSQL_ROW;
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
 
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  LibRow := TMySQLQuery(DataSet).LibRow;
+
+  Result := not Assigned(LibRow);
+  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLExtendedField.GetText(var Text: string; DisplayText: Boolean);
@@ -3939,12 +3969,17 @@ begin
 end;
 
 function TMySQLFloatField.GetIsNull(): Boolean;
+var
+  LibRow: MYSQL_ROW;
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
 
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  LibRow := TMySQLQuery(DataSet).LibRow;
+
+  Result := not Assigned(LibRow);
+  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLFloatField.GetText(var Text: string; DisplayText: Boolean);
@@ -3963,12 +3998,17 @@ begin
 end;
 
 function TMySQLIntegerField.GetIsNull(): Boolean;
+var
+  LibRow: MYSQL_ROW;
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
 
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  LibRow := TMySQLQuery(DataSet).LibRow;
+
+  Result := not Assigned(LibRow);
+  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLIntegerField.GetText(var Text: string; DisplayText: Boolean);
@@ -3997,12 +4037,17 @@ begin
 end;
 
 function TMySQLLargeWordField.GetIsNull(): Boolean;
+var
+  LibRow: MYSQL_ROW;
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
 
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  LibRow := TMySQLQuery(DataSet).LibRow;
+
+  Result := not Assigned(LibRow);
+  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLLargeWordField.GetText(var Text: string; DisplayText: Boolean);
@@ -4036,12 +4081,17 @@ begin
 end;
 
 function TMySQLLongWordField.GetIsNull(): Boolean;
+var
+  LibRow: MYSQL_ROW;
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
 
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  LibRow := TMySQLQuery(DataSet).LibRow;
+
+  Result := not Assigned(LibRow);
+  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLLongWordField.GetText(var Text: string; DisplayText: Boolean);
@@ -4060,12 +4110,17 @@ begin
 end;
 
 function TMySQLShortIntField.GetIsNull(): Boolean;
+var
+  LibRow: MYSQL_ROW;
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
 
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  LibRow := TMySQLQuery(DataSet).LibRow;
+
+  Result := not Assigned(LibRow);
+  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLShortIntField.GetText(var Text: string; DisplayText: Boolean);
@@ -4084,12 +4139,17 @@ begin
 end;
 
 function TMySQLSingleField.GetIsNull(): Boolean;
+var
+  LibRow: MYSQL_ROW;
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
 
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  LibRow := TMySQLQuery(DataSet).LibRow;
+
+  Result := not Assigned(LibRow);
+  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLSingleField.GetText(var Text: string; DisplayText: Boolean);
@@ -4108,12 +4168,17 @@ begin
 end;
 
 function TMySQLSmallIntField.GetIsNull(): Boolean;
+var
+  LibRow: MYSQL_ROW;
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
 
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  LibRow := TMySQLQuery(DataSet).LibRow;
+
+  Result := not Assigned(LibRow);
+  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLSmallIntField.GetText(var Text: string; DisplayText: Boolean);
@@ -4143,12 +4208,17 @@ begin
 end;
 
 function TMySQLStringField.GetIsNull(): Boolean;
+var
+  LibRow: MYSQL_ROW;
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
 
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  LibRow := TMySQLQuery(DataSet).LibRow;
+
+  Result := not Assigned(LibRow);
+  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLStringField.GetText(var Text: string; DisplayText: Boolean);
@@ -4213,12 +4283,17 @@ begin
 end;
 
 function TMySQLTimeField.GetIsNull(): Boolean;
+var
+  LibRow: MYSQL_ROW;
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
 
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  LibRow := TMySQLQuery(DataSet).LibRow;
+
+  Result := not Assigned(LibRow);
+  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLTimeField.GetText(var Text: string; DisplayText: Boolean);
@@ -4286,12 +4361,17 @@ begin
 end;
 
 function TMySQLTimeStampField.GetIsNull(): Boolean;
+var
+  LibRow: MYSQL_ROW;
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
 
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  LibRow := TMySQLQuery(DataSet).LibRow;
+
+  Result := not Assigned(LibRow);
+  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 function TMySQLTimeStampField.GetOldValue: Variant;
@@ -4372,12 +4452,17 @@ begin
 end;
 
 function TMySQLWideMemoField.GetIsNull(): Boolean;
+var
+  LibRow: MYSQL_ROW;
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
 
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  LibRow := TMySQLQuery(DataSet).LibRow;
+
+  Result := not Assigned(LibRow);
+  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLWideMemoField.GetText(var Text: string; DisplayText: Boolean);
@@ -4414,12 +4499,17 @@ begin
 end;
 
 function TMySQLWideStringField.GetIsNull(): Boolean;
+var
+  LibRow: MYSQL_ROW;
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
 
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  LibRow := TMySQLQuery(DataSet).LibRow;
+
+  Result := not Assigned(LibRow);
+  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLWideStringField.GetText(var Text: string; DisplayText: Boolean);
@@ -4485,12 +4575,17 @@ begin
 end;
 
 function TMySQLWordField.GetIsNull(): Boolean;
+var
+  LibRow: MYSQL_ROW;
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
 
-  Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+  LibRow := TMySQLQuery(DataSet).LibRow;
+
+  Result := not Assigned(LibRow);
+  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLWordField.GetText(var Text: string; DisplayText: Boolean);
@@ -5351,6 +5446,10 @@ end;
 
 function TMySQLDataSet.TInternRecordBuffers.Get(Index: Integer): PInternRecordBuffer;
 begin
+  // Debug 2016-11-30
+  if ((Index < 0) or (Count <= Index)) then
+    raise ERangeError.Create(SRangeError);
+
   Result := PInternRecordBuffer(Items[Index]);
 end;
 
@@ -5416,6 +5515,7 @@ function TMySQLDataSet.BookmarkToInternBufferIndex(const Bookmark: TBookmark): I
 var
   I: Integer;
   P: Pointer;
+  P2: Pointer;
 begin
   Result := -1;
 
@@ -5428,7 +5528,8 @@ begin
       if (Length(Bookmark) = 0) then
         raise ERangeError.Create(SRangeError);
       P := PPointer(@Bookmark[0])^;
-      if (P = InternRecordBuffers[I]) then
+      P2 := InternRecordBuffers[I];
+      if (P = P2) then
         Result := I;
       Inc(I);
     end;

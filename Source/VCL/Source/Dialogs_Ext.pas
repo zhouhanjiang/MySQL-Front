@@ -88,7 +88,7 @@ implementation {***************************************************************}
 
 uses
   Forms, CommDlg, Consts, RTLConsts, Dlgs, ActiveX, StrUtils, ComObj,
-  WinSpool;
+  WinSpool, SysConst;
 
 const
   CP_UNICODE = 1200;
@@ -195,7 +195,11 @@ function TVistaSaveDialog.CreateFileDialog(): IFileDialog;
 var
   I: Integer;
 begin
-  Result := inherited CreateFileDialog;
+  Result := inherited CreateFileDialog();
+
+  // Debug 2016-11-30
+  if (not Assigned(Result)) then
+    raise ERangeError.Create(SRangeError);
 
   if ((SaveDialog.Encodings.Count = 0) or (Result.QueryInterface(StringToGUID('{8016B7B3-3D49-4504-A0AA-2A37494E606F}'), FileDialogCustomize) <> S_OK)) then
     FileDialogCustomize := nil

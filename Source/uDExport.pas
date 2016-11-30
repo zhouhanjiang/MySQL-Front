@@ -1421,7 +1421,10 @@ begin
     end;
 
     if ((Answer = IDCANCEL) or (Export.Items.Count = 0)) then
-      FreeAndNil(Export)
+    begin
+      Export.Free();
+      Export := nil;
+    end
     else
     begin
       FBBack.Enabled := False;
@@ -1689,7 +1692,15 @@ begin
   if (Assigned(Export)) then
   begin
     Export.WaitFor();
-    FreeAndNil(Export);
+    try
+      Export.Free();
+    except
+      if (Success) then
+        raise ERangeError.Create(SRangeError + ' (Success)')
+      else
+        raise ERangeError.Create(SRangeError + ' (Terminated)');
+    end;
+    Export := nil;
   end;
 
   FBBack.Enabled := True;

@@ -428,10 +428,11 @@ type
 
   TTExportSQL = class(TTExportFile)
   private
+    CrossReferencedObjects: Boolean;
+    MultipleDatabases: Boolean;
     SQLInsertLen: Integer;
     SQLInsertPostfix: string;
     SQLInsertPrefix: string;
-    UseDatabaseStmts: Boolean;
   protected
     procedure BeforeExecute(); override;
     procedure ExecuteDatabaseHeader(const Database: TSDatabase); override;
@@ -3915,6 +3916,8 @@ end;
 procedure TTExport.BeforeExecute();
 var
   I: Integer;
+  J: Integer;
+  K: Integer;
 begin
   inherited;
 
@@ -3925,7 +3928,36 @@ begin
       TDBGridItem(Items[I]).DBGrid.DataSource.DataSet.DisableControls();
 
   if ((Self is TTExportSQL) or (Self is TTTransfer)) then
-    Items.Sort(TToolItemCompareForSQL)
+  begin
+    Items.Sort(TToolItemCompareForSQL);
+
+    I := 0;
+    while (I < Items.Count) do
+    begin
+      if (Items[I] is TDBObjectItem) then
+      begin
+        J := 0;
+        while (J < TDBObjectItem(Items[I]).DBObject.References.Count) do
+        begin
+          K := I + 1;
+          while (K < Items.Count) do
+          begin
+            if ((Items[K] is TDBObjectItem)
+              and (TDBObjectItem(Items[K]).DBObject = TDBObjectItem(Items[I]).DBObject.References[J].DBObject)) then
+            begin
+              Items.Move(I, K);
+              Dec(I);
+              J := Items.Count - 1;
+              K := Items.Count - 1;
+            end;
+            Inc(K);
+          end;
+          Inc(J);
+        end;
+      end;
+      Inc(I);
+    end;
+  end
   else
     Items.Sort(TToolItemCompare);
 end;
@@ -4524,71 +4556,72 @@ end;
 
 procedure TTExportSQL.BeforeExecute();
 var
-  CycleProtection: Integer;
+  Content: string;
   Database: TSDatabase;
-  DBObject: TSDBObject;
+  Databases: TList;
   I: Integer;
   J: Integer;
   K: Integer;
-  NewIndex: Integer;
 begin
   inherited;
 
-  I := 0; CycleProtection := Items.Count * Items.Count;
-  while ((I < Items.Count) and (CycleProtection >= 0)) do
-  begin
-    if (Items[I] is TDBObjectItem) then
-      for J := 0 to TDBObjectItem(Items[I]).DBObject.References.Count - 1 do
-        for K := I - 1 downto 0 do
-          if ((Items[K] is TDBObjectItem)
-            and (TDBObjectItem(Items[K]).DBObject = TDBObjectItem(Items[I]).DBObject.References[J].DBObject)) then
-          begin
-            Items.Move(K, I);
-            Dec(I);
-          end;
-
-    Inc(I);
-    Dec(CycleProtection);
-  end;
-
-  Database := nil;
+  MultipleDatabases := False; Database := nil;
   for I := 0 to Items.Count - 1 do
     if (Items[I] is TDBObjectItem) then
       if (not Assigned(Database)) then
         Database := TDBObjectItem(Items[I]).DBObject.Database
       else if (TDBObjectItem(Items[I]).DBObject.Database <> Database) then
-        UseDatabaseStmts := True;
+        MultipleDatabases := True;
+
+  CrossReferencedObjects := False;
+  for I := 0 to Items.Count - 1 do
+    if (Items[I] is TDBObjectItem) then
+      for J := 0 to TDBObjectItem(Items[I]).DBObject.References.Count - 1 do
+        if (TDBObjectItem(Items[I]).DBObject.References[J].DBObject.Database <> TDBObjectItem(Items[I]).DBObject.Database) then
+          CrossReferencedObjects := True;
+
+  if (CrossReferencedObjects) then
+  begin
+    Databases := TList.Create();
+    for I := 0 to Items.Count - 1 do
+      if (Items[I] is TDBObjectItem) then
+      begin
+        Database := TDBObjectItem(Items[I]).DBObject.Database;
+        if (Databases.IndexOf(Database) < 0) then
+          Databases.Add(Database);
+      end;
+    Session.Update(Databases);
+    Databases.Free();
+  end;
 end;
 
 constructor TTExportSQL.Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
 begin
   inherited;
 
+  CrossReferencedObjects := False;
   DropStmts := False;
+  MultipleDatabases := False;
   ReplaceData := False;
-  UseDatabaseStmts := False;
 end;
 
 procedure TTExportSQL.ExecuteDatabaseHeader(const Database: TSDatabase);
 var
   Content: string;
 begin
-  if (UseDatabaseStmts) then
+  if (MultipleDatabases) then
   begin
     Content := #13#10;
-    Content := Content + '#' + #13#10;
-    Content := Content + '# Database "' + Database.Name + '"' + #13#10;
-    Content := Content + '#' + #13#10;
-    Content := Content + #13#10;
-    Content := Content + 'CREATE DATABASE IF NOT EXISTS ' + Session.Connection.EscapeIdentifier(Database.Name);
-    if (Database.Charset <> '') then
+
+    if (not CrossReferencedObjects) then
     begin
-      Content := Content + ' /*!40100 DEFAULT CHARACTER SET ' + Database.Charset;
-      if (Database.Collation <> '') then
-        Content := Content + ' COLLATE ' + Database.Collation;
-      Content := Content + ' */';
+      Content := Content + '#' + #13#10;
+      Content := Content + '# Database "' + Database.Name + '"' + #13#10;
+      Content := Content + '#' + #13#10;
+      Content := Content + #13#10;
+      Content := Content + Database.GetSourceEx(DropStmts);
     end;
-    Content := Content + ';' + #13#10;
+
     Content := Content + Database.SQLUse();
 
     WriteContent(Content);
@@ -4615,6 +4648,9 @@ end;
 procedure TTExportSQL.ExecuteHeader();
 var
   Content: string;
+  I: Integer;
+  Database: TSDatabase;
+  Databases: TList;
 begin
   DoFileCreate(Filename);
 
@@ -4627,6 +4663,24 @@ begin
 
   if ((CodePage <> CP_UNICODE) and (Session.Connection.CodePageToCharset(CodePage) <> '') and (Session.Connection.MySQLVersion >= 40101)) then
     Content := Content + '/*!40101 SET NAMES ' + Session.Connection.CodePageToCharset(CodePage) + ' */;' + #13#10;
+
+  if (CrossReferencedObjects) then
+  begin
+    Databases := TList.Create();
+    for I := 0 to Items.Count - 1 do
+      if (Items[I] is TDBObjectItem) then
+      begin
+        Database := TDBObjectItem(Items[I]).DBObject.Database;
+        if (Databases.IndexOf(Database) < 0) then
+          Databases.Add(Database);
+      end;
+    Databases.Sort(TToolItemCompareForSQL);
+
+    for I := 0 to Databases.Count - 1 do
+      Content := Content + TSDatabase(Databases[I]).GetSourceEx(DropStmts);
+
+    Databases.Free();
+  end;
 
   WriteContent(Content);
 end;
@@ -6437,7 +6491,7 @@ begin
 
   repeat
     ReturnCode := SQLExecute(Stmt);
-    if (not SQL_SUCCEEDED(ReturnCode) and (ReturnCode <> SQL_NEED_DATA)) then
+    if (not SQL_SUCCEEDED(SQLExecute(Stmt)) and (ReturnCode <> SQL_NEED_DATA)) then
     begin
       Error := ODBCError(SQL_HANDLE_STMT, Stmt);
       Error.ErrorMessage := Error.ErrorMessage;
@@ -7689,31 +7743,10 @@ end;
 
 procedure TTTransfer.BeforeExecute();
 var
-  CycleProtection: Integer;
   DataSet: TMySQLQuery;
-  I: Integer;
-  J: Integer;
-  K: Integer;
   SQL: string;
 begin
   inherited;
-
-  I := 0; CycleProtection := Items.Count * Items.Count;
-  while ((I < Items.Count) and (CycleProtection >= 0)) do
-  begin
-    if (Items[I] is TDBObjectItem) then
-      for J := 0 to TDBObjectItem(Items[I]).DBObject.References.Count - 1 do
-        for K := I - 1 downto 0 do
-          if ((Items[K] is TDBObjectItem)
-            and (TDBObjectItem(Items[K]).DBObject = TDBObjectItem(Items[I]).DBObject.References[J].DBObject)) then
-          begin
-            Items.Move(K, I);
-            Dec(I);
-          end;
-
-    Inc(I);
-    Dec(CycleProtection);
-  end;
 
   DestinationSession.Connection.BeginSilent();
 

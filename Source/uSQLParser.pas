@@ -14167,6 +14167,7 @@ begin
     or (Token.UsageType = utDbIdent) and (Token.KeywordIndex = kiNULL)
     or (Token.UsageType = utDbIdent) and (Token.KeywordIndex = kiTRUE)
     or (Token.UsageType = utDbIdent) and (Token.KeywordIndex = kiUNKNOWN)
+    or (Token.DbIdentType = ditFunction) and (FunctionList.IndexOf(Token.FText, Token.FLength) >= 0)
     or Assigned(Token.ParentNode)
       and (Token.ParentNode^.NodeType = ntCreateTriggerStmtFieldIdent)
       and (Token.Offset = TCreateTriggerStmt.PFieldIdent(Token.ParentNode)^.Nodes.ScopeTag)) then
@@ -22290,6 +22291,7 @@ function TSQLParser.ParseSelectStmtTableReference(): TOffset;
       Result := ParseSelectStmtTableFactor()
     else if (EndOfStmt(CurrentToken)) then
     begin
+      CompletionList.AddList(ditDatabase);
       CompletionList.AddList(ditTable);
       SetError(PE_IncompleteStmt);
       Result := 0;

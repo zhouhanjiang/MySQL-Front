@@ -165,7 +165,7 @@ type
     procedure CheckActivePageChange(const ActivePageIndex: Integer);
     procedure ClearTSFields(Sender: TObject);
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
-    procedure CreateImport(Sender: TObject);
+    procedure CreateImport();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     function GetDataSource(): Boolean;
     function GetFilename(): Boolean;
@@ -339,7 +339,7 @@ begin
   FQuoteChar.Left := FQuoteStrings.Left + Sizer.Width + PageControl.Canvas.TextWidth(FQuoteStrings.Caption);
 end;
 
-procedure TDImport.CreateImport(Sender: TObject);
+procedure TDImport.CreateImport();
 begin
   if (Assigned(Import)) then
   begin
@@ -570,7 +570,10 @@ begin
   Preferences.Import.Height := Height;
 
   if (Assigned(Import) and Import.Suspended) then
-    FreeAndNil(Import);
+  begin
+    Import.Free();
+    Import := nil;
+  end;
 
   if (ModalResult = mrOk) then
   begin
@@ -718,6 +721,8 @@ begin
       stInsertOrUpdate: FInsertOrUpdate.Checked := True;
       else FInsert.Checked := True;
     end;
+
+    CreateImport();
   end;
 
   if ((FEngine.ItemIndex < 0) and Assigned(Session.Engines.DefaultEngine)) then
@@ -953,7 +958,7 @@ begin
       else
         FLSourceFields.Caption := Preferences.LoadStr(400) + ':';
 
-      if (not Assigned(Import)) then CreateImport(nil);
+      if (not Assigned(Import)) then CreateImport();
       TTImportODBC(Import).GetFieldNames(TTableName(FTables.Selected.Data).SourceName, FieldNames);
     end;
 
@@ -1182,7 +1187,7 @@ begin
   FErrorMessages.Lines.Clear();
 
   if (not Assigned(Import)) then
-    CreateImport(Self);
+    CreateImport();
 
   Answer := IDYES;
   case (ImportType) of
@@ -1494,7 +1499,15 @@ begin
     if (Success and (Import.WarningCount > 0)) then
       MsgBox(Preferences.LoadStr(932, IntToStr(Import.WarningCount)), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
 
-    FreeAndNil(Import);
+    try
+      Import.Free();
+    except
+      if (Success) then
+        raise ERangeError.Create(SRangeError + ' (Success)')
+      else
+        raise ERangeError.Create(SRangeError + ' (Terminated)');
+    end;
+    Import := nil;
   end;
 
   FBBack.Enabled := True;
