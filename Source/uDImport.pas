@@ -898,10 +898,13 @@ begin
     itExcelFile:
       begin
         if (odExcel2003 in ODBCDrivers) then
-          OpenDialog.Filter := FilterDescription('xls') + ' (*.xls;*.xlsm;*.xlsb;*.xlsx)|*.xls;*.xlsm;*.xlsb;*.xlsx'
+          OpenDialog.Filter := FilterDescription('xlsb') + ' (*.xls;*.xlsm;*.xlsb;*.xlsx)|*.xls;*.xlsm;*.xlsb;*.xlsx'
         else
           OpenDialog.Filter := FilterDescription('xls') + ' (*.xls)|*.xls';
-        OpenDialog.DefaultExt := 'xls';
+        if (odExcel2003 in ODBCDrivers) then
+          OpenDialog.DefaultExt := '.xlsb'
+        else
+          OpenDialog.DefaultExt := '.xls';
         OpenDialog.Encodings.Clear();
       end;
     itAccessFile:
@@ -910,7 +913,10 @@ begin
           OpenDialog.Filter := FilterDescription('mdb') + ' (*.mdb;*.accdb)|*.mdb;*.accdb'
         else
           OpenDialog.Filter := FilterDescription('mdb') + ' (*.mdb)|*.mdb';
-        OpenDialog.DefaultExt := 'mdb';
+        if (odAccess2003 in ODBCDrivers) then
+          OpenDialog.DefaultExt := '.accdb'
+        else
+          OpenDialog.DefaultExt := '.mdb';
         OpenDialog.Encodings.Clear();
       end;
   end;

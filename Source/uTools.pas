@@ -6491,7 +6491,7 @@ begin
 
   repeat
     ReturnCode := SQLExecute(Stmt);
-    if (not SQL_SUCCEEDED(SQLExecute(Stmt)) and (ReturnCode <> SQL_NEED_DATA)) then
+    if (not SQL_SUCCEEDED(ReturnCode) and (ReturnCode <> SQL_NEED_DATA)) then
     begin
       Error := ODBCError(SQL_HANDLE_STMT, Stmt);
       Error.ErrorMessage := Error.ErrorMessage;

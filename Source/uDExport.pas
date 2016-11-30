@@ -720,7 +720,6 @@ begin
       PageControl.ActivePageIndex := I;
   CheckActivePageChange(PageControl.ActivePageIndex);
 
-  FBForward.Enabled := True;
   FBCancel.Enabled := True;
   FBCancel.ModalResult := mrCancel;
 
@@ -942,9 +941,12 @@ begin
       begin
         SaveDialog.Filter := '';
         if (odExcel2003 in ODBCDrivers) then
-          SaveDialog.Filter := SaveDialog.Filter + FilterDescription('xlsx') + ' (*.xls;*.xlsx;*.xlsm;*.xlsb)|*.xls;*.xlsx;*.xlsm;*.xlsb|';
+          SaveDialog.Filter := SaveDialog.Filter + FilterDescription('xlsb') + ' (*.xls;*.xlsx;*.xlsm;*.xlsb)|*.xls;*.xlsx;*.xlsm;*.xlsb|';
         SaveDialog.Filter := SaveDialog.Filter + FilterDescription('xls') + ' (*.xls)|*.xls';
-        SaveDialog.DefaultExt := '.xls';
+        if (odExcel2003 in ODBCDrivers) then
+          SaveDialog.DefaultExt := '.xlsb'
+        else
+          SaveDialog.DefaultExt := '.xls';
         SaveDialog.Encodings.Clear();
       end;
     etAccessFile:
@@ -1671,15 +1673,18 @@ begin
       WantedNodeExpand.Expand(False)
     else
     begin
+      if (TSFields.Enabled) then
+        InitTSFields();
+      CheckActivePageChange(PageControl.ActivePageIndex);
+
       if (not PageControl.Visible) then
       begin
         PageControl.Visible := True;
         PSQLWait.Visible := not PageControl.Visible;
-      end;
 
-      if (TSFields.Enabled) then
-        InitTSFields();
-      CheckActivePageChange(PageControl.ActivePageIndex);
+        if (FBForward.Enabled) then
+          ActiveControl := FBForward;
+      end;
     end;
 end;
 

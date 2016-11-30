@@ -10110,7 +10110,7 @@ end;
 
 procedure TFSession.mfFilterExcelClick(Sender: TObject);
 begin
-  FFiles.Filter := '*.xls;*.xlsx';
+  FFiles.Filter := '*.xls;*.xlsb';
 end;
 
 procedure TFSession.mfFilterHTMLClick(Sender: TObject);
@@ -10139,7 +10139,7 @@ begin
   mfFilterSQL.Checked := FFiles.Filter = '*.sql';
   mfFilterText.Checked := FFiles.Filter = '*.txt;*.csv';
   mfFilterAccess.Checked := FFiles.Filter = '*.mdb;*.accdb';
-  mfFilterExcel.Checked := FFiles.Filter = '*.xls;*.xlsx';
+  mfFilterExcel.Checked := FFiles.Filter = '*.xls;*.xlsb';
   mfFilterHTML.Checked := FFiles.Filter = '*.html;*.htm';
   mfFilterXML.Checked := FFiles.Filter = '*.xml';
 
@@ -13355,7 +13355,7 @@ begin
   mfFilterHTML.Caption := FilterDescription('html') + ' (*.html,*.hmt)';
   mfFilterXML.Caption := FilterDescription('xml') + ' (*.xml)';
   mfFilterAccess.Caption := FilterDescription('mdb') + ' (*.mdb;*.accdb)';
-  mfFilterExcel.Caption := FilterDescription('xls') + ' (*.xls;*.xlsx)';
+  mfFilterExcel.Caption := FilterDescription('xls') + ' (*.xls;*.xlsb)';
   mfDelete.Caption := Preferences.LoadStr(28);
   mfRename.Caption := Preferences.LoadStr(98);
   mfProperties.Caption := Preferences.LoadStr(97) + '...';

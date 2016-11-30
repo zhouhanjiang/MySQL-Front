@@ -2031,12 +2031,7 @@ begin
 end;
 
 procedure TMySQLConnection.TSyncThread.Synchronize();
-var
-  S: string;
 begin
-  S := 'Synchronize, State: ' + IntToStr(Ord(State));
-  Connection.WriteMonitor(PChar(S), Length(S), ttDebug);
-
   if (not Terminated) then
     case (State) of
       ssConnecting:
@@ -2244,7 +2239,7 @@ begin
 
   FDebugMonitor := TMySQLMonitor.Create(nil);
   FDebugMonitor.Connection := Self;
-  FDebugMonitor.CacheSize := 2000;
+  FDebugMonitor.CacheSize := 500;
   FDebugMonitor.Enabled := True;
   FDebugMonitor.TraceTypes := [ttTime, ttRequest, ttInfo, ttDebug];
 end;
@@ -2508,7 +2503,6 @@ function TMySQLConnection.InternExecuteSQL(const Mode: TSyncThread.TMode; const 
   const SQL: string; const OnResult: TResultEvent = nil; const Done: TEvent = nil): Boolean;
 var
   CLStmt: TSQLCLStmt;
-  S: string;
   SetNames: Boolean;
   SQLIndex: Integer;
   SQLLength: Integer;
@@ -2586,9 +2580,6 @@ begin
   end
   else if (Synchron or not UseSyncThread()) then
   begin
-    S := 'InternExecuteSQL start synchron';
-    WriteMonitor(PChar(S), Length(S), ttDebug);
-
     SyncBeforeExecuteSQL(SyncThread);
     repeat
       SyncExecute(SyncThread);
@@ -2602,15 +2593,9 @@ begin
       end;
     until (SyncThread.State <> ssExecutingFirst);
     Result := SyncThread.ErrorCode = 0;
-
-    S := 'InternExecuteSQL end asynchron';
-    WriteMonitor(PChar(S), Length(S), ttDebug);
   end
   else
   begin
-    S := 'InternExecuteSQL start asynchron';
-    WriteMonitor(PChar(S), Length(S), ttDebug);
-
     if (GetCurrentThreadId() = MainThreadId) then
       SyncThread.Synchronize()
     else
