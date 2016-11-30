@@ -27,7 +27,6 @@ uses
   CommCtrl_Ext in 'VCL\Source\CommCtrl_Ext.pas',
   Forms_Ext in 'VCL\Source\Forms_Ext.pas',
   uDeveloper in 'uDeveloper.pas',
-  uJob in 'uJob.pas',
   uPreferences in 'uPreferences.pas',
   uSession in 'uSession.pas',
   uSQLParser in 'uSQLParser.pas',
@@ -76,86 +75,54 @@ uses
 {$R *.res}
 
 var
-  AccountName: string;
-  UseConsole: Boolean;
-  I: Integer;
-  JobExecution: TJobExecution;
-  JobName: string;
-  Name: string;
   SetupProgram: TFileName;
   SetupProgramExecute: Boolean;
-  Value: string;
-  Value2: string;
 begin
   Preferences := TPPreferences.Create();
 
-  AccountName := '';
-  JobName := '';
-  for I := 1 to ParamCount() do
-    if (TrySplitParam(ParamStr(I), Name, Value)) then
-      if (lstrcmpi(PChar(Name), 'Account') = 0) then
-        AccountName := Value
-      else if (lstrcmpi(PChar(Name), 'Job') = 0) then
-        JobName := Value;
-
-  UseConsole := (AccountName <> '') and (JobName <> '');
-  if (UseConsole) then
+  if (Preferences.SetupProgramInstalled) then
   begin
-    JobExecution := TJobExecution.Create(AccountName, JobName);
-    JobExecution.Execute();
-    JobExecution.Free();
+    if (FileExists(PChar(Preferences.SetupProgram))) then
+      DeleteFile(PChar(Preferences.SetupProgram));
+    Preferences.SetupProgram := '';
+    Preferences.SetupProgramInstalled := False;
   end
-  else
+  else if (Preferences.SetupProgram <> '') then
   begin
-    if (Preferences.SetupProgramInstalled) then
-    begin
-      if (FileExists(PChar(Preferences.SetupProgram))) then
-        DeleteFile(PChar(Preferences.SetupProgram));
-      Preferences.SetupProgram := '';
-      Preferences.SetupProgramInstalled := False;
-    end
-    else if (Preferences.SetupProgram <> '') then
-    begin
-      Preferences.SetupProgramExecute := FindWindow(cWindowClassName, nil) = 0;
-      if (not Preferences.SetupProgramExecute) then
-        MsgBox(Preferences.LoadStr(908, SysUtils.LoadStr(1000)), Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
-    end;
-
+    Preferences.SetupProgramExecute := FindWindow(cWindowClassName, nil) = 0;
     if (not Preferences.SetupProgramExecute) then
-    begin
-      Application.Initialize();
-      Application.Title := LoadStr(1000);
-      {$IFDEF Debug}
-        if (Application.Title = '') then
-          Application.Title := Copy(ExtractFileName(Application.ExeName), 1, Length(ExtractFileName(Application.ExeName)) - Length(ExtractFileExt(Application.ExeName)));
-      {$ENDIF}
-      Application.Icon.Handle := LoadImage(hInstance, 'MAINICON', IMAGE_ICON, Application.Icon.Height, Application.Icon.Height, LR_DEFAULTCOLOR);
-      {$IFDEF Debug}
-        if (Application.Icon.Handle = 0) then
-          Application.Icon.Handle := LoadImage(hInstance, PChar('..\Images\MySQLFront.ico'), IMAGE_ICON, Application.Icon.Height, Application.Icon.Height, LR_DEFAULTCOLOR + LR_LOADFROMFILE);
-      {$ENDIF}
-      Application.CreateForm(TWWindow, WWindow);
-      Application.CreateForm(TPDataBrowserDummy, PDataBrowserDummy);
-      Application.MainForm.Perform(UM_CHANGEPREFERENCES, 0, 0);
-      GetClassName(Application.MainForm.Handle, PChar(SetupProgram), 100);
-      Application.Run();
-      if (Application.Handle <> 0) then
-        ShowOwnedPopups(Application.Handle, False);
-      Application.ShowHint := False;
-      Application.Destroying();
-      Application.DestroyComponents();
-    end;
+      MsgBox(Preferences.LoadStr(908, SysUtils.LoadStr(1000)), Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
   end;
 
-  if (UseConsole) then
-    Preferences.Free()
-  else
+  if (not Preferences.SetupProgramExecute) then
   begin
-    SetupProgram := Preferences.SetupProgram;
-    SetupProgramExecute := Preferences.SetupProgramExecute;
-    Preferences.Free();
-
-    if (SetupProgramExecute) then
-      ShellExecute(0, 'open', PChar(SetupProgram), '/SILENT /NOICONS /TASKS=""', nil, SW_SHOWNORMAL);
+    Application.Initialize();
+    Application.Title := LoadStr(1000);
+    {$IFDEF Debug}
+      if (Application.Title = '') then
+        Application.Title := Copy(ExtractFileName(Application.ExeName), 1, Length(ExtractFileName(Application.ExeName)) - Length(ExtractFileExt(Application.ExeName)));
+    {$ENDIF}
+    Application.Icon.Handle := LoadImage(hInstance, 'MAINICON', IMAGE_ICON, Application.Icon.Height, Application.Icon.Height, LR_DEFAULTCOLOR);
+    {$IFDEF Debug}
+      if (Application.Icon.Handle = 0) then
+        Application.Icon.Handle := LoadImage(hInstance, PChar('..\Images\MySQLFront.ico'), IMAGE_ICON, Application.Icon.Height, Application.Icon.Height, LR_DEFAULTCOLOR + LR_LOADFROMFILE);
+    {$ENDIF}
+    Application.CreateForm(TWWindow, WWindow);
+    Application.CreateForm(TPDataBrowserDummy, PDataBrowserDummy);
+    Application.MainForm.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    GetClassName(Application.MainForm.Handle, PChar(SetupProgram), 100);
+    Application.Run();
+    if (Application.Handle <> 0) then
+      ShowOwnedPopups(Application.Handle, False);
+    Application.ShowHint := False;
+    Application.Destroying();
+    Application.DestroyComponents();
   end;
+
+  SetupProgram := Preferences.SetupProgram;
+  SetupProgramExecute := Preferences.SetupProgramExecute;
+  Preferences.Free();
+
+  if (SetupProgramExecute) then
+    ShellExecute(0, 'open', PChar(SetupProgram), '/SILENT /NOICONS /TASKS=""', nil, SW_SHOWNORMAL);
 end.

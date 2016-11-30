@@ -59,7 +59,6 @@
 			<DCCReference Include="VCL\Source\CommCtrl_Ext.pas"/>
 			<DCCReference Include="VCL\Source\Forms_Ext.pas"/>
 			<DCCReference Include="uDeveloper.pas"/>
-			<DCCReference Include="uJob.pas"/>
 			<DCCReference Include="uPreferences.pas"/>
 			<DCCReference Include="uSession.pas"/>
 			<DCCReference Include="uSQLParser.pas"/>
