@@ -5,7 +5,6 @@ interface {********************************************************************}
 uses
   Controls, Forms, Graphics, Windows, XMLDoc, XMLIntf, Classes, SysUtils,
   Registry, IniFiles, ComCtrls,
-  TaskSchd,
   SynEditHighlighter, SynHighlighterSQL;
 
 type
@@ -342,7 +341,6 @@ type
     FImages: TImageList;
     FInternetAgent: string;
     FLanguage: TLanguage;
-    FTaskService: ITaskService;
     FUserPath: TFileName;
     FVerMajor, FVerMinor, FVerPatch, FVerBuild: Integer;
     FXMLDocument: IXMLDocument;
@@ -351,7 +349,6 @@ type
     function GetFilename(): TFileName;
     function GetLanguage(): TLanguage;
     function GetLanguagePath(): TFileName;
-    function GetTaskService(): ITaskService;
     function GetVersion(var VerMajor, VerMinor, VerPatch, VerBuild: Integer): Boolean;
     function GetVersionInfo(): Integer;
     function GetVersionStr(): string;
@@ -361,7 +358,6 @@ type
     procedure LoadFromXML(const XML: IXMLNode);
     procedure SaveToRegistry(); virtual;
     procedure SaveToXML(const XML: IXMLNode);
-    property TaskService: ITaskService read GetTaskService;
     property XMLDocument: IXMLDocument read GetXMLDocument;
   public
     Account: TAccount;
@@ -453,67 +449,12 @@ type
 
   TPAccount = class
   type
-    TJobs = class;
     TFiles = class;
     TDesktop = class;
 
     TEventProc = procedure (const ClassType: TClass) of object;
-
-    TJob = class
-    type
-      TObjectType = (jotServer, jotDatabase, jotTable, jotProcedure, jotFunction, jotTrigger, jotEvent);
-      TJobObject = record
-        DatabaseName: string;
-        Name: string;
-        ObjectType: TObjectType;
-      end;
-      TSourceObject = record
-        Name: string;
-      end;
-      TFieldMapping = record
-        DestinationFieldName: string;
-        SourceFieldName: string;
-      end;
-      TTriggerType = (ttSingle, ttDaily, ttWeekly, ttMonthly);
-    private
-      FJobs: TJobs;
-      FName: string;
-      function GetLogFilename(): TFileName;
-    protected
-      procedure LoadFromXML(const XML: IXMLNode); virtual; abstract;
-      procedure SaveToXML(const XML: IXMLNode); virtual; abstract;
-      function Save(const Update: Boolean): Boolean; virtual;
-      property Jobs: TJobs read FJobs;
-    public
-      Enabled: Boolean;
-      Start: TDateTime;
-      TriggerType: TTriggerType;
-      procedure Assign(const Source: TJob); virtual;
-      constructor Create(const AJobs: TJobs; const AName: string = ''); reintroduce;
-      property LogFilename: TFileName read GetLogFilename;
-      property Name: string read FName;
-    end;
-
-    TJobs = class(TList)
-    private
-      FAccount: TPAccount;
-      function GetJob(Index: Integer): TJob; inline;
-      function GetTaskFolder(const AutoCreate: Boolean = False): ITaskFolder;
-      function GetTaskService(): ITaskService; inline;
-    protected
-      function IndexByName(const Name: string): Integer; virtual;
-      property Account: TPAccount read FAccount;
-      property TaskService: ITaskService read GetTaskService;
-    public
-      function AddJob(const NewJob: TJob): Boolean; virtual;
-      procedure Clear(); override;
-      constructor Create(const AAccount: TPAccount);
-      procedure DeleteJob(const Job: TJob); overload; virtual;
-      destructor Destroy(); override;
-      procedure Load(); virtual;
-      function UpdateJob(const Job, NewJob: TJob): Boolean; virtual;
-      property Job[Index: Integer]: TJob read GetJob; default;
-    end;
+    TExportType = (etUnknown, etSQLFile, etTextFile, etExcelFile, etAccessFile, etODBC, etHTMLFile, etXMLFile, etPDFFile);
+    TImportType = (itUnknown, itSQLFile, itTextFile, itAccessFile, itExcelFile, itODBC);
 
     TFile = class
     private
@@ -547,113 +488,6 @@ type
       property Files[Index: Integer]: TFile read GetFile; default;
     end;
 
-    TJobImport = class(TJob)
-    type
-      TImportType = (itUnknown, itSQLFile, itTextFile, itAccessFile, itExcelFile, itODBC);
-    protected
-      procedure LoadFromXML(const XML: IXMLNode); override;
-      procedure SaveToXML(const XML: IXMLNode); override;
-    public
-      CSV: record
-        Headline: Boolean;
-        Quote: TPPreferences.TQuotingType;
-        QuoteChar: string;
-        Delimiter: string;
-        DelimiterType: TPPreferences.TDelimiterType;
-      end;
-      Charset: string;
-      CodePage: Integer;
-      Collation: string;
-      Data: Boolean;
-      Engine: string;
-      ImportType: TImportType;
-      JobObject: TJob.TJobObject;
-      FieldMappings: array of TJob.TFieldMapping;
-      Filename: TFileName;
-      ODBC: record
-        DataSource: string;
-        Username: string;
-        Password: string;
-      end;
-      RowType: Integer;
-      SourceObjects: array of TJob.TSourceObject;
-      StmtType: TPPreferences.TStmtType;
-      Structure: Boolean;
-      procedure Assign(const Source: TJob); override;
-      constructor Create(const AJobs: TJobs = nil; const AName: string = '');
-      destructor Destroy(); override;
-    end;
-
-    TJobExport = class(TJob)
-    type
-      TExportType = (etUnknown, etSQLFile, etTextFile, etExcelFile, etAccessFile, etODBC, etHTMLFile, etXMLFile, etPDFFile);
-    protected
-      procedure LoadFromXML(const XML: IXMLNode); override;
-      procedure SaveToXML(const XML: IXMLNode); override;
-    public
-      CodePage: Integer;
-      CSV: record
-        Headline: Boolean;
-        QuoteValues: TPPreferences.TQuotingType;
-        Quoter: Char;
-        Delimiter: string;
-        DelimiterType: TPPreferences.TDelimiterType;
-      end;
-      Excel: record
-        Excel2007: Boolean;
-      end;
-      Access: record
-        Access2003: Boolean;
-      end;
-      ExportType: TExportType;
-      HTML: record
-        Data: Boolean;
-        NULLText: Boolean;
-        MemoContent: Boolean;
-        Structure: Boolean;
-      end;
-      Filename: TFileName;
-      JobObjects: array of TJob.TJobObject;
-      ODBC: record
-        DataSource: string;
-        Password: string;
-        Username: string;
-      end;
-      SQL: record
-        Data: Boolean;
-        DropStmts: Boolean;
-        ReplaceData: Boolean;
-        Structure: Boolean;
-      end;
-      XML: record
-        Database: record
-          NodeType: TPPreferences.TNodeType;
-          NodeText: string;
-          NodeAttribute: string;
-        end;
-        Field: record
-          NodeType: TPPreferences.TNodeType;
-          NodeText: string;
-          NodeAttribute: string;
-        end;
-        Row: record
-          NodeText: string;
-        end;
-        Root: record
-          NodeText: string;
-        end;
-        Table: record
-          NodeType: TPPreferences.TNodeType;
-          NodeText: string;
-          NodeAttribute: string;
-        end;
-      end;
-      procedure Assign(const Source: TJob); override;
-      procedure ClearObjects(); virtual;
-      constructor Create(const AJobs: TJobs = nil; const AName: string = '');
-      destructor Destroy(); override;
-    end;
-
     TDesktop = class
     type
       TListViewKind = (lkServer, lkDatabase, lkTable, lkProcesses, lkUsers, lkVariables);
@@ -677,7 +511,6 @@ type
       ExplorerVisible: Boolean;
       FilesFilter: string;
       FoldersHeight: Integer;
-      JobsVisible: Boolean;
       LogHeight: Integer;
       LogVisible: Boolean;
       NavigatorVisible: Boolean;
@@ -713,7 +546,6 @@ type
     FAccounts: TPAccounts;
     FDesktop: TDesktop;
     FHistoryXMLDocument: IXMLDocument;
-    FJobs: TJobs;
     FLastLogin: TDateTime;
     FName: string;
     FTabs: array of record Control: Pointer; AccountEventProc: TEventProc; end;
@@ -725,7 +557,6 @@ type
     function GetDesktopXML(): IXMLNode;
     function GetHistoryFilename(): TFileName;
     function GetHistoryXML(): IXMLNode;
-    function GetJobs(): TJobs;
     function GetName(): string;
     procedure SetLastLogin(const ALastLogin: TDateTime);
   protected
@@ -750,7 +581,6 @@ type
     function ExpandAddress(const APath: string): string; virtual;
     function Tab(): Pointer; virtual;
     function GetDefaultDatabase(): string; virtual;
-    function JobByName(const Name: string): TJob; virtual;
     procedure RegisterTab(const AControl: Pointer; const AEventProc: TEventProc); virtual;
     procedure UnRegisterTab(const AControl: Pointer); virtual;
     property Accounts: TPAccounts read FAccounts;
@@ -760,7 +590,6 @@ type
     property DesktopXML: IXMLNode read GetDesktopXML;
     property HistoryXML: IXMLNode read GetHistoryXML;
     property Index: Integer read GetIndex;
-    property Jobs: TJobs read GetJobs;
     property LastLogin: TDateTime read FLastLogin write SetLastLogin;
     property Name: string read GetName write FName;
   end;
@@ -804,7 +633,6 @@ function XMLNode(const XML: IXMLNode; const Path: string; const NodeAutoCreate: 
 
 function VersionStrToVersion(VersionStr: string): Integer;
 function CopyDir(const fromDir, toDir: string): Boolean;
-function ValidJobName(const Name: string): Boolean;
 function TrySplitParam(const Param: string; out Name, Value: string): Boolean;
 
 var
@@ -1036,34 +864,7 @@ begin
   if (roRegExpr in Options) then begin if (Result <> '') then Result := Result + ','; Result := Result + 'RegExpr'; end;
 end;
 
-function TryStrToObjectType(const Str: string; var ObjectType: TPAccount.TJob.TObjectType): Boolean;
-begin
-  Result := True;
-  if (UpperCase(Str) = 'SERVER') then ObjectType := jotDatabase
-  else if (UpperCase(Str) = 'DATABASE') then ObjectType := jotDatabase
-  else if (UpperCase(Str) = 'TABLE') then ObjectType := jotTable
-  else if (UpperCase(Str) = 'PROCEDURE') then ObjectType := jotProcedure
-  else if (UpperCase(Str) = 'FUNCTION') then ObjectType := jotFunction
-  else if (UpperCase(Str) = 'TRIGGER') then ObjectType := jotTrigger
-  else if (UpperCase(Str) = 'EVENT') then ObjectType := jotEvent
-  else Result := False;
-end;
-
-function ObjectTypeToStr(const ObjectType: TPAccount.TJob.TObjectType): string;
-begin
-  case (ObjectType) of
-    jotServer: Result := 'Server';
-    jotDatabase: Result := 'Database';
-    jotTable: Result := 'Table';
-    jotProcedure: Result := 'Procedure';
-    jotFunction: Result := 'Function';
-    jotTrigger: Result := 'Trigger';
-    jotEvent: Result := 'Event';
-    else raise ERangeError.CreateFmt(SPropertyOutOfRange, ['ObjectType']);
-  end;
-end;
-
-function TryStrToImportType(const Str: string; var ImportType: TPAccount.TJobImport.TImportType): Boolean;
+function TryStrToImportType(const Str: string; var ImportType: TPAccount.TImportType): Boolean;
 begin
   Result := True;
   if (UpperCase(Str) = 'SQLFILE') then ImportType := itSQLFile
@@ -1074,7 +875,7 @@ begin
   else Result := False;
 end;
 
-function ImportTypeToStr(const ImportType: TPAccount.TJobImport.TImportType): string;
+function ImportTypeToStr(const ImportType: TPAccount.TImportType): string;
 begin
   case (ImportType) of
     itSQLFile: Result := 'SQLFile';
@@ -1086,7 +887,7 @@ begin
   end;
 end;
 
-function TryStrToExportType(const Str: string; var ExportType: TPAccount.TJobExport.TExportType): Boolean;
+function TryStrToExportType(const Str: string; var ExportType: TPAccount.TExportType): Boolean;
 begin
   Result := True;
   if (UpperCase(Str) = 'SQLFILE') then ExportType := etSQLFile
@@ -1100,7 +901,7 @@ begin
   else Result := False;
 end;
 
-function ExportTypeToStr(const ExportType: TPAccount.TJobExport.TExportType): string;
+function ExportTypeToStr(const ExportType: TPAccount.TExportType): string;
 begin
   case (ExportType) of
     etSQLFile: Result := 'SQLFile';
@@ -1218,11 +1019,6 @@ begin
     2: Result := vsList;
     3: Result := vsReport;
   end;
-end;
-
-function ValidJobName(const Name: string): Boolean;
-begin
-  Result := (Name <> '') and (Pos('.', Name) = 0) and (Pos('\', Name) = 0);
 end;
 
 function TrySplitParam(const Param: string; out Name, Value: string): Boolean;
@@ -2035,7 +1831,6 @@ begin
   inherited Create(KEY_ALL_ACCESS);
 
   FXMLDocument := nil;
-  FTaskService := nil;
 
   NonClientMetrics.cbSize := SizeOf(NonClientMetrics);
   if (not SystemParametersInfo(SPI_GETNONCLIENTMETRICS, SizeOf(NonClientMetrics), @NonClientMetrics, 0)) then
@@ -2279,16 +2074,6 @@ begin
     if (not FileExists(Result)) then
       Result := IncludeTrailingPathDelimiter('..\Languages\');
   {$ENDIF}
-end;
-
-function TPPreferences.GetTaskService(): ITaskService;
-begin
-  if (not Assigned(FTaskService)) then
-    if (Failed(CoCreateInstance(CLSID_TaskScheduler, nil, CLSCTX_INPROC_SERVER, IID_ITaskService, FTaskService))
-      or (Failed(FTaskService.Connect(Null, Null, Null, Null)))) then
-      FTaskService := nil;
-
-  Result := FTaskService;
 end;
 
 function TPPreferences.GetVersion(var VerMajor, VerMinor, VerPatch, VerBuild: Integer): Boolean;
@@ -2897,699 +2682,6 @@ begin
   end;
 end;
 
-{ TPPreferences.TJob **********************************************************}
-
-procedure TPAccount.TJob.Assign(const Source: TJob);
-begin
-  Assert(Assigned(Source) and (Source.ClassType = ClassType));
-
-
-  inherited;
-
-  Enabled := TJob(Source).Enabled;
-  Start := TJob(Source).Start;
-  TriggerType := TJob(Source).TriggerType;
-end;
-
-constructor TPAccount.TJob.Create(const AJobs: TJobs; const AName: string = '');
-begin
-  inherited Create();
-
-  FJobs := AJobs;
-  FName := AName;
-
-  Enabled := True;
-  Start := Date() + 1;
-  TriggerType := ttSingle;
-end;
-
-function TPAccount.TJob.GetLogFilename(): TFileName;
-begin
-  Result := Jobs.Account.DataPath + 'Jobs' + PathDelim + Name + '.err';
-end;
-
-function TPAccount.TJob.Save(const Update: Boolean): Boolean;
-
-  function HostIsLocalhost(const Host: string): Boolean;
-  begin
-    Result := (lstrcmpi(PChar(Host), PChar(LOCAL_HOST)) = 0) or (Host = '127.0.0.1') or (Host = '::1');
-  end;
-
-var
-  Action: IAction;
-  DailyTrigger: IDailyTrigger;
-  ExecAction: IExecAction;
-  Hour, Minute, Sec, MSec: Word;
-  MonthlyTrigger: IMonthlyTrigger;
-  RegisteredTask: IRegisteredTask;
-  TaskDefinition: ITaskDefinition;
-  TaskFolder: ITaskFolder;
-  Trigger: ITrigger;
-  XMLDocument: IXMLDocument;
-  WeeklyTrigger: IWeeklyTrigger;
-  Year, Month, Day: Word;
-begin
-  Result := False;
-
-  TaskFolder := Jobs.GetTaskFolder(True);
-  if (Assigned(TaskFolder)) then
-  begin
-    if (Succeeded(Jobs.TaskService.NewTask(0, TaskDefinition))
-      and Succeeded(TaskDefinition.Actions.Create(TASK_ACTION_EXEC, Action))
-      and Succeeded(Action.QueryInterface(IID_IExecAction, ExecAction))) then
-    begin
-      TaskDefinition.Settings.DisallowStartIfOnBatteries := FALSE;
-      TaskDefinition.Settings.ExecutionTimeLimit := 'PT12H';
-      TaskDefinition.Settings.MultipleInstances := TASK_INSTANCES_PARALLEL;
-      TaskDefinition.Settings.RunOnlyIfNetworkAvailable := not HostIsLocalhost(Jobs.Account.Connection.Host);
-      TaskDefinition.Settings.StartWhenAvailable := TRUE;
-      TaskDefinition.Settings.StopIfGoingOnBatteries := FALSE;
-      TaskDefinition.Settings.IdleSettings.IdleDuration := nil;
-      TaskDefinition.Settings.IdleSettings.StopOnIdleEnd := FALSE;
-      TaskDefinition.Settings.IdleSettings.WaitTimeout := nil;
-
-      ExecAction.Path := TBStr(ParamStr(0));
-      ExecAction.Arguments := TBStr('/Account="' + Jobs.Account.Name + '" /Job="' + Name + '"');
-
-      XMLDocument := NewXMLDocument();
-      XMLDocument.Encoding := 'utf-8';
-      XMLDocument.Node.AddChild('job').Attributes['version'] := '1.0.0';
-      SaveToXML(XMLDocument.DocumentElement);
-      TaskDefinition.Data := TBStr(XMLDocument.XML.Text);
-
-      DecodeDate(Start, Year, Month, Day);
-      DecodeTime(Start, Hour, Minute, Sec, MSec);
-      case (TriggerType) of
-        ttSingle: TaskDefinition.Triggers.Create(TASK_TRIGGER_TIME, Trigger);
-        ttDaily:
-          if (Succeeded(TaskDefinition.Triggers.Create(TASK_TRIGGER_DAILY, Trigger))
-            and Succeeded(Trigger.QueryInterface(IID_IDailyTrigger, DailyTrigger))) then
-            DailyTrigger.DaysInterval := 1;
-        ttWeekly:
-          if (Succeeded(TaskDefinition.Triggers.Create(TASK_TRIGGER_WEEKLY, Trigger))
-            and Succeeded(Trigger.QueryInterface(IID_IWeeklyTrigger, WeeklyTrigger))) then
-          begin
-            WeeklyTrigger.DaysOfWeek := 1 shl (DayOfWeek(Start) - 1);
-            WeeklyTrigger.WeeksInterval := 1;
-          end;
-        ttMonthly:
-          if (Succeeded(TaskDefinition.Triggers.Create(TASK_TRIGGER_MONTHLY, Trigger))
-            and Succeeded(Trigger.QueryInterface(IID_IMonthlyTrigger, MonthlyTrigger))) then
-          begin
-            MonthlyTrigger.DaysOfMonth := 1 shl (Day - 1);
-            MonthlyTrigger.MonthsOfYear := $FFF; // Every month
-          end;
-        else raise ERangeError.CreateFmt(SPropertyOutOfRange, ['TriggerType']);
-      end;
-      Trigger.StartBoundary := TBStr(FormatDateTime('yyyy-mm-dd"T"hh:nn:ss', Start));
-      Trigger.Enabled := Enabled;
-
-      Result := Succeeded(TaskFolder.RegisterTaskDefinition(TBStr(Name), TaskDefinition, LONG(TASK_CREATE_OR_UPDATE), Null, Null, TASK_LOGON_S4U, Null, RegisteredTask));
-    end;
-  end;
-end;
-
-{ TPAccount.TJobImport ********************************************************}
-
-procedure TPAccount.TJobImport.Assign(const Source: TJob);
-var
-  I: Integer;
-begin
-  Assert(Source is TPAccount.TJobImport);
-
-  inherited;
-
-  CodePage := TPAccount.TJobImport(Source).CodePage;
-  SetLength(FieldMappings, Length(TPAccount.TJobImport(Source).FieldMappings));
-  for I := 0 to Length(FieldMappings) - 1 do
-    FieldMappings[I] := TPAccount.TJobImport(Source).FieldMappings[I];
-  Filename := TPAccount.TJobImport(Source).Filename;
-  ImportType := TPAccount.TJobImport(Source).ImportType;
-  JobObject := TPAccount.TJobImport(Source).JobObject;
-  ODBC.DataSource := TPAccount.TJobImport(Source).ODBC.DataSource;
-  ODBC.Username := TPAccount.TJobImport(Source).ODBC.Username;
-  ODBC.Password := TPAccount.TJobImport(Source).ODBC.Password;
-  SourceObjects := TPAccount.TJobImport(Source).SourceObjects;
-end;
-
-constructor TPAccount.TJobImport.Create(const AJobs: TJobs = nil; const AName: string = '');
-begin
-  inherited Create(AJobs, AName);
-
-  CodePage := CP_ACP;
-  SetLength(FieldMappings, 0);
-  Filename := '';
-  JobObject.DatabaseName := '';
-  JobObject.Name := '';
-  SetLength(SourceObjects, 0);
-end;
-
-destructor TPAccount.TJobImport.Destroy();
-var
-  I: Integer;
-begin
-  for I := 0 to Length(FieldMappings) - 1 do
-  begin
-    FieldMappings[I].DestinationFieldName := '';
-    FieldMappings[I].SourceFieldName := '';
-  end;
-  SetLength(FieldMappings, 0);
-  for I := 0 to Length(SourceObjects) - 1 do
-    SourceObjects[I].Name := '';
-  SetLength(SourceObjects, 0);
-
-  inherited;
-end;
-
-procedure TPAccount.TJobImport.LoadFromXML(const XML: IXMLNode);
-var
-  Child: IXMLNode;
-  ObjectType: TPAccount.TJob.TObjectType;
-begin
-  inherited;
-
-  if (Assigned(XMLNode(XML, 'csv/headline'))) then TryStrToBool(XMLNode(XML, 'csv/headline').Attributes['enabled'], CSV.Headline);
-  if (Assigned(XMLNode(XML, 'csv/quote/string'))) then CSV.QuoteChar := XMLNode(XML, 'csv/quote/string').Text;
-  if (Assigned(XMLNode(XML, 'csv/quote/type'))) then TryStrToQuote(XMLNode(XML, 'csv/quote/type').Text, CSV.Quote);
-  if (Assigned(XMLNode(XML, 'csv/separator/character/string'))) then CSV.Delimiter := XMLNode(XML, 'csv/separator/character/string').Text;
-  if (Assigned(XMLNode(XML, 'csv/separator/character/type'))) then TryStrToSeparatorType(XMLNode(XML, 'csv/separator/character/type').Text, CSV.DelimiterType);
-  if (Assigned(XMLNode(XML, 'data')) and (XMLNode(XML, 'data').Attributes['enabled'] <> Null)) then TryStrToBool(XMLNode(XML, 'data').Attributes['enabled'], Data);
-  if (Assigned(XMLNode(XML, 'data/importtype'))) then TryStrToStmtType(XMLNode(XML, 'data/importtype').Text, StmtType);
-  if (Assigned(XMLNode(XML, 'filename'))) then Filename := XMLNode(XML, 'filename').Text;
-  if (Assigned(XMLNode(XML, 'filename')) and (XMLNode(XML, 'filename').Attributes['codepage'] <> Null)) then TryStrToInt(XMLNode(XML, 'filename').Attributes['codepage'], CodePage);
-  if (Assigned(XMLNode(XML, 'odbc/datasource'))) then ODBC.DataSource := XMLNode(XML, 'odbc/datasource').Text;
-  if (Assigned(XMLNode(XML, 'odbc/password'))) then ODBC.Password := XMLNode(XML, 'odbc/password').Text;
-  if (Assigned(XMLNode(XML, 'odbc/username'))) then ODBC.Username := XMLNode(XML, 'odbc/username').Text;
-  if (Assigned(XMLNode(XML, 'rowtype'))) then TryStrToRowType(XMLNode(XML, 'rowtype').Text, RowType);
-  if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['charset'] <> Null)) then Charset := XMLNode(XML, 'structure').Attributes['charset'];
-  if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['collation'] <> Null)) then Collation := XMLNode(XML, 'structure').Attributes['collation'];
-  if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['enabled'] <> Null)) then TryStrToBool(XMLNode(XML, 'structure').Attributes['enabled'], Structure);
-  if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['engine'] <> Null)) then Engine := XMLNode(XML, 'structure').Attributes['engine'];
-  if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['rowtype'] <> Null)) then TryStrToRowType(XMLNode(XML, 'structure').Attributes['rowtype'], RowType);
-  if (Assigned(XMLNode(XML, 'type'))) then TryStrToImportType(XMLNode(XML, 'type').Text, ImportType);
-
-  if (Assigned(XMLNode(XML, 'object')) and TryStrToObjectType(XMLNode(XML, 'object').Attributes['type'], ObjectType)) then
-  begin
-    if (XMLNode(XML, 'object').Attributes['database'] = Null) then
-      JobObject.DatabaseName := ''
-    else
-      JobObject.DatabaseName := XMLNode(XML, 'object').Attributes['database'];
-    JobObject.Name := XMLNode(XML, 'object').Attributes['name'];
-    JobObject.ObjectType := ObjectType;
-  end;
-
-  if (Assigned(XMLNode(XML, 'sources'))) then
-  begin
-    Child := XMLNode(XML, 'sources').ChildNodes.First();
-    while (Assigned(Child)) do
-    begin
-      if (Child.NodeName = 'source') then
-      begin
-        SetLength(SourceObjects, Length(SourceObjects) + 1);
-        SourceObjects[Length(SourceObjects) - 1].Name := Child.Attributes['name'];
-      end;
-      Child := Child.NextSibling();
-    end;
-  end;
-
-  if (Assigned(XMLNode(XML, 'fields'))) then
-  begin
-    Child := XMLNode(XML, 'fields').ChildNodes.First();
-    while (Assigned(Child)) do
-    begin
-      if (Child.NodeName = 'field') then
-      begin
-        SetLength(FieldMappings, Length(FieldMappings) + 1);
-        if (Assigned(XMLNode(Child, 'source'))) then FieldMappings[Length(FieldMappings) - 1].SourceFieldName := XMLNode(Child, 'source').Text;
-        if (Assigned(XMLNode(Child, 'destination'))) then FieldMappings[Length(FieldMappings) - 1].DestinationFieldName := XMLNode(Child, 'destination').Text;
-      end;
-
-      Child := Child.NextSibling();
-    end;
-  end;
-end;
-
-procedure TPAccount.TJobImport.SaveToXML(const XML: IXMLNode);
-var
-  Child: IXMLNode;
-  RemoveChild: IXMLNode;
-  I: Integer;
-begin
-  inherited;
-
-  XML.Attributes['type'] := 'import';
-
-  XMLNode(XML, 'csv/headline').Attributes['enabled'] := BoolToStr(CSV.Headline, True);
-  XMLNode(XML, 'csv/quote/string').Text := CSV.QuoteChar;
-  XMLNode(XML, 'csv/quote/type').Text := QuoteToStr(CSV.Quote);
-  XMLNode(XML, 'csv/separator/character/string').Text := CSV.Delimiter;
-  XMLNode(XML, 'csv/separator/character/type').Text := SeparatorTypeToStr(CSV.DelimiterType);
-  XMLNode(XML, 'data').Attributes['enabled'] := BoolToStr(Data);
-  XMLNode(XML, 'data/importtype').Text := StmtTypeToStr(StmtType);
-  XMLNode(XML, 'filename').Text := Filename;
-  if (CodePage = CP_ACP) then XMLNode(XML, 'filename').Attributes['codepage'] := Null else XMLNode(XML, 'filename').Attributes['codepage'] := IntToStr(CodePage);
-  XMLNode(XML, 'odbc/datasource').Text := ODBC.DataSource;
-  XMLNode(XML, 'odbc/password').Text := ODBC.Password;
-  XMLNode(XML, 'odbc/username').Text := ODBC.Username;
-  XMLNode(XML, 'rowtype').Text := RowTypeToStr(RowType);
-  XMLNode(XML, 'structure').Attributes['charset'] := Charset;
-  XMLNode(XML, 'structure').Attributes['collation'] := Collation;
-  XMLNode(XML, 'structure').Attributes['enabled'] := Structure;
-  XMLNode(XML, 'structure').Attributes['engine'] := Engine;
-  XMLNode(XML, 'structure').Attributes['rowtype'] := RowTypeToStr(RowType);
-  XMLNode(XML, 'type').Text := ImportTypeToStr(ImportType);
-
-  XMLNode(XML, 'object').Attributes['name'] := JobObject.Name;
-  if (JobObject.ObjectType in [jotTable, jotProcedure, jotFunction, jotTrigger, jotEvent]) then
-    XMLNode(XML, 'object').Attributes['database'] := JobObject.DatabaseName;
-  XMLNode(XML, 'object').Attributes['type'] := ObjectTypeToStr(JobObject.ObjectType);
-
-  if (Assigned(XMLNode(XML, 'sources'))) then
-  begin
-    Child := XMLNode(XML, 'sources').ChildNodes.First();
-    while (Assigned(Child)) do
-    begin
-      if (Child.NodeName <> 'source') then
-        RemoveChild := nil
-      else
-        RemoveChild := Child;
-      Child := Child.NextSibling();
-      if (Assigned(RemoveChild)) then
-        XMLNode(XML, 'sources').ChildNodes.Remove(RemoveChild);
-    end;
-
-    for I := 0 to Length(SourceObjects) - 1 do
-    begin
-      Child := XMLNode(XML, 'sources').AddChild('source');
-      Child.Attributes['name'] := SourceObjects[I].Name;
-      Child.Attributes['type'] := 'Table';
-    end;
-
-    for I := 0 to Length(FieldMappings) - 1 do
-    begin
-      Child := XMLNode(XML, 'fields').AddChild('field');
-      Child.AddChild('source').Text := FieldMappings[I].SourceFieldName;
-      Child.AddChild('destination').Text := FieldMappings[I].DestinationFieldName;
-    end;
-  end;
-end;
-
-{ TPAccount.TJobExport ********************************************************}
-
-procedure TPAccount.TJobExport.Assign(const Source: TJob);
-var
-  I: Integer;
-begin
-  Assert(Source is TPAccount.TJobExport);
-
-  inherited Assign(Source);
-
-  CodePage := TPAccount.TJobExport(Source).CodePage;
-  CSV.Headline := TPAccount.TJobExport(Source).CSV.Headline;
-  CSV.QuoteValues := TPAccount.TJobExport(Source).CSV.QuoteValues;
-  CSV.Quoter := TPAccount.TJobExport(Source).CSV.Quoter;
-  CSV.Delimiter := TPAccount.TJobExport(Source).CSV.Delimiter;
-  CSV.DelimiterType := TPAccount.TJobExport(Source).CSV.DelimiterType;
-  Excel.Excel2007 := TPAccount.TJobExport(Source).Excel.Excel2007;
-  Access.Access2003 := TPAccount.TJobExport(Source).Access.Access2003;
-  ExportType := TPAccount.TJobExport(Source).ExportType;
-  HTML.Data := TPAccount.TJobExport(Source).HTML.Data;
-  HTML.NULLText := TPAccount.TJobExport(Source).HTML.NULLText;
-  HTML.MemoContent := TPAccount.TJobExport(Source).HTML.MemoContent;
-  HTML.Structure := TPAccount.TJobExport(Source).HTML.Structure;
-  Filename := TPAccount.TJobExport(Source).Filename;
-  ClearObjects();
-  SetLength(JobObjects, Length(TPAccount.TJobExport(Source).JobObjects));
-  for I := 0 to Length(JobObjects) - 1 do
-  begin
-    JobObjects[I].ObjectType := TPAccount.TJobExport(Source).JobObjects[I].ObjectType;
-    JobObjects[I].Name := TPAccount.TJobExport(Source).JobObjects[I].Name;
-    JobObjects[I].DatabaseName := TPAccount.TJobExport(Source).JobObjects[I].DatabaseName;
-  end;
-  ODBC.DataSource := TPAccount.TJobExport(Source).ODBC.DataSource;
-  ODBC.Password := TPAccount.TJobExport(Source).ODBC.Password;
-  ODBC.Username := TPAccount.TJobExport(Source).ODBC.Username;
-  SQL.Data := TPAccount.TJobExport(Source).SQL.Data;
-  SQL.DropStmts := TPAccount.TJobExport(Source).SQL.DropStmts;
-  SQL.ReplaceData := TPAccount.TJobExport(Source).SQL.ReplaceData;
-  SQL.Structure := TPAccount.TJobExport(Source).SQL.Structure;
-  XML.Database.NodeType := TPAccount.TJobExport(Source).XML.Database.NodeType;
-  XML.Database.NodeText := TPAccount.TJobExport(Source).XML.Database.NodeText;
-  XML.Database.NodeAttribute := TPAccount.TJobExport(Source).XML.Database.NodeAttribute;
-  XML.Field.NodeType := TPAccount.TJobExport(Source).XML.Field.NodeType;
-  XML.Field.NodeText := TPAccount.TJobExport(Source).XML.Field.NodeText;
-  XML.Field.NodeAttribute := TPAccount.TJobExport(Source).XML.Field.NodeAttribute;
-  XML.Row.NodeText := TPAccount.TJobExport(Source).XML.Row.NodeText;
-  XML.Root.NodeText := TPAccount.TJobExport(Source).XML.Root.NodeText;
-  XML.Table.NodeType := TPAccount.TJobExport(Source).XML.Table.NodeType;
-  XML.Table.NodeText := TPAccount.TJobExport(Source).XML.Table.NodeText;
-  XML.Table.NodeAttribute := TPAccount.TJobExport(Source).XML.Table.NodeAttribute;
-end;
-
-procedure TPAccount.TJobExport.ClearObjects();
-var
-  I: Integer;
-begin
-  for I := 0 to Length(JobObjects) - 1 do
-  begin
-    JobObjects[I].DatabaseName := '';
-    JobObjects[I].Name := '';
-  end;
-  SetLength(JobObjects, 0);
-end;
-
-constructor TPAccount.TJobExport.Create(const AJobs: TJobs = nil; const AName: string = '');
-begin
-  inherited Create(AJobs, AName);
-
-  CodePage := CP_ACP;
-  Filename := '';
-  SetLength(JobObjects, 0);
-end;
-
-destructor TPAccount.TJobExport.Destroy();
-begin
-  ClearObjects();
-
-  inherited;
-end;
-
-procedure TPAccount.TJobExport.LoadFromXML(const XML: IXMLNode);
-var
-  Child: IXMLNode;
-  ObjectType: TPAccount.TJob.TObjectType;
-begin
-  inherited;
-
-  if (Assigned(XMLNode(XML, 'csv/headline'))) then TryStrToBool(XMLNode(XML, 'csv/headline').Attributes['enabled'], CSV.Headline);
-  if (Assigned(XMLNode(XML, 'csv/quote/string')) and (XMLNode(XML, 'csv/quote/string').Text <> '')) then CSV.Quoter := XMLNode(XML, 'csv/quote/string').Text[1];
-  if (Assigned(XMLNode(XML, 'csv/quote/type'))) then TryStrToQuote(XMLNode(XML, 'csv/quote/type').Text, CSV.QuoteValues);
-  if (Assigned(XMLNode(XML, 'csv/separator/character/string'))) then CSV.Delimiter := XMLNode(XML, 'csv/separator/character/string').Text;
-  if (Assigned(XMLNode(XML, 'csv/separator/character/type'))) then TryStrToSeparatorType(XMLNode(XML, 'csv/separator/character/type').Text, CSV.DelimiterType);
-  if (Assigned(XMLNode(XML, 'excel/format')) and (XMLNode(XML, 'excel/format').Text = '2007')) then Excel.Excel2007 := True else Excel.Excel2007 := False;
-  if (Assigned(XMLNode(XML, 'access/format')) and (XMLNode(XML, 'access/format').Text = '2003')) then Access.Access2003 := True else Access.Access2003 := False;
-  if (Assigned(XMLNode(XML, 'filename'))) then Filename := XMLNode(XML, 'filename').Text;
-  if (Assigned(XMLNode(XML, 'filename')) and (XMLNode(XML, 'filename').Attributes['codepage'] <> Null)) then TryStrToInt(XMLNode(XML, 'filename').Attributes['codepage'], CodePage);
-  if (Assigned(XMLNode(XML, 'html/data'))) then TryStrToBool(XMLNode(XML, 'html/data').Attributes['enabled'], HTML.Data);
-  if (Assigned(XMLNode(XML, 'html/memo')) and (XMLNode(XML, 'html/memo').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/memo').Attributes['visible'], HTML.MemoContent);
-  if (Assigned(XMLNode(XML, 'html/null')) and (XMLNode(XML, 'html/null').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/null').Attributes['visible'], HTML.NULLText);
-  if (Assigned(XMLNode(XML, 'html/structure'))) then TryStrToBool(XMLNode(XML, 'html/structure').Attributes['enabled'], HTML.Structure);
-  if (Assigned(XMLNode(XML, 'odbc/datasource'))) then ODBC.DataSource := XMLNode(XML, 'odbc/datasource').Text;
-  if (Assigned(XMLNode(XML, 'odbc/password'))) then ODBC.Password := XMLNode(XML, 'odbc/password').Text;
-  if (Assigned(XMLNode(XML, 'odbc/username'))) then ODBC.Username := XMLNode(XML, 'odbc/username').Text;
-  if (Assigned(XMLNode(XML, 'sql/data'))) then TryStrToBool(XMLNode(XML, 'sql/data').Attributes['enabled'], SQL.Data);
-  if (Assigned(XMLNode(XML, 'sql/data'))) then TryStrToBool(XMLNode(XML, 'sql/data').Attributes['replace'], SQL.ReplaceData);
-  if (Assigned(XMLNode(XML, 'sql/structure'))) then TryStrToBool(XMLNode(XML, 'sql/structure').Attributes['enabled'], SQL.Structure);
-  if (Assigned(XMLNode(XML, 'sql/structure'))) then TryStrToBool(XMLNode(XML, 'sql/structure').Attributes['drop'], SQL.DropStmts);
-  if (Assigned(XMLNode(XML, 'type'))) then TryStrToExportType(XMLNode(XML, 'type').Text, ExportType);
-  if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/database').Attributes['type'], Self.XML.Database.NodeType);
-  if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Text <> '')) then Self.XML.Database.NodeText := XMLNode(XML, 'xml/database').Text;
-  if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Attributes['attribute'] <> Null)) then Self.XML.Database.NodeAttribute := XMLNode(XML, 'xml/database').Attributes['attribute'];
-  if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/field').Attributes['type'], Self.XML.Field.NodeType);
-  if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Text <> '')) then Self.XML.Field.NodeText := XMLNode(XML, 'xml/field').Text;
-  if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Attributes['attribute'] <> Null)) then Self.XML.Field.NodeAttribute := XMLNode(XML, 'xml/field').Attributes['attribute'];
-  if (Assigned(XMLNode(XML, 'xml/record')) and (XMLNode(XML, 'xml/record').Text <> '')) then Self.XML.Root.NodeText := XMLNode(XML, 'xml/record').Text;
-  if (Assigned(XMLNode(XML, 'xml/root')) and (XMLNode(XML, 'xml/root').Text <> '')) then Self.XML.Root.NodeText := XMLNode(XML, 'xml/root').Text;
-  if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/table').Attributes['type'], Self.XML.Table.NodeType);
-  if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Text <> '')) then Self.XML.Table.NodeText := XMLNode(XML, 'xml/table').Text;
-  if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Attributes['attribute'] <> Null)) then Self.XML.Table.NodeAttribute := XMLNode(XML, 'xml/table').Attributes['attribute'];
-
-  if (Assigned(XMLNode(XML, 'objects'))) then
-  begin
-    Child := XMLNode(XML, 'objects').ChildNodes.First();
-    while (Assigned(Child)) do
-    begin
-      if ((Child.NodeName = 'object') and TryStrToObjectType(Child.Attributes['type'], ObjectType)) then
-      begin
-        SetLength(JobObjects, Length(JobObjects) + 1);
-        if (Child.Attributes['database'] = Null) then
-          JobObjects[Length(JobObjects) - 1].DatabaseName := ''
-        else
-          JobObjects[Length(JobObjects) - 1].DatabaseName := Child.Attributes['database'];
-        JobObjects[Length(JobObjects) - 1].Name := Child.Attributes['name'];
-        JobObjects[Length(JobObjects) - 1].ObjectType := ObjectType;
-      end;
-      Child := Child.NextSibling();
-    end;
-  end;
-end;
-
-procedure TPAccount.TJobExport.SaveToXML(const XML: IXMLNode);
-var
-  Child: IXMLNode;
-  RemoveChild: IXMLNode;
-  I: Integer;
-begin
-  inherited;
-
-  XML.Attributes['type'] := 'export';
-
-  XMLNode(XML, 'csv/headline').Attributes['enabled'] := CSV.Headline;
-  XMLNode(XML, 'csv/quote/string').Text := CSV.Quoter;
-  XMLNode(XML, 'csv/quote/type').Text := QuoteToStr(CSV.QuoteValues);
-  XMLNode(XML, 'csv/separator/character/string').Text := CSV.Delimiter;
-  XMLNode(XML, 'csv/separator/character/type').Text := SeparatorTypeToStr(CSV.DelimiterType);
-  if (Excel.Excel2007) then XMLNode(XML, 'excel/format').Text := '2007' else XMLNode(XML, 'excel/format').Text := '';
-  if (Access.Access2003) then XMLNode(XML, 'access/format').Text := '2003' else XMLNode(XML, 'access/format').Text := '';
-  XMLNode(XML, 'filename').Text := Filename;
-  if (CodePage = CP_ACP) then XMLNode(XML, 'filename').Attributes['codepage'] := Null else XMLNode(XML, 'filename').Attributes['codepage'] := IntToStr(CodePage);
-  XMLNode(XML, 'html/data').Attributes['enabled'] := HTML.Data;
-  XMLNode(XML, 'html/memo').Attributes['visible'] := HTML.MemoContent;
-  XMLNode(XML, 'html/null').Attributes['visible'] := HTML.NullText;
-  XMLNode(XML, 'html/structure').Attributes['enabled'] := HTML.Structure;
-  XMLNode(XML, 'type').Text := ExportTypeToStr(ExportType);
-  XMLNode(XML, 'odbc/datasource').Text := ODBC.DataSource;
-  XMLNode(XML, 'odbc/password').Text := ODBC.Password;
-  XMLNode(XML, 'odbc/username').Text := ODBC.Username;
-  XMLNode(XML, 'sql/data').Attributes['enabled'] := SQL.Data;
-  XMLNode(XML, 'sql/data').Attributes['replace'] := SQL.ReplaceData;
-  XMLNode(XML, 'sql/structure').Attributes['enabled'] := SQL.Structure;
-  XMLNode(XML, 'sql/structure').Attributes['drop'] := SQL.DropStmts;
-  XMLNode(XML, 'xml/database').Text := Self.XML.Database.NodeText;
-  XMLNode(XML, 'xml/database').Attributes['type'] := NodeTypeToStr(Self.XML.Database.NodeType);
-  XMLNode(XML, 'xml/database').Attributes['attribute'] := Self.XML.Database.NodeAttribute;
-  XMLNode(XML, 'xml/field').Text := Self.XML.Field.NodeText;
-  XMLNode(XML, 'xml/field').Attributes['type'] := NodeTypeToStr(Self.XML.Field.NodeType);
-  XMLNode(XML, 'xml/field').Attributes['attribute'] := Self.XML.Field.NodeAttribute;
-  XMLNode(XML, 'xml/record').Text := Self.XML.Row.NodeText;
-  XMLNode(XML, 'xml/root').Text := Self.XML.Root.NodeText;
-  XMLNode(XML, 'xml/table').Text := Self.XML.Table.NodeText;
-  XMLNode(XML, 'xml/table').Attributes['type'] := NodeTypeToStr(Self.XML.Table.NodeType);
-  XMLNode(XML, 'xml/table').Attributes['attribute'] := Self.XML.Table.NodeAttribute;
-
-  if (Assigned(XMLNode(XML, 'objects'))) then
-  begin
-    Child := XMLNode(XML, 'objects').ChildNodes.First();
-    while (Assigned(Child)) do
-    begin
-      if (Child.NodeName <> 'object') then
-        RemoveChild := nil
-      else
-        RemoveChild := Child;
-      Child := Child.NextSibling();
-      if (Assigned(RemoveChild)) then
-        XMLNode(XML, 'objects').ChildNodes.Remove(RemoveChild);
-    end;
-
-    for I := 0 to Length(JobObjects) - 1 do
-    begin
-      Child := XMLNode(XML, 'objects').AddChild('object');
-      Child.Attributes['name'] := JobObjects[I].Name;
-      if (JobObjects[I].ObjectType in [jotTable, jotProcedure, jotFunction, jotTrigger, jotEvent]) then
-        Child.Attributes['database'] := JobObjects[I].DatabaseName;
-      Child.Attributes['type'] := ObjectTypeToStr(JobObjects[I].ObjectType);
-    end;
-  end;
-end;
-
-{ TPAccount.TJobs *************************************************************}
-
-function TPAccount.TJobs.AddJob(const NewJob: TPAccount.TJob): Boolean;
-var
-  Job: TPAccount.TJob;
-begin
-  Result := IndexByName(NewJob.Name) < 0;
-  if (Result) then
-  begin
-    if (NewJob is TPAccount.TJobImport) then
-      Job := TPAccount.TJobImport.Create(Self, NewJob.Name)
-    else if (NewJob is TPAccount.TJobExport) then
-      Job := TPAccount.TJobExport.Create(Self, NewJob.Name)
-    else
-      raise ERangeError.Create(SRangeError);
-    Job.Assign(NewJob);
-
-    Result := Job.Save(False);
-
-    if (Result) then
-    begin
-      Add(Job);
-      Account.AccountEvent(ClassType);
-    end;
-  end;
-end;
-
-procedure TPAccount.TJobs.Clear();
-var
-  I: Integer;
-begin
-  for I := 0 to Count - 1 do
-    Job[I].Free();
-
-  inherited;
-end;
-
-constructor TPAccount.TJobs.Create(const AAccount: TPAccount);
-begin
-  inherited Create();
-
-  FAccount := AAccount;
-end;
-
-procedure TPAccount.TJobs.DeleteJob(const Job: TPAccount.TJob);
-var
-  Index: Integer;
-  TaskFolder: ITaskFolder;
-begin
-  TaskFolder := GetTaskFolder(True);
-
-  if (Assigned(TaskFolder)) then
-    TaskFolder.DeleteTask(TBStr(Job.Name), 0);
-
-  if (FileExists(Job.LogFilename)) then
-    DeleteFile(Job.LogFilename);
-
-  Index := IndexOf(Job);
-  if (Index >= 0) then
-    Delete(Index);
-  Job.Free();
-
-  Account.AccountEvent(ClassType);
-end;
-
-destructor TPAccount.TJobs.Destroy();
-begin
-  Clear();
-
-  inherited;
-end;
-
-function TPAccount.TJobs.GetJob(Index: Integer): TPAccount.TJob;
-begin
-  Result := Items[Index];
-end;
-
-function TPAccount.TJobs.GetTaskFolder(const AutoCreate: Boolean = False): ITaskFolder;
-var
-  AppFolder: ITaskFolder;
-  RootFolder: ITaskFolder;
-begin
-  if (not Assigned(TaskService) or not Assigned(Account)) then
-    Result := nil
-  else if (Failed(TaskService.GetFolder(TBStr('\' + SysUtils.LoadStr(1006) + '\Accounts\' + Account.Name), Result))) then
-    if (not AutoCreate
-      or Failed(TaskService.GetFolder('\', RootFolder)))
-      or Failed(RootFolder.GetFolder(TBStr(SysUtils.LoadStr(1006) + '\Accounts'), AppFolder)) and Failed(RootFolder.CreateFolder(TBStr(SysUtils.LoadStr(1006) + '\Accounts'), Null, AppFolder))
-      or Failed(AppFolder.GetFolder(TBStr(Account.Name), Result)) and Failed(AppFolder.CreateFolder(TBStr(Account.Name), Null, Result)) then
-      Result := nil;
-end;
-
-function TPAccount.TJobs.GetTaskService(): ITaskService;
-begin
-  Result := Preferences.TaskService;
-end;
-
-function TPAccount.TJobs.IndexByName(const Name: string): Integer;
-var
-  Left: Integer;
-  Mid: Integer;
-  Right: Integer;
-begin
-  Result := -1;
-
-  Left := 0;
-  Right := Count - 1;
-  while (Left <= Right) do
-  begin
-    Mid := (Right - Left) div 2 + Left;
-    case (lstrcmpi(PChar(Job[Mid].Name), PChar(Name))) of
-      -1: Left := Mid + 1;
-      0: begin Result := Mid; break; end;
-      1: Right := Mid - 1;
-    end;
-  end;
-end;
-
-procedure TPAccount.TJobs.Load();
-var
-  I: Integer;
-  Job: TPAccount.TJob;
-  S: string;
-  RegisteredTask: IRegisteredTask;
-  TaskFolder: ITaskFolder;
-  Tasks: IRegisteredTaskCollection;
-  XMLDocument: IXMLDocument;
-begin
-  Clear();
-
-  TaskFolder := GetTaskFolder(False);
-  if (Assigned(TaskFolder) and Succeeded(TaskFolder.GetTasks(0, Tasks))) then
-  begin
-    XMLDocument := NewXMLDocument();
-    for I := 0 to Tasks.Count - 1 do
-    begin
-      RegisteredTask := Tasks.Item[1 + I];
-      XMLDocument.LoadFromXML(StrPas(RegisteredTask.Definition.Data));
-      if (XMLDocument.DocumentElement.Attributes['type'] = 'import') then
-        Job := TPAccount.TJobImport.Create(Self, StrPas(RegisteredTask.Name))
-      else if (XMLDocument.DocumentElement.Attributes['type'] = 'export') then
-        Job := TPAccount.TJobExport.Create(Self, StrPas(RegisteredTask.Name))
-      else
-        Job := nil;
-      if (Assigned(Job)) then
-      begin
-        if (Assigned(XMLDocument.DocumentElement)) then Job.LoadFromXML(XMLDocument.DocumentElement);
-        if (RegisteredTask.Definition.Triggers.Count >= 1) then
-        begin
-          Job.Enabled := RegisteredTask.Definition.Triggers.Item[1].Enabled;
-          S := StrPas(RegisteredTask.Definition.Triggers[1].StartBoundary);
-          if ((Length(S) >= 19) and (UpCase(S[11]) = 'T')) then
-          begin
-            Job.Start := EncodeDate(StrToInt(Copy(S, 1, 4)), StrToInt(Copy(S, 6, 2)), StrToInt(Copy(S, 9, 2)))
-              + EncodeTime(StrToInt(Copy(S, 12, 2)), StrToInt(Copy(S, 15, 2)), StrToInt(Copy(S, 18, 2)), 0);
-          end;
-          case (RegisteredTask.Definition.Triggers.Item[1].TriggerType) of
-            TASK_TRIGGER_TIME: Job.TriggerType := ttSingle;
-            TASK_TRIGGER_DAILY: Job.TriggerType := ttDaily;
-            TASK_TRIGGER_WEEKLY: Job.TriggerType := ttWeekly;
-            TASK_TRIGGER_MONTHLY: Job.TriggerType := ttMonthly;
-            else Job.TriggerType := ttSingle;
-          end;
-        end;
-
-        Add(Job);
-      end;
-    end;
-  end;
-end;
-
-function TPAccount.TJobs.UpdateJob(const Job, NewJob: TPAccount.TJob): Boolean;
-begin
-  Result := (IndexOf(Job) >= 0) and ((IndexByName(NewJob.Name) = IndexOf(Job)) or (IndexByName(NewJob.Name) < 0));
-  if (Result) then
-  begin
-    if ((NewJob.LogFilename <> Job.LogFilename) and FileExists(Job.LogFilename)) then
-      RenameFile(Job.LogFilename, NewJob.LogFilename);
-
-    Job.Assign(NewJob);
-
-    Result := Job.Save(True);
-
-    if (Result) then
-      Account.AccountEvent(ClassType);
-  end;
-end;
-
 { TPAccount.TDesktop **********************************************************}
 
 procedure TPAccount.TDesktop.Assign(const Source: TDesktop);
@@ -3607,7 +2699,6 @@ begin
   ExplorerVisible := Source.ExplorerVisible;
   FilesFilter := Source.FilesFilter;
   FoldersHeight := Source.FoldersHeight;
-  JobsVisible := Source.JobsVisible;
   LogHeight := Source.LogHeight;
   LogVisible := Source.LogVisible;
   NavigatorVisible := Source.NavigatorVisible;
@@ -3636,7 +2727,6 @@ begin
   ExplorerVisible := False;
   FilesFilter := '*.sql';
   FoldersHeight := Round(100 * Screen.PixelsPerInch / USER_DEFAULT_SCREEN_DPI);
-  JobsVisible := False;
   NavigatorVisible := True;
   LogHeight := Round(80 * Screen.PixelsPerInch / USER_DEFAULT_SCREEN_DPI);
   LogVisible := False;
@@ -3714,8 +2804,7 @@ begin
   begin
     NavigatorVisible := UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'NAVIGATOR';
     ExplorerVisible := not NavigatorVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'EXPLORER');
-    JobsVisible := not NavigatorVisible and not ExplorerVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'JOBS');
-    SQLHistoryVisible := not NavigatorVisible and not ExplorerVisible and not JobsVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'SQL HISTORY');
+    SQLHistoryVisible := not NavigatorVisible and not ExplorerVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'SQL HISTORY');
   end;
 
   if Assigned(XMLNode(XML, 'editor/files')) then Files.LoadFromXML(XMLNode(XML, 'editor/files'));
@@ -3773,8 +2862,6 @@ begin
     XMLNode(XML, 'sidebar/visible').Text := 'Navigator'
   else if (ExplorerVisible) then
     XMLNode(XML, 'sidebar/visible').Text := 'Explorer'
-  else if (JobsVisible) then
-    XMLNode(XML, 'sidebar/visible').Text := 'Jobs'
   else if (SQLHistoryVisible) then
     XMLNode(XML, 'sidebar/visible').Text := 'SQL History'
   else
@@ -3892,7 +2979,6 @@ begin
   Modified := False;
 
   Connection := TConnection.Create();
-  FJobs := nil;
 
   FDesktop := TDesktop.Create(Self);
 
@@ -3947,7 +3033,6 @@ end;
 destructor TPAccount.Destroy();
 begin
   if (Assigned(FDesktop)) then FDesktop.Free();
-  if (Assigned(FJobs)) then FJobs.Free();
   Connection.Free();
 
   inherited;
@@ -4109,34 +3194,12 @@ begin
   Result := Accounts.IndexOf(Self);
 end;
 
-function TPAccount.GetJobs(): TPAccount.TJobs;
-begin
-  if (not Assigned(FJobs) and CheckWin32Version(6)) then
-  begin
-    FJobs := TPAccount.TJobs.Create(Self);
-    FJobs.Load();
-  end;
-
-  Result := FJobs;
-end;
-
 function TPAccount.GetName(): string;
 begin
   if ((FName = '') and Assigned(XML)) then
     FName := XML.Attributes['name'];
 
   Result := FName;
-end;
-
-function TPAccount.JobByName(const Name: string): TPAccount.TJob;
-var
-  Index: Integer;
-begin
-  Index := Jobs.IndexByName(Name);
-  if (Index < 0) then
-    Result := nil
-  else
-    Result := Jobs[Index];
 end;
 
 procedure TPAccount.Load();
@@ -4329,8 +3392,6 @@ function TPAccounts.DeleteAccount(const AAccount: TPAccount): Boolean;
 var
   I: Integer;
   Index: Integer;
-  TaskFolder: ITaskFolder;
-  Tasks: IRegisteredTaskCollection;
 begin
   if (FileExists(AAccount.DesktopFilename)) then
     DeleteFile(PChar(AAccount.DesktopFilename));
@@ -4338,16 +3399,6 @@ begin
     DeleteFile(PChar(AAccount.HistoryFilename));
   if (DirectoryExists(AAccount.DataPath)) then
     RemoveDirectory(PChar(AAccount.DataPath));
-
-  if (Assigned(Preferences.TaskService)
-    and Succeeded(Preferences.TaskService.GetFolder(TBStr('\' + SysUtils.LoadStr(1006) + '\Accounts\' + AAccount.Name), TaskFolder))
-    and Succeeded(TaskFolder.GetTasks(0, Tasks))) then
-  begin
-    for I := 0 to Tasks.Count - 1 do
-      TaskFolder.DeleteTask(TBStr(Tasks.Item[1 + I].Name), 0);
-    if (Succeeded(Preferences.TaskService.GetFolder(TBStr('\' + SysUtils.LoadStr(1006) + '\Accounts'), TaskFolder))) then
-      TaskFolder.DeleteFolder(TBStr(AAccount.Name), 0);
-  end;
 
   for I := XMLDocument.DocumentElement.ChildNodes.Count - 1 downto 0 do
     if ((XMLDocument.DocumentElement.ChildNodes[I].NodeName = 'account') and (lstrcmpi(PChar(string(XMLDocument.DocumentElement.ChildNodes[I].Attributes['name'])), PChar(AAccount.Name)) = 0)) then
@@ -4565,36 +3616,12 @@ begin
 end;
 
 procedure TPAccounts.UpdateAccount(const Account, NewAccount: TPAccount);
-var
-  I: Integer;
-  NewJob: TPAccount.TJob;
-  TaskFolder: ITaskFolder;
 begin
   if (Assigned(Account) and Assigned(NewAccount) and (not Assigned(AccountByName(NewAccount.Name)) or (NewAccount.Name = Account.Name))) then
   begin
     if (NewAccount.Name <> Account.Name) then
-    begin
       if (DirectoryExists(Account.DataPath)) then
         RenameFile(Account.DataPath, NewAccount.DataPath);
-
-      if (Assigned(Account.Jobs)) then
-        for I := Account.Jobs.Count - 1 downto 0 do
-        begin
-          if (Account.Jobs[I] is TPAccount.TJobExport) then
-            NewJob := TPAccount.TJobExport.Create(NewAccount.Jobs, Account.Jobs[I].Name)
-          else if (Account.Jobs[I] is TPAccount.TJobImport) then
-            NewJob := TPAccount.TJobImport.Create(NewAccount.Jobs, Account.Jobs[I].Name)
-          else
-            NewJob := nil;
-          NewJob.Assign(Account.Jobs[I]);
-          NewAccount.Jobs.AddJob(NewJob);
-          NewJob.Free();
-          Account.Jobs.DeleteJob(Account.Jobs[I]);
-        end;
-      if (Assigned(Preferences.TaskService)
-        and Succeeded(Preferences.TaskService.GetFolder(TBStr('\' + SysUtils.LoadStr(1006) + '\Accounts'), TaskFolder))) then
-        TaskFolder.DeleteFolder(TBStr(Account.Name), 0);
-    end;
 
     Account.Assign(NewAccount);
 

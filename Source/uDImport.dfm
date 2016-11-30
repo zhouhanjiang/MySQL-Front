@@ -65,168 +65,11 @@ object DImport: TDImport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSExecute
+    ActivePage = TSCSVOptions
     Anchors = [akLeft, akTop, akRight, akBottom]
     Style = tsButtons
     TabOrder = 0
     TabStop = False
-    object TSJob: TTabSheet
-      Caption = 'TSJob'
-      TabVisible = False
-      OnShow = TSJobShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
-      DesignSize = (
-        333
-        271)
-      object GBasics: TGroupBox_Ext
-        Left = 4
-        Top = 0
-        Width = 325
-        Height = 185
-        Anchors = [akLeft, akTop, akRight]
-        Caption = 'GBasics'
-        TabOrder = 0
-        TabStop = True
-        DesignSize = (
-          325
-          185)
-        object FLName: TLabel
-          Left = 8
-          Top = 17
-          Width = 40
-          Height = 13
-          Caption = 'FLName'
-          FocusControl = FName
-        end
-        object FLImportType: TLabel
-          Left = 8
-          Top = 48
-          Width = 65
-          Height = 13
-          Caption = 'FLImportType'
-        end
-        object FLFilename: TLabel
-          Left = 8
-          Top = 153
-          Width = 54
-          Height = 13
-          Caption = 'FLFilename'
-          FocusControl = FFilename
-        end
-        object FLDataSource: TLabel
-          Left = 8
-          Top = 153
-          Width = 69
-          Height = 13
-          Caption = 'FLDataSource'
-          FocusControl = FDataSource
-        end
-        object FDataSource: TEdit
-          Left = 128
-          Top = 152
-          Width = 166
-          Height = 21
-          Anchors = [akLeft, akTop, akRight]
-          ReadOnly = True
-          TabOrder = 6
-          Text = 'FFilename'
-          OnChange = FDataSourceChange
-        end
-        object FFilename: TEdit
-          Left = 128
-          Top = 152
-          Width = 166
-          Height = 21
-          Anchors = [akLeft, akTop, akRight]
-          TabOrder = 9
-          Text = 'FFilename'
-          OnChange = FFilenameChange
-        end
-        object FName: TEdit
-          Left = 128
-          Top = 16
-          Width = 187
-          Height = 21
-          Anchors = [akLeft, akTop, akRight]
-          TabOrder = 0
-          Text = 'FName'
-          OnChange = FJobOptionChange
-        end
-        object FSQLFile: TRadioButton
-          Left = 128
-          Top = 47
-          Width = 185
-          Height = 17
-          Caption = 'FSQLFile'
-          TabOrder = 1
-          TabStop = True
-          OnClick = StmtTypeChange
-        end
-        object FTextFile: TRadioButton
-          Left = 128
-          Top = 67
-          Width = 185
-          Height = 17
-          Caption = 'FTextFile'
-          TabOrder = 2
-          TabStop = True
-          OnClick = StmtTypeChange
-        end
-        object FExcelFile: TRadioButton
-          Left = 128
-          Top = 87
-          Width = 185
-          Height = 17
-          Caption = 'FExcelFile'
-          TabOrder = 3
-          TabStop = True
-          OnClick = StmtTypeChange
-        end
-        object FAccessFile: TRadioButton
-          Left = 128
-          Top = 107
-          Width = 185
-          Height = 17
-          Caption = 'FAccessFile'
-          TabOrder = 4
-          TabStop = True
-          OnClick = StmtTypeChange
-        end
-        object FODBC: TRadioButton
-          Left = 128
-          Top = 127
-          Width = 185
-          Height = 17
-          Caption = 'FODBC'
-          TabOrder = 5
-          TabStop = True
-          OnClick = StmtTypeChange
-        end
-        object FBFilename: TButton
-          Left = 294
-          Top = 152
-          Width = 21
-          Height = 21
-          Anchors = [akTop, akRight]
-          Caption = #183#183#183
-          TabOrder = 8
-          OnClick = FBFilenameClick
-        end
-        object FBDataSource: TButton
-          Left = 294
-          Top = 152
-          Width = 21
-          Height = 21
-          Anchors = [akTop, akRight]
-          Caption = #183#183#183
-          TabOrder = 7
-          OnClick = FBDataSourceClick
-        end
-      end
-    end
     object TSTables: TTabSheet
       Caption = 'TSTables'
       TabVisible = False
@@ -280,62 +123,6 @@ object DImport: TDImport
             OnChange = FTablesChange
             OnDblClick = FTablesDblClick
             OnSelectItem = FTablesSelectItem
-          end
-        end
-      end
-    end
-    object TSSelect: TTabSheet
-      Caption = 'TSSelect'
-      ImageIndex = 9
-      TabVisible = False
-      OnHide = TSSelectHide
-      OnShow = TSSelectShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
-      DesignSize = (
-        333
-        271)
-      object GSelect: TGroupBox_Ext
-        Left = 4
-        Top = 0
-        Width = 325
-        Height = 265
-        Anchors = [akLeft, akTop, akRight, akBottom]
-        Caption = 'GSelect'
-        TabOrder = 0
-        DesignSize = (
-          325
-          265)
-        object PSelect: TPanel_Ext
-          Left = 8
-          Top = 16
-          Width = 310
-          Height = 241
-          Anchors = [akLeft, akTop, akRight, akBottom]
-          BevelInner = bvRaised
-          BevelOuter = bvLowered
-          ParentBackground = False
-          TabOrder = 0
-          object FSelect: TTreeView_Ext
-            Left = 2
-            Top = 2
-            Width = 306
-            Height = 237
-            Align = alClient
-            BorderStyle = bsNone
-            HideSelection = False
-            Indent = 19
-            MultiSelect = True
-            MultiSelectStyle = [msControlSelect, msShiftSelect, msSiblingOnly]
-            ReadOnly = True
-            ShowLines = False
-            ShowRoot = False
-            TabOrder = 0
-            OnChange = FSelectChange
-            OnExpanding = FSelectExpanding
-            OnGetImageIndex = FSelectGetImageIndex
           end
         end
       end
@@ -751,7 +538,6 @@ object DImport: TDImport
     object TSStmtType: TTabSheet
       Caption = 'TSStmtType'
       TabVisible = False
-      OnShow = TSStmtTypeShow
       ExplicitLeft = 0
       ExplicitTop = 0
       ExplicitWidth = 0
@@ -795,8 +581,6 @@ object DImport: TDImport
           Checked = True
           TabOrder = 0
           TabStop = True
-          OnClick = FStmtTypeClick
-          OnKeyPress = FStmtTypeKeyPress
         end
         object FReplace: TRadioButton
           Left = 128
@@ -806,8 +590,6 @@ object DImport: TDImport
           Anchors = [akLeft, akTop, akRight]
           Caption = 'FReplace'
           TabOrder = 1
-          OnClick = FStmtTypeClick
-          OnKeyPress = FStmtTypeKeyPress
         end
         object FUpdate: TRadioButton
           Left = 128
@@ -817,8 +599,6 @@ object DImport: TDImport
           Anchors = [akLeft, akTop, akRight]
           Caption = 'FUpdate'
           TabOrder = 2
-          OnClick = FStmtTypeClick
-          OnKeyPress = FStmtTypeKeyPress
         end
         object FInsertOrUpdate: TRadioButton
           Left = 128
@@ -828,119 +608,6 @@ object DImport: TDImport
           Anchors = [akLeft, akTop, akRight]
           Caption = 'FInsertOrUpdate'
           TabOrder = 3
-          OnClick = FStmtTypeClick
-          OnKeyPress = FStmtTypeKeyPress
-        end
-      end
-    end
-    object TSTask: TTabSheet
-      Caption = 'TSTask'
-      TabVisible = False
-      OnShow = TSTaskShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
-      DesignSize = (
-        333
-        271)
-      object GTask: TGroupBox_Ext
-        Left = 4
-        Top = 0
-        Width = 325
-        Height = 173
-        Anchors = [akLeft, akTop, akRight]
-        Caption = 'GTask'
-        TabOrder = 0
-        DesignSize = (
-          325
-          173)
-        object FLEnabled: TLabel
-          Left = 8
-          Top = 143
-          Width = 51
-          Height = 13
-          Caption = 'FLEnabled'
-          FocusControl = FEnabled
-        end
-        object FLExecution: TLabel
-          Left = 7
-          Top = 55
-          Width = 59
-          Height = 13
-          Caption = 'FLExecution'
-        end
-        object FLStart: TLabel
-          Left = 7
-          Top = 23
-          Width = 34
-          Height = 13
-          Caption = 'FLStart'
-          FocusControl = FStartDate
-        end
-        object FEnabled: TCheckBox
-          Left = 128
-          Top = 142
-          Width = 193
-          Height = 17
-          Anchors = [akLeft, akTop, akRight]
-          Caption = 'FEnabled'
-          TabOrder = 6
-        end
-        object FSingle: TRadioButton
-          Left = 128
-          Top = 54
-          Width = 193
-          Height = 17
-          Anchors = [akLeft, akTop, akRight]
-          Caption = 'FSingle'
-          TabOrder = 2
-        end
-        object FStartDate: TDateTimePicker
-          Left = 128
-          Top = 19
-          Width = 81
-          Height = 21
-          Date = 2.500000000000000000
-          Time = 2.500000000000000000
-          TabOrder = 0
-        end
-        object FStartTime: TDateTimePicker
-          Left = 214
-          Top = 19
-          Width = 69
-          Height = 21
-          Date = 1.000000000000000000
-          Time = 1.000000000000000000
-          Kind = dtkTime
-          TabOrder = 1
-        end
-        object FDaily: TRadioButton
-          Left = 128
-          Top = 74
-          Width = 193
-          Height = 17
-          Anchors = [akLeft, akTop, akRight]
-          Caption = 'FDaily'
-          TabOrder = 3
-        end
-        object FWeekly: TRadioButton
-          Left = 128
-          Top = 94
-          Width = 193
-          Height = 17
-          Anchors = [akLeft, akTop, akRight]
-          Caption = 'FWeekly'
-          TabOrder = 4
-        end
-        object FMonthly: TRadioButton
-          Left = 128
-          Top = 114
-          Width = 193
-          Height = 17
-          Anchors = [akLeft, akTop, akRight]
-          Caption = 'FMonthly'
-          TabOrder = 5
         end
       end
     end

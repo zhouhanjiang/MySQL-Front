@@ -72,7 +72,6 @@ type
     FGridDataSource: TDataSource;
     FHexEditor: TMPHexEditorEx;
     FImage: TImage;
-    FJobs: TListView;
     FLimit: TEdit;
     FLimitEnabled: TToolButton;
     FLog: TRichEdit;
@@ -168,16 +167,8 @@ type
     miNPaste: TMenuItem;
     miNProperties: TMenuItem;
     miNRename: TMenuItem;
-    miSJobs: TMenuItem;
     miSNavigator: TMenuItem;
     miSSQLHistory: TMenuItem;
-    mjAdd: TMenuItem;
-    mjAddExport: TMenuItem;
-    mjAddImport: TMenuItem;
-    mjDelete: TMenuItem;
-    mjEdit: TMenuItem;
-    mjExecute: TMenuItem;
-    MJobs: TPopupMenu;
     mlDCreate: TMenuItem;
     mlDCreateDatabase: TMenuItem;
     mlDCreateEvent: TMenuItem;
@@ -274,7 +265,6 @@ type
     N07: TMenuItem;
     N08: TMenuItem;
     N09: TMenuItem;
-    N1: TMenuItem;
     N10: TMenuItem;
     N12: TMenuItem;
     N13: TMenuItem;
@@ -309,7 +299,6 @@ type
     PExplorer: TPanel_Ext;
     PFiles: TPanel_Ext;
     PFolders: TPanel_Ext;
-    PJobs: TPanel_Ext;
     PListView: TPanel_Ext;
     PLog: TPanel_Ext;
     PLogHeader: TPanel_Ext;
@@ -353,7 +342,6 @@ type
     tbExplorer: TToolButton;
     TBFilterEnabled: TToolBar;
     tbIDE: TToolButton;
-    tbJobs: TToolButton;
     TBLimitEnabled: TToolBar;
     tbNavigator: TToolButton;
     tbObjects: TToolButton;
@@ -386,10 +374,6 @@ type
     procedure aDPropertiesExecute(Sender: TObject);
     procedure aEClearAllExecute(Sender: TObject);
     procedure aEFormatSQLExecute(Sender: TObject);
-    procedure aEJobAddExportExecute(Sender: TObject);
-    procedure aEJobAddImportExecute(Sender: TObject);
-    procedure aEJobDeleteExecute(Sender: TObject);
-    procedure aEJobEditExecute(Sender: TObject);
     procedure aEPasteFromFileExecute(Sender: TObject);
     procedure aFExportAccessExecute(Sender: TObject);
     procedure aFExportBitmapExecute(Sender: TObject);
@@ -459,10 +443,6 @@ type
     procedure FHexEditorChange(Sender: TObject);
     procedure FHexEditorEnter(Sender: TObject);
     procedure FHexEditorKeyPress(Sender: TObject; var Key: Char);
-    procedure FJobsChange(Sender: TObject; Item: TListItem;
-      Change: TItemChange);
-    procedure FJobsEnter(Sender: TObject);
-    procedure FJobsExit(Sender: TObject);
     procedure FLimitChange(Sender: TObject);
     procedure FLimitEnabledClick(Sender: TObject);
     procedure FLogEnter(Sender: TObject);
@@ -574,8 +554,6 @@ type
     procedure miHPropertiesClick(Sender: TObject);
     procedure miHSaveAsClick(Sender: TObject);
     procedure miHStatementIntoSQLEditorClick(Sender: TObject);
-    procedure mjExecuteClick(Sender: TObject);
-    procedure MJobsPopup(Sender: TObject);
     procedure MListPopup(Sender: TObject);
     procedure mlOpenClick(Sender: TObject);
     procedure MNavigatorPopup(Sender: TObject);
@@ -601,8 +579,6 @@ type
     procedure PContentResize(Sender: TObject);
     procedure PGridResize(Sender: TObject);
     procedure PHeaderPaint(Sender: TObject);
-    procedure PJobsEnter(Sender: TObject);
-    procedure PJobsExit(Sender: TObject);
     procedure PLogResize(Sender: TObject);
     procedure PObjectIDEResize(Sender: TObject);
     procedure PToolBarBlobResize(Sender: TObject);
@@ -898,8 +874,8 @@ type
     procedure aERedoExecute(Sender: TObject);
     procedure aERenameExecute(Sender: TObject);
     procedure aESelectAllExecute(Sender: TObject);
-    procedure aFExportExecute(const Sender: TObject; const ExportType: TPAccount.TJobExport.TExportType);
-    procedure aFImportExecute(const Sender: TObject; const ImportType: TPAccount.TJobImport.TImportType);
+    procedure aFExportExecute(const Sender: TObject; const ExportType: TPAccount.TExportType);
+    procedure aFImportExecute(const Sender: TObject; const ImportType: TPAccount.TImportType);
     procedure aFOpenExecute(Sender: TObject);
     procedure aFSaveAsExecute(Sender: TObject);
     procedure aFSaveExecute(Sender: TObject);
@@ -945,7 +921,6 @@ type
     procedure FNavigatorInitialize(Sender: TObject);
     function FNavigatorNodeByAddress(const Address: string): TTreeNode;
     procedure FNavigatorUpdate(const Event: TSSession.TEvent);
-    procedure FormAccountEvent(const ClassType: TClass);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     function FQueryBuilderActiveSelectList(): TacQueryBuilderSelectListControl;
     function FQueryBuilderActiveWorkArea(): TacQueryBuilderWorkArea;
@@ -1251,6 +1226,11 @@ begin
     XML.AddChild('datetime').Text := FloatToStr(DataHandle.Connection.ServerDateTime, FileFormatSettings);
     if (not Data and (DataHandle.Connection.RowsAffected >= 0)) then
       XML.AddChild('rows_affected').Text := IntToStr(DataHandle.Connection.RowsAffected);
+
+    // Debug 2016-11-30
+    if (XML.AddChild('sql').IsTextElement) then
+      raise ERangeError.Create(SRangeError + ' XML: ' + XML.AddChild('sql').XML);
+
     try
       XML.AddChild('sql').Text := CommandText;
     except
@@ -3035,17 +3015,19 @@ begin
   begin
     if ((ActiveWorkbench.Selected is TWSection) and OpenClipboard(Handle)) then
     begin
-      EmptyClipboard();
+      try
+        EmptyClipboard();
 
-      S := TWSection(ActiveWorkbench.Selected).Caption;
-      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(S[1]) * (Length(S) + 1));
-      StrPCopy(GlobalLock(ClipboardData), S);
-      SetClipboardData(CF_UNICODETEXT, ClipboardData);
-      GlobalUnlock(ClipboardData);
+        S := TWSection(ActiveWorkbench.Selected).Caption;
+        ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(S[1]) * (Length(S) + 1));
+        StrPCopy(GlobalLock(ClipboardData), S);
+        SetClipboardData(CF_UNICODETEXT, ClipboardData);
+        GlobalUnlock(ClipboardData);
+      finally
+        CloseClipboard();
+      end;
 
-      CloseClipboard();
-
-      Exit;
+      exit;
     end
     else
     begin
@@ -3073,64 +3055,68 @@ begin
   begin
     if (Assigned(FSQLHistory.Selected) and OpenClipboard(Handle)) then
     begin
-      EmptyClipboard();
+      try
+        EmptyClipboard();
 
-      S := XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'sql').Text;
-      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(S[1]) * (Length(S) + 1));
-      StrPCopy(GlobalLock(ClipboardData), S);
-      SetClipboardData(CF_UNICODETEXT, ClipboardData);
-      GlobalUnlock(ClipboardData);
-
-      CloseClipboard();
+        S := XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'sql').Text;
+        ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(S[1]) * (Length(S) + 1));
+        StrPCopy(GlobalLock(ClipboardData), S);
+        SetClipboardData(CF_UNICODETEXT, ClipboardData);
+        GlobalUnlock(ClipboardData);
+      finally
+        CloseClipboard();
+      end;
     end;
-    Exit;
+    exit;
   end
   else if (Window.ActiveControl = FHexEditor) then
   begin
     FHexEditor.ExecuteAction(MainAction('aECopy'));
-    Exit;
+    exit;
   end
   else
   begin
     if (Assigned(Window.ActiveControl)) then
       SendMessage(Window.ActiveControl.Handle, WM_COPY, 0, 0);
-    Exit;
+    exit;
   end;
 
   if ((Data <> '') and OpenClipboard(Handle)) then
   begin
-    EmptyClipboard();
+    try
+      EmptyClipboard();
 
-    ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(Char) * (Length(Data) + 1));
-    StrPCopy(GlobalLock(ClipboardData), Data);
-    case (ImageIndex) of
-      iiServer: SetClipboardData(CF_MYSQLSERVER, ClipboardData);
-      iiDatabase,
-      iiSystemDatabase: SetClipboardData(CF_MYSQLDATABASE, ClipboardData);
-      iiTable,
-      iiBaseTable,
-      iiSystemView: SetClipboardData(CF_MYSQLTABLE, ClipboardData);
-      iiView: SetClipboardData(CF_MYSQLVIEW, ClipboardData);
-      iiUsers: SetClipboardData(CF_MYSQLUSERS, ClipboardData);
-    end;
-    GlobalUnlock(ClipboardData);
-
-    StringList := TStringList.Create();
-    StringList.Text := Trim(Data);
-    for I := 1 to StringList.Count - 1 do
-      if (StringList.ValueFromIndex[I] <> '') then
-      begin
-        if (S <> '') then S := S + ',';
-        S := S + StringList.ValueFromIndex[I];
+      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(Char) * (Length(Data) + 1));
+      StrPCopy(GlobalLock(ClipboardData), Data);
+      case (ImageIndex) of
+        iiServer: SetClipboardData(CF_MYSQLSERVER, ClipboardData);
+        iiDatabase,
+        iiSystemDatabase: SetClipboardData(CF_MYSQLDATABASE, ClipboardData);
+        iiTable,
+        iiBaseTable,
+        iiSystemView: SetClipboardData(CF_MYSQLTABLE, ClipboardData);
+        iiView: SetClipboardData(CF_MYSQLVIEW, ClipboardData);
+        iiUsers: SetClipboardData(CF_MYSQLUSERS, ClipboardData);
       end;
-    StringList.Free();
+      GlobalUnlock(ClipboardData);
 
-    ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(S[1]) * (Length(S) + 1));
-    StrPCopy(GlobalLock(ClipboardData), S);
-    SetClipboardData(CF_UNICODETEXT, ClipboardData);
-    GlobalUnlock(ClipboardData);
+      StringList := TStringList.Create();
+      StringList.Text := Trim(Data);
+      for I := 1 to StringList.Count - 1 do
+        if (StringList.ValueFromIndex[I] <> '') then
+        begin
+          if (S <> '') then S := S + ',';
+          S := S + StringList.ValueFromIndex[I];
+        end;
+      StringList.Free();
 
-    CloseClipboard();
+      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(S[1]) * (Length(S) + 1));
+      StrPCopy(GlobalLock(ClipboardData), S);
+      SetClipboardData(CF_UNICODETEXT, ClipboardData);
+      GlobalUnlock(ClipboardData);
+    finally
+      CloseClipboard();
+    end;
   end;
 end;
 
@@ -3194,28 +3180,29 @@ begin
       MessageBeep(MB_ICONERROR)
     else if ((Node.ImageIndex > 0) and OpenClipboard(Handle)) then
     begin
-      case (Node.ImageIndex) of
-        iiServer: ClipboardData := GetClipboardData(CF_MYSQLSERVER);
-        iiDatabase: ClipboardData := GetClipboardData(CF_MYSQLDATABASE);
-        iiBaseTable: ClipboardData := GetClipboardData(CF_MYSQLTABLE);
-        iiView: ClipboardData := GetClipboardData(CF_MYSQLVIEW);
-        iiUsers: ClipboardData := GetClipboardData(CF_MYSQLUSERS);
-        else ClipboardData := 0;
+      try
+        case (Node.ImageIndex) of
+          iiServer: ClipboardData := GetClipboardData(CF_MYSQLSERVER);
+          iiDatabase: ClipboardData := GetClipboardData(CF_MYSQLDATABASE);
+          iiBaseTable: ClipboardData := GetClipboardData(CF_MYSQLTABLE);
+          iiView: ClipboardData := GetClipboardData(CF_MYSQLVIEW);
+          iiUsers: ClipboardData := GetClipboardData(CF_MYSQLUSERS);
+          else ClipboardData := 0;
+        end;
+
+        if (ClipboardData <> 0) then
+        begin
+          SetString(S, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(S[1]));
+          GlobalUnlock(ClipboardData);
+        end;
+      finally
+        CloseClipboard();
       end;
 
       if (ClipboardData = 0) then
-      begin
-        CloseClipboard();
-        MessageBeep(MB_ICONERROR);
-      end
+        MessageBeep(MB_ICONERROR)
       else
-      begin
-        SetString(S, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(S[1]));
-        GlobalUnlock(ClipboardData);
-        CloseClipboard();
-
         PasteExecute(Node, S);
-      end;
     end;
   end
   else if (Window.ActiveControl = ActiveSynMemo) then
@@ -3415,16 +3402,14 @@ begin
   aFExportExecute(Sender, etExcelFile);
 end;
 
-procedure TFSession.aFExportExecute(const Sender: TObject; const ExportType: TPAccount.TJobExport.TExportType);
+procedure TFSession.aFExportExecute(const Sender: TObject; const ExportType: TPAccount.TExportType);
 var
   Database: TSDatabase;
   I: Integer;
 begin
   DExport.Session := Session;
   DExport.DBGrid := nil;
-  DExport.DialogType := edtNormal;
   DExport.ExportType := ExportType;
-  DExport.Job := nil;
   DExport.DBObjects.Clear();
   DExport.Window := Window;
 
@@ -3548,7 +3533,7 @@ begin
   aFImportExecute(Sender, itExcelFile);
 end;
 
-procedure TFSession.aFImportExecute(const Sender: TObject; const ImportType: TPAccount.TJobImport.TImportType);
+procedure TFSession.aFImportExecute(const Sender: TObject; const ImportType: TPAccount.TImportType);
 var
   SItem: TSItem;
 begin
@@ -3564,11 +3549,9 @@ begin
       DImport.SObject := TSObject(SItem)
     else
       DImport.SObject := nil;
-    DImport.DialogType := idtNormal;
     DImport.Filename := '';
     DImport.Window := Window;
     DImport.ImportType := ImportType;
-    DImport.Job := nil;
     DImport.Execute();
     Wanted.Update := Session.Update;
   end;
@@ -3584,11 +3567,9 @@ begin
     DImport.SObject := TSObject(FocusedSItem)
   else
     DImport.SObject := nil;
-  DImport.DialogType := idtNormal;
   DImport.Filename := '';
   DImport.CodePage := CP_ACP;
   DImport.ImportType := itODBC;
-  DImport.Job := nil;
   DImport.Execute();
   Wanted.Update := Session.Update;
 end;
@@ -3734,70 +3715,6 @@ begin
   end;
 
   Session.SQLParser.Clear();
-end;
-
-procedure TFSession.aEJobAddExportExecute(Sender: TObject);
-begin
-  DExport.Session := Session;
-  DExport.DBGrid := nil;
-  DExport.DialogType := edtCreateJob;
-  DExport.Job := nil;
-  DExport.DBObjects.Clear();
-  DExport.Window := Window;
-  if (DExport.Execute() and not MainAction('aVJobs').Checked) then
-  begin
-    MainAction('aVJobs').Checked := True;
-    aVSideBarExecute(MainAction('aVJobs'));
-  end;
-end;
-
-procedure TFSession.aEJobAddImportExecute(Sender: TObject);
-begin
-  DImport.Session := Session;
-  DImport.SObject := nil;
-  DImport.DialogType := idtCreateJob;
-  DImport.Filename := '';
-  DImport.Window := Window;
-  DImport.ImportType := itSQLFile;
-  DImport.Job := nil;
-  if (DImport.Execute() and not MainAction('aVJobs').Checked) then
-  begin
-    MainAction('aVJobs').Checked := True;
-    aVSideBarExecute(MainAction('aVJobs'));
-  end;
-end;
-
-procedure TFSession.aEJobDeleteExecute(Sender: TObject);
-begin
-  Session.Account.Jobs.DeleteJob(Session.Account.JobByName(FJobs.Selected.Caption));
-end;
-
-procedure TFSession.aEJobEditExecute(Sender: TObject);
-var
-  Job: TPAccount.TJob;
-begin
-  Job := Session.Account.JobByName(FJobs.Selected.Caption);
-
-  if (Job is TPAccount.TJobImport) then
-  begin
-    DImport.Session := Session;
-    DImport.SObject := nil;
-    DImport.DialogType := idtEditJob;
-    DImport.Filename := '';
-    DImport.Window := Window;
-    DImport.Job := TPAccount.TJobImport(Job);
-    DImport.Execute();
-  end
-  else if (Job is TPAccount.TJobExport) then
-  begin
-    DExport.Session := Session;
-    DExport.DBGrid := nil;
-    DExport.DialogType := edtEditJob;
-    DExport.Job := TPAccount.TJobExport(Job);
-    DExport.DBObjects.Clear();
-    DExport.Window := Window;
-    DExport.Execute();
-  end;
 end;
 
 procedure TFSession.aHRunClick(Sender: TObject);
@@ -4149,22 +4066,18 @@ begin
 
   MainAction('aVNavigator').Checked := (Sender = MainAction('aVNavigator')) and MainAction('aVNavigator').Checked;
   MainAction('aVExplorer').Checked := (Sender = MainAction('aVExplorer')) and MainAction('aVExplorer').Checked;
-  MainAction('aVJobs').Checked := (Sender = MainAction('aVJobs')) and MainAction('aVJobs').Checked;
   MainAction('aVSQLHistory').Checked := (Sender = MainAction('aVSQLHistory')) and MainAction('aVSQLHistory').Checked;
 
   PNavigator.Visible := MainAction('aVNavigator').Checked;
   PExplorer.Visible := MainAction('aVExplorer').Checked;
-  PJobs.Visible := MainAction('aVJobs').Checked;
   PSQLHistory.Visible := MainAction('aVSQLHistory').Checked;
 
   if (PExplorer.Visible and not Assigned(FFolders)) then
     CreateExplorer()
-  else if (PJobs.Visible and (FJobs.Items.Count = 0)) then
-    FormAccountEvent(Session.Account.Jobs.ClassType)
   else if (PSQLHistory.Visible) then
     FSQLHistoryRefresh(Sender);
 
-  SSideBar.Visible := PNavigator.Visible or PExplorer.Visible or PJobs.Visible or PSQLHistory.Visible;
+  SSideBar.Visible := PNavigator.Visible or PExplorer.Visible or PSQLHistory.Visible;
   if (not SSideBar.Visible) then
     PSideBar.Visible := False
   else
@@ -4185,8 +4098,6 @@ begin
       Window.ActiveControl := FNavigator
     else if (MainAction('aVExplorer').Checked) then
       Window.ActiveControl := FFolders
-    else if (MainAction('aVJobs').Checked) then
-      Window.ActiveControl := FJobs
     else if (MainAction('aVSQLHistory').Checked) then
       Window.ActiveControl := FSQLHistory;
   end;
@@ -4382,7 +4293,6 @@ begin
   TBSideBar.Images := Preferences.Images;
   ToolBar.Images := Preferences.Images;
   FNavigator.Images := Preferences.Images;
-  FJobs.SmallImages := Preferences.Images;
   FSQLHistory.Images := Preferences.Images;
   TBLimitEnabled.Images := Preferences.Images;
   TBQuickSearchEnabled.Images := Preferences.Images;
@@ -4396,7 +4306,6 @@ begin
 
   tbNavigator.Action := MainAction('aVNavigator');
   tbExplorer.Action := MainAction('aVExplorer');
-  tbJobs.Action := MainAction('aVJobs');
   tbSQLHistory.Action := MainAction('aVSQLHistory');
 
   tbObjects.Action := MainAction('aVObjectBrowser'); tbObjects.Caption := tbObjects.Caption;
@@ -4409,7 +4318,6 @@ begin
   tbEditor3.Action := MainAction('aVSQLEditor3'); tbEditor3.Caption := tbEditor3.Caption;
 
   miSNavigator.Action := MainAction('aVNavigator');
-  miSJobs.Action := MainAction('aVJobs');
   miSSQLHistory.Action := MainAction('aVSQLHistory');
 
   miNImportSQL.Action := MainAction('aFImportSQL');
@@ -4440,11 +4348,6 @@ begin
   miNCreateEvent.Action := MainAction('aDCreateEvent');
   miNCreateUser.Action := MainAction('aDCreateUser');
   miNEmpty.Action := MainAction('aDEmpty');
-
-  mjAddImport.Action := MainAction('aEJobAddImport');
-  mjAddExport.Action := MainAction('aEJobAddExport');
-  mjDelete.Action := MainAction('aEJobDelete');
-  mjEdit.Action := MainAction('aEJobEdit');
 
   miHCopy.Action := MainAction('aECopy');
 
@@ -4537,7 +4440,6 @@ begin
   begin
     PNavigator.BevelInner := bvRaised; PNavigator.BevelOuter := bvLowered;
     PExplorer.BevelInner := bvRaised; PExplorer.BevelOuter := bvLowered;
-    PJobs.BevelInner := bvRaised; PJobs.BevelOuter := bvLowered;
     PSQLHistory.BevelInner := bvRaised; PSQLHistory.BevelOuter := bvLowered;
     PFolders.BevelInner := bvRaised; PFolders.BevelOuter := bvLowered;
     PFiles.BevelInner := bvRaised; PFiles.BevelOuter := bvLowered;
@@ -4553,7 +4455,6 @@ begin
   begin
     PNavigator.BevelInner := bvNone; PNavigator.BevelOuter := bvNone;
     PExplorer.BevelInner := bvNone; PExplorer.BevelOuter := bvNone;
-    PJobs.BevelInner := bvNone; PJobs.BevelOuter := bvNone;
     PFolders.BevelInner := bvNone; PNavigator.BevelOuter := bvNone;
     PFiles.BevelInner := bvNone; PFiles.BevelOuter := bvNone;
     PSQLHistory.BevelInner := bvNone; PSQLHistory.BevelOuter := bvNone;
@@ -4617,8 +4518,6 @@ begin
 
   Session.CreateDesktop := CreateDesktop;
   Session.RegisterEventProc(FormSessionEvent);
-
-  Session.Account.RegisterTab(Self, FormAccountEvent);
 
   Wanted := TWanted.Create(Self);
 
@@ -5158,7 +5057,10 @@ begin
   if (not Assigned(PBlob)) then
     raise ERangeError.Create(SRangeError);
   if (not Assigned(SBlob)) then
-    raise ERangeError.Create(SRangeError);
+    if (not (csDestroying in ComponentState)) then
+      raise ERangeError.Create(SRangeError)
+    else
+      raise ERangeError.Create(SRangeError);
 
   PBlob.Visible := False;
   SBlob.Visible := PBlob.Visible;
@@ -5925,7 +5827,6 @@ begin
     end;
   Session.Account.Desktop.NavigatorVisible := PNavigator.Visible;
   Session.Account.Desktop.ExplorerVisible := PExplorer.Visible;
-  Session.Account.Desktop.JobsVisible := PJobs.Visible;
   Session.Account.Desktop.SQLHistoryVisible := PSQLHistory.Visible;
   Session.Account.Desktop.SidebarWitdth := PSideBar.Width;
   Session.Account.Desktop.LogVisible := PLog.Visible;
@@ -6237,28 +6138,6 @@ begin
   end;
   if (Assigned(Stream)) then
     Stream.Free();
-end;
-
-procedure TFSession.FJobsChange(Sender: TObject; Item: TListItem;
-  Change: TItemChange);
-begin
-  mjExecute.Enabled := Assigned(Item) and Item.Selected;
-  mjExecute.Default := True;
-  MainAction('aEJobAddImport').Enabled := CheckWin32Version(6) and (not Assigned(Item) or not Item.Selected);
-  MainAction('aEJobAddExport').Enabled := CheckWin32Version(6) and (not Assigned(Item) or not Item.Selected);
-  MainAction('aEJobDelete').Enabled := Assigned(Item) and Item.Selected;
-  MainAction('aEJobEdit').Enabled := Assigned(Item) and Item.Selected;
-end;
-
-procedure TFSession.FJobsEnter(Sender: TObject);
-begin
-  FJobsChange(Sender, FJobs.Selected, ctState);
-end;
-
-procedure TFSession.FJobsExit(Sender: TObject);
-begin
-  MainAction('aEJobAddImport').Enabled := CheckWin32Version(6);
-  MainAction('aEJobAddExport').Enabled := CheckWin32Version(6);
 end;
 
 procedure TFSession.FLimitChange(Sender: TObject);
@@ -7323,24 +7202,6 @@ begin
   end;
 end;
 
-procedure TFSession.FormAccountEvent(const ClassType: TClass);
-var
-  I: Integer;
-  NewListItem: TListItem;
-begin
-  if (ClassType = Session.Account.Jobs.ClassType) then
-  begin
-    FJobs.Items.Clear();
-    for I := 0 to Session.Account.Jobs.Count - 1 do
-    begin
-      NewListItem := FJobs.Items.Add();
-      NewListItem.Caption := Session.Account.Jobs[I].Name;
-      NewListItem.ImageIndex := iiJob;
-    end;
-    FJobsChange(FJobs, FJobs.Selected, ctState);
-  end;
-end;
-
 procedure TFSession.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if (not (csDestroying in ComponentState)) then
@@ -8369,19 +8230,21 @@ var
   FieldInfo: TFieldInfo;
   Len: Integer;
 begin
-  if (OpenClipboard(Handle) and GetFieldInfo(ActiveDBGrid.SelectedField.Origin, FieldInfo)) then
+  if (GetFieldInfo(ActiveDBGrid.SelectedField.Origin, FieldInfo) and OpenClipboard(Handle)) then
   begin
-    EmptyClipboard();
+    try
+      EmptyClipboard();
 
-    Content := Session.Connection.EscapeIdentifier(FieldInfo.OriginalFieldName);
+      Content := Session.Connection.EscapeIdentifier(FieldInfo.OriginalFieldName);
 
-    Len := Length(Content);
-    ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Len + 1) * SizeOf(Content[1]));
-    Move(PChar(Content)^, GlobalLock(ClipboardData)^, (Len + 1) * SizeOf(Content[1]));
-    SetClipboardData(CF_UNICODETEXT, ClipboardData);
-    GlobalUnlock(ClipboardData);
-
-    CloseClipboard();
+      Len := Length(Content);
+      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Len + 1) * SizeOf(Content[1]));
+      Move(PChar(Content)^, GlobalLock(ClipboardData)^, (Len + 1) * SizeOf(Content[1]));
+      SetClipboardData(CF_UNICODETEXT, ClipboardData);
+      GlobalUnlock(ClipboardData);
+    finally
+      CloseClipboard();
+    end;
   end;
 end;
 
@@ -10510,42 +10373,6 @@ begin
   end;
 end;
 
-procedure TFSession.mjExecuteClick(Sender: TObject);
-var
-  Job: TPAccount.TJob;
-begin
-  Job := Session.Account.JobByName(FJobs.Selected.Caption);
-
-  if (Job is TPAccount.TJobImport) then
-  begin
-    DImport.Session := Session;
-    DImport.SObject := nil;
-    DImport.DialogType := idtExecuteJob;
-    DImport.Filename := '';
-    DImport.Window := Window;
-    DImport.ImportType := itUnknown;
-    DImport.Job := TPAccount.TJobImport(Job);
-    DImport.Execute();
-  end
-  else
-  begin
-    DExport.Session := Session;
-    DExport.DBGrid := nil;
-    DExport.DialogType := edtExecuteJob;
-    DExport.Job := TPAccount.TJobExport(Job);
-    DExport.DBObjects.Clear();
-    DExport.Window := Window;
-    DExport.ExportType := etUnknown;
-    DExport.Execute();
-  end;
-end;
-
-procedure TFSession.MJobsPopup(Sender: TObject);
-begin
-  FJobsChange(Sender, FJobs.Selected, ctState);
-  ShowEnabledItems(MJobs.Items);
-end;
-
 procedure TFSession.MListPopup(Sender: TObject);
 var
   I: Integer;
@@ -11009,11 +10836,9 @@ begin
     begin
       DImport.Session := Session;
       DImport.SObject := Session.DatabaseByName(SelectedDatabase);
-      DImport.DialogType := idtNormal;
       DImport.FileName := OpenDialog.FileName;
       DImport.CodePage := EncodingToCodePage(OpenDialog.Encodings[OpenDialog.EncodingIndex]);
       DImport.ImportType := itSQLFile;
-      DImport.Job := nil;
       DImport.Execute();
       Wanted.Update := Session.Update;
     end
@@ -11817,22 +11642,6 @@ begin
     PHeader.Canvas.MoveTo(0, PHeader.ClientHeight - 1);
     PHeader.Canvas.LineTo(PHeader.ClientWidth, PHeader.ClientHeight - 1);
   end;
-end;
-
-procedure TFSession.PJobsEnter(Sender: TObject);
-begin
-  MainAction('aEJobDelete').ShortCut := VK_DELETE;
-  MainAction('aEJobEdit').ShortCut := ShortCut(VK_RETURN, [ssAlt]);
-
-  FJobsChange(Sender, nil, ctState);
-end;
-
-procedure TFSession.PJobsExit(Sender: TObject);
-begin
-  MainAction('aEJobDelete').ShortCut := 0;
-  MainAction('aEJobEdit').ShortCut := 0;
-
-  FJobsChange(Sender, nil, ctState);
 end;
 
 procedure TFSession.PLogResize(Sender: TObject);
@@ -13548,9 +13357,6 @@ begin
   miNCreate.Caption := Preferences.LoadStr(26);
   miNDelete.Caption := Preferences.LoadStr(28);
 
-  mjExecute.Caption := Preferences.LoadStr(174);
-  mjAdd.Caption := Preferences.LoadStr(26);
-
   miHOpen.Caption := Preferences.LoadStr(581);
   miHSaveAs.Caption := MainAction('aFSaveAs').Caption;
   miHStatementIntoSQLEditor.Caption := Preferences.LoadStr(198) + ' -> ' + Preferences.LoadStr(20);
@@ -13768,7 +13574,6 @@ begin
   begin
     MainAction('aVNavigator').Checked := PNavigator.Visible;
     MainAction('aVExplorer').Checked := PExplorer.Visible;
-    MainAction('aVJobs').Checked := PJobs.Visible;
     MainAction('aVSQLHistory').Checked := PSQLHistory.Visible;
     MainAction('aVSQLLog').Checked := PLog.Visible;
 
@@ -13803,7 +13608,6 @@ begin
     MainAction('aVDiagram').OnExecute := aViewExecute;
     MainAction('aVNavigator').OnExecute := aVSideBarExecute;
     MainAction('aVExplorer').OnExecute := aVSideBarExecute;
-    MainAction('aVJobs').OnExecute := aVSideBarExecute;
     MainAction('aVSQLHistory').OnExecute := aVSideBarExecute;
     MainAction('aVSQLLog').OnExecute := aVSQLLogExecute;
     MainAction('aVRefresh').OnExecute := aVRefreshExecute;
@@ -13849,10 +13653,6 @@ begin
     MainAction('aDRun').OnExecute := aDRunExecute;
     MainAction('aDRunSelection').OnExecute := aDRunSelectionExecute;
     MainAction('aDPostObject').OnExecute := aDPostObjectExecute;
-    MainAction('aEJobAddImport').OnExecute := aEJobAddImportExecute;
-    MainAction('aEJobAddExport').OnExecute := aEJobAddExportExecute;
-    MainAction('aEJobDelete').OnExecute := aEJobDeleteExecute;
-    MainAction('aEJobEdit').OnExecute := aEJobEditExecute;
     MainAction('aEFormatSQL').OnExecute := aEFormatSQLExecute;
     MainAction('aHSQL').OnExecute := aHSQLExecute;
     MainAction('aHManual').OnExecute := aHManualExecute;
@@ -13868,14 +13668,11 @@ begin
     MainAction('aVDiagram').Enabled := (LastSelectedDatabase <> '');
     MainAction('aVNavigator').Enabled := True;
     MainAction('aVExplorer').Enabled := True;
-    MainAction('aVJobs').Enabled := True;
     MainAction('aVSQLHistory').Enabled := True;
     MainAction('aVSQLLog').Enabled := True;
     MainAction('aVRefresh').Enabled := True;
     MainAction('aVRefreshAll').Enabled := True;
     MainAction('aDCancel').Enabled := Session.Connection.InUse();
-    MainAction('aEJobAddImport').Enabled := CheckWin32Version(6);
-    MainAction('aEJobAddExport').Enabled := CheckWin32Version(6);
     MainAction('aHSQL').Enabled := Session.Connection.MySQLVersion >= 40100;
     MainAction('aHManual').Enabled := Session.Account.ManualURL <> '';
 
@@ -13889,8 +13686,7 @@ begin
       else if (Window.ActiveControl = ActiveListView) then ListViewEnter(ActiveListView)
       else if (Window.ActiveControl = FLog) then FLogEnter(FLog)
       else if (Window.ActiveControl is TSynMemo) then SynMemoEnter(Window.ActiveControl)
-      else if (Window.ActiveControl = ActiveDBGrid) then DBGridEnter(ActiveDBGrid)
-      else if (Window.ActiveControl = FJobs) then FJobsEnter(FJobs);
+      else if (Window.ActiveControl = ActiveDBGrid) then DBGridEnter(ActiveDBGrid);
 
     if (Assigned(FNavigatorNodeAfterActivate)) then
       FNavigatorChange2(FNavigator, FNavigatorNodeAfterActivate);
@@ -13920,7 +13716,6 @@ begin
   MainAction('aVDiagram').Enabled := False;
   MainAction('aVNavigator').Enabled := False;
   MainAction('aVExplorer').Enabled := False;
-  MainAction('aVJobs').Enabled := False;
   MainAction('aVSQLHistory').Enabled := False;
   MainAction('aVSQLLog').Enabled := False;
   MainAction('aVRefresh').Enabled := False;
@@ -13928,10 +13723,6 @@ begin
   MainAction('aDCancel').Enabled := False;
   MainAction('aHSQL').Enabled := False;
   MainAction('aHManual').Enabled := False;
-  MainAction('aEJobAddImport').Enabled := False;
-  MainAction('aEJobAddExport').Enabled := False;
-  MainAction('aEJobDelete').Enabled := False;
-  MainAction('aEJobEdit').Enabled := False;
 
   MainAction('aECopy').OnExecute := nil;
   MainAction('aEPaste').OnExecute := nil;
@@ -13959,14 +13750,11 @@ var
 begin
   PNavigator.Visible := Session.Account.Desktop.NavigatorVisible;
   PExplorer.Visible := Session.Account.Desktop.ExplorerVisible;
-  PJobs.Visible := Session.Account.Desktop.JobsVisible;
   PSQLHistory.Visible := Session.Account.Desktop.SQLHistoryVisible;
-  PSideBar.Visible := PNavigator.Visible or PExplorer.Visible or PJobs.Visible or PSQLHistory.Visible; SSideBar.Visible := PSideBar.Visible;
+  PSideBar.Visible := PNavigator.Visible or PExplorer.Visible or PSQLHistory.Visible; SSideBar.Visible := PSideBar.Visible;
 
   if (PExplorer.Visible) then
     CreateExplorer()
-  else if (PJobs.Visible and (FJobs.Items.Count = 0)) then
-    FormAccountEvent(Session.Account.Jobs.ClassType)
   else if (PSQLHistory.Visible) then
     FSQLHistoryRefresh(nil);
 
@@ -14255,14 +14043,19 @@ var
   TableName: string;
   Values: TStringList;
 begin
-  if (not Clipboard.HasFormat(CF_MYSQLTABLE) or not OpenClipboard(Handle)) then
+  if (not Clipboard.HasFormat(CF_MYSQLTABLE)) then
+    aEPasteEnabled := False
+  else if (not OpenClipboard(Handle)) then
     aEPasteEnabled := False
   else
   begin
-    ClipboardData := GetClipboardData(CF_MYSQLTABLE);
-    SetString(S, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(S[1]));
-    GlobalUnlock(ClipboardData);
-    CloseClipboard();
+    try
+      ClipboardData := GetClipboardData(CF_MYSQLTABLE);
+      SetString(S, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(S[1]));
+      GlobalUnlock(ClipboardData);
+    finally
+      CloseClipboard();
+    end;
 
     Values := TStringList.Create();
     Values.Text := ReplaceStr(Trim(S), ',', #13#10);
@@ -14430,14 +14223,19 @@ var
 begin
   Wanted.Clear();
 
-  if (not Clipboard.HasFormat(CF_MYSQLTABLE) or not OpenClipboard(Handle)) then
+  if (not Clipboard.HasFormat(CF_MYSQLTABLE)) then
+    MessageBeep(MB_ICONERROR)
+  else if (not OpenClipboard(Handle)) then
     MessageBeep(MB_ICONERROR)
   else
   begin
-    ClipboardData := GetClipboardData(CF_MYSQLTABLE);
-    SetString(S, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(S[1]));
-    GlobalUnlock(ClipboardData);
-    CloseClipboard();
+    try
+      ClipboardData := GetClipboardData(CF_MYSQLTABLE);
+      SetString(S, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(S[1]));
+      GlobalUnlock(ClipboardData);
+    finally
+      CloseClipboard();
+    end;
 
     Values := TStringList.Create();
     Values.Text := ReplaceStr(Trim(S), ',', #13#10);

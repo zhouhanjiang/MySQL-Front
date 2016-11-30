@@ -309,66 +309,69 @@ begin
     InplaceEditor.CopyToClipboard()
   else if (OpenClipboard(Handle)) then
   begin
-    EmptyClipboard();
+    try
+      EmptyClipboard();
 
-    if (not Assigned(SelectedField) or (SelectedRows.Count = 0)) then
-    begin
-      Content := SelectedField.AsString;
-
-      Len := Length(Content);
-      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Len + 1) * SizeOf(Content[1]));
-      Move(PChar(Content)^, GlobalLock(ClipboardData)^, (Len + 1) * SizeOf(Content[1]));
-      SetClipboardData(CF_UNICODETEXT, ClipboardData);
-      GlobalUnlock(ClipboardData);
-    end
-    else if (DataLink.DataSet is TMySQLDataSet) then
-    begin
-      Content := SelText;
-
-      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Length(Content) + 1) * SizeOf(Char));
-      Move(PChar(Content)^, GlobalLock(ClipboardData)^, (Length(Content) + 1) * SizeOf(Char));
-      SetClipboardData(CF_UNICODETEXT, ClipboardData);
-      GlobalUnlock(ClipboardData);
-
-
-      DataLink.DataSet.DisableControls();
-      OldRecNo := DataLink.DataSet.RecNo;
-
-      Content := SelText;
-
-      Len := WideCharToAnsiChar(CP_ACP, PChar(Content), Length(Content), nil, 0);
-      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Len + 1));
-      WideCharToAnsiChar(CP_ACP, PChar(Content), Length(Content), GlobalLock(ClipboardData), Len);
-      PAnsiChar(GlobalLock(ClipboardData))[Len] := #0;
-      SetClipboardData(CF_DSPTEXT, ClipboardData);
-      GlobalUnlock(ClipboardData);
-
-
-      Content := '';
-      for I := 0 to SelectedRows.Count - 1 do
+      if (not Assigned(SelectedField) or (SelectedRows.Count = 0)) then
       begin
-        DataLink.DataSet.Bookmark := SelectedRows.Items[I];
-        FirstContent := True;
-        for J := 0 to Columns.Count - 1 do
-          if (Columns[J].Visible) then
-          begin
-            if (FirstContent) then FirstContent := False else Content := Content + #9;
-            Content := Content + CSVEscape(Columns[J].Field.AsString);
-          end;
-        Content := Content + #13#10;
+        Content := SelectedField.AsString;
+
+        Len := Length(Content);
+        ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Len + 1) * SizeOf(Content[1]));
+        Move(PChar(Content)^, GlobalLock(ClipboardData)^, (Len + 1) * SizeOf(Content[1]));
+        SetClipboardData(CF_UNICODETEXT, ClipboardData);
+        GlobalUnlock(ClipboardData);
+      end
+      else if (DataLink.DataSet is TMySQLDataSet) then
+      begin
+        Content := SelText;
+
+        ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Length(Content) + 1) * SizeOf(Char));
+        Move(PChar(Content)^, GlobalLock(ClipboardData)^, (Length(Content) + 1) * SizeOf(Char));
+        SetClipboardData(CF_UNICODETEXT, ClipboardData);
+        GlobalUnlock(ClipboardData);
+
+
+        DataLink.DataSet.DisableControls();
+        OldRecNo := DataLink.DataSet.RecNo;
+
+        Content := SelText;
+
+        Len := WideCharToAnsiChar(CP_ACP, PChar(Content), Length(Content), nil, 0);
+        ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Len + 1));
+        WideCharToAnsiChar(CP_ACP, PChar(Content), Length(Content), GlobalLock(ClipboardData), Len);
+        PAnsiChar(GlobalLock(ClipboardData))[Len] := #0;
+        SetClipboardData(CF_DSPTEXT, ClipboardData);
+        GlobalUnlock(ClipboardData);
+
+
+        Content := '';
+        for I := 0 to SelectedRows.Count - 1 do
+        begin
+          DataLink.DataSet.Bookmark := SelectedRows.Items[I];
+          FirstContent := True;
+          for J := 0 to Columns.Count - 1 do
+            if (Columns[J].Visible) then
+            begin
+              if (FirstContent) then FirstContent := False else Content := Content + #9;
+              Content := Content + CSVEscape(Columns[J].Field.AsString);
+            end;
+          Content := Content + #13#10;
+        end;
+        Len := Length(Content);
+
+        ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, Len * SizeOf(Char));
+        SetClipboardData(CF_MYSQLRECORD, ClipboardData);
+        Move(PChar(Content)^, GlobalLock(ClipboardData)^, Len * SizeOf(Char));
+        GlobalUnlock(ClipboardData);
+
+        DataLink.DataSet.RecNo := OldRecNo;
+        DataLink.DataSet.EnableControls();
       end;
-      Len := Length(Content);
 
-      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, Len * SizeOf(Char));
-      SetClipboardData(CF_MYSQLRECORD, ClipboardData);
-      Move(PChar(Content)^, GlobalLock(ClipboardData)^, Len * SizeOf(Char));
-      GlobalUnlock(ClipboardData);
-
-      DataLink.DataSet.RecNo := OldRecNo;
-      DataLink.DataSet.EnableControls();
+    finally
+      CloseClipboard();
     end;
-
-    CloseClipboard();
   end;
 end;
 

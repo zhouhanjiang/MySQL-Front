@@ -606,14 +606,16 @@ begin
 
   if ((S <> '') and OpenClipboard(Handle)) then
   begin
-    EmptyClipboard();
+    try
+      EmptyClipboard();
 
-    ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(S[1]) * (Length(S) + 1));
-    StrPCopy(GlobalLock(ClipboardData), S);
-    SetClipboardData(CF_UNICODETEXT, ClipboardData);
-    GlobalUnlock(ClipboardData);
-
-    CloseClipboard();
+      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(S[1]) * (Length(S) + 1));
+      StrPCopy(GlobalLock(ClipboardData), S);
+      SetClipboardData(CF_UNICODETEXT, ClipboardData);
+      GlobalUnlock(ClipboardData);
+    finally
+      CloseClipboard();
+    end;
   end;
 end;
 

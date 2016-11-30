@@ -465,13 +465,6 @@ object WWindow: TWWindow
       Caption = 'aOImport'
       OnExecute = aOImportExecute
     end
-    object aEJobAddExport: TAction
-      Category = 'Extras'
-      Caption = 'aJAddExport'
-      Enabled = False
-      HelpContext = 1138
-      HelpType = htContext
-    end
     object aVObjectBrowser: TAction
       Category = 'View'
       Caption = 'aVObjectBrowser'
@@ -480,13 +473,6 @@ object WWindow: TWWindow
       HelpType = htContext
       ImageIndex = 1
       ShortCut = 117
-    end
-    object aEJobAddImport: TAction
-      Category = 'Extras'
-      Caption = 'aJAddImport'
-      Enabled = False
-      HelpContext = 1148
-      HelpType = htContext
     end
     object aVDataBrowser: TAction
       Category = 'View'
@@ -596,15 +582,6 @@ object WWindow: TWWindow
       HelpContext = 1108
       HelpType = htContext
       ImageIndex = 96
-    end
-    object aVJobs: TAction
-      Category = 'View'
-      AutoCheck = True
-      Caption = 'aVJobs'
-      Enabled = False
-      HelpType = htContext
-      ImageIndex = 102
-      Visible = False
     end
     object aVSQLHistory: TAction
       Category = 'View'
@@ -1238,26 +1215,6 @@ object WWindow: TWWindow
       HelpType = htContext
       ShortCut = 113
     end
-    object aEJobDelete: TAction
-      Category = 'Extras'
-      Caption = 'aJDelete'
-      Enabled = False
-      HelpContext = 1139
-      HelpType = htContext
-    end
-    object aEJobEdit: TAction
-      Category = 'Extras'
-      Caption = 'aJEdit'
-      Enabled = False
-      HelpContext = 1140
-      HelpType = htContext
-    end
-    object aEJobExecute: TAction
-      Category = 'Extras'
-      Caption = 'aEJobExecute'
-      Enabled = False
-      HelpType = htContext
-    end
     object aEFormatSQL: TAction
       Category = 'Extras'
       Caption = 'aEFormatSQL'
@@ -1470,10 +1427,6 @@ object WWindow: TWWindow
           Action = aVExplorer
           AutoCheck = True
         end
-        object miVJobs: TMenuItem
-          Action = aVJobs
-          AutoCheck = True
-        end
         object miVSQLHistory: TMenuItem
           Action = aVSQLHistory
           AutoCheck = True
@@ -1665,31 +1618,6 @@ object WWindow: TWWindow
         Action = aETransfer
       end
       object N4: TMenuItem
-        Caption = '-'
-      end
-      object miEJobs: TMenuItem
-        Caption = 'miJobs'
-        Visible = False
-        object miEJobAdd: TMenuItem
-          Caption = 'miJAdd'
-          object miEJobAddImport: TMenuItem
-            Action = aEJobAddImport
-          end
-          object miEJobAddExport: TMenuItem
-            Action = aEJobAddExport
-          end
-        end
-        object miEJobDelete: TMenuItem
-          Action = aEJobDelete
-        end
-        object miEJobEdit: TMenuItem
-          Action = aEJobEdit
-        end
-        object N3: TMenuItem
-          Caption = '-'
-        end
-      end
-      object N11: TMenuItem
         Caption = '-'
       end
       object miEFormatSQL: TMenuItem

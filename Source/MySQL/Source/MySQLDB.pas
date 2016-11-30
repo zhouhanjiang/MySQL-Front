@@ -222,11 +222,11 @@ type
     FAnsiQuotes: Boolean;
     FAsynchron: Boolean;
     FBeforeExecuteSQL: TNotifyEvent;
-    FBugMonitor: TMySQLMonitor;
     FCharset: string;
     FCharsetNr: Byte;
     FCodePage: Cardinal;
     FConnected: Boolean;
+    FDebugMonitor: TMySQLMonitor;
     FErrorCode: Integer;
     FErrorMessage: string;
     FErrorCommandText: string;
@@ -249,7 +249,7 @@ type
     FPort: Word;
     FServerTimeout: Word;
     FServerVersionStr: string;
-    FSQLMonitors: array of TMySQLMonitor;
+    FSQLMonitors: TList;
     FTerminateCS: TCriticalSection;
     FTerminatedThreads: TTerminatedThreads;
     FThreadDeep: Integer;
@@ -264,6 +264,7 @@ type
     function GetServerDateTime(): TDateTime;
     function GetHandle(): MySQLConsts.MYSQL;
     function GetInfo(): string;
+    procedure RunExecute(const SyncThread: TSyncThread);
     procedure SetDatabaseName(const ADatabaseName: string);
     procedure SetHost(const AHost: string);
     procedure SetLibraryName(const ALibraryName: string);
@@ -308,7 +309,7 @@ type
     function local_infile_error(const local_infile: Plocal_infile; const error_msg: my_char; const error_msg_len: my_uint): my_int; virtual;
     function local_infile_init(out local_infile: Plocal_infile; const filename: my_char): my_int; virtual;
     function local_infile_read(const local_infile: Plocal_infile; buf: my_char; const buf_len: my_uint): my_int; virtual;
-    procedure RegisterSQLMonitor(const AMySQLMonitor: TMySQLMonitor); virtual;
+    procedure RegisterSQLMonitor(const SQLMonitor: TMySQLMonitor); virtual;
     procedure SetAnsiQuotes(const AAnsiQuotes: Boolean); virtual;
     procedure SetCharset(const ACharset: string); virtual;
     procedure SetConnected(Value: Boolean); override;
@@ -328,7 +329,7 @@ type
     procedure SyncPing(const SyncThread: TSyncThread);
     procedure SyncReceivingResult(const SyncThread: TSyncThread);
     procedure SyncReleaseDataSet(const DataSet: TMySQLQuery);
-    procedure UnRegisterSQLMonitor(const AMySQLMonitor: TMySQLMonitor); virtual;
+    procedure ReleaseSQLMonitor(const SQLMonitor: TMySQLMonitor); virtual;
     procedure WriteMonitor(const AText: PChar; const Length: Integer; const ATraceType: TMySQLMonitor.TTraceType); virtual;
     property CharsetNr: Byte read FCharsetNr;
     property Handle: MySQLConsts.MYSQL read GetHandle;
@@ -357,9 +358,9 @@ type
     function SendSQL(const SQL: string; const OnResult: TResultEvent = nil; const Done: TEvent = nil): Boolean; overload; virtual;
     procedure Terminate(); virtual;
     property AnsiQuotes: Boolean read FAnsiQuotes write SetAnsiQuotes;
-    property BugMonitor: TMySQLMonitor read FBugMonitor;
     property CodePage: Cardinal read FCodePage;
     property DataFileAllowed: Boolean read GetDataFileAllowed;
+    property DebugMonitor: TMySQLMonitor read FDebugMonitor;
     property HostInfo: string read FHostInfo;
     property HTTPAgent: string read FHTTPAgent write FHTTPAgent;
     property ErrorCode: Integer read FErrorCode;
@@ -1696,7 +1697,7 @@ end;
 procedure TMySQLMonitor.SetConnection(const AConnection: TMySQLConnection);
 begin
   if (Assigned(Connection)) then
-    Connection.UnRegisterSQLMonitor(Self);
+    Connection.ReleaseSQLMonitor(Self);
 
   FConnection := AConnection;
 
@@ -1834,7 +1835,7 @@ begin
   FEnabled := False;
   FOnMonitor := nil;
   FCacheSize := 0;
-  FTraceTypes := [ttRequest, ttDebug];
+  FTraceTypes := [ttRequest];
 
   Cache.First := 0;
   Cache.Items := TList.Create();
@@ -1846,7 +1847,7 @@ end;
 destructor TMySQLMonitor.Destroy();
 begin
   if (Assigned(Connection)) then
-    Connection.UnRegisterSQLMonitor(Self);
+    Connection.ReleaseSQLMonitor(Self);
 
   FreeMem(Cache.Mem);
   Cache.Items.Free();
@@ -2030,16 +2031,22 @@ begin
 end;
 
 procedure TMySQLConnection.TSyncThread.Synchronize();
+var
+  S: string;
 begin
+  S := 'Synchronize, State: ' + IntToStr(Ord(State));
+  Connection.WriteMonitor(PChar(S), Length(S), ttDebug);
+
   if (not Terminated) then
     case (State) of
       ssConnecting:
         Connection.SyncConnected(Self);
+      ssClose,
       ssReady:
         begin
           Connection.SyncBeforeExecuteSQL(Self);
           Connection.SyncExecute(Self);
-          RunExecute.SetEvent();
+          Connection.RunExecute(Self);
         end;
       ssExecutingFirst,
       ssExecutingNext:
@@ -2050,7 +2057,7 @@ begin
             if (State in [ssExecutingNext, ssExecutingFirst]) then
             begin
               Connection.SyncExecute(Self);
-              RunExecute.SetEvent();
+              Connection.RunExecute(Self);
             end;
           end
           else if (Assigned(Done)) then
@@ -2065,7 +2072,7 @@ begin
             if (State in [ssExecutingNext, ssExecutingFirst]) then
             begin
               Connection.SyncExecute(Self);
-              RunExecute.SetEvent();
+              Connection.RunExecute(Self);
             end
             else if (State = ssReady) then
               Connection.SyncAfterExecuteSQL(Self);
@@ -2222,6 +2229,7 @@ begin
   FPassword := '';
   FPort := MYSQL_PORT;
   FServerTimeout := 0;
+  FSQLMonitors := TList.Create();
   FMySQLVersion := 0;
   FServerVersionStr := '';
   FTerminateCS := TCriticalSection.Create();
@@ -2234,11 +2242,11 @@ begin
   TimeDiff := 0;
   SilentCount := 0;
 
-  FBugMonitor := TMySQLMonitor.Create(nil);
-  FBugMonitor.Connection := Self;
-  FBugMonitor.CacheSize := 1000;
-  FBugMonitor.Enabled := True;
-  FBugMonitor.TraceTypes := [ttTime, ttRequest, ttInfo, ttDebug];
+  FDebugMonitor := TMySQLMonitor.Create(nil);
+  FDebugMonitor.Connection := Self;
+  FDebugMonitor.CacheSize := 2000;
+  FDebugMonitor.Enabled := True;
+  FDebugMonitor.TraceTypes := [ttTime, ttRequest, ttInfo, ttDebug];
 end;
 
 destructor TMySQLConnection.Destroy();
@@ -2270,7 +2278,8 @@ begin
 
   DataHandleEvent.Free();
   TerminateCS.Free();
-  FBugMonitor.Free();
+  FDebugMonitor.Free();
+  FSQLMonitors.Free();
 
   inherited;
 end;
@@ -2307,7 +2316,7 @@ begin
     SyncConnected(SyncThread);
   end
   else
-    SyncThread.RunExecute.SetEvent();
+    RunExecute(SyncThread);
 end;
 
 procedure TMySQLConnection.DoConvertError(const Sender: TObject; const Text: string; const Error: EConvertError);
@@ -2351,7 +2360,7 @@ begin
       SyncDisconnected(SyncThread);
     end
     else
-      SyncThread.RunExecute.SetEvent();
+      RunExecute(SyncThread);
   end;
 end;
 
@@ -2499,6 +2508,7 @@ function TMySQLConnection.InternExecuteSQL(const Mode: TSyncThread.TMode; const 
   const SQL: string; const OnResult: TResultEvent = nil; const Done: TEvent = nil): Boolean;
 var
   CLStmt: TSQLCLStmt;
+  S: string;
   SetNames: Boolean;
   SQLIndex: Integer;
   SQLLength: Integer;
@@ -2576,6 +2586,9 @@ begin
   end
   else if (Synchron or not UseSyncThread()) then
   begin
+    S := 'InternExecuteSQL start synchron';
+    WriteMonitor(PChar(S), Length(S), ttDebug);
+
     SyncBeforeExecuteSQL(SyncThread);
     repeat
       SyncExecute(SyncThread);
@@ -2589,9 +2602,15 @@ begin
       end;
     until (SyncThread.State <> ssExecutingFirst);
     Result := SyncThread.ErrorCode = 0;
+
+    S := 'InternExecuteSQL end asynchron';
+    WriteMonitor(PChar(S), Length(S), ttDebug);
   end
   else
   begin
+    S := 'InternExecuteSQL start asynchron';
+    WriteMonitor(PChar(S), Length(S), ttDebug);
+
     if (GetCurrentThreadId() = MainThreadId) then
       SyncThread.Synchronize()
     else
@@ -2815,17 +2834,40 @@ begin
   if (not Assigned(DataHandle)) then
     raise ERangeError.CreateFmt(SPropertyOutOfRange, ['DataHandle']);
 
-  SyncThread.RunExecute.SetEvent();
+  RunExecute(SyncThread);
   DataHandleEvent.WaitFor(INFINITE);
 
   Result := DataHandle.ErrorCode = 0;
 end;
 
-procedure TMySQLConnection.RegisterSQLMonitor(const AMySQLMonitor: TMySQLMonitor);
+procedure TMySQLConnection.RegisterSQLMonitor(const SQLMonitor: TMySQLMonitor);
 begin
-  SetLength(FSQLMonitors, Length(FSQLMonitors) + 1);
+  if (FSQLMonitors.IndexOf(SQLMonitor) < 0) then
+    FSQLMonitors.Add(SQLMonitor);
+end;
 
-  FSQLMonitors[Length(FSQLMonitors) - 1] := AMySQLMonitor;
+procedure TMySQLConnection.ReleaseSQLMonitor(const SQLMonitor: TMySQLMonitor);
+begin
+  if (FSQLMonitors.IndexOf(SQLMonitor) >= 0) then
+    FSQLMonitors.Delete(FSQLMonitors.IndexOf(SQLMonitor));
+end;
+
+procedure TMySQLConnection.RunExecute(const SyncThread: TSyncThread);
+begin
+  // Debug 2016-11-30
+  if (not Assigned(SyncThread)) then
+    raise ERangeError.Create(SRangeError);
+
+  case (SyncThread.State) of
+    ssConnecting,
+    ssExecutingFirst,
+    ssExecutingNext,
+    ssReceivingResult,
+    ssDisconnecting:
+      SyncThread.RunExecute.SetEvent();
+    else
+      raise Exception.CreateFMT(SOutOfSync + ' (State: %d)', [Ord(SyncThread.State)]);
+  end;
 end;
 
 function TMySQLConnection.SendSQL(const SQL: string; const Done: TEvent): Boolean;
@@ -2972,7 +3014,7 @@ begin
   SyncThread.State := ssReceivingResult;
 
   if (DataSet is TMySQLDataSet) then
-    SyncThread.RunExecute.SetEvent();
+    RunExecute(SyncThread);
 end;
 
 procedure TMySQLConnection.SyncConnecting(const SyncThread: TSyncThread);
@@ -3567,6 +3609,13 @@ begin
       LibRow := nil
     else
     begin
+      // Debug 2016-11-30
+      if (not Assigned(SyncThread.ResHandle)) then
+        raise ERangeError.Create(SRangeError);
+      // Debug 2016-11-30
+      if (not Assigned(SyncThread.DataSet)) then
+        raise ERangeError.Create(SRangeError);
+
       LibRow := Lib.mysql_fetch_row(SyncThread.ResHandle);
       if (Lib.mysql_errno(SyncThread.LibHandle) <> 0) then
       begin
@@ -3583,6 +3632,21 @@ begin
 
   if (not SyncThread.Terminated) then
     DataSet.InternAddRecord(nil, nil);
+end;
+
+procedure TMySQLConnection.SyncReleaseDataSet(const DataSet: TMySQLQuery);
+begin
+  Assert(Assigned(DataSet));
+
+  if (DataSet.SyncThread = SyncThread) then
+  begin
+    SyncThread.DataSet := nil;
+
+    if (not SyncThread.Terminated and (SyncThread.State = ssReceivingResult)) then
+      SyncHandledResult(SyncThread);
+  end;
+
+  DataSet.SyncThread := nil;
 end;
 
 procedure TMySQLConnection.Terminate();
@@ -3608,40 +3672,6 @@ begin
   TerminateCS.Leave();
 end;
 
-procedure TMySQLConnection.SyncReleaseDataSet(const DataSet: TMySQLQuery);
-begin
-  Assert(Assigned(DataSet));
-
-  if (DataSet.SyncThread = SyncThread) then
-  begin
-    SyncThread.DataSet := nil;
-
-    if (not SyncThread.Terminated and (SyncThread.State = ssReceivingResult)) then
-      SyncHandledResult(SyncThread);
-  end;
-
-  DataSet.SyncThread := nil;
-end;
-
-procedure TMySQLConnection.UnRegisterSQLMonitor(const AMySQLMonitor: TMySQLMonitor);
-var
-  I: Integer;
-  Index: Integer;
-begin
-  Index := -1;
-  for I := 0 to Length(FSQLMonitors) - 1 do
-    if (AMySQLMonitor = FSQLMonitors[I]) then
-      Index := I;
-
-  if (Index >= 0) then
-  begin
-    for I := Length(FSQLMonitors) - 2 downto Index do
-      FSQLMonitors[I] := FSQLMonitors[I + 1];
-
-    SetLength(FSQLMonitors, Length(FSQLMonitors) - 1);
-  end;
-end;
-
 function TMySQLConnection.UseCompression(): Boolean;
 begin
   Result := (Host <> LOCAL_HOST_NAMEDPIPE) or (LibraryType = ltHTTP);
@@ -3658,9 +3688,9 @@ var
 begin
   InMonitor := True;
   try
-    for I := 0 to System.Length(FSQLMonitors) - 1 do
-      if (ATraceType in FSQLMonitors[I].TraceTypes) then
-        FSQLMonitors[I].DoMonitor(Self, AText, Length, ATraceType);
+    for I := 0 to FSQLMonitors.Count - 1 do
+      if (ATraceType in TMySQLMonitor(FSQLMonitors[I]).TraceTypes) then
+        TMySQLMonitor(FSQLMonitors[I]).DoMonitor(Self, AText, Length, ATraceType);
   finally
     InMonitor := False;
   end;
@@ -3675,6 +3705,10 @@ end;
 
 function TMySQLBitField.GetIsNull(): Boolean;
 begin
+  // Debug 2016-11-30
+  if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -3731,6 +3765,10 @@ end;
 
 function TMySQLBlobField.GetIsNull(): Boolean;
 begin
+  // Debug 2016-11-30
+  if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -3764,6 +3802,10 @@ end;
 
 function TMySQLByteField.GetIsNull(): Boolean;
 begin
+  // Debug 2016-11-30
+  if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -3784,6 +3826,10 @@ end;
 
 function TMySQLDateField.GetIsNull(): Boolean;
 begin
+  // Debug 2016-11-30
+  if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -3826,6 +3872,10 @@ end;
 
 function TMySQLDateTimeField.GetIsNull(): Boolean;
 begin
+  // Debug 2016-11-30
+  if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -3866,6 +3916,10 @@ end;
 
 function TMySQLExtendedField.GetIsNull(): Boolean;
 begin
+  // Debug 2016-11-30
+  if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -3886,6 +3940,10 @@ end;
 
 function TMySQLFloatField.GetIsNull(): Boolean;
 begin
+  // Debug 2016-11-30
+  if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -3906,6 +3964,10 @@ end;
 
 function TMySQLIntegerField.GetIsNull(): Boolean;
 begin
+  // Debug 2016-11-30
+  if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -3936,6 +3998,10 @@ end;
 
 function TMySQLLargeWordField.GetIsNull(): Boolean;
 begin
+  // Debug 2016-11-30
+  if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -3971,6 +4037,10 @@ end;
 
 function TMySQLLongWordField.GetIsNull(): Boolean;
 begin
+  // Debug 2016-11-30
+  if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -3991,6 +4061,10 @@ end;
 
 function TMySQLShortIntField.GetIsNull(): Boolean;
 begin
+  // Debug 2016-11-30
+  if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -4011,6 +4085,10 @@ end;
 
 function TMySQLSingleField.GetIsNull(): Boolean;
 begin
+  // Debug 2016-11-30
+  if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -4031,6 +4109,10 @@ end;
 
 function TMySQLSmallIntField.GetIsNull(): Boolean;
 begin
+  // Debug 2016-11-30
+  if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -4062,6 +4144,10 @@ end;
 
 function TMySQLStringField.GetIsNull(): Boolean;
 begin
+  // Debug 2016-11-30
+  if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -4128,6 +4214,10 @@ end;
 
 function TMySQLTimeField.GetIsNull(): Boolean;
 begin
+  // Debug 2016-11-30
+  if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -4197,6 +4287,10 @@ end;
 
 function TMySQLTimeStampField.GetIsNull(): Boolean;
 begin
+  // Debug 2016-11-30
+  if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -4279,6 +4373,10 @@ end;
 
 function TMySQLWideMemoField.GetIsNull(): Boolean;
 begin
+  // Debug 2016-11-30
+  if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -4317,6 +4415,10 @@ end;
 
 function TMySQLWideStringField.GetIsNull(): Boolean;
 begin
+  // Debug 2016-11-30
+  if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 
@@ -4384,6 +4486,10 @@ end;
 
 function TMySQLWordField.GetIsNull(): Boolean;
 begin
+  // Debug 2016-11-30
+  if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+
   Result := not Assigned(TMySQLQuery(DataSet).LibRow) or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
 end;
 

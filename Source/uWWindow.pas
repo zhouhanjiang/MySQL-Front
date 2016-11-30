@@ -78,11 +78,6 @@ type
     aEDelete: TEditDelete;
     aEFind: TAction;
     aEFormatSQL: TAction;
-    aEJobAddExport: TAction;
-    aEJobAddImport: TAction;
-    aEJobDelete: TAction;
-    aEJobEdit: TAction;
-    aEJobExecute: TAction;
     aEPaste: TEditPaste;
     aEPasteFrom1: TMenuItem;
     aEPasteFromFile: TAction;
@@ -129,7 +124,6 @@ type
     aVDataBrowser: TAction;
     aVDiagram: TAction;
     aVExplorer: TAction;
-    aVJobs: TAction;
     aVNavigator: TAction;
     aVObjectBrowser: TAction;
     aVObjectIDE: TAction;
@@ -235,12 +229,6 @@ type
     miHManual: TMenuItem;
     miHSQL: TMenuItem;
     miHUpdate: TMenuItem;
-    miEJobAdd: TMenuItem;
-    miEJobAddExport: TMenuItem;
-    miEJobAddImport: TMenuItem;
-    miEJobDelete: TMenuItem;
-    miEJobEdit: TMenuItem;
-    miEJobs: TMenuItem;
     miOAccounts: TMenuItem;
     miOGlobals: TMenuItem;
     miOptions: TMenuItem;
@@ -254,7 +242,6 @@ type
     miVDiagram: TMenuItem;
     miVExplorer: TMenuItem;
     miView: TMenuItem;
-    miVJobs: TMenuItem;
     miVNavigator: TMenuItem;
     miVObjectBrowser: TMenuItem;
     miVObjectIDE: TMenuItem;
@@ -270,7 +257,6 @@ type
     mtFOpenAccount: TMenuItem;
     mtTabs: TMenuItem;
     N10: TMenuItem;
-    N11: TMenuItem;
     N12: TMenuItem;
     N15: TMenuItem;
     N16: TMenuItem;
@@ -281,7 +267,6 @@ type
     N22: TMenuItem;
     N25: TMenuItem;
     N27: TMenuItem;
-    N3: TMenuItem;
     N30: TMenuItem;
     N4: TMenuItem;
     N5: TMenuItem;
@@ -959,16 +944,19 @@ begin
     MessageBox(0, PChar(SysErrorMessage(GetLastError())), 'Error', MB_OK)
   else
   begin
-    S := string(EurekaExceptionRecord.LogText);
+    try
+      EmptyClipboard();
 
-    EmptyClipboard();
-    ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Length(S) + 1) * SizeOf(S[1]));
-    StrPCopy(GlobalLock(ClipboardData), S);
-    SetClipboardData(CF_UNICODETEXT, ClipboardData);
-    GlobalUnlock(ClipboardData);
-    CloseClipboard();
+      S := string(EurekaExceptionRecord.LogText);
+      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Length(S) + 1) * SizeOf(S[1]));
+      StrPCopy(GlobalLock(ClipboardData), S);
+      SetClipboardData(CF_UNICODETEXT, ClipboardData);
+      GlobalUnlock(ClipboardData);
+    finally
+      CloseClipboard();
+    end;
 
-    CloseDialog := False  ;
+    CloseDialog := False;
   end;
 end;
 
@@ -977,7 +965,6 @@ procedure TWWindow.EurekaLogCustomDataRequest(
 var
   I: Integer;
   Log: TStringList;
-  Start: Integer;
 begin
   for I := 0 to Sessions.Count - 1 do
     if (Sessions[I].Connection.Connected) then
@@ -989,9 +976,8 @@ begin
   if (Assigned(ActiveTab)) then
   begin
     Log := TStringList.Create();
-    Log.Text := ActiveTab.Session.Connection.BugMonitor.CacheText;
-    if (Log.Count < 10) then Start := 0 else Start := Log.Count - 10;
-    for I := Start to Log.Count - 1 do
+    Log.Text := ActiveTab.Session.Connection.DebugMonitor.CacheText;
+    for I := 0 to Log.Count - 1 do
       DataFields.Add(IntToStr(DataFields.Count) + '=' + Log[I]);
     Log.Free();
   end;
@@ -1047,6 +1033,22 @@ begin
 
     if (Assigned(ActiveTab)) then
     begin
+      if (ImportState > 0) then
+      begin
+        Report := Report + #13#10;
+        Report := Report + 'Import:' + #13#10;
+        Report := Report + StringOfChar('-', Length('Import: ' + IntToStr(ImportState))) + #13#10;
+        Report := Report + 'ImportState: ' + IntToStr(ImportState) + #13#10;
+      end;
+
+      if (ExportState > 0) then
+      begin
+        Report := Report + #13#10;
+        Report := Report + 'Export:' + #13#10;
+        Report := Report + StringOfChar('-', Length('Export: ' + IntToStr(ExportState))) + #13#10;
+        Report := Report + 'ExportState: ' + IntToStr(ExportState) + #13#10;
+      end;
+
       Report := Report + #13#10;
       Report := Report + 'MySQL:' + #13#10;
       Report := Report + StringOfChar('-', Length('Version: ' + ActiveTab.Session.Connection.ServerVersionStr)) + #13#10;
@@ -1055,15 +1057,7 @@ begin
       Report := Report + #13#10;
       Report := Report + 'SQL Log:' + #13#10;
       Report := Report + StringOfChar('-', 72) + #13#10;
-      if (Length(ActiveTab.Session.Connection.BugMonitor.CacheText) < 500) then
-        SQL := PChar(ActiveTab.Session.Connection.BugMonitor.CacheText)
-      else
-      begin
-        SQL := PChar(@ActiveTab.Session.Connection.BugMonitor.CacheText[Length(ActiveTab.Session.Connection.BugMonitor.CacheText) - 500]);
-        while ((StrLen(SQL) > 0) and not CharInSet(SQL[0], [#10, #13])) do SQL := PChar(@SQL[1]);
-        while ((StrLen(SQL) > 0) and CharInSet(SQL[0], [#10, #13])) do SQL := PChar(@SQL[1]);
-      end;
-      Report := Report + StrPas(SQL);
+      Report := Report + ActiveTab.Session.Connection.DebugMonitor.CacheText;
     end;
 
     SendBugToDeveloper(Report);
@@ -1136,8 +1130,6 @@ begin
   aFExportAccess.Visible := (odAccess in ODBCDrivers) or (odAccess2003 in ODBCDrivers);
   aFExportExcel.Visible := (odExcel in ODBCDrivers) or (odExcel2003 in ODBCDrivers);
   aFExportODBC.Visible := ODBCEnv <> SQL_NULL_HANDLE;
-  aVJobs.Visible := False; // CheckWin32Version(6);
-  miEJobs.Visible := False; // CheckWin32Version(6);
   aHIndex.Enabled := FileExists(Application.HelpFile);
   aHUpdate.Enabled := IsConnectedToInternet() and (Preferences.SetupProgram = '');
 
@@ -1674,7 +1666,6 @@ begin
   miVSidebar.Caption := Preferences.LoadStr(736);
   aVNavigator.Caption := Preferences.LoadStr(10);
   aVExplorer.Caption := Preferences.LoadStr(435);
-  aVJobs.Caption := Preferences.LoadStr(896);
   aVSQLHistory.Caption := Preferences.LoadStr(807);
   aVSQLLog.Caption := Preferences.LoadStr(11);
   aVRefresh.Caption := Preferences.LoadStr(41);
@@ -1740,12 +1731,6 @@ begin
   aEFind.Caption := Preferences.LoadStr(187) + '...';
   aEReplace.Caption := Preferences.LoadStr(416) + '...';
   aETransfer.Caption := Preferences.LoadStr(753) + '...';
-  miEJobs.Caption := Preferences.LoadStr(896);
-  miEJobAdd.Caption := Preferences.LoadStr(26);
-  aEJobAddImport.Caption := Preferences.LoadStr(371) + '...';
-  aEJobAddExport.Caption := Preferences.LoadStr(200) + '...';
-  aEJobDelete.Caption := Preferences.LoadStr(28);
-  aEJobEdit.Caption := Preferences.LoadStr(97) + '...';
   aEFormatSQL.Caption := Preferences.LoadStr(921);
 
   miHelp.Caption := Preferences.LoadStr(167);
@@ -1852,7 +1837,6 @@ begin
     aVSQLEditor3.Checked := False;
     aVNavigator.Checked := False;
     aVExplorer.Checked := False;
-    aVJobs.Checked := False;
     aVSQLHistory.Checked := False;
     aVSQLLog.Checked := False;
     tbVRefresh.Enabled := False;
@@ -1872,7 +1856,6 @@ begin
     aVSQLEditor3.Enabled := False;
     aVNavigator.Enabled := False;
     aVExplorer.Enabled := False;
-    aVJobs.Enabled := False;
     aVSQLHistory.Enabled := False;
     aVSQLLog.Enabled := False;
     aDCancel.Enabled := False;

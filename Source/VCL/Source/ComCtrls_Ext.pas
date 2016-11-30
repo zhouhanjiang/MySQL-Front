@@ -103,11 +103,12 @@ begin
 
   // Debug 2016-11-25
   if (B) then
-    if (Assigned(ShiftDownSelected) and not (TObject(ShiftDownSelected) is TTreeNode)) then
-      if (TObject(ShiftDownSelected) is TObject) then
-        raise ERangeError.Create(SRangeError + ' - ' + TObject(ShiftDownSelected).ClassName)
-      else
-        raise ERangeError.Create(SRangeError);
+    if (Assigned(ShiftDownSelected)) then
+      if (not (TObject(ShiftDownSelected) is TTreeNode)) then
+        if (TObject(ShiftDownSelected) is TObject) then
+          raise ERangeError.Create(SRangeError + ' - ' + TObject(ShiftDownSelected).ClassName)
+        else
+          raise ERangeError.Create(SRangeError);
   if (B) then
     if (not (TObject(Node) is TTreeNode)) then
       raise ERangeError.Create(SRangeError);

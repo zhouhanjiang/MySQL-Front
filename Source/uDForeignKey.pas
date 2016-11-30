@@ -144,9 +144,10 @@ begin
   for I := 0 to Table.Fields.Count - 1 do
   begin
     FFields.Items.Add(Table.Fields[I].Name);
-    for J := 0 to Length(ForeignKey.Fields) - 1 do
-      if (Table.Fields.NameCmp(ForeignKey.Fields[J].Name, Table.Fields[I].Name) = 0) then
-        FFields.Selected[I] := True;
+    if (Assigned(ForeignKey)) then
+      for J := 0 to Length(ForeignKey.Fields) - 1 do
+        if (Table.Fields.NameCmp(ForeignKey.Fields[J].Name, Table.Fields[I].Name) = 0) then
+          FFields.Selected[I] := True;
   end;
   FFields.Items.EndUpdate();
 

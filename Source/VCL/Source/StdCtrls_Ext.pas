@@ -54,14 +54,17 @@ var
 begin
   if (OpenClipboard(Handle)) then
   begin
-    EmptyClipboard();
+    try
+      EmptyClipboard();
 
-    S := SelText; Len := Length(S);
-    ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Len + 1) * SizeOf(S[1]));
-    Move(PChar(S)^, GlobalLock(ClipboardData)^, (Len + 1) * SizeOf(S[1]));
-    SetClipboardData(CF_UNICODETEXT, ClipboardData);
-    GlobalUnlock(ClipboardData);
-    CloseClipboard();
+      S := SelText; Len := Length(S);
+      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Len + 1) * SizeOf(S[1]));
+      Move(PChar(S)^, GlobalLock(ClipboardData)^, (Len + 1) * SizeOf(S[1]));
+      SetClipboardData(CF_UNICODETEXT, ClipboardData);
+      GlobalUnlock(ClipboardData);
+    finally
+      CloseClipboard();
+    end;
   end;
 end;
 
@@ -93,10 +96,13 @@ var
 begin
   if (OpenClipboard(Handle)) then
   begin
-    ClipboardData := GetClipboardData(CF_UNICODETEXT);
-    SetString(S, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(S[1]));
-    GlobalUnlock(ClipboardData);
-    CloseClipboard();
+    try
+      ClipboardData := GetClipboardData(CF_UNICODETEXT);
+      SetString(S, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(S[1]));
+      GlobalUnlock(ClipboardData);
+    finally
+      CloseClipboard();
+    end;
 
     for I := 0 to 31 do
       S := ReplaceStr(S, Chr(I), '');

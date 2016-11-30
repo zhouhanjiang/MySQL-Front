@@ -62,7 +62,7 @@ object FSession: TFSession
       BevelOuter = bvLowered
       Caption = 'PExplorer'
       ParentBackground = False
-      TabOrder = 3
+      TabOrder = 2
       Visible = False
       OnResize = PanelResize
       object SExplorer: TSplitter_Ext
@@ -102,48 +102,6 @@ object FSession: TFSession
         Constraints.MinHeight = 50
         ParentBackground = False
         TabOrder = 1
-      end
-    end
-    object PJobs: TPanel_Ext
-      Left = 0
-      Top = 0
-      Width = 120
-      Height = 234
-      Align = alClient
-      BevelInner = bvRaised
-      BevelOuter = bvLowered
-      Caption = 'PJobs'
-      ParentBackground = False
-      TabOrder = 2
-      Visible = False
-      OnEnter = PJobsEnter
-      OnExit = PJobsExit
-      OnResize = PanelResize
-      object FJobs: TListView
-        Left = 2
-        Top = 2
-        Width = 116
-        Height = 230
-        HelpContext = 1082
-        Align = alClient
-        BorderStyle = bsNone
-        Columns = <
-          item
-            AutoSize = True
-          end>
-        ColumnClick = False
-        DragMode = dmAutomatic
-        HideSelection = False
-        ReadOnly = True
-        RowSelect = True
-        PopupMenu = MJobs
-        ShowColumnHeaders = False
-        TabOrder = 0
-        ViewStyle = vsReport
-        OnChange = FJobsChange
-        OnDblClick = ListViewDblClick
-        OnEnter = FJobsEnter
-        OnExit = FJobsExit
       end
     end
     object PSQLHistory: TPanel_Ext
@@ -1178,7 +1136,7 @@ object FSession: TFSession
     object TBSideBar: TToolBar
       Left = 2
       Top = 0
-      Width = 92
+      Width = 69
       Height = 22
       Align = alNone
       AutoSize = True
@@ -1200,15 +1158,8 @@ object FSession: TFSession
         Grouped = True
         Style = tbsCheck
       end
-      object tbJobs: TToolButton
-        Left = 46
-        Top = 0
-        Caption = 'tbJobs'
-        Grouped = True
-        Style = tbsCheck
-      end
       object tbSQLHistory: TToolButton
-        Left = 69
+        Left = 46
         Top = 0
         Caption = 'tbSQLHistory'
         Grouped = True
@@ -1877,9 +1828,6 @@ object FSession: TFSession
     object miSNavigator: TMenuItem
       Caption = 'miSNavigator'
     end
-    object miSJobs: TMenuItem
-      Caption = 'miSJobs'
-    end
     object miSSQLHistory: TMenuItem
       Caption = 'miSSQLHistory'
     end
@@ -1955,34 +1903,6 @@ object FSession: TFSession
     object mfProperties: TMenuItem
       Caption = 'mfProperties'
       OnClick = mfPropertiesClick
-    end
-  end
-  object MJobs: TPopupMenu
-    OnPopup = MJobsPopup
-    Left = 8
-    Top = 218
-    object mjExecute: TMenuItem
-      Caption = 'mjExecute'
-      Default = True
-      OnClick = mjExecuteClick
-    end
-    object N1: TMenuItem
-      Caption = '-'
-    end
-    object mjAdd: TMenuItem
-      Caption = 'mjAdd'
-      object mjAddImport: TMenuItem
-        Caption = 'aEJobAddImport'
-      end
-      object mjAddExport: TMenuItem
-        Caption = 'aEJobAddExport'
-      end
-    end
-    object mjDelete: TMenuItem
-      Caption = 'aEJobDelete'
-    end
-    object mjEdit: TMenuItem
-      Caption = 'aEJobEdit'
     end
   end
   object MSQLHistory: TPopupMenu

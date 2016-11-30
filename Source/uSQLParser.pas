@@ -352,6 +352,8 @@ type
         ntSubstringFunc,
         ntSumFunc,
         ntTag,
+        ntTimestampAddFunc,
+        ntTimestampDiffFunc,
         ntTrimFunc,
         ntTruncateStmt,
         ntUnaryOp,
@@ -852,6 +854,8 @@ type
         'ntSubstringFunc',
         'ntSumFunc',
         'ntTag',
+        'ntTimestampAddFunc',
+        'ntTimestampDiffFunc',
         'ntTrimFunc',
         'ntTruncateStmt',
         'ntUnaryOp',
@@ -1298,6 +1302,8 @@ type
         ntPositionFunc,
         ntSubstringFunc,
         ntSumFunc,
+        ntTimestampAddFunc,
+        ntTimestampDiffFunc,
         ntTrimFunc,
         ntWeightStringFunc
       ];
@@ -5727,21 +5733,48 @@ type
         property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
-      PTruncateStmt = ^TTruncateStmt;
-      TTruncateStmt = packed record
+      PTimestampAddFunc = ^TTimestampAddFunc;
+      TTimestampAddFunc = packed record
       private type
         TNodes = packed record
-          StmtTag: TOffset;
-          TableTag: TOffset;
-          TableIdent: TOffset;
+          IdentToken: TOffset;
+          OpenBracket: TOffset;
+          UnitTag: TOffset;
+          Comma1: TOffset;
+          IntervalInt: TOffset;
+          Comma2: TOffset;
+          DatetimeExpr: TOffset;
+          CloseBracket: TOffset;
         end;
       private
-        Heritage: TStmt;
+        Heritage: TRange;
       private
         Nodes: TNodes;
         class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
+      end;
+
+      PTimestampDiffFunc = ^TTimestampDiffFunc;
+      TTimestampDiffFunc = packed record
+      private type
+        TNodes = packed record
+          IdentToken: TOffset;
+          OpenBracket: TOffset;
+          UnitTag: TOffset;
+          Comma1: TOffset;
+          Datetime1Expr: TOffset;
+          Comma2: TOffset;
+          Datetime2Expr: TOffset;
+          CloseBracket: TOffset;
+        end;
+      private
+        Heritage: TRange;
+      private
+        Nodes: TNodes;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
+      public
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PTrimFunc = ^TTrimFunc;
@@ -5763,6 +5796,23 @@ type
         class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
+      end;
+
+      PTruncateStmt = ^TTruncateStmt;
+      TTruncateStmt = packed record
+      private type
+        TNodes = packed record
+          StmtTag: TOffset;
+          TableTag: TOffset;
+          TableIdent: TOffset;
+        end;
+      private
+        Heritage: TStmt;
+      private
+        Nodes: TNodes;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
+      public
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PUnaryOp = ^TUnaryOp;
@@ -6480,6 +6530,15 @@ type
     kiSQL_CALC_FOUND_ROWS,
     kiSQL_NO_CACHE,
     kiSQL_SMALL_RESULT,
+    kiSQL_TSI_MICROSECOND,
+    kiSQL_TSI_SECOND,
+    kiSQL_TSI_MINUTE,
+    kiSQL_TSI_HOUR,
+    kiSQL_TSI_DAY,
+    kiSQL_TSI_WEEK,
+    kiSQL_TSI_MONTH,
+    kiSQL_TSI_QUARTER,
+    kiSQL_TSI_YEAR,
     kiSQLEXCEPTION,
     kiSQLSTATE,
     kiSQLWARNING,
@@ -6692,6 +6751,8 @@ type
     procedure FormatSubquery(const Nodes: TSubquery.TNodes);
     procedure FormatSubstringFunc(const Nodes: TSubstringFunc.TNodes);
     procedure FormatSumFunc(const Nodes: TSumFunc.TNodes);
+    procedure FormatTimestampAddFunc(const Nodes: TTimestampAddFunc.TNodes);
+    procedure FormatTimestampDiffFunc(const Nodes: TTimestampDiffFunc.TNodes);
     procedure FormatToken(const Token: TToken);
     procedure FormatTrimFunc(const Nodes: TTrimFunc.TNodes);
     procedure FormatTruncateStmt(const Nodes: TTruncateStmt.TNodes);
@@ -6968,6 +7029,8 @@ type
       const KeywordIndex2: TWordList.TIndex = -1; const KeywordIndex3: TWordList.TIndex = -1;
       const KeywordIndex4: TWordList.TIndex = -1; const KeywordIndex5: TWordList.TIndex = -1;
       const KeywordIndex6: TWordList.TIndex = -1; const KeywordIndex7: TWordList.TIndex = -1): TOffset; overload;
+    function ParseTimestampAddFunc(): TOffset;
+    function ParseTimestampDiffFunc(): TOffset;
     function ParseToken(out Error: TError): TOffset;
     function ParseTriggerIdent(): TOffset;
     function ParseTrimFunc(): TOffset;
@@ -7186,7 +7249,9 @@ const
 
   MySQLKeywords =
     'ANY,SOME,STATS_SAMPLE_PAGES,DUAL,TABLE_CHECKSUM,NEW,OLD,ONLINE,ERROR,' +
-    'SLOW,RELAY,GENERAL,' +
+    'SLOW,RELAY,GENERAL,SQL_TSI_MICROSECOND,SQL_TSI_SECOND,SQL_TSI_MINUTE,' +
+    'SQL_TSI_HOUR,SQL_TSI_DAY,SQL_TSI_WEEK,SQL_TSI_MONTH,SQL_TSI_QUARTER,' +
+    'SQL_TSI_YEAR,' +
 
     'ACCOUNT,ACTION,ADD,AFTER,AGAINST,ALGORITHM,ALL,ALTER,ALWAYS,ANALYZE,AND,' +
     'AS,ASC,ASCII,AT,AUTO_INCREMENT,AVG_ROW_LENGTH,BEFORE,BEGIN,' +
@@ -11483,17 +11548,31 @@ begin
   end;
 end;
 
-{ TSQLParser.TTruncateStmt ****************************************************}
+{ TSQLParser.TTimestampAddFunc ********************************************************}
 
-class function TSQLParser.TTruncateStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TTimestampAddFunc.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
-  Result := TStmt.Create(AParser, stTruncate);
+  Result := TRange.Create(AParser, ntTimestampAddFunc);
 
-  with PTruncateStmt(AParser.NodePtr(Result))^ do
+  with PTimestampAddFunc(AParser.NodePtr(Result))^ do
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
+  end;
+end;
+
+{ TSQLParser.TTimestampDiffFunc ********************************************************}
+
+class function TSQLParser.TTimestampDiffFunc.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
+begin
+  Result := TRange.Create(AParser, ntTimestampDiffFunc);
+
+  with PTimestampDiffFunc(AParser.NodePtr(Result))^ do
+  begin
+    Nodes := ANodes;
+
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11508,6 +11587,20 @@ begin
     Nodes := ANodes;
 
     Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
+  end;
+end;
+
+{ TSQLParser.TTruncateStmt ****************************************************}
+
+class function TSQLParser.TTruncateStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
+begin
+  Result := TStmt.Create(AParser, stTruncate);
+
+  with PTruncateStmt(AParser.NodePtr(Result))^ do
+  begin
+    Nodes := ANodes;
+
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -13444,6 +13537,8 @@ begin
       ntSubstringFunc: FormatSubstringFunc(PSubstringFunc(Node)^.Nodes);
       ntSumFunc: FormatSumFunc(PSumFunc(Node)^.Nodes);
       ntTag: DefaultFormatNode(@PTag(Node)^.Nodes, SizeOf(TTag.TNodes));
+      ntTimestampAddFunc: FormatTimestampAddFunc(PTimestampAddFunc(Node)^.Nodes);
+      ntTimestampDiffFunc: FormatTimestampDiffFunc(PTimestampDiffFunc(Node)^.Nodes);
       ntTrimFunc: FormatTrimFunc(PTrimFunc(Node)^.Nodes);
       ntTruncateStmt: FormatTruncateStmt(PTruncateStmt(Node)^.Nodes);
       ntUnaryOp: FormatUnaryOp(PUnaryOp(Node)^.Nodes);
@@ -14023,6 +14118,30 @@ begin
   FormatNode(Nodes.OpenBracket);
   FormatNode(Nodes.DistinctToken, stSpaceAfter);
   FormatNode(Nodes.Expr);
+  FormatNode(Nodes.CloseBracket);
+end;
+
+procedure TSQLParser.FormatTimestampAddFunc(const Nodes: TTimestampAddFunc.TNodes);
+begin
+  FormatNode(Nodes.IdentToken);
+  FormatNode(Nodes.OpenBracket);
+  FormatNode(Nodes.UnitTag);
+  FormatNode(Nodes.Comma1);
+  FormatNode(Nodes.IntervalInt, stSpaceBefore);
+  FormatNode(Nodes.Comma2);
+  FormatNode(Nodes.DatetimeExpr, stSpaceBefore);
+  FormatNode(Nodes.CloseBracket);
+end;
+
+procedure TSQLParser.FormatTimestampDiffFunc(const Nodes: TTimestampDiffFunc.TNodes);
+begin
+  FormatNode(Nodes.IdentToken);
+  FormatNode(Nodes.OpenBracket);
+  FormatNode(Nodes.UnitTag);
+  FormatNode(Nodes.Comma1);
+  FormatNode(Nodes.Datetime1Expr, stSpaceBefore);
+  FormatNode(Nodes.Comma2);
+  FormatNode(Nodes.Datetime2Expr, stSpaceBefore);
   FormatNode(Nodes.CloseBracket);
 end;
 
@@ -14933,6 +15052,8 @@ begin
     ntSubstringFunc: Result := SizeOf(TSubstringFunc);
     ntSumFunc: Result := SizeOf(TSumFunc);
     ntTag: Result := SizeOf(TTag);
+    ntTimestampAddFunc: Result := SizeOf(TTimestampAddFunc);
+    ntTimestampDiffFunc: Result := SizeOf(TTimestampDiffFunc);
     ntTrimFunc: Result := SizeOf(TTrimFunc);
     ntTruncateStmt: Result := SizeOf(TTruncateStmt);
     ntUnaryOp: Result := SizeOf(TUnaryOp);
@@ -17505,17 +17626,14 @@ begin
       Nodes.Values.Tag := ParseTag(kiVALUES);
 
       if (not ErrorFound) then
-        if (IsTag(kiLESS, kiTHAN)) then
+        if (IsTag(kiLESS, kiTHAN, kiMAXVALUE)) then
+          Nodes.Values.Value := ParseTag(kiLESS, kiTHAN, kiMAXVALUE)
+        else if (IsTag(kiLESS, kiTHAN)) then
         begin
-          if (IsNextSymbol(2, ttOpenBracket)) then
-          begin
-            FillChar(ValueNodes, SizeOf(ValueNodes), 0);
-            ValueNodes.Ident := ParseTag(kiLESS, kiTHAN);
-            ValueNodes.Expr := ParseList(True, ParseExpr);
-            Nodes.Values.Value := TValue.Create(Self, ValueNodes);
-          end
-          else
-            Nodes.Values.Value := ParseTag(kiLESS, kiTHAN, kiMAXVALUE);
+          FillChar(ValueNodes, SizeOf(ValueNodes), 0);
+          ValueNodes.Ident := ParseTag(kiLESS, kiTHAN);
+          ValueNodes.Expr := ParseList(True, ParseExpr);
+          Nodes.Values.Value := TValue.Create(Self, ValueNodes);
         end
         else if (IsTag(kiIN)) then
         begin
@@ -19134,6 +19252,10 @@ begin
             Nodes.Add(ParseSubstringFunc())
           else if ((Length = 3) and (StrLIComp(Text, 'SUM', Length) = 0)) then
             Nodes.Add(ParseSumFunc())
+          else if ((Length = 2) and (StrLIComp(Text, 'TIMESTAMPADD', Length) = 0)) then
+            Nodes.Add(ParseTimestampAddFunc())
+          else if ((Length = 13) and (StrLIComp(Text, 'TIMESTAMPDIFF', Length) = 0)) then
+            Nodes.Add(ParseTimestampDiffFunc())
           else if ((Length = 4) and (StrLIComp(Text, 'TRIM', Length) = 0)) then
             Nodes.Add(ParseTrimFunc())
           else if ((Length = 13) and (StrLIComp(Text, 'WEIGHT_STRING', Length) = 0)) then
@@ -24211,6 +24333,140 @@ begin
   Result := TTag.Create(Self, Nodes);
 end;
 
+function TSQLParser.ParseTimestampAddFunc(): TOffset;
+var
+  Nodes: TTimestampAddFunc.TNodes;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
+  Nodes.IdentToken := ApplyCurrentToken(utDbIdent);
+
+  if (not ErrorFound) then
+    Nodes.OpenBracket := ParseSymbol(ttOpenBracket);
+
+  if (not ErrorFound) then
+    if (IsTag(kiMICROSECOND)) then
+      Nodes.UnitTag := ParseTag(kiMICROSECOND)
+    else if (IsTag(kiSECOND)) then
+      Nodes.UnitTag := ParseTag(kiSECOND)
+    else if (IsTag(kiMINUTE)) then
+      Nodes.UnitTag := ParseTag(kiMINUTE)
+    else if (IsTag(kiHOUR)) then
+      Nodes.UnitTag := ParseTag(kiHOUR)
+    else if (IsTag(kiDAY)) then
+      Nodes.UnitTag := ParseTag(kiDAY)
+    else if (IsTag(kiWEEK)) then
+      Nodes.UnitTag := ParseTag(kiWEEK)
+    else if (IsTag(kiMONTH)) then
+      Nodes.UnitTag := ParseTag(kiMONTH)
+    else if (IsTag(kiQUARTER)) then
+      Nodes.UnitTag := ParseTag(kiQUARTER)
+    else if (IsTag(kiYEAR)) then
+      Nodes.UnitTag := ParseTag(kiYEAR)
+    else if (IsTag(kiSQL_TSI_MICROSECOND)) then
+      Nodes.UnitTag := ParseTag(kiSQL_TSI_MICROSECOND)
+    else if (IsTag(kiSQL_TSI_SECOND)) then
+      Nodes.UnitTag := ParseTag(kiSQL_TSI_SECOND)
+    else if (IsTag(kiSQL_TSI_MINUTE)) then
+      Nodes.UnitTag := ParseTag(kiSQL_TSI_MINUTE)
+    else if (IsTag(kiSQL_TSI_HOUR)) then
+      Nodes.UnitTag := ParseTag(kiSQL_TSI_HOUR)
+    else if (IsTag(kiSQL_TSI_DAY)) then
+      Nodes.UnitTag := ParseTag(kiSQL_TSI_DAY)
+    else if (IsTag(kiSQL_TSI_WEEK)) then
+      Nodes.UnitTag := ParseTag(kiSQL_TSI_WEEK)
+    else if (IsTag(kiSQL_TSI_MONTH)) then
+      Nodes.UnitTag := ParseTag(kiSQL_TSI_MONTH)
+    else if (IsTag(kiSQL_TSI_QUARTER)) then
+      Nodes.UnitTag := ParseTag(kiSQL_TSI_QUARTER)
+    else
+      Nodes.UnitTag := ParseTag(kiSQL_TSI_YEAR);
+
+  if (not ErrorFound) then
+    Nodes.Comma1 := ParseSymbol(ttComma);
+
+  if (not ErrorFound) then
+    Nodes.IntervalInt := ParseInteger();
+
+  if (not ErrorFound) then
+    Nodes.Comma2 := ParseSymbol(ttComma);
+
+  if (not ErrorFound) then
+    Nodes.DatetimeExpr := ParseExpr();
+
+  if (not ErrorFound) then
+    Nodes.CloseBracket := ParseSymbol(ttCloseBracket);
+
+  Result := TTimestampAddFunc.Create(Self, Nodes);
+end;
+
+function TSQLParser.ParseTimestampDiffFunc(): TOffset;
+var
+  Nodes: TTimestampDiffFunc.TNodes;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
+  Nodes.IdentToken := ApplyCurrentToken(utDbIdent);
+
+  if (not ErrorFound) then
+    Nodes.OpenBracket := ParseSymbol(ttOpenBracket);
+
+  if (not ErrorFound) then
+    if (IsTag(kiMICROSECOND)) then
+      Nodes.UnitTag := ParseTag(kiMICROSECOND)
+    else if (IsTag(kiSECOND)) then
+      Nodes.UnitTag := ParseTag(kiSECOND)
+    else if (IsTag(kiMINUTE)) then
+      Nodes.UnitTag := ParseTag(kiMINUTE)
+    else if (IsTag(kiHOUR)) then
+      Nodes.UnitTag := ParseTag(kiHOUR)
+    else if (IsTag(kiDAY)) then
+      Nodes.UnitTag := ParseTag(kiDAY)
+    else if (IsTag(kiWEEK)) then
+      Nodes.UnitTag := ParseTag(kiWEEK)
+    else if (IsTag(kiMONTH)) then
+      Nodes.UnitTag := ParseTag(kiMONTH)
+    else if (IsTag(kiQUARTER)) then
+      Nodes.UnitTag := ParseTag(kiQUARTER)
+    else if (IsTag(kiYEAR)) then
+      Nodes.UnitTag := ParseTag(kiYEAR)
+    else if (IsTag(kiSQL_TSI_MICROSECOND)) then
+      Nodes.UnitTag := ParseTag(kiSQL_TSI_MICROSECOND)
+    else if (IsTag(kiSQL_TSI_SECOND)) then
+      Nodes.UnitTag := ParseTag(kiSQL_TSI_SECOND)
+    else if (IsTag(kiSQL_TSI_MINUTE)) then
+      Nodes.UnitTag := ParseTag(kiSQL_TSI_MINUTE)
+    else if (IsTag(kiSQL_TSI_HOUR)) then
+      Nodes.UnitTag := ParseTag(kiSQL_TSI_HOUR)
+    else if (IsTag(kiSQL_TSI_DAY)) then
+      Nodes.UnitTag := ParseTag(kiSQL_TSI_DAY)
+    else if (IsTag(kiSQL_TSI_WEEK)) then
+      Nodes.UnitTag := ParseTag(kiSQL_TSI_WEEK)
+    else if (IsTag(kiSQL_TSI_MONTH)) then
+      Nodes.UnitTag := ParseTag(kiSQL_TSI_MONTH)
+    else if (IsTag(kiSQL_TSI_QUARTER)) then
+      Nodes.UnitTag := ParseTag(kiSQL_TSI_QUARTER)
+    else
+      Nodes.UnitTag := ParseTag(kiSQL_TSI_YEAR);
+
+  if (not ErrorFound) then
+    Nodes.Comma1 := ParseSymbol(ttComma);
+
+  if (not ErrorFound) then
+    Nodes.Datetime1Expr := ParseExpr();
+
+  if (not ErrorFound) then
+    Nodes.Comma2 := ParseSymbol(ttComma);
+
+  if (not ErrorFound) then
+    Nodes.Datetime2Expr := ParseExpr();
+
+  if (not ErrorFound) then
+    Nodes.CloseBracket := ParseSymbol(ttCloseBracket);
+
+  Result := TTimestampDiffFunc.Create(Self, Nodes);
+end;
+
 function TSQLParser.ParseToken(out Error: TError): TOffset;
 label
   TwoChars,
@@ -26865,6 +27121,15 @@ begin
     kiSQL_CALC_FOUND_ROWS           := IndexOf('SQL_CALC_FOUND_ROWS');
     kiSQL_NO_CACHE                  := IndexOf('SQL_NO_CACHE');
     kiSQL_SMALL_RESULT              := IndexOf('SQL_SMALL_RESULT');
+    kiSQL_TSI_MICROSECOND           := IndexOf('SQL_TSI_MICROSECOND');
+    kiSQL_TSI_SECOND                := IndexOf('SQL_TSI_SECOND');
+    kiSQL_TSI_MINUTE                := IndexOf('SQL_TSI_MINUTE');
+    kiSQL_TSI_HOUR                  := IndexOf('SQL_TSI_HOUR');
+    kiSQL_TSI_DAY                   := IndexOf('SQL_TSI_DAY');
+    kiSQL_TSI_WEEK                  := IndexOf('SQL_TSI_WEEK');
+    kiSQL_TSI_MONTH                 := IndexOf('SQL_TSI_MONTH');
+    kiSQL_TSI_QUARTER               := IndexOf('SQL_TSI_QUARTER');
+    kiSQL_TSI_YEAR                  := IndexOf('SQL_TSI_YEAR');
     kiSQLEXCEPTION                  := IndexOf('SQLEXCEPTION');
     kiSQLSTATE                      := IndexOf('SQLSTATE');
     kiSQLWARNING                    := IndexOf('SQLWARNING');
