@@ -7089,6 +7089,7 @@ type
     type
       TFileType = (ftSQL, ftFormattedSQL, ftDebugHTML);
 
+    function AddDatabaseName(const DatabaseName: string): string;
     procedure Clear();
     constructor Create(const AMySQLVersion: Integer = 0);
     destructor Destroy(); override;
@@ -11786,6 +11787,45 @@ begin
 end;
 
 { TSQLParser ******************************************************************}
+
+function TSQLParser.AddDatabaseName(const DatabaseName: string): string;
+var
+  Length: Integer;
+  Text: PChar;
+  Token: PToken;
+begin
+  if (not Assigned(Root)) then
+    Result := ''
+  else
+  begin
+    Commands := TFormatBuffer.Create();
+
+    Token := Root^.FirstTokenAll;
+    while (Assigned(Token)) do
+    begin
+      if (not Token^.Hidden) then
+      begin
+        if ((Token^.DbIdentType in [ditTable, ditProcedure, ditFunction, ditTrigger, ditEvent])
+          and (not Assigned(Token^.ParentNode) or (Token^.ParentNode^.NodeType = ntDbIdent) and not Assigned(PDbIdent(Token^.ParentNode)^.DatabaseIdent))) then
+        begin
+          if (AnsiQuotes) then
+            Commands.Write(SQLEscape(DatabaseName, '"'))
+          else
+            Commands.Write(SQLEscape(DatabaseName, '`'));
+          Commands.Write('.');
+        end;
+        Token^.GetText(Text, Length);
+        Commands.Write(Text, Length);
+      end;
+
+      Token := Token^.NextTokenAll;
+    end;
+
+    Result := Commands.Read();
+
+    Commands.Free(); Commands := nil;
+  end;
+end;
 
 function TSQLParser.ApplyCurrentToken(const AUsageType: TUsageType): TOffset;
 begin

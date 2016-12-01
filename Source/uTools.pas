@@ -433,6 +433,7 @@ type
     SQLInsertLen: Integer;
     SQLInsertPostfix: string;
     SQLInsertPrefix: string;
+    function SQLCreateDatabase(const Database: TSDatabase): string;
   protected
     procedure BeforeExecute(); override;
     procedure ExecuteDatabaseHeader(const Database: TSDatabase); override;
@@ -992,6 +993,7 @@ end;
 
 function TToolItemCompareForSQL(Item1, Item2: Pointer): Integer;
 var
+  Engine: TSEngine;
   Index1: Integer;
   Index2: Integer;
 begin
@@ -1021,6 +1023,14 @@ begin
           raise ERangeError.Create(SRangeError)
         else if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine)) then
           raise ERangeError.Create(SRangeError);
+        Engine := TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine;
+        if (not Assigned(Engine)) then
+          raise ERangeError.Create(SRangeError);
+        try
+          Engine.IsMerge
+        except
+          raise ERangeError.Create(SRangeError + ' SQL: ' + TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Source);
+        end;
 
         if (not TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine.IsMerge) then
           Index1 := 1
@@ -2423,7 +2433,11 @@ begin
           begin
             Index := 1 + Length(FileContent.Str);
             Len := Integer(ReadSize - (FileBuffer.Index - BytesPerSector));
+try
             SetLength(FileContent.Str, Length(FileContent.Str) + (Index - 1 + Len) div SizeOf(Char));
+except // Debug 2016-12-01
+  raise ERangeError.Create(SRangeError + ' (wanted length: ' + IntToStr(Length(FileContent.Str) + (Index - 1 + Len) div SizeOf(Char)) + ')');
+end;
             MoveMemory(@FileContent.Str[Index], @FileBuffer.Mem[FileBuffer.Index], Len);
             FileBuffer.Index := BytesPerSector;
           end;
@@ -3915,6 +3929,7 @@ end;
 
 procedure TTExport.BeforeExecute();
 var
+  CycleProtection: Integer;
   I: Integer;
   J: Integer;
   K: Integer;
@@ -3931,8 +3946,8 @@ begin
   begin
     Items.Sort(TToolItemCompareForSQL);
 
-    I := 0;
-    while (I < Items.Count) do
+    I := 0; CycleProtection := Items.Count * Items.Count;
+    while ((I < Items.Count) and (CycleProtection >= 0)) do
     begin
       if (Items[I] is TDBObjectItem) then
       begin
@@ -3946,7 +3961,7 @@ begin
               and (TDBObjectItem(Items[K]).DBObject = TDBObjectItem(Items[I]).DBObject.References[J].DBObject)) then
             begin
               Items.Move(I, K);
-              Dec(I);
+              if (I > 0) then Dec(I);
               J := Items.Count - 1;
               K := Items.Count - 1;
             end;
@@ -3956,6 +3971,7 @@ begin
         end;
       end;
       Inc(I);
+      Dec(CycleProtection);
     end;
   end
   else
@@ -4619,7 +4635,7 @@ begin
       Content := Content + '# Database "' + Database.Name + '"' + #13#10;
       Content := Content + '#' + #13#10;
       Content := Content + #13#10;
-      Content := Content + Database.GetSourceEx(DropStmts);
+      Content := Content + SQLCreateDatabase(Database);
     end;
 
     Content := Content + Database.SQLUse();
@@ -4640,7 +4656,7 @@ begin
   Content := Content + '# Event "' + Event.Name + '"' + #13#10;
   Content := Content + '#' + #13#10;
   Content := Content + #13#10;
-  Content := Content + Event.GetSourceEx(DropStmts);
+  Content := Content + Event.GetSourceEx(DropStmts, CrossReferencedObjects);
 
   WriteContent(Content);
 end;
@@ -4666,6 +4682,8 @@ begin
 
   if (CrossReferencedObjects) then
   begin
+    Content := Content + #13#10;
+
     Databases := TList.Create();
     for I := 0 to Items.Count - 1 do
       if (Items[I] is TDBObjectItem) then
@@ -4677,7 +4695,7 @@ begin
     Databases.Sort(TToolItemCompareForSQL);
 
     for I := 0 to Databases.Count - 1 do
-      Content := Content + TSDatabase(Databases[I]).GetSourceEx(DropStmts);
+      Content := Content + SQLCreateDatabase(Databases[I]);
 
     Databases.Free();
   end;
@@ -4706,7 +4724,7 @@ begin
     Content := Content + '#' + #13#10;
   end;
   Content := Content + #13#10;
-  Content := Content + Routine.GetSourceEx(DropStmts);
+  Content := Content + Routine.GetSourceEx(DropStmts, CrossReferencedObjects);
 
   WriteContent(Content);
 end;
@@ -4753,7 +4771,7 @@ begin
     Content := Content + '#' + #13#10;
     Content := Content + #13#10;
 
-    Content := Content + Table.GetSourceEx(DropStmts);
+    Content := Content + Table.GetSourceEx(DropStmts, CrossReferencedObjects);
   end;
 
   if (Assigned(DataSet)) then
@@ -4906,7 +4924,7 @@ begin
   Content := Content + '# Trigger "' + Trigger.Name + '"' + #13#10;
   Content := Content + '#' + #13#10;
   Content := Content + #13#10;
-  Content := Content + Trigger.GetSourceEx(DropStmts);
+  Content := Content + Trigger.GetSourceEx(DropStmts, CrossReferencedObjects);
 
   WriteContent(Content);
 end;
@@ -4927,6 +4945,22 @@ begin
     if (not Result) then
       Error := SysError();
   end;
+end;
+
+function TTExportSQL.SQLCreateDatabase(const Database: TSDatabase): string;
+begin
+  Result := 'CREATE DATABASE IF NOT EXISTS ' + Session.Connection.EscapeIdentifier(Database.Name);
+  if ((Database.Charset <> '')
+    and (not Assigned(Session.CharsetByName(Session.Charset))
+      or not Assigned(Session.CharsetByName(Database.Charset))
+      or (Session.CharsetByName(Database.Charset) <> Session.CharsetByName(Session.Charset)))) then
+    Result := Result + ' CHARACTER SET ' + Database.Charset;
+  if ((Database.Collation <> '')
+    and (not Assigned(Session.CharsetByName(Database.Charset))
+      or not Assigned(Session.CollationByName(Database.Collation))
+      or (Session.CharsetByName(Database.Charset).DefaultCollation <> Session.CollationByName(Database.Collation)))) then
+    Result := Result + ' COLLATION ' + Database.Collation;
+  Result := Result + ';' + #13#10;
 end;
 
 { TTExportText ****************************************************************}
@@ -6855,11 +6889,15 @@ begin
         if (Success = daSuccess) then
         begin
           if (J = 0) then
+          begin
             if (not Session.Connection.FirstResult(DataHandle, SQL)) then
               DoError(DatabaseError(Session), nil, False, SQL)
+          end
           else
+          begin
             if (not Session.Connection.NextResult(DataHandle)) then
               DoError(DatabaseError(Session), nil, False);
+          end;
 
           if (Success = daSuccess) then
             for I := 0 to Items.Count - 1 do

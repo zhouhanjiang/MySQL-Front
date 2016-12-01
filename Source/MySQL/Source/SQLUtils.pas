@@ -67,6 +67,7 @@ procedure SQLSplitValues(const Text: string; out Values: TSQLStrings);
 function SQLStmtLength(const SQL: PChar; const Length: Integer; const Delimited: PBoolean = nil): Integer;
 function SQLStmtToCaption(const SQL: string; const Len: Integer = 50): string;
 function SQLTrimStmt(const SQL: string; const Version: Integer): string; overload;
+function SQLTrimStmt(const SQL: PChar; const Length: Integer; const Version: Integer): string; overload;
 function SQLTrimStmt(const SQL: string; const Index, Length: Integer; const Version: Integer; var StartingCommentLength, EndingCommentLength: Integer): Integer; overload; inline;
 function SQLTrimStmt(const SQL: PChar; const Length: Integer; const Version: Integer; out StartingCommentLength, EndingCommentLength: Integer): Integer; overload;
 function SQLUnescape(const Value: PAnsiChar): RawByteString; overload;
@@ -2910,6 +2911,16 @@ var
   StartingCommentLen: Integer;
 begin
   Len := SQLTrimStmt(SQL, 1, Length(SQL), Version, StartingCommentLen, EndingCommentLen);
+  Result := Copy(SQL, 1 + StartingCommentLen, Len);
+end;
+
+function SQLTrimStmt(const SQL: PChar; const Length: Integer; const Version: Integer): string;
+var
+  EndingCommentLen: Integer;
+  Len: Integer;
+  StartingCommentLen: Integer;
+begin
+  Len := SQLTrimStmt(SQL, Length, Version, StartingCommentLen, EndingCommentLen);
   Result := Copy(SQL, 1 + StartingCommentLen, Len);
 end;
 

@@ -1031,6 +1031,9 @@ type
     property Window: TForm_Ext read GetWindow;
   end;
 
+var
+  EditorCommandText: string;
+
 implementation {***************************************************************}
 
 {$R *.dfm}
@@ -1231,11 +1234,16 @@ begin
     if (XML.AddChild('sql').IsTextElement) then
       raise ERangeError.Create(SRangeError + ' XML: ' + XML.AddChild('sql').XML);
 
+    EditorCommandText := CommandText;
+
     try
       XML.AddChild('sql').Text := CommandText;
     except
       raise ERangeError.Create(SRangeError);
     end;
+
+    EditorCommandText := '';
+
     if (DataHandle.Connection.Info <> '') then
       XML.AddChild('info').Text := DataHandle.Connection.Info;
     XML.AddChild('execution_time').Text := FloatToStr(DataHandle.Connection.ExecutionTime, FileFormatSettings);
@@ -2538,13 +2546,25 @@ end;
 
 procedure TFSession.AddressChanging(const Sender: TObject; const NewAddress: String; var AllowChange: Boolean);
 var
-  NotFound: Boolean;
   Database: TSDatabase;
   DBObject: TSDBObject;
+  Host: PChar; // Debug 2016-12-01
+  NotFound: Boolean;
   S: string;
   URI: TUURI;
 begin
   URI := TUURI.Create(NewAddress); NotFound := False;
+
+  // Debug 2016-12-01
+  if (not Assigned(Session)) then
+    raise ERangeError.Create(SRangeError);
+  if (not Assigned(Session.Account)) then
+    raise ERangeError.Create(SRangeError);
+  if (not Assigned(Session.Account.Connection)) then
+    raise ERangeError.Create(SRangeError);
+  Host := PChar(URI.Host);
+  lstrcmpi(Host, PChar(Session.Account.Connection.Host));
+  lstrcmpi(Host, LOCAL_HOST);
 
   if (URI.Scheme <> 'mysql') then
     AllowChange := False
@@ -5793,6 +5813,8 @@ var
   DatabasesXML: IXMLNode;
   I: Integer;
   TempB: Boolean;
+  Text: string; // Debug 2016-12-01
+  ToolbarTab: TPPreferences.TToolbarTab;
   URI: TUURI;
   View: TView;
 begin
@@ -5833,7 +5855,11 @@ begin
           raise ERangeError.Create(SRangeError);
         if (not Assigned(SQLEditors[View].SynMemo)) then
           raise ERangeError.Create(SRangeError);
-        Session.Account.Desktop.EditorContent[ToolbarTabByView[View]] := SQLEditors[View].SynMemo.Text;
+        Text := SQLEditors[View].SynMemo.Text;
+        ToolbarTab := ToolbarTabByView[View];
+        if (not (ToolbarTab in [ttEditor .. ttEditor3])) then
+          raise ERangeError.Create(SRangeError + ' (' + IntToStr(Ord(ToolbarTab)) + ')');
+        Session.Account.Desktop.EditorContent[ToolbarTab] := Text;
       end;
   Session.Account.Desktop.FoldersHeight := PFolders.Height;
 
@@ -8999,15 +9025,30 @@ end;
 
 procedure TFSession.ListViewExit(Sender: TObject);
 var
+  Column: TListColumn;
   I: Integer;
   ImageIndex: Integer;
+  ListViewKind: TPAccount.TDesktop.TListViewKind; // Debug 2016-12-01
+  Width: Integer; // Debug 2016-12-01
 begin
   if (Sender is TListView) then
   begin
     ImageIndex := ImageIndexByData(TObject(TListView(Sender).Tag));
     if (ImageIndex > 0) then
       for I := 0 to TListView(Sender).Columns.Count - 1 do
-        Session.Account.Desktop.ColumnWidths[ColumnWidthKindFromImageIndex(ImageIndex), I] := TListView(Sender).Columns[I].Width;
+      begin
+        // Debug 2016-12-01
+        Column := TListView(Sender).Columns[I];
+        Width := Column.Width;
+        ListViewKind := ColumnWidthKindFromImageIndex(ImageIndex);
+        if (not (ListViewKind in [lkServer .. lkVariables])) then
+          raise ERangeError.Create(SRangeError + '(' + IntToStr(Ord(ListViewKind)) + ')');
+        if (I < 0) then
+          raise ERangeError.Create(SRangeError);
+        if (I >= Length(Session.Account.Desktop.ColumnWidths[lkServer])) then
+          raise ERangeError.Create(SRangeError);
+        Session.Account.Desktop.ColumnWidths[ListViewKind, I] := Width;
+      end;
   end;
 
   MainAction('aESelectAll').OnExecute := nil;

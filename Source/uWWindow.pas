@@ -458,7 +458,7 @@ uses
   Variants, WinINet, SysConst, Math, Zip,
   ODBCAPI,
   acQBLocalizer,
-  MySQLConsts, HTTPTunnel,
+  MySQLConsts, HTTPTunnel, SQLUtils,
   uTools, uURI,
   uDAccounts, uDAccount, uDOptions, uDLogin, uDStatement, uDTransfer, uDSearch,
   uDConnecting, uDInfo, uDUpdate;
@@ -623,19 +623,37 @@ begin
   if (CloseAll() and OpenDialog.Execute()) then
   begin
     ZipFile := TZipFile.Create();
-    ZipFile.Open(OpenDialog.FileName, zmRead);
-    ZipFile.ExtractAll(Preferences.UserPath);
-    ZipFile.Close();
-    ZipFile.Free();
+    try
+      ZipFile.Open(OpenDialog.FileName, zmRead);
+    except
+      on E: EZipException do
+        begin
+          MsgBox(E.Message, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+          ZipFile.Free();
+          ZipFile := nil;
+        end;
+    end;
 
-    Preferences.Open();
-    Preferences.Save();
-    Accounts.Open();
+    if (Assigned(ZipFile)) then
+    begin
+      try
+        ZipFile.Extract(ExtractFileName(Preferences.Filename), Preferences.UserPath);
+        ZipFile.Extract(ExtractFileName(Accounts.Filename), Preferences.UserPath);
+      except
+        on E: EZipException do
+          MsgBox(E.Message, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+      end;
+      ZipFile.Close();
+      ZipFile.Free();
 
-    TabControl.Visible := Preferences.TabsVisible or not Preferences.TabsVisible and (FSessions.Count >= 2);
-    TBTabControl.Visible := Preferences.TabsVisible;
-    for I := 0 to Screen.FormCount - 1 do
-      PostMessage(Screen.Forms[I].Handle, UM_CHANGEPREFERENCES, 0, 0);
+      Preferences.Open();
+      Accounts.Open();
+
+      TabControl.Visible := Preferences.TabsVisible or not Preferences.TabsVisible and (FSessions.Count >= 2);
+      TBTabControl.Visible := Preferences.TabsVisible;
+      for I := 0 to Screen.FormCount - 1 do
+        PostMessage(Screen.Forms[I].Handle, UM_CHANGEPREFERENCES, 0, 0);
+    end;
   end;
 end;
 
@@ -1046,6 +1064,14 @@ begin
         Report := Report + 'Export:' + #13#10;
         Report := Report + StringOfChar('-', Length('Export: ' + IntToStr(ExportState))) + #13#10;
         Report := Report + 'ExportState: ' + IntToStr(ExportState) + #13#10;
+      end;
+
+      if (EditorCommandText <> '') then
+      begin
+        Report := Report + #13#10;
+        Report := Report + 'EditorCommandText:' + #13#10;
+        Report := Report + StringOfChar('-', Length(SQLEscapeBin(EditorCommandText, True))) + #13#10;
+        Report := Report + SQLEscapeBin(EditorCommandText, True) + #13#10;
       end;
 
       Report := Report + #13#10;

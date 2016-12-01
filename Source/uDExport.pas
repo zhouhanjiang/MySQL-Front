@@ -941,7 +941,7 @@ begin
       begin
         SaveDialog.Filter := '';
         if (odExcel2003 in ODBCDrivers) then
-          SaveDialog.Filter := SaveDialog.Filter + FilterDescription('xlsb') + ' (*.xls;*.xlsx;*.xlsm;*.xlsb)|*.xls;*.xlsx;*.xlsm;*.xlsb|';
+          SaveDialog.Filter := SaveDialog.Filter + FilterDescription('xlsb') + ' (*.xlsb)|*.xlsb|';
         SaveDialog.Filter := SaveDialog.Filter + FilterDescription('xls') + ' (*.xls)|*.xls';
         if (odExcel2003 in ODBCDrivers) then
           SaveDialog.DefaultExt := '.xlsb'

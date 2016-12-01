@@ -138,7 +138,6 @@ type
     procedure Build(const Field: TField); overload; virtual;
     procedure FreeDesktop(); virtual;
     function GetDesktop(): TDesktop; virtual;
-    function GetSource(): string; virtual;
     function GetValid(): Boolean; virtual;
     function GetValidSource(): Boolean; virtual;
     procedure SetName(const AName: string); override;
@@ -151,7 +150,7 @@ type
     function Update(): Boolean; overload; virtual;
     property Desktop: TDesktop read GetDesktop;
     property Objects: TSObjects read GetObjects;
-    property Source: string read GetSource;
+    property Source: string read FSource;
     property Valid: Boolean read GetValid;
     property ValidSource: Boolean read GetValidSource;
   end;
@@ -230,7 +229,7 @@ type
     procedure Clear(); virtual;
     constructor Create(const ADBObjects: TSDBObjects; const AName: string = ''); reintroduce; virtual;
     destructor Destroy(); override;
-    function GetSourceEx(const DropBeforeCreate: Boolean = False): string; virtual; abstract;
+    function GetSourceEx(const DropBeforeCreate: Boolean = False; const FullQualifiedIdentifier: Boolean = False): string; virtual; abstract;
     procedure Invalidate(); override;
     procedure PushBuildEvent(const ItemsEvents: Boolean = True); virtual;
     function Update(): Boolean; override;
@@ -547,7 +546,6 @@ type
     constructor Create(const ASDBObjects: TSDBObjects; const AName: string = ''); reintroduce; virtual;
     destructor Destroy(); override;
     function FieldByName(const FieldName: string): TSTableField; virtual;
-    function GetSourceEx(const DropBeforeCreate: Boolean = False): string; override;
     procedure Invalidate(); override;
     procedure InvalidateData(); virtual;
     procedure Open(const FilterSQL, QuickSearch: string; const ASortDef: TIndexDef; const Offset: Integer; const Limit: Integer); virtual;
@@ -658,7 +656,7 @@ type
     function DBRowTypeStr(): string; virtual;
     procedure Empty(); virtual;
     function EmptyFields(const Fields: TList): Boolean; virtual;
-    function GetSourceEx(const DropBeforeCreate: Boolean = False): string; override;
+    function GetSourceEx(const DropBeforeCreate: Boolean = False; const FullQualifiedIdentifier: Boolean = False): string; override;
     procedure InvalidateData(); override;
     function KeyByCaption(const Caption: string): TSKey; virtual;
     function KeyByName(const Name: string): TSKey; virtual;
@@ -727,7 +725,7 @@ type
     procedure Assign(const Source: TSTable); override;
     constructor Create(const ACDBObjects: TSDBObjects; const AName: string = ''); override;
     destructor Destroy(); override;
-    function GetSourceEx(const DropBeforeCreate: Boolean = False): string; overload; override;
+    function GetSourceEx(const DropBeforeCreate: Boolean = False; const FullQualifiedIdentifier: Boolean = False): string; overload; override;
     procedure Invalidate(); override;
     property Algorithm: TAlgorithm read FAlgorithm write FAlgorithm;
     property CheckOption: TCheckOption read FCheckOption write FCheckOption;
@@ -804,7 +802,7 @@ type
     procedure Assign(const Source: TSRoutine); reintroduce; virtual;
     constructor Create(const ACDBObjects: TSDBObjects; const AName: string = ''); override;
     destructor Destroy(); override;
-    function GetSourceEx(const DropBeforeCreate: Boolean = False): string; override;
+    function GetSourceEx(const DropBeforeCreate: Boolean = False; const FullQualifiedIdentifier: Boolean = False): string; override;
     function SQLRun(): string; virtual;
     property Stmt: string read FStmt;
     property Comment: string read FComment write FComment;
@@ -814,7 +812,7 @@ type
     property InputDataSet: TMySQLDataSet read GetInputDataSet;
     property Modified: TDateTime read FModified;
     property Security: TSDBObject.TSecurity read FSecurity write FSecurity;
-    property Source: string read GetSource write SetSource;
+    property Source: string read FSource write SetSource;
     property Parameter[Index: Integer]: TSRoutineParameter read GetParameter;
     property ParameterCount: Integer read GetParameterCount;
     property Routines: TSRoutines read GetRoutines;
@@ -875,7 +873,7 @@ type
     procedure Assign(const Source: TSTrigger); reintroduce; virtual;
     constructor Create(const ACDBObjects: TSDBObjects; const AName: string = ''); override;
     destructor Destroy(); override;
-    function GetSourceEx(const DropBeforeCreate: Boolean = False): string; override;
+    function GetSourceEx(const DropBeforeCreate: Boolean = False; const FullQualifiedIdentifier: Boolean = False): string; override;
     procedure Invalidate(); override;
     function SQLDelete(): string; virtual;
     function SQLInsert(): string; virtual;
@@ -885,7 +883,6 @@ type
     property Definer: string read FDefiner;
     property Event: TEvent read FEvent write FEvent;
     property InputDataSet: TMySQLDataSet read GetInputDataSet;
-    property Source: string read GetSource;
     property Stmt: string read FStmt write FStmt;
     property Table: TSBaseTable read GetTable;
     property TableName: string read FTableName write FTableName;
@@ -936,7 +933,7 @@ type
   public
     procedure Assign(const Source: TSEvent); reintroduce; virtual;
     constructor Create(const ACDBObjects: TSDBObjects; const AName: string = ''); override;
-    function GetSourceEx(const DropBeforeCreate: Boolean = False): string; override;
+    function GetSourceEx(const DropBeforeCreate: Boolean = False; const FullQualifiedIdentifier: Boolean = False): string; override;
     function SQLRun(): string; virtual;
     property Created: TDateTime read FCreated write FCreated;
     property Comment: string read FComment write FComment;
@@ -949,7 +946,6 @@ type
     property IntervalType: TIntervalType read FIntervalType write FIntervalType;
     property IntervalValue: string read FIntervalValue write FIntervalValue;
     property Preserve: Boolean read FPreserve write FPreserve;
-    property Source: string read GetSource;
     property StartDateTime: TDateTime read FStartDateTime write FStartDateTime;
     property Stmt: string read FStmt write FStmt;
     property Updated: TDateTime read FUpdated;
@@ -1005,7 +1001,6 @@ type
     procedure Build(const Field: TField); override;
     procedure FreeDesktop(); override;
     function GetCreated(): TDateTime; virtual;
-    function GetSource(): string; override;
     function GetValid(): Boolean; override;
     function GetValidSource(): Boolean; override;
     procedure SetName(const AName: string); override;
@@ -1031,7 +1026,6 @@ type
     function EventByName(const EventName: string): TSEvent; virtual;
     function FlushTables(const Tables: TList): Boolean; virtual;
     function FunctionByName(const FunctionName: string): TSFunction; virtual;
-    function GetSourceEx(const DropBeforeCreate: Boolean = False): string; virtual;
     procedure Invalidate(); override;
     function OptimizeTables(const Tables: TList): Boolean; virtual;
     procedure PushBuildEvents(); virtual;
@@ -2052,11 +2046,6 @@ begin
   Result := TSObjects(Items);
 end;
 
-function TSObject.GetSource(): string;
-begin
-  Result := FSource;
-end;
-
 function TSObject.GetValid(): Boolean;
 begin
   Result := ValidSource;
@@ -2184,9 +2173,7 @@ begin
 
   Reference := TSReference(Item);
 
-  if (not Assigned(Reference.DBObject)) then
-    FreeAndNil(Reference)
-  else if (Reference.DBObject = DBObject) then
+  if (Reference.DBObject = DBObject) then
     FreeAndNil(Reference)
   else
     for I := 0 to Count - 1 do
@@ -3741,11 +3728,6 @@ begin
   Result := FDataSet;
 end;
 
-function TSTable.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
-begin
-  raise EAbstractError.Create(SAbstractError);
-end;
-
 function TSTable.GetTables(): TSTables;
 begin
   Result := TSTables(Items);
@@ -4217,7 +4199,7 @@ begin
   Result := FFields;
 end;
 
-function TSBaseTable.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
+function TSBaseTable.GetSourceEx(const DropBeforeCreate: Boolean = False; const FullQualifiedIdentifier: Boolean = False): string;
 var
   SQL: string;
 begin
@@ -4225,6 +4207,13 @@ begin
 
   if (DropBeforeCreate) then
     SQL := 'DROP TABLE IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
+
+  if (FullQualifiedIdentifier) then
+  begin
+    if (Session.SQLParser.ParseSQL(SQL)) then
+      SQL := Session.SQLParser.AddDatabaseName(Database.Name);
+    Session.SQLParser.Clear();
+  end;
 
   Result := SQL;
 end;
@@ -5092,12 +5081,12 @@ begin
   Result := TSViewFields(GetFields());
 end;
 
-function TSView.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
+function TSView.GetSourceEx(const DropBeforeCreate: Boolean = False; const FullQualifiedIdentifier: Boolean = False): string;
 var
   SQL: string;
 begin
   if (Source = '') then
-    SQL := ''
+    Result := ''
   else
   begin
     SQL := 'CREATE ';
@@ -5123,9 +5112,16 @@ begin
 
     if (DropBeforeCreate) then
       SQL := 'DROP VIEW IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
-  end;
 
-  Result := SQL;
+    if (FullQualifiedIdentifier) then
+    begin
+      if (Session.SQLParser.ParseSQL(SQL)) then
+        SQL := Session.SQLParser.AddDatabaseName(Database.Name);
+      Session.SQLParser.Clear();
+    end;
+
+    Result := SQL;
+  end;
 end;
 
 procedure TSView.Invalidate();
@@ -5138,9 +5134,10 @@ end;
 function TSView.ParseCreateView(const SQL: string): string;
 var
   EndingCommentLen: Integer;
+  I: Integer;
   Len: Integer;
   Parse: TSQLParse;
-  PreviousToken: TSQLParser.PToken;
+  PreviousTokens: array [1..4] of TSQLParser.PToken;
   StartingCommentLen: Integer;
   TableCount: Integer;
   TableName: string;
@@ -5223,14 +5220,15 @@ begin
     if (Session.SQLParser.ParseSQL(FStmt)) then
     begin
       TableCount := 0; TableName := '';
-      PreviousToken := nil;
+      for I := Low(PreviousTokens) to High(PreviousTokens) do PreviousTokens[I] := nil;
       Token := Session.SQLParser.FirstStmt^.FirstToken;
       while (Assigned(Token)) do
       begin
-        if (Assigned(PreviousToken) and (PreviousToken^.DbIdentType = ditDatabase) and (Token^.TokenType = ttDot)
-          and (Database.Databases.NameCmp(PreviousToken^.AsString, Database.Name) = 0)) then
+        if (Assigned(PreviousTokens[1]) and (PreviousTokens[1]^.DbIdentType = ditDatabase) and (Database.Databases.NameCmp(PreviousTokens[1]^.AsString, Database.Name) = 0)
+          and (Token^.TokenType = ttDot)) then
         begin
-          PreviousToken^.Hidden := True;
+          PreviousTokens[2]^.Hidden := True;
+          PreviousTokens[1]^.Hidden := True;
           Token^.Hidden := True;
         end;
 
@@ -5245,7 +5243,8 @@ begin
             Inc(TableCount);
         end;
 
-        PreviousToken := Token;
+        PreviousTokens[2] := PreviousTokens[1];
+        PreviousTokens[1] := Token;
         if (Token = Session.SQLParser.FirstStmt^.LastToken) then
           Token := nil
         else
@@ -5254,18 +5253,21 @@ begin
 
       if (TableCount = 1) then
       begin
-        PreviousToken := nil;
+        for I := Low(PreviousTokens) to High(PreviousTokens) do PreviousTokens[I] := nil;
         Token := Session.SQLParser.FirstStmt^.FirstToken;
         while (Assigned(Token)) do
         begin
-          if (Assigned(PreviousToken) and (PreviousToken^.DbIdentType = ditTable) and (Token^.TokenType = ttDot)
-            and (Database.Tables.NameCmp(PreviousToken^.AsString, TableName) = 0)) then
+          if ((not Assigned(PreviousTokens[2]) or (PreviousTokens[2]^.DbIdentType <> ditDatabase) or PreviousTokens[2]^.Hidden)
+            and (not Assigned(PreviousTokens[1]) or (PreviousTokens[1]^.TokenType <> ttDot) or PreviousTokens[1]^.Hidden)
+            and (Token^.DbIdentType = ditTable) and (Database.Tables.NameCmp(Token^.AsString, TableName) = 0)) then
           begin
-            PreviousToken^.Hidden := True;
+            PreviousTokens[1]^.Hidden := True;
             Token^.Hidden := True;
           end;
 
-          PreviousToken := Token;
+          PreviousTokens[3] := PreviousTokens[2];
+          PreviousTokens[2] := PreviousTokens[1];
+          PreviousTokens[1] := Token;
           if (Token = Session.SQLParser.FirstStmt^.LastToken) then
             Token := nil
           else
@@ -5960,7 +5962,12 @@ begin
           else raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%s)', [Parameter[I].Name, Session.FieldTypeByMySQLFieldType(Parameter[I].FieldType).Name]);
         end;
       Field.FieldName := Parameter[I].Name;
+try // Debug 2016-12-01
       Field.Name := ReplaceStr(ReplaceStr(ReplaceStr(Parameter[I].Name, ' ', '_'), '.', '_'), '$', '_');
+except
+  on E: Exception do
+    raise Exception.Create(E.Message + ' (SQL: ' + Source + ')');
+end;
       Field.DataSet := FInputDataSet;
     end;
 
@@ -6002,7 +6009,7 @@ begin
   Result := TSRoutines(Items);
 end;
 
-function TSRoutine.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
+function TSRoutine.GetSourceEx(const DropBeforeCreate: Boolean = False; const FullQualifiedIdentifier: Boolean = False): string;
 var
   SQL: string;
 begin
@@ -6013,6 +6020,13 @@ begin
       SQL := 'DROP PROCEDURE IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL
     else
       SQL := 'DROP FUNCTION IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
+
+  if (FullQualifiedIdentifier) then
+  begin
+    if (Session.SQLParser.ParseSQL(SQL)) then
+      SQL := Session.SQLParser.AddDatabaseName(Database.Name);
+    Session.SQLParser.Clear();
+  end;
 
   Result := SQL;
 end;
@@ -6421,7 +6435,7 @@ begin
   Result := FInputDataSet;
 end;
 
-function TSTrigger.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
+function TSTrigger.GetSourceEx(const DropBeforeCreate: Boolean = False; const FullQualifiedIdentifier: Boolean = False): string;
 var
   SQL: string;
 begin
@@ -6450,6 +6464,13 @@ begin
 
   if (DropBeforeCreate) then
     SQL := 'DROP TRIGGER IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
+
+  if (FullQualifiedIdentifier) then
+  begin
+    if (Session.SQLParser.ParseSQL(SQL)) then
+      SQL := Session.SQLParser.AddDatabaseName(Database.Name);
+    Session.SQLParser.Clear();
+  end;
 
   Result := SQL;
 end;
@@ -6819,7 +6840,7 @@ begin
   Result := TSEvents(Items);
 end;
 
-function TSEvent.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
+function TSEvent.GetSourceEx(const DropBeforeCreate: Boolean = False; const FullQualifiedIdentifier: Boolean = False): string;
 var
   SQL: string;
 begin
@@ -6827,6 +6848,13 @@ begin
 
   if (DropBeforeCreate) then
     SQL := 'DROP EVENT IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
+
+  if (FullQualifiedIdentifier) then
+  begin
+    if (Session.SQLParser.ParseSQL(SQL)) then
+      SQL := Session.SQLParser.AddDatabaseName(Database.Name);
+    Session.SQLParser.Clear();
+  end;
 
   Result := SQL;
 end;
@@ -7537,31 +7565,6 @@ begin
   for I := 0 to Tables.Count - 1 do
     if ((Tables[I] is TSBaseTable) and TSBaseTable(Tables[I]).ValidStatus) then
       Inc(Result, TSBaseTable(Tables[I]).UnusedSize);
-end;
-
-function TSDatabase.GetSource(): string;
-begin
-  if (FSource = '') then
-    FSource := GetSourceEx();
-
-  Result := FSource;
-end;
-
-function TSDatabase.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
-var
-  SQL: string;
-begin
-  if (FSource = '') then
-    SQL := ''
-  else
-  begin
-    SQL := Trim(FSource) + #13#10;
-
-    if ((SQL <> '') and DropBeforeCreate) then
-      SQL := 'DROP DATABASE IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
-  end;
-
-  Result := SQL;
 end;
 
 function TSDatabase.GetUpdated(): TDateTime;
@@ -11396,30 +11399,35 @@ var
   User: TSUser;
   Variable: TSVariable;
 begin
+
+
   if (Now() <= ParseEndDate) then
   begin
-    SetString(SQL, Text, Len);
-    if ((Connection.ErrorCode = ER_PARSE_ERROR) and SQLParser.ParseSQL(SQL)) then
+    SQL := SQLTrimStmt(Text, Len, Connection.MySQLVersion);
+    if (SQL <> '') then
     begin
-      UnparsableSQL := UnparsableSQL
-        + '# MonitorExecutedStmts() - ER_PARSE_ERROR' + #13#10
-        + '# ErrorMessage: ' + Connection.ErrorMessage + #13#10
-        + Trim(SQL) + #13#10 + #13#10 + #13#10;
-    end
-    else if ((Connection.ErrorCode = 0) and not SQLParser.ParseSQL(SQL)) then
-    begin
-      UnparsableSQL := UnparsableSQL
-        + '# MonitorExecutedStmts()' + #13#10
-        + '# Error: ' + SQLParser.ErrorMessage + #13#10
-        + Trim(SQL) + #13#10 + #13#10 + #13#10;
+      if ((Connection.ErrorCode = ER_PARSE_ERROR) and SQLParser.ParseSQL(SQL)) then
+      begin
+        UnparsableSQL := UnparsableSQL
+          + '# MonitorExecutedStmts() - ER_PARSE_ERROR' + #13#10
+          + '# ErrorMessage: ' + Connection.ErrorMessage + #13#10
+          + Trim(SQL) + #13#10 + #13#10 + #13#10;
+      end
+      else if ((Connection.ErrorCode = 0) and not SQLParser.ParseSQL(SQL)) then
+      begin
+        UnparsableSQL := UnparsableSQL
+          + '# MonitorExecutedStmts()' + #13#10
+          + '# Error: ' + SQLParser.ErrorMessage + #13#10
+          + Trim(SQL) + #13#10 + #13#10 + #13#10;
+      end;
+      SQLParser.Clear();
     end;
-    SQLParser.Clear();
   end;
 
-  if ((Connection.ErrorCode = 0) and SQLCreateParse(Parse, Text, Len, Connection.MySQLVersion)) then
+  if ((Connection.ErrorCode = 0) and SQLCreateParse(Parse, PChar(SQL), Length(SQL), Connection.MySQLVersion)) then
     if (SQLParseKeyword(Parse, 'SELECT') or SQLParseKeyword(Parse, 'SHOW')) then
       // Do nothing - but do not parse the Text further more
-    else if (SQLParseDDLStmt(DDLStmt, Text, Len, Connection.MySQLVersion)) then
+    else if (SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Connection.MySQLVersion)) then
     begin
       DDLStmt.DatabaseName := TableName(DDLStmt.DatabaseName);
       if (DDLStmt.ObjectType = otTable) then
@@ -11702,7 +11710,7 @@ begin
         end;
       end;
     end
-    else if (SQLParseDMLStmt(DMLStmt, Text, Len, Connection.MySQLVersion)) then
+    else if (SQLParseDMLStmt(DMLStmt, PChar(SQL), Length(SQL), Connection.MySQLVersion)) then
     begin
       if ((Length(DMLStmt.DatabaseNames) = 1) and (Length(DMLStmt.TableNames) = 1)
         and (Databases.NameCmp(DMLStmt.DatabaseNames[0], 'mysql') = 0) and (TableNameCmp(DMLStmt.TableNames[0], 'user') = 0)) then

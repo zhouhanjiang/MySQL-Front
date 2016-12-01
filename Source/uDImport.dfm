@@ -65,7 +65,7 @@ object DImport: TDImport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSCSVOptions
+    ActivePage = TSStmtType
     Anchors = [akLeft, akTop, akRight, akBottom]
     Style = tsButtons
     TabOrder = 0
@@ -132,6 +132,10 @@ object DImport: TDImport
       TabVisible = False
       OnHide = TSCSVOptionsHide
       OnShow = FCSVPreviewUpdate
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -534,6 +538,7 @@ object DImport: TDImport
     object TSStmtType: TTabSheet
       Caption = 'TSStmtType'
       TabVisible = False
+      OnShow = TSStmtTypeShow
       ExplicitLeft = 0
       ExplicitTop = 0
       ExplicitWidth = 0

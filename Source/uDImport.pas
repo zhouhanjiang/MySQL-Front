@@ -133,6 +133,7 @@ type
     procedure WhatClick(Sender: TObject);
     procedure WhatKeyPress(Sender: TObject; var Key: Char);
     procedure FormDestroy(Sender: TObject);
+    procedure TSStmtTypeShow(Sender: TObject);
   type
     TTableName = class
     private
@@ -1296,11 +1297,6 @@ var
   I: Integer;
   J: Integer;
 begin
-  TSStmtType.Enabled := False;
-  for I := 0 to Length(FDestinationFields) - 1 do
-    if ((FSourceFields[I].Text <> '') and (FDestinationFields[I].ItemIndex > 0)) then
-      TSStmtType.Enabled := True;
-
   FUpdate.Enabled := (SObject is TSBaseTable) and Assigned(TSBaseTable(SObject).PrimaryKey);
   if (FUpdate.Enabled and Assigned(TSBaseTable(SObject).PrimaryKey)) then
     for J := 0 to TSBaseTable(SObject).PrimaryKey.Columns.Count - 1 do
@@ -1311,6 +1307,11 @@ begin
       FUpdate.Enabled := FUpdate.Enabled and Found;
     end;
   FInsertOrUpdate.Enabled := (ImportType in [itTextFile, itExcelFile]) and FUpdate.Enabled; FLInsertUpdate.Enabled := FInsertOrUpdate.Enabled;
+
+  TSStmtType.Enabled := False;
+  for I := 0 to Length(FDestinationFields) - 1 do
+    if ((FSourceFields[I].Text <> '') and (FDestinationFields[I].ItemIndex > 0)) then
+      TSStmtType.Enabled := True;
 
   CheckActivePageChange(TSFields.PageIndex);
 end;
@@ -1331,6 +1332,12 @@ end;
 procedure TDImport.TSSelectHide(Sender: TObject);
 begin
   InitTSFields(Sender);
+end;
+
+procedure TDImport.TSStmtTypeShow(Sender: TObject);
+begin
+  TSExecute.Enabled := True;
+  CheckActivePageChange(TSStmtType.PageIndex);
 end;
 
 procedure TDImport.TSTablesHide(Sender: TObject);

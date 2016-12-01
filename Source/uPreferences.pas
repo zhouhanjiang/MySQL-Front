@@ -2982,7 +2982,9 @@ begin
 
   FDesktop := TDesktop.Create(Self);
 
-  if (FileExists(DesktopFilename)) then
+  if (not FileExists(DesktopFilename)) then
+    DesktopXMLDocument := nil
+  else
     try
       DesktopXMLDocument := LoadXMLDocument(DesktopFilename);
     except

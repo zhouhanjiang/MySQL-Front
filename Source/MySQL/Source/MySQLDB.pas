@@ -330,7 +330,8 @@ type
     procedure SyncReceivingResult(const SyncThread: TSyncThread);
     procedure SyncReleaseDataSet(const DataSet: TMySQLQuery);
     procedure ReleaseSQLMonitor(const SQLMonitor: TMySQLMonitor); virtual;
-    procedure WriteMonitor(const AText: PChar; const Length: Integer; const ATraceType: TMySQLMonitor.TTraceType); virtual;
+    procedure WriteMonitor(const Text: string; const TraceType: TMySQLMonitor.TTraceType); overload; inline;
+    procedure WriteMonitor(const Text: PChar; const Length: Integer; const TraceType: TMySQLMonitor.TTraceType); overload;
     property CharsetNr: Byte read FCharsetNr;
     property Handle: MySQLConsts.MYSQL read GetHandle;
     property IdentifierQuoter: Char read FIdentifierQuoter;
@@ -428,6 +429,7 @@ type
     FCommandText: string;
     FCommandType: TCommandType;
     FDatabaseName: string;
+    LibFieldCount: Integer; // Debug 2016-12-01
     SyncThread: TMySQLConnection.TSyncThread;
     function AllocRecordBuffer(): TRecordBuffer; override;
     procedure DataConvert(Field: TField; Source, Dest: Pointer; ToNative: Boolean); override;
@@ -2996,6 +2998,9 @@ begin
   DataSet.SyncThread := SyncThread;
   SyncThread.DataSet := DataSet;
 
+  // Debug 2016-12-01
+  DataSet.LibFieldCount := Lib.mysql_field_count(SyncThread.LibHandle);
+
   SyncThread.State := ssReceivingResult;
 
   if (DataSet is TMySQLDataSet) then
@@ -3205,16 +3210,12 @@ end;
 
 procedure TMySQLConnection.SyncExecute(const SyncThread: TSyncThread);
 var
-  S: string;
   StmtLength: Integer;
 begin
   Assert(SyncThread.State in [ssExecutingFirst, ssExecutingNext]);
 
   if (SyncThread.State = ssExecutingFirst) then
-  begin
-    S := '# ' + SysUtils.DateTimeToStr(Now() + TimeDiff, FormatSettings);
-    WriteMonitor(PChar(S), Length(S), ttTime);
-  end;
+    WriteMonitor('# ' + SysUtils.DateTimeToStr(Now() + TimeDiff, FormatSettings), ttTime);
 
   if (SyncThread.StmtIndex < SyncThread.StmtLengths.Count) then
   begin
@@ -3245,19 +3246,13 @@ begin
     WriteMonitor(@SyncThread.SQL[SyncThread.SQLIndex], Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]), ttResult);
 
   if (SyncThread.ErrorCode > 0) then
-  begin
-    S := '--> Error #' + IntToStr(SyncThread.ErrorCode) + ': ' + SyncThread.ErrorMessage;
-    WriteMonitor(PChar(S), Length(S), ttInfo);
-  end
+    WriteMonitor('--> Error #' + IntToStr(SyncThread.ErrorCode) + ': ' + SyncThread.ErrorMessage, ttInfo)
   else
   begin
     Inc(FExecutedStmts);
 
     if (SyncThread.WarningCount > 0) then
-    begin
-      S := '--> ' + IntToStr(SyncThread.WarningCount) + ' Warning(s) available';
-      WriteMonitor(PChar(S), Length(S), ttInfo);
-    end;
+      WriteMonitor('--> ' + IntToStr(SyncThread.WarningCount) + ' Warning(s) available', ttInfo);
 
     if (Assigned(Lib.mysql_session_track_get_first) and Assigned(Lib.mysql_session_track_get_next)) then
       if (Lib.mysql_session_track_get_first(SyncThread.LibHandle, SESSION_TRACK_SYSTEM_VARIABLES, Data, Size) = 0) then
@@ -3280,21 +3275,16 @@ begin
         and (SQLParseCLStmt(CLStmt, @SyncThread.SQL[SyncThread.SQLIndex], Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]), MySQLVersion))) then
         if ((CLStmt.CommandType = ctDropDatabase) and (CLStmt.ObjectName = FDatabaseName)) then
         begin
-          S := '--> Database unselected';
-          WriteMonitor(PChar(S), Length(S), ttInfo);
+          WriteMonitor('--> Database unselected', ttInfo);
           DoDatabaseChange('');
         end
         else if ((CLStmt.CommandType = ctUse) and (CLStmt.ObjectName <> FDatabaseName)) then
         begin
-          S := '--> Database selected: ' + CLStmt.ObjectName;
-          WriteMonitor(PChar(S), Length(S), ttInfo);
+          WriteMonitor('--> Database selected: ' + CLStmt.ObjectName, ttInfo);
           DoDatabaseChange(CLStmt.ObjectName);
         end
         else if (CLStmt.CommandType = ctShutdown) then
-        begin
-          S := '--> Server is going down';
-          WriteMonitor(PChar(S), Length(S), ttInfo);
-        end;
+          WriteMonitor('--> Server is going down', ttInfo);
     end
     else if (not Assigned(SyncThread.ResHandle)) then
     begin
@@ -3315,15 +3305,9 @@ begin
         WriteMonitor(PChar(S), Length(S), ttInfo);
       end
       else if (Lib.mysql_affected_rows(SyncThread.LibHandle) > 0) then
-      begin
-        S := '--> ' + IntToStr(Lib.mysql_affected_rows(SyncThread.LibHandle)) + ' Record(s) affected';
-        WriteMonitor(PChar(S), Length(S), ttInfo);
-      end
+        WriteMonitor('--> ' + IntToStr(Lib.mysql_affected_rows(SyncThread.LibHandle)) + ' Record(s) affected', ttInfo)
       else
-      begin
-        S := '--> Ok';
-        WriteMonitor(PChar(S), Length(S), ttInfo);
-      end;
+        WriteMonitor('--> Ok', ttInfo);
     end;
   end;
 
@@ -3525,24 +3509,18 @@ begin
 end;
 
 procedure TMySQLConnection.SyncHandledResult(const SyncThread: TSyncThread);
-var
-  S: String;
 begin
   Assert((SyncThread.State in [ssReceivingResult, ssReady]) or (SyncThread.State = ssResult) and not Assigned(SyncThread.ResHandle));
 
   if (SyncThread.State = ssReceivingResult) then
   begin
-    S := '--> ' + IntToStr(Lib.mysql_num_rows(SyncThread.ResHandle)) + ' Record(s) received';
-    WriteMonitor(PChar(S), Length(S), ttInfo);
+    WriteMonitor('--> ' + IntToStr(Lib.mysql_num_rows(SyncThread.ResHandle)) + ' Record(s) received', ttInfo);
 
     Lib.mysql_free_result(SyncThread.ResHandle);
     SyncThread.ResHandle := nil;
 
     if (SyncThread.ErrorCode > 0) then
-    begin
-      S := '--> Error #' + IntToStr(FErrorCode) + ': ' + FErrorMessage + ' while receiving Record(s)';
-      WriteMonitor(PChar(S), Length(S), ttInfo);
-    end;
+      WriteMonitor('--> Error #' + IntToStr(FErrorCode) + ': ' + FErrorMessage + ' while receiving Record(s)', ttInfo);
   end;
 
 
@@ -3635,8 +3613,6 @@ begin
 end;
 
 procedure TMySQLConnection.Terminate();
-var
-  S: string;
 begin
   TerminateCS.Enter();
 
@@ -3650,8 +3626,7 @@ begin
       MessageBox(0, 'Terminate!', 'Warning', MB_OK + MB_ICONWARNING);
     {$ENDIF}
 
-    S := '--> Connection terminated';
-    WriteMonitor(PChar(S), Length(S), ttInfo);
+    WriteMonitor('--> Connection terminated', ttInfo);
   end;
 
   TerminateCS.Leave();
@@ -3667,15 +3642,20 @@ begin
   Result := Asynchron and Assigned(MySQLConnectionOnSynchronize) and (SynchronCount = 0);
 end;
 
-procedure TMySQLConnection.WriteMonitor(const AText: PChar; const Length: Integer; const ATraceType: TMySQLMonitor.TTraceType);
+procedure TMySQLConnection.WriteMonitor(const Text: string; const TraceType: TMySQLMonitor.TTraceType);
+begin
+  WriteMonitor(PChar(Text), Length(Text), TraceType);
+end;
+
+procedure TMySQLConnection.WriteMonitor(const Text: PChar; const Length: Integer; const TraceType: TMySQLMonitor.TTraceType);
 var
   I: Integer;
 begin
   InMonitor := True;
   try
     for I := 0 to FSQLMonitors.Count - 1 do
-      if (ATraceType in TMySQLMonitor(FSQLMonitors[I]).TraceTypes) then
-        TMySQLMonitor(FSQLMonitors[I]).DoMonitor(Self, AText, Length, ATraceType);
+      if (TraceType in TMySQLMonitor(FSQLMonitors[I]).TraceTypes) then
+        TMySQLMonitor(FSQLMonitors[I]).DoMonitor(Self, Text, Length, TraceType);
   finally
     InMonitor := False;
   end;
@@ -3699,7 +3679,12 @@ begin
   LibRow := TMySQLQuery(DataSet).LibRow;
 
   Result := not Assigned(LibRow);
-  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+
+  // Debug 2016-12-01
+  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
+    raise ERangeError.Create(SRangeError);
+
+  Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLBitField.GetText(var Text: string; DisplayText: Boolean);
@@ -3764,7 +3749,12 @@ begin
   LibRow := TMySQLQuery(DataSet).LibRow;
 
   Result := not Assigned(LibRow);
-  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+
+  // Debug 2016-12-01
+  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
+    raise ERangeError.Create(SRangeError);
+
+  Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLBlobField.GetText(var Text: string; DisplayText: Boolean);
@@ -3806,7 +3796,12 @@ begin
   LibRow := TMySQLQuery(DataSet).LibRow;
 
   Result := not Assigned(LibRow);
-  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+
+  // Debug 2016-12-01
+  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
+    raise ERangeError.Create(SRangeError);
+
+  Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLByteField.GetText(var Text: string; DisplayText: Boolean);
@@ -3835,7 +3830,12 @@ begin
   LibRow := TMySQLQuery(DataSet).LibRow;
 
   Result := not Assigned(LibRow);
-  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+
+  // Debug 2016-12-01
+  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
+    raise ERangeError.Create(SRangeError);
+
+  Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLDateField.GetText(var Text: string; DisplayText: Boolean);
@@ -3886,7 +3886,12 @@ begin
   LibRow := TMySQLQuery(DataSet).LibRow;
 
   Result := not Assigned(LibRow);
-  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+
+  // Debug 2016-12-01
+  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
+    raise ERangeError.Create(SRangeError);
+
+  Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLDateTimeField.GetText(var Text: string; DisplayText: Boolean);
@@ -3935,7 +3940,12 @@ begin
   LibRow := TMySQLQuery(DataSet).LibRow;
 
   Result := not Assigned(LibRow);
-  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+
+  // Debug 2016-12-01
+  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
+    raise ERangeError.Create(SRangeError);
+
+  Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLExtendedField.GetText(var Text: string; DisplayText: Boolean);
@@ -3964,7 +3974,12 @@ begin
   LibRow := TMySQLQuery(DataSet).LibRow;
 
   Result := not Assigned(LibRow);
-  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+
+  // Debug 2016-12-01
+  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
+    raise ERangeError.Create(SRangeError);
+
+  Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLFloatField.GetText(var Text: string; DisplayText: Boolean);
@@ -3993,7 +4008,12 @@ begin
   LibRow := TMySQLQuery(DataSet).LibRow;
 
   Result := not Assigned(LibRow);
-  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+
+  // Debug 2016-12-01
+  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
+    raise ERangeError.Create(SRangeError);
+
+  Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLIntegerField.GetText(var Text: string; DisplayText: Boolean);
@@ -4032,7 +4052,12 @@ begin
   LibRow := TMySQLQuery(DataSet).LibRow;
 
   Result := not Assigned(LibRow);
-  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+
+  // Debug 2016-12-01
+  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
+    raise ERangeError.Create(SRangeError);
+
+  Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLLargeWordField.GetText(var Text: string; DisplayText: Boolean);
@@ -4076,7 +4101,12 @@ begin
   LibRow := TMySQLQuery(DataSet).LibRow;
 
   Result := not Assigned(LibRow);
-  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+
+  // Debug 2016-12-01
+  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
+    raise ERangeError.Create(SRangeError);
+
+  Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLLongWordField.GetText(var Text: string; DisplayText: Boolean);
@@ -4105,7 +4135,12 @@ begin
   LibRow := TMySQLQuery(DataSet).LibRow;
 
   Result := not Assigned(LibRow);
-  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+
+  // Debug 2016-12-01
+  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
+    raise ERangeError.Create(SRangeError);
+
+  Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLShortIntField.GetText(var Text: string; DisplayText: Boolean);
@@ -4134,7 +4169,12 @@ begin
   LibRow := TMySQLQuery(DataSet).LibRow;
 
   Result := not Assigned(LibRow);
-  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+
+  // Debug 2016-12-01
+  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
+    raise ERangeError.Create(SRangeError);
+
+  Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLSingleField.GetText(var Text: string; DisplayText: Boolean);
@@ -4163,7 +4203,12 @@ begin
   LibRow := TMySQLQuery(DataSet).LibRow;
 
   Result := not Assigned(LibRow);
-  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+
+  // Debug 2016-12-01
+  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
+    raise ERangeError.Create(SRangeError);
+
+  Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLSmallIntField.GetText(var Text: string; DisplayText: Boolean);
@@ -4203,7 +4248,12 @@ begin
   LibRow := TMySQLQuery(DataSet).LibRow;
 
   Result := not Assigned(LibRow);
-  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+
+  // Debug 2016-12-01
+  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
+    raise ERangeError.Create(SRangeError);
+
+  Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLStringField.GetText(var Text: string; DisplayText: Boolean);
@@ -4278,7 +4328,12 @@ begin
   LibRow := TMySQLQuery(DataSet).LibRow;
 
   Result := not Assigned(LibRow);
-  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+
+  // Debug 2016-12-01
+  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
+    raise ERangeError.Create(SRangeError);
+
+  Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLTimeField.GetText(var Text: string; DisplayText: Boolean);
@@ -4356,7 +4411,12 @@ begin
   LibRow := TMySQLQuery(DataSet).LibRow;
 
   Result := not Assigned(LibRow);
-  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+
+  // Debug 2016-12-01
+  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
+    raise ERangeError.Create(SRangeError);
+
+  Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
 
 function TMySQLTimeStampField.GetOldValue: Variant;
@@ -4447,7 +4507,12 @@ begin
   LibRow := TMySQLQuery(DataSet).LibRow;
 
   Result := not Assigned(LibRow);
-  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+
+  // Debug 2016-12-01
+  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
+    raise ERangeError.Create(SRangeError);
+
+  Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLWideMemoField.GetText(var Text: string; DisplayText: Boolean);
@@ -4494,7 +4559,12 @@ begin
   LibRow := TMySQLQuery(DataSet).LibRow;
 
   Result := not Assigned(LibRow);
-  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+
+  // Debug 2016-12-01
+  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
+    raise ERangeError.Create(SRangeError);
+
+  Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLWideStringField.GetText(var Text: string; DisplayText: Boolean);
@@ -4570,7 +4640,12 @@ begin
   LibRow := TMySQLQuery(DataSet).LibRow;
 
   Result := not Assigned(LibRow);
-  Result := Result or not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]);
+
+  // Debug 2016-12-01
+  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
+    raise ERangeError.Create(SRangeError);
+
+  Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
 
 procedure TMySQLWordField.GetText(var Text: string; DisplayText: Boolean);
@@ -5513,6 +5588,10 @@ begin
       if (Length(Bookmark) = 0) then
         raise ERangeError.Create(SRangeError);
       P := PPointer(@Bookmark[0])^;
+      // Debug 2016-11-30
+      P2 := TList(InternRecordBuffers).Items[I];
+      P2 := InternRecordBuffers.Items[I];
+      P2 := InternRecordBuffers.Buffers[I];
       P2 := InternRecordBuffers[I];
       if (P = P2) then
         Result := I;
