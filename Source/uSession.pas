@@ -5137,7 +5137,7 @@ var
   I: Integer;
   Len: Integer;
   Parse: TSQLParse;
-  PreviousTokens: array [1..4] of TSQLParser.PToken;
+  PreviousTokens: array [1..3] of TSQLParser.PToken;
   StartingCommentLen: Integer;
   TableCount: Integer;
   TableName: string;
@@ -5227,7 +5227,6 @@ begin
         if (Assigned(PreviousTokens[1]) and (PreviousTokens[1]^.DbIdentType = ditDatabase) and (Database.Databases.NameCmp(PreviousTokens[1]^.AsString, Database.Name) = 0)
           and (Token^.TokenType = ttDot)) then
         begin
-          PreviousTokens[2]^.Hidden := True;
           PreviousTokens[1]^.Hidden := True;
           Token^.Hidden := True;
         end;
@@ -5243,7 +5242,6 @@ begin
             Inc(TableCount);
         end;
 
-        PreviousTokens[2] := PreviousTokens[1];
         PreviousTokens[1] := Token;
         if (Token = Session.SQLParser.FirstStmt^.LastToken) then
           Token := nil
@@ -5257,9 +5255,10 @@ begin
         Token := Session.SQLParser.FirstStmt^.FirstToken;
         while (Assigned(Token)) do
         begin
-          if ((not Assigned(PreviousTokens[2]) or (PreviousTokens[2]^.DbIdentType <> ditDatabase) or PreviousTokens[2]^.Hidden)
-            and (not Assigned(PreviousTokens[1]) or (PreviousTokens[1]^.TokenType <> ttDot) or PreviousTokens[1]^.Hidden)
-            and (Token^.DbIdentType = ditTable) and (Database.Tables.NameCmp(Token^.AsString, TableName) = 0)) then
+          if ((not Assigned(PreviousTokens[3]) or (PreviousTokens[3]^.DbIdentType <> ditDatabase) or (Database.Databases.NameCmp(PreviousTokens[3]^.AsString, Database.Name) = 0) and PreviousTokens[3]^.Hidden)
+            and (not Assigned(PreviousTokens[2]) or (PreviousTokens[2]^.TokenType <> ttDot) or PreviousTokens[2]^.Hidden)
+            and Assigned(PreviousTokens[1]) and (PreviousTokens[1]^.DbIdentType = ditTable) and (Database.Tables.NameCmp(PreviousTokens[1]^.AsString, TableName) = 0)
+            and (Token^.TokenType = ttDot)) then
           begin
             PreviousTokens[1]^.Hidden := True;
             Token^.Hidden := True;

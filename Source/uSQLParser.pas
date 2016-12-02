@@ -19336,8 +19336,8 @@ begin
       Assert(ErrorFound or (Nodes.Count > 0) and (Nodes[Nodes.Count - 1] > 0));
     until (ErrorFound
       or EndOfStmt(CurrentToken)
-      or not (eoOperators in Options)
-      or not IsOperator(Nodes[Nodes.Count - 1]) and not IsOperator(CurrentToken)
+      or IsOperator(CurrentToken) and not (eoOperators in Options)
+      or not (IsOperator(Nodes[Nodes.Count - 1]) and not (TokenPtr(Nodes[Nodes.Count - 1]).OperatorType in otUnaryOperators)) and not IsOperator(CurrentToken)
       or not (eoIn in Options) and (TokenPtr(CurrentToken)^.OperatorType = otIn));
 
   if (not ErrorFound and (Nodes.Count > 1)) then

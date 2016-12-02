@@ -352,6 +352,12 @@ procedure TDSearch.FormShow(Sender: TObject);
 var
   I: Integer;
 begin
+  if (Assigned(Search)) then
+  begin
+    TerminateThread(Search.Handle, 0);
+    Search := nil;
+  end;
+
   if (SearchOnly) then
   begin
     Caption := Preferences.LoadStr(187);

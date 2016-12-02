@@ -310,6 +310,12 @@ begin
   Wanted.Node := nil;
   Wanted.Page := nil;
 
+  if (Assigned(Transfer)) then
+  begin
+    TerminateThread(Transfer.Handle, 0);
+    Transfer := nil;
+  end;
+
   SetLength(Sessions, Accounts.Count);
   for I := 0 to Length(Sessions) - 1 do
   begin

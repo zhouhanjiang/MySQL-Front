@@ -675,6 +675,12 @@ var
 begin
   Session.RegisterEventProc(FormSessionEvent);
 
+  if (Assigned(Export)) then
+  begin
+    TerminateThread(Export.Handle, 0);
+    Export := nil;
+  end;
+
   ModalResult := mrNone;
 
   if ((Preferences.Export.Width >= Width) and (Preferences.Export.Height >= Height)) then

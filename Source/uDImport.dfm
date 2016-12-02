@@ -539,6 +539,10 @@ object DImport: TDImport
       Caption = 'TSStmtType'
       TabVisible = False
       OnShow = TSStmtTypeShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)

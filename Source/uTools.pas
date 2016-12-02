@@ -2435,9 +2435,9 @@ begin
             Index := 1 + Length(FileContent.Str);
             Len := Integer(ReadSize - (FileBuffer.Index - BytesPerSector));
 try
-            SetLength(FileContent.Str, Length(FileContent.Str) + (Index - 1 + Len) div SizeOf(Char));
+            SetLength(FileContent.Str, Length(FileContent.Str) + Len div SizeOf(Char));
 except // Debug 2016-12-01
-  raise ERangeError.Create(SRangeError + ' (wanted length: ' + IntToStr(Length(FileContent.Str) + (Index - 1 + Len) div SizeOf(Char)) + ')');
+  raise ERangeError.Create(SRangeError + ' (wanted length: ' + IntToStr(Length(FileContent.Str) + Len div SizeOf(Char)) + ')');
 end;
             MoveMemory(@FileContent.Str[Index], @FileBuffer.Mem[FileBuffer.Index], Len);
             FileBuffer.Index := BytesPerSector;

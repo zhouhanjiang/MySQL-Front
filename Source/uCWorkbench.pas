@@ -1488,6 +1488,9 @@ begin
       // Debug 2016-11-24
       if (not (TObject(NewPoint) is TWLinkPoint)) then
         raise ERangeError.Create(SRangeError);
+      // Debug 2016-12-02
+      if (Workbench.LinkPoints.IndexOf(NewPoint) < 0) then
+        raise ERangeError.Create(SRangeError);
       NewPoint.MouseDown(mbLeft, [], (PointSize - 1) div 2, (PointSize - 1) div 2);
       NewPoint.MoveState := msAutomatic;
 

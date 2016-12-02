@@ -639,6 +639,12 @@ begin
 
   TableNames := TTableNames.Create();
 
+  if (Assigned(Import)) then
+  begin
+    TerminateThread(Import.Handle, 0);
+    Import := nil;
+  end;
+
   ModalResult := mrNone;
 
   if ((Preferences.Import.Width >= Width) and (Preferences.Import.Height >= Height)) then

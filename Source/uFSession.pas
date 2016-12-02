@@ -5852,6 +5852,13 @@ begin
         Session.Account.Desktop.EditorContent[ToolbarTabByView[View]] := ''
       else
       begin
+        // Debug 2016-12-02
+        if (not Assigned(Session)) then
+          raise ERangeError.Create(SRangeError);
+        if (not Assigned(Session.Account)) then
+          raise ERangeError.Create(SRangeError);
+        if (not Assigned(Session.Account.Desktop)) then
+          raise ERangeError.Create(SRangeError);
         // Debug 2016-11-30
         if (not Assigned(SQLEditors[View])) then
           raise ERangeError.Create(SRangeError);
@@ -9202,7 +9209,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
       if (TSTable(Data) is TSBaseTable) then
         if (not TSBaseTable(Data).ValidStatus or (TSBaseTable(Data).RecordCount < 0)) then
           Item.SubItems.Add('')
-        else if (TSBaseTable(Data).Engine.IsInnoDB) then
+        else if (Assigned(TSBaseTable(Data).Engine) and TSBaseTable(Data).Engine.IsInnoDB) then
           Item.SubItems.Add(FormatFloat('~#,##0', TSBaseTable(Data).RecordCount, LocaleFormatSettings))
         else
           Item.SubItems.Add(FormatFloat('#,##0', TSBaseTable(Data).RecordCount, LocaleFormatSettings))
