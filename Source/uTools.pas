@@ -693,10 +693,9 @@ type
   type
     TItem = class(TTool.TItem)
     public
-      DatabaseName: string;
       FieldNames: array of string;
       RecordsFound: Integer;
-      TableName: string;
+      SObject: TSObject;
       constructor Create(const AItems: TTool.TItems);
       destructor Destroy(); override;
     end;
@@ -709,16 +708,16 @@ type
     procedure BeforeExecute(); override;
     function DoExecuteSQL(const Session: TSSession; var SQL: string): Boolean;
     procedure DoUpdateGUI(); override;
-    procedure ExecuteDefault(const Item: TItem; const Table: TSTable); virtual;
-    procedure ExecuteMatchCase(const Item: TItem; const Table: TSTable); virtual;
-    procedure ExecuteWholeValue(const Item: TItem; const Table: TSTable); virtual;
+    procedure ExecuteTableDefault(const Item: TItem); virtual;
+    procedure ExecuteTableMatchCase(const Item: TItem); virtual;
+    procedure ExecuteTableWholeValue(const Item: TItem); virtual;
     property Session: TSSession read FSession;
   public
     FindText: string;
     MatchCase: Boolean;
-    WholeValue: Boolean;
     RegExpr: Boolean;
-    procedure Add(const Table: TSTable; const Field: TSTableField = nil); virtual;
+    WholeValue: Boolean;
+    procedure Add(const SObject: TSObject; const Field: TSTableField = nil); virtual;
     constructor Create(const ASession: TSSession);
     procedure Execute(); override;
     property OnSearched: TOnSearched read FOnSearched write FOnSearched;
@@ -728,7 +727,7 @@ type
   private
     FReplaceSession: TSSession;
   protected
-    procedure ExecuteMatchCase(const Item: TTSearch.TItem; const Table: TSTable); override;
+    procedure ExecuteTableMatchCase(const Item: TTSearch.TItem); override;
     property ReplaceSession: TSSession read FReplaceSession;
   public
     ReplaceText: string;
@@ -753,13 +752,11 @@ var
   // Debug 2016-11-21
   ImportState: Integer = 0;
   // Debug 2016-11-30
-  ODBCSQLQuery: string;
-  ODBCFieldRequests: array of Integer;
 
 implementation {***************************************************************}
 
 uses
-  ActiveX, SysConst,
+  ActiveX, SysConst, Shlwapi,
   Forms, DBConsts, Registry, DBCommon, StrUtils, Math, Variants,
   PerlRegEx;
 
@@ -993,6 +990,7 @@ end;
 
 function TToolItemCompareForSQL(Item1, Item2: Pointer): Integer;
 var
+  BaseTable: TSBaseTable;
   Engine: TSEngine;
   Index1: Integer;
   Index2: Integer;
@@ -1020,10 +1018,15 @@ begin
       begin
         // Debug 2016-11-16
         if (TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Source = '') then
-          raise ERangeError.Create(SRangeError)
-        else if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine)) then
           raise ERangeError.Create(SRangeError);
-        Engine := TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine;
+        if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine)) then
+          raise ERangeError.Create(SRangeError);
+        BaseTable := TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject);
+        if (not Assigned(BaseTable)) then
+          raise ERangeError.Create(SRangeError);
+        if (not (TObject(BaseTable) is TSBaseTable)) then
+          raise ERangeError.Create(SRangeError);
+        Engine := BaseTable.Engine;
         if (not Assigned(Engine)) then
           raise ERangeError.Create(SRangeError);
         try
@@ -2120,9 +2123,6 @@ begin
       SQLStmtPrefixInSQLStmt := False;
       while ((Success = daSuccess) and NextRecord(Item)) do
       begin
-for I := 0 to Length(ODBCFieldRequests) - 1 do
-  ODBCFieldRequests[I] := 0;
-
         repeat
           if (not SQLStmtPrefixInSQLStmt) then
           begin
@@ -2141,12 +2141,13 @@ for I := 0 to Length(ODBCFieldRequests) - 1 do
               GetValue(Item, I, SQLStmt);
             end;
             SQLStmt.WriteChar(')');
-            if (StmtType = stInsertOrUpdate) then
-              SQLStmt.Write(' ON DUPLICATE KEY UPDATE ', 25);
           end;
 
           if (StmtType in [stUpdate, stInsertOrUpdate]) then
           begin
+            if (StmtType = stInsertOrUpdate) then
+              SQLStmt.Write(' ON DUPLICATE KEY UPDATE ', 25);
+
             First := True;
             for I := 0 to Length(FieldMappings) - 1 do
               if (not FieldMappings[I].DestinationField.InPrimaryKey) then
@@ -3069,7 +3070,6 @@ begin
         SQL := SQL + '"' + FieldMappings[I].SourceFieldName + '"';
       end;
     SQL := 'SELECT ' + SQL + ' FROM "' + Item.SourceTableName + '"';
-ODBCSQLQuery := SQL;
 
     while ((Success = daSuccess) and not SQL_SUCCEEDED(SQLExecDirect(Stmt, PSQLTCHAR(SQL), SQL_NTS))) do
       DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, True);
@@ -3077,8 +3077,6 @@ ODBCSQLQuery := SQL;
     if (Success = daSuccess) then
     begin
       ODBCException(Stmt, SQLNumResultCols(Stmt, @ColumnNums));
-
-SetLength(ODBCFieldRequests, ColumnNums);
 
       SetLength(ColumnDesc, ColumnNums);
       if (Success = daSuccess) then
@@ -3546,8 +3544,6 @@ var
   S: string;
   Size: Integer;
 begin
-Inc(ODBCFieldRequests[Index]);
-
   case (ColumnDesc[Index].SQLDataType) of
     SQL_BIT,
     SQL_TINYINT,
@@ -3566,10 +3562,6 @@ Inc(ODBCFieldRequests[Index]);
         ReturnCode := SQLGetData(Stmt, Index + 1, SQL_C_CHAR, ODBCData, ODBCDataSize, @cbData);
       if (not SQL_SUCCEEDED(ReturnCode)) then
       begin
-        // Debug 2016-11-30
-        if (ReturnCode = SQL_NO_DATA) then
-          raise Exception.Create('SQL_NO_DATA, Index: ' + IntToStr(Index) + ', Request: ' + IntToStr(ODBCFieldRequests[Index]) + ' Query: ' + ODBCSQLQuery);
-
         DoError(ODBCError(SQL_HANDLE_STMT, Stmt, ReturnCode), Item, False);
         Values.Write('NULL', 4)
       end
@@ -4049,7 +4041,10 @@ end;
 
 procedure TTExport.Execute();
 var
+  Database: TSDatabase;
+  DatabaseName: string;
   DataHandle: TMySQLConnection.TDataResult;
+  DataSet: TMySQLQuery;
   DataTable: Boolean;
   DataTables: TList;
   DataTablesIndex: Integer;
@@ -4059,7 +4054,9 @@ var
   Item: Pointer;
   Index: Integer;
   J: Integer;
+  ObjectName: string;
   Objects: TList;
+  Parse: TSQLParse;
   SQL: string;
   Table: TSTable;
 begin
@@ -4077,6 +4074,8 @@ ExportState := 11;
   if ((Success = daSuccess) and Data) then
   begin
 ExportState := 12;
+
+    SQL := '';
     for I := 0 to Items.Count - 1 do
       if (Items[I] is TDBGridItem) then
         if (TDBGridItem(Items[I]).DBGrid.SelectedRows.Count > 0) then
@@ -4096,24 +4095,64 @@ ExportState := 12;
           if (DBObjectItem.ClassType <> TDBObjectItem) then
             raise ERangeError.Create(SRangeError);
 
-          DataTable := DBObjectItem.DBObject is TSBaseTable;
-          DataTable := DataTable and not TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine.IsMerge;
+          DataTable := (DBObjectItem.DBObject is TSBaseTable)
+            and not TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine.IsMerge;
         end
         else if (Self is TTTransfer) then
           DataTable := TDBObjectItem(Items[I]).DBObject is TSBaseTable and (TTTransfer(Self).DestinationSession <> Session)
         else
           DataTable := TDBObjectItem(Items[I]).DBObject is TSTable;
+
         if (DataTable) then
-        begin
-          if (TDBObjectItem(Items[I]).DBObject is TSBaseTable) then
-            TDBObjectItem(Items[I]).RecordsSum := TSBaseTable(TDBObjectItem(Items[I]).DBObject).RecordCount
-          else
-            TDBObjectItem(Items[I]).RecordsSum := -1;
-          DataTables.Add(TSBaseTable(TDBObjectItem(Items[I]).DBObject));
-        end;
+          if ((TDBObjectItem(Items[I]).DBObject is TSBaseTable) and TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine.IsInnoDB) then
+          begin
+            SQL := SQL + 'SELECT COUNT(*) FROM ' + Session.Connection.EscapeIdentifier(TDBObjectItem(Items[I]).DBObject.Database.Name) + '.' + Session.Connection.EscapeIdentifier(TDBObjectItem(Items[I]).DBObject.Name) + ';' + #13#10;
+            DataTables.Add(TSBaseTable(TDBObjectItem(Items[I]).DBObject));
+          end
+          else if ((TDBObjectItem(Items[I]).DBObject is TSBaseTable) and not TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine.IsMerge) then
+          begin
+            TDBObjectItem(Items[I]).RecordsSum := TSBaseTable(TDBObjectItem(Items[I]).DBObject).RecordCount;
+            DataTables.Add(TSBaseTable(TDBObjectItem(Items[I]).DBObject));
+          end;
       end;
 
+    DoUpdateGUI();
+
+    if (SQL <> '') then
+    begin
+      DataSet := TMySQLQuery.Create(nil);
+      DataSet.Connection := Session.Connection;
+      if (Session.Connection.FirstResult(DataHandle, SQL)) then
+        repeat
+          DataSet.Open(DataHandle);
+          DatabaseName := DataSet.Connection.DatabaseName;
+          if (not DataSet.IsEmpty
+            and SQLCreateParse(Parse, PChar(DataSet.CommandText), Length(DataSet.CommandText), Session.Connection.MySQLVersion)
+            and SQLParseKeyword(Parse, 'SELECT')
+            and SQLParseValue(Parse, 'COUNT')
+            and SQLParseChar(Parse, '(') and SQLParseChar(Parse, '*') and SQLParseChar(Parse, ')')
+            and SQLParseKeyword(Parse, 'FROM')
+            and SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
+            for I := 0 to Items.Count - 1 do
+            begin
+              Database := Session.DatabaseByName(DatabaseName);
+              if (Assigned(Database)
+                and (Items[I] is TDBObjectItem)
+                and (TDBObjectItem(Items[I]).DBObject = Database.TableByName(ObjectName))) then
+                Items[I].RecordsSum := DataSet.Fields[0].AsLargeInt;
+            end
+          else
+            raise ERangeError.Create(SRangeError);
+          DataSet.Close();
+
+          DoUpdateGUI();
+        until (not Session.Connection.NextResult(DataHandle));
+      Session.Connection.CloseResult(DataHandle);
+      DataSet.Free();
+    end;
+
 ExportState := 13;
+    SQL := '';
     for I := 0 to DataTables.Count - 1 do
     begin
       Table := TSBaseTable(DataTables[I]);
@@ -4593,7 +4632,8 @@ begin
   for I := 0 to Items.Count - 1 do
     if (Items[I] is TDBObjectItem) then
       for J := 0 to TDBObjectItem(Items[I]).DBObject.References.Count - 1 do
-        if (TDBObjectItem(Items[I]).DBObject.References[J].DBObject.Database <> TDBObjectItem(Items[I]).DBObject.Database) then
+        if (Assigned(TDBObjectItem(Items[I]).DBObject.References[J].DBObject)
+          and (TDBObjectItem(Items[I]).DBObject.References[J].DBObject.Database <> TDBObjectItem(Items[I]).DBObject.Database)) then
           CrossReferencedObjects := True;
 
   if (CrossReferencedObjects) then
@@ -7886,7 +7926,7 @@ var
 begin
   SourceRoutine := TSRoutine(Item.DBObject);
   DestinationDatabase := DestinationSession.DatabaseByName(TItem(Item).DestinationDatabaseName);
-  if (SourceRoutine.RoutineType = rtProcedure) then
+  if (SourceRoutine.RoutineType = TSRoutine.TRoutineType.rtProcedure) then
     DestinationRoutine := DestinationDatabase.ProcedureByName(SourceRoutine.Name)
   else
     DestinationRoutine := DestinationDatabase.FunctionByName(SourceRoutine.Name);
@@ -7895,7 +7935,7 @@ begin
     while ((Success = daSuccess) and not DestinationDatabase.DeleteObject(DestinationRoutine)) do
       DoError(DatabaseError(DestinationSession), Item, True);
 
-  if (SourceRoutine.RoutineType = rtProcedure) then
+  if (SourceRoutine.RoutineType = TSRoutine.TRoutineType.rtProcedure) then
     NewDestinationRoutine := TSProcedure.Create(DestinationDatabase.Routines)
   else
     NewDestinationRoutine := TSFunction.Create(DestinationDatabase.Routines);
@@ -8389,10 +8429,9 @@ constructor TTSearch.TItem.Create(const AItems: TTool.TItems);
 begin
   inherited;
 
-  DatabaseName := '';
+  SObject := nil;
   SetLength(FieldNames, 0);
   RecordsSum := 0;
-  TableName := '';
 end;
 
 destructor TTSearch.TItem.Destroy();
@@ -8404,7 +8443,7 @@ end;
 
 { TTSearch ********************************************************************}
 
-procedure TTSearch.Add(const Table: TSTable; const Field: TSTableField = nil);
+procedure TTSearch.Add(const SObject: TSObject; const Field: TSTableField = nil);
 var
   Found: Boolean;
   NewItem: TItem;
@@ -8412,8 +8451,7 @@ var
 begin
   NewItem := TItem.Create(Items);
 
-  NewItem.DatabaseName := Table.Database.Name;
-  NewItem.TableName := Table.Name;
+  NewItem.SObject := SObject;
 
   if (Assigned(Field)) then
   begin
@@ -8468,8 +8506,15 @@ end;
 procedure TTSearch.Execute();
 var
   Database: TSDatabase;
+  DatabaseName: string;
+  DataHandle: TMySQLConnection.TDataResult;
+  DataSet: TMySQLQuery;
   I: Integer;
   J: Integer;
+  List: TList;
+  ObjectName: string;
+  Parse: TSQLParse;
+  SQL: string;
   Table: TSTable;
 begin
   {$IFDEF EurekaLog}
@@ -8478,40 +8523,78 @@ begin
 
   BeforeExecute();
 
+
+  List := TList.Create();
+  for I := 0 to Items.Count - 1 do
+    List.Add(TItem(Items[I]).SObject);
+  Session.Update(List, True);
+  List.Free();
+
+  SQL := '';
   for I := 0 to Items.Count - 1 do
     if (Success = daSuccess) then
-    begin
-      Table := Session.DatabaseByName(TItem(Items[I]).DatabaseName).TableByName(TItem(Items[I]).TableName);
-
-      if (Length(TItem(Items[I]).FieldNames) = 0) then
+      if (TItem(Items[I]).SObject is TSTable) then
       begin
-        SetLength(TItem(Items[I]).FieldNames, Table.Fields.Count);
-        for J := 0 to Table.Fields.Count - 1 do
-          TItem(Items[I]).FieldNames[J] := Table.Fields[J].Name;
+        Table := TSTable(TItem(Items[I]).SObject);
+
+        if (Length(TItem(Items[I]).FieldNames) = 0) then
+        begin
+          SetLength(TItem(Items[I]).FieldNames, Table.Fields.Count);
+          for J := 0 to Table.Fields.Count - 1 do
+            TItem(Items[I]).FieldNames[J] := Table.Fields[J].Name;
+        end;
+
+        if ((Table is TSBaseTable) and not TSBaseTable(Table).Engine.IsInnoDB) then
+          TItem(Items[I]).RecordsSum := TSBaseTable(Table).RecordCount
+        else
+          SQL := SQL + 'SELECT COUNT(*) FROM ' + Session.Connection.EscapeIdentifier(Table.Database.Name) + '.' + Session.Connection.EscapeIdentifier(Table.Name) + ';' + #13#10;
       end;
 
-      if (Table is TSBaseTable) then
-        TItem(Items[I]).RecordsSum := TSBaseTable(Table).RecordCount;
+  DoUpdateGUI();
 
-      DoUpdateGUI();
-    end;
+  if (SQL <> '') then
+  begin
+    DataSet := TMySQLQuery.Create(nil);
+    DataSet.Connection := Session.Connection;
+    if (Session.Connection.FirstResult(DataHandle, SQL)) then
+      repeat
+        DataSet.Open(DataHandle);
+        DatabaseName := DataSet.Connection.DatabaseName;
+        if (not DataSet.IsEmpty
+          and SQLCreateParse(Parse, PChar(DataSet.CommandText), Length(DataSet.CommandText), Session.Connection.MySQLVersion)
+          and SQLParseKeyword(Parse, 'SELECT')
+          and SQLParseValue(Parse, 'COUNT')
+          and SQLParseChar(Parse, '(') and SQLParseChar(Parse, '*') and SQLParseChar(Parse, ')')
+          and SQLParseKeyword(Parse, 'FROM')
+          and SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
+          for I := 0 to Items.Count - 1 do
+          begin
+            Database := Session.DatabaseByName(DatabaseName);
+            if (Assigned(Database) and (TItem(Items[I]).SObject = Database.TableByName(ObjectName))) then
+              TItem(Items[I]).RecordsSum := DataSet.Fields[0].AsLargeInt;
+          end
+        else
+          raise ERangeError.Create(SRangeError);
+        DataSet.Close();
+
+        DoUpdateGUI();
+      until (not Session.Connection.NextResult(DataHandle));
+    Session.Connection.CloseResult(DataHandle);
+    DataSet.Free();
+  end;
+
 
   for I := 0 to Items.Count - 1 do
   begin
     if (Success = daSuccess) then
     begin
       if (Success = daSuccess) then
-      begin
-        Database := Session.DatabaseByName(TItem(Items[I]).DatabaseName);
-        Table := Database.TableByName(TItem(Items[I]).TableName);
-
         if (RegExpr or (not WholeValue and not MatchCase)) then
-          ExecuteDefault(TItem(Items[I]), Table)
+          ExecuteTableDefault(TItem(Items[I]))
         else if (WholeValue) then
-          ExecuteWholeValue(TItem(Items[I]), Table)
+          ExecuteTableWholeValue(TItem(Items[I]))
         else
-          ExecuteMatchCase(TItem(Items[I]), Table);
-      end;
+          ExecuteTableMatchCase(TItem(Items[I]));
 
       TItem(Items[I]).Done := Success <> daAbort;
       if ((TItem(Items[I]).Done) and Assigned(FOnSearched)) then
@@ -8535,7 +8618,7 @@ begin
   {$ENDIF}
 end;
 
-procedure TTSearch.ExecuteDefault(const Item: TItem; const Table: TSTable);
+procedure TTSearch.ExecuteTableDefault(const Item: TItem);
 var
   Buffer: TStringBuffer;
   DataSet: TMySQLQuery;
@@ -8546,10 +8629,16 @@ var
   NewValue: string;
   PerlRegEx: TPerlRegEx;
   SQL: string;
+  Table: TSTable;
   Value: string;
   WhereClause: string;
   UseIndexFields: Boolean;
 begin
+  if (not (Item.SObject is TSTable)) then
+    raise ERangeError.Create(SRangeError)
+  else
+    Table := TSTable(Item.SObject);
+
   if (Success = daSuccess) then
   begin
     if (not (Self is TTReplace) and not RegExpr) then
@@ -8575,20 +8664,29 @@ begin
     end;
 
     WhereClause := '';
-    for I := 0 to Length(Item.FieldNames) - 1 do
-    begin
-      if (I > 0) then WhereClause := WhereClause + ' OR ';
-      if (not RegExpr) then
-        WhereClause := WhereClause + Session.Connection.EscapeIdentifier(Item.FieldNames[I]) + ' LIKE ' + SQLEscape('%' + FindText + '%')
-      else
-        WhereClause := WhereClause + Session.Connection.EscapeIdentifier(Item.FieldNames[I]) + ' REGEXP ' + SQLEscape(FindText);
-    end;
-    SQL := 'SELECT ' + SQL + ' FROM ' + Session.Connection.EscapeIdentifier(Item.DatabaseName) + '.' + Session.Connection.EscapeIdentifier(Item.TableName) + ' WHERE ' + WhereClause;
+    if (Length(Item.FieldNames) > 0) then
+      for I := 0 to Length(Item.FieldNames) - 1 do
+      begin
+        if (I > 0) then WhereClause := WhereClause + ' OR ';
+        if (not RegExpr) then
+          WhereClause := WhereClause + Session.Connection.EscapeIdentifier(Item.FieldNames[I]) + ' LIKE ' + SQLEscape('%' + FindText + '%')
+        else
+          WhereClause := WhereClause + Session.Connection.EscapeIdentifier(Item.FieldNames[I]) + ' REGEXP ' + SQLEscape(FindText);
+      end
+    else
+      for I := 0 to Table.Fields.Count - 1 do
+      begin
+        if (I > 0) then WhereClause := WhereClause + ' OR ';
+        if (not RegExpr) then
+          WhereClause := WhereClause + Session.Connection.EscapeIdentifier(Table.Fields[I].Name) + ' LIKE ' + SQLEscape('%' + FindText + '%')
+        else
+          WhereClause := WhereClause + Session.Connection.EscapeIdentifier(Table.Fields[I].Name) + ' REGEXP ' + SQLEscape(FindText);
+      end;
+    SQL := 'SELECT ' + SQL + ' FROM ' + Session.Connection.EscapeIdentifier(Table.Database.Name) + '.' + Session.Connection.EscapeIdentifier(Table.Name) + ' WHERE ' + WhereClause;
 
     DataSet := TMySQLQuery.Create(nil);
     DataSet.Connection := Session.Connection;
     DataSet.CommandText := SQL;
-
     while ((Success = daSuccess) and not DataSet.Active) do
     begin
       DataSet.Open();
@@ -8644,8 +8742,8 @@ begin
 
           Buffer := TStringBuffer.Create(SQLPacketSize);
 
-          if (Item.DatabaseName <> TTReplace(Self).ReplaceSession.Connection.DatabaseName) then
-            Buffer.Write(TTReplace(Self).ReplaceSession.Connection.SQLUse(Item.DatabaseName));
+          if (Table.Database <> TTReplace(Self).ReplaceSession.DatabaseByName(TTReplace(Self).ReplaceSession.Connection.DatabaseName)) then
+            Buffer.Write(Table.Database.SQLUse());
 
           for I := 0 to Length(Fields) - 1 do
             UseIndexFields := UseIndexFields or Fields[I].IsIndexField;
@@ -8709,7 +8807,7 @@ begin
             begin
               Inc(Item.RecordsFound);
 
-              SQL := 'UPDATE ' + Session.Connection.EscapeIdentifier(Item.TableName) + ' SET ' + SQL + ' WHERE ';
+              SQL := 'UPDATE ' + Session.Connection.EscapeIdentifier(Table.Name) + ' SET ' + SQL + ' WHERE ';
               Found := False;
               for I := 0 to Length(Fields) - 1 do
                 if (not UseIndexFields or Fields[I].IsIndexField) then
@@ -8781,12 +8879,18 @@ begin
   end;
 end;
 
-procedure TTSearch.ExecuteMatchCase(const Item: TItem; const Table: TSTable);
+procedure TTSearch.ExecuteTableMatchCase(const Item: TItem);
 var
   DataSet: TMySQLQuery;
   I: Integer;
   SQL: string;
+  Table: TSTable;
 begin
+  if (not (Item.SObject is TSTable)) then
+    raise ERangeError.Create(SRangeError)
+  else
+    Table := TSTable(Item.SObject);
+
   SQL := '';
   for I := 0 to Length(Item.FieldNames) - 1 do
   begin
@@ -8811,12 +8915,18 @@ begin
   DataSet.Free();
 end;
 
-procedure TTSearch.ExecuteWholeValue(const Item: TItem; const Table: TSTable);
+procedure TTSearch.ExecuteTableWholeValue(const Item: TItem);
 var
   DataSet: TMySQLQuery;
   I: Integer;
   SQL: string;
+  Table: TSTable;
 begin
+  if (not (Item.SObject is TSTable)) then
+    raise ERangeError.Create(SRangeError)
+  else
+    Table := TSTable(Item.SObject);
+
   SQL := '';
   for I := 0 to Length(Item.FieldNames) - 1 do
   begin
@@ -8842,7 +8952,7 @@ begin
   if ((Success = daSuccess) and not DataSet.IsEmpty()) then
     Item.RecordsFound := DataSet.Fields[0].AsInteger;
 
-  FreeAndNil(DataSet);
+  DataSet.Free();
 
   if (Self is TTReplace) then
   begin
@@ -8852,7 +8962,7 @@ begin
 
     for I := 0 to Length(Item.FieldNames) - 1 do
     begin
-      SQL := SQL + 'UPDATE ' + Session.Connection.EscapeIdentifier(Table.Database.Name) + '.' + Session.Connection.EscapeIdentifier(Item.TableName);
+      SQL := SQL + 'UPDATE ' + Session.Connection.EscapeIdentifier(Table.Database.Name) + '.' + Session.Connection.EscapeIdentifier(Table.Name);
       SQL := SQL + ' SET ' + Session.Connection.EscapeIdentifier(Item.FieldNames[I]) + '=' + SQLEscape(TTReplace(Self).ReplaceText);
       if (MatchCase) then
         SQL := SQL + ' WHERE BINARY(' + Session.Connection.EscapeIdentifier(Item.FieldNames[I]) + ')=BINARY(' + SQLEscape(FindText) + ')'
@@ -8923,18 +9033,24 @@ begin
   FReplaceSession := AReplaceSession;
 end;
 
-procedure TTReplace.ExecuteMatchCase(const Item: TTSearch.TItem; const Table: TSTable);
+procedure TTReplace.ExecuteTableMatchCase(const Item: TTSearch.TItem);
 var
   I: Integer;
   SQL: string;
+  Table: TSTable;
 begin
+  if (not (Item.SObject is TSTable)) then
+    raise ERangeError.Create(SRangeError)
+  else
+    Table := TSTable(Item.SObject);
+
   SQL := '';
   for I := 0 to Length(Item.FieldNames) - 1 do
   begin
     if (I > 0) then SQL := SQL + ',';
     SQL := SQL + Session.Connection.EscapeIdentifier(Item.FieldNames[I]) + '=REPLACE(' + Session.Connection.EscapeIdentifier(Item.FieldNames[I]) + ',' + SQLEscape(FindText) + ',' + SQLEscape(ReplaceText) + ')';
   end;
-  SQL := 'UPDATE ' + Session.Connection.EscapeIdentifier(Item.DatabaseName) + '.' + Session.Connection.EscapeIdentifier(Item.TableName) + ' SET ' + SQL + ';';
+  SQL := 'UPDATE ' + Session.Connection.EscapeIdentifier(Table.Database.Name) + '.' + Session.Connection.EscapeIdentifier(Table.Name) + ' SET ' + SQL + ';';
 
   while ((Success <> daAbort) and not Session.SendSQL(SQL)) do
     DoError(DatabaseError(Session), Item, True, SQL);

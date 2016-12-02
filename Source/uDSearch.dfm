@@ -114,7 +114,6 @@ object DSearch: TDSearch
             ShowLines = False
             TabOrder = 0
             OnChange = FSelectChange
-            OnChanging = FSelectChanging
             OnExpanding = FSelectExpanding
             OnGetImageIndex = FSelectGetImageIndex
           end
@@ -506,7 +505,7 @@ object DSearch: TDSearch
             TabOrder = 1
             WordWrap = False
           end
-          object FTables: TListView_Ext
+          object FDBObjects: TListView_Ext
             Left = 2
             Top = 2
             Width = 304
@@ -526,8 +525,8 @@ object DSearch: TDSearch
             TabOrder = 0
             TabStop = False
             ViewStyle = vsReport
-            OnDblClick = FTablesDblClick
-            OnKeyPress = FTablesKeyPress
+            OnDblClick = FDBObjectsDblClick
+            OnKeyPress = FDBObjectsKeyPress
           end
         end
       end

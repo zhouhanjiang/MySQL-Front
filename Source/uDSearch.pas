@@ -15,6 +15,7 @@ type
     FBCancel: TButton;
     FBForward: TButton;
     FBHelp: TButton;
+    FDBObjects: TListView_Ext;
     FDoneRecords: TLabel;
     FDoneTables: TLabel;
     FDoneTime: TLabel;
@@ -45,7 +46,6 @@ type
     FRRegExpr: TCheckBox;
     FRWholeValue: TCheckBox;
     FSelect: TTreeView_Ext;
-    FTables: TListView_Ext;
     GFOptions: TGroupBox_Ext;
     GFWhat: TGroupBox_Ext;
     GMessages: TGroupBox_Ext;
@@ -66,6 +66,8 @@ type
     procedure FBCancelClick(Sender: TObject);
     procedure FBForwardClick(Sender: TObject);
     procedure FBHelpClick(Sender: TObject);
+    procedure FDBObjectsDblClick(Sender: TObject);
+    procedure FDBObjectsKeyPress(Sender: TObject; var Key: Char);
     procedure FFFindTextChange(Sender: TObject);
     procedure FFRegExprClick(Sender: TObject);
     procedure FFRegExprKeyPress(Sender: TObject; var Key: Char);
@@ -78,18 +80,14 @@ type
     procedure FSelectChange(Sender: TObject; Node: TTreeNode);
     procedure FSelectExpanding(Sender: TObject; Node: TTreeNode;
       var AllowExpansion: Boolean);
-    procedure FTablesDblClick(Sender: TObject);
     procedure mTCopyClick(Sender: TObject);
     procedure TSExecuteShow(Sender: TObject);
     procedure TSFOptionsShow(Sender: TObject);
     procedure TSROptionsShow(Sender: TObject);
     procedure TSSelectShow(Sender: TObject);
     procedure FSelectGetImageIndex(Sender: TObject; Node: TTreeNode);
-    procedure FSelectChanging(Sender: TObject; Node: TTreeNode;
-      var AllowChange: Boolean);
     procedure TSExecuteResize(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure FTablesKeyPress(Sender: TObject; var Key: Char);
   private
     ExecuteSession: TSSession;
     ProgressInfos: TTool.TProgressInfos;
@@ -119,6 +117,7 @@ type
     Database: TSDatabase;
     Tab: TFSession;
     SearchOnly: Boolean;
+    SearchType: TSearchType;
     function Execute(): Boolean;
   end;
 
@@ -191,6 +190,49 @@ begin
   Application.HelpContext(HelpContext);
 end;
 
+procedure TDSearch.FDBObjectsDblClick(Sender: TObject);
+var
+  Result: Boolean;
+  URI: TUURI;
+  FSession: TFSession;
+begin
+  if (Assigned(FDBObjects.Selected)) then
+  begin
+    URI := TUURI.Create('');
+
+    URI.Scheme := 'mysql';
+    URI.Host := TSTable(FDBObjects.Selected.Data).Database.Session.Account.Connection.Host;
+    URI.Port := TSTable(FDBObjects.Selected.Data).Database.Session.Account.Connection.Port;
+    URI.Database := TSTable(FDBObjects.Selected.Data).Database.Name;
+    URI.Table := TSTable(FDBObjects.Selected.Data).Name;
+    URI.Param['view'] := 'browser';
+
+    if (Assigned(Tab)) then
+      FSession := Tab
+    else
+      FSession := TFSession(TSTable(FDBObjects.Selected.Data).Database.Session.Account.Tab());
+
+    Result := True;
+    if (Assigned(FSession)) then
+      FSession.Address := URI.Address
+    else
+      Result := Boolean(SendMessage(Application.MainForm.Handle, UM_ADDTAB, 0, LPARAM(URI.Address)));
+
+    URI.Free();
+
+    if (Result) then
+      FBCancel.Click();
+  end;
+end;
+
+procedure TDSearch.FDBObjectsKeyPress(Sender: TObject; var Key: Char);
+begin
+  if (Key = #13) then
+    FDBObjectsDblClick(Sender)
+  else
+    MessageBeep(MB_ICONERROR);
+end;
+
 procedure TDSearch.FFFindTextChange(Sender: TObject);
 begin
   FBForward.Enabled := Trim(FFFindText.Text) <> '';
@@ -204,15 +246,6 @@ end;
 procedure TDSearch.FFRegExprKeyPress(Sender: TObject; var Key: Char);
 begin
   FFRegExprClick(Sender);
-end;
-
-procedure TDSearch.FormSessionEvent(const Event: TSSession.TEvent);
-begin
-  if (Event.EventType in [etAfterExecuteSQL]) then
-  begin
-    if (Assigned(Wanted.Node) or Assigned(Wanted.Page) and Assigned(Wanted.Page.OnShow)) then
-      PostMessage(Handle, UM_POST_AFTEREXECUTESQL, 0, 0);
-  end;
 end;
 
 procedure TDSearch.FormCreate(Sender: TObject);
@@ -229,6 +262,7 @@ begin
   Search := nil;
 
   FSelect.Images := Preferences.Images;
+  FDBObjects.SmallImages := Preferences.Images;
 
   FFFindText.Items.Clear();
   for I := Preferences.Find.FindTextMRU.Count - 1 downto 0 do
@@ -274,9 +308,9 @@ begin
   FSelect.Items.BeginUpdate();
   FSelect.Items.Clear();
   FSelect.Items.EndUpdate();
-  FTables.Items.BeginUpdate();
-  FTables.Items.Clear();
-  FTables.Items.EndUpdate();
+  FDBObjects.Items.BeginUpdate();
+  FDBObjects.Items.Clear();
+  FDBObjects.Items.EndUpdate();
 
   for I := 0 to Length(Sessions) - 1 do
     if (Assigned(Sessions[I].Session)) then
@@ -303,6 +337,15 @@ begin
   end;
 
   PageControl.ActivePage := nil; // Make sure, not ___OnShowPage will be executed
+end;
+
+procedure TDSearch.FormSessionEvent(const Event: TSSession.TEvent);
+begin
+  if (Event.EventType in [etAfterExecuteSQL]) then
+  begin
+    if (Assigned(Wanted.Node) or Assigned(Wanted.Page) and Assigned(Wanted.Page.OnShow)) then
+      PostMessage(Handle, UM_POST_AFTEREXECUTESQL, 0, 0);
+  end;
 end;
 
 procedure TDSearch.FormShow(Sender: TObject);
@@ -362,7 +405,7 @@ begin
   Wanted.Node := nil;
   Wanted.Page := nil;
   FErrorMessages.Visible := not SearchOnly;
-  FTables.Visible := SearchOnly;
+  FDBObjects.Visible := SearchOnly;
 
   SetLength(Sessions, Accounts.Count);
   for I := 0 to Length(Sessions) - 1 do
@@ -411,12 +454,6 @@ begin
   FBForward.Enabled := Assigned(FSelect.Selected);
 end;
 
-procedure TDSearch.FSelectChanging(Sender: TObject; Node: TTreeNode;
-  var AllowChange: Boolean);
-begin
-  AllowChange := not Assigned(Node) or (Node.ImageIndex <> iiServer);
-end;
-
 procedure TDSearch.FSelectExpanding(Sender: TObject; Node: TTreeNode;
   var AllowExpansion: Boolean);
 var
@@ -460,37 +497,46 @@ begin
           end;
         iiDatabase:
           begin
-            Session := TSSession(Node.Parent.Data);
             Database := TSDatabase(Node.Data);
-            if ((not Database.Tables.Update() or not Session.Update(Database.Tables))) then
+            if (not Database.Tables.Update()) then
               Wanted.Node := Node
             else
             begin
               for I := 0 to Database.Tables.Count - 1 do
-                if ((Database.Tables[I] is TSBaseTable) and Assigned(TSBaseTable(Database.Tables[I]).Engine) and not TSBaseTable(Database.Tables[I]).Engine.IsMerge) then
+                if (Database.Tables[I] is TSBaseTable) then
                 begin
                   NewNode := TreeView.Items.AddChild(Node, Database.Tables[I].Name);
                   NewNode.ImageIndex := iiBaseTable;
+                  NewNode.Data := Database.Tables[I];
+                  NewNode.HasChildren := True;
+                end
+                else if ((Database.Tables[I] is TSView) and SearchOnly) then
+                begin
+                  NewNode := TreeView.Items.AddChild(Node, Database.Tables[I].Name);
+                  NewNode.ImageIndex := iiView;
                   NewNode.Data := Database.Tables[I];
                   NewNode.HasChildren := True;
                 end;
               Node.HasChildren := Assigned(Node.getFirstChild());
             end;
           end;
-        iiBaseTable:
+        iiBaseTable,
+        iiView:
           begin
             Table := TSTable(Node.Data);
-            if (not Table.Update()) then
+            if (not Table.Update() or (Table is TSBaseTable) and Assigned(Table.Database.Triggers) and not Table.Database.Triggers.Update()) then
               Wanted.Node := Node
             else
             begin
               for I := 0 to Table.Fields.Count - 1 do
               begin
                 NewNode := TreeView.Items.AddChild(Node, Table.Fields[I].Name);
-                if (Table is TSBaseTable) then
-                  NewNode.ImageIndex := iiField
+                if (Table is TSView) then
+                  NewNode.ImageIndex := iiViewField
+                else if (TSBaseTableField(Table.Fields[I]).FieldKind = mkVirtual) then
+                  NewNode.ImageIndex := iiVirtualField
                 else
-                  NewNode.ImageIndex := iiViewField;
+                  NewNode.ImageIndex := iiField;
                 NewNode.Data := Table.Fields[I];
               end;
               Node.HasChildren := Assigned(Node.getFirstChild());
@@ -508,49 +554,6 @@ end;
 procedure TDSearch.FSelectGetImageIndex(Sender: TObject; Node: TTreeNode);
 begin
   Node.SelectedIndex := Node.ImageIndex;
-end;
-
-procedure TDSearch.FTablesDblClick(Sender: TObject);
-var
-  Result: Boolean;
-  URI: TUURI;
-  FSession: TFSession;
-begin
-  if (Assigned(FTables.Selected)) then
-  begin
-    URI := TUURI.Create('');
-
-    URI.Scheme := 'mysql';
-    URI.Host := TSTable(FTables.Selected.Data).Database.Session.Account.Connection.Host;
-    URI.Port := TSTable(FTables.Selected.Data).Database.Session.Account.Connection.Port;
-    URI.Database := TSTable(FTables.Selected.Data).Database.Name;
-    URI.Table := TSTable(FTables.Selected.Data).Name;
-    URI.Param['view'] := 'browser';
-
-    if (Assigned(Tab)) then
-      FSession := Tab
-    else
-      FSession := TFSession(TSTable(FTables.Selected.Data).Database.Session.Account.Tab());
-
-    Result := True;
-    if (Assigned(FSession)) then
-      FSession.Address := URI.Address
-    else
-      Result := Boolean(SendMessage(Application.MainForm.Handle, UM_ADDTAB, 0, LPARAM(URI.Address)));
-
-    URI.Free();
-
-    if (Result) then
-      FBCancel.Click();
-  end;
-end;
-
-procedure TDSearch.FTablesKeyPress(Sender: TObject; var Key: Char);
-begin
-  if (Key = #13) then
-    FTablesDblClick(Sender)
-  else
-    MessageBeep(MB_ICONERROR);
 end;
 
 function TDSearch.GetSession(const TreeNode: TTreeNode): TSSession;
@@ -600,9 +603,9 @@ var
   S: string;
 begin
   S := '';
-  for I := 0 to FTables.Items.Count - 1 do
-    if ((FTables.SelCount = 0) or FTables.Items[I].Selected) then
-      S := S + FTables.Items[I].Caption + #13#10;
+  for I := 0 to FDBObjects.Items.Count - 1 do
+    if ((FDBObjects.SelCount = 0) or FDBObjects.Items[I].Selected) then
+      S := S + FDBObjects.Items[I].Caption + #13#10;
 
   if ((S <> '') and OpenClipboard(Handle)) then
   begin
@@ -639,7 +642,10 @@ begin
         ErrorMsg := Msg;
       end;
     TE_NoPrimaryIndex:
-      Msg := Preferences.LoadStr(722, TTSearch.TItem(Item).TableName);
+      if (TTSearch.TItem(Item).SObject is TSBaseTable) then
+        Msg := Preferences.LoadStr(722, TSBaseTable(TTSearch.TItem(Item).SObject).Database.Name + '.' + TTSearch.TItem(Item).SObject.Name)
+      else
+        raise ERangeError.Create(SRangeError);
     else
       Msg := Error.ErrorMessage;
   end;
@@ -671,9 +677,28 @@ var
 begin
   if (AItem.Done and (AItem.RecordsFound > 0)) then
   begin
-    Item := FTables.Items.Add();
-    Item.Caption := AItem.DatabaseName + '.' + AItem.TableName + ' (' + IntToStr(AItem.RecordsFound) + ')';
-    Item.Data := ExecuteSession.DatabaseByName(AItem.DatabaseName).TableByName(AItem.TableName);
+    Item := FDBObjects.Items.Add();
+    if (AItem.SObject is TSDatabase) then
+      Item.Caption := AItem.SObject.Name + ' (' + IntToStr(AItem.RecordsFound) + ')'
+    else if (AItem.SObject is TSDBObject) then
+      Item.Caption := TSDBObject(AItem.SObject).Database.Name + '.' + AItem.SObject.Name + ' (' + IntToStr(AItem.RecordsFound) + ')'
+    else
+      raise ERangeError.Create(SRangeError);
+    if (AItem.SObject is TSDatabase) then
+      Item.ImageIndex := iiDatabase
+    else if (AItem.SObject is TSBaseTable) then
+      Item.ImageIndex := iiBaseTable
+    else if (AItem.SObject is TSView) then
+      Item.ImageIndex := iiView
+    else if (AItem.SObject is TSProcedure) then
+      Item.ImageIndex := iiProcedure
+    else if (AItem.SObject is TSFunction) then
+      Item.ImageIndex := iiFunction
+    else if (AItem.SObject is TSTrigger) then
+      Item.ImageIndex := iiTrigger
+    else if (AItem.SObject is TSEvent) then
+      Item.ImageIndex := iiEvent;
+    Item.Data := AItem.SObject;
   end;
 end;
 
@@ -706,57 +731,25 @@ procedure TDSearch.TSExecuteShow(Sender: TObject);
 
   procedure InitializeNode(const Session: TSSession; const Node: TTreeNode);
   var
-    Database: TSDatabase;
     I: Integer;
-    J: Integer;
     Objects: TList;
   begin
     Objects := TList.Create();
     case (Node.ImageIndex) of
       iiServer:
-        begin
-          if (not Session.Update()) then
-            Wanted.Page := TSExecute
-          else
-            for I := 0 to Session.Databases.Count - 1 do
-              if (not (Session.Databases[I] is TSSystemDatabase)) then
-              begin
-                Database := Session.Databases[I];
-                if (not Database.Tables.Update()) then
-                  Wanted.Page := TSExecute
-                else
-                begin
-                  for J := 0 to Database.Tables.Count - 1 do
-                    if (Database.Tables[J] is TSBaseTable) then
-                      Objects.Add(Database.Tables[J]);
-                  if (not Session.Update(Objects)) then
-                    Wanted.Page := TSExecute;
-                end;
-              end;
-        end;
+        if (not Session.Update() or not Session.Update(Session.Databases)) then
+          Wanted.Page := TSExecute
+        else
+          for I := 0 to Session.Databases.Count - 1 do
+            if (not (Session.Databases[I] is TSSystemDatabase)) then
+              Objects.Add(Session.Databases[I]);
       iiDatabase:
-        begin
-          Database := Session.DatabaseByName(Node.Text);
-          if (not Database.Tables.Update()) then
-            Wanted.Page := TSExecute
-          else
-          begin
-            for J := 0 to Database.Tables.Count - 1 do
-              if (Database.Tables[J] is TSBaseTable) then
-                Objects.Add(Database.Tables[J]);
-            if (not Session.Update(Objects)) then
-              Wanted.Page := TSExecute;
-          end;
-        end;
-      iiBaseTable:
-        begin
-          for J := 0 to Node.Parent.Count - 1 do
-            if (Node.Parent.Item[J].Selected) then
-              Objects.Add(Node.Parent.Item[J].Data);
-          if (not Session.Update(Objects)) then
-            Wanted.Page := TSExecute;
-        end;
+        for I := 0 to Node.Parent.Count - 1 do
+          if (Node.Parent[I].Selected) then
+            Objects.Add(TSDatabase(Node.Parent[I].Data).Tables);
     end;
+    if (not Assigned(Wanted.Page) and not Session.Update(Objects)) then
+      Wanted.Page := TSExecute;
     Objects.Free();
   end;
 
@@ -778,13 +771,17 @@ begin
   FProgressBar.Position := 0;
   FErrors.Caption := '0';
   FErrorMessages.Lines.Clear();
-  FTables.Items.BeginUpdate();
-  FTables.Items.Clear();
-  FTables.Items.EndUpdate();
+  FDBObjects.Items.BeginUpdate();
+  FDBObjects.Items.Clear();
+  FDBObjects.Items.EndUpdate();
+
+  Wanted.Page := nil;
 
   Node := FSelect.Selected;
   while (Assigned(Node.Parent)) do Node := Node.Parent;
   ExecuteSession := TSSession(Node.Data);
+  if (not Assigned(ExecuteSession) and not Assigned(Node.Parent)) then
+    ExecuteSession := GetSession(Node);
   InitializeNode(ExecuteSession, FSelect.Selected);
 
   if (not Assigned(Wanted.Page)) then
@@ -818,8 +815,8 @@ begin
       Search.Wnd := Self.Handle;
       Search.FindText := Trim(FFFindText.Text);
       Search.MatchCase := FFMatchCase.Checked;
-      Search.WholeValue := FFWholeValue.Checked;
       Search.RegExpr := FFRegExpr.Checked;
+      Search.WholeValue := FFWholeValue.Checked;
     end
     else
     begin
@@ -847,30 +844,7 @@ begin
     List := TList.Create();
     for I := 0 to FSelect.Items.Count - 1 do
       if (FSelect.Items[I].Selected) then
-      begin
-        if (FSelect.Selected.ImageIndex in [iiField, iiViewField]) then
-        begin
-          Table := TSTable(FSelect.Items[I].Parent.Data);
-          List.Add(Table);
-          Search.Add(Table, Table.FieldByName(FSelect.Items[I].Text));
-        end
-        else if (FSelect.Items[I].ImageIndex in [iiBaseTable, iiView]) then
-        begin
-          Table := TSTable(FSelect.Items[I].Data);
-          List.Add(Table);
-          Search.Add(Table, nil);
-        end
-        else if (FSelect.Items[I].ImageIndex = iiDatabase) then
-        begin
-          Database := ExecuteSession.DatabaseByName(FSelect.Items[I].Text);
-          for J := 0 to Database.Tables.Count - 1 do
-          begin
-            Table := Database.Tables[J];
-            List.Add(Table);
-            Search.Add(Table, nil);
-          end;
-        end
-        else // iiServer
+        if (FSelect.Items[I].ImageIndex = iiServer) then
         begin
           for K := 0 to ExecuteSession.Databases.Count - 1 do
           begin
@@ -883,11 +857,43 @@ begin
                 Search.Add(Table, nil);
               end;
           end;
-        end;
-      end;
+        end
+        else if (FSelect.Items[I].ImageIndex = iiDatabase) then
+        begin
+          Database := ExecuteSession.DatabaseByName(FSelect.Items[I].Text);
+          for J := 0 to Database.Tables.Count - 1 do
+          begin
+            Table := Database.Tables[J];
+            List.Add(Table);
+            Search.Add(Table);
+          end;
+        end
+        else if (FSelect.Items[I].ImageIndex in [iiBaseTable, iiView]) then
+        begin
+          Table := TSTable(FSelect.Items[I].Data);
+          List.Add(Table);
+          Search.Add(Table);
+        end
+        else if (FSelect.Items[I].ImageIndex in [iiProcedure, iiFunction, iiTrigger, iiEvent]) then
+          Search.Add(FSelect.Items[I].Data)
+        else if (FSelect.Selected.ImageIndex in [iiField, iiViewField, iiVirtualField]) then
+        begin
+          Table := TSTable(FSelect.Items[I].Parent.Data);
+          List.Add(Table);
+          Search.Add(Table, Table.FieldByName(FSelect.Items[I].Text));
+        end
+        else if (FSelect.Items[I].ImageIndex in [iiBaseTable, iiView]) then
+        begin
+          Table := TSTable(FSelect.Items[I].Data);
+          List.Add(Table);
+          Search.Add(Table);
+        end
+        else
+          raise ERangeError.Create(SRangeError);
     if (not SearchOnly) then
       for I := 0 to List.Count - 1 do
-        TSTable(List[I]).InvalidateData();
+        if (TObject(List) is TSTable) then
+          TSTable(List[I]).InvalidateData();
     List.Free();
 
     FBBack.Enabled := False;
@@ -1015,7 +1021,6 @@ begin
   else if (Assigned(Wanted.Page)) then
   begin
     Wanted.Page.OnShow(nil);
-    Wanted.Page := nil;
   end;
 end;
 
@@ -1025,7 +1030,7 @@ var
 begin
   Success := Boolean(Message.WParam);
 
-  if (Success and SearchOnly and (FTables.Items.Count = 0)) then
+  if (Success and SearchOnly and (FDBObjects.Items.Count = 0)) then
     MsgBox(Preferences.LoadStr(533, Search.FindText), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
 
   if (Assigned(Search)) then

@@ -199,7 +199,7 @@ begin
     if (FInsert.Checked) then NewTrigger.Event := teInsert;
     if (FUpdate.Checked) then NewTrigger.Event := teUpdate;
     if (FDelete.Checked) then NewTrigger.Event := teDelete;
-    NewTrigger.Stmt := SQLTrimStmt(PChar(FStatement.Text), Table.Session.Connection.MySQLVersion);
+    NewTrigger.Stmt := SQLTrimStmt(PChar(FStatement.Text));
 
     if (not Assigned(Trigger)) then
       CanClose := Table.Database.AddTrigger(NewTrigger)

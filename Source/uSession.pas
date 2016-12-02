@@ -604,7 +604,7 @@ type
     TPackKeys = (piUnpacked, piPacked, piDefault);
     TInsertMethod = (imNo, imFirst, imLast);
   private
-    FAutoIncrement: LargeInt; // 0 -> unknown
+    FAutoIncrement: Int64; // 0 -> unknown
     FAvgRowLength: LargeInt;
     FBlockSize: Integer;
     FChecked: TDateTime;
@@ -665,7 +665,7 @@ type
     procedure InvalidateStatus(); virtual;
     function PartitionByName(const PartitionName: string): TSPartition; virtual;
     function Update(const Status: Boolean): Boolean; reintroduce; overload; virtual;
-    property AutoIncrement: LargeInt read FAutoIncrement write FAutoIncrement;
+    property AutoIncrement: Int64 read FAutoIncrement write FAutoIncrement;
     property AutoIncrementField: TSBaseTableField read GetAutoIncrementField;
     property AvgRowLength: LargeInt read FAvgRowLength;
     property BlockSize: Integer read FBlockSize write FBlockSize;
@@ -2990,7 +2990,7 @@ begin
       Size := StrToInt(SQLParseValue(Parse));
 
     if (not SQLParseChar(Parse, ')')) then
-      raise EConvertError.CreateFmt(SSourceParseError, [Name, string(Parse.Start)]);
+      raise EConvertError.CreateFmt(SSourceParseError, [Name, StrPas(Parse.Start)]);
   end
   else if ((FieldType = mfTinyInt) and ((StrIComp(PChar(Identifier), 'BOOL') = 0) or (StrIComp(PChar(Identifier), 'BOOLEAN') = 0))) then
     Size := 1
@@ -4066,7 +4066,7 @@ begin
   else
     FPartitions := TSPartitions.Create(Self);
 
-  FAutoIncrement := -1;
+  FAutoIncrement := 0;
   FAvgRowLength := -1;
   FChecked := -1;
   FChecksum := False;
@@ -4807,7 +4807,7 @@ begin
       else if (SQLParseKeyword(Parse, 'AUTO_INCREMENT')) then
       begin
         SQLParseChar(Parse, '=');
-        FAutoIncrement := StrToUInt64(SQLParseValue(Parse));
+        TryStrToInt64(SQLParseValue(Parse), FAutoIncrement);
       end
       else if (SQLParseKeyword(Parse, 'CHECKSUM')) then
       begin
@@ -5096,7 +5096,7 @@ begin
       vaTemptable: SQL := SQL + 'ALGORITHM=TEMPTABLE ';
     end;
     SQL := SQL + 'VIEW ' + Session.Connection.EscapeIdentifier(Name);
-    SQL := SQL + ' AS ' + SQLTrimStmt(Stmt, Session.Connection.MySQLVersion);
+    SQL := SQL + ' AS ' + SQLTrimStmt(Stmt);
     if (SQL[Length(SQL)] = ';') then
       Delete(SQL, Length(SQL), 1);
     case (CheckOption) of
@@ -5189,7 +5189,7 @@ begin
 
     if (not SQLParseKeyword(Parse, 'AS')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
-    Len := SQLTrimStmt(SQL, SQLParseGetIndex(Parse), Length(SQL) - (SQLParseGetIndex(Parse) - 1), Session.Connection.MySQLVersion, StartingCommentLen, EndingCommentLen);
+    Len := SQLTrimStmt(SQL, SQLParseGetIndex(Parse), Length(SQL) - (SQLParseGetIndex(Parse) - 1), StartingCommentLen, EndingCommentLen);
     if (Copy(SQL, Length(SQL) - EndingCommentLen, 1) = ';') then
     begin
       Dec(Len);
@@ -5614,10 +5614,17 @@ begin
         NewField.Comment := DataSet.FieldByName('COLUMN_COMMENT').AsString;
         NewField.Default := DataSet.FieldByName('COLUMN_DEFAULT').AsString;
         NewField.Charset := DataSet.FieldByName('CHARACTER_SET_NAME').AsString;
-        if (DataSet.FieldByName('COLUMN_TYPE').IsNull or (DataSet.FieldByName('COLUMN_TYPE').AsString = 'null') or not SQLCreateParse(Parse, PChar(DataSet.FieldByName('COLUMN_TYPE').AsString), Length(DataSet.FieldByName('COLUMN_TYPE').AsString), Session.Connection.MySQLVersion)) then
+        if (DataSet.FieldByName('COLUMN_TYPE').IsNull
+          or (DataSet.FieldByName('COLUMN_TYPE').AsString = 'null')
+          or not SQLCreateParse(Parse, PChar(DataSet.FieldByName('COLUMN_TYPE').AsString), Length(DataSet.FieldByName('COLUMN_TYPE').AsString), Session.Connection.MySQLVersion)) then
           NewField.FieldType := mfUnknown
         else
-          NewField.ParseFieldType(Parse);
+          try
+            NewField.ParseFieldType(Parse);
+          except
+            on E: Exception do
+              raise Exception.Create(E.Message + ' COLUMN_TYPE: ' + DataSet.FieldByName('COLUMN_TYPE').AsString);
+          end;
         NewField.FInPrimaryKey := StrIComp(PChar(DataSet.FieldByName('EXTRA').AsString), 'PRI') = 0;
         NewField.FInUniqueKey := NewField.InPrimaryKey or (StrIComp(PChar(DataSet.FieldByName('EXTRA').AsString), 'UNI') = 0);
         NewField.NullAllowed := DataSet.FieldByName('IS_NULLABLE').AsBoolean;
@@ -5966,7 +5973,7 @@ try // Debug 2016-12-01
       Field.Name := ReplaceStr(ReplaceStr(ReplaceStr(Parameter[I].Name, ' ', '_'), '.', '_'), '$', '_');
 except
   on E: Exception do
-    raise Exception.Create(E.Message + ' (SQL: ' + Source + ')');
+    raise Exception.Create(E.Message + ' (FieldCount: + ' + IntToStr(FInputDataSet.FieldCount) + ' SQL: ' + Source + ')');
 end;
       Field.DataSet := FInputDataSet;
     end;
@@ -8415,10 +8422,10 @@ begin
   if (not Assigned(Event) and (NewEvent.Comment <> '') or Assigned(Event) and (NewEvent.Comment <> Event.Comment))then
     SQL := SQL + '  COMMENT ' + SQLEscape(NewEvent.Comment) + #13#10;
 
-  if (not Assigned(Event) and (SQLTrimStmt(NewEvent.Stmt, Session.Connection.MySQLVersion) <> '') or Assigned(Event) and (SQLTrimStmt(NewEvent.Stmt, Session.Connection.MySQLVersion) <> SQLTrimStmt(Event.Stmt, Session.Connection.MySQLVersion)))then
+  if (not Assigned(Event) and (SQLTrimStmt(NewEvent.Stmt) <> '') or Assigned(Event) and (SQLTrimStmt(NewEvent.Stmt) <> SQLTrimStmt(Event.Stmt)))then
   begin
     SQL := SQL + '  DO' + #13#10
-      + SQLTrimStmt(NewEvent.Stmt, Session.Connection.MySQLVersion);
+      + SQLTrimStmt(NewEvent.Stmt);
     if (SQL[Length(SQL)] = ';') then Delete(SQL, Length(SQL), 1);
   end;
 
@@ -8561,7 +8568,7 @@ begin
       end;
   end;
   SQL := SQL + 'VIEW ' + Session.Connection.EscapeIdentifier(NewView.Database.Name) + '.' + Session.Connection.EscapeIdentifier(NewView.Name);
-  SQL := SQL + ' AS ' + SQLTrimStmt(NewView.Stmt, Session.Connection.MySQLVersion);
+  SQL := SQL + ' AS ' + SQLTrimStmt(NewView.Stmt);
   if (SQL[Length(SQL)] = ';') then
     Delete(SQL, Length(SQL), 1);
   case (NewView.CheckOption) of
@@ -11399,11 +11406,9 @@ var
   User: TSUser;
   Variable: TSVariable;
 begin
-
-
   if (Now() <= ParseEndDate) then
   begin
-    SQL := SQLTrimStmt(Text, Len, Connection.MySQLVersion);
+    SQL := SQLTrimStmt(Text, Len);
     if (SQL <> '') then
     begin
       if ((Connection.ErrorCode = ER_PARSE_ERROR) and SQLParser.ParseSQL(SQL)) then

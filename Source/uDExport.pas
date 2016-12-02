@@ -190,7 +190,7 @@ type
     procedure UMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
   public
     DBGrid: TDBGrid;
-    ExportType: TPAccount.TExportType;
+    ExportType: TExportType;
     Session: TSSession;
     Window: TForm;
     function Execute(): Boolean;

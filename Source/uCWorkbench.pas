@@ -306,6 +306,7 @@ type
     FHideSelection: Boolean;
     FFilePixelsPerInch: Integer;
     FFilename: string;
+    FLinkPoints: TList;
     FLinks: TWLinks;
     FMultiSelect: Boolean;
     FOnChange: TChangeEvent;
@@ -348,6 +349,7 @@ type
     function TableAt(const Position: TCoord): TWTable;
     procedure UpdateControl(const Control: TWControl); virtual;
     property FilePixelsPerInch: Integer read FFilePixelsPerInch;
+    property LinkPoints: TList read FLinkPoints;
   public
     procedure AddExistingTable(const X, Y: Integer; const ABaseTable: TSBaseTable); virtual;
     procedure BeginUpdate(); virtual;
@@ -1152,6 +1154,8 @@ begin
   ControlB := nil;
   MoveState := msNormal;
 
+  Workbench.LinkPoints.Add(Self);
+
   if (Assigned(APreviousPoint)) then
     LineA := TWLinkLine.Create(Workbench, APreviousPoint, Self);
 
@@ -1170,6 +1174,11 @@ begin
 
   TableA := nil;
   TableB := nil;
+
+  if (Workbench.LinkPoints.IndexOf(Self) < 0) then
+    raise ERangeError.Create(SRangeError)
+  else
+    Workbench.LinkPoints.Delete(Workbench.LinkPoints.IndexOf(Self));
 
   inherited;
 end;
@@ -1472,6 +1481,9 @@ begin
 
       // Debug 2016-11-23
       if (not Assigned(NewPoint)) then
+        raise ERangeError.Create(SRangeError);
+      // Debug 2016-12-02
+      if (Workbench.LinkPoints.IndexOf(NewPoint) < 0) then
         raise ERangeError.Create(SRangeError);
       // Debug 2016-11-24
       if (not (TObject(NewPoint) is TWLinkPoint)) then
@@ -3310,6 +3322,7 @@ begin
   FOnChange := nil;
   FOnCursorMove := nil;
   FOnValidateControl := nil;
+  FLinkPoints := TList.Create();
   FLinks := TWLinks.Create(Self);
   FHideSelection := False;
   FModified := False;
@@ -3398,9 +3411,13 @@ begin
 
   Clear();
 
-  Links.Free();
-  Tables.Free();
-  Sections.Free();
+  if (LinkPoints.Count > 0) then
+    raise ERangeError.Create(SRangeError + ' (' + IntToStr(LinkPoints.Count) + ')');
+
+  FLinkPoints.Free();
+  FLinks.Free();
+  FTables.Free();
+  FSections.Free();
 
   PendingUpdateControls.Free();
 

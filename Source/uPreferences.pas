@@ -8,6 +8,9 @@ uses
   SynEditHighlighter, SynHighlighterSQL;
 
 type
+  TExportType = (etUnknown, etSQLFile, etTextFile, etExcelFile, etAccessFile, etODBC, etHTMLFile, etXMLFile, etPDFFile);
+  TImportType = (itUnknown, itSQLFile, itTextFile, itAccessFile, itExcelFile, itODBC);
+
   TPAccounts = class;
 
   TPPreferences = class(TRegistry)
@@ -453,8 +456,6 @@ type
     TDesktop = class;
 
     TEventProc = procedure (const ClassType: TClass) of object;
-    TExportType = (etUnknown, etSQLFile, etTextFile, etExcelFile, etAccessFile, etODBC, etHTMLFile, etXMLFile, etPDFFile);
-    TImportType = (itUnknown, itSQLFile, itTextFile, itAccessFile, itExcelFile, itODBC);
 
     TFile = class
     private
@@ -864,7 +865,7 @@ begin
   if (roRegExpr in Options) then begin if (Result <> '') then Result := Result + ','; Result := Result + 'RegExpr'; end;
 end;
 
-function TryStrToImportType(const Str: string; var ImportType: TPAccount.TImportType): Boolean;
+function TryStrToImportType(const Str: string; var ImportType: TImportType): Boolean;
 begin
   Result := True;
   if (UpperCase(Str) = 'SQLFILE') then ImportType := itSQLFile
@@ -875,7 +876,7 @@ begin
   else Result := False;
 end;
 
-function ImportTypeToStr(const ImportType: TPAccount.TImportType): string;
+function ImportTypeToStr(const ImportType: TImportType): string;
 begin
   case (ImportType) of
     itSQLFile: Result := 'SQLFile';
@@ -887,7 +888,7 @@ begin
   end;
 end;
 
-function TryStrToExportType(const Str: string; var ExportType: TPAccount.TExportType): Boolean;
+function TryStrToExportType(const Str: string; var ExportType: TExportType): Boolean;
 begin
   Result := True;
   if (UpperCase(Str) = 'SQLFILE') then ExportType := etSQLFile
@@ -901,7 +902,7 @@ begin
   else Result := False;
 end;
 
-function ExportTypeToStr(const ExportType: TPAccount.TExportType): string;
+function ExportTypeToStr(const ExportType: TExportType): string;
 begin
   case (ExportType) of
     etSQLFile: Result := 'SQLFile';

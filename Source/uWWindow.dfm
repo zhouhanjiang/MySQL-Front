@@ -1299,7 +1299,7 @@ object WWindow: TWWindow
         object miFExportAccess: TMenuItem
           Action = aFExportAccess
         end
-        object aFExportODBC1: TMenuItem
+        object miFExportODBC: TMenuItem
           Action = aFExportODBC
         end
         object miFExportXML: TMenuItem

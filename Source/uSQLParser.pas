@@ -1622,8 +1622,8 @@ type
         function GetParentNode(): PNode; {$IFNDEF Debug} inline; {$ENDIF}
         function GetPos(): Integer; {$IFNDEF Debug} inline; {$ENDIF}
         function GetText(): string; overload;
-        procedure SetHidden(AHidden: Boolean); {$IFNDEF Debug} inline; {$ENDIF}
         procedure GetText(out Text: PChar; out Length: Integer); overload;
+        procedure SetHidden(AHidden: Boolean); {$IFNDEF Debug} inline; {$ENDIF}
         {$IFDEF Debug}
         property Index: Integer read FIndex;
         {$ELSE}
@@ -14322,7 +14322,8 @@ begin
       Dec(Length);
     end;
     SetLength(S, SQLUnescape(Text, Length, nil, 0));
-    SQLUnescape(Text, Length, @S[1], System.Length(S));
+    if (System.Length(S) > 0) then
+      SQLUnescape(Text, Length, @S[1], System.Length(S));
     Commands.Write(SQLEscape(S));
   end
   else
@@ -18567,7 +18568,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.StmtTag := ParseTag(kiDECLARE);
+  Nodes.StmtTag := StmtTag;
 
   Nodes.IdentList := IdentList;
 

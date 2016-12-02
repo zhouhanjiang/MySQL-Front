@@ -95,7 +95,6 @@ type
     aFExportExcel: TAction;
     aFExportHTML: TAction;
     aFExportODBC: TAction;
-    aFExportODBC1: TMenuItem;
     aFExportPDF: TAction;
     aFExportSQL: TAction;
     aFExportText: TAction;
@@ -208,6 +207,7 @@ type
     miFExportBitmap: TMenuItem;
     miFExportExcel: TMenuItem;
     miFExportHTML: TMenuItem;
+    miFExportODBC: TMenuItem;
     miFExportPDF: TMenuItem;
     miFExportSQL: TMenuItem;
     miFExportText: TMenuItem;

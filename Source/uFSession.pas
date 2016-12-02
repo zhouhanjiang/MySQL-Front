@@ -874,8 +874,8 @@ type
     procedure aERedoExecute(Sender: TObject);
     procedure aERenameExecute(Sender: TObject);
     procedure aESelectAllExecute(Sender: TObject);
-    procedure aFExportExecute(const Sender: TObject; const ExportType: TPAccount.TExportType);
-    procedure aFImportExecute(const Sender: TObject; const ImportType: TPAccount.TImportType);
+    procedure aFExportExecute(const Sender: TObject; const ExportType: TExportType);
+    procedure aFImportExecute(const Sender: TObject; const ImportType: TImportType);
     procedure aFOpenExecute(Sender: TObject);
     procedure aFSaveAsExecute(Sender: TObject);
     procedure aFSaveExecute(Sender: TObject);
@@ -1262,7 +1262,7 @@ begin
     begin
       SQL := CommandText;
       Len := SQLStmtLength(PChar(SQL), Length(SQL));
-      SQLTrimStmt(SQL, 1, Len, FSession.Session.Connection.MySQLVersion, StartingCommentLength, EndingCommentLength);
+      SQLTrimStmt(SQL, 1, Len, StartingCommentLength, EndingCommentLength);
       FSynMemo.SelStart := FSession.aDRunExecuteSelStart + DataHandle.Connection.SuccessfullExecutedSQLLength + StartingCommentLength;
       FSynMemo.SelLength := Len - StartingCommentLength - EndingCommentLength;
     end
@@ -1534,7 +1534,7 @@ begin
       raise ERangeError.Create(SRangeError);
     // Debug 2016-11-27
     if (not (TObject(Table) is TSTable)) then
-      raise ERangeError.Create(SRangeError);
+      raise ERangeError.Create(SRangeError + ' CallName: ' + TObject(Table).ClassName);
     if (not (TObject(DataSource) is TDataSource)) then
       raise ERangeError.Create(SRangeError);
 
@@ -3155,6 +3155,7 @@ procedure TFSession.aEPasteExecute(Sender: TObject);
 var
   B: Boolean;
   ClipboardData: HGLOBAL;
+  FileName: array [0..MAX_PATH] of Char;
   I: Integer;
   Node: TTreeNode;
   S: string;
@@ -3226,7 +3227,15 @@ begin
     end;
   end
   else if (Window.ActiveControl = ActiveSynMemo) then
-    ActiveSynMemo.PasteFromClipboard()
+    try
+      ActiveSynMemo.PasteFromClipboard();
+    except
+      on E: EClipboardException do
+        begin
+          SetString(S, PChar(@FileName[0]), GetWindowModuleFileName(GetClipboardOwner(), PChar(@FileName[0]), Length(FileName)));
+          raise Exception.Create(E.Message + #10 + 'Clipboard Owner: ' + S);
+        end;
+    end
   else if (Assigned(ActiveWorkbench) and (Window.ActiveControl = ActiveWorkbench)) then
     WorkbenchPasteExecute(Sender)
   else if (Window.ActiveControl = FFilter) then
@@ -3422,7 +3431,7 @@ begin
   aFExportExecute(Sender, etExcelFile);
 end;
 
-procedure TFSession.aFExportExecute(const Sender: TObject; const ExportType: TPAccount.TExportType);
+procedure TFSession.aFExportExecute(const Sender: TObject; const ExportType: TExportType);
 var
   Database: TSDatabase;
   I: Integer;
@@ -3553,7 +3562,7 @@ begin
   aFImportExecute(Sender, itExcelFile);
 end;
 
-procedure TFSession.aFImportExecute(const Sender: TObject; const ImportType: TPAccount.TImportType);
+procedure TFSession.aFImportExecute(const Sender: TObject; const ImportType: TImportType);
 var
   SItem: TSItem;
 begin
@@ -3904,7 +3913,6 @@ end;
 procedure TFSession.aViewExecute(Sender: TObject);
 var
   AllowChange: Boolean;
-  Control: TWinControl; // Debug 2016-11-17
   I: Integer;
   NewView: TView;
 begin
@@ -3959,18 +3967,10 @@ begin
       vBrowser: if (PResult.Visible and Assigned(ActiveDBGrid)) then Window.ActiveControl := ActiveDBGrid;
       vIDE: if (PSynMemo.Visible and Assigned(ActiveSynMemo)) then Window.ActiveControl := ActiveSynMemo;
       vBuilder: if (PQueryBuilder.Visible) then
-        begin
           if (FQueryBuilder.Visible and Assigned(FQueryBuilderActiveWorkArea())) then
-            Control := FQueryBuilderActiveWorkArea()
+            Window.ActiveControl := FQueryBuilderActiveWorkArea()
           else
-            Control := FQueryBuilderSynMemo;
-
-          // Debug 2016-11-20
-          if (not Assigned(Control)) then
-            raise ERangeError.Create(SRangeError);
-
-          Window.ActiveControl := Control;
-        end;
+            Window.ActiveControl := FQueryBuilderSynMemo;
       vDiagram: if (PWorkbench.Visible) then Window.ActiveControl := ActiveWorkbench;
       vEditor,
       vEditor2,
@@ -4077,7 +4077,9 @@ begin
           end;
 
           if (AllowRefresh) then
-            ActiveDBGrid.DataSource.DataSet.Refresh();
+            ActiveDBGrid.DataSource.DataSet.Refresh()
+          else
+            ActiveDBGrid.DataSource.DataSet.Open();
         end;
       vDiagram:
         begin
@@ -5480,7 +5482,7 @@ begin
 
   // Debug 2016-11-12
   if (not Assigned(ActiveDBGrid)) then
-    raise ERangeError.Create(SRangeError + 'Address: ' + Address)
+    raise ERangeError.Create(SRangeError + ' Address: ' + Address)
   else if (not Assigned(ActiveDBGrid.DataSource)) then
     raise ERangeError.Create(SRangeError)
   else if (not Assigned(ActiveDBGrid.DataSource.DataSet)) then
@@ -5548,7 +5550,7 @@ begin
       if (not Assigned(ActiveSynMemo)) then
         raise ERangeError.Create(SRangeError);
 
-      SQL := SQLTrimStmt(ActiveSynMemo.Text, Session.Connection.MySQLVersion);
+      SQL := SQLTrimStmt(ActiveSynMemo.Text);
     end;
 
     DBGrid := TMySQLDBGrid(Sender);
@@ -9037,12 +9039,20 @@ begin
     if (ImageIndex > 0) then
       for I := 0 to TListView(Sender).Columns.Count - 1 do
       begin
-        // Debug 2016-12-01
+        // Debug 2016-12-02
+        if (not Assigned(Session)) then
+          raise ERangeError.Create(SRangeError);
+        if (not Assigned(Session.Account)) then
+          raise ERangeError.Create(SRangeError);
+        if (not Assigned(Session.Account.Desktop)) then
+          raise ERangeError.Create(SRangeError);
         Column := TListView(Sender).Columns[I];
         Width := Column.Width;
         ListViewKind := ColumnWidthKindFromImageIndex(ImageIndex);
         if (not (ListViewKind in [lkServer .. lkVariables])) then
           raise ERangeError.Create(SRangeError + '(' + IntToStr(Ord(ListViewKind)) + ')');
+        if (Length(Session.Account.Desktop.ColumnWidths) < 1 + Ord(ListViewKind)) then
+          raise ERangeError.Create(SRangeError + ' ' + IntToStr(1 + Ord(ListViewKind)));
         if (I < 0) then
           raise ERangeError.Create(SRangeError);
         if (I >= Length(Session.Account.Desktop.ColumnWidths[lkServer])) then
@@ -9189,12 +9199,13 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
         Item.SubItems.Add(Preferences.LoadStr(738))
       else
         Item.SubItems.Add('');
-      if ((TSTable(Data) is TSBaseTable) and not TSBaseTable(Data).ValidStatus) then
-        Item.SubItems.Add('')
-      else if ((TSTable(Data) is TSBaseTable) and (TSBaseTable(Data).RecordCount < 0)) then
-        Item.SubItems.Add('')
-      else if ((TSTable(Data) is TSBaseTable)) then
-        Item.SubItems.Add(FormatFloat('#,##0', TSBaseTable(Data).RecordCount, LocaleFormatSettings))
+      if (TSTable(Data) is TSBaseTable) then
+        if (not TSBaseTable(Data).ValidStatus or (TSBaseTable(Data).RecordCount < 0)) then
+          Item.SubItems.Add('')
+        else if (TSBaseTable(Data).Engine.IsInnoDB) then
+          Item.SubItems.Add(FormatFloat('~#,##0', TSBaseTable(Data).RecordCount, LocaleFormatSettings))
+        else
+          Item.SubItems.Add(FormatFloat('#,##0', TSBaseTable(Data).RecordCount, LocaleFormatSettings))
       else
         Item.SubItems.Add('');
       if ((TSTable(Data) is TSView) and (TSView(Data).Stmt <> '')) then
@@ -10275,7 +10286,9 @@ begin
   begin
     gmFilter.Clear(); gmFilter.Enabled := False;
 
-    if (not ActiveDBGrid.EditorMode and not (ActiveDBGrid.SelectedField.DataType in [ftWideMemo, ftBlob])) then
+    if (Assigned(ActiveDBGrid.SelectedField)
+      and not ActiveDBGrid.EditorMode
+      and not (ActiveDBGrid.SelectedField.DataType in [ftWideMemo, ftBlob])) then
     begin
       gmFilter.Enabled := True;
 

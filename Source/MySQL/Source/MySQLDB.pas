@@ -226,6 +226,7 @@ type
     FCharsetNr: Byte;
     FCodePage: Cardinal;
     FConnected: Boolean;
+    FDataSetEvent: TEvent;
     FDebugMonitor: TMySQLMonitor;
     FErrorCode: Integer;
     FErrorMessage: string;
@@ -333,6 +334,7 @@ type
     procedure WriteMonitor(const Text: string; const TraceType: TMySQLMonitor.TTraceType); overload; inline;
     procedure WriteMonitor(const Text: PChar; const Length: Integer; const TraceType: TMySQLMonitor.TTraceType); overload;
     property CharsetNr: Byte read FCharsetNr;
+    property DataSetEvent: TEvent read FDataSetEvent;
     property Handle: MySQLConsts.MYSQL read GetHandle;
     property IdentifierQuoter: Char read FIdentifierQuoter;
     property IdentifierQuoted: Boolean read FIdentifierQuoted write FIdentifierQuoted;
@@ -1999,7 +2001,7 @@ begin
     Result := ''
   else
   begin
-    StmtLength := SQLTrimStmt(PChar(@SQL[SQLIndex]), Integer(StmtLengths[StmtIndex]), Connection.MySQLVersion, StartingCommentLength, EndingCommentLength);
+    StmtLength := SQLTrimStmt(PChar(@SQL[SQLIndex]), Integer(StmtLengths[StmtIndex]), StartingCommentLength, EndingCommentLength);
     if (SQL[SQLIndex + StartingCommentLength + StmtLength - 1] = ';') then
       Dec(StmtLength);
     if (StmtLength = 0) then
@@ -2027,7 +2029,7 @@ begin
   else
   begin
     StmtLength := Integer(StmtLengths[StmtIndex + 1]);
-    Len := SQLTrimStmt(SQL, SQLIndex, StmtLength, Connection.MySQLVersion, StartingCommentLength, EndingCommentLength);
+    Len := SQLTrimStmt(SQL, SQLIndex, StmtLength, StartingCommentLength, EndingCommentLength);
     Result := Copy(SQL, SQLIndex + Integer(StmtLengths[StmtIndex]) + StartingCommentLength, Len);
   end;
 end;
@@ -2051,7 +2053,9 @@ begin
           Connection.SyncExecuted(Self);
           if (Mode in [smSQL, smDataSet]) then
           begin
-            if (State in [ssExecutingNext, ssExecutingFirst]) then
+            if (State = ssReceivingResult) then
+              Connection.DataSetEvent.SetEvent()
+            else if (State in [ssExecutingNext, ssExecutingFirst]) then
             begin
               Connection.SyncExecute(Self);
               Connection.RunExecute(Self);
@@ -2200,6 +2204,7 @@ begin
   FFormatSettings.TimeSeparator := ':';
 
   DataHandleEvent := TEvent.Create(nil, False, False, '');
+  FDataSetEvent := TEvent.Create(nil, False, False, '');
   FAfterExecuteSQL := nil;
   FAnsiQuotes := False;
   FAsynchron := False;
@@ -2273,6 +2278,7 @@ begin
   TerminateCS.Leave();
   TerminatedThreads.Free();
 
+  FDataSetEvent.Free();
   DataHandleEvent.Free();
   TerminateCS.Free();
   FDebugMonitor.Free();
@@ -2582,18 +2588,27 @@ begin
   end
   else if (Synchron or not UseSyncThread()) then
   begin
-    SyncBeforeExecuteSQL(SyncThread);
-    repeat
-      SyncExecute(SyncThread);
-      SyncExecutingFirst(SyncThread);
-      SyncExecuted(SyncThread);
-      while (SyncThread.State = ssExecutingNext) do
-      begin
+    if (GetCurrentThreadId() = MainThreadId) then
+    begin
+      SyncBeforeExecuteSQL(SyncThread);
+      repeat
         SyncExecute(SyncThread);
-        SyncExecutingNext(SyncThread);
+        SyncExecutingFirst(SyncThread);
         SyncExecuted(SyncThread);
-      end;
-    until (SyncThread.State <> ssExecutingFirst);
+        while (SyncThread.State = ssExecutingNext) do
+        begin
+          SyncExecute(SyncThread);
+          SyncExecutingNext(SyncThread);
+          SyncExecuted(SyncThread);
+        end;
+      until (SyncThread.State <> ssExecutingFirst);
+    end
+    else
+    begin
+      DataSetEvent.ResetEvent();
+      MySQLConnectionSynchronizeRequest(SyncThread);
+      DataSetEvent.WaitFor(INFINITE);
+    end;
     Result := SyncThread.ErrorCode = 0;
   end
   else
@@ -2821,10 +2836,15 @@ begin
   if (not Assigned(DataHandle)) then
     raise ERangeError.CreateFmt(SPropertyOutOfRange, ['DataHandle']);
 
-  RunExecute(SyncThread);
-  DataHandleEvent.WaitFor(INFINITE);
+  if (SyncThread.State in [ssClose, ssReady]) then
+    Result := False
+  else
+  begin
+    RunExecute(SyncThread);
+    DataHandleEvent.WaitFor(INFINITE);
 
-  Result := DataHandle.ErrorCode = 0;
+    Result := DataHandle.ErrorCode = 0;
+  end;
 end;
 
 procedure TMySQLConnection.RegisterSQLMonitor(const SQLMonitor: TMySQLMonitor);
@@ -3350,7 +3370,7 @@ begin
         if (SyncThread.CommandText <> '') then
           raise Exception.Create('Query has not been handled: ' + SyncThread.CommandText)
         else
-          raise Exception.Create('Query has not been handled: ' + SQLEscapeBin(SyncThread.SQL, True));
+          raise Exception.Create('Statement #' + IntToStr(SyncThread.StmtIndex) + ' has not been handled:' + #13#10 + SyncThread.SQL);
     finally
       InOnResult := False;
     end;
@@ -3606,7 +3626,11 @@ begin
     SyncThread.DataSet := nil;
 
     if (not SyncThread.Terminated and (SyncThread.State = ssReceivingResult)) then
+    begin
       SyncHandledResult(SyncThread);
+      if ((SyncThread.Mode = smDataSet) and (SyncThread.State = ssReady)) then
+        SyncAfterExecuteSQL(SyncThread);
+    end;
   end;
 
   DataSet.SyncThread := nil;
@@ -3681,8 +3705,9 @@ begin
   Result := not Assigned(LibRow);
 
   // Debug 2016-12-01
-  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
-    raise ERangeError.Create(SRangeError);
+  if ((TMySQLDataSet(DataSet).LibFieldCount >= 0) and (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount)) then
+  if ((TMySQLDataSet(DataSet).LibFieldCount >= 0) and (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount)) then
+    raise ERangeError.Create(SRangeError + '(' + IntToStr(FieldNo - 1) +  ' / ' + IntToStr(TMySQLDataSet(DataSet).LibFieldCount) + ')');
 
   Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
@@ -3751,8 +3776,8 @@ begin
   Result := not Assigned(LibRow);
 
   // Debug 2016-12-01
-  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
-    raise ERangeError.Create(SRangeError);
+  if ((TMySQLDataSet(DataSet).LibFieldCount >= 0) and (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount)) then
+    raise ERangeError.Create(SRangeError + '(' + IntToStr(FieldNo - 1) +  ' / ' + IntToStr(TMySQLDataSet(DataSet).LibFieldCount) + ')');
 
   Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
@@ -3798,8 +3823,8 @@ begin
   Result := not Assigned(LibRow);
 
   // Debug 2016-12-01
-  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
-    raise ERangeError.Create(SRangeError);
+  if ((TMySQLDataSet(DataSet).LibFieldCount >= 0) and (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount)) then
+    raise ERangeError.Create(SRangeError + '(' + IntToStr(FieldNo - 1) +  ' / ' + IntToStr(TMySQLDataSet(DataSet).LibFieldCount) + ')');
 
   Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
@@ -3832,8 +3857,8 @@ begin
   Result := not Assigned(LibRow);
 
   // Debug 2016-12-01
-  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
-    raise ERangeError.Create(SRangeError);
+  if ((TMySQLDataSet(DataSet).LibFieldCount >= 0) and (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount)) then
+    raise ERangeError.Create(SRangeError + '(' + IntToStr(FieldNo - 1) +  ' / ' + IntToStr(TMySQLDataSet(DataSet).LibFieldCount) + ')');
 
   Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
@@ -3888,8 +3913,8 @@ begin
   Result := not Assigned(LibRow);
 
   // Debug 2016-12-01
-  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
-    raise ERangeError.Create(SRangeError);
+  if ((TMySQLDataSet(DataSet).LibFieldCount >= 0) and (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount)) then
+    raise ERangeError.Create(SRangeError + '(' + IntToStr(FieldNo - 1) +  ' / ' + IntToStr(TMySQLDataSet(DataSet).LibFieldCount) + ')');
 
   Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
@@ -3942,8 +3967,8 @@ begin
   Result := not Assigned(LibRow);
 
   // Debug 2016-12-01
-  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
-    raise ERangeError.Create(SRangeError);
+  if ((TMySQLDataSet(DataSet).LibFieldCount >= 0) and (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount)) then
+    raise ERangeError.Create(SRangeError + '(' + IntToStr(FieldNo - 1) +  ' / ' + IntToStr(TMySQLDataSet(DataSet).LibFieldCount) + ')');
 
   Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
@@ -3976,8 +4001,8 @@ begin
   Result := not Assigned(LibRow);
 
   // Debug 2016-12-01
-  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
-    raise ERangeError.Create(SRangeError);
+  if ((TMySQLDataSet(DataSet).LibFieldCount >= 0) and (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount)) then
+    raise ERangeError.Create(SRangeError + '(' + IntToStr(FieldNo - 1) +  ' / ' + IntToStr(TMySQLDataSet(DataSet).LibFieldCount) + ')');
 
   Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
@@ -4010,8 +4035,8 @@ begin
   Result := not Assigned(LibRow);
 
   // Debug 2016-12-01
-  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
-    raise ERangeError.Create(SRangeError);
+  if ((TMySQLDataSet(DataSet).LibFieldCount >= 0) and (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount)) then
+    raise ERangeError.Create(SRangeError + '(' + IntToStr(FieldNo - 1) +  ' / ' + IntToStr(TMySQLDataSet(DataSet).LibFieldCount) + ')');
 
   Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
@@ -4054,8 +4079,8 @@ begin
   Result := not Assigned(LibRow);
 
   // Debug 2016-12-01
-  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
-    raise ERangeError.Create(SRangeError);
+  if ((TMySQLDataSet(DataSet).LibFieldCount >= 0) and (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount)) then
+    raise ERangeError.Create(SRangeError + '(' + IntToStr(FieldNo - 1) +  ' / ' + IntToStr(TMySQLDataSet(DataSet).LibFieldCount) + ')');
 
   Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
@@ -4103,8 +4128,8 @@ begin
   Result := not Assigned(LibRow);
 
   // Debug 2016-12-01
-  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
-    raise ERangeError.Create(SRangeError);
+  if ((TMySQLDataSet(DataSet).LibFieldCount >= 0) and (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount)) then
+    raise ERangeError.Create(SRangeError + '(' + IntToStr(FieldNo - 1) +  ' / ' + IntToStr(TMySQLDataSet(DataSet).LibFieldCount) + ')');
 
   Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
@@ -4137,8 +4162,8 @@ begin
   Result := not Assigned(LibRow);
 
   // Debug 2016-12-01
-  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
-    raise ERangeError.Create(SRangeError);
+  if ((TMySQLDataSet(DataSet).LibFieldCount >= 0) and (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount)) then
+    raise ERangeError.Create(SRangeError + '(' + IntToStr(FieldNo - 1) +  ' / ' + IntToStr(TMySQLDataSet(DataSet).LibFieldCount) + ')');
 
   Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
@@ -4171,8 +4196,8 @@ begin
   Result := not Assigned(LibRow);
 
   // Debug 2016-12-01
-  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
-    raise ERangeError.Create(SRangeError);
+  if ((TMySQLDataSet(DataSet).LibFieldCount >= 0) and (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount)) then
+    raise ERangeError.Create(SRangeError + '(' + IntToStr(FieldNo - 1) +  ' / ' + IntToStr(TMySQLDataSet(DataSet).LibFieldCount) + ')');
 
   Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
@@ -4205,8 +4230,8 @@ begin
   Result := not Assigned(LibRow);
 
   // Debug 2016-12-01
-  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
-    raise ERangeError.Create(SRangeError);
+  if ((TMySQLDataSet(DataSet).LibFieldCount >= 0) and (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount)) then
+    raise ERangeError.Create(SRangeError + '(' + IntToStr(FieldNo - 1) +  ' / ' + IntToStr(TMySQLDataSet(DataSet).LibFieldCount) + ')');
 
   Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
@@ -4250,8 +4275,8 @@ begin
   Result := not Assigned(LibRow);
 
   // Debug 2016-12-01
-  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
-    raise ERangeError.Create(SRangeError);
+  if ((TMySQLDataSet(DataSet).LibFieldCount >= 0) and (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount)) then
+    raise ERangeError.Create(SRangeError + '(' + IntToStr(FieldNo - 1) +  ' / ' + IntToStr(TMySQLDataSet(DataSet).LibFieldCount) + ')');
 
   Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
@@ -4330,8 +4355,8 @@ begin
   Result := not Assigned(LibRow);
 
   // Debug 2016-12-01
-  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
-    raise ERangeError.Create(SRangeError);
+  if ((TMySQLDataSet(DataSet).LibFieldCount >= 0) and (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount)) then
+    raise ERangeError.Create(SRangeError + '(' + IntToStr(FieldNo - 1) +  ' / ' + IntToStr(TMySQLDataSet(DataSet).LibFieldCount) + ')');
 
   Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
@@ -4413,8 +4438,8 @@ begin
   Result := not Assigned(LibRow);
 
   // Debug 2016-12-01
-  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
-    raise ERangeError.Create(SRangeError);
+  if ((TMySQLDataSet(DataSet).LibFieldCount >= 0) and (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount)) then
+    raise ERangeError.Create(SRangeError + '(' + IntToStr(FieldNo - 1) +  ' / ' + IntToStr(TMySQLDataSet(DataSet).LibFieldCount) + ')');
 
   Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
@@ -4509,8 +4534,8 @@ begin
   Result := not Assigned(LibRow);
 
   // Debug 2016-12-01
-  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
-    raise ERangeError.Create(SRangeError);
+  if ((TMySQLDataSet(DataSet).LibFieldCount >= 0) and (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount)) then
+    raise ERangeError.Create(SRangeError + '(' + IntToStr(FieldNo - 1) +  ' / ' + IntToStr(TMySQLDataSet(DataSet).LibFieldCount) + ')');
 
   Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
@@ -4561,8 +4586,8 @@ begin
   Result := not Assigned(LibRow);
 
   // Debug 2016-12-01
-  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
-    raise ERangeError.Create(SRangeError);
+  if ((TMySQLDataSet(DataSet).LibFieldCount >= 0) and (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount)) then
+    raise ERangeError.Create(SRangeError + '(' + IntToStr(FieldNo - 1) +  ' / ' + IntToStr(TMySQLDataSet(DataSet).LibFieldCount) + ')');
 
   Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
@@ -4642,8 +4667,8 @@ begin
   Result := not Assigned(LibRow);
 
   // Debug 2016-12-01
-  if (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount) then
-    raise ERangeError.Create(SRangeError);
+  if ((TMySQLDataSet(DataSet).LibFieldCount >= 0) and (FieldNo - 1 >= TMySQLDataSet(DataSet).LibFieldCount)) then
+    raise ERangeError.Create(SRangeError + '(' + IntToStr(FieldNo - 1) +  ' / ' + IntToStr(TMySQLDataSet(DataSet).LibFieldCount) + ')');
 
   Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
@@ -4719,6 +4744,8 @@ begin
 
   FIndexDefs := TIndexDefs.Create(Self);
   FRecNo := -1;
+
+  LibFieldCount := -1;
 
   SetUniDirectional(True);
 end;
@@ -7687,7 +7714,7 @@ end;
 //  RBS: RawByteString;
 //  SQL: string;
 initialization
-//  RBS := HexToStr('4B494C4C20434F4E4E454354494F4E2031383B0D0A53484F5720435245415445205441424C452060746D616C6C602E607473736869603B0D0A');
+//  RBS := HexToStr('');
 //  SetLength(SQL, Length(RBS));
 //  Len := AnsiCharToWideChar(65001, PAnsiChar(RBS), Length(RBS), PChar(SQL), Length(SQL));
 //  SetLength(SQL, Len);

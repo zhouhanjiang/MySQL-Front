@@ -183,7 +183,7 @@ type
   public
     CodePage: Cardinal;
     Filename: TFileName;
-    ImportType: TPAccount.TImportType;
+    ImportType: TImportType;
     Session: TSSession;
     SObject: TSObject;
     Window: TForm;
@@ -1194,7 +1194,10 @@ begin
   FErrorMessages.Lines.Clear();
 
   if (not Assigned(Import)) then
-    CreateImport();
+    CreateImport()
+  else if (not Import.Suspended) then
+    // Debug 2016-12-02
+    raise ERangeError.Create(SRangeError);
 
   Answer := IDYES;
   case (ImportType) of
