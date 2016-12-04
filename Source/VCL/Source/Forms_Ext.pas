@@ -75,12 +75,7 @@ begin
   if (Control is TListView) then
   begin
     if (CheckWin32Version(6,1)) then
-    begin
-      // Debug
-      if (Control.Name = '') then
-        raise ERangeError.Create(SRangeError);
       SendMessage(Control.Handle, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_JUSTIFYCOLUMNS, 0);
-    end;
     SendMessage(Control.Handle, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_DOUBLEBUFFER, LVS_EX_DOUBLEBUFFER);
     SendMessage(Control.Handle, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_COLUMNSNAPPOINTS, LVS_EX_COLUMNSNAPPOINTS);
   end
