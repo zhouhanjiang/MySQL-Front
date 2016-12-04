@@ -11820,6 +11820,8 @@ end;
 
 function TSQLParser.ChildPtr(const Node: TOffset): PChild;
 begin
+  if not ((0 < Node) and (Node < Nodes.UsedSize) and IsChild(Node)) then
+    Write;
   Assert((0 < Node) and (Node < Nodes.UsedSize) and IsChild(Node));
 
   Result := @Nodes.Mem[Node];
@@ -14251,11 +14253,7 @@ begin
       if (not Assigned(Token.DefinerToken)) then
         Commands.Write(Token.AsString)
       else
-<<<<<<< HEAD
         Commands.Write(Token.DefinerToken^.AsString)
-=======
-        Commands.Write(Token.DefinerToken.AsString)
->>>>>>> b8786e0b118a9cfa710e30a36861eccdb49e6136
     else if (Token.DbIdentType in [ditDatabase, ditTable, ditProcedure, ditTrigger, ditEvent, ditKey, ditField, ditForeignKey, ditPartition, ditConstraint, ditTableAlias, ditVariable, ditRoutineParam, ditCompoundVariable, ditCursor, ditCondition]) then
       if (AnsiQuotes) then
         Commands.Write(SQLEscape(Token.AsString, '"'))
@@ -23752,6 +23750,7 @@ var
   BeginLabel: TOffset;
   Continue: Boolean;
   FirstToken: TOffset;
+  T: TOffset;
   Token: PToken;
 begin
   {$IFDEF Debug}
@@ -24094,7 +24093,10 @@ begin
 
       // Add unparsed Tokens to the Stmt
       while (not EndOfStmt(CurrentToken) and (not InCompound or (TokenPtr(CurrentToken)^.KeywordIndex <> kiEND))) do
-        StmtPtr(Result)^.Heritage.AddChildren(1, POffsetArray(TokenPtr(ApplyCurrentToken(utUnknown))));
+      begin
+        T := ApplyCurrentToken(utUnknown);
+        StmtPtr(Result)^.Heritage.AddChildren(1, @T);
+      end;
     end;
 
     if (Error.Code > PE_Success) then
