@@ -276,7 +276,7 @@ end;
 
 procedure TDForeignKey.FormHide(Sender: TObject);
 begin
-  Table.Session.ReleaseEventProc(FormSessionEvent);
+  Table.Session.UnRegisterEventProc(FormSessionEvent);
 
   Preferences.ForeignKey.Width := Width;
   Preferences.ForeignKey.Height := Height;
@@ -320,7 +320,9 @@ begin
   else if ((Event.EventType = etItemAltered) and (Event.Item = Table)) then
     ModalResult := mrOk;
 
-  if (Event.EventType = etError) then
+  if ((Event.EventType = etError) and (ModalResult = mrNone)) then
+    ModalResult := mrCancel
+  else if (Event.EventType = etError) then
   begin
     FParentTable.Cursor := crDefault;
     FParentFields.Cursor := crDefault;

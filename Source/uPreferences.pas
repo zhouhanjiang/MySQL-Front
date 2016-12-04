@@ -580,7 +580,7 @@ type
     destructor Destroy(); override;
     function ExtractPath(const AAddress: string): string; virtual;
     function ExpandAddress(const APath: string): string; virtual;
-    function Tab(): Pointer; virtual;
+    function FirstTab(): Pointer; virtual;
     function GetDefaultDatabase(): string; virtual;
     procedure RegisterTab(const AControl: Pointer; const AEventProc: TEventProc); virtual;
     procedure UnRegisterTab(const AControl: Pointer); virtual;
@@ -3075,7 +3075,7 @@ begin
     SetString(Result, PChar(@URL), Len);
 end;
 
-function TPAccount.Tab(): Pointer;
+function TPAccount.FirstTab(): Pointer;
 begin
   if (Length(FTabs) = 0) then
     Result := nil

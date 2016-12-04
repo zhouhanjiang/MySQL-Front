@@ -166,7 +166,7 @@ type
     TSyncThread = class(TThread)
     type
       TMode = (smSQL, smDataHandle, smDataSet);
-      TState = (ssClose, ssConnecting, ssReady, ssExecutingFirst, ssExecutingNext, ssResult, ssReceivingResult, ssDisconnecting);
+      TState = (ssClose, ssConnecting, ssReady, ssFirst, ssExecutingFirst, ssResult, ssReceivingResult, ssNext, ssExecutingNext, ssDisconnecting);
     private
       Done: TEvent;
       ExecutionTime: TDateTime;
@@ -2047,19 +2047,22 @@ begin
           Connection.SyncExecute(Self);
           Connection.RunExecute(Self);
         end;
+      ssFirst,
+      ssNext:
+        begin
+          Connection.SyncExecute(Self);
+          Connection.RunExecute(Self);
+        end;
       ssExecutingFirst,
       ssExecutingNext:
         begin
           Connection.SyncExecuted(Self);
           if (Mode in [smSQL, smDataSet]) then
           begin
-            if (State = ssReceivingResult) then
-              Connection.DataSetEvent.SetEvent()
-            else if (State in [ssExecutingNext, ssExecutingFirst]) then
-            begin
-              Connection.SyncExecute(Self);
-              Connection.RunExecute(Self);
-            end;
+            if (State = ssNext) then
+              Synchronize()
+            else if (State = ssReady) then
+              Connection.DataSetEvent.SetEvent();
           end
           else if (Assigned(Done)) then
             Done.SetEvent();
@@ -2595,7 +2598,7 @@ begin
         SyncExecute(SyncThread);
         SyncExecutingFirst(SyncThread);
         SyncExecuted(SyncThread);
-        while (SyncThread.State = ssExecutingNext) do
+        while (SyncThread.State = ssNext) do
         begin
           SyncExecute(SyncThread);
           SyncExecutingNext(SyncThread);
@@ -2840,7 +2843,10 @@ begin
     Result := False
   else
   begin
-    RunExecute(SyncThread);
+    if (GetCurrentThreadId() = MainThreadId) then
+      SyncThread.Synchronize()
+    else
+      MySQLConnectionSynchronizeRequest(SyncThread);
     DataHandleEvent.WaitFor(INFINITE);
 
     Result := DataHandle.ErrorCode = 0;
@@ -2988,6 +2994,8 @@ end;
 
 procedure TMySQLConnection.SyncAfterExecuteSQL(const SyncThread: TSyncThread);
 begin
+  Assert(SyncThread.State in [ssClose, ssReady]);
+
   FExecutionTime := SyncThread.ExecutionTime;
 
   if (FErrorCode = 0) then
@@ -3003,7 +3011,7 @@ procedure TMySQLConnection.SyncBeforeExecuteSQL(const SyncThread: TSyncThread);
 begin
   DoBeforeExecuteSQL();
 
-  SyncThread.State := ssExecutingFirst;
+  SyncThread.State := ssFirst;
 end;
 
 procedure TMySQLConnection.SyncBindDataSet(const DataSet: TMySQLQuery);
@@ -3232,15 +3240,21 @@ procedure TMySQLConnection.SyncExecute(const SyncThread: TSyncThread);
 var
   StmtLength: Integer;
 begin
-  Assert(SyncThread.State in [ssExecutingFirst, ssExecutingNext]);
+  Assert(SyncThread.State in [ssFirst, ssNext]);
 
-  if (SyncThread.State = ssExecutingFirst) then
+  if (SyncThread.State = ssFirst) then
     WriteMonitor('# ' + SysUtils.DateTimeToStr(Now() + TimeDiff, FormatSettings), ttTime);
 
   if (SyncThread.StmtIndex < SyncThread.StmtLengths.Count) then
   begin
     StmtLength := Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]);
     WriteMonitor(@SyncThread.SQL[SyncThread.SQLIndex], StmtLength, ttRequest);
+  end;
+
+  case (SyncThread.State) of
+    ssFirst: SyncThread.State := ssExecutingFirst;
+    ssNext: SyncThread.State := ssExecutingNext;
+    else raise ERangeError.Create(SRangeError);
   end;
 end;
 
@@ -3272,7 +3286,7 @@ begin
     Inc(FExecutedStmts);
 
     if (SyncThread.WarningCount > 0) then
-      WriteMonitor('--> ' + IntToStr(SyncThread.WarningCount) + ' Warning(s) available', ttInfo);
+      WriteMonitor('--> Warnings: ' + IntToStr(SyncThread.WarningCount), ttInfo);
 
     if (Assigned(Lib.mysql_session_track_get_first) and Assigned(Lib.mysql_session_track_get_next)) then
       if (Lib.mysql_session_track_get_first(SyncThread.LibHandle, SESSION_TRACK_SYSTEM_VARIABLES, Data, Size) = 0) then
@@ -3558,9 +3572,9 @@ begin
   else if (SyncThread.ErrorCode = CR_SERVER_GONE_ERROR) then
     SyncThread.State := ssReady
   else if (MultiStatements and Assigned(SyncThread.LibHandle) and (Lib.mysql_more_results(SyncThread.LibHandle) = 1)) then
-    SyncThread.State := ssExecutingNext
+    SyncThread.State := ssNext
   else if (SyncThread.StmtIndex < SyncThread.StmtLengths.Count) then
-    SyncThread.State := ssExecutingFirst
+    SyncThread.State := ssFirst
   else
     SyncThread.State := ssReady;
 end;

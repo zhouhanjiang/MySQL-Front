@@ -63,7 +63,6 @@ type
     TSROptions: TTabSheet;
     TSSelect: TTabSheet;
     procedure FBBackClick(Sender: TObject);
-    procedure FBCancelClick(Sender: TObject);
     procedure FBForwardClick(Sender: TObject);
     procedure FBHelpClick(Sender: TObject);
     procedure FDBObjectsDblClick(Sender: TObject);
@@ -71,6 +70,7 @@ type
     procedure FFFindTextChange(Sender: TObject);
     procedure FFRegExprClick(Sender: TObject);
     procedure FFRegExprKeyPress(Sender: TObject; var Key: Char);
+    procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormCreate(Sender: TObject);
     procedure FormHide(Sender: TObject);
     procedure FormShow(Sender: TObject);
@@ -80,14 +80,13 @@ type
     procedure FSelectChange(Sender: TObject; Node: TTreeNode);
     procedure FSelectExpanding(Sender: TObject; Node: TTreeNode;
       var AllowExpansion: Boolean);
+    procedure FSelectGetImageIndex(Sender: TObject; Node: TTreeNode);
     procedure mTCopyClick(Sender: TObject);
     procedure TSExecuteShow(Sender: TObject);
+    procedure TSExecuteResize(Sender: TObject);
     procedure TSFOptionsShow(Sender: TObject);
     procedure TSROptionsShow(Sender: TObject);
     procedure TSSelectShow(Sender: TObject);
-    procedure FSelectGetImageIndex(Sender: TObject; Node: TTreeNode);
-    procedure TSExecuteResize(Sender: TObject);
-    procedure FormDestroy(Sender: TObject);
   private
     ExecuteSession: TSSession;
     ProgressInfos: TTool.TProgressInfos;
@@ -102,6 +101,7 @@ type
       Node: TTreeNode;
       Page: TTabSheet;
     end;
+    procedure CheckActivePageChange(const ActivePage: TTabSheet);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     function GetSession(const TreeNode: TTreeNode): TSSession;
     procedure OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
@@ -149,6 +149,33 @@ end;
 
 { TDSearch ********************************************************************}
 
+procedure TDSearch.CheckActivePageChange(const ActivePage: TTabSheet);
+var
+  I: Integer;
+  NextActivePageIndex: Integer;
+begin
+  NextActivePageIndex := -1;
+  if (Assigned(ActivePage)) then
+    for I := PageControl.PageCount - 1 downto ActivePage.PageIndex + 1 do
+      if (PageControl.Pages[I].Enabled) then
+        NextActivePageIndex := I;
+  if (NextActivePageIndex >= 0) then
+    for I := NextActivePageIndex + 1 to PageControl.PageCount - 1 do
+      PageControl.Pages[I].Enabled := False;
+
+  FBBack.Enabled := False;
+  if (Assigned(ActivePage)) then
+    for I := ActivePage.PageIndex - 1 downto 0 do
+      FBBack.Enabled := FBBack.Enabled or PageControl.Pages[I].Enabled;
+  if (NextActivePageIndex < TSExecute.PageIndex) then
+    FBForward.Caption := Preferences.LoadStr(229) + ' >'
+  else
+    FBForward.Caption := Preferences.LoadStr(174);
+  FBForward.Enabled := NextActivePageIndex >= 0;
+  FBCancel.Caption := Preferences.LoadStr(30);
+  FBCancel.ModalResult := mrCancel;
+end;
+
 function TDSearch.Execute(): Boolean;
 begin
   ShowModal();
@@ -159,28 +186,22 @@ procedure TDSearch.FBBackClick(Sender: TObject);
 var
   PageIndex: Integer;
 begin
-  for PageIndex := PageControl.ActivePageIndex - 1 downto 0 do
+  for PageIndex := PageControl.ActivePage.PageIndex - 1 downto 0 do
     if (PageControl.Pages[PageIndex].Enabled) then
     begin
-      PageControl.ActivePageIndex := PageIndex;
+      PageControl.ActivePage.PageIndex := PageIndex;
       exit;
     end;
-end;
-
-procedure TDSearch.FBCancelClick(Sender: TObject);
-begin
-  if (Assigned(Search)) then
-    Search.Terminate();
 end;
 
 procedure TDSearch.FBForwardClick(Sender: TObject);
 var
   PageIndex: Integer;
 begin
-  for PageIndex := PageControl.ActivePageIndex + 1 to PageControl.PageCount - 1 do
+  for PageIndex := PageControl.ActivePage.PageIndex + 1 to PageControl.PageCount - 1 do
     if (PageControl.Pages[PageIndex].Enabled) then
     begin
-      PageControl.ActivePageIndex := PageIndex;
+      PageControl.ActivePage.PageIndex := PageIndex;
       exit;
     end;
 end;
@@ -210,7 +231,7 @@ begin
     if (Assigned(Tab)) then
       FSession := Tab
     else
-      FSession := TFSession(TSTable(FDBObjects.Selected.Data).Database.Session.Account.Tab());
+      FSession := TFSession(TSTable(FDBObjects.Selected.Data).Database.Session.Account.FirstTab());
 
     Result := True;
     if (Assigned(FSession)) then
@@ -235,7 +256,9 @@ end;
 
 procedure TDSearch.FFFindTextChange(Sender: TObject);
 begin
-  FBForward.Enabled := Trim(FFFindText.Text) <> '';
+  TSExecute.Enabled := Trim(FFFindText.Text) <> '';
+
+  CheckActivePageChange(TSFOptions);
 end;
 
 procedure TDSearch.FFRegExprClick(Sender: TObject);
@@ -246,6 +269,21 @@ end;
 procedure TDSearch.FFRegExprKeyPress(Sender: TObject; var Key: Char);
 begin
   FFRegExprClick(Sender);
+end;
+
+procedure TDSearch.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+begin
+  if (Assigned(Search)) then
+  begin
+    Search.Terminate();
+    CanClose := False;
+
+    FBCancel.Enabled := False;
+  end
+  else
+  begin
+    CanClose := True;
+  end;
 end;
 
 procedure TDSearch.FormCreate(Sender: TObject);
@@ -294,12 +332,6 @@ begin
   PageControl.ActivePage := nil; // Make sure, not ___OnShowPage will be executed
 end;
 
-procedure TDSearch.FormDestroy(Sender: TObject);
-begin
-  if (Assigned(Search)) then
-    TerminateThread(Search.Handle, 0);
-end;
-
 procedure TDSearch.FormHide(Sender: TObject);
 var
   I: Integer;
@@ -315,7 +347,7 @@ begin
   for I := 0 to Length(Sessions) - 1 do
     if (Assigned(Sessions[I].Session)) then
     begin
-      Sessions[I].Session.ReleaseEventProc(FormSessionEvent);
+      Sessions[I].Session.UnRegisterEventProc(FormSessionEvent);
       if (Sessions[I].Created) then
         Sessions[I].Session.Free();
     end;
@@ -423,23 +455,24 @@ begin
   TSFOptions.Enabled := SearchOnly;
   TSROptions.Enabled := not SearchOnly;
 
-  PageControl.ActivePage := TSSelect;
+  for I := 0 to PageControl.PageCount - 1 do
+    if (not Assigned(PageControl.ActivePage) and PageControl.Pages[I].Enabled) then
+      PageControl.ActivePageIndex := I;
+  CheckActivePageChange(PageControl.ActivePage);
 
-  FBForward.Default := True;
-
-  FBCancel.Caption := Preferences.LoadStr(30);
-  FBCancel.Enabled := True;
-  FBCancel.ModalResult := mrCancel;
-  FBCancel.Default := False;
-
-  ActiveControl := FSelect;
+  if (FBForward.Visible and FBForward.Enabled) then
+    ActiveControl := FBForward
+  else
+    ActiveControl := FBCancel;
 end;
 
 procedure TDSearch.FRFindTextChange(Sender: TObject);
 begin
-  FBForward.Enabled := (Trim(FRFindText.Text) <> '')
+  TSExecute.Enabled := (Trim(FRFindText.Text) <> '')
     and (Trim(FReplaceText.Text) <> '')
     and (Trim(FRFindText.Text) <> Trim(FReplaceText.Text));
+
+  CheckActivePageChange(TSFOptions);
 end;
 
 procedure TDSearch.FRRegExprClick(Sender: TObject);
@@ -844,8 +877,6 @@ begin
       end;
     end;
     Search.OnSearched := OnSearched;
-    Search.OnTerminate := OnTerminate;
-    Search.OnUpdate := OnUpdate;
 
     List := TList.Create();
     for I := 0 to FSelect.Items.Count - 1 do
@@ -904,18 +935,17 @@ begin
 
     FBBack.Enabled := False;
 
+    Search.OnTerminate := OnTerminate;
+    Search.OnUpdate := OnUpdate;
     Search.Start();
   end;
 
-  if (not Assigned(Wanted.Page)) then
-    SetControlCursor(GProgress, crDefault)
+  if (Assigned(Wanted.Page)) then
+    SetControlCursor(GProgress, crSQLWait)
   else
-    SetControlCursor(GProgress, crSQLWait);
+    SetControlCursor(GProgress, crDefault);
 
-  FBBack.Enabled := False;
-  FBForward.Enabled := False;
-  FBForward.Default := False;
-  FBCancel.Default := True;
+  CheckActivePageChange(TSSelect);
   ActiveControl := FBCancel;
 end;
 
@@ -923,25 +953,12 @@ procedure TDSearch.TSFOptionsShow(Sender: TObject);
 begin
   FFFindTextChange(Sender);
 
-  FBBack.Enabled := True;
-  FBForward.Caption := Preferences.LoadStr(174);
-  FBForward.Default := True;
-  FBCancel.Caption := Preferences.LoadStr(30);
-  FBCancel.Default := False;
-
-  ActiveControl := FFFindText;
+  CheckActivePageChange(TSFOptions);
 end;
 
 procedure TDSearch.TSROptionsShow(Sender: TObject);
 begin
-  FBBack.Enabled := True;
-  FBForward.Caption := Preferences.LoadStr(174);
-  FBForward.Default := True;
-  FRFindTextChange(Sender);
-  FBCancel.Caption := Preferences.LoadStr(30);
-  FBCancel.Default := False;
-
-  ActiveControl := FRFindText;
+  CheckActivePageChange(TSROptions);
 end;
 
 procedure TDSearch.TSSelectShow(Sender: TObject);
@@ -971,9 +988,8 @@ begin
       end;
     end;
 
-  FBBack.Enabled := False;
-  FBForward.Caption := Preferences.LoadStr(229) + ' >';
   FSelectChange(Sender, FSelect.Selected);
+  CheckActivePageChange(TSSelect);
 end;
 
 procedure TDSearch.UMChangePreferences(var Message: TMessage);
@@ -1039,22 +1055,19 @@ begin
   if (Success and SearchOnly and (FDBObjects.Items.Count = 0)) then
     MsgBox(Preferences.LoadStr(533, Search.FindText), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
 
-  if (Assigned(Search)) then
-  begin
-    Search.WaitFor();
-    FreeAndNil(Search);
+  Search.WaitFor();
+  Search.Free();
+  Search := nil;
 
-    ReplaceSession.Free();
-  end;
+  ReplaceSession.Free();
 
   FBBack.Enabled := True;
+  FBCancel.Enabled := True;
   FBCancel.Caption := Preferences.LoadStr(231);
   if (Success) then
     FBCancel.ModalResult := mrOk
   else
     FBCancel.ModalResult := mrCancel;
-
-  ActiveControl := FBCancel;
 end;
 
 procedure TDSearch.UMUpdateProgressInfo(var Message: TMessage);

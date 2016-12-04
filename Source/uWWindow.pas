@@ -687,9 +687,9 @@ begin
 
     MsgBox('Internal Program Bug:' + #13#10 + E.Message, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
 
-    if (OnlineProgramVersion > Preferences.Version) then
-      InformOnlineUpdateFound()
-    else if (Preferences.ObsoleteVersion < Preferences.Version) then
+    if ((OnlineProgramVersion > Preferences.Version) and (OnlineProgramVersion > Preferences.ObsoleteVersion)) then
+      InformOnlineUpdateFound();
+    if (Preferences.ObsoleteVersion < Preferences.Version) then
       Preferences.ObsoleteVersion := Preferences.Version;
 
     DisableApplicationActivate := False;
@@ -1050,22 +1050,6 @@ begin
 
     if (Assigned(ActiveTab)) then
     begin
-      if (ImportState > 0) then
-      begin
-        Report := Report + #13#10;
-        Report := Report + 'Import:' + #13#10;
-        Report := Report + StringOfChar('-', Length('Import: ' + IntToStr(ImportState))) + #13#10;
-        Report := Report + 'ImportState: ' + IntToStr(ImportState) + #13#10;
-      end;
-
-      if (ExportState > 0) then
-      begin
-        Report := Report + #13#10;
-        Report := Report + 'Export:' + #13#10;
-        Report := Report + StringOfChar('-', Length('Export: ' + IntToStr(ExportState))) + #13#10;
-        Report := Report + 'ExportState: ' + IntToStr(ExportState) + #13#10;
-      end;
-
       if (EditorCommandText <> '') then
       begin
         Report := Report + #13#10;

@@ -14,8 +14,8 @@ object DTransfer: TDTransfer
   Font.Style = []
   OldCreateOrder = True
   Position = poOwnerFormCenter
+  OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
-  OnDestroy = FormDestroy
   OnHide = FormHide
   OnShow = FormShow
   DesignSize = (
@@ -59,10 +59,6 @@ object DTransfer: TDTransfer
       TabVisible = False
       OnResize = TSSelectResize
       OnShow = TSSelectShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         436
         271)
@@ -153,10 +149,6 @@ object DTransfer: TDTransfer
       Caption = 'TSWhat'
       TabVisible = False
       OnShow = TSWhatShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         436
         271)
@@ -200,11 +192,8 @@ object DTransfer: TDTransfer
     object TSExecute: TTabSheet
       Caption = 'TSExecute'
       TabVisible = False
+      OnResize = TSExecuteResize
       OnShow = TSExecuteShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         436
         271)
@@ -234,7 +223,7 @@ object DTransfer: TDTransfer
           Caption = 'FLProgressRecords'
         end
         object FDoneObjects: TLabel
-          Left = 255
+          Left = 259
           Top = 40
           Width = 68
           Height = 13
@@ -243,7 +232,7 @@ object DTransfer: TDTransfer
           Caption = 'FDoneObjects'
         end
         object FDoneRecords: TLabel
-          Left = 251
+          Left = 255
           Top = 64
           Width = 72
           Height = 13
@@ -259,7 +248,7 @@ object DTransfer: TDTransfer
           Caption = 'FLProgressTime'
         end
         object FDoneTime: TLabel
-          Left = 268
+          Left = 272
           Top = 88
           Width = 55
           Height = 13
@@ -268,7 +257,7 @@ object DTransfer: TDTransfer
           Caption = 'FDoneTime'
         end
         object FLDone: TLabel
-          Left = 286
+          Left = 290
           Top = 16
           Width = 38
           Height = 13
@@ -277,7 +266,7 @@ object DTransfer: TDTransfer
           Caption = 'FLDone'
         end
         object FLEntiered: TLabel
-          Left = 366
+          Left = 370
           Top = 16
           Width = 51
           Height = 13
@@ -286,7 +275,7 @@ object DTransfer: TDTransfer
           Caption = 'FLEntiered'
         end
         object FEntieredObjects: TLabel
-          Left = 336
+          Left = 340
           Top = 40
           Width = 81
           Height = 13
@@ -295,7 +284,7 @@ object DTransfer: TDTransfer
           Caption = 'FEntieredObjects'
         end
         object FEntieredRecords: TLabel
-          Left = 332
+          Left = 336
           Top = 64
           Width = 85
           Height = 13
@@ -304,7 +293,7 @@ object DTransfer: TDTransfer
           Caption = 'FEntieredRecords'
         end
         object FEntieredTime: TLabel
-          Left = 349
+          Left = 353
           Top = 88
           Width = 68
           Height = 13
@@ -406,6 +395,5 @@ object DTransfer: TDTransfer
     Caption = 'FBCancel'
     ModalResult = 2
     TabOrder = 4
-    OnClick = FBCancelClick
   end
 end

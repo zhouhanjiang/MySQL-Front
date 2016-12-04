@@ -316,7 +316,7 @@ end;
 
 procedure TDDatabase.FormHide(Sender: TObject);
 begin
-  Session.ReleaseEventProc(FormSessionEvent);
+  Session.UnRegisterEventProc(FormSessionEvent);
 
   Preferences.Database.Width := Width;
   Preferences.Database.Height := Height;
@@ -336,7 +336,9 @@ begin
   else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.Item is TSDatabase)) then
     ModalResult := mrOk;
 
-  if (Event.EventType = etAfterExecuteSQL) then
+  if ((Event.EventType = etError) and (ModalResult = mrNone)) then
+    ModalResult := mrCancel
+  else if (Event.EventType = etAfterExecuteSQL) then
   begin
     if (not PageControl.Visible and (ModalResult = mrNone)) then
     begin

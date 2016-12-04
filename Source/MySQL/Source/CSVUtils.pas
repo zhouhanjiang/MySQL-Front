@@ -596,7 +596,7 @@ begin
         POP ESI
         POP ES
   end;
-  end;
+end;
 
 function CSVUnquote(const Quoted: PChar; const QuotedLength: Integer; const Unquoted: PChar; const UnquotedLength: Integer; const Quoter: Char = '"'): Integer;
 label

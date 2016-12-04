@@ -1515,8 +1515,6 @@ begin
 end;
 
 function TFSession.TTableDesktop.CreateDBGrid(): TMySQLDBGrid;
-var
-  DataSet: TDataSet;
 begin
   if (not Assigned(FDBGrid)) then
   begin
@@ -1528,18 +1526,7 @@ begin
       DataSource.Enabled := False;
     end;
     FDBGrid := FSession.CreateDBGrid(PDBGrid, DataSource);
-
-    // Debug 2016-11-23
-    if (not Assigned(Table)) then
-      raise ERangeError.Create(SRangeError);
-    // Debug 2016-11-27
-    if (not (TObject(Table) is TSTable)) then
-      raise ERangeError.Create(SRangeError + ' CallName: ' + TObject(Table).ClassName);
-    if (not (TObject(DataSource) is TDataSource)) then
-      raise ERangeError.Create(SRangeError);
-
-    DataSet := Table.DataSet;
-    DataSource.DataSet := DataSet;
+    DataSource.DataSet := Table.DataSet;
   end;
 
   Result := FDBGrid;
@@ -3967,10 +3954,14 @@ begin
       vBrowser: if (PResult.Visible and Assigned(ActiveDBGrid)) then Window.ActiveControl := ActiveDBGrid;
       vIDE: if (PSynMemo.Visible and Assigned(ActiveSynMemo)) then Window.ActiveControl := ActiveSynMemo;
       vBuilder: if (PQueryBuilder.Visible) then
-          if (FQueryBuilder.Visible and Assigned(FQueryBuilderActiveWorkArea())) then
-            Window.ActiveControl := FQueryBuilderActiveWorkArea()
-          else
-            Window.ActiveControl := FQueryBuilderSynMemo;
+        if (FQueryBuilder.Visible and Assigned(FQueryBuilderActiveWorkArea())) then
+        begin
+          if (not FQueryBuilderActiveWorkArea().Visible) then
+            raise ERangeError.Create(SRangeError);
+          Window.ActiveControl := FQueryBuilderActiveWorkArea()
+        end
+        else
+          Window.ActiveControl := FQueryBuilderSynMemo;
       vDiagram: if (PWorkbench.Visible) then Window.ActiveControl := ActiveWorkbench;
       vEditor,
       vEditor2,
@@ -5158,8 +5149,8 @@ begin
 
     aDPrev.Enabled := not DataSet.Bof and not InputDataSet;
     aDNext.Enabled := not DataSet.Eof and not InputDataSet;
-    MainAction('aDInsertRecord').Enabled := aDInsertRecord.Enabled and (DataSet.State in [dsBrowse, dsEdit]) and (DataSet.FieldCount > 0) and Assigned(ActiveDBGrid) and (ActiveDBGrid.SelectedRows.Count < 1) and not InputDataSet;
-    MainAction('aDDeleteRecord').Enabled := aDDeleteRecord.Enabled and (DataSet.State in [dsBrowse, dsEdit]) and not DataSet.IsEmpty() and not InputDataSet;
+    MainAction('aDInsertRecord').Enabled := (Window.ActiveControl = ActiveDBGrid) and aDInsertRecord.Enabled and (DataSet.State in [dsBrowse, dsEdit]) and (DataSet.FieldCount > 0) and Assigned(ActiveDBGrid) and (ActiveDBGrid.SelectedRows.Count < 1) and not InputDataSet;
+    MainAction('aDDeleteRecord').Enabled := (Window.ActiveControl = ActiveDBGrid) and aDDeleteRecord.Enabled and (DataSet.State in [dsBrowse, dsEdit]) and not DataSet.IsEmpty() and not InputDataSet;
 
     // <Ctrl+Down> marks the new row as selected, but the OnAfterScroll event
     // will be executed BEFORE mark the row as selected.
@@ -5479,14 +5470,6 @@ end;
 procedure TFSession.DBGridDblClick(Sender: TObject);
 begin
   Wanted.Clear();
-
-  // Debug 2016-11-12
-  if (not Assigned(ActiveDBGrid)) then
-    raise ERangeError.Create(SRangeError + ' Address: ' + Address)
-  else if (not Assigned(ActiveDBGrid.DataSource)) then
-    raise ERangeError.Create(SRangeError)
-  else if (not Assigned(ActiveDBGrid.DataSource.DataSet)) then
-    raise ERangeError.Create(SRangeError);
 
   if (ActiveDBGrid.DataSource.DataSet.CanModify) then
     if (not Assigned(ActiveDBGrid.SelectedField) or not (ActiveDBGrid.SelectedField.DataType in [ftWideMemo, ftBlob])) then
@@ -5826,7 +5809,7 @@ begin
   else if (Sessions.IndexOf(Session) < 0) then
     raise ERangeError.Create(SRangeError);
 
-  Session.ReleaseEventProc(FormSessionEvent);
+  Session.UnRegisterEventProc(FormSessionEvent);
   Session.CreateDesktop := nil;
 
   FNavigatorChanging(nil, nil, TempB);
@@ -7945,7 +7928,11 @@ var
 begin
   case (View) of
     vBrowser:
-      Result := Desktop(TSTable(FNavigator.Selected.Data)).CreateDBGrid();
+      begin
+        if (not (FNavigator.Selected.ImageIndex in [iiBaseTable, iiView, iiSystemView])) then
+          raise ERangeError.Create(SRangeError + ' ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + ' Address: ' + Address);
+        Result := Desktop(TSTable(FNavigator.Selected.Data)).CreateDBGrid();
+      end;
     vIDE:
       case (FNavigator.Selected.ImageIndex) of
         iiProcedure,
@@ -8569,6 +8556,9 @@ begin
                 if (String2 = '') then String2 := '0';
 
                 String1 := ReplaceStr(String1, '???', '0');         String2 := ReplaceStr(String2, '???', '0');
+
+                if ((Length(String1) >= 1) and (String1[1] = '~')) then Delete(String1, 1, 1);
+                if ((Length(String2) >= 1) and (String2[1] = '~')) then Delete(String2, 1, 1);
 
                 String1 := ReplaceStr(String1, LocaleFormatSettings.ThousandSeparator, '');
                 String2 := ReplaceStr(String2, LocaleFormatSettings.ThousandSeparator, '');
@@ -12523,6 +12513,8 @@ procedure TFSession.StatusBarRefresh(const Immediately: Boolean = False);
 var
   Control: TControl;
   Count: Integer;
+  Data: Pointer;
+  Item: TListItem;
   QueryBuilderWorkArea: TacQueryBuilderWorkArea;
   SelCount: Integer;
 begin
@@ -12546,12 +12538,16 @@ begin
       // Debug 2016-11-16
       if (not (ActiveListView is TListView)) then
         raise ERangeError.Create(SRangeError + ('ClassName: ' + ActiveListView.ClassName));
-      // Debug 2016-11-16
-      if (Assigned(ActiveListView.Selected) and not Assigned(ActiveListView.Selected.Data)) then
-        raise ERangeError.Create(SRangeError);
-      // Debug 2016-11-21
-      if (Assigned(ActiveListView.Selected)) then
-        if (TObject(ActiveListView.Selected.Data) is TSKey) then ;
+      Item := ActiveListView.Selected;
+      // Debug 2016-12-03
+      if (Assigned(Item)) then
+      begin
+        Data := Item.Data;
+        if (not Assigned(Data)) then
+          raise ERangeError.Create(SRangeError);
+        if (not (TObject(Data) is TSKey)) then
+          ;
+      end;
 
       if (Assigned(ActiveListView.Selected) and (TObject(ActiveListView.Selected.Data) is TSKey)) then
         StatusBar.Panels[sbNavigation].Text := Preferences.LoadStr(377) + ': ' + IntToStr(TSKey(ActiveListView.Selected.Data).Index + 1)

@@ -392,7 +392,6 @@ type
     procedure Add(const ADBGrid: TDBGrid); overload; virtual;
     procedure Add(const ADBObject: TSDBObject); overload; inline;
     constructor Create(const ASession: TSSession);
-    destructor Destroy(); override;
     procedure Execute(); override;
     property Session: TSSession read FSession;
   end;
@@ -746,12 +745,6 @@ const
 var
   ODBCEnv: SQLHENV;
   ODBCDrivers: set of (odAccess, odAccess2003, odExcel, odExcel2003);
-
-  // Debug 2016-11-26
-  ExportState: Integer = 0;
-  // Debug 2016-11-21
-  ImportState: Integer = 0;
-  // Debug 2016-11-30
 
 implementation {***************************************************************}
 
@@ -1812,7 +1805,6 @@ end;
 
 constructor TTImport.Create(const ASession: TSSession; const ADatabase: TSDatabase);
 begin
-ImportState := 1;
   inherited Create();
 
   FDatabase := ADatabase;
@@ -1821,17 +1813,13 @@ ImportState := 1;
 
   Data := False;
   Structure := False;
-ImportState := 2;
 end;
 
 destructor TTImport.Destroy();
 begin
   Close();
 
-ImportState := 30;
-
   inherited;
-ImportState := 0;
 end;
 
 function TTImport.DoExecuteSQL(var SQL: string): Boolean;
@@ -1908,60 +1896,51 @@ begin
   try
   {$ENDIF}
 
-ImportState := 11;
+  Session.InvalidObjects.Clear();
+
   BeforeExecute();
 
-ImportState := 12;
   Open();
 
-ImportState := 13;
   for I := 0 to Items.Count - 1 do
     if (Success <> daAbort) then
     begin
       Success := daSuccess;
 
-ImportState := 14;
       if (Structure) then
       begin
-ImportState := 15;
         Table := Database.TableByName(TTImport.TItem(Items[I]).DestinationTableName);
         if (Assigned(Table)) then
           while ((Success = daSuccess) and not Database.DeleteObject(Table)) do
             DoError(DatabaseError(Session), Items[I], True);
 
-ImportState := 16;
         if (Success = daSuccess) then
         begin
           SetLength(FieldMappings, 0);
           ExecuteTableStructure(TTImport.TItem(Items[I]));
         end;
-ImportState := 17;
       end;
 
-ImportState := 18;
       if ((Success = daSuccess) and Data) then
       begin
-ImportState := 19;
         Table := Database.TableByName(TTImport.TItem(Items[I]).DestinationTableName);
-ImportState := 20;
 
         if (not Assigned(Table)) then
           raise Exception.Create('Table "' + TTImport.TItem(Items[I]).DestinationTableName + '" does not exists.');
 
-ImportState := 21;
         ExecuteTableData(TTImport.TItem(Items[I]), Database.TableByName(TTImport.TItem(Items[I]).DestinationTableName));
-ImportState := 22;
+
+        Session.InvalidObjects.Add(Table);
       end;
 
       Items[I].Done := True;
 
       if (Success = daFail) then Success := daSuccess;
-ImportState := 23;
     end;
 
-ImportState := 24;
   AfterExecute();
-ImportState := 25;
+
+  Session.Update(Session.InvalidObjects, Data);
 
   {$IFDEF EurekaLog}
   except
@@ -2434,11 +2413,7 @@ begin
           begin
             Index := 1 + Length(FileContent.Str);
             Len := Integer(ReadSize - (FileBuffer.Index - BytesPerSector));
-try
             SetLength(FileContent.Str, Length(FileContent.Str) + Len div SizeOf(Char));
-except // Debug 2016-12-01
-  raise ERangeError.Create(SRangeError + ' (wanted length: ' + IntToStr(Length(FileContent.Str) + Len div SizeOf(Char)) + ')');
-end;
             MoveMemory(@FileContent.Str[Index], @FileBuffer.Mem[FileBuffer.Index], Len);
             FileBuffer.Index := BytesPerSector;
           end;
@@ -2531,7 +2506,11 @@ begin
   {$ENDIF}
 
   if (not Assigned(Text)) then
+  begin
+    Session.InvalidObjects.Clear();
+
     BeforeExecute();
+  end;
 
   Open();
 
@@ -2632,7 +2611,11 @@ begin
     end;
 
   if (not Assigned(Text)) then
+  begin
     AfterExecute();
+
+    Session.Update(Session.InvalidObjects, True);
+  end;
 
   {$IFDEF EurekaLog}
   except
@@ -2828,7 +2811,15 @@ begin
           UnescapeBuffer.Length := CSVValues[CSVColumns[I]].Length;
           ReallocMem(UnescapeBuffer.Text, UnescapeBuffer.Length * SizeOf(UnescapeBuffer.Text[0]));
         end;
+try // Debug 2016-12-03
         Len := CSVUnescape(CSVValues[CSVColumns[I]].Text, CSVValues[CSVColumns[I]].Length, UnescapeBuffer.Text, UnescapeBuffer.Length, Quoter);
+except
+  on E: Exception do
+    begin
+      SetString(S, CSVValues[CSVColumns[I]].Text, CSVValues[CSVColumns[I]].Length);
+      raise Exception.Create(E.ClassName + ': ' + E.Message + ' CSV: ' + S);
+    end;
+end;
       end;
 
       if (FieldMappings[I].DestinationField.FieldType = mfBit) then
@@ -3972,23 +3963,12 @@ end;
 
 constructor TTExport.Create(const ASession: TSSession);
 begin
-ExportState := 1;
   inherited Create();
 
   FSession := ASession;
 
   Data := False;
   Structure := False;
-ExportState := 2;
-end;
-
-destructor TTExport.Destroy();
-begin
-ExportState := 30;
-
-  inherited;
-
-ExportState := 0;
 end;
 
 procedure TTExport.DoUpdateGUI();
@@ -4054,26 +4034,33 @@ var
   Item: Pointer;
   Index: Integer;
   J: Integer;
+  List: TList;
   ObjectName: string;
   Objects: TList;
   Parse: TSQLParse;
   SQL: string;
   Table: TSTable;
 begin
-ExportState := 11;
   {$IFDEF EurekaLog}
   try
   {$ENDIF}
+
+  if (Self is TTTransfer) then
+    TTTransfer(Self).DestinationSession.InvalidObjects.Clear();
 
   BeforeExecute();
 
   DataTables := TList.Create();
 
-ExportState := 11;
   SQL := '';
   if ((Success = daSuccess) and Data) then
   begin
-ExportState := 12;
+    List := TList.Create();
+    for I := 0 to Items.Count - 1 do
+      if (Items[I] is TDBObjectItem) then
+        List.Add(TDBObjectItem(Items[I]).DBObject);
+    Session.Update(List, True);
+    List.Free();
 
     SQL := '';
     for I := 0 to Items.Count - 1 do
@@ -4104,7 +4091,8 @@ ExportState := 12;
           DataTable := TDBObjectItem(Items[I]).DBObject is TSTable;
 
         if (DataTable) then
-          if ((TDBObjectItem(Items[I]).DBObject is TSBaseTable) and TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine.IsInnoDB) then
+          if ((TDBObjectItem(Items[I]).DBObject is TSBaseTable)
+            and TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine.IsInnoDB) then
           begin
             SQL := SQL + 'SELECT COUNT(*) FROM ' + Session.Connection.EscapeIdentifier(TDBObjectItem(Items[I]).DBObject.Database.Name) + '.' + Session.Connection.EscapeIdentifier(TDBObjectItem(Items[I]).DBObject.Name) + ';' + #13#10;
             DataTables.Add(TSBaseTable(TDBObjectItem(Items[I]).DBObject));
@@ -4151,7 +4139,6 @@ ExportState := 12;
       DataSet.Free();
     end;
 
-ExportState := 13;
     SQL := '';
     for I := 0 to DataTables.Count - 1 do
     begin
@@ -4184,23 +4171,19 @@ ExportState := 13;
     end;
   end;
 
-ExportState := 14;
   if (Success <> daAbort) then
   begin
     Success := daSuccess;
     ExecuteHeader();
   end;
 
-ExportState := 15;
   if (Success <> daAbort) then
   begin
-ExportState := 16;
     DataHandle := nil;
 
     for I := 0 to Items.Count - 1 do
       if (Success <> daAbort) then
       begin
-ExportState := 17;
         if ((Success <> daAbort) and ((I = 0) or (TDBObjectItem(Items[I]).DBObject.Database <> TDBObjectItem(Items[I - 1]).DBObject.Database))) then
         begin
           Success := daSuccess;
@@ -4211,7 +4194,6 @@ ExportState := 17;
             ExecuteDatabaseHeader(TDBObjectItem(Items[I]).DBObject.Database);
         end;
 
-ExportState := 18;
         if (Success <> daAbort) then
         begin
           Success := daSuccess;
@@ -4251,7 +4233,6 @@ ExportState := 18;
           end;
         end;
 
-ExportState := 19;
         if ((Success <> daAbort) and ((I = Items.Count - 1) or (TDBObjectItem(Items[I + 1]).DBObject.Database <> TDBObjectItem(Items[I]).DBObject.Database))) then
         begin
           Success := daSuccess;
@@ -4262,14 +4243,11 @@ ExportState := 19;
             ExecuteDatabaseFooter(TDBObjectItem(Items[I]).DBObject.Database);
         end;
 
-ExportState := 20;
         TItem(Items[I]).Done := True;
       end;
 
-ExportState := 21;
     if (Assigned(DataHandle)) then
       Session.Connection.CloseResult(DataHandle);
-ExportState := 22;
   end;
 
   if (Success <> daAbort) then
@@ -4278,10 +4256,12 @@ ExportState := 22;
     ExecuteFooter();
   end;
 
-ExportState := 23;
   AfterExecute();
 
-ExportState := 24;
+  if (Self is TTTransfer) then
+    if (Assigned(TTTransfer(Self).DestinationSession.Account.FirstTab())) then
+      TTTransfer(Self).DestinationSession.Update(TTTransfer(Self).DestinationSession.InvalidObjects, True);
+
   DataTables.Free();
 
   {$IFDEF EurekaLog}
@@ -4289,7 +4269,6 @@ ExportState := 24;
     StandardEurekaNotify(GetLastExceptionObject(), GetLastExceptionAddress());
   end;
   {$ENDIF}
-ExportState := 25;
 end;
 
 procedure TTExport.ExecuteDatabaseFooter(const Database: TSDatabase);
@@ -4800,7 +4779,7 @@ var
 begin
   Content := '';
 
-  if (Structure) then
+  if (Assigned(Table) and Structure) then
   begin
     Content := Content + #13#10;
     Content := Content + '#' + #13#10;

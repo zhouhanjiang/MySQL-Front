@@ -1007,7 +1007,7 @@ end;
 
 procedure TDTable.FormHide(Sender: TObject);
 begin
-  Database.Session.ReleaseEventProc(FormSessionEvent);
+  Database.Session.UnRegisterEventProc(FormSessionEvent);
 
   if (Assigned(NewTable)) then
     FreeAndNil(NewTable);
@@ -1046,7 +1046,9 @@ begin
   else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.Item is TSTable)) then
     ModalResult := mrOk;
 
-  if (Event.EventType = etAfterExecuteSQL) then
+  if ((Event.EventType = etError) and (ModalResult = mrNone)) then
+    ModalResult := mrCancel
+  else if (Event.EventType = etAfterExecuteSQL) then
   begin
     if (FReferenced.Cursor = crSQLWait) then
     begin

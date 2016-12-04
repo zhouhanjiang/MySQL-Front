@@ -3410,7 +3410,7 @@ end;
 
 destructor TWWorkbench.Destroy();
 begin
-  Database.Session.ReleaseEventProc(SessionEvent);
+  Database.Session.UnRegisterEventProc(SessionEvent);
 
   Clear();
 

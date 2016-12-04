@@ -261,7 +261,7 @@ end;
 
 procedure TDTables.FormHide(Sender: TObject);
 begin
-  Database.Session.ReleaseEventProc(FormSessionEvent);
+  Database.Session.UnRegisterEventProc(FormSessionEvent);
 
   Preferences.Table.Width := Width;
   Preferences.Table.Height := Height;
