@@ -76,7 +76,7 @@ type
     mysql_thread_save: Tmysql_thread_save;
     mysql_use_result: Tmysql_use_result;
     mysql_warning_count: Tmysql_warning_count;
-    constructor Create(const ALibraryType: TLibraryType; const AFilename: TFileName); virtual;
+    constructor Create(const ALibraryType: TLibraryType; const AFilename: TFileName);
     destructor Destroy(); override;
     procedure SetField(const RawField: MYSQL_FIELD; out Field: TMYSQL_FIELD); inline;
     property Filename: TFileName read FFilename;
@@ -93,7 +93,7 @@ type
     FConnection: TMySQLConnection;
     FErrorCode: Integer;
   public
-    constructor Create(const Msg: string; const AErrorCode: Integer; const AConnection: TMySQLConnection); virtual;
+    constructor Create(const Msg: string; const AErrorCode: Integer; const AConnection: TMySQLConnection);
     property Connection: TMySQLConnection read FConnection;
     property ErrorCode: Integer read FErrorCode;
   end;
@@ -125,7 +125,7 @@ type
   public
     property CacheText: string read GetCacheText;
     procedure Clear(); virtual;
-    constructor Create(AOwner: TComponent); override;
+    constructor Create(AOwner: TComponent); reintroduce;
     destructor Destroy(); override;
     procedure DoMonitor(const Connection: TMySQLConnection; const Text: PChar; const Length: Integer; const ATraceType: TTraceType); virtual;
   published
@@ -197,7 +197,7 @@ type
       property IsRunning: Boolean read GetIsRunning;
       property NextCommandText: string read GetNextCommandText;
     public
-      constructor Create(const AConnection: TMySQLConnection); overload; virtual;
+      constructor Create(const AConnection: TMySQLConnection);
       destructor Destroy(); override;
       procedure Terminate(); reintroduce;
       property Connection: TMySQLConnection read FConnection;
@@ -210,7 +210,7 @@ type
     protected
       property Connection: TMySQLConnection read FConnection;
     public
-      constructor Create(const AConnection: TMySQLConnection); reintroduce; virtual;
+      constructor Create(const AConnection: TMySQLConnection);
       destructor Destroy(); override;
       function Add(const Item: Pointer): Integer; reintroduce;
       procedure Delete(const Item: Pointer); overload;

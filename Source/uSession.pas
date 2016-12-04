@@ -9657,7 +9657,7 @@ end;
 constructor TSProcess.Create(const ASItems: TSItems; const AName: string = '');
 begin
   // Debug 2016-12-03
-  if (Name = '') then
+  if (AName = '') then
     raise ERangeError.Create(SRangeError);
 
   inherited;
@@ -9665,10 +9665,6 @@ end;
 
 function TSProcess.GetThreadId(): Longword;
 begin
-  // Debug 2016-12-03
-  if (Name = '') then
-    raise ERangeError.Create(SRangeError);
-
   Result := StrToUInt64(Name);
 end;
 
