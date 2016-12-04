@@ -9307,6 +9307,8 @@ begin
   with PDbIdent(AParser.NodePtr(Result))^ do
   begin
     FDbIdentType := ADbIdentType;
+    FDbTableType := ditUnknown;
+    FDefinerToken := 0;
 
     Nodes := ANodes;
 
@@ -14249,7 +14251,7 @@ begin
       if (not Assigned(Token.DefinerToken)) then
         Commands.Write(Token.AsString)
       else
-        Commands.Write(Token.DefinerToken.AsString)
+        Commands.Write(Token.DefinerToken^.AsString)
     else if (Token.DbIdentType in [ditDatabase, ditTable, ditProcedure, ditTrigger, ditEvent, ditKey, ditField, ditForeignKey, ditPartition, ditConstraint, ditTableAlias, ditVariable, ditRoutineParam, ditCompoundVariable, ditCursor, ditCondition]) then
       if (AnsiQuotes) then
         Commands.Write(SQLEscape(Token.AsString, '"'))

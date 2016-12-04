@@ -9711,7 +9711,12 @@ begin
         if (Index < Count) then
           Insert(Index, TSProcess.Create(Self, Name))
         else
-          Add(TSProcess.Create(Self, Name))
+        begin
+          // Debug 2016-12-04
+          if (Name = '') then
+            raise ERangeError.Create(SRangeError);
+          Add(TSProcess.Create(Self, Name));
+        end
       else if (DeleteList.IndexOf(Items[Index]) >= 0) then
         DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
 
