@@ -119,15 +119,14 @@ type
     TSSQLOptions: TTabSheet;
     TSXMLOptions: TTabSheet;
     procedure FBBackClick(Sender: TObject);
-    procedure FBCancelClick(Sender: TObject);
     procedure FBForwardClick(Sender: TObject);
     procedure FBHelpClick(Sender: TObject);
     procedure FDatabaseDblClick(Sender: TObject);
     procedure FDatabaseNodeClick(Sender: TObject);
     procedure FDatabaseNodeKeyPress(Sender: TObject; var Key: Char);
-    procedure FDestinationField1Change(Sender: TObject);
-    procedure FSourceField1Change(Sender: TObject);
-    procedure FSourceField1Exit(Sender: TObject);
+    procedure FDestinationFieldChange(Sender: TObject);
+    procedure FSourceFieldChange(Sender: TObject);
+    procedure FSourceFieldExit(Sender: TObject);
     procedure FFieldTagClick(Sender: TObject);
     procedure FFieldTagKeyPress(Sender: TObject; var Key: Char);
     procedure FHTMLDataClick(Sender: TObject);
@@ -135,6 +134,7 @@ type
     procedure FHTMLStructureClick(Sender: TObject);
     procedure FHTMLStructureKeyPress(Sender: TObject; var Key: Char);
     procedure FODBCSelectDblClick(Sender: TObject);
+    procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormHide(Sender: TObject);
@@ -143,8 +143,6 @@ type
     procedure FQuoteClick(Sender: TObject);
     procedure FQuoteKeyPress(Sender: TObject; var Key: Char);
     procedure FSelectGetImageIndex(Sender: TObject; Node: TTreeNode);
-    procedure FSelectExpanding(Sender: TObject; Node: TTreeNode;
-      var AllowExpansion: Boolean);
     procedure FSeparatorClick(Sender: TObject);
     procedure FSeparatorKeyPress(Sender: TObject; var Key: Char);
     procedure FSQLOptionClick(Sender: TObject);
@@ -156,13 +154,13 @@ type
     procedure TSExecuteShow(Sender: TObject);
     procedure TSFieldsShow(Sender: TObject);
     procedure TSHTMLOptionsShow(Sender: TObject);
-    procedure TSOptionsHide(Sender: TObject);
     procedure TSSQLOptionsShow(Sender: TObject);
     procedure TSXMLOptionChange(Sender: TObject);
-    procedure TSXMLOptionsHide(Sender: TObject);
     procedure TSXMLOptionsShow(Sender: TObject);
+    procedure TSExecuteResize(Sender: TObject);
   private
     CodePage: Cardinal;
+    Database: TSDatabase;
     Export: TTExport;
     FDestinationFields: array of TEdit;
     Filename: string;
@@ -171,16 +169,17 @@ type
     FSourceFields: array of TComboBox_Ext;
     ProgressInfos: TTool.TProgressInfos;
     SingleTable: Boolean;
+    Space: Integer;
     Title: string;
-    WantedNodeExpand: TTreeNode;
-    function BuildTitle(): TSDatabase;
-    procedure CheckActivePageChange(const ActivePageIndex: Integer);
+    Wanted: record
+      Page: TTabSheet;
+    end;
+    procedure CheckActivePageChange(const ActivePage: TTabSheet);
     procedure ClearTSFields();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     function GetDataSource(): Boolean;
     function GetFilename(): Boolean;
-    procedure InitTSFields();
     procedure OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure OnTerminate(Sender: TObject);
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
@@ -224,65 +223,31 @@ end;
 
 { TDExport ********************************************************************}
 
-function TDExport.BuildTitle(): TSDatabase;
-var
-  I: Integer;
-begin
-  Result := nil;
-  for I := 0 to DBObjects.Count - 1 do
-    if (TObject(DBObjects[I]) is TSDatabase) then
-      if (not Assigned(Result) or (DBObjects[I] = Result)) then
-        Result := TSDatabase(DBObjects[I])
-      else
-      begin
-        Result := nil;
-        break;
-      end
-    else if (TObject(DBObjects[I]) is TSDBObject) then
-      if (not Assigned(Result) or (TSDBObject(DBObjects[I]).Database = Result)) then
-        Result := TSDBObject(DBObjects[I]).Database
-      else
-      begin
-        Result := nil;
-        break;
-      end;
-
-  if (Assigned(DBGrid)) then
-    Title := Preferences.LoadStr(362)
-  else if (SingleTable) then
-    Title := TSObject(DBObjects[0]).Name
-  else if (Assigned(Result)) then
-    Title := Result.Name
-  else
-    Title := ReplaceStr(Session.Caption, ':', '_');
-end;
-
-procedure TDExport.CheckActivePageChange(const ActivePageIndex: Integer);
+procedure TDExport.CheckActivePageChange(const ActivePage: TTabSheet);
 var
   I: Integer;
   NextActivePageIndex: Integer;
 begin
-  FBBack.Enabled := False;
-  for I := ActivePageIndex - 1 downto 0 do
-    FBBack.Enabled := FBBack.Enabled or PageControl.Pages[I].Enabled;
-
   NextActivePageIndex := -1;
-  for I := PageControl.PageCount - 1 downto ActivePageIndex + 1 do
-    if (PageControl.Pages[I].Enabled) then
-      NextActivePageIndex := I;
+  if (Assigned(ActivePage)) then
+    for I := PageControl.PageCount - 1 downto ActivePage.PageIndex + 1 do
+      if (PageControl.Pages[I].Enabled) then
+        NextActivePageIndex := I;
   if (NextActivePageIndex >= 0) then
     for I := NextActivePageIndex + 1 to PageControl.PageCount - 1 do
       PageControl.Pages[I].Enabled := False;
 
-  if (NextActivePageIndex = TSExecute.PageIndex) then
-    FBForward.Caption := Preferences.LoadStr(174)
-  else if (NextActivePageIndex >= 0) then
-    FBForward.Caption := Preferences.LoadStr(229) + ' >';
-
-  FBForward.Enabled := FBForward.Visible and (NextActivePageIndex >= 0);
-  FBForward.Default := PageControl.ActivePage <> TSExecute;
-  FBCancel.Default := not FBForward.Default;
+  FBBack.Enabled := False;
+  if (Assigned(ActivePage)) then
+    for I := ActivePage.PageIndex - 1 downto 0 do
+      FBBack.Enabled := FBBack.Enabled or PageControl.Pages[I].Enabled;
+  if (NextActivePageIndex < TSExecute.PageIndex) then
+    FBForward.Caption := Preferences.LoadStr(229) + ' >'
+  else
+    FBForward.Caption := Preferences.LoadStr(174);
+  FBForward.Enabled := NextActivePageIndex >= 0;
   FBCancel.Caption := Preferences.LoadStr(30);
+  FBCancel.ModalResult := mrCancel;
 end;
 
 procedure TDExport.ClearTSFields();
@@ -329,11 +294,40 @@ begin
 end;
 
 function TDExport.Execute(): Boolean;
+var
+  I: Integer;
 begin
   ModalResult := mrNone;
 
-  Title := '';
   SingleTable := (DBObjects.Count = 1) and (TSObject(DBObjects[0]) is TSTable);
+
+  Database := nil;
+  for I := 0 to DBObjects.Count - 1 do
+    if (TObject(DBObjects[I]) is TSDatabase) then
+      if (not Assigned(Database) or (DBObjects[I] = Database)) then
+        Database := TSDatabase(DBObjects[I])
+      else
+      begin
+        Database := nil;
+        break;
+      end
+    else if (TObject(DBObjects[I]) is TSDBObject) then
+      if (not Assigned(Database) or (TSDBObject(DBObjects[I]).Database = Database)) then
+        Database := TSDBObject(DBObjects[I]).Database
+      else
+      begin
+        Database := nil;
+        break;
+      end;
+
+  if (Assigned(DBGrid)) then
+    Title := Preferences.LoadStr(362)
+  else if (SingleTable) then
+    Title := TSObject(DBObjects[0]).Name
+  else if (Assigned(Database)) then
+    Title := Database.Name
+  else
+    Title := ReplaceStr(Session.Caption, ':', '_');
 
   if (Assigned(DBGrid) or (DBObjects.Count > 0)) then
     case (ExportType) of
@@ -360,12 +354,6 @@ begin
       PageControl.ActivePageIndex := PageIndex;
       exit;
     end;
-end;
-
-procedure TDExport.FBCancelClick(Sender: TObject);
-begin
-  if (Assigned(Export)) then
-    Export.Terminate();
 end;
 
 procedure TDExport.FBForwardClick(Sender: TObject);
@@ -403,27 +391,25 @@ begin
   FDatabaseNodeClick(Sender);
 end;
 
-procedure TDExport.FDestinationField1Change(Sender: TObject);
+procedure TDExport.FDestinationFieldChange(Sender: TObject);
 var
   I: Integer;
   J: Integer;
-  TabSheet: TTabSheet;
 begin
-  TabSheet := TSExecute;
-  TabSheet.Enabled := False;
+  TSExecute.Enabled := False;
   for I := 0 to Length(FSourceFields) - 1 do
     if ((FSourceFields[I].ItemIndex > 0) and (FDestinationFields[I].Text <> '')) then
-      TabSheet.Enabled := True;
+      TSExecute.Enabled := True;
 
   for I := 0 to Length(FSourceFields) - 1 do
     for J := 0 to I - 1 do
       if ((I <> J) and FDestinationFields[I].Enabled and FDestinationFields[J].Enabled and (lstrcmpi(PChar(FDestinationFields[J].Text), PChar(FDestinationFields[I].Text)) = 0)) then
-        TabSheet.Enabled := False;
+        TSExecute.Enabled := False;
 
-  CheckActivePageChange(TSFields.PageIndex);
+  CheckActivePageChange(TSFields);
 end;
 
-procedure TDExport.FSourceField1Change(Sender: TObject);
+procedure TDExport.FSourceFieldChange(Sender: TObject);
 var
   I: Integer;
 begin
@@ -435,15 +421,10 @@ begin
     end;
 
   if (Length(FDestinationFields) > 0) then
-    FDestinationField1Change(Sender);
-
-  FBForward.Enabled := False;
-  for I := 0 to Length(FSourceFields) - 1 do
-    if (FSourceFields[I].ItemIndex > 0) then
-      FBForward.Enabled := True;
+    FDestinationFieldChange(Sender);
 end;
 
-procedure TDExport.FSourceField1Exit(Sender: TObject);
+procedure TDExport.FSourceFieldExit(Sender: TObject);
 var
   I: Integer;
 begin
@@ -452,7 +433,7 @@ begin
       if ((FSourceFields[I] <> Sender) and (FSourceFields[I].ItemIndex = TComboBox_Ext(Sender).ItemIndex)) then
       begin
         FSourceFields[I].ItemIndex := 0;
-        FSourceField1Change(FSourceFields[I]);
+        FSourceFieldChange(FSourceFields[I]);
       end;
 end;
 
@@ -477,7 +458,7 @@ begin
   FHTMLMemoContent.Enabled := FHTMLData.Checked;
 
   TSExecute.Enabled := FHTMLStructure.Checked or FHTMLData.Checked;
-  CheckActivePageChange(TSHTMLOptions.PageIndex);
+  CheckActivePageChange(TSHTMLOptions);
 end;
 
 procedure TDExport.FHTMLDataKeyPress(Sender: TObject; var Key: Char);
@@ -489,7 +470,7 @@ procedure TDExport.FHTMLStructureClick(Sender: TObject);
 begin
   TSExecute.Enabled := FHTMLStructure.Checked or FHTMLData.Checked;
 
-  CheckActivePageChange(TSHTMLOptions.PageIndex);
+  CheckActivePageChange(TSHTMLOptions);
 end;
 
 procedure TDExport.FHTMLStructureKeyPress(Sender: TObject; var Key: Char);
@@ -502,8 +483,25 @@ begin
   FBForward.Click();
 end;
 
+procedure TDExport.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+begin
+  if (Assigned(Export)) then
+  begin
+    Export.Terminate();
+    CanClose := False;
+
+    FBCancel.Enabled := False;
+  end
+  else
+  begin
+    CanClose := True;
+  end;
+end;
+
 procedure TDExport.FormCreate(Sender: TObject);
 begin
+  Space := (FLEntiered.Left + FLEntiered.Width) - (FLDone.Left + FLDone.Width);
+
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
 
@@ -576,14 +574,12 @@ end;
 
 procedure TDExport.FormDestroy(Sender: TObject);
 begin
-  if (Assigned(Export)) then
-    TerminateThread(Export.Handle, 0);
   FObjects.Free();
 end;
 
 procedure TDExport.FormHide(Sender: TObject);
 begin
-  Session.ReleaseEventProc(FormSessionEvent);
+  Session.UnRegisterEventProc(FormSessionEvent);
 
   Preferences.Export.Width := Width;
   Preferences.Export.Height := Height;
@@ -665,7 +661,14 @@ end;
 
 procedure TDExport.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if (Event.EventType = etAfterExecuteSQL) then
+  if (Event.EventType = etError) then
+  begin
+    SetControlCursor(GFields, crDefault);
+    SetControlCursor(GProgress, crDefault);
+
+    Wanted.Page := nil;
+  end
+  else if (Event.EventType = etAfterExecuteSQL) then
     PostMessage(Handle, UM_POST_AFTEREXECUTESQL, 0, 0);
 end;
 
@@ -675,12 +678,6 @@ var
 begin
   Session.RegisterEventProc(FormSessionEvent);
 
-  if (Assigned(Export)) then
-  begin
-    TerminateThread(Export.Handle, 0);
-    Export := nil;
-  end;
-
   ModalResult := mrNone;
 
   if ((Preferences.Export.Width >= Width) and (Preferences.Export.Height >= Height)) then
@@ -688,6 +685,8 @@ begin
     Width := Preferences.Export.Width;
     Height := Preferences.Export.Height;
   end;
+
+  Wanted.Page := nil;
 
   Caption := Preferences.LoadStr(210) + ' ' + ExtractFileName(Filename);
 
@@ -718,16 +717,10 @@ begin
   FBBack.Visible := TSSQLOptions.Enabled or TSCSVOptions.Enabled or TSXMLOptions.Enabled or TSHTMLOptions.Enabled or TSFields.Enabled;
   FBForward.Visible := FBBack.Visible;
 
-  PageControl.Visible := Boolean(Perform(UM_POST_AFTEREXECUTESQL, 0, 0));
-  PSQLWait.Visible := not PageControl.Visible;
-
   for I := 0 to PageControl.PageCount - 1 do
-    if ((PageControl.ActivePageIndex < 0) and PageControl.Pages[I].Enabled) then
+    if (not Assigned(PageControl.ActivePage) and PageControl.Pages[I].Enabled) then
       PageControl.ActivePageIndex := I;
-  CheckActivePageChange(PageControl.ActivePageIndex);
-
-  FBCancel.Enabled := True;
-  FBCancel.ModalResult := mrCancel;
+  CheckActivePageChange(PageControl.ActivePage);
 
   if (FBForward.Visible and FBForward.Enabled) then
     ActiveControl := FBForward
@@ -755,108 +748,6 @@ begin
   FQuoteClick(Sender);
 end;
 
-procedure TDExport.FSelectExpanding(Sender: TObject; Node: TTreeNode;
-  var AllowExpansion: Boolean);
-var
-  Database: TSDatabase;
-  I: Integer;
-  NewNode: TTreeNode;
-  Table: TSBaseTable;
-  TreeView: TTreeView_Ext;
-begin
-  TreeView := TTreeView_Ext(Sender);
-
-  WantedNodeExpand := nil;
-
-  if (Assigned(Node)) then
-    if (Node.HasChildren and not Assigned(Node.getFirstChild())) then
-    begin
-      case (Node.ImageIndex) of
-        iiServer:
-          begin
-            if (not Session.Databases.Update()) then
-            begin
-              WantedNodeExpand := Node;
-              TreeView.Cursor := crSQLWait;
-            end
-            else
-            begin
-              for I := 0 to Session.Databases.Count - 1 do
-                if (((Session.Databases.NameCmp(Session.Databases[I].Name, 'mysql') <> 0) or (Session.Databases.NameCmp(Session.Databases[I].Name, 'sys') <> 0) and (Session.Connection.MySQLVersion >= 50707)) and not (Session.Databases[I] is TSSystemDatabase)) then
-                begin
-                  NewNode := TreeView.Items.AddChild(Node, Session.Databases[I].Name);
-                  NewNode.ImageIndex := iiDatabase;
-                  NewNode.Data := Session.Databases[I];
-                  NewNode.HasChildren := True;
-                end;
-              Node.HasChildren := Assigned(Node.getFirstChild());
-            end;
-          end;
-        iiDatabase:
-          begin
-            Database := Session.DatabaseByName(Node.Text);
-            if (not Database.Tables.Update()) then
-            begin
-              WantedNodeExpand := Node;
-              TreeView.Cursor := crSQLWait;
-            end
-            else
-            begin
-              for I := 0 to Database.Tables.Count - 1 do
-              begin
-                NewNode := TreeView.Items.AddChild(Node, Database.Tables[I].Name);
-                if (Database.Tables[I] is TSBaseTable) then
-                  NewNode.ImageIndex := iiBaseTable
-                else
-                  NewNode.ImageIndex := iiView;
-                NewNode.Data := Database.Tables[I];
-                NewNode.HasChildren := False;
-              end;
-              if (Assigned(Database.Routines)) then
-                for I := 0 to Database.Routines.Count - 1 do
-                begin
-                  NewNode := TreeView.Items.AddChild(Node, Database.Routines[I].Name);
-                  if (Database.Routines[I] is TSProcedure) then
-                    NewNode.ImageIndex := iiProcedure
-                  else
-                    NewNode.ImageIndex := iiFunction;
-                  NewNode.Data := Database.Routines[I];
-                end;
-              if (Assigned(Database.Events)) then
-                for I := 0 to Database.Events.Count - 1 do
-                begin
-                  NewNode := TreeView.Items.AddChild(Node, Database.Events[I].Name);
-                  NewNode.ImageIndex := iiEvent;
-                  NewNode.Data := Database.Events[I];
-                end;
-              Node.HasChildren := Assigned(Node.getFirstChild());
-            end;
-          end;
-        iiBaseTable:
-          begin
-            Database := Session.DatabaseByName(Node.Parent.Text);
-            Table := Database.BaseTableByName(Node.Text);
-            if (not Database.Triggers.Update()) then
-            begin
-              WantedNodeExpand := Node;
-              TreeView.Cursor := crSQLWait;
-            end
-            else
-            begin
-              for I := 0 to Table.TriggerCount - 1 do
-              begin
-                NewNode := TreeView.Items.AddChild(Node, Table.Triggers[I].Name);
-                NewNode.ImageIndex := iiTrigger;
-                NewNode.Data := Table.Triggers[I];
-              end;
-              Node.HasChildren := Assigned(Node.getFirstChild());
-            end;
-          end;
-      end;
-    end;
-
-end;
-
 procedure TDExport.FSelectGetImageIndex(Sender: TObject; Node: TTreeNode);
 begin
   Node.SelectedIndex := Node.ImageIndex;
@@ -881,7 +772,8 @@ begin
   FReplaceData.Checked := FReplaceData.Checked and FReplaceData.Enabled;
 
   TSExecute.Enabled := FSQLStructure.Checked or FSQLData.Checked;
-  CheckActivePageChange(TSSQLOptions.PageIndex);
+
+  CheckActivePageChange(TSSQLOptions);
 end;
 
 procedure TDExport.FSQLOptionKeyPress(Sender: TObject; var Key: Char);
@@ -908,11 +800,7 @@ begin
 end;
 
 function TDExport.GetFilename(): Boolean;
-var
-  Database: TSDatabase;
 begin
-  Database := BuildTitle();
-
   if (Assigned(DBGrid)) then
     Filename := Preferences.LoadStr(362)
   else if (SingleTable and (TObject(DBObjects[0]) is TSBaseTable)) then
@@ -1010,89 +898,6 @@ begin
       CodePage := EncodingToCodePage(SaveDialog.Encodings[SaveDialog.EncodingIndex]);
     Filename := SaveDialog.FileName;
   end;
-end;
-
-procedure TDExport.InitTSFields();
-var
-  I: Integer;
-  J: Integer;
-  K: Integer;
-  FieldNames: string;
-begin
-  ClearTSFields();
-
-  FLDestinationFields.Visible :=
-    (ExportType = etTextFile) and FCSVHeadline.Checked
-    or (ExportType in [etExcelFile, etXMLFile])
-    or (ExportType in [etHTMLFile, etPDFFile]) and not FHTMLStructure.Checked;
-
-  if (SingleTable) then
-    SetLength(FSourceFields, TSTable(DBObjects[0]).Fields.Count)
-  else if (Assigned(DBGrid)) then
-    SetLength(FSourceFields, DBGrid.DataSource.DataSet.FieldCount)
-  else
-    SetLength(FSourceFields, 0);
-
-  if (FLDestinationFields.Visible) then
-  begin
-    SetLength(FLReferrers, Length(FSourceFields));
-    SetLength(FDestinationFields, Length(FSourceFields));
-  end;
-
-  FieldNames := #13#10;
-  if (SingleTable) then
-    for J := 0 to TSTable(DBObjects[0]).Fields.Count - 1 do
-      FieldNames := FieldNames + TSTable(DBObjects[0]).Fields[J].Name + #13#10
-  else if (Assigned(DBGrid)) then
-    for J := 0 to DBGrid.FieldCount - 1 do
-      FieldNames := FieldNames + DBGrid.DataSource.DataSet.Fields[J].DisplayName + #13#10;
-
-  ScrollBox.DisableAlign();
-  for I := 0 to Length(FSourceFields) - 1 do
-  begin
-    FSourceFields[I] := TComboBox_Ext.Create(ScrollBox);
-    FSourceFields[I].Left := FSourceField1.Left;
-    FSourceFields[I].Top := FSourceField1.Top + I * (FSourceField2.Top - FSourceField1.Top);
-    FSourceFields[I].Width := FSourceField1.Width;
-    FSourceFields[I].Height := FSourceField1.Height;
-    FSourceFields[I].Style := FSourceField1.Style;
-    FSourceFields[I].OnChange := FSourceField1.OnChange;
-    FSourceFields[I].OnExit := FSourceField1.OnExit;
-    FSourceFields[I].Parent := ScrollBox;
-    FSourceFields[I].Items.Text := FieldNames;
-    FSourceFields[I].ItemIndex := I + 1;
-
-    if (FLDestinationFields.Visible) then
-    begin
-      FLReferrers[I] := TLabel.Create(ScrollBox);
-      FLReferrers[I].Left := FLReferrer1.Left;
-      FLReferrers[I].Top := FLReferrer1.Top + I * (FSourceField2.Top - FSourceField1.Top);
-      FLReferrers[I].Width := FLReferrer1.Width;
-      FLReferrers[I].Height := FLReferrer1.Height;
-      FLReferrers[I].Caption := FLReferrer1.Caption;
-
-      FDestinationFields[I] := TEdit.Create(ScrollBox);
-      FDestinationFields[I].Parent := ScrollBox;
-      FDestinationFields[I].Left := FDestinationField1.Left;
-      FDestinationFields[I].Top := FDestinationField1.Top + I * (FSourceField2.Top - FSourceField1.Top);
-      FDestinationFields[I].Width := FDestinationField1.Width;
-      FDestinationFields[I].Height := FDestinationField1.Height;
-      FDestinationFields[I].Enabled := ExportType in [etTextFile, etExcelFile, etHTMLFile, etPDFFile, etXMLFile];
-      TEdit(FDestinationFields[I]).Text := FSourceFields[I].Text;
-      K := 2;
-      for J := 0 to I - 1 do
-        if (FSourceFields[I].Text = FSourceFields[J].Text) then
-        begin
-          TEdit(FDestinationFields[I]).Text := FSourceFields[J].Text + '_' + IntToStr(K);
-          Inc(K);
-        end;
-      FDestinationFields[I].OnChange := FDestinationField1.OnChange;
-      FLReferrers[I].Parent := ScrollBox;
-    end;
-  end;
-
-  ScrollBoxResize(ScrollBox);
-  ScrollBox.EnableAlign();
 end;
 
 procedure TDExport.OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
@@ -1197,34 +1002,38 @@ begin
 end;
 
 procedure TDExport.TSCSVOptionsShow(Sender: TObject);
-var
-  TabSheet: TTabSheet;
 begin
-  if (SingleTable) then
-    TabSheet := TSFields
-  else
-    TabSheet := TSExecute;
-
   ClearTSFields();
 
   FSeparatorClick(Self);
 
-  FBForward.Default := True;
+  if (SingleTable) then
+    TSFields.Enabled := not TSFields.Enabled
+  else
+    TSExecute.Enabled := not TSFields.Enabled;
+  CheckActivePageChange(TSCSVOptions);
+end;
 
-  FBCancel.Caption := Preferences.LoadStr(30);
-  FBCancel.Default := False;
-
-  TabSheet.Enabled := not TSFields.Enabled;
-  CheckActivePageChange(TSCSVOptions.PageIndex);
+procedure TDExport.TSExecuteResize(Sender: TObject);
+begin
+  FLEntiered.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FLEntiered.Width;
+  FLDone.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FLDone.Width;
+  FEntieredObjects.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FEntieredObjects.Width;
+  FDoneObjects.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FDoneObjects.Width;
+  FEntieredRecords.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FEntieredRecords.Width;
+  FDoneRecords.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FDoneRecords.Width;
+  FEntieredTime.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FEntieredTime.Width;
+  FDoneTime.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FDoneTime.Width;
+  FErrors.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FErrors.Width;
 end;
 
 procedure TDExport.TSExecuteShow(Sender: TObject);
 var
   Answer: Integer;
   I: Integer;
+  J: Integer;
+  K: Integer;
 begin
-  Session.ReleaseEventProc(FormSessionEvent);
-
   FEntieredObjects.Caption := '';
   FDoneObjects.Caption := '';
   FEntieredRecords.Caption := '';
@@ -1235,229 +1044,365 @@ begin
   FErrors.Caption := '0';
   FErrorMessages.Lines.Clear();
 
-  if (Assigned(Export)) then
-  begin
-    TerminateThread(Export.Handle, 0);
-    Export := nil;
-  end;
-  case (ExportType) of
-    etSQLFile:
-      begin
-        Export := TTExportSQL.Create(Session, Filename, CodePage);
-        TTExportSQL(Export).Data := FSQLData.Checked;
-        TTExportSQL(Export).DropStmts := FDropStmts.Checked;
-        TTExportSQL(Export).ReplaceData := FReplaceData.Checked;
-        TTExportSQL(Export).Structure := FSQLStructure.Checked;
-      end;
-    etTextFile:
-      begin
-        Export := TTExportText.Create(Session, Filename, CodePage);
-        TTExportText(Export).Data := True;
-        if (FSeparatorTab.Checked) then
-          TTExportText(Export).Delimiter := #9;
-        if (FSeparatorChar.Checked) then
-          TTExportText(Export).Delimiter := FSeparator.Text;
-        if (FQuoteNone.Checked) then
-          TTExportText(Export).QuoteValues := qtNone
-        else if (FQuoteAll.Checked) then
-          TTExportText(Export).QuoteValues := qtAll
-        else
-          TTExportText(Export).QuoteValues := qtStrings;
-        if (FQuoteChar.Text <> '') then
-          TTExportText(Export).Quoter := FQuoteChar.Text[1];
-        TTExportText(Export).Structure := FCSVHeadline.Checked;
-      end;
-    etODBC:
-      begin
-        Export := TTExportODBC.Create(Session, DODBC.DataSource, DODBC.Username, DODBC.Password);
-        TTExportBaseODBC(Export).Data := True;
-        TTExportBaseODBC(Export).Structure := True;
-      end;
-    etExcelFile:
-      begin
-        Export := TTExportExcel.Create(Session, Filename);
-        TTExportExcel(Export).Data := True;
-        TTExportExcel(Export).Excel2003 := (odExcel2003 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
-        TTExportExcel(Export).Structure := True;
-      end;
-    etAccessFile:
-      begin
-        Export := TTExportAccess.Create(Session, Filename);
-        TTExportAccess(Export).Access2003 := (odAccess2003 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
-        TTExportAccess(Export).Data := True;
-        TTExportAccess(Export).Structure := True;
-      end;
-    etHTMLFile:
-      begin
-        Export := TTExportHTML.Create(Session, Filename);
-        TTExportHTML(Export).Data := FHTMLData.Checked;
-        TTExportHTML(Export).TextContent := FHTMLMemoContent.Checked;
-        TTExportHTML(Export).NULLText := FHTMLNullText.Checked;
-        TTExportHTML(Export).Structure := FHTMLStructure.Checked;
-      end;
-    etXMLFile:
-      begin
-        Export := TTExportXML.Create(Session, Filename);
-        TTExportXML(Export).Data := True;
-        if (FDatabaseNodeName.Checked) then
-        begin
-          TTExportXML(Export).DatabaseNodeText := 'database';
-          TTExportXML(Export).DatabaseNodeAttribute := '';
-        end
-        else if (FDatabaseNodeCustom.Checked) then
-        begin
-          TTExportXML(Export).DatabaseNodeText := FDatabaseNodeText.Text;
-          TTExportXML(Export).DatabaseNodeAttribute := FDatabaseNodeAttribute.Text;
-        end
-        else
-        begin
-          TTExportXML(Export).DatabaseNodeText := '';
-          TTExportXML(Export).DatabaseNodeAttribute := '';
-        end;
-        TTExportXML(Export).RootNodeText := FRootNodeText.Text;
-        TTExportXML(Export).Structure := True;
-        if (FTableNodeName.Checked) then
-        begin
-          TTExportXML(Export).TableNodeText := 'Table';
-          TTExportXML(Export).TableNodeAttribute := '';
-        end
-        else if (FTableNodeCustom.Checked) then
-        begin
-          TTExportXML(Export).TableNodeText := FTableNodeText.Text;
-          TTExportXML(Export).TableNodeAttribute := FTableNodeAttribute.Text;
-        end
-        else
-        begin
-          TTExportXML(Export).TableNodeText := '';
-          TTExportXML(Export).TableNodeAttribute := '';
-        end;
-        TTExportXML(Export).RecoreNodeText := FRecordNodeText.Text;
-        if (FFieldNodeName.Checked) then
-        begin
-          TTExportXML(Export).FieldNodeText := 'database';
-          TTExportXML(Export).FieldNodeAttribute := '';
-        end
-        else
-        begin
-          TTExportXML(Export).FieldNodeText := FFieldNodeText.Text;
-          TTExportXML(Export).FieldNodeAttribute := FFieldNodeAttribute.Text;
-        end;
-      end;
-    etPDFFile:
-      begin
-        Export := TTExportPDF.Create(Session, Filename);
-        TTExportCanvas(Export).Data := FHTMLData.Checked;
-        TTExportCanvas(Export).NULLText := FHTMLNullText.Checked;
-        TTExportCanvas(Export).Structure := FHTMLStructure.Checked;
-      end;
-    else
-      Export := nil;
-  end;
-  if (Assigned(Export)) then
-    Export.OnTerminate := OnTerminate;
+  Wanted.Page := nil;
 
-  if (Assigned(Export)) then
-  begin
-    Answer := IDYES;
-
-    if (Assigned(DBGrid)) then
+  I := 0;
+  while (not Assigned(Wanted.Page) and (I < DBObjects.Count)) do
+    if (TObject(DBObjects[I]) is TSDatabase) then
     begin
-      Export.Add(DBGrid);
-
-      if (Length(FSourceFields) = 0) then
-      begin
-        for I := 0 to DBGrid.FieldCount - 1 do
-          if ((ExportType <> etSQLFile) or not DBGrid.Fields[I].ReadOnly) then
-          begin
-            SetLength(Export.Fields, Length(Export.Fields) + 1);
-            Export.Fields[Length(Export.Fields) - 1] := DBGrid.Fields[I];
-            SetLength(Export.DestinationFields, Length(Export.DestinationFields) + 1);
-            Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := DBGrid.Fields[I].DisplayName;
-          end;
-      end
+      Database := TSDatabase(DBObjects[I]);
+      if (not Database.Update()) then
+        Wanted.Page := TSExecute
       else
-        for I := 0 to Length(FSourceFields) - 1 do
-          if (FSourceFields[I].ItemIndex > 0) then
+      begin
+        for J := 0 to Database.Tables.Count - 1 do
+          if (DBObjects.IndexOf(Database.Tables[J]) < 0) then
           begin
-            SetLength(Export.Fields, Length(Export.Fields) + 1);
-            Export.Fields[Length(Export.Fields) - 1] := DBGrid.Fields[FSourceFields[I].ItemIndex - 1];
-            SetLength(Export.DestinationFields, Length(Export.DestinationFields) + 1);
-            Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := FDestinationFields[I].Text;
+            DBObjects.Add(Database.Tables[J]);
+            if ((Database.Tables[J] is TSBaseTable) and Assigned(Database.Triggers)) then
+              for K := 0 to TSBaseTable(Database.Tables[J]).TriggerCount - 1 do
+                if (DBObjects.IndexOf(TSBaseTable(Database.Tables[J]).Triggers[K]) < 0) then
+                  DBObjects.Add(TSBaseTable(Database.Tables[J]).Triggers[K]);
           end;
+        if (Assigned(Database.Routines)) then
+          for J := 0 to Database.Routines.Count - 1 do
+            if (DBObjects.IndexOf(Database.Routines[J]) < 0) then
+              DBObjects.Add(Database.Routines[J]);
+        if (Assigned(Database.Events)) then
+          for J := 0 to Database.Events.Count - 1 do
+            if (DBObjects.IndexOf(Database.Events[J]) < 0) then
+              DBObjects.Add(Database.Events[J]);
+        DBObjects.Delete(I);
+      end;
+    end
+    else if (TObject(DBObjects[I]) is TSBaseTable) then
+    begin
+      Database := TSBaseTable(DBObjects[I]).Database;
+      if (Assigned(Database.Triggers)) then
+        for J := 0 to TSBaseTable(DBObjects[I]).TriggerCount - 1 do
+          if (DBObjects.IndexOf(TSBaseTable(DBObjects[I]).Triggers[J]) < 0) then
+            DBObjects.Add(TSBaseTable(DBObjects[I]).Triggers[J]);
+      Inc(I);
     end
     else
-    begin
-      for I := 0 to DBObjects.Count - 1 do
-        if (Answer <> IDCANCEL) then
+      Inc(I);
+
+  if (not Assigned(Wanted.Page)) then
+    if ((ExportType = etSQLFile) and not Session.Update(DBObjects)) then
+      Wanted.Page := TSExecute;
+
+  if (not Assigned(Wanted.Page)) then
+  begin
+    case (ExportType) of
+      etSQLFile:
         begin
-          if ((ExportType = etSQLFile)
-            and (TSDBObject(DBObjects[I]).Source = '')
-            and (Answer <> IDYESALL)) then
-            if (TSDBObject(DBObjects[I]) is TSBaseTable) then
-              Answer := MsgBox(Preferences.LoadStr(924, TSDBObject(DBObjects[I]).Database.Name + '.' + TSDBObject(DBObjects[I]).Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
-            else if (TSDBObject(DBObjects[I]) is TSView) then
-              Answer := MsgBox(Preferences.LoadStr(925, TSDBObject(DBObjects[I]).Database.Name + '.' + TSDBObject(DBObjects[I]).Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
-            else if (TSDBObject(DBObjects[I]) is TSProcedure) then
-              Answer := MsgBox(Preferences.LoadStr(926, TSDBObject(DBObjects[I]).Database.Name + '.' + TSDBObject(DBObjects[I]).Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
-            else if (TSDBObject(DBObjects[I]) is TSFunction) then
-              Answer := MsgBox(Preferences.LoadStr(927, TSDBObject(DBObjects[I]).Database.Name + '.' + TSDBObject(DBObjects[I]).Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
-            else if (TSDBObject(DBObjects[I]) is TSTrigger) then
-              Answer := MsgBox(Preferences.LoadStr(928, TSDBObject(DBObjects[I]).Database.Name + '.' + TSDBObject(DBObjects[I]).Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
-            else if (TSDBObject(DBObjects[I]) is TSEvent) then
-              Answer := MsgBox(Preferences.LoadStr(929, TSDBObject(DBObjects[I]).Database.Name + '.' + TSDBObject(DBObjects[I]).Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
-            else
-              raise ERangeError.Create(SRangeError);
+          Export := TTExportSQL.Create(Session, Filename, CodePage);
+          TTExportSQL(Export).Data := FSQLData.Checked;
+          TTExportSQL(Export).DropStmts := FDropStmts.Checked;
+          TTExportSQL(Export).ReplaceData := FReplaceData.Checked;
+          TTExportSQL(Export).Structure := FSQLStructure.Checked;
+        end;
+      etTextFile:
+        begin
+          Export := TTExportText.Create(Session, Filename, CodePage);
+          TTExportText(Export).Data := True;
+          if (FSeparatorTab.Checked) then
+            TTExportText(Export).Delimiter := #9;
+          if (FSeparatorChar.Checked) then
+            TTExportText(Export).Delimiter := FSeparator.Text;
+          if (FQuoteNone.Checked) then
+            TTExportText(Export).QuoteValues := qtNone
+          else if (FQuoteAll.Checked) then
+            TTExportText(Export).QuoteValues := qtAll
+          else
+            TTExportText(Export).QuoteValues := qtStrings;
+          if (FQuoteChar.Text <> '') then
+            TTExportText(Export).Quoter := FQuoteChar.Text[1];
+          TTExportText(Export).Structure := FCSVHeadline.Checked;
+        end;
+      etODBC:
+        begin
+          Export := TTExportODBC.Create(Session, DODBC.DataSource, DODBC.Username, DODBC.Password);
+          TTExportBaseODBC(Export).Data := True;
+          TTExportBaseODBC(Export).Structure := True;
+        end;
+      etExcelFile:
+        begin
+          Export := TTExportExcel.Create(Session, Filename);
+          TTExportExcel(Export).Data := True;
+          TTExportExcel(Export).Excel2003 := (odExcel2003 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
+          TTExportExcel(Export).Structure := True;
+        end;
+      etAccessFile:
+        begin
+          Export := TTExportAccess.Create(Session, Filename);
+          TTExportAccess(Export).Access2003 := (odAccess2003 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
+          TTExportAccess(Export).Data := True;
+          TTExportAccess(Export).Structure := True;
+        end;
+      etHTMLFile:
+        begin
+          Export := TTExportHTML.Create(Session, Filename);
+          TTExportHTML(Export).Data := FHTMLData.Checked;
+          TTExportHTML(Export).TextContent := FHTMLMemoContent.Checked;
+          TTExportHTML(Export).NULLText := FHTMLNullText.Checked;
+          TTExportHTML(Export).Structure := FHTMLStructure.Checked;
+        end;
+      etXMLFile:
+        begin
+          Export := TTExportXML.Create(Session, Filename);
+          TTExportXML(Export).Data := True;
+          if (FDatabaseNodeName.Checked) then
+          begin
+            TTExportXML(Export).DatabaseNodeText := 'database';
+            TTExportXML(Export).DatabaseNodeAttribute := '';
+          end
+          else if (FDatabaseNodeCustom.Checked) then
+          begin
+            TTExportXML(Export).DatabaseNodeText := FDatabaseNodeText.Text;
+            TTExportXML(Export).DatabaseNodeAttribute := FDatabaseNodeAttribute.Text;
+          end
+          else
+          begin
+            TTExportXML(Export).DatabaseNodeText := '';
+            TTExportXML(Export).DatabaseNodeAttribute := '';
+          end;
+          TTExportXML(Export).RootNodeText := FRootNodeText.Text;
+          TTExportXML(Export).Structure := True;
+          if (FTableNodeName.Checked) then
+          begin
+            TTExportXML(Export).TableNodeText := 'Table';
+            TTExportXML(Export).TableNodeAttribute := '';
+          end
+          else if (FTableNodeCustom.Checked) then
+          begin
+            TTExportXML(Export).TableNodeText := FTableNodeText.Text;
+            TTExportXML(Export).TableNodeAttribute := FTableNodeAttribute.Text;
+          end
+          else
+          begin
+            TTExportXML(Export).TableNodeText := '';
+            TTExportXML(Export).TableNodeAttribute := '';
+          end;
+          TTExportXML(Export).RecoreNodeText := FRecordNodeText.Text;
+          if (FFieldNodeName.Checked) then
+          begin
+            TTExportXML(Export).FieldNodeText := 'database';
+            TTExportXML(Export).FieldNodeAttribute := '';
+          end
+          else
+          begin
+            TTExportXML(Export).FieldNodeText := FFieldNodeText.Text;
+            TTExportXML(Export).FieldNodeAttribute := FFieldNodeAttribute.Text;
+          end;
+        end;
+      etPDFFile:
+        begin
+          Export := TTExportPDF.Create(Session, Filename);
+          TTExportCanvas(Export).Data := FHTMLData.Checked;
+          TTExportCanvas(Export).NULLText := FHTMLNullText.Checked;
+          TTExportCanvas(Export).Structure := FHTMLStructure.Checked;
+        end;
+      else
+        Export := nil;
+    end;
+
+    if (Assigned(Export)) then
+    begin
+      Answer := IDYES;
+
+      if (Assigned(DBGrid)) then
+      begin
+        Export.Add(DBGrid);
+
+        if (Length(FSourceFields) = 0) then
+        begin
+          for I := 0 to DBGrid.FieldCount - 1 do
+            if ((ExportType <> etSQLFile) or not DBGrid.Fields[I].ReadOnly) then
+            begin
+              SetLength(Export.Fields, Length(Export.Fields) + 1);
+              Export.Fields[Length(Export.Fields) - 1] := DBGrid.Fields[I];
+              SetLength(Export.DestinationFields, Length(Export.DestinationFields) + 1);
+              Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := DBGrid.Fields[I].DisplayName;
+            end;
+        end
+        else
+          for I := 0 to Length(FSourceFields) - 1 do
+            if (FSourceFields[I].ItemIndex > 0) then
+            begin
+              SetLength(Export.Fields, Length(Export.Fields) + 1);
+              Export.Fields[Length(Export.Fields) - 1] := DBGrid.Fields[FSourceFields[I].ItemIndex - 1];
+              SetLength(Export.DestinationFields, Length(Export.DestinationFields) + 1);
+              Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := FDestinationFields[I].Text;
+            end;
+      end
+      else
+      begin
+        for I := 0 to DBObjects.Count - 1 do
+          if (Answer <> IDCANCEL) then
+          begin
+            if ((ExportType = etSQLFile)
+              and (TSDBObject(DBObjects[I]).Source = '')
+              and (Answer = IDYES)) then
+              if (TSDBObject(DBObjects[I]) is TSBaseTable) then
+                Answer := MsgBox(Preferences.LoadStr(924, TSDBObject(DBObjects[I]).Database.Name + '.' + TSDBObject(DBObjects[I]).Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
+              else if (TSDBObject(DBObjects[I]) is TSView) then
+                Answer := MsgBox(Preferences.LoadStr(925, TSDBObject(DBObjects[I]).Database.Name + '.' + TSDBObject(DBObjects[I]).Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
+              else if (TSDBObject(DBObjects[I]) is TSProcedure) then
+                Answer := MsgBox(Preferences.LoadStr(926, TSDBObject(DBObjects[I]).Database.Name + '.' + TSDBObject(DBObjects[I]).Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
+              else if (TSDBObject(DBObjects[I]) is TSFunction) then
+                Answer := MsgBox(Preferences.LoadStr(927, TSDBObject(DBObjects[I]).Database.Name + '.' + TSDBObject(DBObjects[I]).Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
+              else if (TSDBObject(DBObjects[I]) is TSTrigger) then
+                Answer := MsgBox(Preferences.LoadStr(928, TSDBObject(DBObjects[I]).Database.Name + '.' + TSDBObject(DBObjects[I]).Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
+              else if (TSDBObject(DBObjects[I]) is TSEvent) then
+                Answer := MsgBox(Preferences.LoadStr(929, TSDBObject(DBObjects[I]).Database.Name + '.' + TSDBObject(DBObjects[I]).Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
+              else
+                raise ERangeError.Create(SRangeError);
             if (Answer = IDNO) then
               Answer := IDCANCEL;
 
-          if ((ExportType <> etSQLFile) or (TSDBObject(DBObjects[I]).Source <> '')) then
-            Export.Add(TSDBObject(DBObjects[I]));
-        end;
-
-      if ((Answer <> IDCANCEL) and SingleTable) then
-        for I := 0 to Length(FSourceFields) - 1 do
-          if (FSourceFields[I].ItemIndex > 0) then
-          begin
-            SetLength(Export.TableFields, Length(Export.TableFields) + 1);
-            Export.TableFields[Length(Export.TableFields) - 1] := TSTable(DBObjects[0]).Fields[FSourceFields[I].ItemIndex - 1];
-            SetLength(Export.DestinationFields, Length(Export.DestinationFields) + 1);
-            if (Length(FDestinationFields) = 0) then
-              Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := FSourceFields[I].Text
-            else
-              Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := Session.ApplyIdentifierName(FDestinationFields[I].Text);
+            if ((ExportType <> etSQLFile) or (TSDBObject(DBObjects[I]).Source <> '')) then
+              Export.Add(TSDBObject(DBObjects[I]));
           end;
-    end;
 
-    if ((Answer = IDCANCEL) or (Export.Items.Count = 0)) then
-    begin
-      Export.Free();
-      Export := nil;
-    end
-    else
-    begin
-      FBBack.Enabled := False;
+        if ((Answer <> IDCANCEL) and SingleTable) then
+          for I := 0 to Length(FSourceFields) - 1 do
+            if (FSourceFields[I].ItemIndex > 0) then
+            begin
+              SetLength(Export.TableFields, Length(Export.TableFields) + 1);
+              Export.TableFields[Length(Export.TableFields) - 1] := TSTable(DBObjects[0]).Fields[FSourceFields[I].ItemIndex - 1];
+              SetLength(Export.DestinationFields, Length(Export.DestinationFields) + 1);
+              if (Length(FDestinationFields) = 0) then
+                Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := FSourceFields[I].Text
+              else
+                Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := Session.ApplyIdentifierName(FDestinationFields[I].Text);
+            end;
+      end;
 
-      Export.Wnd := Handle;
-      Export.OnTerminate := OnTerminate;
-      Export.OnUpdate := OnUpdate;
-      Export.OnError := OnError;
-      Export.Start();
+      if ((Answer = IDCANCEL) or (Export.Items.Count = 0)) then
+      begin
+        Export.Free();
+        Export := nil;
+      end
+      else
+      begin
+        FBBack.Enabled := False;
+
+        Export.Wnd := Handle;
+        Export.OnTerminate := OnTerminate;
+        Export.OnUpdate := OnUpdate;
+        Export.OnError := OnError;
+        Export.Start();
+      end;
     end;
   end;
 
-  CheckActivePageChange(TSExecute.PageIndex);
+  if (Assigned(Wanted.Page)) then
+    SetControlCursor(GProgress, crSQLWait)
+  else
+    SetControlCursor(GProgress, crDefault);
 
-  FBBack.Enabled := False;
-  FBForward.Enabled := False;
-  FBForward.Default := False;
-  FBCancel.Default := True;
+  CheckActivePageChange(TSExecute);
+  if (not Assigned(Export)) then
+    FBCancel.Caption := Preferences.LoadStr(231);
   ActiveControl := FBCancel;
 end;
 
 procedure TDExport.TSFieldsShow(Sender: TObject);
+var
+  I: Integer;
+  J: Integer;
+  K: Integer;
+  FieldNames: string;
 begin
-  TSExecute.Enabled := True;
-  CheckActivePageChange(TSFields.PageIndex);
+  Wanted.Page := nil;
+
+  if (SingleTable and not TSTable(DBObjects[0]).Update()) then
+    Wanted.Page := TSFields
+  else if (Length(FSourceFields) = 0) then
+  begin
+    FLDestinationFields.Visible :=
+      (ExportType = etTextFile) and FCSVHeadline.Checked
+      or (ExportType in [etExcelFile, etXMLFile])
+      or (ExportType in [etHTMLFile, etPDFFile]) and not FHTMLStructure.Checked;
+
+    if (SingleTable) then
+      SetLength(FSourceFields, TSTable(DBObjects[0]).Fields.Count)
+    else if (Assigned(DBGrid)) then
+      SetLength(FSourceFields, DBGrid.DataSource.DataSet.FieldCount)
+    else
+      SetLength(FSourceFields, 0);
+
+    if (FLDestinationFields.Visible) then
+    begin
+      SetLength(FLReferrers, Length(FSourceFields));
+      SetLength(FDestinationFields, Length(FSourceFields));
+    end;
+
+    FieldNames := #13#10;
+    if (SingleTable) then
+      for J := 0 to TSTable(DBObjects[0]).Fields.Count - 1 do
+        FieldNames := FieldNames + TSTable(DBObjects[0]).Fields[J].Name + #13#10
+    else if (Assigned(DBGrid)) then
+      for J := 0 to DBGrid.FieldCount - 1 do
+        FieldNames := FieldNames + DBGrid.DataSource.DataSet.Fields[J].DisplayName + #13#10;
+
+    ScrollBox.DisableAlign();
+    for I := 0 to Length(FSourceFields) - 1 do
+    begin
+      FSourceFields[I] := TComboBox_Ext.Create(ScrollBox);
+      FSourceFields[I].Left := FSourceField1.Left;
+      FSourceFields[I].Top := FSourceField1.Top + I * (FSourceField2.Top - FSourceField1.Top);
+      FSourceFields[I].Width := FSourceField1.Width;
+      FSourceFields[I].Height := FSourceField1.Height;
+      FSourceFields[I].Style := FSourceField1.Style;
+      FSourceFields[I].OnChange := FSourceField1.OnChange;
+      FSourceFields[I].OnExit := FSourceField1.OnExit;
+      FSourceFields[I].Parent := ScrollBox;
+      FSourceFields[I].Items.Text := FieldNames;
+      FSourceFields[I].ItemIndex := I + 1;
+
+      if (FLDestinationFields.Visible) then
+      begin
+        FLReferrers[I] := TLabel.Create(ScrollBox);
+        FLReferrers[I].Left := FLReferrer1.Left;
+        FLReferrers[I].Top := FLReferrer1.Top + I * (FSourceField2.Top - FSourceField1.Top);
+        FLReferrers[I].Width := FLReferrer1.Width;
+        FLReferrers[I].Height := FLReferrer1.Height;
+        FLReferrers[I].Caption := FLReferrer1.Caption;
+
+        FDestinationFields[I] := TEdit.Create(ScrollBox);
+        FDestinationFields[I].Parent := ScrollBox;
+        FDestinationFields[I].Left := FDestinationField1.Left;
+        FDestinationFields[I].Top := FDestinationField1.Top + I * (FSourceField2.Top - FSourceField1.Top);
+        FDestinationFields[I].Width := FDestinationField1.Width;
+        FDestinationFields[I].Height := FDestinationField1.Height;
+        FDestinationFields[I].Enabled := ExportType in [etTextFile, etExcelFile, etHTMLFile, etPDFFile, etXMLFile];
+        TEdit(FDestinationFields[I]).Text := FSourceFields[I].Text;
+        K := 2;
+        for J := 0 to I - 1 do
+          if (FSourceFields[I].Text = FSourceFields[J].Text) then
+          begin
+            TEdit(FDestinationFields[I]).Text := FSourceFields[J].Text + '_' + IntToStr(K);
+            Inc(K);
+          end;
+        FDestinationFields[I].OnChange := FDestinationField1.OnChange;
+        FLReferrers[I].Parent := ScrollBox;
+      end;
+    end;
+
+    ScrollBoxResize(ScrollBox);
+    ScrollBox.EnableAlign();
+
+    FSourceFieldChange(Sender);
+  end;
+
+  if (Assigned(Wanted.Page)) then
+    SetControlCursor(GFields, crSQLWait)
+  else
+    SetControlCursor(GFields, crDefault);
+
+  CheckActivePageChange(TSFields);
 end;
 
 procedure TDExport.TSHTMLOptionsShow(Sender: TObject);
@@ -1468,12 +1413,8 @@ begin
   FHTMLDataClick(Sender);
 
   FHTMLMemoContent.Visible := not (ExportType in [etPDFFile]); FLHTMLViewDatas.Visible := FHTMLMemoContent.Visible;
-end;
 
-procedure TDExport.TSOptionsHide(Sender: TObject);
-begin
-  if (TSFields.Enabled) then
-    InitTSFields();
+  CheckActivePageChange(TSHTMLOptions);
 end;
 
 procedure TDExport.TSSQLOptionsShow(Sender: TObject);
@@ -1483,11 +1424,6 @@ begin
 
   FSQLStructure.Checked := FSQLStructure.Checked and FSQLStructure.Enabled;
   FSQLData.Checked := FSQLData.Checked or Assigned(DBGrid);
-
-  FBForward.Default := True;
-
-  FBCancel.Caption := Preferences.LoadStr(30);
-  FBCancel.Default := False;
 
   FSQLOptionClick(Sender);
 end;
@@ -1512,19 +1448,13 @@ begin
     and (FRecordNodeText.Text <> '')
     and (not FFieldNodeName.Checked or FFieldNodeName.Enabled)
     and (not FFieldNodeCustom.Checked or FFieldNodeCustom.Enabled and (FFieldNodeText.Text <> '') and (FFieldNodeAttribute.Text <> ''));
-  CheckActivePageChange(TSXMLOptions.PageIndex);
+  CheckActivePageChange(TSXMLOptions);
 
   FDatabaseNodeText.Enabled := FDatabaseNodeCustom.Checked;
   FDatabaseNodeAttribute.Enabled := FDatabaseNodeCustom.Checked;
 
   FTableNodeText.Enabled := FTableNodeCustom.Checked;
   FTableNodeAttribute.Enabled := FTableNodeCustom.Checked;
-end;
-
-procedure TDExport.TSXMLOptionsHide(Sender: TObject);
-begin
-  if (TSFields.Enabled) then
-    InitTSFields();
 end;
 
 procedure TDExport.TSXMLOptionsShow(Sender: TObject);
@@ -1550,7 +1480,7 @@ begin
   if (FTableNodeDisabled.Checked and not FTableNodeDisabled.Enabled) then
     FTableNodeCustom.Checked := True;
 
-  CheckActivePageChange(TSXMLOptions.PageIndex);
+  CheckActivePageChange(TSXMLOptions);
   TSXMLOptionChange(Sender);
 end;
 
@@ -1622,76 +1552,9 @@ begin
 end;
 
 procedure TDExport.UMPostAfterExecuteSQL(var Message: TMessage);
-var
-  Database: TSDatabase;
-  I: Integer;
-  J: Integer;
-  K: Integer;
-  Table: TSBaseTable;
 begin
-  I := 0;
-  while (I < DBObjects.Count) do
-    if (TObject(DBObjects[I]) is TSDatabase) then
-    begin
-      Database := TSDatabase(DBObjects[I]);
-      if (not Database.Valid) then
-        Inc(I)
-      else
-      begin
-        for J := 0 to Database.Tables.Count - 1 do
-          if (DBObjects.IndexOf(Database.Tables[J]) < 0) then
-          begin
-            DBObjects.Add(Database.Tables[J]);
-            if ((Database.Tables[J] is TSBaseTable) and Assigned(Database.Triggers)) then
-              for K := 0 to TSBaseTable(Database.Tables[J]).TriggerCount - 1 do
-                if (DBObjects.IndexOf(TSBaseTable(Database.Tables[J]).Triggers[K]) < 0) then
-                  DBObjects.Add(TSBaseTable(Database.Tables[J]).Triggers[K]);
-          end;
-        if (Assigned(Database.Routines)) then
-          for J := 0 to Database.Routines.Count - 1 do
-            if (DBObjects.IndexOf(Database.Routines[J]) < 0) then
-              DBObjects.Add(Database.Routines[J]);
-        if (Assigned(Database.Events)) then
-          for J := 0 to Database.Events.Count - 1 do
-            if (DBObjects.IndexOf(Database.Events[J]) < 0) then
-              DBObjects.Add(Database.Events[J]);
-        DBObjects.Delete(I);
-      end;
-    end
-    else if (TObject(DBObjects[I]) is TSBaseTable) then
-    begin
-      Table := TSBaseTable(DBObjects[I]);
-      if (Assigned(Table.Database.Triggers)) then
-        for J := 0 to Table.TriggerCount - 1 do
-          if (DBObjects.IndexOf(Table.Triggers[J]) < 0) then
-            DBObjects.Add(Table.Triggers[J]);
-      Inc(I);
-    end
-    else
-      Inc(I);
-
-  BuildTitle();
-
-
-  Message.Result := LRESULT(Session.Update(DBObjects));
-  if (Boolean(Message.Result)) then
-    if (Assigned(WantedNodeExpand)) then
-      WantedNodeExpand.Expand(False)
-    else
-    begin
-      if (TSFields.Enabled) then
-        InitTSFields();
-      CheckActivePageChange(PageControl.ActivePageIndex);
-
-      if (not PageControl.Visible) then
-      begin
-        PageControl.Visible := True;
-        PSQLWait.Visible := not PageControl.Visible;
-
-        if (FBForward.Enabled) then
-          ActiveControl := FBForward;
-      end;
-    end;
+  if (Assigned(Wanted.Page) and Assigned(Wanted.Page.OnShow)) then
+    Wanted.Page.OnShow(nil);
 end;
 
 procedure TDExport.UMTerminate(var Message: TMessage);
@@ -1700,21 +1563,12 @@ var
 begin
   Success := Boolean(Message.WParam);
 
-  if (Assigned(Export)) then
-  begin
-    Export.WaitFor();
-    try
-      Export.Free();
-    except
-      if (Success) then
-        raise ERangeError.Create(SRangeError + ' (Success)')
-      else
-        raise ERangeError.Create(SRangeError + ' (Terminated)');
-    end;
-    Export := nil;
-  end;
+  Export.WaitFor();
+  Export.Free();
+  Export := nil;
 
   FBBack.Enabled := True;
+  FBCancel.Enabled := True;
   FBCancel.Caption := Preferences.LoadStr(231);
   if (Success) then
     FBCancel.ModalResult := mrOk

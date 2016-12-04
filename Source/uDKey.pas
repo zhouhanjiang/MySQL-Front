@@ -458,7 +458,7 @@ end;
 
 procedure TDKey.FormHide(Sender: TObject);
 begin
-  Table.Session.ReleaseEventProc(FormSessionEvent);
+  Table.Session.UnRegisterEventProc(FormSessionEvent);
 
   Preferences.Key.Width := Width;
   Preferences.Key.Height := Height;
@@ -491,7 +491,9 @@ begin
   else if ((Event.EventType = etItemAltered) and (Event.Item = Table)) then
     ModalResult := mrOk;
 
-  if (Event.EventType = etAfterExecuteSQL) then
+  if ((Event.EventType = etError) and (ModalResult = mrNone)) then
+    ModalResult := mrCancel
+  else if (Event.EventType = etAfterExecuteSQL) then
   begin
     if (not GBasics.Visible and (ModalResult = mrNone)) then
     begin

@@ -15,6 +15,7 @@ object DImport: TDImport
   OldCreateOrder = False
   Position = poOwnerFormCenter
   OnClose = FormClose
+  OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnHide = FormHide
@@ -45,7 +46,6 @@ object DImport: TDImport
     Caption = 'FBCancel'
     ModalResult = 2
     TabOrder = 4
-    OnClick = FBCancelClick
   end
   object PSQLWait: TPanel_Ext
     Left = 8
@@ -65,7 +65,7 @@ object DImport: TDImport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSStmtType
+    ActivePage = TSExecute
     Anchors = [akLeft, akTop, akRight, akBottom]
     Style = tsButtons
     TabOrder = 0
@@ -73,12 +73,7 @@ object DImport: TDImport
     object TSTables: TTabSheet
       Caption = 'TSTables'
       TabVisible = False
-      OnHide = TSTablesHide
       OnShow = TSTablesShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -130,12 +125,7 @@ object DImport: TDImport
     object TSCSVOptions: TTabSheet
       Caption = 'TSCSVOptions'
       TabVisible = False
-      OnHide = TSCSVOptionsHide
       OnShow = FCSVPreviewUpdate
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -272,7 +262,7 @@ object DImport: TDImport
         end
       end
       object GCSVPreview: TGroupBox_Ext
-        Left = 3
+        Left = 4
         Top = 143
         Width = 325
         Height = 125
@@ -313,10 +303,6 @@ object DImport: TDImport
       Caption = 'TSWhat'
       TabVisible = False
       OnShow = TSWhatShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -451,10 +437,6 @@ object DImport: TDImport
       Caption = 'TSFields'
       TabVisible = False
       OnShow = TSFieldsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -510,7 +492,7 @@ object DImport: TDImport
             Style = csDropDownList
             TabOrder = 0
             Visible = False
-            OnChange = TSFieldsChange
+            OnChange = FDestinationFieldChange
             OnExit = FFieldExit
           end
           object FSourceField1: TEdit
@@ -521,7 +503,7 @@ object DImport: TDImport
             TabOrder = 1
             Text = 'FSourceField1'
             Visible = False
-            OnChange = TSFieldsChange
+            OnChange = FDestinationFieldChange
           end
           object FSourceField2: TEdit
             Left = 4
@@ -539,10 +521,6 @@ object DImport: TDImport
       Caption = 'TSStmtType'
       TabVisible = False
       OnShow = TSStmtTypeShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -615,11 +593,8 @@ object DImport: TDImport
     object TSExecute: TTabSheet
       Caption = 'TSExecute'
       TabVisible = False
+      OnResize = TSExecuteResize
       OnShow = TSExecuteShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)

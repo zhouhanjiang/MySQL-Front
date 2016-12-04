@@ -14,6 +14,7 @@ object DExport: TDExport
   Font.Style = []
   OldCreateOrder = False
   Position = poMainFormCenter
+  OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnHide = FormHide
@@ -41,7 +42,7 @@ object DExport: TDExport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSSQLOptions
+    ActivePage = TSExecute
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     Style = tsFlatButtons
@@ -50,12 +51,7 @@ object DExport: TDExport
     object TSSQLOptions: TTabSheet
       Caption = 'TSSQLOptions'
       TabVisible = False
-      OnHide = TSOptionsHide
       OnShow = TSSQLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -140,12 +136,7 @@ object DExport: TDExport
     object TSCSVOptions: TTabSheet
       Caption = 'TSCSVOptions'
       TabVisible = False
-      OnHide = TSOptionsHide
       OnShow = TSCSVOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -302,12 +293,7 @@ object DExport: TDExport
     object TSXMLOptions: TTabSheet
       Caption = 'TSXMLOptions'
       TabVisible = False
-      OnHide = TSXMLOptionsHide
       OnShow = TSXMLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -621,12 +607,7 @@ object DExport: TDExport
     object TSHTMLOptions: TTabSheet
       Caption = 'TSHTMLOptions'
       TabVisible = False
-      OnHide = TSOptionsHide
       OnShow = TSHTMLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -722,10 +703,6 @@ object DExport: TDExport
       Caption = 'TSFields'
       TabVisible = False
       OnShow = TSFieldsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -781,8 +758,8 @@ object DExport: TDExport
             TabOrder = 0
             TabStop = False
             Visible = False
-            OnChange = FSourceField1Change
-            OnExit = FSourceField1Exit
+            OnChange = FSourceFieldChange
+            OnExit = FSourceFieldExit
           end
           object FSourceField2: TComboBox_Ext
             Left = 4
@@ -803,7 +780,7 @@ object DExport: TDExport
             TabOrder = 2
             Text = 'FDestinationField1'
             Visible = False
-            OnChange = FDestinationField1Change
+            OnChange = FDestinationFieldChange
           end
         end
       end
@@ -811,11 +788,8 @@ object DExport: TDExport
     object TSExecute: TTabSheet
       Caption = 'TSExecute'
       TabVisible = False
+      OnResize = TSExecuteResize
       OnShow = TSExecuteShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -1013,7 +987,6 @@ object DExport: TDExport
     Caption = 'FBCancel'
     ModalResult = 2
     TabOrder = 5
-    OnClick = FBCancelClick
   end
   object FBBack: TButton
     Left = 96

@@ -68,7 +68,7 @@ end;
 
 procedure TDExecutingSQL.FormHide(Sender: TObject);
 begin
-  Session.ReleaseEventProc(FormSessionEvent);
+  Session.UnRegisterEventProc(FormSessionEvent);
 end;
 
 procedure TDExecutingSQL.FormSessionEvent(const Event: TSSession.TEvent);

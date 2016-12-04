@@ -85,7 +85,9 @@ begin
   if ((Event.EventType in [etItemAltered]) and (Event.Item is TSVariable)) then
     ModalResult := mrOk;
 
-  if (Event.EventType = etAfterExecuteSQL) then
+  if ((Event.EventType = etError) and (ModalResult = mrNone)) then
+    ModalResult := mrCancel
+  else if (Event.EventType = etAfterExecuteSQL) then
   begin
     if (not GroupBox.Visible and (ModalResult = mrNone)) then
     begin
@@ -143,7 +145,7 @@ end;
 
 procedure TDVariable.FormHide(Sender: TObject);
 begin
-  Session.ReleaseEventProc(FormSessionEvent);
+  Session.UnRegisterEventProc(FormSessionEvent);
 end;
 
 procedure TDVariable.FormShow(Sender: TObject);

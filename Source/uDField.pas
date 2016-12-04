@@ -871,7 +871,7 @@ end;
 
 procedure TDField.FormHide(Sender: TObject);
 begin
-  Table.Session.ReleaseEventProc(FormSessionEvent);
+  Table.Session.UnRegisterEventProc(FormSessionEvent);
 
   Preferences.Field.Width := Width;
   Preferences.Field.Height := Height;
@@ -884,7 +884,9 @@ begin
   else if ((Event.EventType = etItemAltered) and (Event.Item = Table)) then
     ModalResult := mrOk;
 
-  if (Event.EventType = etAfterExecuteSQL) then
+  if ((Event.EventType = etError) and (ModalResult = mrNone)) then
+    ModalResult := mrCancel
+  else if (Event.EventType = etAfterExecuteSQL) then
     if (not GBasics.Visible and (ModalResult = mrNone)) then
     begin
       GBasics.Visible := True;
@@ -1071,7 +1073,7 @@ begin
     raise ERangeError.Create(SRangeError)
   else if (not (TObject(Table) is TSBaseTable)) then
     // Debug 2016-11-30
-    raise ERangeError.Create(SRangeError)
+    raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Table).ClassName)
   else if (not Assigned(Table.Session)) then
     // Debug 2016-11-16
     raise ERangeError.Create(SRangeError)

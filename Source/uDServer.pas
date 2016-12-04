@@ -148,7 +148,7 @@ end;
 
 procedure TDServer.FormHide(Sender: TObject);
 begin
-  Session.ReleaseEventProc(FormSessionEvent);
+  Session.UnRegisterEventProc(FormSessionEvent);
 
   Preferences.Server.Width := Width;
   Preferences.Server.Height := Height;

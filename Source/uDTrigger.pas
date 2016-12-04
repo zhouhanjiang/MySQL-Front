@@ -166,7 +166,9 @@ begin
   else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.Item is TSTrigger)) then
     ModalResult := mrOk;
 
-  if (Event.EventType = etAfterExecuteSQL) then
+  if ((Event.EventType = etError) and (ModalResult = mrNone)) then
+    ModalResult := mrCancel
+  else if (Event.EventType = etAfterExecuteSQL) then
   begin
     if (not PageControl.Visible and (ModalResult = mrNone)) then
     begin
@@ -243,7 +245,7 @@ end;
 
 procedure TDTrigger.FormHide(Sender: TObject);
 begin
-  Table.Session.ReleaseEventProc(FormSessionEvent);
+  Table.Session.UnRegisterEventProc(FormSessionEvent);
 
   Preferences.Trigger.Width := Width;
   Preferences.Trigger.Height := Height;

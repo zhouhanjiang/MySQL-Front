@@ -206,7 +206,9 @@ begin
   else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.Item is TSUser)) then
     ModalResult := mrOk;
 
-  if (Event.EventType = etAfterExecuteSQL) then
+  if ((Event.EventType = etError) and (ModalResult = mrNone)) then
+    ModalResult := mrCancel
+  else if (Event.EventType = etAfterExecuteSQL) then
   begin
     if (not PageControl.Visible and (ModalResult = mrNone)) then
     begin
@@ -276,7 +278,7 @@ end;
 
 procedure TDUser.FormHide(Sender: TObject);
 begin
-  Session.ReleaseEventProc(FormSessionEvent);
+  Session.UnRegisterEventProc(FormSessionEvent);
 
   Preferences.User.Width := Width;
   Preferences.User.Height := Height;

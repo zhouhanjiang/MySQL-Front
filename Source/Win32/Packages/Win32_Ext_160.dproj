@@ -49,7 +49,6 @@
 			<DCCReference Include="vcl.dcp"/>
 			<DCCReference Include="..\Source\WinCred.pas"/>
 			<DCCReference Include="..\Source\ODBCAPI.pas"/>
-			<DCCReference Include="..\Source\Taskschd.pas"/>
 			<BuildConfiguration Include="Base">
 				<Key>Base</Key>
 			</BuildConfiguration>

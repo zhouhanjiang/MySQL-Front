@@ -49,14 +49,16 @@ type
     TSSelect: TTabSheet;
     TSWhat: TTabSheet;
     procedure FBBackClick(Sender: TObject);
-    procedure FBCancelClick(Sender: TObject);
     procedure FBForwardClick(Sender: TObject);
     procedure FBHelpClick(Sender: TObject);
     procedure FDataClick(Sender: TObject);
     procedure FDataKeyPress(Sender: TObject; var Key: Char);
+    procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormCreate(Sender: TObject);
     procedure FormHide(Sender: TObject);
     procedure FormShow(Sender: TObject);
+    procedure FSourceChanging(Sender: TObject; Node: TTreeNode;
+      var AllowChange: Boolean);
     procedure FStructureClick(Sender: TObject);
     procedure FStructureKeyPress(Sender: TObject; var Key: Char);
     procedure TreeViewChange(Sender: TObject; Node: TTreeNode);
@@ -64,24 +66,23 @@ type
       var AllowExpansion: Boolean);
     procedure TreeViewGetSelectedIndex(Sender: TObject; Node: TTreeNode);
     procedure TSExecuteShow(Sender: TObject);
+    procedure TSExecuteResize(Sender: TObject);
     procedure TSSelectResize(Sender: TObject);
     procedure TSSelectShow(Sender: TObject);
     procedure TSWhatShow(Sender: TObject);
-    procedure FSourceChanging(Sender: TObject; Node: TTreeNode;
-      var AllowChange: Boolean);
-    procedure FormDestroy(Sender: TObject);
   private
     ProgressInfos: TTool.TProgressInfos;
     Sessions: array of record
       Created: Boolean;
       Session: TSSession;
     end;
+    Space: Integer;
     Transfer: TTTransfer;
     Wanted: record
       Page: TTabSheet;
       Node: TTreeNode;
     end;
-    procedure CheckActivePageChange(const ActivePageIndex: Integer);
+    procedure CheckActivePageChange(const ActivePage: TTabSheet);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     function GetSession(const TreeNode: TTreeNode): TSSession;
     procedure OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
@@ -104,7 +105,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  StrUtils, CommCtrl, Consts,
+  StrUtils, CommCtrl, Consts, SysConst,
   SQLUtils,
   uPreferences,
   uDConnecting, uDExecutingSQL;
@@ -136,32 +137,31 @@ end;
 
 { TDTransfer ******************************************************************}
 
-procedure TDTransfer.CheckActivePageChange(const ActivePageIndex: Integer);
+procedure TDTransfer.CheckActivePageChange(const ActivePage: TTabSheet);
 var
   I: Integer;
   NextActivePageIndex: Integer;
 begin
-  FBBack.Enabled := False;
-  for I := 0 to PageControl.PageCount - 1 do
-    FBBack.Enabled := FBBack.Enabled or PageControl.Pages[I].Enabled and (I < ActivePageIndex);
-
   NextActivePageIndex := -1;
-  for I := PageControl.PageCount - 1 downto ActivePageIndex + 1 do
-    if (PageControl.Pages[I].Enabled) then
-      NextActivePageIndex := I;
+  if (Assigned(ActivePage)) then
+    for I := PageControl.PageCount - 1 downto ActivePage.PageIndex + 1 do
+      if (PageControl.Pages[I].Enabled) then
+        NextActivePageIndex := I;
   if (NextActivePageIndex >= 0) then
     for I := NextActivePageIndex + 1 to PageControl.PageCount - 1 do
       PageControl.Pages[I].Enabled := False;
 
-  if (not FBBack.Enabled) then
+  FBBack.Enabled := False;
+  if (Assigned(ActivePage)) then
+    for I := ActivePage.PageIndex - 1 downto 0 do
+      FBBack.Enabled := FBBack.Enabled or PageControl.Pages[I].Enabled;
+  if (NextActivePageIndex < TSExecute.PageIndex) then
     FBForward.Caption := Preferences.LoadStr(229) + ' >'
   else
     FBForward.Caption := Preferences.LoadStr(174);
-
-  FBForward.Enabled := FBForward.Visible and (NextActivePageIndex >= 0);
-  FBForward.Default := PageControl.ActivePage <> TSExecute;
-  FBCancel.Default := not FBForward.Default;
+  FBForward.Enabled := NextActivePageIndex >= 0;
   FBCancel.Caption := Preferences.LoadStr(30);
+  FBCancel.ModalResult := mrCancel;
 end;
 
 function TDTransfer.Execute(): Boolean;
@@ -180,12 +180,6 @@ begin
       PageControl.ActivePageIndex := PageIndex;
       exit;
     end;
-end;
-
-procedure TDTransfer.FBCancelClick(Sender: TObject);
-begin
-  if (Assigned(Transfer)) then
-    Transfer.Terminate();
 end;
 
 procedure TDTransfer.FBForwardClick(Sender: TObject);
@@ -210,7 +204,7 @@ begin
   FStructure.Checked := FStructure.Checked or FData.Checked;
 
   TSExecute.Enabled := FStructure.Checked;
-  CheckActivePageChange(TSWhat.PageIndex);
+  CheckActivePageChange(TSWhat);
 end;
 
 procedure TDTransfer.FDataKeyPress(Sender: TObject; var Key: Char);
@@ -236,8 +230,25 @@ begin
   end;
 end;
 
+procedure TDTransfer.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+begin
+  if (Assigned(Transfer)) then
+  begin
+    Transfer.Terminate();
+    CanClose := False;
+
+    FBCancel.Enabled := False;
+  end
+  else
+  begin
+    CanClose := True;
+  end;
+end;
+
 procedure TDTransfer.FormCreate(Sender: TObject);
 begin
+  Space := (FLEntiered.Left + FLEntiered.Width) - (FLDone.Left + FLDone.Width);
+
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
 
@@ -257,12 +268,6 @@ begin
   PageControl.ActivePage := nil; // Make sure, not ___OnShowPage will be executed
 end;
 
-procedure TDTransfer.FormDestroy(Sender: TObject);
-begin
-  if (Assigned(Transfer)) then
-    TerminateThread(Transfer.Handle, 0);
-end;
-
 procedure TDTransfer.FormHide(Sender: TObject);
 var
   I: Integer;
@@ -270,7 +275,7 @@ begin
   for I := 0 to Length(Sessions) - 1 do
     if (Assigned(Sessions[I].Session)) then
     begin
-      Sessions[I].Session.ReleaseEventProc(FormSessionEvent);
+      Sessions[I].Session.UnRegisterEventProc(FormSessionEvent);
       if (Sessions[I].Created) then
         Sessions[I].Session.Free();
     end;
@@ -310,12 +315,6 @@ begin
   Wanted.Node := nil;
   Wanted.Page := nil;
 
-  if (Assigned(Transfer)) then
-  begin
-    TerminateThread(Transfer.Handle, 0);
-    Transfer := nil;
-  end;
-
   SetLength(Sessions, Accounts.Count);
   for I := 0 to Length(Sessions) - 1 do
   begin
@@ -328,15 +327,13 @@ begin
   TSWhat.Enabled := False;
   TSExecute.Enabled := False;
 
-  PageControl.ActivePage := TSSelect;
-  CheckActivePageChange(PageControl.ActivePageIndex);
+  for I := 0 to PageControl.PageCount - 1 do
+    if (not Assigned(PageControl.ActivePage) and PageControl.Pages[I].Enabled) then
+      PageControl.ActivePageIndex := I;
+  CheckActivePageChange(PageControl.ActivePage);
 
-  FBCancel.Caption := Preferences.LoadStr(30);
-  FBCancel.ModalResult := mrCancel;
-  FBCancel.Default := False;
-
-  if (Assigned(SourceSession)) then
-    ActiveControl := FSource
+  if (FBForward.Visible and FBForward.Enabled) then
+    ActiveControl := FBForward
   else
     ActiveControl := FBCancel;
 end;
@@ -352,7 +349,7 @@ begin
   FData.Checked := FData.Checked and FStructure.Checked;
 
   TSExecute.Enabled := FStructure.Checked;
-  CheckActivePageChange(TSWhat.PageIndex);
+  CheckActivePageChange(TSWhat);
 end;
 
 procedure TDTransfer.FStructureKeyPress(Sender: TObject; var Key: Char);
@@ -453,8 +450,7 @@ end;
 
 procedure TDTransfer.OnTerminate(Sender: TObject);
 begin
-  if (Assigned(Transfer)) then
-    PostMessage(Handle, UM_TERMINATE, WPARAM(not Transfer.Terminated), 0);
+  PostMessage(Handle, UM_TERMINATE, WPARAM(not Transfer.Terminated), 0);
 end;
 
 procedure TDTransfer.OnUpdate(const AProgressInfos: TTool.TProgressInfos);
@@ -476,7 +472,7 @@ begin
       and ((FSource.Selected.ImageIndex <> iiDatabase) or (FSource.Selected.Parent.Text <> FDestination.Selected.Text))
       and ((FSource.Selected.ImageIndex <> iiBaseTable) or (FSource.Selected.Parent.Text <> FDestination.Selected.Text) or (FSource.Selected.Parent.Parent.Text <> FDestination.Selected.Parent.Text));
 
-    CheckActivePageChange(PageControl.ActivePageIndex);
+    CheckActivePageChange(PageControl.ActivePage);
   end;
 end;
 
@@ -582,32 +578,63 @@ begin
   Node.SelectedIndex := Node.ImageIndex;
 end;
 
+procedure TDTransfer.TSExecuteResize(Sender: TObject);
+begin
+  FLEntiered.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FLEntiered.Width;
+  FLDone.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FLDone.Width;
+  FEntieredObjects.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FEntieredObjects.Width;
+  FDoneObjects.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FDoneObjects.Width;
+  FEntieredRecords.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FEntieredRecords.Width;
+  FDoneRecords.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FDoneRecords.Width;
+  FEntieredTime.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FEntieredTime.Width;
+  FDoneTime.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FDoneTime.Width;
+  FErrors.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FErrors.Width;
+end;
+
 procedure TDTransfer.TSExecuteShow(Sender: TObject);
 var
-  Answer: Integer;
+  OverrideAnswer: Integer;
+  SkipAnswer: Integer;
 
   procedure AddDBObject(const SourceDBObject: TSDBObject; const DestinationSession: TSSession; const DestinationDatabaseName: string);
   var
     DestinationDatabase: TSDatabase;
   begin
-    if (Answer <> IDYESALL) then
+    if ((SourceDBObject.Source = '')
+      and (SkipAnswer = IDYES)) then
+      if (SourceDBObject is TSBaseTable) then
+        SkipAnswer := MsgBox(Preferences.LoadStr(924, SourceDBObject.Database.Name + '.' + SourceDBObject.Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
+      else if (SourceDBObject is TSView) then
+        SkipAnswer := MsgBox(Preferences.LoadStr(925, SourceDBObject.Database.Name + '.' + SourceDBObject.Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
+      else if (SourceDBObject is TSProcedure) then
+        SkipAnswer := MsgBox(Preferences.LoadStr(926, SourceDBObject.Database.Name + '.' + SourceDBObject.Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
+      else if (SourceDBObject is TSFunction) then
+        SkipAnswer := MsgBox(Preferences.LoadStr(927, SourceDBObject.Database.Name + '.' + SourceDBObject.Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
+      else if (SourceDBObject is TSTrigger) then
+        SkipAnswer := MsgBox(Preferences.LoadStr(928, SourceDBObject.Database.Name + '.' + SourceDBObject.Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
+      else if (SourceDBObject is TSEvent) then
+        SkipAnswer := MsgBox(Preferences.LoadStr(929, SourceDBObject.Database.Name + '.' + SourceDBObject.Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
+      else
+        raise ERangeError.Create(SRangeError);
+    if (SkipAnswer = IDNO) then
+      SkipAnswer := IDCANCEL;
+
+    if ((SkipAnswer <> IDCANCEL) and (OverrideAnswer <> IDYESALL)) then
     begin
       DestinationDatabase := DestinationSession.DatabaseByName(DestinationDatabaseName);
       if (Assigned(DestinationDatabase)) then
         if ((SourceDBObject is TSTable) and Assigned(DestinationDatabase.TableByName(SourceDBObject.Name))) then
-          Answer := MsgBox(Preferences.LoadStr(700, DestinationDatabase.Name + '.' + SourceDBObject.Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
+          OverrideAnswer := MsgBox(Preferences.LoadStr(700, DestinationDatabase.Name + '.' + SourceDBObject.Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
         else if ((SourceDBObject is TSProcedure) and Assigned(DestinationDatabase.ProcedureByName(SourceDBObject.Name))) then
-          Answer := MsgBox(Preferences.LoadStr(777, DestinationDatabase.Name + '.' + SourceDBObject.Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
+          OverrideAnswer := MsgBox(Preferences.LoadStr(777, DestinationDatabase.Name + '.' + SourceDBObject.Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
         else if ((SourceDBObject is TSFunction) and Assigned(DestinationDatabase.FunctionByName(SourceDBObject.Name))) then
-          Answer := MsgBox(Preferences.LoadStr(778, DestinationDatabase.Name + '.' + SourceDBObject.Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
+          OverrideAnswer := MsgBox(Preferences.LoadStr(778, DestinationDatabase.Name + '.' + SourceDBObject.Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
         else if ((SourceDBObject is TSEvent) and Assigned(DestinationDatabase.EventByName(SourceDBObject.Name))) then
-          Answer := MsgBox(Preferences.LoadStr(920, DestinationDatabase.Name + '.' + SourceDBObject.Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);
+          OverrideAnswer := MsgBox(Preferences.LoadStr(920, DestinationDatabase.Name + '.' + SourceDBObject.Name), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);
     end;
 
-    if (Answer in [IDYES, IDYESALL]) then
-      Transfer.Add(SourceDBObject, DestinationDatabaseName)
-    else if (Answer = IDCANCEL) then
-      FreeAndNil(Transfer);
+    if ((SourceDBObject.Source <> '') and (OverrideAnswer in [IDYES, IDYESALL])) then
+      Transfer.Add(SourceDBObject, DestinationDatabaseName);
   end;
 
 var
@@ -729,18 +756,13 @@ begin
 
   if (not Assigned(Wanted.Page)) then
   begin
-    Answer := IDYES;
-
-    if (Assigned(Transfer)) then
-      TerminateThread(Transfer.Handle, 0);
+    OverrideAnswer := IDYES;
+    SkipAnswer := IDYES;
 
     Transfer := TTTransfer.Create(SourceSession, DestinationSession);
     Transfer.Wnd := Self.Handle;
     Transfer.Data := FData.Checked;
     Transfer.Structure := FStructure.Checked;
-    Transfer.OnError := OnError;
-    Transfer.OnTerminate := OnTerminate;
-    Transfer.OnUpdate := OnUpdate;
 
     for I := 0 to FSource.Selected.Parent.Count - 1 do
       if (FSource.Selected.Parent[I].Selected) then
@@ -770,8 +792,12 @@ begin
               DestinationSession, FDestination.Selected.Text);
         end;
 
-    if (not Assigned(Transfer)) then
-      ModalResult := mrCancel
+    if ((SkipAnswer = IDCANCEL) or (OverrideAnswer = IDCANCEL)) then
+    begin
+      Transfer.Free();
+      Transfer := nil;
+      ModalResult := mrCancel;
+    end
     else
     begin
       FSource.Items.BeginUpdate();
@@ -785,18 +811,21 @@ begin
 
       FBBack.Enabled := False;
 
+      Transfer.OnError := OnError;
+      Transfer.OnTerminate := OnTerminate;
+      Transfer.OnUpdate := OnUpdate;
       Transfer.Start();
     end;
   end;
 
-  if (not Assigned(Wanted.Page)) then
-    SetControlCursor(GProgress, crDefault)
+  if (Assigned(Wanted.Page)) then
+    SetControlCursor(GProgress, crSQLWait)
   else
-    SetControlCursor(GProgress, crSQLWait);
+    SetControlCursor(GProgress, crDefault);
 
-  FBForward.Enabled := False;
-  FBForward.Default := False;
-  FBCancel.Default := True;
+  CheckActivePageChange(TSExecute);
+  if (not Assigned(Transfer)) then
+    FBCancel.Caption := Preferences.LoadStr(231);
   ActiveControl := FBCancel;
 end;
 
@@ -851,7 +880,7 @@ begin
     FDestination.OnChange := FDestinationOnChange;
   end;
 
-  CheckActivePageChange(TSSelect.PageIndex);
+  CheckActivePageChange(TSSelect);
 end;
 
 procedure TDTransfer.TSWhatShow(Sender: TObject);
@@ -897,7 +926,8 @@ begin
   FData.Checked := FData.Checked and FData.Enabled;
 
   TSExecute.Enabled := not Assigned(Wanted.Page) and FStructure.Checked;
-  CheckActivePageChange(TSWhat.PageIndex);
+
+  CheckActivePageChange(TSWhat);
 end;
 
 procedure TDTransfer.UMChangePreferences(var Message: TMessage);
@@ -948,17 +978,16 @@ var
 begin
   Success := Boolean(Message.WParam);
 
-  if (Assigned(Transfer)) then
-  begin
-    Transfer.WaitFor();
+  Transfer.WaitFor();
 
-    if (Success and (Transfer.WarningCount > 0)) then
-      MsgBox(Preferences.LoadStr(932, IntToStr(Transfer.WarningCount)), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
+  if (Success and (Transfer.WarningCount > 0)) then
+    MsgBox(Preferences.LoadStr(932, IntToStr(Transfer.WarningCount)), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
 
-    FreeAndNil(Transfer);
-  end;
+  Transfer.Free();
+  Transfer := nil;
 
   FBBack.Enabled := True;
+  FBCancel.Enabled := True;
   FBCancel.Caption := Preferences.LoadStr(231);
   if (Success) then
     FBCancel.ModalResult := mrOk

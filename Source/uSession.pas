@@ -1265,6 +1265,7 @@ type
     function GetThreadId(): Longword;
     procedure SetThreadId(AThreadId: Longword);
   public
+    constructor Create(const ASItems: TSItems; const AName: string = ''); override;
     property Command: string read FCommand;
     property DatabaseName: string read FDatabaseName;
     property Host: string read FHost;
@@ -1407,7 +1408,6 @@ type
 
   TSSession = class(TObject)
   type
-    TUpdate = function (): Boolean of object;
     TEvent = class(TObject)
     type
       TEventType = (etItemsValid, etItemValid, etItemCreated, etItemDropped, etItemAltered, etDatabaseChanged, etBeforeExecuteSQL, etAfterExecuteSQL, etMonitor, etError);
@@ -1419,8 +1419,19 @@ type
       Item: TSItem;
       constructor Create(const ASession: TSSession);
     end;
+
+    TInvalidObjects = class(TList)
+    private
+      function Get(Index: Integer): TSObject;
+    public
+      function Add(const SObject: TSObject): Integer; reintroduce;
+      procedure Delete(const SObject: TSObject); reintroduce;
+      property Objects[Index: Integer]: TSObject read Get; default;
+    end;
+
     TCreateDesktop = function (const CObject: TSObject): TSObject.TDesktop of object;
     TEventProc = procedure (const AEvent: TSSession.TEvent) of object;
+    TUpdate = function (): Boolean of object;
   private
     ConnectionEvent: SyncObjs.TEvent;
     EventProcs: array of TEventProc;
@@ -1436,6 +1447,7 @@ type
     FEngines: TSEngines;
     FFieldTypes: TSFieldTypes;
     FInformationSchema: TSDatabase;
+    FInvalidObjects: TInvalidObjects;
     FMetadataProvider: TacEventMetadataProvider;
     FPerformanceSchema: TSDatabase;
     FPlugins: TSPlugins;
@@ -1504,11 +1516,11 @@ type
     function ProcessByThreadId(const ThreadId: Longword): TSProcess;
     procedure RegisterEventProc(const AEventProc: TEventProc);
     function SendSQL(const SQL: string; const OnResult: TMySQLConnection.TResultEvent = nil): Boolean;
-    procedure ReleaseEventProc(const AEventProc: TEventProc);
     function TableName(const Name: string): string;
     function TableNameCmp(const Name1, Name2: string): Integer; inline;
     function UnescapeValue(const Value: string; const FieldType: TSField.TFieldType = mfVarChar): string; overload;
     function UnecapeRightIdentifier(const Identifier: string): string;
+    procedure UnRegisterEventProc(const AEventProc: TEventProc);
     function Update(): Boolean; overload;
     function Update(const Objects: TList; const Status: Boolean = False): Boolean; overload;
     function UpdateDatabase(const Database, NewDatabase: TSDatabase): Boolean;
@@ -1531,6 +1543,7 @@ type
     property Engines: TSEngines read FEngines;
     property FieldTypes: TSFieldTypes read FFieldTypes;
     property InformationSchema: TSDatabase read FInformationSchema;
+    property InvalidObjects: TInvalidObjects read FInvalidObjects;
     property LowerCaseTableNames: Byte read FLowerCaseTableNames;
     property MetadataProvider: TacEventMetadataProvider read FMetadataProvider;
     property PerformanceSchema: TSDatabase read FPerformanceSchema;
@@ -1972,6 +1985,8 @@ begin
 
   FSource := Source.Source;
   FValidSource := Source.ValidSource;
+
+  Session.InvalidObjects.Delete(Self);
 end;
 
 procedure TSObject.Build(const Field: TField);
@@ -1980,11 +1995,11 @@ var
   RBS: RawByteString;
   SQL: string;
 begin
-  if ((Self is TSBaseTable)
+  if (((Self is TSBaseTable) or (Self is TSDatabase))
     and (40100 <= Session.Connection.MySQLVersion) and (Session.Connection.MySQLVersion < 50000)
     and (Field.DataType in BinaryDataTypes)) then
   begin
-    // In MySQL 4.1, SHOW CREATE TABLE will be answered in a binary field
+    // In MySQL 4.1, SHOW CREATE TABLE / DATABASE will be answered in a binary field
     RBS := Field.AsAnsiString;
     Len := AnsiCharToWideChar(Session.Connection.CodePage, PAnsiChar(RBS), Length(RBS), nil, 0);
     SetLength(SQL, Len);
@@ -1995,6 +2010,8 @@ begin
   if (SQL <> '') then
     SQL := SQL + ';' + #13#10;
   SetSource(SQL);
+
+  Session.InvalidObjects.Delete(Self);
 
   if (Now() <= Session.ParseEndDate) then
   begin
@@ -2015,10 +2032,14 @@ begin
   FValidSource := False;
 
   FDesktop := nil;
+
+  Session.InvalidObjects.Add(Self);
 end;
 
 destructor TSObject.Destroy();
 begin
+  Session.InvalidObjects.Delete(Self);
+
   if (Assigned(FDesktop)) then
     FDesktop.Free();
 
@@ -2060,6 +2081,8 @@ procedure TSObject.Invalidate();
 begin
   FSource := '';
   FValidSource := False;
+
+  Session.InvalidObjects.Add(Self);
 end;
 
 procedure TSObject.SetName(const AName: string);
@@ -4340,6 +4363,8 @@ end;
 procedure TSBaseTable.InvalidateStatus();
 begin
   FValidStatus := False;
+
+  Session.InvalidObjects.Add(Self);
 end;
 
 function TSBaseTable.PartitionByName(const PartitionName: string): TSPartition;
@@ -5863,6 +5888,7 @@ end;
 function TSRoutine.GetInputDataSet(): TMySQLDataSet;
 var
   Field: TField;
+  FieldName: string;
   I: Integer;
 begin
   if (Assigned(FInputDataSet) and (FInputDataSet.FieldCount <> ParameterCount)) then
@@ -5968,11 +5994,17 @@ begin
           else raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%s)', [Parameter[I].Name, Session.FieldTypeByMySQLFieldType(Parameter[I].FieldType).Name]);
         end;
       Field.FieldName := Parameter[I].Name;
+      FieldName := ReplaceStr(ReplaceStr(ReplaceStr(Parameter[I].Name, ' ', '_'), '.', '_'), '$', '_');
 try // Debug 2016-12-01
-      Field.Name := ReplaceStr(ReplaceStr(ReplaceStr(Parameter[I].Name, ' ', '_'), '.', '_'), '$', '_');
+      Field.Name := FieldName
 except
   on E: Exception do
-    raise Exception.Create(E.Message + ' (FieldCount: + ' + IntToStr(FInputDataSet.FieldCount) + ' SQL: ' + Source + ')');
+    begin
+      if (Assigned(Field.Owner.FindComponent(FieldName))) then
+        raise Exception.Create(E.Message + ' (FieldName: ' + FieldName + ' ComponentCount: ' + IntToStr(Field.Owner.FindComponent(FieldName).ComponentCount) + ' ClassType: ' + Field.Owner.FindComponent(FieldName).ClassName + ')' + ' FieldCount: ' + IntToStr(FInputDataSet.FieldCount) + ')')
+      else
+        raise Exception.Create(E.Message + ' (FieldName: ' + FieldName + ' FieldCount: ' + IntToStr(FInputDataSet.FieldCount) + ')');
+    end;
 end;
       Field.DataSet := FInputDataSet;
     end;
@@ -7438,9 +7470,11 @@ begin
       SQL := SQL + SQLTruncateTable(TSBaseTable(WorkingList[I]));
     end;
 
+  SQL := SQL + Tables.SQLGetStatus(WorkingList);
+
   WorkingList.Free();
 
-  Result := (SQL = '') or Session.SendSQL(SQL);
+  Result := (SQL = '') or Session.SendSQL(SQL, Session.SessionResult);
 end;
 
 function TSDatabase.FlushTables(const Tables: TList): Boolean;
@@ -9620,8 +9654,21 @@ end;
 
 { TSProcesse ******************************************************************}
 
+constructor TSProcess.Create(const ASItems: TSItems; const AName: string = '');
+begin
+  // Debug 2016-12-03
+  if (Name = '') then
+    raise ERangeError.Create(SRangeError);
+
+  inherited;
+end;
+
 function TSProcess.GetThreadId(): Longword;
 begin
+  // Debug 2016-12-03
+  if (Name = '') then
+    raise ERangeError.Create(SRangeError);
+
   Result := StrToUInt64(Name);
 end;
 
@@ -10511,6 +10558,29 @@ begin
   Items := nil;
 end;
 
+{ TSSession.TInvalidObjects ***************************************************}
+
+function TSSession.TInvalidObjects.Add(const SObject: TSObject): Integer;
+begin
+  Result := IndexOf(SObject);
+  if (Result < 0) then
+    Result := TList(Self).Add(SObject);
+end;
+
+procedure TSSession.TInvalidObjects.Delete(const SObject: TSObject);
+var
+  Index: Integer;
+begin
+  Index := IndexOf(SObject);
+  if (Index >= 0) then
+    TList(Self).Delete(Index);
+end;
+
+function TSSession.TInvalidObjects.Get(Index: Integer): TSObject;
+begin
+  Result := TSObject(TList(Self).Items[Index]);
+end;
+
 { TSSession *******************************************************************}
 
 function Compare(Item1, Item2: Pointer): Integer;
@@ -10796,6 +10866,7 @@ begin
   SetLength(EventProcs, 0);
   FCurrentUser := '';
   FInformationSchema := nil;
+  FInvalidObjects := TInvalidObjects.Create();
   FLowerCaseTableNames := 0;
   FMetadataProvider := TacEventMetadataProvider.Create(nil);
   FPerformanceSchema := nil;
@@ -11093,6 +11164,7 @@ begin
 
   Sessions.Delete(Sessions.IndexOf(Self));
 
+  FInvalidObjects.Free();
   FMetadataProvider.Free();
   FSyntaxProvider.Free();
   SQLParser.Free();
@@ -11919,24 +11991,6 @@ begin
   end;
 end;
 
-procedure TSSession.ReleaseEventProc(const AEventProc: TEventProc);
-var
-  I: Integer;
-  Index: Integer;
-begin
-  Index := -1;
-  for I := 0 to Length(EventProcs) - 1 do
-    if (CompareMem(@TMethod(EventProcs[I]), @TMethod(AEventProc), SizeOf(TEventProc))) then
-      Index := I;
-
-  if (Index >= 0) then
-  begin
-    if (Index + 1 < Length(EventProcs)) then
-      MoveMemory(@TMethod(EventProcs[Index]), @TMethod(EventProcs[Index + 1]), (Length(EventProcs) - Index - 1) * SizeOf(TEventProc));
-    SetLength(EventProcs, Length(EventProcs) - 1);
-  end;
-end;
-
 procedure TSSession.SendEvent(const EventType: TSSession.TEvent.TEventType; const Sender: TObject; const Items: TSItems = nil; const Item: TSItem = nil);
 var
   Event: TEvent;
@@ -12320,6 +12374,24 @@ begin
   DBIdentifier := UnescapeValue(Identifier);
 
   if (DBIdentifier = '%') then Result := '' else Result := DBIdentifier;
+end;
+
+procedure TSSession.UnRegisterEventProc(const AEventProc: TEventProc);
+var
+  I: Integer;
+  Index: Integer;
+begin
+  Index := -1;
+  for I := 0 to Length(EventProcs) - 1 do
+    if (CompareMem(@TMethod(EventProcs[I]), @TMethod(AEventProc), SizeOf(TEventProc))) then
+      Index := I;
+
+  if (Index >= 0) then
+  begin
+    if (Index + 1 < Length(EventProcs)) then
+      MoveMemory(@TMethod(EventProcs[Index]), @TMethod(EventProcs[Index + 1]), (Length(EventProcs) - Index - 1) * SizeOf(TEventProc));
+    SetLength(EventProcs, Length(EventProcs) - 1);
+  end;
 end;
 
 function TSSession.Update(): Boolean;

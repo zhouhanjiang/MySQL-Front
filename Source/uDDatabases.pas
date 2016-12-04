@@ -128,7 +128,9 @@ begin
   if ((Event.EventType in [etItemsValid]) and (Event.Items = Session.Databases)) then
     Built();
 
-  if (Event.EventType = etAfterExecuteSQL) then
+  if ((Event.EventType = etError) and (ModalResult = mrNone)) then
+    ModalResult := mrCancel
+  else if (Event.EventType = etAfterExecuteSQL) then
   begin
     GroupBox.Visible := True;
     PSQLWait.Visible := not GroupBox.Visible;
@@ -150,7 +152,7 @@ procedure TDDatabases.FormHide(Sender: TObject);
 var
   I: Integer;
 begin
-  Session.ReleaseEventProc(FormSessionEvent);
+  Session.UnRegisterEventProc(FormSessionEvent);
 
   Preferences.Databases.Width := Width;
   Preferences.Databases.Height := Height;
