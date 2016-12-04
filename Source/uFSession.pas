@@ -978,7 +978,6 @@ type
     procedure UMActivateFText(var Message: TMessage); message UM_ACTIVATEFTEXT;
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMCloseTabQuery(var Message: TMessage); message UM_CLOSE_TAB_QUERY;
-    procedure UMExecute(var Message: TMessage); message UM_EXECUTE;
     procedure UMFrameActivate(var Message: TMessage); message UM_ACTIVATEFRAME;
     procedure UMFrameDeactivate(var Message: TMessage); message UM_DEACTIVATEFRAME;
     procedure UMPostBuilderQueryChange(var Message: TMessage); message UM_POST_BUILDER_QUERY_CHANGE;
@@ -13608,13 +13607,6 @@ begin
     Message.Result := 0
   else
     Message.Result := 1;
-end;
-
-procedure TFSession.UMExecute(var Message: TMessage);
-begin
-  MainAction('aDRun').Execute();
-
-  Window.Close();
 end;
 
 procedure TFSession.UMFrameActivate(var Message: TMessage);

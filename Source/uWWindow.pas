@@ -352,7 +352,6 @@ type
     procedure FormHide(Sender: TObject);
     procedure FormResize(Sender: TObject);
     procedure FormShow(Sender: TObject);
-    procedure HandleParam(const AParam: string);
     procedure TabControlChange(Sender: TObject);
     procedure TabControlChanging(Sender: TObject;
       var AllowChange: Boolean);
@@ -390,7 +389,6 @@ type
     {$ENDIF}
     FSessions: TList;
     MouseDownPoint: TPoint;
-    Param: string; // needed for PostMessage
     PreviousForm: TForm;
     QuitAfterShow: Boolean;
     TabControlDragMarkedTabIndex: Integer;
@@ -427,13 +425,11 @@ type
     procedure UMActivateTab(var Message: TMessage); message UM_ACTIVATETAB;
     procedure UMAddTab(var Message: TMessage); message UM_ADDTAB;
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
-    procedure UMMySQLClientSynchronize(var Message: TMessage); message UM_MYSQLCLIENT_SYNCHRONIZE;
     procedure UMDeactivateTab(var Message: TMessage); message UM_DEACTIVATETAB;
-    procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
+    procedure UMMySQLClientSynchronize(var Message: TMessage); message UM_MYSQLCLIENT_SYNCHRONIZE;
     procedure UMOnlineUpdateFound(var Message: TMessage); message UM_ONLINE_UPDATE_FOUND;
     procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMUpdateToolbar(var Message: TMessage); message UM_UPDATETOOLBAR;
-    procedure WMCopyData(var Message: TWMCopyData); message WM_COPYDATA;
     procedure WMDrawItem(var Message: TWMDrawItem); message WM_DRAWITEM;
     procedure WMHelp(var Message: TWMHelp); message WM_HELP;
     procedure WMTimer(var Message: TWMTimer); message WM_TIMER;
@@ -674,6 +670,7 @@ begin
     DisableApplicationActivate := True;
 
     {$IFNDEF EurekaLog}
+{$Message 'Nils'}
     if ((OnlineProgramVersion < 0) and IsConnectedToInternet()) then
       if (Assigned(CheckOnlineVersionThread)) then
         CheckOnlineVersionThread.WaitFor()
@@ -1018,6 +1015,7 @@ begin
   try Accounts.Save(); except end;
   try Preferences.Save(); except end;
 
+{$Message 'Nils'}
   if ((OnlineProgramVersion < 0) and IsConnectedToInternet()) then
     if (Assigned(CheckOnlineVersionThread)) then
       CheckOnlineVersionThread.WaitFor()
@@ -1207,6 +1205,7 @@ end;
 
 procedure TWWindow.FormShow(Sender: TObject);
 begin
+{$Message 'Nils'}
   if ((((Preferences.UpdateCheck = utDaily) and (Trunc(Preferences.UpdateChecked) < Date())) or (Preferences.ObsoleteVersion >= Preferences.Version)) and IsConnectedToInternet()) then
   begin
     CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
@@ -1214,7 +1213,7 @@ begin
     CheckOnlineVersionThread.Start();
   end;
 
-  PostMessage(Handle, UM_POST_SHOW, 0, 0);
+  PostMessage(Handle, UM_ADDTAB, 0, 0);
 end;
 
 function TWWindow.GetActiveTab(): TFSession;
@@ -1236,15 +1235,6 @@ begin
   for I := TabControlDragStartTabIndex + 1 to TabControl.Tabs.Count - 1 do
     if (X > TabControl.TabRect(I).Left + ((TabControl.TabRect(I).Right - TabControl.TabRect(I).Left) div 4)) then
       Result := I;
-end;
-
-procedure TWWindow.HandleParam(const AParam: string);
-begin
-  if (Copy(AParam, 1, 1) <> '/') then
-  begin
-    Param := AParam;
-    Perform(UM_ADDTAB, 0, WPARAM(PChar(Param)));
-  end;
 end;
 
 procedure TWWindow.InformOnlineUpdateFound();
@@ -1889,23 +1879,6 @@ begin
     InformOnlineUpdateFound();
 end;
 
-procedure TWWindow.UMPostShow(var Message: TMessage);
-var
-  ExecutePostShow: Boolean;
-  I: Integer;
-begin
-  ExecutePostShow := False;
-
-  if (ParamCount() = 0) then
-    Perform(UM_ADDTAB, 0, 0)
-  else
-    for I := 1 to ParamCount() do
-      HandleParam(ParamStr(I));
-
-  if (ExecutePostShow and (FSessions.Count = 1)) then
-    PostMessage(TFSession(FSessions[0]).Handle, UM_EXECUTE, 0, 0);
-end;
-
 procedure TWWindow.UMMySQLClientSynchronize(var Message: TMessage);
 begin
   MySQLDB.MySQLConnectionSynchronize(Pointer(Message.LParam));
@@ -2012,24 +1985,6 @@ begin
     end;
     miFReopen.Delete(0);
   end;
-end;
-
-procedure TWWindow.WMCopyData(var Message: TWMCopyData);
-begin
-  SetForegroundWindow(Application.Handle);
-  if IsIconic(Application.Handle) then
-  begin
-    WindowState := wsNormal;
-    Application.Restore();
-  end;
-
-  if (Assigned(Screen.ActiveForm) and (fsModal in Screen.ActiveForm.FormState)) then
-  begin
-    Application.BringToFront();
-    MessageBeep(MB_ICONERROR);
-  end
-  else
-    HandleParam(PChar(Message.CopyDataStruct^.lpData));
 end;
 
 procedure TWWindow.WMDrawItem(var Message: TWMDrawItem);
