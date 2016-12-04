@@ -14251,7 +14251,11 @@ begin
       if (not Assigned(Token.DefinerToken)) then
         Commands.Write(Token.AsString)
       else
+<<<<<<< HEAD
         Commands.Write(Token.DefinerToken^.AsString)
+=======
+        Commands.Write(Token.DefinerToken.AsString)
+>>>>>>> b8786e0b118a9cfa710e30a36861eccdb49e6136
     else if (Token.DbIdentType in [ditDatabase, ditTable, ditProcedure, ditTrigger, ditEvent, ditKey, ditField, ditForeignKey, ditPartition, ditConstraint, ditTableAlias, ditVariable, ditRoutineParam, ditCompoundVariable, ditCursor, ditCondition]) then
       if (AnsiQuotes) then
         Commands.Write(SQLEscape(Token.AsString, '"'))
