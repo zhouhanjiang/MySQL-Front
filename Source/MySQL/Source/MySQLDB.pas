@@ -6482,6 +6482,7 @@ begin
   Result := Assigned(DestData);
   if (Result) then
   begin
+    DestData^.Identifier := 123456;
     DestData^.LibLengths := Pointer(@PAnsiChar(DestData)[SizeOf(DestData^)]);
     DestData^.LibRow := Pointer(@PAnsiChar(DestData)[SizeOf(DestData^) + FieldCount * SizeOf(DestData^.LibLengths^[0])]);
 

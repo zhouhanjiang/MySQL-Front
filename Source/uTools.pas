@@ -189,7 +189,7 @@ type
     procedure DoUpdateGUI(); override;
     procedure ExecuteTableData(const Item: TItem; const Table: TSTable); virtual;
     procedure ExecuteTableStructure(const Item: TItem); virtual;
-    procedure GetValue(const Item: TItem; const Index: Integer; const Values: TTool.TStringBuffer); virtual;
+    procedure GetValue(const Item: TItem; const Index: Integer; const Values: TTool.TStringBuffer; const Values2: TTool.TStringBuffer = nil); virtual;
     procedure GetValues(const Item: TItem; const Values: TTool.TDataFileBuffer); virtual;
     function NextRecord(const Item: TItem): Boolean; virtual;
     procedure Open(); virtual;
@@ -277,7 +277,7 @@ type
     procedure AfterExecuteData(const Item: TTImport.TItem); override;
     procedure BeforeExecuteData(const Item: TTImport.TItem); override;
     procedure ExecuteTableStructure(const Item: TTImport.TItem); override;
-    procedure GetValue(const Item: TTImport.TItem; const Index: Integer; const Values: TTool.TStringBuffer); override;
+    procedure GetValue(const Item: TTImport.TItem; const Index: Integer; const Values: TTool.TStringBuffer; const Values2: TTool.TStringBuffer = nil); override;
     procedure GetValues(const Item: TTImport.TItem; const Values: TTool.TDataFileBuffer); override;
     function NextRecord(const Item: TTImport.TItem): Boolean; override;
     property CSVValueCount: Integer read FCSVValueCount;
@@ -316,7 +316,7 @@ type
     procedure BeforeExecute(); override;
     procedure BeforeExecuteData(const Item: TTImport.TItem); override;
     procedure ExecuteTableStructure(const Item: TTImport.TItem); override;
-    procedure GetValue(const Item: TTImport.TItem; const Index: Integer; const Values: TTool.TStringBuffer); override;
+    procedure GetValue(const Item: TTImport.TItem; const Index: Integer; const Values: TTool.TStringBuffer; const Values2: TTool.TStringBuffer = nil); override;
     procedure GetValues(const Item: TTImport.TItem; const Values: TTool.TDataFileBuffer); override;
     function NextRecord(const Item: TTImport.TItem): Boolean; override;
     function ODBCStmtException(const AStmt: SQLHSTMT): Exception;
@@ -1963,6 +1963,7 @@ var
   SQLStmtPrefix: string;
   SQLStmtDelimiter: string;
   SQLStmt: TStringBuffer;
+  UpdateClause: TStringBuffer;
 begin
   BeforeExecuteData(Item);
 
@@ -2063,6 +2064,10 @@ begin
     else
     begin
       SQLStmt := TStringBuffer.Create(SQLPacketSize);
+      if (StmtType <> stInsertOrUpdate) then
+        UpdateClause := nil
+      else
+        UpdateClause := TStringBuffer.Create(SQLPacketSize);
 
       case (StmtType) of
         stInsert,
@@ -2111,16 +2116,29 @@ begin
             for I := 0 to Length(FieldMappings) - 1 do
             begin
               if (I > 0) then SQLStmt.WriteChar(',');
-              GetValue(Item, I, SQLStmt);
+              if ((StmtType in [stInsert, stReplace])
+                or not FieldMappings[I].DestinationField.InPrimaryKey) then
+                GetValue(Item, I, SQLStmt)
+              else
+              begin
+                if (UpdateClause.Size > 0) then UpdateClause.WriteChar(',');
+                UpdateClause.Write(PChar(EscapedDestinationFieldNames[I]), Length(EscapedDestinationFieldNames[I]));
+                UpdateClause.WriteChar('=');
+                GetValue(Item, I, SQLStmt, UpdateClause);
+              end;
             end;
             SQLStmt.WriteChar(')');
+
+            if (StmtType = stInsertOrUpdate) then
+            begin
+              SQLStmt.Write(' ON DUPLICATE KEY UPDATE ', 25);
+              SQLStmt.Write(UpdateClause.Text, UpdateClause.Length);
+              UpdateClause.Clear();
+            end;
           end;
 
-          if (StmtType in [stUpdate, stInsertOrUpdate]) then
+          if (StmtType in [stUpdate]) then
           begin
-            if (StmtType = stInsertOrUpdate) then
-              SQLStmt.Write(' ON DUPLICATE KEY UPDATE ', 25);
-
             First := True;
             for I := 0 to Length(FieldMappings) - 1 do
               if (not FieldMappings[I].DestinationField.InPrimaryKey) then
@@ -2145,6 +2163,7 @@ begin
                 end;
             end;
           end;
+
           if ((StmtType in [stUpdate, stInsertOrUpdate]) or (SQLStmt.Length >= SQLPacketSize)) then
           begin
             SQLStmt.Write(SQLStmtDelimiter);
@@ -2157,7 +2176,7 @@ begin
           Inc(Item.RecordsDone);
           if (Item.RecordsDone mod 100 = 0) then
             DoUpdateGUI();
-        until ((Success = daAbort) or (StmtType in [stUpdate, stInsertOrUpdate]) or (SQLStmt.Length > SQLPacketSize) or not NextRecord(Item));
+        until ((Success = daAbort) or (SQLStmt.Length > SQLPacketSize) or not NextRecord(Item));
 
         if (SQLStmtPrefixInSQLStmt) then
         begin
@@ -2186,6 +2205,8 @@ begin
       Inc(FWarningCount, Session.Connection.WarningCount);
 
       SQLStmt.Free();
+      if (Assigned(UpdateClause)) then
+        UpdateClause.Free();
     end;
     if (Success = daFail) then Success := daSuccess;
 
@@ -2220,7 +2241,7 @@ procedure TTImport.ExecuteTableStructure(const Item: TItem);
 begin
 end;
 
-procedure TTImport.GetValue(const Item: TItem; const Index: Integer; const Values: TTool.TStringBuffer);
+procedure TTImport.GetValue(const Item: TItem; const Index: Integer; const Values: TTool.TStringBuffer; const Values2: TTool.TStringBuffer = nil);
 begin
 end;
 
@@ -2746,12 +2767,15 @@ begin
   end;
 end;
 
-procedure TTImportText.GetValue(const Item: TTImport.TItem; const Index: Integer; const Values: TTool.TStringBuffer);
+procedure TTImportText.GetValue(const Item: TTImport.TItem; const Index: Integer; const Values: TTool.TStringBuffer; const Values2: TTool.TStringBuffer = nil);
 var
   Len: Integer;
 begin
   if ((Index >= Length(CSVValues)) or (CSVValues[CSVColumns[Index]].Length = 0) and (FieldMappings[Index].DestinationField.FieldType in NotQuotedFieldTypes)) then
-    Values.Write('NULL', 4)
+  begin
+    Values.Write('NULL', 4);
+    if (Assigned(Values2)) then Values2.Write('NULL', 4);
+  end
   else
   begin
     if (not Assigned(CSVValues[CSVColumns[Index]].Text) or (CSVValues[CSVColumns[Index]].Length = 0)) then
@@ -2767,11 +2791,20 @@ begin
     end;
 
     if (FieldMappings[Index].DestinationField.FieldType in BinaryFieldTypes) then
-      Values.Write('NULL', 4)
+    begin
+      Values.Write('NULL', 4);
+      if (Assigned(Values2)) then Values2.Write('NULL', 4);
+    end
     else if (FieldMappings[Index].DestinationField.FieldType in NotQuotedFieldTypes) then
-      Values.Write(UnescapeBuffer.Text, Len)
+    begin
+      Values.Write(UnescapeBuffer.Text, Len);
+      if (Assigned(Values2)) then Values2.Write(UnescapeBuffer.Text, Len);
+    end
     else
+    begin
       Values.WriteText(UnescapeBuffer.Text, Len);
+      if (Assigned(Values2)) then Values2.WriteText(UnescapeBuffer.Text, Len);
+    end;
   end;
 end;
 
@@ -3514,7 +3547,7 @@ begin
     end;
 end;
 
-procedure TTImportBaseODBC.GetValue(const Item: TTImport.TItem; const Index: Integer; const Values: TTool.TStringBuffer);
+procedure TTImportBaseODBC.GetValue(const Item: TTImport.TItem; const Index: Integer; const Values: TTool.TStringBuffer; const Values2: TTool.TStringBuffer = nil);
 var
   cbData: SQLINTEGER;
   ReturnCode: SQLRETURN;
@@ -3541,20 +3574,38 @@ begin
         begin
           DoError(ODBCError(SQL_HANDLE_STMT, Stmt, ReturnCode), Item, False);
           Values.Write('NULL', 4);
+          if (Assigned(Values2)) then Values2.Write('NULL', 4);
         end
         else if (cbData = SQL_NULL_DATA) then
-          Values.Write('NULL', 4)
+        begin
+          Values.Write('NULL', 4);
+          if (Assigned(Values2)) then Values2.Write('NULL', 4);
+        end
         else if (ColumnDesc[Index].SQLDataType = SQL_BIT) then
           if (PAnsiChar(ODBCData) = '0') then
-            Values.WriteChar(#0)
+          begin
+            Values.WriteChar(#0);
+            if (Assigned(Values2)) then Values2.WriteChar(#0);
+          end
           else
-            Values.WriteChar(#1)
+          begin
+            Values.WriteChar(#1);
+            if (Assigned(Values2)) then Values2.WriteChar(#1);
+          end
         else if ((ColumnDesc[Index].SQLDataType = SQL_DOUBLE) and (Self is TTImportExcel) and (cbData div SizeOf(SQLACHAR) > 2) and (PAnsiChar(ODBCData)[cbData div SizeOf(SQLACHAR) - 2] = '.') and (PAnsiChar(ODBCData)[cbData div SizeOf(SQLACHAR) - 1] = '0')) then
           // The the Excel ODBC driver converts SQL_NUMERIC values to SQL_C_CHAR with an ending ".0".
           // This is bad, if the import is for a Text field in MySQL.
-          Values.WriteData(PAnsiChar(ODBCData), cbData div SizeOf(SQLACHAR) - 2, not (FieldMappings[Index].DestinationField.FieldType in NotQuotedFieldTypes))
+        begin
+          Values.WriteData(PAnsiChar(ODBCData), cbData div SizeOf(SQLACHAR) - 2, not (FieldMappings[Index].DestinationField.FieldType in NotQuotedFieldTypes));
+          if (Assigned(Values2)) then
+            Values2.WriteData(PAnsiChar(ODBCData), cbData div SizeOf(SQLACHAR) - 2, not (FieldMappings[Index].DestinationField.FieldType in NotQuotedFieldTypes));
+        end
         else
+        begin
           Values.WriteData(PAnsiChar(ODBCData), cbData div SizeOf(SQLACHAR), not (FieldMappings[Index].DestinationField.FieldType in NotQuotedFieldTypes));
+          if (Assigned(Values2)) then
+            Values2.WriteData(PAnsiChar(ODBCData), cbData div SizeOf(SQLACHAR), not (FieldMappings[Index].DestinationField.FieldType in NotQuotedFieldTypes));
+        end;
       end;
     SQL_UNKNOWN_TYPE,
     SQL_CHAR,
@@ -3583,11 +3634,19 @@ begin
         begin
           DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
           Values.Write('NULL', 4);
+          if (Assigned(Values2)) then Values2.Write('NULL', 4);
         end
         else if ((Size = 0) and (cbData = SQL_NULL_DATA)) then
-          Values.Write('NULL', 4)
+        begin
+          Values.Write('NULL', 4);
+          if (Assigned(Values2)) then Values2.Write('NULL', 4);
+        end
         else if (ReturnCode = SQL_SUCCESS) then
+        begin
           Values.WriteText(PChar(ODBCMem), Size div SizeOf(Char));
+          if (Assigned(Values2)) then
+            Values2.WriteText(PChar(ODBCMem), Size div SizeOf(Char));
+        end;
       end;
     SQL_BINARY,
     SQL_VARBINARY,
@@ -3611,13 +3670,19 @@ begin
         begin
           DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
           Values.Write('NULL', 4);
+          if (Assigned(Values2)) then Values2.Write('NULL', 4);
         end
         else if (cbData = SQL_NULL_DATA) then
-          Values.Write('NULL', 4)
+        begin
+          Values.Write('NULL', 4);
+          if (Assigned(Values2)) then Values2.Write('NULL', 4);
+        end
         else if (ReturnCode <> SQL_NO_DATA) then
         begin
           S := SQLEscapeBin(ODBCMem, Size, False);
           Values.Write(PChar(S), Length(S));
+          if (Assigned(Values2)) then
+            Values2.Write(PChar(S), Length(S));
         end;
       end;
     else

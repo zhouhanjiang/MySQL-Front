@@ -671,15 +671,15 @@ begin
 
     {$IFNDEF EurekaLog}
 {$Message 'Nils'}
-//    if ((OnlineProgramVersion < 0) and IsConnectedToInternet()) then
-//      if (Assigned(CheckOnlineVersionThread)) then
-//        CheckOnlineVersionThread.WaitFor()
-//      else
-//      begin
-//        CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
-//        CheckOnlineVersionThread.Execute();
-//        FreeAndNil(CheckOnlineVersionThread);
-//      end;
+    if ((OnlineProgramVersion < 0) and IsConnectedToInternet()) then
+      if (Assigned(CheckOnlineVersionThread)) then
+        CheckOnlineVersionThread.WaitFor()
+      else
+      begin
+        CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
+        CheckOnlineVersionThread.Execute();
+        FreeAndNil(CheckOnlineVersionThread);
+      end;
     {$ENDIF}
 
     MsgBox('Internal Program Bug:' + #13#10 + E.Message, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
@@ -1016,15 +1016,15 @@ begin
   try Preferences.Save(); except end;
 
 {$Message 'Nils'}
-//  if ((OnlineProgramVersion < 0) and IsConnectedToInternet()) then
-//    if (Assigned(CheckOnlineVersionThread)) then
-//      CheckOnlineVersionThread.WaitFor()
-//    else
-//    begin
-//      CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
-//      CheckOnlineVersionThread.Execute();
-//      FreeAndNil(CheckOnlineVersionThread);
-//    end;
+  if ((OnlineProgramVersion < 0) and IsConnectedToInternet()) then
+    if (Assigned(CheckOnlineVersionThread)) then
+      CheckOnlineVersionThread.WaitFor()
+    else
+    begin
+      CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
+      CheckOnlineVersionThread.Execute();
+      FreeAndNil(CheckOnlineVersionThread);
+    end;
 
   Handle := Preferences.Version >= OnlineProgramVersion;
 
@@ -1206,14 +1206,14 @@ end;
 procedure TWWindow.FormShow(Sender: TObject);
 begin
 {$Message 'Nils'}
-//  if ((((Preferences.UpdateCheck = utDaily) and (Trunc(Preferences.UpdateChecked) < Date())) or (Preferences.ObsoleteVersion >= Preferences.Version)) and IsConnectedToInternet()) then
-//  begin
-//    CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
-//    CheckOnlineVersionThread.OnTerminate := OnlineVersionChecked;
-//    CheckOnlineVersionThread.Start();
-//  end;
-//
-//  PostMessage(Handle, UM_ADDTAB, 0, 0);
+  if ((((Preferences.UpdateCheck = utDaily) and (Trunc(Preferences.UpdateChecked) < Date())) or (Preferences.ObsoleteVersion >= Preferences.Version)) and IsConnectedToInternet()) then
+  begin
+    CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
+    CheckOnlineVersionThread.OnTerminate := OnlineVersionChecked;
+    CheckOnlineVersionThread.Start();
+  end;
+
+  PostMessage(Handle, UM_ADDTAB, 0, 0);
 end;
 
 function TWWindow.GetActiveTab(): TFSession;
