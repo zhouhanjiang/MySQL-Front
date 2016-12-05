@@ -1206,14 +1206,14 @@ end;
 procedure TWWindow.FormShow(Sender: TObject);
 begin
 {$Message 'Nils'}
-  if ((((Preferences.UpdateCheck = utDaily) and (Trunc(Preferences.UpdateChecked) < Date())) or (Preferences.ObsoleteVersion >= Preferences.Version)) and IsConnectedToInternet()) then
+//  if ((((Preferences.UpdateCheck = utDaily) and (Trunc(Preferences.UpdateChecked) < Date())) or (Preferences.ObsoleteVersion >= Preferences.Version)) and IsConnectedToInternet()) then
   begin
     CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
     CheckOnlineVersionThread.OnTerminate := OnlineVersionChecked;
     CheckOnlineVersionThread.Start();
   end;
 
-  PostMessage(Handle, UM_ADDTAB, 0, 0);
+//  PostMessage(Handle, UM_ADDTAB, 0, 0);
 end;
 
 function TWWindow.GetActiveTab(): TFSession;
