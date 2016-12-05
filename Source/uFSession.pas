@@ -3565,10 +3565,12 @@ begin
     else
       DImport.SObject := nil;
     DImport.Filename := '';
+    DImport.CodePage := CP_ACP;
     DImport.Window := Window;
     DImport.ImportType := ImportType;
     DImport.Execute();
-    Wanted.Update := Session.Update;
+
+    UpdateAfterAddressChanged();
   end;
 end;
 
@@ -3576,17 +3578,7 @@ procedure TFSession.aFImportODBCExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  DImport.Window := Window;
-  DImport.Session := Session;
-  if (FocusedSItem is TSObject) then
-    DImport.SObject := TSObject(FocusedSItem)
-  else
-    DImport.SObject := nil;
-  DImport.Filename := '';
-  DImport.CodePage := CP_ACP;
-  DImport.ImportType := itODBC;
-  DImport.Execute();
-  Wanted.Update := Session.Update;
+  aFImportExecute(Sender, itODBC);
 end;
 
 procedure TFSession.aFImportSQLExecute(Sender: TObject);
@@ -5797,8 +5789,6 @@ var
   DatabasesXML: IXMLNode;
   I: Integer;
   TempB: Boolean;
-  Text: string; // Debug 2016-12-01
-  ToolbarTab: TPPreferences.TToolbarTab;
   URI: TUURI;
   View: TView;
 begin
@@ -5833,25 +5823,7 @@ begin
       if ((SQLEditors[View].Filename <> '') and not SQLEditors[View].SynMemo.Modified) then
         Session.Account.Desktop.EditorContent[ToolbarTabByView[View]] := ''
       else
-      begin
-        // Debug 2016-12-02
-        if (not Assigned(Session)) then
-          raise ERangeError.Create(SRangeError);
-        if (not Assigned(Session.Account)) then
-          raise ERangeError.Create(SRangeError);
-        if (not Assigned(Session.Account.Desktop)) then
-          raise ERangeError.Create(SRangeError);
-        // Debug 2016-11-30
-        if (not Assigned(SQLEditors[View])) then
-          raise ERangeError.Create(SRangeError);
-        if (not Assigned(SQLEditors[View].SynMemo)) then
-          raise ERangeError.Create(SRangeError);
-        Text := SQLEditors[View].SynMemo.Text;
-        ToolbarTab := ToolbarTabByView[View];
-        if (not (ToolbarTab in [ttEditor .. ttEditor3])) then
-          raise ERangeError.Create(SRangeError + ' (' + IntToStr(Ord(ToolbarTab)) + ')');
-        Session.Account.Desktop.EditorContent[ToolbarTab] := Text;
-      end;
+        Session.Account.Desktop.EditorContent[ToolbarTabByView[View]] := SQLEditors[View].SynMemo.Text;
   Session.Account.Desktop.FoldersHeight := PFolders.Height;
 
   if (Assigned(FFiles)) then
@@ -10794,9 +10766,10 @@ begin
         begin
            if (Desktop(TSTable(FNavigator.Selected.Data)).Table.DataSet.Offset > 0) then
             URI.Param['offset'] := IntToStr(Desktop(TSTable(FNavigator.Selected.Data)).Table.DataSet.Offset);
-
           if (Desktop(TSTable(FNavigator.Selected.Data)).Table.DataSet.FilterSQL <> '') then
             URI.Param['filter'] := Desktop(TSTable(FNavigator.Selected.Data)).Table.DataSet.FilterSQL;
+          if (Desktop(TSTable(FNavigator.Selected.Data)).Table.DataSet.QuickSearch <> '') then
+            URI.Param['search'] := Desktop(TSTable(FNavigator.Selected.Data)).Table.DataSet.QuickSearch;
         end;
       end
       else if (ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) then
@@ -12246,6 +12219,7 @@ begin
       URI.Param['object'] := Null;
       URI.Param['system'] := Null;
       URI.Param['filter'] := Null;
+      URI.Param['search'] := Null;
       URI.Param['offset'] := Null;
       URI.Param['file'] := Null;
       URI.Param['cp'] := Null;
@@ -12259,6 +12233,7 @@ begin
       URI.Table := '';
       URI.Param['system'] := Null;
       URI.Param['filter'] := Null;
+      URI.Param['search'] := Null;
       URI.Param['offset'] := Null;
       URI.Param['file'] := Null;
       URI.Param['cp'] := Null;
@@ -12356,6 +12331,18 @@ begin
             FFilter.Text := URI.Param['filter'];
             FFilterEnabled.Down := URI.Param['filter'] <> '';
             FFilterEnabled.Enabled := FFilterEnabled.Down;
+          end;
+          if (URI.Param['search'] = Null) then
+          begin
+            FQuickSearch.Text := '';
+            FQuickSearchEnabled.Down := False;
+            FQuickSearchEnabled.Enabled := FQuickSearchEnabled.Down;
+          end
+          else
+          begin
+            FQuickSearch.Text := URI.Param['search'];
+            FQuickSearchEnabled.Down := URI.Param['search'] <> '';
+            FQuickSearchEnabled.Enabled := FQuickSearchEnabled.Down;
           end;
         end;
       vEditor,
@@ -13879,6 +13866,7 @@ begin
     URI.Table := '';
     URI.Param['system'] := Null;
     URI.Param['filter'] := Null;
+    URI.Param['search'] := Null;
     URI.Param['offset'] := Null;
     URI.Param['objecttype'] := Null;
     URI.Param['object'] := Null;
@@ -13940,8 +13928,7 @@ begin
               List.Add(Database);
             if (not (Database is TSSystemDatabase)) then
               for I := 0 to Database.Tables.Count - 1 do
-                if (Database.Tables[I] is TSView) then
-                  List.Add(Database.Tables[I]);
+                List.Add(Database.Tables[I]);
             Result := not Session.Update(List, True);
             List.Free();
           end;

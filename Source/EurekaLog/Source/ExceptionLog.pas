@@ -17303,42 +17303,45 @@ begin
         MaxUnit := Length(CallStack[i]^.UnitName);
       if (Length(CallStack[i]^.ClassName) > MaxClass) then
         MaxClass := Length(CallStack[i]^.ClassName);
-      if (Length(CallStack[i]^.ProcedureName) > MaxProc) then
-        MaxProc := Length(CallStack[i]^.ProcedureName);
+      if ((CallStack[i]^.ClassName <> '') and (CallStack[i]^.ProcedureName <> '')) then
+        s := CallStack[i]^.ClassName + '.' + CallStack[i]^.ProcedureName
+      else if (CallStack[i]^.ClassName <> '') then
+        s := CallStack[i]^.ClassName
+      else if (CallStack[i]^.ProcedureName <> '') then
+        s := CallStack[i]^.ProcedureName
+      else
+        s := '';
+      if (Length(s) > MaxProc) then
+        MaxProc := Length(s);
       s := IntToStr(CallStack[i]^.Line);
       s := (s + '[' + IntToStr(CallStack[i]^.ProcOffsetLine) + ']');
       if (Length(s) > MaxLine) then MaxLine := Length(s);
     end;
   end;
 
-  if (Length(Options.CustomizedExpandedTexts[mtCallStack_Address]) > MaxAddress) then
-    MaxAddress := Length(Options.CustomizedExpandedTexts[mtCallStack_Address]);
   if (Length(Options.CustomizedExpandedTexts[mtCallStack_Name]) > MaxModule) then
     MaxModule := Length(Options.CustomizedExpandedTexts[mtCallStack_Name]);
   if (Length(Options.CustomizedExpandedTexts[mtCallStack_Unit]) > MaxUnit) then
     MaxUnit := Length(Options.CustomizedExpandedTexts[mtCallStack_Unit]);
-  if (Length(Options.CustomizedExpandedTexts[mtCallStack_Class]) > MaxClass) then
-    MaxClass := Length(Options.CustomizedExpandedTexts[mtCallStack_Class]);
   if (Length(Options.CustomizedExpandedTexts[mtCallStack_Procedure]) > MaxProc) then
     MaxProc := Length(Options.CustomizedExpandedTexts[mtCallStack_Procedure]);
   if (Length(Options.CustomizedExpandedTexts[mtCallStack_Line]) > MaxLine) then
     MaxLine := Length(Options.CustomizedExpandedTexts[mtCallStack_Line]);
 
-  LineLen := (MaxAddress + MaxModule + MaxUnit + MaxClass + MaxProc + MaxLine + 7);
+  LineLen := (MaxModule + MaxUnit + MaxProc + MaxLine + 5);
   SetLength(LineStr, LineLen);
   FillChar(LineStr[1], LineLen, '-');
 
   for i := 0 to (CallStack.Count - 1) do
   begin
-    if (CallStack[i]^.DebugDetail in [ddProcedure..ddSourceCode]) then
+    if ((CallStack[i]^.DebugDetail in [ddProcedure..ddSourceCode])
+      and (CallStack[i]^.Line > 0)) then
     begin
       if (Empty) then
       begin
-        s := Format('|%s|%s|%s|%s|%s|%s|',
-          [CompleteStr(Options.CustomizedExpandedTexts[mtCallStack_Address], MaxAddress),
-          CompleteStr(Options.CustomizedExpandedTexts[mtCallStack_Name], MaxModule),
+        s := Format('|%s|%s|%s|%s|',
+          [CompleteStr(Options.CustomizedExpandedTexts[mtCallStack_Name], MaxModule),
           CompleteStr(Options.CustomizedExpandedTexts[mtCallStack_Unit], MaxUnit),
-          CompleteStr(Options.CustomizedExpandedTexts[mtCallStack_Class], MaxClass),
           CompleteStr(Options.CustomizedExpandedTexts[mtCallStack_Procedure], MaxProc),
           CompleteStr(Options.CustomizedExpandedTexts[mtCallStack_Line], MaxLine)]);
         Strings.Add(LineStr);
@@ -17351,12 +17354,18 @@ begin
         l := (l + '[' + IntToStr(CallStack[i]^.ProcOffsetLine) + ']');
       end
       else l := '';
-      s := Format('|%s|%s|%s|%s|%s|%s|',
-        [IntToHex(CallStack[i]^.Addr, 8),
-        CompleteStr(ExtractFileName(CallStack[i]^.ModuleInfo^.Name), MaxModule),
+      if ((CallStack[i]^.ClassName <> '') and (CallStack[i]^.ProcedureName <> '')) then
+        s := CallStack[i]^.ClassName + '.' + CallStack[i]^.ProcedureName
+      else if (CallStack[i]^.ClassName <> '') then
+        s := CallStack[i]^.ClassName
+      else if (CallStack[i]^.ProcedureName <> '') then
+        s := CallStack[i]^.ProcedureName
+      else
+        s := '';
+      s := Format('|%s|%s|%s|%s|',
+        [CompleteStr(ExtractFileName(CallStack[i]^.ModuleInfo^.Name), MaxModule),
         CompleteStr(CallStack[i]^.UnitName, MaxUnit),
-        CompleteStr(CallStack[i]^.ClassName, MaxClass),
-        CompleteStr(CallStack[i]^.ProcedureName, MaxProc),
+        CompleteStr(s, MaxProc),
         CompleteStr(l, MaxLine)]);
       Strings.Add(s);
       Empty := False;

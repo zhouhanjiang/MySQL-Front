@@ -1420,15 +1420,6 @@ type
       constructor Create(const ASession: TSSession);
     end;
 
-    TInvalidObjects = class(TList)
-    private
-      function Get(Index: Integer): TSObject;
-    public
-      function Add(const SObject: TSObject): Integer; reintroduce;
-      procedure Delete(const SObject: TSObject); reintroduce;
-      property Objects[Index: Integer]: TSObject read Get; default;
-    end;
-
     TCreateDesktop = function (const CObject: TSObject): TSObject.TDesktop of object;
     TEventProc = procedure (const AEvent: TSSession.TEvent) of object;
     TUpdate = function (): Boolean of object;
@@ -1447,7 +1438,6 @@ type
     FEngines: TSEngines;
     FFieldTypes: TSFieldTypes;
     FInformationSchema: TSDatabase;
-    FInvalidObjects: TInvalidObjects;
     FMetadataProvider: TacEventMetadataProvider;
     FPerformanceSchema: TSDatabase;
     FPlugins: TSPlugins;
@@ -1543,7 +1533,6 @@ type
     property Engines: TSEngines read FEngines;
     property FieldTypes: TSFieldTypes read FFieldTypes;
     property InformationSchema: TSDatabase read FInformationSchema;
-    property InvalidObjects: TInvalidObjects read FInvalidObjects;
     property LowerCaseTableNames: Byte read FLowerCaseTableNames;
     property MetadataProvider: TacEventMetadataProvider read FMetadataProvider;
     property PerformanceSchema: TSDatabase read FPerformanceSchema;
@@ -1985,8 +1974,6 @@ begin
 
   FSource := Source.Source;
   FValidSource := Source.ValidSource;
-
-  Session.InvalidObjects.Delete(Self);
 end;
 
 procedure TSObject.Build(const Field: TField);
@@ -2011,8 +1998,6 @@ begin
     SQL := SQL + ';' + #13#10;
   SetSource(SQL);
 
-  Session.InvalidObjects.Delete(Self);
-
   if (Now() <= Session.ParseEndDate) then
   begin
     if (not Session.SQLParser.ParseSQL(SQL)) then
@@ -2032,14 +2017,10 @@ begin
   FValidSource := False;
 
   FDesktop := nil;
-
-  Session.InvalidObjects.Add(Self);
 end;
 
 destructor TSObject.Destroy();
 begin
-  Session.InvalidObjects.Delete(Self);
-
   if (Assigned(FDesktop)) then
     FDesktop.Free();
 
@@ -2081,8 +2062,6 @@ procedure TSObject.Invalidate();
 begin
   FSource := '';
   FValidSource := False;
-
-  Session.InvalidObjects.Add(Self);
 end;
 
 procedure TSObject.SetName(const AName: string);
@@ -4363,8 +4342,6 @@ end;
 procedure TSBaseTable.InvalidateStatus();
 begin
   FValidStatus := False;
-
-  Session.InvalidObjects.Add(Self);
 end;
 
 function TSBaseTable.PartitionByName(const PartitionName: string): TSPartition;
@@ -6745,7 +6722,8 @@ begin
           else
             raise ERangeError.Create(SRangeError);
           Trigger[Index].FName := DataSet.FieldByName('TRIGGER_NAME').AsString;
-          Trigger[Index].FDefiner := DataSet.FieldByName('DEFINER').AsString;
+          if (Session.Connection.MySQLVersion >= 50017) then
+            Trigger[Index].FDefiner := DataSet.FieldByName('DEFINER').AsString;
           Trigger[Index].FStmt := DataSet.FieldByName('ACTION_STATEMENT').AsString;
           if (RightStr(Trigger[Index].FStmt, 1) <> ';') then Trigger[Index].FStmt := Trigger[Index].FStmt + ';';
           Trigger[Index].FTableName := DataSet.FieldByName('EVENT_OBJECT_TABLE').AsString;
@@ -10559,29 +10537,6 @@ begin
   Items := nil;
 end;
 
-{ TSSession.TInvalidObjects ***************************************************}
-
-function TSSession.TInvalidObjects.Add(const SObject: TSObject): Integer;
-begin
-  Result := IndexOf(SObject);
-  if (Result < 0) then
-    Result := TList(Self).Add(SObject);
-end;
-
-procedure TSSession.TInvalidObjects.Delete(const SObject: TSObject);
-var
-  Index: Integer;
-begin
-  Index := IndexOf(SObject);
-  if (Index >= 0) then
-    TList(Self).Delete(Index);
-end;
-
-function TSSession.TInvalidObjects.Get(Index: Integer): TSObject;
-begin
-  Result := TSObject(TList(Self).Items[Index]);
-end;
-
 { TSSession *******************************************************************}
 
 function Compare(Item1, Item2: Pointer): Integer;
@@ -10867,7 +10822,6 @@ begin
   SetLength(EventProcs, 0);
   FCurrentUser := '';
   FInformationSchema := nil;
-  FInvalidObjects := TInvalidObjects.Create();
   FLowerCaseTableNames := 0;
   FMetadataProvider := TacEventMetadataProvider.Create(nil);
   FPerformanceSchema := nil;
@@ -11165,7 +11119,6 @@ begin
 
   Sessions.Delete(Sessions.IndexOf(Self));
 
-  FInvalidObjects.Free();
   FMetadataProvider.Free();
   FSyntaxProvider.Free();
   SQLParser.Free();

@@ -50,10 +50,6 @@ type
         TransactionalInt: TOffset;
         UnionList: TOffset;
       end;
-      TTokenBufferItem = record
-        Error: TError;
-        Token: TOffset;
-      end;
       TSeparatorType = (stNone, stReturnBefore, stSpaceBefore, stSpaceAfter, stReturnAfter);
       TValueAssign = (vaYes, vaNo, vaAuto);
 
@@ -583,9 +579,9 @@ type
 
         otEqual,                  // "="
         otNullSaveEqual,          // "<=>"
-        otGreaterEqual,           // ">=", "!<"
+        otGreaterEqual,           // ">="
         otGreater,                // ">"
-        otLessEqual,              // "<=", "!>"
+        otLessEqual,              // "<="
         otLess,                   // "<"
         otNotEqual,               // "!=", "<>"
         otIs,                     // "IS"
@@ -6634,7 +6630,7 @@ type
     ReservedWordList: TWordList;
     TokenBuffer: record
       Count: Integer;
-      Items: array [0 .. 50 - 1] of TTokenBufferItem;
+      Items: array [0 .. 50 - 1] of record Error: TError; Token: TOffset; end;
     end;
     {$IFDEF Debug}
     TokenIndex: Integer;
@@ -14572,35 +14568,19 @@ begin
     repeat
       Token := ParseToken(Error);
 
-      if (Token > 0) then
+      if ((Token > 0) and TokenPtr(Token)^.IsUsed) then
       begin
-        case (TokenPtr(Token)^.TokenType) of
-          ttMySQLCondStart:
-            if (AllowedMySQLVersion > 0) then
-              SetError(PE_NestedMySQLCond)
-            else if (not ErrorFound) then
-              AllowedMySQLVersion := StrToInt(TokenPtr(Token)^.AsString);
-          ttMySQLCondEnd:
-            if (AllowedMySQLVersion > 0) then
-              AllowedMySQLVersion := 0
-            else if (not ErrorFound) then
-              SetError(PE_NestedMySQLCond);
-        end;
+        {$IFDEF Debug}
+        Inc(TokenIndex);
+        {$ENDIF}
 
-        if (TokenPtr(Token)^.IsUsed) then
+        if (TokenBuffer.Count = System.Length(TokenBuffer.Items)) then
+          SetError(PE_Unknown)
+        else
         begin
-          {$IFDEF Debug}
-          Inc(TokenIndex);
-          {$ENDIF}
-
-          if (TokenBuffer.Count = System.Length(TokenBuffer.Items)) then
-            SetError(PE_Unknown)
-          else
-          begin
-            TokenBuffer.Items[TokenBuffer.Count].Token := Token;
-            TokenBuffer.Items[TokenBuffer.Count].Error := Error;
-            Inc(TokenBuffer.Count);
-          end;
+          TokenBuffer.Items[TokenBuffer.Count].Token := Token;
+          TokenBuffer.Items[TokenBuffer.Count].Error := Error;
+          Inc(TokenBuffer.Count);
         end;
       end;
     until ((Token = 0)
@@ -24551,8 +24531,8 @@ end;
 function TSQLParser.ParseToken(out Error: TError): TOffset;
 label
   TwoChars,
-  Selection, SelSpace, SelQuotedIdent, SelNotLess, SelNotEqual1, SelNotGreater,
-    SelNot1, SelDoubleQuote, SelComment, SelModulo, SelDollar, SelAmpersand2,
+  Selection, SelSpace, SelQuotedIdent,
+    SelNot, SelDoubleQuote, SelComment, SelModulo, SelDollar, SelAmpersand2,
     SelBitAND, SelSingleQuote, SelOpenBracket, SelCloseBracket, SelMySQLCondEnd,
     SelMulti, SelComma, SelDot, SelMySQLCode,
     SelDiv, SelHexODBCHigh, SelHexODBCLow, SelDigit, SelSLComment, SelExtract, SelMinus, SelPlus, SelAssign,
@@ -24596,11 +24576,13 @@ var
   ErrorCode: Integer;
   ErrorLine: Integer;
   ErrorPos: PChar;
+  InMySQLCond: Boolean;
   KeywordIndex: TWordList.TIndex;
   Length: Integer;
   Line: Integer;
   NewLines: Integer;
   OperatorType: TOperatorType;
+  S: string;
   SQL: PChar;
   TokenLength: Integer;
   TokenType: TTokenType;
@@ -24616,6 +24598,7 @@ begin
     ErrorCode := PE_Success;
     ErrorLine := ParseHandle.Line;
     ErrorPos := ParseHandle.Pos;
+    InMySQLCond := AllowedMySQLVersion > 0;
     Line := ParseHandle.Line;
     NewLines := 0;
     SQL := ParseHandle.Pos;
@@ -24656,26 +24639,8 @@ begin
       SelSpace:
         CMP AX,' '                       // <Space> ?
         JE WhiteSpace                    // Yes!
-      SelNotLess:
         CMP AX,'!'                       // "!" ?
-        JNE SelDoubleQuote               // No!
-        CMP EAX,$003C0021                // "!<" ?
-        JNE SelNotEqual1                 // No!
-        MOV OperatorType,otGreaterEqual
-        JMP DoubleChar
-      SelNotEqual1:
-        CMP EAX,$003D0021                // "!=" ?
-        JNE SelNotGreater                // No!
-        MOV OperatorType,otNotEqual
-        JMP DoubleChar
-      SelNotGreater:
-        CMP EAX,$003E0021                // "!>" ?
-        JNE SelNot1                      // No!
-        MOV OperatorType,otLessEqual
-        JMP DoubleChar
-      SelNot1:
-        MOV OperatorType,otUnaryNot
-        JMP SingleChar
+        JE UnexpectedChar                // Yes!
       SelDoubleQuote:
         CMP AX,'"'                       // Double Quote  ?
         JNE SelComment                   // No!
@@ -24720,6 +24685,8 @@ begin
       SelMySQLCondEnd:
         CMP AX,'*'                       // "*" ?
         JNE SelPlus                      // No!
+        CMP InMySQLCond,True             // Inside MySQL cond. Code?
+        JNE SelMulti                     // No!
         CMP EAX,$002F002A                // "*/" ?
         JNE SelMulti                     // No!
         MOV TokenType,ttMySQLCondEnd
@@ -25538,6 +25505,23 @@ begin
       if (KeywordIndex >= 0) then
         OperatorType := OperatorTypeByKeywordIndex[KeywordIndex];
     end;
+
+    if (ErrorCode = 0) then
+      case (TokenType) of
+        ttMySQLCondStart:
+          if (AllowedMySQLVersion = 0) then
+          begin
+            SetString(S, PChar(@SQL[3]), TokenLength - 3);
+            AllowedMySQLVersion := StrToInt(S);
+          end
+          else
+            ErrorCode := PE_NestedMySQLCond;
+        ttMySQLCondEnd:
+          if (AllowedMySQLVersion > 0) then
+            AllowedMySQLVersion := 0
+          else
+            ErrorCode := PE_UnexpectedToken;
+      end;
 
     IsUsed := not (TokenType in [ttSpace, ttReturn, ttSLComment, ttMLComment, ttMySQLCondStart, ttMySQLCondEnd])
       and ((AllowedMySQLVersion = 0) or (MySQLVersion >= AllowedMySQLVersion));
@@ -26676,7 +26660,7 @@ var
   J: Integer;
   KeywordIndices: TWordList.TIndices;
   TokenCount: Integer;
-  MaxTokenCount: Integer;
+  FoundTokenCount: Integer;
 begin
   Assert(not ErrorFound and ((AErrorCode <> PE_IncompleteStmt) or (Node = 0)));
 
@@ -26704,18 +26688,19 @@ begin
       else
         KeywordIndices[I] := - 1;
 
-    MaxTokenCount := 0;
+    FoundTokenCount := 0;
     for I := 0 to CompletionList.Count - 1 do
       for J := 0 to TokenCount - 1 do
-        if (KeywordIndices[J] = CompletionList[I]^.KeywordIndices[J]) then
-          if (J + 1 > MaxTokenCount) then
-            MaxTokenCount := J + 1;
+        if (KeywordIndices[J] <> CompletionList[I]^.KeywordIndices[J]) then
+          break
+        else if (J + 1 > FoundTokenCount) then
+          FoundTokenCount := J + 1;
 
     for I := CompletionList.Count - 1 downto 0 do
       if (CompletionList[I]^.ItemType = itTag) then
       begin
         Found := True;
-        for J := 0 to MaxTokenCount - 1 do
+        for J := 0 to FoundTokenCount - 1 do
           if ((CompletionList[I]^.KeywordIndices[J] <> KeywordIndices[J])) then
             Found := False;
         if (not Found) then
@@ -26729,21 +26714,21 @@ begin
         begin
           Found := True;
 
-          if (MaxTokenCount > 0) then
+          if (FoundTokenCount > 0) then
           begin
-            Move(CompletionList[J]^.KeywordIndices[MaxTokenCount], CompletionList[J]^.KeywordIndices[0], (Length(CompletionList[J]^.KeywordIndices) - MaxTokenCount) * SizeOf(CompletionList[J]^.KeywordIndices[0]));
-            Move(EmptyIndices, CompletionList[J]^.KeywordIndices[Length(CompletionList[J]^.KeywordIndices) - MaxTokenCount], MaxTokenCount * SizeOf(CompletionList[J]^.KeywordIndices[0]));
+            Move(CompletionList[J]^.KeywordIndices[FoundTokenCount], CompletionList[J]^.KeywordIndices[0], (Length(CompletionList[J]^.KeywordIndices) - FoundTokenCount) * SizeOf(CompletionList[J]^.KeywordIndices[0]));
+            Move(EmptyIndices, CompletionList[J]^.KeywordIndices[Length(CompletionList[J]^.KeywordIndices) - FoundTokenCount], FoundTokenCount * SizeOf(CompletionList[J]^.KeywordIndices[0]));
           end;
         end;
 
     if (Found) then
-      if (EndOfStmt(NextToken[MaxTokenCount])) then
+      if (EndOfStmt(NextToken[FoundTokenCount])) then
       begin
         Error.Code := PE_IncompleteStmt;
         Error.Token := 0;
       end
       else
-        Error.Token := NextToken[MaxTokenCount];
+        Error.Token := NextToken[FoundTokenCount];
   end;
 
   if (Error.Code = PE_InvalidMySQLCond) then

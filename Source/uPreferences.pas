@@ -545,6 +545,7 @@ type
   private
     DesktopXMLDocument: IXMLDocument;
     FAccounts: TPAccounts;
+    FConnection: TConnection;
     FDesktop: TDesktop;
     FHistoryXMLDocument: IXMLDocument;
     FLastLogin: TDateTime;
@@ -572,7 +573,6 @@ type
     property HistoryXMLDocument: IXMLDocument read FHistoryXMLDocument;
     property XML: IXMLNode read FXML;
   public
-    Connection: TConnection;
     ManualURL: string;
     ManualURLVersion: string;
     procedure Assign(const Source: TPAccount); virtual;
@@ -585,6 +585,7 @@ type
     procedure RegisterTab(const AControl: Pointer; const AEventProc: TEventProc); virtual;
     procedure UnRegisterTab(const AControl: Pointer); virtual;
     property Accounts: TPAccounts read FAccounts;
+    property Connection: TConnection read FConnection;
     property DataPath: TFileName read GetDataPath;
     property Desktop: TDesktop read FDesktop;
     property DesktopCount: Integer read GetTabCount;
@@ -2962,8 +2963,8 @@ begin
   Modified := True;
 
   Connection.Assign(Source.Connection);
-  if (Assigned(FDesktop) and Assigned(Source.FDesktop)) then
-    FDesktop.Assign(Source.FDesktop);
+  if (Assigned(Desktop) and Assigned(Source.Desktop)) then
+    Desktop.Assign(Source.Desktop);
 end;
 
 constructor TPAccount.Create(const AAccounts: TPAccounts; const AXML: IXMLNode = nil);
@@ -2979,9 +2980,12 @@ begin
   ManualURLVersion := '';
   Modified := False;
 
-  Connection := TConnection.Create();
+  FConnection := TConnection.Create();
 
   FDesktop := TDesktop.Create(Self);
+  // Debug 2016-12-05
+  if (not Assigned(FDesktop)) then
+    raise ERangeError.Create(SRangeError);
 
   if (not FileExists(DesktopFilename)) then
     DesktopXMLDocument := nil
@@ -3036,7 +3040,7 @@ end;
 destructor TPAccount.Destroy();
 begin
   if (Assigned(FDesktop)) then FDesktop.Free();
-  Connection.Free();
+  FConnection.Free();
 
   inherited;
 end;
@@ -3097,44 +3101,41 @@ var
 begin
   Result := '';
 
-  if (Assigned(FDesktop)) then
+  URI := TUURI.Create(Desktop.Address);
+
+  if (ValidDatabaseName(URI.Database)) then
   begin
-    URI := TUURI.Create(FDesktop.Address);
+    Result := URI.Database;
 
-    if (ValidDatabaseName(URI.Database)) then
-    begin
-      Result := URI.Database;
-
-      if (Connection.Database <> '') then
-      begin
-        SetLength(DatabaseNames, 0);
-        CSVSplitValues(Connection.Database, ',', '"', DatabaseNames);
-
-        Found := False;
-        for I := 0 to Length(DatabaseNames) - 1 do
-          if (lstrcmpi(PChar(DatabaseNames[I]), PChar(Result)) = 0) then
-            Found := True;
-        if (not Found) then
-          Result := '';
-
-        SetLength(DatabaseNames, 0);
-      end;
-    end;
-
-    URI.Free();
-
-    if (Result = '') then
+    if (Connection.Database <> '') then
     begin
       SetLength(DatabaseNames, 0);
       CSVSplitValues(Connection.Database, ',', '"', DatabaseNames);
 
-      if (Length(DatabaseNames) = 0) then
-        Result := ''
-      else
-        Result := DatabaseNames[0];
+      Found := False;
+      for I := 0 to Length(DatabaseNames) - 1 do
+        if (lstrcmpi(PChar(DatabaseNames[I]), PChar(Result)) = 0) then
+          Found := True;
+      if (not Found) then
+        Result := '';
 
       SetLength(DatabaseNames, 0);
     end;
+  end;
+
+  URI.Free();
+
+  if (Result = '') then
+  begin
+    SetLength(DatabaseNames, 0);
+    CSVSplitValues(Connection.Database, ',', '"', DatabaseNames);
+
+    if (Length(DatabaseNames) = 0) then
+      Result := ''
+    else
+      Result := DatabaseNames[0];
+
+    SetLength(DatabaseNames, 0);
   end;
 end;
 
@@ -3217,8 +3218,8 @@ begin
     Modified := False;
 
     if (Assigned(XMLNode(XML, 'connection'))) then Connection.LoadFromXML(XMLNode(XML, 'connection'));
-    if (Assigned(FDesktop) and Assigned(DesktopXMLDocument.DocumentElement)) then
-      FDesktop.LoadFromXML(DesktopXMLDocument.DocumentElement); // Desktop must be loaded to use ExpandAddress correctly
+    if (Assigned(DesktopXMLDocument.DocumentElement)) then
+      Desktop.LoadFromXML(DesktopXMLDocument.DocumentElement); // Desktop must be loaded to use ExpandAddress correctly
   end;
 end;
 
@@ -3241,8 +3242,7 @@ begin
 
     Connection.SaveToXML(XMLNode(XML, 'connection', True));
 
-    if (Assigned(FDesktop)) then
-      FDesktop.SaveToXML(DesktopXMLDocument.DocumentElement);
+    Desktop.SaveToXML(DesktopXMLDocument.DocumentElement);
 
     if (ForceDirectories(DataPath)) then
     begin

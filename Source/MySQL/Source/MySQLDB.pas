@@ -417,6 +417,7 @@ type
     TCommandType = (ctQuery, ctTable);
     PRecordBufferData = ^TRecordBufferData;
     TRecordBufferData = packed record
+      Identifier: Integer; // Debug 2016-12-05
       LibLengths: MYSQL_LENGTHS;
       LibRow: MYSQL_ROW;
     end;
@@ -4729,13 +4730,14 @@ end;
 function TMySQLQuery.AllocRecordBuffer(): TRecordBuffer;
 begin
   try
-    New(PRecordBufferData(Result));
+    GetMem(Result, SizeOf(PRecordBufferData(Result)^));
   except
     Result := nil;
   end;
 
   if (Assigned(Result)) then
   begin
+    PRecordBufferData(Result)^.Identifier := 123456;
     PRecordBufferData(Result)^.LibLengths := nil;
     PRecordBufferData(Result)^.LibRow := nil;
 
@@ -4833,7 +4835,7 @@ end;
 
 procedure TMySQLQuery.FreeRecordBuffer(var Buffer: TRecordBuffer);
 begin
-  Dispose(Buffer); Buffer := nil;
+  FreeMem(Buffer); Buffer := nil;
 end;
 
 function TMySQLQuery.GetCanModify(): Boolean;
@@ -5823,11 +5825,13 @@ end;
 
 function TMySQLDataSet.GetLibRow(): MYSQL_ROW;
 begin
-  // Debug 2016-11-23
+  // Debug 2016-12-05
   if (not Active) then
   else if (not Assigned(ActiveBuffer())) then
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
-  else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then ;
+  else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
+  else if (not (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier = 123456)) then
+    raise ERangeError.Create(SRangeError);
 
   if (not Active
     or not Assigned(ActiveBuffer())
