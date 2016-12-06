@@ -503,6 +503,7 @@ type
     end;
     PExternRecordBuffer = ^TExternRecordBuffer;
     TExternRecordBuffer = record
+      Identifier: Integer; // Debug 2016-12-06
       InternRecordBuffer: PInternRecordBuffer;
       Index: Integer;
       BookmarkFlag: TBookmarkFlag;
@@ -5612,8 +5613,9 @@ end;
 function TMySQLDataSet.AllocRecordBuffer(): TRecordBuffer;
 begin
   try
-    New(PExternRecordBuffer(Result));
+    GetMem(PExternRecordBuffer(Result), SizeOf(TExternRecordBuffer));
 
+    PExternRecordBuffer(Result)^.Identifier := 654321;
     PExternRecordBuffer(Result)^.InternRecordBuffer := nil;
     PExternRecordBuffer(Result)^.Index := -1;
     PExternRecordBuffer(Result)^.BookmarkFlag := bfInserted;
@@ -5802,7 +5804,7 @@ end;
 
 procedure TMySQLDataSet.FreeRecordBuffer(var Buffer: TRecordBuffer);
 begin
-  Dispose(Buffer); Buffer := nil;
+  FreeMem(Buffer); Buffer := nil;
 end;
 
 procedure TMySQLDataSet.GetBookmarkData(Buffer: TRecordBuffer; Data: Pointer);
@@ -5846,8 +5848,13 @@ begin
   // Debug 2016-12-05
   if (not Active) then
   else if (not Assigned(ActiveBuffer())) then
+    raise ERangeError.Create(SRangeError)
+  else if (not PExternRecordBuffer(ActiveBuffer())^.Identifier = 654321) then
+    raise ERangeError.Create(SRangeError)
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
+    raise ERangeError.Create(SRangeError)
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
+    raise ERangeError.Create(SRangeError)
   else if (not (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier = 123456)) then
     raise ERangeError.Create(SRangeError);
 
@@ -6615,6 +6622,7 @@ begin
 
   GetMem(NewData, MemSize);
 
+  NewData^.Identifier := 123456;
   NewData^.LibLengths := Pointer(@PAnsiChar(NewData)[SizeOf(NewData^)]);
   NewData^.LibRow := Pointer(@PAnsiChar(NewData)[SizeOf(NewData^) + FieldCount * SizeOf(NewData^.LibLengths^[0])]);
 
