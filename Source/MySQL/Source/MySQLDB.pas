@@ -5848,13 +5848,10 @@ begin
   // Debug 2016-12-05
   if (not Active) then
   else if (not Assigned(ActiveBuffer())) then
-    raise ERangeError.Create(SRangeError)
   else if (not PExternRecordBuffer(ActiveBuffer())^.Identifier = 654321) then
     raise ERangeError.Create(SRangeError)
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
-    raise ERangeError.Create(SRangeError)
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
-    raise ERangeError.Create(SRangeError)
   else if (not (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier = 123456)) then
     raise ERangeError.Create(SRangeError);
 

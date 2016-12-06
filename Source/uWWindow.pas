@@ -1191,15 +1191,12 @@ end;
 procedure TWWindow.FormShow(Sender: TObject);
 begin
   if ((((Preferences.UpdateCheck = utDaily) and (Trunc(Preferences.UpdateChecked) < Date())) or (Preferences.ObsoleteVersion >= Preferences.Version)) and IsConnectedToInternet()) then
-  {$MESSAGE 'Nils'}
-//if (MessageBox(Handle, 'Check Online Update?', 'Debug', MB_YESNOCANCEL or MB_ICONQUESTION) = IDYES) then
   begin
     CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
     CheckOnlineVersionThread.OnTerminate := OnlineVersionChecked;
     CheckOnlineVersionThread.Start();
   end;
 
-  {$MESSAGE 'Nils'}
   PostMessage(Handle, UM_ADDTAB, 0, 0);
 end;
 
@@ -1874,8 +1871,6 @@ begin
   CheckOnlineVersionThread.WaitFor();
   CheckOnlineVersionThread.Free();
   CheckOnlineVersionThread := nil;
-  {$MESSAGE 'Nils'}
-//  MessageBox(Handle, 'Online Update Check completed!', 'Debug', MB_OK + MB_ICONINFORMATION);
 end;
 
 procedure TWWindow.UMUpdateToolbar(var Message: TMessage);

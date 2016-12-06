@@ -328,7 +328,9 @@ begin
   begin
     Preferences.UpdateChecked := Now();
 
+    CoInitialize(nil);
     CheckOnlineVersion(PADFileStream, VersionStr, SetupProgramURI);
+    CoUninitialize();
   end;
 end;
 
