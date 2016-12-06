@@ -6604,12 +6604,12 @@ type
     Error: TError;
     FAnsiQuotes: Boolean;
     FCompletionList: TCompletionList;
+    FFunctionList: TWordList;
     FInCompound: Integer;
     FInPL_SQL: Integer;
     FirstError: TError;
     FMySQLVersion: Integer;
     FRoot: TOffset;
-    FunctionList: TWordList;
     KeywordList: TWordList;
     Nodes: record
       Mem: PAnsiChar;
@@ -6617,7 +6617,7 @@ type
       MemSize: Integer;
     end;
     OperatorTypeByKeywordIndex: array of TOperatorType;
-    ParseHandle: record
+    Parse: record
       InCreateEventStmt: Boolean;
       InCreateFunctionStmt: Boolean;
       InCreateProcedureStmt: Boolean;
@@ -6742,7 +6742,6 @@ type
     function GetErrorPos(): Integer;
     function GetFirstStmt(): PStmt;
     function GetFirstTokenAll(): PToken;
-    function GetFunctions(): string;
     function GetKeywords(): string;
     function GetNextToken(Index: Integer): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function GetInCompound(): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
@@ -7027,7 +7026,6 @@ type
     procedure SetCharsets(ACharsets: string);
     procedure SetDatatypes(ADatatypes: string);
     procedure SetError(const AErrorCode: Byte; const Node: TOffset = 0);
-    procedure SetFunctions(AFunctions: string);
     procedure SetKeywords(AKeywords: string);
     procedure SetReservedWords(AReservedWords: string);
     property ErrorFound: Boolean read GetErrorFound;
@@ -7082,7 +7080,7 @@ type
     property ErrorPos: Integer read GetErrorPos;
     property FirstStmt: PStmt read GetFirstStmt;
     property FirstTokenAll: PToken read GetFirstTokenAll;
-    property Functions: string read GetFunctions write SetFunctions;
+    property FunctionList: TWordList read FFunctionList;
     property Keywords: string read GetKeywords write SetKeywords;
     property MySQLVersion: Integer read FMySQLVersion;
   end;
@@ -8090,7 +8088,7 @@ begin
   if (Parser.IsToken(Offset)) then
     Result := Parser.TokenPtr(Offset)^.Text
   else if (NodeType = ntRoot) then
-    Result := Parser.ParseHandle.SQL
+    Result := Parser.Parse.SQL
   else
     TSQLParser.PRange(@Self)^.Text;
 end;
@@ -8315,7 +8313,7 @@ end;
 
 function TSQLParser.TToken.GetPos(): Integer;
 begin
-  Result := Integer(FText - PChar(Parser.ParseHandle.SQL));
+  Result := Integer(FText - PChar(Parser.Parse.SQL));
 end;
 
 function TSQLParser.TToken.GetText(): string;
@@ -11842,14 +11840,14 @@ begin
     ReallocMem(Nodes.Mem, Nodes.MemSize);
   end;
   Nodes.UsedSize := 1; // "0" means "not assigned", so we start with "1"
-  ParseHandle.InCreateEventStmt := False;
-  ParseHandle.InCreateFunctionStmt := False;
-  ParseHandle.InCreateProcedureStmt := False;
-  ParseHandle.InCreateTriggerStmt := False;
-  ParseHandle.Length := 0;
-  ParseHandle.Line := 0;
-  ParseHandle.Pos := nil;
-  ParseHandle.SQL := '';
+  Parse.InCreateEventStmt := False;
+  Parse.InCreateFunctionStmt := False;
+  Parse.InCreateProcedureStmt := False;
+  Parse.InCreateTriggerStmt := False;
+  Parse.Length := 0;
+  Parse.Line := 0;
+  Parse.Pos := nil;
+  Parse.SQL := '';
   FRoot := 0;
   TokenBuffer.Count := 0;
   {$IFDEF Debug}
@@ -11866,7 +11864,7 @@ begin
   Commands := nil;
   FCompletionList := TCompletionList.Create(Self);
   DatatypeList := TWordList.Create(Self);
-  FunctionList := TWordList.Create(Self);
+  FFunctionList := TWordList.Create(Self);
   KeywordList := TWordList.Create(Self);
   FMySQLVersion := AMySQLVersion;
   Nodes.Mem := nil;
@@ -11878,7 +11876,7 @@ begin
 
   Charsets := MySQLCharsets;
   Datatypes := MySQLDatatypes;
-  Functions := MySQLFunctions;
+  FunctionList.Text := MySQLFunctions;
   Keywords := MySQLKeywords;
   ReservedWords := MySQLReservedWords;
 
@@ -11968,7 +11966,7 @@ begin
   CharsetList.Free();
   FCompletionList.Free();
   DatatypeList.Free();
-  FunctionList.Free();
+  FFunctionList.Free();
   KeywordList.Free();
   ReservedWordList.Free();
 
@@ -14470,7 +14468,7 @@ end;
 
 function TSQLParser.GetErrorPos(): Integer;
 begin
-  Result := FirstError.Pos - @ParseHandle.SQL[1];
+  Result := FirstError.Pos - @Parse.SQL[1];
 end;
 
 function TSQLParser.GetFirstStmt(): PStmt;
@@ -14487,11 +14485,6 @@ begin
     Result := nil
   else
     Result := Root^.FirstTokenAll;
-end;
-
-function TSQLParser.GetFunctions(): string;
-begin
-  Result := FunctionList.Text;
 end;
 
 function TSQLParser.GetInCompound(): Boolean;
@@ -14800,20 +14793,20 @@ begin
         else if ((BytesRead >= DWord(Length(BOM_UTF8))) and (CompareMem(Mem, BOM_UTF8, StrLen(BOM_UTF8)))) then
         begin
           Len := MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, @Mem[Length(BOM_UTF8)], BytesRead - DWord(Length(BOM_UTF8)), nil, 0);
-          SetLength(ParseHandle.SQL, Len);
-          MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, @Mem[Length(BOM_UTF8)], BytesRead - DWord(Length(BOM_UTF8)), @ParseHandle.SQL[1], Len);
+          SetLength(Parse.SQL, Len);
+          MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, @Mem[Length(BOM_UTF8)], BytesRead - DWord(Length(BOM_UTF8)), @Parse.SQL[1], Len);
         end
         else if ((BytesRead >= DWord(Length(BOM_UNICODE_LE))) and (CompareMem(Mem, BOM_UNICODE_LE, StrLen(BOM_UNICODE_LE)))) then
         begin
           Len := (BytesRead - DWord(Length(BOM_UNICODE_LE))) div SizeOf(WideChar);
-          SetLength(ParseHandle.SQL, Len);
-          MoveMemory(PChar(ParseHandle.SQL), @Mem[Length(BOM_UNICODE_LE)], Len * SizeOf(WideChar));
+          SetLength(Parse.SQL, Len);
+          MoveMemory(PChar(Parse.SQL), @Mem[Length(BOM_UNICODE_LE)], Len * SizeOf(WideChar));
         end
         else
         begin
           Len := MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS, Mem, BytesRead, nil, 0);
-          SetLength(ParseHandle.SQL, Len);
-          MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS, Mem, BytesRead, PChar(ParseHandle.SQL), Length(ParseHandle.SQL));
+          SetLength(Parse.SQL, Len);
+          MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS, Mem, BytesRead, PChar(Parse.SQL), Length(Parse.SQL));
         end;
 
         FreeMem(Mem);
@@ -16675,11 +16668,11 @@ begin
 
   if (not ErrorFound) then
   begin
-    ParseHandle.InCreateEventStmt := True;
+    Parse.InCreateEventStmt := True;
     Nodes.Stmt := ParsePL_SQLStmt();
     if (not ErrorFound and (Nodes.Stmt = 0)) then
       SetError(PE_IncompleteStmt);
-    ParseHandle.InCreateEventStmt := False;
+    Parse.InCreateEventStmt := False;
   end;
 
   Result := TCreateEventStmt.Create(Self, Nodes);
@@ -16806,13 +16799,13 @@ begin
 
   if (not ErrorFound) then
   begin
-    ParseHandle.InCreateProcedureStmt := ARoutineType = rtProcedure;
-    ParseHandle.InCreateFunctionStmt := ARoutineType = rtFunction;
+    Parse.InCreateProcedureStmt := ARoutineType = rtProcedure;
+    Parse.InCreateFunctionStmt := ARoutineType = rtFunction;
     Nodes.Stmt := ParsePL_SQLStmt();
     if (not ErrorFound and (Nodes.Stmt = 0)) then
       SetError(PE_IncompleteStmt);
-    ParseHandle.InCreateFunctionStmt := False;
-    ParseHandle.InCreateProcedureStmt := False;
+    Parse.InCreateFunctionStmt := False;
+    Parse.InCreateProcedureStmt := False;
   end;
 
   Result := TCreateRoutineStmt.Create(Self, ARoutineType, Nodes);
@@ -17017,16 +17010,16 @@ begin
   else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0)
     and IsTag(kiDATABASE)) then
     Result := ParseCreateDatabaseStmt(CreateTag, OrReplaceTag)
-  else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0) and not (ParseHandle.InCreateEventStmt or ParseHandle.InCreateFunctionStmt or ParseHandle.InCreateProcedureStmt or ParseHandle.InCreateTriggerStmt)
+  else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0) and not (Parse.InCreateEventStmt or Parse.InCreateFunctionStmt or Parse.InCreateProcedureStmt or Parse.InCreateTriggerStmt)
     and IsTag(kiEVENT)) then
     Result := ParseCreateEventStmt(CreateTag, OrReplaceTag, DefinerValue)
-  else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0) and not (ParseHandle.InCreateEventStmt or ParseHandle.InCreateFunctionStmt or ParseHandle.InCreateProcedureStmt or ParseHandle.InCreateTriggerStmt)
+  else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0) and not (Parse.InCreateEventStmt or Parse.InCreateFunctionStmt or Parse.InCreateProcedureStmt or Parse.InCreateTriggerStmt)
     and IsTag(kiFUNCTION)) then
     Result := ParseCreateRoutineStmt(rtFunction, CreateTag, OrReplaceTag, DefinerValue)
   else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0)
     and IsTag(kiINDEX)) then
     Result := ParseCreateIndexStmt(CreateTag, OrReplaceTag, KindTag)
-  else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0) and not (ParseHandle.InCreateEventStmt or ParseHandle.InCreateFunctionStmt or ParseHandle.InCreateProcedureStmt or ParseHandle.InCreateTriggerStmt)
+  else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0) and not (Parse.InCreateEventStmt or Parse.InCreateFunctionStmt or Parse.InCreateProcedureStmt or Parse.InCreateTriggerStmt)
     and IsTag(kiPROCEDURE)) then
     Result := ParseCreateRoutineStmt(rtProcedure, CreateTag, OrReplaceTag, DefinerValue)
   else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0)
@@ -17041,7 +17034,7 @@ begin
   else if ((OrReplaceTag = 0) and (AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0)
     and IsTag(kiTABLESPACE)) then
     Result := ParseCreateTablespaceStmt(CreateTag)
-  else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0) and not (ParseHandle.InCreateEventStmt or ParseHandle.InCreateFunctionStmt or ParseHandle.InCreateProcedureStmt or ParseHandle.InCreateTriggerStmt)
+  else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0) and not (Parse.InCreateEventStmt or Parse.InCreateFunctionStmt or Parse.InCreateProcedureStmt or Parse.InCreateTriggerStmt)
     and IsTag(kiTRIGGER)) then
     Result := ParseCreateTriggerStmt(CreateTag, OrReplaceTag, DefinerValue)
   else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0)
@@ -18045,9 +18038,9 @@ begin
 
   if (not ErrorFound) then
   begin
-    ParseHandle.InCreateTriggerStmt := True;
+    Parse.InCreateTriggerStmt := True;
     Nodes.Stmt := ParsePL_SQLStmt();
-    ParseHandle.InCreateTriggerStmt := False;
+    Parse.InCreateTriggerStmt := False;
   end;
 
   Result := TCreateTriggerStmt.Create(Self, Nodes);
@@ -18560,7 +18553,7 @@ begin
 
   Result := TDbIdent.Create(Self, DbIdentType, Nodes);
 
-  if (ParseHandle.InCreateTriggerStmt and (Nodes.DatabaseIdent = 0) and IsToken(Nodes.TableIdent) and ((TokenPtr(Nodes.TableIdent)^.KeywordIndex = kiNEW) or (TokenPtr(Nodes.TableIdent)^.KeywordIndex = kiOLD))) then
+  if (Parse.InCreateTriggerStmt and (Nodes.DatabaseIdent = 0) and IsToken(Nodes.TableIdent) and ((TokenPtr(Nodes.TableIdent)^.KeywordIndex = kiNEW) or (TokenPtr(Nodes.TableIdent)^.KeywordIndex = kiOLD))) then
     PDbIdent(NodePtr(Result))^.FDbTableType := ditTriggerRec;
 end;
 
@@ -21561,7 +21554,7 @@ function TSQLParser.ParseReturnStmt(): TOffset;
 var
   Nodes: TReturnStmt.TNodes;
 begin
-  Assert(ParseHandle.InCreateFunctionStmt);
+  Assert(Parse.InCreateFunctionStmt);
 
   FillChar(Nodes, SizeOf(Nodes), 0);
 
@@ -21622,11 +21615,11 @@ begin
     ttStrings := [ttIdent, ttString];
   end;
 
-  ParseHandle.Pos := PChar(ParseHandle.SQL);
-  ParseHandle.Length := Length(ParseHandle.SQL);
-  ParseHandle.Line := 1;
+  Parse.Pos := PChar(Parse.SQL);
+  Parse.Length := Length(Parse.SQL);
+  Parse.Line := 1;
 
-  if (ParseHandle.Length = 0) then
+  if (Parse.Length = 0) then
     FirstTokenAll := 0
   else
     FirstTokenAll := Nodes.UsedSize;
@@ -22635,9 +22628,9 @@ begin
       Nodes.ScopeTag := ParseTag(kiSESSION);
 
   if (not ErrorFound) then
-    if (ParseHandle.InCreateTriggerStmt
+    if (Parse.InCreateTriggerStmt
       and (IsTag(kiNEW) or IsTag(kiOLD))) then
-      Nodes.VariableIdent := ParseFieldIdent()
+      Nodes.VariableIdent := ParseDbIdent(ditField)
     else
       Nodes.VariableIdent := ParseVariableIdent();
 
@@ -23662,7 +23655,7 @@ function TSQLParser.ParseSQL(const SQL: PChar; const Length: Integer; const UseC
 begin
   Clear();
 
-  SetString(ParseHandle.SQL, SQL, Length);
+  SetString(Parse.SQL, SQL, Length);
   CompletionList.SetActive(UseCompletionList);
 
   try
@@ -23881,7 +23874,7 @@ begin
     Result := ParseResetStmt()
   else if (IsTag(kiRESIGNAL)) then
     Result := ParseSignalStmt()
-  else if (InPL_SQL and ParseHandle.InCreateFunctionStmt and IsTag(kiRETURN)) then
+  else if (InPL_SQL and Parse.InCreateFunctionStmt and IsTag(kiRETURN)) then
     Result := ParseReturnStmt()
   else if (IsTag(kiREVOKE)) then
     Result := ParseRevokeStmt()
@@ -24534,16 +24527,16 @@ label
   Selection, SelSpace, SelQuotedIdent,
     SelNot, SelDoubleQuote, SelComment, SelModulo, SelDollar, SelAmpersand2,
     SelBitAND, SelSingleQuote, SelOpenBracket, SelCloseBracket, SelMySQLCondEnd,
-    SelMulti, SelComma, SelDot, SelMySQLCode,
-    SelDiv, SelHexODBCHigh, SelHexODBCLow, SelDigit, SelSLComment, SelExtract, SelMinus, SelPlus, SelAssign,
+    SelMulti, SelComma, SelDot, SelDot2, SelMySQLCode, SelDiv, SelHexODBCHigh,
+    SelHexODBCLow, SelDigit, SelSLComment, SelExtract, SelMinus, SelPlus, SelAssign,
     SelColon, SelDelimiter, SelNULLSaveEqual, SelLessEqual, SelShiftLeft,
     SelNotEqual2, SelLess, SelEqual, SelGreaterEqual, SelShiftRight, SelGreater,
-    SelAt, SelQuestionMark, SelBitLiteral, SelNatStringHigh, SelNatStringLow, SelHexLiteral,
-    SelAnsiQuoteLiterals, SelAnsiBitLiteral, SelAnsiNatStringHigh, SelAnsiNatStringLow, SelAnsiHexLiteral,
-    SelIdent,
-    SelOpenSquareBracket, SelCloseSquareBracket, SelHat, SelUnderscore, SelMySQLIdent,
-    SelUnquotedIdentLower, SelOpenCurlyBracket, SelPipe,
-    SelBitOR, SelCloseCurlyBracket, SelTilde, SelE,
+    SelAt, SelQuestionMark, SelBitLiteral, SelNatStringHigh, SelNatStringLow,
+    SelHexLiteral, SelAnsiQuoteLiterals, SelAnsiBitLiteral, SelAnsiNatStringHigh,
+    SelAnsiNatStringLow, SelAnsiHexLiteral, SelIdent, SelOpenSquareBracket,
+    SelCloseSquareBracket, SelHat, SelUnderscore, SelMySQLIdent,
+    SelUnquotedIdentLower, SelOpenCurlyBracket, SelPipe, SelBitOR,
+    SelCloseCurlyBracket, SelTilde, SelE,
   SLComment, SLCommentL,
   MLComment, MLCommentL, MLCommentLSingle, MLCommentLNLDouble, MLCommentLNLSingle, MLCommentLE,
   Ident, IdentL, IdentL2, IdentLE, IdentCharset, IdentCharsetL, IdentCharsetLE,
@@ -24588,21 +24581,21 @@ var
   TokenType: TTokenType;
   IsUsed: Boolean;
 begin
-  if (ParseHandle.Length = 0) then
+  if (Parse.Length = 0) then
     Result := 0
   else
   begin
     AnsiQuotes := Self.AnsiQuotes;
-    TokenType := ttUnknown;
-    OperatorType := otNone;
     ErrorCode := PE_Success;
-    ErrorLine := ParseHandle.Line;
-    ErrorPos := ParseHandle.Pos;
+    ErrorLine := Parse.Line;
+    ErrorPos := Parse.Pos;
     InMySQLCond := AllowedMySQLVersion > 0;
-    Line := ParseHandle.Line;
+    Length := Parse.Length;
+    Line := Parse.Line;
     NewLines := 0;
-    SQL := ParseHandle.Pos;
-    Length := ParseHandle.Length;
+    OperatorType := otNone;
+    SQL := Parse.Pos;
+    TokenType := ttUnknown;
 
     asm
         PUSH ES
@@ -24733,6 +24726,14 @@ begin
       SelDot:
         CMP AX,'.'                       // "." ?
         JNE SelMySQLCode                 // No!
+//        CMP PreviousTokenIsIdent,True    // PreviousToken was Ident?
+//        JE SelDot2                       // Yes!
+//        CMP EAX,$0030002E                // ".0"?
+//        JB SelDot2                       // No, before!
+//        CMP EAX,$0039002E                // ".9"?
+//        JA SelDot2                       // No, after!
+//        JMP Numeric
+//      SelDot2:
         MOV TokenType,ttDot
         MOV OperatorType,otDot
         JMP SingleChar
@@ -25533,9 +25534,9 @@ begin
     Error.Pos := ErrorPos;
     Error.Token := Result;
 
-    ParseHandle.Pos := @ParseHandle.Pos[TokenLength];
-    Dec(ParseHandle.Length, TokenLength);
-    Inc(ParseHandle.Line, NewLines);
+    Parse.Length := Parse.Length - TokenLength;
+    Parse.Line := Parse.Line + NewLines;
+    Parse.Pos := @Parse.Pos[TokenLength];
   end;
 end;
 
@@ -26732,7 +26733,7 @@ begin
   end;
 
   if (Error.Code = PE_InvalidMySQLCond) then
-    Error.Line := ParseHandle.Line
+    Error.Line := Parse.Line
   else
     for I := 0 to TokenBuffer.Count - 1 do
       if (Error.Token = TokenBuffer.Items[I].Token) then
@@ -26743,11 +26744,6 @@ begin
 
   if (FirstError.Code = PE_Success) then
     FirstError := Error;
-end;
-
-procedure TSQLParser.SetFunctions(AFunctions: string);
-begin
-  FunctionList.Text := AFunctions;
 end;
 
 procedure TSQLParser.SetKeywords(AKeywords: string);

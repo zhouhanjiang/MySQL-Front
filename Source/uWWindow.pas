@@ -667,10 +667,7 @@ procedure TWWindow.ApplicationException(Sender: TObject; E: Exception);
 begin
   if (E.Message <> SRecordChanged) then
   begin
-    DisableApplicationActivate := True;
-
     {$IFNDEF EurekaLog}
-{$Message 'Nils'}
     if ((OnlineProgramVersion < 0) and IsConnectedToInternet()) then
       if (Assigned(CheckOnlineVersionThread)) then
         CheckOnlineVersionThread.WaitFor()
@@ -688,8 +685,6 @@ begin
       InformOnlineUpdateFound();
     if (Preferences.ObsoleteVersion < Preferences.Version) then
       Preferences.ObsoleteVersion := Preferences.Version;
-
-    DisableApplicationActivate := False;
   end;
 end;
 
@@ -1015,7 +1010,6 @@ begin
   try Accounts.Save(); except end;
   try Preferences.Save(); except end;
 
-{$Message 'Nils'}
   if ((OnlineProgramVersion < 0) and IsConnectedToInternet()) then
     if (Assigned(CheckOnlineVersionThread)) then
       CheckOnlineVersionThread.WaitFor()
@@ -1048,14 +1042,6 @@ begin
 
     if (Assigned(ActiveTab)) then
     begin
-      if (EditorCommandText <> '') then
-      begin
-        Report := Report + #13#10;
-        Report := Report + 'EditorCommandText:' + #13#10;
-        Report := Report + StringOfChar('-', Length(SQLEscapeBin(EditorCommandText, True))) + #13#10;
-        Report := Report + SQLEscapeBin(EditorCommandText, True) + #13#10;
-      end;
-
       Report := Report + #13#10;
       Report := Report + 'MySQL:' + #13#10;
       Report := Report + StringOfChar('-', Length('Version: ' + ActiveTab.Session.Connection.ServerVersionStr)) + #13#10;
@@ -1088,7 +1074,6 @@ var
   I: Integer;
   Foldername: array [0..MAX_PATH] of Char;
 begin
-  DisableApplicationActivate := False;
   MouseDownPoint := Point(-1, -1);
   OnlineRecommendedUpdateFound := False;
   QuitAfterShow := False;
@@ -1205,8 +1190,9 @@ end;
 
 procedure TWWindow.FormShow(Sender: TObject);
 begin
-{$Message 'Nils'}
 //  if ((((Preferences.UpdateCheck = utDaily) and (Trunc(Preferences.UpdateChecked) < Date())) or (Preferences.ObsoleteVersion >= Preferences.Version)) and IsConnectedToInternet()) then
+  {$MESSAGE 'Nils'}
+if (MessageBox(Handle, 'Check Online Update?', 'Debug', MB_YESNOCANCEL or MB_ICONQUESTION) = IDYES) then
   begin
     CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
     CheckOnlineVersionThread.OnTerminate := OnlineVersionChecked;
@@ -1327,9 +1313,7 @@ begin
     if (MsgBoxHelpContext <> 0) then
       Flags := Flags or MB_HELP;
 
-    DisableApplicationActivate := True;
     MsgBox(Msg, Preferences.LoadStr(45), Flags);
-    DisableApplicationActivate := False;
   end;
 end;
 
@@ -1871,6 +1855,11 @@ begin
     StatusBar.Panels[I].Text := '';
 end;
 
+procedure TWWindow.UMMySQLClientSynchronize(var Message: TMessage);
+begin
+  MySQLDB.MySQLConnectionSynchronize(Pointer(Message.LParam));
+end;
+
 procedure TWWindow.UMOnlineUpdateFound(var Message: TMessage);
 begin
   if (Screen.ActiveForm <> Self) then
@@ -1879,15 +1868,13 @@ begin
     InformOnlineUpdateFound();
 end;
 
-procedure TWWindow.UMMySQLClientSynchronize(var Message: TMessage);
-begin
-  MySQLDB.MySQLConnectionSynchronize(Pointer(Message.LParam));
-end;
-
 procedure TWWindow.UMTerminate(var Message: TMessage);
 begin
   CheckOnlineVersionThread.WaitFor();
-  FreeAndNil(CheckOnlineVersionThread);
+  CheckOnlineVersionThread.Free();
+  CheckOnlineVersionThread := nil;
+  {$MESSAGE 'Nils'}
+  MessageBox(Handle, 'Online Update Check completed!', 'Debug', MB_OK + MB_ICONINFORMATION);
 end;
 
 procedure TWWindow.UMUpdateToolbar(var Message: TMessage);

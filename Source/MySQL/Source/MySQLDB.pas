@@ -1719,7 +1719,8 @@ begin
     Cache.Items.Delete(0);
   end;
 
-  MoveMemory(Cache.Mem, @Cache.Mem[Cache.First], Cache.UsedSize * SizeOf(Cache.Mem[0]));
+  if (Cache.UsedSize > 0) then
+    MoveMemory(Cache.Mem, @Cache.Mem[Cache.First], Cache.UsedSize * SizeOf(Cache.Mem[0]));
   Cache.First := 0;
 
   Cache.MaxSize := ACacheSize;
@@ -3265,10 +3266,12 @@ var
   Data: my_char;
   Info: my_char;
   Len: Integer;
+  Log: string;
   Name: string;
   Size: size_t;
   S: string;
   Value: string;
+  I: Integer;
 begin
   Assert(SyncThread.State in [ssExecutingFirst, ssExecutingNext]);
 
@@ -3385,7 +3388,12 @@ begin
         if (SyncThread.CommandText <> '') then
           raise Exception.Create('Query has not been handled: ' + SyncThread.CommandText)
         else
-          raise Exception.Create('Statement #' + IntToStr(SyncThread.StmtIndex) + ' has not been handled:' + #13#10 + SyncThread.SQL);
+        begin
+          Log := 'Statement #' + IntToStr(SyncThread.StmtIndex) + ' has not been handled:' + #13#10 + SyncThread.SQL + #13#10;
+          for I := 0 to SyncThread.StmtLengths.Count - 1 do
+            Log := #13#10 + IntToStr(Integer(SyncThread.StmtLengths[I]));
+          raise Exception.Create(Log);
+        end;
     finally
       InOnResult := False;
     end;
@@ -5617,6 +5625,7 @@ end;
 function TMySQLDataSet.BookmarkToInternBufferIndex(const Bookmark: TBookmark): Integer;
 var
   I: Integer;
+  List: TList;
   P: Pointer;
   P2: Pointer;
 begin
@@ -5631,8 +5640,17 @@ begin
       if (Length(Bookmark) = 0) then
         raise ERangeError.Create(SRangeError);
       P := PPointer(@Bookmark[0])^;
-      // Debug 2016-11-30
-      P2 := TList(InternRecordBuffers).Items[I];
+      // Debug 2016-12-05
+      P := InternRecordBuffers;
+      P := FInternRecordBuffers;
+      if (not (TObject(P) is TList)) then
+        raise ERangeError.Create(SRangeError);
+      List := TList(InternRecordBuffers);
+      if (I < 0) then
+        raise ERangeError.Create(SRangeError);
+      if (I >= List.Count) then
+        raise ERangeError.Create(SRangeError);
+      P2 := List.Items[I];
       P2 := InternRecordBuffers.Items[I];
       P2 := InternRecordBuffers.Buffers[I];
       P2 := InternRecordBuffers[I];

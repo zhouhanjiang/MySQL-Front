@@ -125,8 +125,38 @@ begin
   else
   begin
     URL := 'mysql://' + HostName + ':' + IntToStr(Port);
-    Result := (HostName <> '') and InternetCrackUrl(PChar(URL), Length(URL), 0, URLComponents);
+    Result := InternetCrackUrl(PChar(URL), Length(URL), 0, URLComponents);
   end;
+end;
+
+function ValidURL(const URL: string): Boolean;
+var
+  URLComponents: TURLComponents;
+  URLComponentsExtraInfo: array [0 .. INTERNET_MAX_PATH_LENGTH] of Char;
+  URLComponentsHostName: array [0 .. INTERNET_MAX_HOST_NAME_LENGTH] of Char;
+  URLComponentsPassword: array [0 .. INTERNET_MAX_PASSWORD_LENGTH] of Char;
+  URLComponentsPath: array [0 .. INTERNET_MAX_PATH_LENGTH] of Char;
+  URLComponentsSchemeName: array [0 .. INTERNET_MAX_SCHEME_LENGTH] of Char;
+  URLComponentsUserName: array [0 .. INTERNET_MAX_USER_NAME_LENGTH] of Char;
+begin
+  URLComponents.dwStructSize := SizeOf(URLComponents);
+  URLComponents.dwSchemeLength := Length(URLComponentsSchemeName);
+  URLComponents.dwHostNameLength := Length(URLComponentsHostName);
+  URLComponents.dwUserNameLength := Length(URLComponentsUserName);
+  URLComponents.dwPasswordLength := Length(URLComponentsPassword);
+  URLComponents.dwUrlPathLength := Length(URLComponentsPath);
+  URLComponents.dwExtraInfoLength := Length(URLComponentsExtraInfo);
+  URLComponents.lpszScheme := @URLComponentsSchemeName;
+  URLComponents.lpszHostName := @URLComponentsHostName;
+  URLComponents.lpszUserName := @URLComponentsUserName;
+  URLComponents.lpszPassword := @URLComponentsPassword;
+  URLComponents.lpszUrlPath := @URLComponentsPath;
+  URLComponents.lpszExtraInfo := @URLComponentsExtraInfo;
+
+  if (URL = '') then
+    Result := False
+  else
+    Result := InternetCrackUrl(PChar(URL), Length(URL), 0, URLComponents);
 end;
 
 { TDAccount *******************************************************************}
@@ -294,7 +324,7 @@ begin
 
     if (CanClose
       and (FConnectionType.ItemIndex = 2)
-      and not PathIsURL(PChar(FHTTPTunnelURI.Text))) then
+      and not ValidURL(PChar(FHTTPTunnelURI.Text))) then
       begin MessageBeep(MB_ICONERROR); ActiveControl := FHTTPTunnelURI; CanClose := False; end;
 
     if (CanClose) then

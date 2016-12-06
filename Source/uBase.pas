@@ -49,14 +49,15 @@ const
   UM_ACTIVATEFRAME = WM_USER + 100;
   UM_ADDTAB = WM_USER + 101;
   UM_CHANGEPREFERENCES = WM_USER + 102;
-  UM_CLOSE_TAB_QUERY = WM_USER + 104;
-  UM_DEACTIVATETAB = WM_USER + 105;
-  UM_DEACTIVATEFRAME = WM_USER + 106;
+  UM_CLOSE_TAB_QUERY = WM_USER + 103;
+  UM_DEACTIVATETAB = WM_USER + 104;
+  UM_DEACTIVATEFRAME = WM_USER + 105;
+  UM_POST_AFTEREXECUTESQL = WM_USER + 106;
+  UM_POST_SHOW = WM_USER + 107;
   UM_TERMINATE = WM_USER + 108;
-  UM_POST_AFTEREXECUTESQL = WM_USER + 109;
-  UM_POST_SHOW = WM_USER + 110;
-  UM_UPDATEPROGRESSINFO = WM_USER + 111;
-  UM_UPDATETOOLBAR = WM_USER + 112;
+  UM_TOOL_ERROR = WM_USER + 109;
+  UM_UPDATEPROGRESSINFO = WM_USER + 110;
+  UM_UPDATETOOLBAR = WM_USER + 111;
 
   CF_MYSQLSERVER = CF_PRIVATEFIRST + 1;
   CF_MYSQLDATABASE = CF_PRIVATEFIRST + 2;
@@ -89,7 +90,6 @@ function StrToInt(const S: string): Integer;
 function TryStrToInt(const S: string; out Value: Integer): Boolean;
 
 var
-  DisableApplicationActivate: Boolean;
   DurationFormatSettings: TFormatSettings;
   LocaleFormatSettings: TFormatSettings;
   MainActionList: TActionList;
@@ -172,11 +172,7 @@ begin
   // Wenn Fehler als MsgBox angezeigt wird werden falsche Eingaben im Data Browser nicht abgefangen
 
   if ((Sender is TField) and (not TField(Sender).DataSet.Active or (TField(Sender).DataSet.State in [dsBrowse, dsEdit, dsInsert, dsInactive])) or (Sender is TSBaseTableField)) then
-  begin
-    DisableApplicationActivate := True;
-    MsgBox(Msg + ' ' + Preferences.LoadStr(657), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-    DisableApplicationActivate := False;
-  end
+    MsgBox(Msg + ' ' + Preferences.LoadStr(657), Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
   else
     raise EConvertError.Create(Msg);
 end;

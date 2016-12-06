@@ -1191,6 +1191,11 @@ begin
   else
     FError := '';
 
+  {$IFDEF EurekaLog}
+    if (AErrNo = CR_UNKNOWN_ERROR) then
+      raise ERangeError.Create(SRangeError + ' #' + IntToStr(AErrNo) + ' - ' + FError);
+  {$ENDIF}
+
   Result := FErrNo;
 end;
 

@@ -259,7 +259,7 @@ end;
 
 procedure TUURI.SetAddress(const AAddress: string);
 var
-  Buffer: PChar;
+  Buffer: array [0..128] of Char;
   ErrorMessage: string;
   Len: DWORD;
   URLComponents: TURLComponents;
@@ -290,7 +290,7 @@ begin
 
     if (not InternetCrackUrl(PChar(AAddress), Length(AAddress), 0, URLComponents)) then
     begin
-      Len := FormatMessage(FORMAT_MESSAGE_FROM_HMODULE or FORMAT_MESSAGE_ALLOCATE_BUFFER,
+      Len := FormatMessage(FORMAT_MESSAGE_FROM_HMODULE,
         Pointer(GetModuleHandle('Wininet.dll')), GetLastError(), 0, @Buffer, 0, nil);
       while (Len > 0) and (CharInSet(Buffer[Len - 1], [#0..#32])) do Dec(Len);
       SetString(ErrorMessage, Buffer, Len);

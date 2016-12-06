@@ -951,7 +951,7 @@ type
     procedure gmFilterClearClick(Sender: TObject);
     procedure gmFilterIntoFilterClick(Sender: TObject);
     function ImageIndexByData(const Data: TObject): Integer;
-    procedure ImportError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
+    function ImportError(const Details: TTool.TErrorDetails): TDataAction;
     procedure ListViewEmpty(Sender: TObject);
     procedure ListViewInitialize(const ListView: TListView);
     procedure ListViewUpdate(const Event: TSSession.TEvent; const ListView: TListView; const Data: TCustomData = nil);
@@ -1029,9 +1029,6 @@ type
     property View: TView read GetView write SetView;
     property Window: TForm_Ext read GetWindow;
   end;
-
-var
-  EditorCommandText: string;
 
 implementation {***************************************************************}
 
@@ -1204,6 +1201,17 @@ end;
 
 function TFSession.TSQLEditor.ResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
   const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+
+  function ValidXMLText(const Text: string): Boolean;
+  var
+    I: Integer;
+  begin
+    Result := True;
+    for I := 1 to Length(Text) do
+      if (CharInSet(Text[I], [#0 .. #8, #11 .. #12, #14 .. #31])) then
+        Exit(False);
+  end;
+
 var
   EndingCommentLength: Integer;
   Item: ^TResult;
@@ -1217,7 +1225,7 @@ begin
   if (not Assigned(Results)) then
     Results := TList.Create();
 
-  if ((Results.Count < 5) and Assigned(FSession.Session.Account.HistoryXML)) then
+  if ((Results.Count < 5) and Assigned(FSession.Session.Account.HistoryXML) and ValidXMLText(CommandText)) then
   begin
     XML := FSession.Session.Account.HistoryXML.AddChild('sql');
     if (not Data) then
@@ -1228,21 +1236,7 @@ begin
     XML.AddChild('datetime').Text := FloatToStr(DataHandle.Connection.ServerDateTime, FileFormatSettings);
     if (not Data and (DataHandle.Connection.RowsAffected >= 0)) then
       XML.AddChild('rows_affected').Text := IntToStr(DataHandle.Connection.RowsAffected);
-
-    // Debug 2016-11-30
-    if (XML.AddChild('sql').IsTextElement) then
-      raise ERangeError.Create(SRangeError + ' XML: ' + XML.AddChild('sql').XML);
-
-    EditorCommandText := CommandText;
-
-    try
-      XML.AddChild('sql').Text := CommandText;
-    except
-      raise ERangeError.Create(SRangeError);
-    end;
-
-    EditorCommandText := '';
-
+    XML.AddChild('sql').Text := CommandText;
     if (DataHandle.Connection.Info <> '') then
       XML.AddChild('info').Text := DataHandle.Connection.Info;
     XML.AddChild('execution_time').Text := FloatToStr(DataHandle.Connection.ExecutionTime, FileFormatSettings);
@@ -2534,7 +2528,8 @@ procedure TFSession.AddressChanging(const Sender: TObject; const NewAddress: Str
 var
   Database: TSDatabase;
   DBObject: TSDBObject;
-  Host: PChar; // Debug 2016-12-01
+  Host: string; // Debug 2016-12-05
+  Host2: string; // Debug 2016-15-05
   NotFound: Boolean;
   S: string;
   URI: TUURI;
@@ -2548,9 +2543,18 @@ begin
     raise ERangeError.Create(SRangeError);
   if (not Assigned(Session.Account.Connection)) then
     raise ERangeError.Create(SRangeError);
-  Host := PChar(URI.Host);
-  lstrcmpi(Host, PChar(Session.Account.Connection.Host));
-  lstrcmpi(Host, LOCAL_HOST);
+  Host := URI.Host;
+  if (Length(Host) > 256) then
+    raise ERangeError.Create(SRangeError);
+  Host2 := Session.Account.Connection.Host;
+  if (Length(Host2) > 256) then
+    raise ERangeError.Create(SRangeError);
+  try
+    lstrcmpi(PChar(Host), PChar(Host2));
+  except
+    raise ERangeError.Create(SRangeError + 'Host1: ' + Host + ', Host2: ' + Host2);
+  end;
+  lstrcmpi(PChar(Host), LOCAL_HOST);
 
   if (URI.Scheme <> 'mysql') then
     AllowChange := False
@@ -2939,6 +2943,7 @@ procedure TFSession.aECopyExecute(Sender: TObject);
 var
   ClipboardData: HGLOBAL;
   Data: string;
+  FileName: array [0..MAX_PATH] of Char;
   I: Integer;
   ImageIndex: Integer;
   S: string;
@@ -3078,6 +3083,19 @@ begin
   else if (Window.ActiveControl = FHexEditor) then
   begin
     FHexEditor.ExecuteAction(MainAction('aECopy'));
+    exit;
+  end
+  else if (Window.ActiveControl = ActiveSynMemo) then
+  begin
+    try
+      ActiveSynMemo.CopyToClipboard();
+    except
+      on E: EClipboardException do
+        begin
+          SetString(S, PChar(@FileName[0]), GetWindowModuleFileName(GetClipboardOwner(), PChar(@FileName[0]), Length(FileName)));
+          raise Exception.Create(E.Message + #10 + 'Clipboard Owner: ' + S);
+        end;
+    end;
     exit;
   end
   else
@@ -3947,6 +3965,7 @@ begin
       vBuilder: if (PQueryBuilder.Visible) then
         if (FQueryBuilder.Visible and Assigned(FQueryBuilderActiveWorkArea())) then
         begin
+          // Debug 2016-12-05
           if (not FQueryBuilderActiveWorkArea().Visible) then
             raise ERangeError.Create(SRangeError);
           Window.ActiveControl := FQueryBuilderActiveWorkArea()
@@ -4244,7 +4263,7 @@ begin
   for View in [vEditor, vEditor2, vEditor3] do
     if (not Assigned(SQLEditors[View]) or (SQLEditors[View].Filename <> '') and not SQLEditors[View].SynMemo.Modified) then
       Session.Account.Desktop.EditorContent[ToolbarTabByView[View]] := ''
-    else
+      else
       Session.Account.Desktop.EditorContent[ToolbarTabByView[View]] := SQLEditors[View].SynMemo.Text;
 
   try
@@ -4576,7 +4595,7 @@ begin
   TBSideBar.Top := 0;
   TBSideBar.ButtonHeight := ToolBar.ButtonHeight;
 
-  PHeader.ClientHeight := ToolBar.Height + 1;
+  PHeader.ClientHeight := ToolBar.Height + PHeader.Canvas.Pen.Width;
   if (not StyleServices.Enabled or not StyleServices.GetElementColor(StyleServices.GetElementDetails(ttTopTabItemSelected), ecGlowColor, Color)) then
     PHeader.Color := clBtnFace
   else
@@ -5622,6 +5641,11 @@ begin
     else if (aVBlobText.Visible and not (Key in [VK_F2, VK_TAB, VK_DOWN, VK_UP, VK_LEFT, VK_RIGHT, VK_HOME, VK_END, VK_PRIOR, VK_NEXT, VK_APPS, VK_SHIFT, VK_CONTROL, VK_MENU])) then
     begin
       aVBlobText.Checked := True;
+
+      // Debug 2016-12-06
+      if (not PBlob.Visible) then
+        raise ERangeError.Create(SRangeError);
+
       Window.ActiveControl := FText;
       if (Key = VK_RETURN) then
       begin
@@ -7234,7 +7258,7 @@ procedure TFSession.FormResize(Sender: TObject);
 var
   MaxHeight: Integer;
 begin
-  PHeader.ClientHeight := ToolBar.Height + 1;
+  PHeader.ClientHeight := ToolBar.Height + PHeader.Canvas.Pen.Width;
 
   if (PSideBar.Visible) then
   begin
@@ -8203,7 +8227,7 @@ begin
     vEditor: Result := SQLEditor;
     vEditor2: Result := SQLEditor2;
     vEditor3: Result := SQLEditor3;
-    else raise ERangeError.Create(SRangeError);
+    else raise ERangeError.Create(SRangeError + ' ( ' + IntToStr(Ord(View)) +  ')');
   end;
 end;
 
@@ -8376,11 +8400,11 @@ begin
     raise ERangeError.Create(SRangeError);
 end;
 
-procedure TFSession.ImportError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
+function TFSession.ImportError(const Details: TTool.TErrorDetails): TDataAction;
 begin
-  MsgBox(Error.ErrorMessage, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+  MsgBox(Details.Error.ErrorMessage, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
 
-  Success := daAbort;
+  Result := daAbort;
 end;
 
 procedure TFSession.ListViewAdvancedCustomDrawItem(
@@ -13194,7 +13218,7 @@ end;
 procedure TFSession.ToolBarResize(Sender: TObject);
 begin
   if ((Sender is TToolBar) and (TToolBar(Sender).Parent is TPanel)) then
-    TPanel(TToolBar(Sender).Parent).ClientHeight := TToolBar(Sender).Height + 2 * TToolBar(Sender).Top;
+    PHeader.ClientHeight := TToolBar(Sender).Height + PHeader.Canvas.Pen.Width;
 end;
 
 procedure TFSession.ToolBarTabsClick(Sender: TObject);
@@ -13578,6 +13602,10 @@ begin
     for View in [vEditor, vEditor2, vEditor3] do
       if (Assigned(SQLEditors[View]) and SQLEditors[View].SynMemo.Modified and (SQLEditors[View].Filename <> '')) then
       begin
+        // Debug 2016-12-06
+        if (not (View in [vEditor, vEditor2, vEditor3])) then
+          raise ERangeError.Create(SRangeError);
+
         Self.View := View;
         Window.ActiveControl := ActiveSynMemo;
         case (MsgBox(Preferences.LoadStr(584, ExtractFileName(SQLEditors[View].Filename)), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
@@ -13939,7 +13967,10 @@ begin
       end;
     vBrowser:
       if ((TObject(FNavigator.Selected.Data) is TSTable) and not TSTable(FNavigator.Selected.Data).ValidData) then
-        TableOpen(nil);
+        if (not TSTable(FNavigator.Selected.Data).Update()) then
+          Wanted.Update := UpdateAfterAddressChanged
+        else
+          TableOpen(nil);
     vIDE:
       begin
         // Debug 2016-11-26
@@ -13947,8 +13978,9 @@ begin
           raise ERangeError.Create(SRangeError);
         if (not Assigned(FNavigator.Selected.Data)) then
           raise ERangeError.Create(SRangeError);
+        // Debug 2016-12-05
         if (not (TObject(FNavigator.Selected.Data) is TSDBObject)) then
-          raise ERangeError.Create(SRangeError);
+          raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(FNavigator.Selected.Data).ClassName);
         TSDBObject(FNavigator.Selected.Data).Update();
       end;
     vDiagram:

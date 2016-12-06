@@ -194,7 +194,6 @@ begin
   try
   {$ENDIF}
 
-MessageBox(0, '1', 'Debug', MB_OK);
   ReturnValue := 0; RequestTry := 0; Error := False;
 
   URLComponents.dwStructSize := SizeOf(URLComponents);
@@ -211,34 +210,25 @@ MessageBox(0, '1', 'Debug', MB_OK);
   URLComponents.lpszUrlPath := @URLComponentsPath;
   URLComponents.lpszExtraInfo := @URLComponentsExtraInfo;
 
-MessageBox(0, '2', 'Debug', MB_OK);
   if (not InternetCrackUrl(PChar(URI), Length(URI), ICU_DECODE, URLComponents)) then
     Internet := nil
   else
-  begin
-MessageBox(0, '3', 'Debug', MB_OK);
     Internet := InternetOpen(PChar(Preferences.InternetAgent), INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);
-MessageBox(0, '4', 'Debug', MB_OK);
-  end;
 
-MessageBox(0, '5', 'Debug', MB_OK);
   if (not Assigned(Internet)) then
     ReturnValue := 1
   else
   begin
-MessageBox(0, '6', 'Debug', MB_OK);
     L := 120000;
     InternetSetOption(Internet, INTERNET_OPTION_SEND_TIMEOUT, @L, SizeOf(L));
     InternetSetOption(Internet, INTERNET_OPTION_RECEIVE_TIMEOUT, @L, SizeOf(L));
 
     Client := InternetConnect(Internet, URLComponents.lpszHostName, URLComponents.nPort, URLComponents.lpszUserName, URLComponents.lpszPassword, INTERNET_SERVICE_HTTP, 0, 0);
 
-MessageBox(0, '7', 'Debug', MB_OK);
     if (not Assigned(Client)) then
       ReturnValue := 1
     else
     begin
-MessageBox(0, '8', 'Debug', MB_OK);
       if (not Assigned(SendStream)) then
       begin
         Method := GET;
@@ -258,7 +248,6 @@ MessageBox(0, '8', 'Debug', MB_OK);
       end;
       Request := HttpOpenRequest(Client, Method, PChar(StrPas(URLComponents.lpszUrlPath) + StrPas(URLComponents.lpszExtraInfo)), 'HTTP/1.1', nil, nil, INTERNET_FLAG_RELOAD + INTERNET_FLAG_NO_CACHE_WRITE, 0);
 
-MessageBox(0, '9', 'Debug', MB_OK);
       if (not Assigned(Request)) then
         ReturnValue := 1
       else
@@ -266,7 +255,6 @@ MessageBox(0, '9', 'Debug', MB_OK);
         repeat
           FileSize := -1;
 
-MessageBox(0, '10', 'Debug', MB_OK);
           if (not HttpSendRequest(Request, PChar(Headers), Length(Headers), PAnsiChar(Body), Length(Body))) then
             StatusCode := 1
           else
@@ -291,20 +279,16 @@ MessageBox(0, '10', 'Debug', MB_OK);
             else
               StatusCode := StrToInt(PChar(@Buffer));
           end;
-MessageBox(0, '11', 'Debug', MB_OK);
 
           Inc(RequestTry);
         until (Error or Terminated or (StatusCode = HTTP_STATUS_OK) or (ReceiveStream.Size = 0) or (RequestTry >= 3));
 
-MessageBox(0, '12', 'Debug', MB_OK);
         ReturnValue := StatusCode;
       end;
       InternetCloseHandle(Request);
-MessageBox(0, '13', 'Debug', MB_OK);
     end;
 
     InternetCloseHandle(Internet);
-MessageBox(0, '14', 'Debug', MB_OK);
   end;
 
   if (not Terminated and Assigned(OnProgress)) then
@@ -315,7 +299,6 @@ MessageBox(0, '14', 'Debug', MB_OK);
     StandardEurekaNotify(GetLastExceptionObject(), GetLastExceptionAddress());
   end;
   {$ENDIF}
-MessageBox(0, '15 - Geschafft!', 'Debug', MB_OK);
 end;
 
 { TCheckOnlineVersionThread ***************************************************}

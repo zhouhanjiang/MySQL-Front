@@ -85,12 +85,13 @@ type
     procedure CheckActivePageChange(const ActivePage: TTabSheet);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     function GetSession(const TreeNode: TTreeNode): TSSession;
-    procedure OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
+    function OnError(const Details: TTool.TErrorDetails): TDataAction;
     procedure OnTerminate(Sender: TObject);
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMPostAfterExecuteSQL(var Message: TMessage); message UM_POST_AFTEREXECUTESQL;
     procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
+    procedure UMToolError(var Message: TMessage); message UM_TOOL_ERROR;
     procedure UMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
   public
     SourceSession: TSSession;
@@ -236,13 +237,11 @@ begin
   begin
     Transfer.Terminate();
     CanClose := False;
-
-    FBCancel.Enabled := False;
   end
   else
-  begin
     CanClose := True;
-  end;
+
+  FBCancel.Enabled := CanClose;
 end;
 
 procedure TDTransfer.FormCreate(Sender: TObject);
@@ -397,55 +396,9 @@ begin
   Result := TSSession(Node.Data);
 end;
 
-procedure TDTransfer.OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
-var
-  ErrorMsg: string;
-  Flags: Integer;
-  Msg: string;
+function TDTransfer.OnError(const Details: TTool.TErrorDetails): TDataAction;
 begin
-  ErrorMsg := '';
-  case (Error.ErrorType) of
-    TE_Database:
-      begin
-        Msg := Preferences.LoadStr(165, IntToStr(Error.Session.Connection.ErrorCode), Error.Session.Connection.ErrorMessage);
-        ErrorMsg := Error.ErrorMessage
-          + ' (#' + IntToStr(Error.ErrorCode) + ') - ' + Trim(Error.Session.Connection.ErrorCommandText);
-      end;
-    TE_File:
-      begin
-        Msg := Error.ErrorMessage + ' (#' + IntToStr(Error.ErrorCode) + ')';
-        ErrorMsg := Msg;
-      end;
-    TE_NoPrimaryIndex:
-      if ((Sender is TTTransfer) and (Error.Session = TTTransfer(Sender).Session)) then
-        Msg := Preferences.LoadStr(722, TTTransfer.TItem(Item).DBObject.Name)
-      else if ((Sender is TTTransfer) and (Error.Session = TTTransfer(Sender).DestinationSession)) then
-        Msg := Preferences.LoadStr(722, TTTransfer.TItem(Item).DBObject.Name)
-      else
-        raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Sender | Error.Session']);
-    else
-      Msg := Error.ErrorMessage;
-  end;
-
-  if (not ShowRetry) then
-    Flags := MB_OK + MB_ICONERROR
-  else
-    Flags := MB_CANCELTRYCONTINUE + MB_ICONERROR;
-  case (MsgBox(Msg, Preferences.LoadStr(45), Flags)) of
-    IDOK,
-    IDCANCEL,
-    IDABORT: Success := daAbort;
-    IDRETRY,
-    IDTRYAGAIN: Success := daRetry;
-    IDCONTINUE,
-    IDIGNORE: Success := daFail;
-  end;
-
-  if ((Success in [daAbort, daFail]) and (ErrorMsg <> '')) then
-  begin
-    FErrors.Caption := IntToStr(TTool(Sender).ErrorCount);
-    FErrorMessages.Text := FErrorMessages.Text + ErrorMsg;
-  end;
+  Result := TDataAction(SendMessage(Handle, UM_TOOL_ERROR, 0, LPARAM(@Details)));
 end;
 
 procedure TDTransfer.OnTerminate(Sender: TObject);
@@ -993,6 +946,61 @@ begin
     FBCancel.ModalResult := mrOk
   else
     FBCancel.ModalResult := mrCancel;
+end;
+
+procedure TDTransfer.UMToolError(var Message: TMessage);
+var
+  Details: ^TTool.TErrorDetails;
+  ErrorMsg: string;
+  Flags: Integer;
+  Msg: string;
+begin
+  Details := Pointer(Message.LParam);
+
+  ErrorMsg := '';
+  case (Details^.Error.ErrorType) of
+    TE_Database:
+      begin
+        Msg := Preferences.LoadStr(165, IntToStr(Details^.Error.Session.Connection.ErrorCode), Details^.Error.Session.Connection.ErrorMessage);
+        ErrorMsg := Details^.Error.ErrorMessage
+          + ' (#' + IntToStr(Details^.Error.ErrorCode) + ') - ' + Trim(Details^.Error.Session.Connection.ErrorCommandText);
+      end;
+    TE_File:
+      begin
+        Msg := Details^.Error.ErrorMessage + ' (#' + IntToStr(Details^.Error.ErrorCode) + ')';
+        ErrorMsg := Msg;
+      end;
+    TE_NoPrimaryIndex:
+      if ((Details^.Tool is TTTransfer) and (Details^.Error.Session = TTTransfer(Details^.Tool).Session)) then
+        Msg := Preferences.LoadStr(722, TTTransfer.TItem(Details^.Item).DBObject.Name)
+      else if ((Details^.Tool is TTTransfer) and (Details^.Error.Session = TTTransfer(Details^.Tool).DestinationSession)) then
+        Msg := Preferences.LoadStr(722, TTTransfer.TItem(Details^.Item).DBObject.Name)
+      else
+        raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Sender | Details^.Error.Session']);
+    else
+      Msg := Details^.Error.ErrorMessage;
+  end;
+
+  if (not Details^.ShowRetry) then
+    Flags := MB_OK + MB_ICONERROR
+  else
+    Flags := MB_CANCELTRYCONTINUE + MB_ICONERROR;
+  case (MsgBox(Msg, Preferences.LoadStr(45), Flags)) of
+    IDOK,
+    IDCANCEL,
+    IDABORT: Message.Result := LRESULT(daAbort);
+    IDRETRY,
+    IDTRYAGAIN: Message.Result := LRESULT(daRetry);
+    IDCONTINUE,
+    IDIGNORE: Message.Result := LRESULT(daFail);
+    else raise ERangeError.Create(SRangeError);
+  end;
+
+  if ((TDataAction(Message.Result) in [daAbort, daFail]) and (ErrorMsg <> '')) then
+  begin
+    FErrors.Caption := IntToStr(Details^.Tool.ErrorCount);
+    FErrorMessages.Lines.Add(Trim(ErrorMsg));
+  end;
 end;
 
 procedure TDTransfer.UMUpdateProgressInfo(var Message: TMessage);

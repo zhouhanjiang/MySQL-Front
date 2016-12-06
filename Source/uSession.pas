@@ -177,6 +177,9 @@ type
     constructor Create(const AReferences: TSReferences; const ADatabaseName: string;
       const ADBObjectClass: TClass; const ADBObjectName: string); reintroduce; virtual;
     property DBObject: TSDBObject read GetDBObject;
+    property DatabaseName: string read FDatabaseName;
+    property DBObjectClass: TClass read FDBObjectClass;
+    property DBObjectName: string read FDBObjectName;
   end;
 
   TSReferences = class(TList)
@@ -1291,7 +1294,10 @@ type
   TSUserRight = class
   private
     FRawPassword: string;
+    FUser: TSUser;
     function GetCaption(): string;
+    function GetSession(): TSSession;
+    property Session: TSSession read GetSession;
   public
     DatabaseName: string;
     FieldName: string;
@@ -1323,10 +1329,12 @@ type
     RReplSlave: Boolean;
     RSelect: Boolean;
     RShowDatabases, RShowView, RShutdown, RSuper, RTrigger, RUpdate: Boolean;
-    constructor Create(); virtual;
     procedure Assign(const Source: TSUserRight);
+    constructor Create(const AUser: TSUser); virtual;
+    function Equals(Obj: TObject): Boolean; override;
     property Caption: string read GetCaption;
     property RawPassword: string read FRawPassword;
+    property User: TSUser read FUser;
   end;
 
   TSUser = class(TSObject)
@@ -1996,13 +2004,18 @@ begin
     SQL := Field.AsString;
   if (SQL <> '') then
     SQL := SQL + ';' + #13#10;
+
+  // Debug 2016-12-06
+  if (SQL = '') then
+    raise ERangeError.Create(SRangeError);
+
   SetSource(SQL);
 
   if (Now() <= Session.ParseEndDate) then
   begin
     if (not Session.SQLParser.ParseSQL(SQL)) then
       Session.UnparsableSQL := Session.UnparsableSQL
-        + '# SetSource()' + #13#10
+        + '# Build()' + #13#10
         + '# Error: ' + Session.SQLParser.ErrorMessage + #13#10
         + Trim(SQL) + #13#10 + #13#10 + #13#10;
     Session.SQLParser.Clear();
@@ -2469,6 +2482,7 @@ end;
 procedure TSDBObject.SetReferences(const SQL: string);
 var
   DatabaseName: string;
+  FunctionName: string;
   PreviousToken1: TSQLParser.PToken;
   PreviousToken2: TSQLParser.PToken;
   Token: TSQLParser.PToken;
@@ -2505,7 +2519,9 @@ begin
             DatabaseName := Database.Name
           else
             DatabaseName := PreviousToken2^.AsString;
-          References.Add(TSReference.Create(References, DatabaseName, TSFunction, Token^.AsString));
+          FunctionName := Token^.AsString;
+          if ((PreviousToken2^.DbIdentType = ditDatabase) or (Session.SQLParser.FunctionList.IndexOf(FunctionName) < 0)) then
+            References.Add(TSReference.Create(References, DatabaseName, TSFunction, Token^.AsString));
         end;
 
         PreviousToken2 := PreviousToken1;
@@ -5914,9 +5930,9 @@ begin
           mfVarChar:
             begin
               if ((Parameter[I].Size <= $5555) and (Session.Connection.MySQLVersion >= 50000)) then
-                begin Field := TMySQLWideStringField.Create(Session.Connection); Field.Size := 65535; end
+                begin Field := TMySQLWideStringField.Create(nil); Field.Size := 65535; end
               else
-                begin Field := TMySQLWideMemoField.Create(Session.Connection); Field.Size := Parameter[I].Size; end;
+                begin Field := TMySQLWideMemoField.Create(nil); Field.Size := Parameter[I].Size; end;
               Field.Tag := Session.CharsetByName(Database.Charset).CodePage;
             end;
           mfBinary,
@@ -5972,17 +5988,7 @@ begin
         end;
       Field.FieldName := Parameter[I].Name;
       FieldName := ReplaceStr(ReplaceStr(ReplaceStr(Parameter[I].Name, ' ', '_'), '.', '_'), '$', '_');
-try // Debug 2016-12-01
-      Field.Name := FieldName
-except
-  on E: Exception do
-    begin
-      if (Assigned(Field.Owner.FindComponent(FieldName))) then
-        raise Exception.Create(E.Message + ' (FieldName: ' + FieldName + ' ComponentCount: ' + IntToStr(Field.Owner.FindComponent(FieldName).ComponentCount) + ' ClassType: ' + Field.Owner.FindComponent(FieldName).ClassName + ')' + ' FieldCount: ' + IntToStr(FInputDataSet.FieldCount) + ')')
-      else
-        raise Exception.Create(E.Message + ' (FieldName: ' + FieldName + ' FieldCount: ' + IntToStr(FInputDataSet.FieldCount) + ')');
-    end;
-end;
+      Field.Name := FieldName;
       Field.DataSet := FInputDataSet;
     end;
 
@@ -9817,9 +9823,11 @@ begin
   RUpdate := Source.RUpdate;
 end;
 
-constructor TSUserRight.Create();
+constructor TSUserRight.Create(const AUser: TSUser);
 begin
   inherited Create();
+
+  FUser := AUser;
 
   DatabaseName := '';
   TableName := '';
@@ -9858,6 +9866,46 @@ begin
   RUpdate := False;
 end;
 
+function TSUserRight.Equals(Obj: TObject): Boolean;
+begin
+  Result := Obj is TSUserRight;
+  Result := Result and (Session.Databases.NameCmp(TSUserRight(Obj).DatabaseName, DatabaseName) = 0);
+  Result := Result and (Session.Databases.NameCmp(TSUserRight(Obj).TableName, TableName) = 0);
+  Result := Result and (lstrcmpi(PChar(TSUserRight(Obj).ProcedureName), PChar(ProcedureName)) = 0);
+  Result := Result and (lstrcmpi(PChar(TSUserRight(Obj).FunctionName), PChar(FunctionName)) = 0);
+  Result := Result and (lstrcmpi(PChar(TSUserRight(Obj).FieldName), PChar(FieldName)) = 0);
+
+  Result := Result and (TSUserRight(Obj).RAlter = RAlter);
+  Result := Result and (TSUserRight(Obj).RAlterRoutine = RAlterRoutine);
+  Result := Result and (TSUserRight(Obj).RCreate = RCreate);
+  Result := Result and (TSUserRight(Obj).RCreateTableSpace = RCreateTableSpace);
+  Result := Result and (TSUserRight(Obj).RCreateTempTable = RCreateTempTable);
+  Result := Result and (TSUserRight(Obj).RCreateRoutine = RCreateRoutine);
+  Result := Result and (TSUserRight(Obj).RCreateUser = RCreateUser);
+  Result := Result and (TSUserRight(Obj).RCreateView = RCreateView);
+  Result := Result and (TSUserRight(Obj).RDelete = RDelete);
+  Result := Result and (TSUserRight(Obj).RDrop = RDrop);
+  Result := Result and (TSUserRight(Obj).REvent = REvent);
+  Result := Result and (TSUserRight(Obj).RExecute = RExecute);
+  Result := Result and (TSUserRight(Obj).RFile = RFile);
+  Result := Result and (TSUserRight(Obj).RGrant = RGrant);
+  Result := Result and (TSUserRight(Obj).RIndex = RIndex);
+  Result := Result and (TSUserRight(Obj).RInsert = RInsert);
+  Result := Result and (TSUserRight(Obj).RLockTables = RLockTables);
+  Result := Result and (TSUserRight(Obj).RProcess = RProcess);
+  Result := Result and (TSUserRight(Obj).RReferences = RReferences);
+  Result := Result and (TSUserRight(Obj).RReload = RReload);
+  Result := Result and (TSUserRight(Obj).RReplClient = RReplClient);
+  Result := Result and (TSUserRight(Obj).RReplSlave = RReplSlave);
+  Result := Result and (TSUserRight(Obj).RSelect = RSelect);
+  Result := Result and (TSUserRight(Obj).RShowDatabases = RShowDatabases);
+  Result := Result and (TSUserRight(Obj).RShowView = RShowView);
+  Result := Result and (TSUserRight(Obj).RShutdown = RShutdown);
+  Result := Result and (TSUserRight(Obj).RTrigger = RTrigger);
+  Result := Result and (TSUserRight(Obj).RSuper = RSuper);
+  Result := Result and (TSUserRight(Obj).RUpdate = RUpdate);
+end;
+
 function TSUserRight.GetCaption(): string;
 begin
   Result := '';
@@ -9875,6 +9923,11 @@ begin
     Result := Result + '.' + FunctionName;
   if (Result = '') then
     Result := '<' + Preferences.LoadStr(214) + '>';
+end;
+
+function TSUserRight.GetSession(): TSSession;
+begin
+  Result := User.Session;
 end;
 
 { TSUser **********************************************************************}
@@ -9907,7 +9960,7 @@ begin
         else if (lstrcmpi(PChar(NewUserRight.FunctionName), PChar(Rights[I].FunctionName)) < 0) then
           Index := I;
 
-  FRights.Insert(Index, TSUserRight.Create());
+  FRights.Insert(Index, TSUserRight.Create(Self));
   TSUserRight(FRights[Index]).Assign(NewUserRight);
 
   Result := True;
@@ -9927,7 +9980,7 @@ begin
   FQueriesPerHour := Source.QueriesPerHour;
   for I := 0 to Source.FRights.Count - 1 do
   begin
-    FRights.Add(TSUserRight.Create());
+    FRights.Add(TSUserRight.Create(Self));
     TSUserRight(FRights[I]).Assign(Source.FRights[I]);
   end;
   FUpdatesPerHour := Source.UpdatesPerHour;
@@ -10129,7 +10182,7 @@ begin
           begin
             SetLength(NewRights, Length(NewRights) + 1);
             Index := Length(NewRights) - 1;
-            NewRights[Index] := TSUserRight.Create();
+            NewRights[Index] := TSUserRight.Create(Self);
           end;
 
           AddPrivileg(NewRights[Index], Privileg);
@@ -10148,7 +10201,7 @@ begin
             begin
               SetLength(NewRights, Length(NewRights) + 1);
               Index := Length(NewRights) - 1;
-              NewRights[Index] := TSUserRight.Create();
+              NewRights[Index] := TSUserRight.Create(Self);
               NewRights[Index].FieldName := FieldName;
             end;
 
@@ -10285,6 +10338,9 @@ begin
     SetSource(SQL);
 
     ParseGrant(SQL);
+
+    if (Session.Connection.MySQLVersion >= 50002) then
+      FSource := 'CREATE USER ' + Session.EscapeUser(Name) + ';' + #13#10 + FSource;
 
     if (Valid) then
       Session.SendEvent(etItemValid, Session, Users, Self);
@@ -10721,6 +10777,9 @@ begin
         else
           break;
 
+      // Debug 2016-12-05
+      if (not Assigned(Account)) then
+        raise ERangeError.Create(SRangeError);
       if (Copy(ManualURL, 1, 7) = 'http://') then
         Account.ManualURL := Copy(ManualURL, 1, Equal);
     end;
@@ -12188,7 +12247,7 @@ begin
         else
         begin
           ObjectName := SQLParseValue(Parse);
-          if (Users.NameCmp(ObjectName, FCurrentUser) = 0) then
+          if (not Assigned(User) and (Users.NameCmp(ObjectName, FCurrentUser) = 0)) then
             BuildUser(DataSet)
           else if (Assigned(UserByName(ObjectName))) then
             UserByName(ObjectName).Build(DataSet)
@@ -12744,15 +12803,14 @@ begin
     OldRight := nil;
     if (Assigned(User)) then
       for J := 0 to User.RightCount - 1 do
-        if   ((Databases.NameCmp(User.Rights[J].DatabaseName , NewRight.DatabaseName ) = 0)
-          and (TableNameCmp(User.Rights[J].TableName    , NewRight.TableName    ) = 0)
+        if ((Databases.NameCmp(User.Rights[J].DatabaseName , NewRight.DatabaseName ) = 0)
+          and (TableNameCmp(User.Rights[J].TableName, NewRight.TableName) = 0)
           and (lstrcmpi(PChar(User.Rights[J].ProcedureName), PChar(NewRight.ProcedureName)) = 0)
-          and (lstrcmpi(PChar(User.Rights[J].FunctionName ), PChar(NewRight.FunctionName )) = 0)
-          and (lstrcmpi(PChar(User.Rights[J].FieldName    ), PChar(NewRight.FieldName    )) = 0)) then
+          and (lstrcmpi(PChar(User.Rights[J].FunctionName), PChar(NewRight.FunctionName )) = 0)
+          and (lstrcmpi(PChar(User.Rights[J].FieldName), PChar(NewRight.FieldName)) = 0)) then
           OldRight := User.Rights[J];
 
-
-    if (Assigned(OldRight)) then
+    if (Assigned(OldRight) and not NewRight.Equals(OldRight)) then
     begin
       Privileges := GetPrivileges(False, OldRight, NewRight, GetRightType(OldRight));
 
@@ -12772,90 +12830,46 @@ begin
         SingleSQL := SingleSQL + ' FROM ' + EscapeUser(NewUser.Name);
       SQL := SQL + SingleSQL + ';' + #13#10;
       end;
-    end;
 
-    Privileges := GetPrivileges(True, OldRight, NewRight, GetRightType(NewRight));
+      Privileges := GetPrivileges(True, OldRight, NewRight, GetRightType(NewRight));
 
-    Options := '';
-    if (NewRight.RGrant and not (Assigned(OldRight) and OldRight.RGrant)) then Options := Options + ' GRANT OPTION';
-    if (NewRight.DatabaseName = '') then
-    begin
-      if (not Assigned(User) and (NewUser.ConnectionsPerHour > 0) or Assigned(User) and (User.ConnectionsPerHour <> NewUser.ConnectionsPerHour)) then Options := Options + ' MAX_CONNECTIONS_PER_HOUR ' + IntToStr(NewUser.ConnectionsPerHour);
-      if (not Assigned(User) and (NewUser.QueriesPerHour     > 0) or Assigned(User) and (User.QueriesPerHour     <> NewUser.QueriesPerHour    )) then Options := Options + ' MAX_QUERIES_PER_HOUR '     + IntToStr(NewUser.QueriesPerHour);
-      if (not Assigned(User) and (NewUser.UpdatesPerHour     > 0) or Assigned(User) and (User.UpdatesPerHour     <> NewUser.UpdatesPerHour    )) then Options := Options + ' MAX_UPDATES_PER_HOUR '     + IntToStr(NewUser.UpdatesPerHour);
-      if (Connection.MySQLVersion >= 50003) then
-        if (not Assigned(User) and (NewUser.UserConnections    > 0) or Assigned(User) and (User.UserConnections    <> NewUser.UserConnections   )) then Options := Options + ' MAX_USER_CONNECTIONS '     + IntToStr(NewUser.UserConnections);
-    end;
-    Options := Trim(Options);
-
-    if ((Privileges = '') and ((Options <> '') or (not Assigned(User) and (Connection.MySQLVersion <= 50002)))) then
-      Privileges := 'USAGE';
-
-    if (Privileges <> '') then
-    begin
-      SingleSQL := 'GRANT ' + Privileges + ' ON ';
-
-      if (NewRight.TableName <> '') then
-        if (Connection.MySQLVersion < 50006) then
-          SingleSQL := SingleSQL + Connection.EscapeIdentifier(NewRight.DatabaseName) + '.' + Connection.EscapeIdentifier(NewRight.TableName)
-        else
-          SingleSQL := SingleSQL + 'TABLE ' + Connection.EscapeIdentifier(NewRight.DatabaseName) + '.' + Connection.EscapeIdentifier(NewRight.TableName)
-      else if (NewRight.ProcedureName <> '') then
-        SingleSQL := SingleSQL + 'PROCEDURE ' + Connection.EscapeIdentifier(NewRight.DatabaseName) + '.' + Connection.EscapeIdentifier(NewRight.ProcedureName)
-      else if (NewRight.FunctionName <> '') then
-        SingleSQL := SingleSQL + 'FUNCTION ' + Connection.EscapeIdentifier(NewRight.DatabaseName) + '.' + Connection.EscapeIdentifier(NewRight.FunctionName)
-      else if (NewRight.DatabaseName <> '') then
-        SingleSQL := SingleSQL + Connection.EscapeIdentifier(NewRight.DatabaseName) + '.*'
-      else
-        SingleSQL := SingleSQL + '*.*';
-
-      SingleSQL := SingleSQL + ' TO ' + EscapeUser(NewUser.Name);
-      if (Options <> '') then
-        SingleSQL := SingleSQL + ' WITH ' + Options;
-      SQL := SQL + SingleSQL + ';' + #13#10;
-    end;
-  end;
-
-  if (Assigned(User)) then
-  begin
-    for I := 0 to User.RightCount - 1 do
-    begin
-      OldRight := User.Rights[I];
-      NewRight := nil;
-      if (Assigned(NewUser)) then
-        for J := 0 to NewUser.RightCount - 1 do
-          if   ((Databases.NameCmp(NewUser.Rights[J].DatabaseName , OldRight.DatabaseName ) = 0)
-            and (TableNameCmp(NewUser.Rights[J].TableName    , OldRight.TableName    ) = 0)
-            and (TableNameCmp(NewUser.Rights[J].ProcedureName, OldRight.ProcedureName) = 0)
-            and (TableNameCmp(NewUser.Rights[J].FunctionName , OldRight.FunctionName ) = 0)
-            and (lstrcmpi(PChar(NewUser.Rights[J].FieldName), PChar(OldRight.FieldName)) = 0)) then
-            NewRight := NewUser.Rights[J];
-
-
-      if (not Assigned(NewRight)) then
+      Options := '';
+      if (NewRight.RGrant and not (Assigned(OldRight) and OldRight.RGrant)) then Options := Options + ' GRANT OPTION';
+      if (NewRight.DatabaseName = '') then
       begin
-        RemovedUserRights[User.IndexOf(OldRight)] := True;
+        if (not Assigned(User) and (NewUser.ConnectionsPerHour > 0) or Assigned(User) and (User.ConnectionsPerHour <> NewUser.ConnectionsPerHour)) then Options := Options + ' MAX_CONNECTIONS_PER_HOUR ' + IntToStr(NewUser.ConnectionsPerHour);
+        if (not Assigned(User) and (NewUser.QueriesPerHour     > 0) or Assigned(User) and (User.QueriesPerHour     <> NewUser.QueriesPerHour    )) then Options := Options + ' MAX_QUERIES_PER_HOUR '     + IntToStr(NewUser.QueriesPerHour);
+        if (not Assigned(User) and (NewUser.UpdatesPerHour     > 0) or Assigned(User) and (User.UpdatesPerHour     <> NewUser.UpdatesPerHour    )) then Options := Options + ' MAX_UPDATES_PER_HOUR '     + IntToStr(NewUser.UpdatesPerHour);
+        if (Connection.MySQLVersion >= 50003) then
+          if (not Assigned(User) and (NewUser.UserConnections    > 0) or Assigned(User) and (User.UserConnections    <> NewUser.UserConnections   )) then Options := Options + ' MAX_USER_CONNECTIONS '     + IntToStr(NewUser.UserConnections);
+      end;
+      Options := Trim(Options);
 
-        EmptyRight := TSUserRight.Create();
-        Privileges := GetPrivileges(False, OldRight, EmptyRight, GetRightType(OldRight));
-        EmptyRight.Free();
+      if ((Privileges = '') and ((Options <> '') or (not Assigned(User) and (Connection.MySQLVersion <= 50002)))) then
+        Privileges := 'USAGE';
 
-        if (Privileges <> '') then
-        begin
-          SingleSQL := 'REVOKE ' + Privileges + ' ON ';
-          if (OldRight.TableName <> '') then
-            SingleSQL := SingleSQL + Connection.EscapeIdentifier(OldRight.DatabaseName) + '.' + Connection.EscapeIdentifier(OldRight.TableName)
-          else if (OldRight.ProcedureName <> '') then
-            SingleSQL := SingleSQL + 'PROCEDURE ' + Connection.EscapeIdentifier(OldRight.DatabaseName) + '.' + Connection.EscapeIdentifier(OldRight.ProcedureName)
-          else if (OldRight.FunctionName <> '') then
-            SingleSQL := SingleSQL + 'FUNCTION ' + Connection.EscapeIdentifier(OldRight.DatabaseName) + '.' + Connection.EscapeIdentifier(OldRight.FunctionName)
-          else if (OldRight.DatabaseName <> '') then
-            SingleSQL := SingleSQL + Connection.EscapeIdentifier(OldRight.DatabaseName) + '.*'
+      if (Privileges <> '') then
+      begin
+        SingleSQL := 'GRANT ' + Privileges + ' ON ';
+
+        if (NewRight.TableName <> '') then
+          if (Connection.MySQLVersion < 50006) then
+            SingleSQL := SingleSQL + Connection.EscapeIdentifier(NewRight.DatabaseName) + '.' + Connection.EscapeIdentifier(NewRight.TableName)
           else
-            SingleSQL := SingleSQL + '*.*';
-          SingleSQL := SingleSQL + ' FROM ' + EscapeUser(NewUser.Name);
-          SQL := SQL + SingleSQL + ';' + #13#10;
-        end;
+            SingleSQL := SingleSQL + 'TABLE ' + Connection.EscapeIdentifier(NewRight.DatabaseName) + '.' + Connection.EscapeIdentifier(NewRight.TableName)
+        else if (NewRight.ProcedureName <> '') then
+          SingleSQL := SingleSQL + 'PROCEDURE ' + Connection.EscapeIdentifier(NewRight.DatabaseName) + '.' + Connection.EscapeIdentifier(NewRight.ProcedureName)
+        else if (NewRight.FunctionName <> '') then
+          SingleSQL := SingleSQL + 'FUNCTION ' + Connection.EscapeIdentifier(NewRight.DatabaseName) + '.' + Connection.EscapeIdentifier(NewRight.FunctionName)
+        else if (NewRight.DatabaseName <> '') then
+          SingleSQL := SingleSQL + Connection.EscapeIdentifier(NewRight.DatabaseName) + '.*'
+        else
+          SingleSQL := SingleSQL + '*.*';
+
+        SingleSQL := SingleSQL + ' TO ' + EscapeUser(NewUser.Name);
+        if (Options <> '') then
+          SingleSQL := SingleSQL + ' WITH ' + Options;
+        SQL := SQL + SingleSQL + ';' + #13#10;
       end;
     end;
   end;

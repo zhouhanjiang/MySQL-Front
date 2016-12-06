@@ -194,7 +194,10 @@ begin
     end
     else
     begin
-      NewRoutine := TSRoutine.Create(Database.Routines);
+      if (RoutineType = rtProcedure) then
+        NewRoutine := TSProcedure.Create(Database.Routines)
+      else
+        NewRoutine := TSFunction.Create(Database.Routines);
       if (Assigned(Routine)) then
         NewRoutine.Assign(Routine);
 

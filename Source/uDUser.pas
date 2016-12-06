@@ -296,7 +296,6 @@ end;
 
 procedure TDUser.FormShow(Sender: TObject);
 var
-  NewUserRight: TSUserRight;
   UserName: string;
 begin
   Session.RegisterEventProc(FormSessionEvent);
@@ -323,10 +322,6 @@ begin
 
   if (not Assigned(User)) then
   begin
-    NewUserRight := TSUserRight.Create();
-    NewUser.AddRight(NewUserRight);
-    FreeAndNil(NewUserRight);
-
     FName.Text := Preferences.LoadStr(280);
     while (Assigned(Session.UserByCaption(FName.Text))) do
     begin

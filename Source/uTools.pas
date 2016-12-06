@@ -57,7 +57,13 @@ type
       ErrorMessage: string;
       Session: TSSession;
     end;
-    TErrorEvent = procedure(const Sender: TObject; const Error: TError; const Item: TItem; const ShowRetry: Boolean; var Success: TDataAction) of object;
+    TErrorDetails = record
+      Error: TError;
+      Item: TItem;
+      ShowRetry: Boolean;
+      Tool: TTool;
+    end;
+    TErrorEvent = function(const Details: TErrorDetails): TDataAction of object;
     PProgressInfos = ^TProgressInfos;
     TProgressInfos = record
       ObjectsDone, ObjectsSum: Integer;
@@ -1657,6 +1663,7 @@ end;
 
 procedure TTool.DoError(const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean);
 var
+  Details: TErrorDetails;
   ErrorTime: TDateTime;
 begin
   Inc(FErrorCount);
@@ -1666,7 +1673,11 @@ begin
     else
     begin
       ErrorTime := Now();
-      OnError(Self, Error, Item, ShowRetry, Success);
+      Details.Tool := Self;
+      Details.Item := Item;
+      Details.Error := Error;
+      Details.ShowRetry := ShowRetry;
+      Success := OnError(Details);
       StartTime := StartTime + ErrorTime - Now();
     end;
 end;
@@ -4733,11 +4744,9 @@ var
 begin
   DoFileCreate(Filename);
 
-  Content := Content + '# Host: ' + Session.Caption;
-  Content := Content + '  (Version ' + Session.Connection.ServerVersionStr + ')' + #13#10;
+  Content := Content + '# Host: ' + Session.Caption + '  (Version ' + Session.Connection.ServerVersionStr + ')' + #13#10;
   Content := Content + '# Date: ' + MySQLDB.DateTimeToStr(Now(), Session.Connection.FormatSettings) + #13#10;
-  Content := Content + '# Generator: ' + LoadStr(1000) + ' ' + Preferences.VersionStr + #13#10;
-  Content := Content + '# Internet: ' + SysUtils.LoadStr(1004) + #13#10;
+  Content := Content + '# Generator: ' + LoadStr(1000) + ' ' + Preferences.VersionStr + ' - ' + SysUtils.LoadStr(1004) + #13#10;
   Content := Content + #13#10;
 
   if ((CodePage <> CP_UNICODE) and (Session.Connection.CodePageToCharset(CodePage) <> '') and (Session.Connection.MySQLVersion >= 40101)) then
@@ -4833,6 +4842,14 @@ begin
       Content := Content + '# Structure for table "' + Table.Name + '"' + #13#10;
     Content := Content + '#' + #13#10;
     Content := Content + #13#10;
+
+    {$IFDEF Debug}
+      for I := 0 to Table.References.Count - 1 do
+        if (not Assigned(Table.References[I].DBObject)) then
+          Content := Content + '# Reference to ' + Table.References[I].DatabaseName + '.' + Table.References[I].DBObjectName + ' - ClassType: ' + Table.References[I].DBObjectClass.ClassName + ' (not found!)'#13#10
+        else
+          Content := Content + '# Reference to ' + Session.Connection.EscapeIdentifier(Table.References[I].DBObject.Database.Name) + '.' + Session.Connection.EscapeIdentifier(Table.References[I].DBObject.Name) + ' - ClassType: ' + Table.References[I].DBObject.ClassName + #13#10;
+    {$ENDIF}
 
     Content := Content + Table.GetSourceEx(DropStmts, CrossReferencedObjects);
   end;
@@ -7988,6 +8005,10 @@ begin
   SourceTable := TSTable(Item.DBObject);
   DestinationDatabase := DestinationSession.DatabaseByName(TItem(Item).DestinationDatabaseName);
 
+  // Debug 2016-12-06
+  if (not Assigned(SourceDatabase)) then
+    raise ERangeError.Create(SRangeError);
+
   if (Session = DestinationSession) then
   begin
     while ((Success = daSuccess) and not DestinationDatabase.CloneTable(SourceTable, Item.DBObject.Name, Data)) do
@@ -8032,7 +8053,9 @@ begin
     end;
   end;
 
-  if ((SourceTable is TSBaseTable) and Assigned(SourceDatabase.Triggers) and Assigned(DestinationDatabase.Triggers)) then
+  if ((SourceTable is TSBaseTable)
+    and Assigned(SourceDatabase.Triggers)
+    and Assigned(DestinationDatabase) and Assigned(DestinationDatabase.Triggers)) then
     for I := 0 to SourceDatabase.Triggers.Count - 1 do
       if ((Success = daSuccess) and (SourceDatabase.Triggers[I].Table = SourceTable) and not Assigned(DestinationDatabase.TriggerByName(SourceDatabase.Triggers[I].Name))) then
       begin

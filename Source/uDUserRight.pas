@@ -328,7 +328,7 @@ var
 begin
   if (ModalResult = mrOk) then
   begin
-    NewUserRight := TSUserRight.Create();
+    NewUserRight := TSUserRight.Create(User);
     if (Assigned(UserRight)) then
       NewUserRight.Assign(UserRight);
 

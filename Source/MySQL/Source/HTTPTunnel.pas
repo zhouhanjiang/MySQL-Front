@@ -487,11 +487,10 @@ begin
           URLComponents.dwExtraInfoLength := 256;
           if (not InternetCrackUrl(PChar(URL), Length(URL), ICU_DECODE, URLComponents)) then
           begin
-            Len := FormatMessage(FORMAT_MESSAGE_FROM_HMODULE or FORMAT_MESSAGE_ALLOCATE_BUFFER,
-              Pointer(GetModuleHandle('Wininet.dll')), GetLastError(), 0, @Buffer, 0, nil);
+            Len := FormatMessage(FORMAT_MESSAGE_FROM_HMODULE,
+              Pointer(GetModuleHandle('Wininet.dll')), GetLastError(), 0, @Buffer, Length(Buffer), nil);
             while (Len > 0) and (CharInSet(Buffer[Len - 1], [#0..#32])) do Dec(Len);
             SetString(ErrorMessage, Buffer, Len);
-            ErrorMessage := ErrorMessage + #13#10#13#10 + 'URL: ' + URL;
             raise EConvertError.Create(ErrorMessage);
           end;
 
