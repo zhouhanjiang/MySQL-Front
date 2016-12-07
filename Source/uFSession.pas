@@ -1091,6 +1091,27 @@ const
   ToolbarTabByView: array[vObjects .. vEditor3] of TPPreferences.TToolbarTab =
     (ttObjects, ttBrowser, ttIDE, ttBuilder, ttDiagram, ttEditor, ttEditor2, ttEditor3);
 
+// Debug 2016-12-07
+function GetControlByHandle(const Control: TWinControl; const Wnd: HWND): TWinControl;
+var
+  I: Integer;
+begin
+  Result := nil;
+
+  for I := 0 to Control.ControlCount - 1 do
+    if (Control.Controls[I] is TWinControl) then
+    begin
+      Result := GetControlByHandle(TWinControl(Control.Controls[I]), Wnd);
+      if (Assigned(Result)) then
+        break;
+    end;
+
+  if (Control.Handle = Wnd) then
+    Result := Control
+  else if (Assigned(Result)) then
+    raise ERangeError.Create(SRangeError);
+end;
+
 function IsRTF(const Value: string): Boolean;
 var
   S: string;
@@ -1949,6 +1970,7 @@ var
   TempAction: TAction;
   TempAddress: string;
   TempUpdate: TSSession.TUpdate;
+  URI: TUURI;
 begin
   if (Assigned(Action)) then
   begin
@@ -1961,6 +1983,18 @@ begin
     TempAddress := Address;
     Clear();
     FSession.Address := TempAddress;
+    if (Nothing and (FSession.Address <> TempAddress)) then
+    begin
+      URI := TUURI.Create();
+      URI.Address := TempAddress;
+      URI.Database := '';
+      URI.Table := '';
+      URI.Param['view'] := Null;
+      URI.Param['objecttype'] := Null;
+      URI.Param['object'] := Null;
+      FSession.Address := URI.Address;
+      URI.Free();
+    end;
   end
   else if (Assigned(Update)) then
   begin
@@ -2942,12 +2976,15 @@ end;
 procedure TFSession.aECopyExecute(Sender: TObject);
 var
   ClipboardData: HGLOBAL;
+  Control: TWinControl;
   Data: string;
-  FileName: array [0..MAX_PATH] of Char;
+  FileName: array [0..MAX_PATH] of Char; // Debug 2016-12-07
   I: Integer;
   ImageIndex: Integer;
+  Msg: string; // Debug 2016-12-07
   S: string;
   StringList: TStringList;
+  Text: array[0..128] of Char; // Debug 2016-12-07
 begin
   Data := '';
 
@@ -3092,7 +3129,18 @@ begin
     except
       on E: EClipboardException do
         begin
+          Msg := E.Message;
           SetString(S, PChar(@FileName[0]), GetWindowModuleFileName(GetClipboardOwner(), PChar(@FileName[0]), Length(FileName)));
+          Msg := Msg + #10 + 'Filename: ' + S;
+          SetString(S, PChar(@Text[0]), GetWindowText(GetClipboardOwner(), PChar(@Text[0]), Length(Text)));
+          Msg := Msg + #10 + 'WindowText: ' + S;
+          try
+            Control := GetControlByHandle(Window, GetClipboardOwner());
+            if (Assigned(Control)) then
+              Msg := Msg + #10 + 'ClassType: ' + Control.ClassName
+                 + #10 + 'Name: ' + Control.Name;
+          except
+          end;
           raise Exception.Create(E.Message + #10 + 'Clipboard Owner: ' + S);
         end;
     end;
@@ -3159,10 +3207,13 @@ procedure TFSession.aEPasteExecute(Sender: TObject);
 var
   B: Boolean;
   ClipboardData: HGLOBAL;
-  FileName: array [0..MAX_PATH] of Char;
+  Control: TWinControl;
+  FileName: array [0..MAX_PATH] of Char; // Debug 2012-12
   I: Integer;
+  Msg: string; // Debug 2016-12-07
   Node: TTreeNode;
   S: string;
+  Text: array [0..128] of Char; // Debug 2016-12-07
 begin
   if (Session.Connection.InUse()) then
     MessageBeep(MB_ICONERROR)
@@ -3236,8 +3287,18 @@ begin
     except
       on E: EClipboardException do
         begin
+          Msg := E.Message;
           SetString(S, PChar(@FileName[0]), GetWindowModuleFileName(GetClipboardOwner(), PChar(@FileName[0]), Length(FileName)));
-          raise Exception.Create(E.Message + #10 + 'Clipboard Owner: ' + S);
+          Msg := Msg + #10 + 'Filename: ' + S;
+          SetString(S, PChar(@Text[0]), GetWindowText(GetClipboardOwner(), PChar(@Text[0]), Length(Text)));
+          Msg := Msg + #10 + 'WindowText: ' + S;
+          try
+            Control := GetControlByHandle(Window, GetClipboardOwner());
+            if (Assigned(Control)) then
+              Msg := Msg + #10 + 'ClassType: ' + Control.ClassName
+                 + #10 + 'Name: ' + Control.Name;
+          except
+          end;
         end;
     end
   else if (Assigned(ActiveWorkbench) and (Window.ActiveControl = ActiveWorkbench)) then
@@ -9647,8 +9708,16 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
           if ((Kind = lkTable) and (Event.Items is TSBaseTableFields)) then
           begin
             for I := ListView.Items.Count - 1 downto 0 do
+            begin
+              if (not Assigned(TSBaseTableFields(Event.Items).Table)) then
+                raise ERangeError.Create(SRangeError);
+              if (not (TSBaseTableFields(Event.Items).Table is TSBaseTable)) then
+                raise ERangeError.Create(SRangeError + ' ClassType: ' + TSBaseTableFields(Event.Items).Table.ClassName);
+              if (not Assigned(TSBaseTable(TSBaseTableFields(Event.Items).Table).Keys)) then
+                raise ERangeError.Create(SRangeError);
               if ((TObject(ListView.Items[I].Data) is TSKey) and (TSBaseTable(TSBaseTableFields(Event.Items).Table).Keys.IndexOf(ListView.Items[I].Data) < 0)) then
                 ListView.Items.Delete(I);
+            end;
             for I := ListView.Items.Count - 1 downto 0 do
               if ((TObject(ListView.Items[I].Data) is TSField) and (TSBaseTable(TSBaseTableFields(Event.Items).Table).Fields.IndexOf(ListView.Items[I].Data) < 0)) then
                 ListView.Items.Delete(I);
@@ -12292,6 +12361,12 @@ begin
     end;
 
     Address := URI.Address;
+
+    // Debug 2016-12-07
+    URI.Address := Address;
+    if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
+      raise ERangeError.Create(SRangeError + ' Address: ' + Address);
+
     URI.Free();
   end;
 end;

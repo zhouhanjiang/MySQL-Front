@@ -6497,6 +6497,11 @@ begin
   if (Assigned(DestData)) then
     FreeMem(DestData);
 
+  // Debug 2016-12-07
+  if (not Assigned(Self)) then
+    raise ERangeError.Create(SRangeError);
+  if (not (TObject(Self) is TMySQLDataSet)) then
+    raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Self).ClassName);
   // Debug 2016-11-24
   MemSize := FieldCount;
   MemSize := SizeOf(DestData^) + MemSize * (SizeOf(DestData^.LibLengths^[0]) + SizeOf(DestData^.LibRow^[0]));
@@ -6973,6 +6978,14 @@ begin
         // Debug 2016-12-07
         Bookmark := TBookmark(DeleteBookmarks[I]);
         Index := BookmarkToInternBufferIndex(Bookmark);
+        if (not Assigned(InternRecordBuffers)) then
+          raise ERangeError.Create(SRangeError);
+        if (not (InternRecordBuffers is TInternRecordBuffers)) then
+          raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(InternRecordBuffers).ClassName);
+        if (Index < 0) then
+          raise ERangeError.Create(SRangeError);
+        if (Index >= InternRecordBuffers.Count) then
+          raise ERangeError.Create(SRangeError + ' Index: ' + IntToStr(Index));
 
         InternRecordBuffer := InternRecordBuffers[Index];
         if (not Assigned(InternRecordBuffer^.OldData) or not Assigned(InternRecordBuffer^.OldData^.LibRow^[WhereField.FieldNo - 1])) then
