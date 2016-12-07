@@ -5813,6 +5813,7 @@ var
   DatabasesXML: IXMLNode;
   I: Integer;
   TempB: Boolean;
+  ToolbarTab: TPPreferences.TToolbarTab; // Debug 2016-12-07
   URI: TUURI;
   View: TView;
 begin
@@ -5844,10 +5845,25 @@ begin
 
   for View in [vEditor, vEditor2, vEditor3] do
     if (Assigned(SQLEditors[View])) then
+    begin
+      // Debug 2016-12-07
+      if (not Assigned(Session)) then
+        raise ERangeError.Create(SRangeError);
+      if (not Assigned(Session.Account)) then
+        raise ERangeError.Create(SRangeError);
+      if (not Assigned(Session.Account.Desktop)) then
+        raise ERangeError.Create(SRangeError);
+      ToolbarTab := ToolbarTabByView[View];
+      if (not (ToolbarTab in [ttEditor .. ttEditor3])) then
+        raise ERangeError.Create(SRangeError + ' (' + IntToStr(Ord(ToolbarTab)) + ')');
+      if (not Assigned(SQLEditors[View].SynMemo)) then
+        raise ERangeError.Create(SRangeError);
+
       if ((SQLEditors[View].Filename <> '') and not SQLEditors[View].SynMemo.Modified) then
-        Session.Account.Desktop.EditorContent[ToolbarTabByView[View]] := ''
+        Session.Account.Desktop.EditorContent[ToolbarTab] := ''
       else
-        Session.Account.Desktop.EditorContent[ToolbarTabByView[View]] := SQLEditors[View].SynMemo.Text;
+        Session.Account.Desktop.EditorContent[ToolbarTab] := SQLEditors[View].SynMemo.Text;
+    end;
   Session.Account.Desktop.FoldersHeight := PFolders.Height;
 
   if (Assigned(FFiles)) then
@@ -9185,7 +9201,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
       else
         Item.ImageIndex := iiView;
       Item.Caption := TSTable(Data).Caption;
-      if ((TSTable(Data) is TSBaseTable) and TSBaseTable(Data).ValidStatus and Assigned(TSBaseTable(Data).Engine)) then
+      if ((TSTable(Data) is TSBaseTable) and TSBaseTable(Data).ValidStatus) then
         Item.SubItems.Add(TSBaseTable(Data).Engine.Name)
       else if ((TSTable(Data) is TSView)) then
         Item.SubItems.Add(Preferences.LoadStr(738))
@@ -9194,7 +9210,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
       if (TSTable(Data) is TSBaseTable) then
         if (not TSBaseTable(Data).ValidStatus or (TSBaseTable(Data).RecordCount < 0)) then
           Item.SubItems.Add('')
-        else if (Assigned(TSBaseTable(Data).Engine) and TSBaseTable(Data).Engine.IsInnoDB) then
+        else if (TSBaseTable(Data).Engine.IsInnoDB) then
           Item.SubItems.Add(FormatFloat('~#,##0', TSBaseTable(Data).RecordCount, LocaleFormatSettings))
         else
           Item.SubItems.Add(FormatFloat('#,##0', TSBaseTable(Data).RecordCount, LocaleFormatSettings))
@@ -11328,11 +11344,20 @@ begin
                         MessageBeep(MB_ICONERROR)
                       else
                       begin
-                        NewKey := TSKey.Create(NewTable.Keys);
-                        NewKey.Assign(SourceKey);
-                        NewKey.Name := Name;
-                        NewTable.Keys.AddKey(NewKey);
-                        NewKey.Free();
+                        Found := True;
+                        for J := 0 to SourceKey.Columns.Count - 1 do
+                          if (not Assigned(NewTable.FieldByName(SourceKey.Columns[J].Field.Name))) then
+                            Found := False;
+                        if (not Found) then
+                          MessageBeep(MB_ICONERROR)
+                        else
+                        begin
+                          NewKey := TSKey.Create(NewTable.Keys);
+                          NewKey.Assign(SourceKey);
+                          NewKey.Name := Name;
+                          NewTable.Keys.AddKey(NewKey);
+                          NewKey.Free();
+                        end;
                       end;
                     end
                     else if (StringList.Names[I] = 'ForeignKey') then
@@ -12228,6 +12253,9 @@ begin
     begin
       if (SelectedImageIndex = iiTrigger) then
         URI.Table := TSTrigger(FNavigator.Selected.Data).TableName
+      else if (LastSelectedTable = '') then
+        // Debug 2016-12-07
+        raise ERangeError.Create(SRangeError)
       else
         URI.Table := LastSelectedTable;
     end
@@ -13967,7 +13995,8 @@ begin
       end;
     vBrowser:
       if ((TObject(FNavigator.Selected.Data) is TSTable) and not TSTable(FNavigator.Selected.Data).ValidData) then
-        if (not TSTable(FNavigator.Selected.Data).Update()) then
+        if ((TObject(FNavigator.Selected.Data) is TSView and not TSView(FNavigator.Selected.Data).Update())
+          or (TObject(FNavigator.Selected.Data) is TSBaseTable and not TSBaseTable(FNavigator.Selected.Data).Update(True))) then
           Wanted.Update := UpdateAfterAddressChanged
         else
           TableOpen(nil);

@@ -380,10 +380,6 @@ var
   I: Integer;
   Item: TListItem;
 begin
-  // Debug 2016-11-17
-  if (NewUser.RightCount = 0) then
-    raise ERangeError.Create(SRangeError);
-
   FRights.Clear();
 
   for I := 0 to NewUser.RightCount - 1 do

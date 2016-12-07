@@ -1074,7 +1074,7 @@ begin
   if ((TDataAction(Message.Result) in [daAbort, daFail]) and (ErrorMsg <> '')) then
   begin
     FErrors.Caption := IntToStr(Details^.Tool.ErrorCount);
-    FErrorMessages.Lines.Add(Trim(ErrorMsg));
+    FErrorMessages.Text := FErrorMessages.Text + Trim(ErrorMsg);
   end;
 end;
 

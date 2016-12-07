@@ -1600,7 +1600,7 @@ function TMySQL_Packet.ReceivePacket(): Boolean;
                   begin
                     // Debug 2016-11-10
                     raise ERangeError.CreateFMT('Range Error: %d <> %d, Version: %s', [DecompressedSize, UncompressedSize, string(MYSQL(Self).fserver_info)]);
-//                    Result := Seterror(CR_SERVER_HANDSHAKE_ERR) = 0;
+                    Result := Seterror(CR_SERVER_HANDSHAKE_ERR) = 0;
                   end
                   else
                   begin

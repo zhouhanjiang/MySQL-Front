@@ -8918,6 +8918,7 @@ end;
 function TSVariables.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
 var
   DeleteList: TList;
+  I: Integer;
   Index: Integer;
   Name: string;
 begin
@@ -8982,6 +8983,37 @@ begin
         Session.Connection.ServerTimeout := Session.VariableByName('wait_timeout').AsInteger - 3
       else if (Session.VariableByName('wait_timeout').AsInteger >= 60) then
         Session.Connection.ServerTimeout := Session.VariableByName('wait_timeout').AsInteger - 1;
+
+    if (Session.Connection.MySQLVersion < 40102) then
+    begin
+      Session.Engines.Clear();
+
+      if ((Session.Connection.MySQLVersion >= 32334) and Assigned(Session.VariableByName('have_bdb')) and Session.VariableByName('have_bdb').AsBoolean) then
+        Session.Engines.Add(TSEngine.Create(Session.Engines, 'BDB'));
+
+      Session.Engines.Add(TSEngine.Create(Session.Engines, 'HEAP'));
+
+      if (Assigned(Session.VariableByName('have_innodb')) and Session.VariableByName('have_innodb').AsBoolean) then
+        Session.Engines.Add(TSEngine.Create(Session.Engines, 'InnoDB'));
+
+      if (Assigned(Session.VariableByName('have_isam')) and Session.VariableByName('have_isam').AsBoolean) then
+        Session.Engines.Add(TSEngine.Create(Session.Engines, 'ISAM'));
+
+      if (Session.Connection.MySQLVersion >= 32325) then
+        Session.Engines.Add(TSEngine.Create(Session.Engines, 'MERGE'));
+
+      Session.Engines.Add(TSEngine.Create(Session.Engines, 'MyISAM'));
+      Session.Engines[Session.Engines.Count - 1].FDefault := not Assigned(Session.VariableByName('table_type'));
+
+      Session.Engines.Add(TSEngine.Create(Session.Engines, 'MRG_MyISAM'));
+
+      if (Assigned(Session.VariableByName('table_type'))) then
+        for I := 0 to Session.Engines.Count - 1 do
+          Session.Engines[I].FDefault := StrIComp(PChar(Session.Engines[I].Name), PChar(Session.VariableByName('table_type').Value)) = 0;
+      if (Assigned(Session.VariableByName('storage_engine'))) then
+        for I := 0 to Session.Engines.Count - 1 do
+          Session.Engines[I].FDefault := StrIComp(PChar(Session.Engines[I].Name), PChar(Session.VariableByName('storage_engine').Value)) = 0;
+    end;
   end;
 
   if (not Filtered) then
@@ -9101,7 +9133,6 @@ end;
 function TSEngines.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
 var
   DeleteList: TList;
-  I: Integer;
   Index: Integer;
   Name: string;
   NewEngine: TSEngine;
@@ -9109,35 +9140,7 @@ begin
   DeleteList := TList.Create();
   DeleteList.Assign(Self);
 
-  if (not Assigned(DataSet) and Session.Variables.Valid) then
-  begin
-    if ((Session.Connection.MySQLVersion >= 32334) and Assigned(Session.VariableByName('have_bdb')) and Session.VariableByName('have_bdb').AsBoolean) then
-      Add(TSEngine.Create(Self, 'BDB'));
-
-    Add(TSEngine.Create(Self, 'HEAP'));
-
-    if (Assigned(Session.VariableByName('have_innodb')) and Session.VariableByName('have_innodb').AsBoolean) then
-      Add(TSEngine.Create(Self, 'InnoDB'));
-
-    if (Assigned(Session.VariableByName('have_isam')) and Session.VariableByName('have_isam').AsBoolean) then
-      Add(TSEngine.Create(Self, 'ISAM'));
-
-    if (Session.Connection.MySQLVersion >= 32325) then
-      Add(TSEngine.Create(Self, 'MERGE'));
-
-    Add(TSEngine.Create(Self, 'MyISAM'));
-    Engine[Count - 1].FDefault := not Assigned(Session.VariableByName('table_type'));
-
-    Add(TSEngine.Create(Self, 'MRG_MyISAM'));
-
-    if (Assigned(Session.VariableByName('table_type'))) then
-      for I := 0 to TList(Self).Count - 1 do
-        Engine[I].FDefault := StrIComp(PChar(Engine[I].Name), PChar(Session.VariableByName('table_type').Value)) = 0;
-    if (Assigned(Session.VariableByName('storage_engine'))) then
-      for I := 0 to TList(Self).Count - 1 do
-        Engine[I].FDefault := StrIComp(PChar(Engine[I].Name), PChar(Session.VariableByName('storage_engine').Value)) = 0;
-  end
-  else if (Assigned(DataSet) and not DataSet.IsEmpty()) then
+  if (Assigned(DataSet) and not DataSet.IsEmpty()) then
     repeat
       if ((not UseInformationSchema and (StrIComp(PChar(DataSet.FieldByName('Support').AsString), 'NO') <> 0) and (StrIComp(PChar(DataSet.FieldByName('Support').AsString), 'DISABLED') <> 0))
         or (UseInformationSchema and (StrIComp(PChar(DataSet.FieldByName('SUPPORT').AsString), 'NO') <> 0) and (StrIComp(PChar(DataSet.FieldByName('SUPPORT').AsString), 'DISABLED') <> 0))) then
@@ -9400,7 +9403,7 @@ function TSFieldTypes.FieldAvailable(const Engine: TSEngine; const MySQLFieldTyp
 begin
   case (MySQLFieldType) of
     mfUnknown: Result := False;
-    mfBit: Result := Assigned(Engine) and ((Session.Connection.MySQLVersion >= 50003) and (Engine.Name = 'MyISAM') or (Session.Connection.MySQLVersion >= 50005) and ((Engine.Name = 'MEMORY') or Engine.IsInnoDB or (Engine.Name = 'BDB')));
+    mfBit: Result := (Session.Connection.MySQLVersion >= 50003) and (Engine.Name = 'MyISAM') or (Session.Connection.MySQLVersion >= 50005) and ((Engine.Name = 'MEMORY') or Engine.IsInnoDB or (Engine.Name = 'BDB'));
     mfBinary,
     mfVarBinary: Result := Session.Connection.MySQLVersion >= 40102;
     mfGeometry,
@@ -9410,7 +9413,7 @@ begin
     mfMultiPoint,
     mfMultiLineString,
     mfMultiPolygon,
-    mfGeometryCollection: Result := Assigned(Engine) and (Assigned(Session.VariableByName('have_geometry')) and Session.VariableByName('have_geometry').AsBoolean and ((Engine.Name = 'MyISAM') or (Session.Connection.MySQLVersion >= 50016) and (Engine.IsInnoDB or (Engine.Name = 'NDB') or (Engine.Name = 'BDB') or (Engine.Name = 'ARCHIVE'))));
+    mfGeometryCollection: Result := Assigned(Session.VariableByName('have_geometry')) and Session.VariableByName('have_geometry').AsBoolean and ((Engine.Name = 'MyISAM') or (Session.Connection.MySQLVersion >= 50016) and (Engine.IsInnoDB or (Engine.Name = 'NDB') or (Engine.Name = 'BDB') or (Engine.Name = 'ARCHIVE')));
     mfJSON: Result := Session.Connection.MySQLVersion >= 50708;
     else Result := True;
   end;

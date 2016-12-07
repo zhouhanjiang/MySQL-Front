@@ -925,7 +925,7 @@ begin
 
   FFieldType.Clear();
   for I := 0 to Table.Session.FieldTypes.Count - 1 do
-    if (not Assigned(Table.Engine) or Table.Engine.FieldAvailable(Table.Session.FieldTypes[I].MySQLFieldType)) then
+    if (Table.Engine.FieldAvailable(Table.Session.FieldTypes[I].MySQLFieldType)) then
       FFieldType.Items.Add(Table.Session.FieldTypes[I].Caption);
 
   FCharset.Items.Clear();

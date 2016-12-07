@@ -8,7 +8,7 @@
 
 	/****************************************************************************/
 
-	$MF_VERSION = 25;
+	$MF_VERSION = 26;
 
 	$Charsets = array(
 		'big5' => 1,
@@ -183,7 +183,7 @@
 	error_reporting(E_ERROR | E_PARSE);
 
 	if ($_SERVER['REQUEST_METHOD'] != 'POST')
-		exit('<!DOCTYPE html><html><head></head><body>This script is used by the Windows application <a href="{BuildInternetHomepage}">{BuildName}</a>.</body></html>');
+		exit('<!DOCTYPE html><html><head></head><body>This script is used by the Windows application <a href="http://www.mysqlfront.de/">MySQL-Front</a>.</body></html>');
 
 	if (isset($_GET['SID']))
 		session_id($_GET['SID']);
@@ -358,7 +358,7 @@
 						SendPacket($Packet);
 						FlushPackets();
 						break;
-					} else if (preg_match("^USE[| |\t|\n|\r][| |\t|\n|\r]*", $Query) || preg_match("^SET[| |\t|\n|\r][| |\t|\n|\r]*NAMES[| |\t|\n|\r]", $Query)) {
+					} else if (preg_match('^USE[| |\t|\n|\r][| |\t|\n|\r]*', $Query) || preg_match('^SET[| |\t|\n|\r][| |\t|\n|\r]*NAMES[| |\t|\n|\r]', $Query)) {
 						// on some PHP versions mysqli_use_result just ignores "USE Database;"
 						// statements. So it has to be handled separately:
 						$Packet = '';
@@ -375,9 +375,9 @@
 						SendPacket($Packet);
 						FlushPackets();
 
-						if (preg_match("^USE[| |\t|\n|\r]*", $Query))
+						if (preg_match('^USE[| |\t|\n|\r]*', $Query))
 							$_SESSION['database'] = preg_replace('/[|`|\"| *;|;|\t|\n|\r]/i', '', preg_replace('/^USE[| |\t|\n|\r]*/i', '', $Query));
-						else if (preg_match("^SET[| |\t|\n|\r]*NAMES[| |\t|\n|\r]", $Query)) {
+						else if (preg_match('^SET[| |\t|\n|\r]*NAMES[| |\t|\n|\r]', $Query)) {
 							$_SESSION['charset'] = preg_replace('/[|`|\"| *;|;|\t|\n|\r]/i', '', preg_replace('/^NAMES[| |\t|\n|\r]*/i', '', preg_replace('/^SET[| |\t|\n|\r]*/i', '', $Query)));
 						}
 					} else {
@@ -451,7 +451,7 @@
 									$Packet .= pack('v', 0x0000); // Server Status
 								SendPacket($Packet);
 
-								while ($Row = mysqli_fetch_array($result, MYSQL_NUM)) {
+								while ($Row = mysqli_fetch_row($result)) {
 									$Packet = '';
 									$Lengths = mysqli_fetch_lengths($result);
 									for ($i = 0; $i < mysqli_num_fields($result); $i++)
@@ -587,9 +587,9 @@
 						SendPacket($Packet);
 						FlushPackets();
 
-						if (preg_match("^USE[| |\t|\n|\r]", $Query))
+						if (preg_match('^USE[| |\t|\n|\r]', $Query))
 							$_SESSION['database'] = preg_replace('/[|`|\"| *;|;|\t|\n|\r]/i', '', preg_replace('/^USE[| |\t|\n|\r]*/i', '', $Query));
-						else if (preg_match("^SET[| |\t|\n|\r][| |\t|\n|\r]*NAMES[| |\t|\n|\r]", $Query)) {
+						else if (preg_match('^SET[| |\t|\n|\r][| |\t|\n|\r]*NAMES[| |\t|\n|\r]', $Query)) {
 							$_SESSION['charset'] = preg_replace('/[|`|\"| *;|;|\t|\n|\r]/i', '', preg_replace('/^NAMES[| |\t|\n|\r]*/i', '', preg_replace('/^SET[| |\t|\n|\r]*/i', '', $Query)));
 							SetCharsetNr($mysql);
 						}

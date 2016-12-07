@@ -1026,13 +1026,6 @@ begin
         if (not (TObject(BaseTable) is TSBaseTable)) then
           raise ERangeError.Create(SRangeError);
         Engine := BaseTable.Engine;
-        if (not Assigned(Engine)) then
-          raise ERangeError.Create(SRangeError);
-        try
-          Engine.IsMerge
-        except
-          raise ERangeError.Create(SRangeError + ' SQL: ' + TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Source);
-        end;
 
         if (not TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine.IsMerge) then
           Index1 := 1
@@ -4189,7 +4182,7 @@ begin
                 Items[I].RecordsSum := DataSet.Fields[0].AsLargeInt;
             end
           else
-            raise ERangeError.Create(SRangeError);
+            raise ERangeError.Create(SRangeError + ' SQL: ' + DataSet.CommandText);
           DataSet.Close();
 
           DoUpdateGUI();

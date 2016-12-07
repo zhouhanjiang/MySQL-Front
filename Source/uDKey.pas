@@ -300,9 +300,8 @@ begin
       FLength.Text := '';
 
     FFulltext.Enabled :=
-      not Assigned(Table.Engine)
-        or (UpperCase(Table.Engine.Name) = 'INNODB') and (FIndexedFields.Items.Count > 0) and (Table.Session.Connection.MySQLVersion >= 50600)
-        or (UpperCase(Table.Engine.Name) = 'MYISAM') and (FIndexedFields.Items.Count > 0) and (Table.Session.Connection.MySQLVersion >= 32323);
+      Table.Engine.IsInnoDB and (FIndexedFields.Items.Count > 0) and (Table.Session.Connection.MySQLVersion >= 50600)
+        or Table.Engine.IsMyISAM and (FIndexedFields.Items.Count > 0) and (Table.Session.Connection.MySQLVersion >= 32323);
   end
   else
   begin

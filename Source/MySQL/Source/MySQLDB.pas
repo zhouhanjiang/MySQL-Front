@@ -2062,7 +2062,7 @@ begin
           Connection.SyncExecuted(Self);
           if (Mode in [smSQL, smDataSet]) then
           begin
-            if (State = ssNext) then
+            if (State in [ssFirst, ssNext]) then
               Synchronize()
             else if (State = ssReady) then
               Connection.DataSetEvent.SetEvent();
@@ -3379,7 +3379,8 @@ begin
     try
       if (not SyncThread.OnResult(SyncThread.ErrorCode, SyncThread.ErrorMessage, SyncThread.WarningCount,
         SyncThread.CommandText, SyncThread, Assigned(SyncThread.ResHandle))
-        and (SyncThread.ErrorCode > 0)) then
+        and (SyncThread.ErrorCode > 0)
+        and (not Assigned(SyncThread.DataSet) or not (SyncThread.DataSet is TMySQLDataSet))) then
       begin
         DoError(SyncThread.ErrorCode, SyncThread.ErrorMessage);
         SyncThread.State := ssReady;
@@ -4651,17 +4652,20 @@ begin
 
       for I := 0 to DataSet.FieldCount - 1 do
         if (DataSet.Fields[I].IsIndexField) then
+        begin
           try
             Msg := Msg + DataSet.Fields[I].FieldName + ': ';
-            try
-              Msg := Msg + DataSet.Fields[I].AsString + #10;
-            finally
-              Msg := Msg + '???' + #10;
-            end;
           except
+            Msg := Msg + '???: ';
           end;
+          try
+            Msg := Msg + DataSet.Fields[I].AsString + #10;
+          finally
+            Msg := Msg + '???' + #10;
+          end;
+        end;
 
-      raise ERangeError.Create(Msg);
+      raise ERangeError.Create(Trim(Msg));
     end;
   end;
 end;
@@ -6917,7 +6921,9 @@ end;
 
 function TMySQLDataSet.SQLDelete(): string;
 var
+  Bookmark: TBookmark;
   I: Integer;
+  Index: Integer;
   InternRecordBuffer: PInternRecordBuffer;
   J: Integer;
   NullValue: Boolean;
@@ -6959,7 +6965,11 @@ begin
       Values := ''; NullValue := False;
       for I := 0 to Length(DeleteBookmarks) - 1 do
       begin
-        InternRecordBuffer := InternRecordBuffers[BookmarkToInternBufferIndex(TBookmark(DeleteBookmarks[I]))];
+        // Debug 2016-12-07
+        Bookmark := TBookmark(DeleteBookmarks[I]);
+        Index := BookmarkToInternBufferIndex(Bookmark);
+
+        InternRecordBuffer := InternRecordBuffers[Index];
         if (not Assigned(InternRecordBuffer^.OldData) or not Assigned(InternRecordBuffer^.OldData^.LibRow^[WhereField.FieldNo - 1])) then
           NullValue := True
         else
