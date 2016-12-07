@@ -3628,6 +3628,9 @@ begin
       // Debug 2016-11-30
       if (not Assigned(SyncThread.DataSet)) then
         raise ERangeError.Create(SRangeError);
+      // Debug 2016-12-07
+      if (not Assigned(DataSet)) then
+        raise ERangeError.Create(SRangeError);
 
       LibRow := Lib.mysql_fetch_row(SyncThread.ResHandle);
       if (Lib.mysql_errno(SyncThread.LibHandle) <> 0) then
@@ -5635,40 +5638,20 @@ end;
 
 function TMySQLDataSet.BookmarkToInternBufferIndex(const Bookmark: TBookmark): Integer;
 var
+  Buffer: PInternRecordBuffer;
   I: Integer;
-  List: TList;
-  P: Pointer;
-  P2: Pointer;
 begin
   Result := -1;
 
   if (Length(Bookmark) = BookmarkSize) then
   begin
-    I := 0;
-    while ((Result < 0) and (I < InternRecordBuffers.Count)) do
-    begin
-      // Debug 2016-11-24
-      if (Length(Bookmark) = 0) then
-        raise ERangeError.Create(SRangeError);
-      P := PPointer(@Bookmark[0])^;
-      // Debug 2016-12-05
-      P := InternRecordBuffers;
-      P := FInternRecordBuffers;
-      if (not (TObject(P) is TList)) then
-        raise ERangeError.Create(SRangeError);
-      List := TList(InternRecordBuffers);
-      if (I < 0) then
-        raise ERangeError.Create(SRangeError);
-      if (I >= List.Count) then
-        raise ERangeError.Create(SRangeError);
-      P2 := List.Items[I];
-      P2 := InternRecordBuffers.Items[I];
-      P2 := InternRecordBuffers.Buffers[I];
-      P2 := InternRecordBuffers[I];
-      if (P = P2) then
+    Buffer := PPointer(@Bookmark[0])^;
+    for I := 0 to InternRecordBuffers.Count - 1 do
+      if (InternRecordBuffers[I] = Buffer) then
+      begin
         Result := I;
-      Inc(I);
-    end;
+        break;
+      end;
   end;
 end;
 
@@ -6931,9 +6914,7 @@ end;
 
 function TMySQLDataSet.SQLDelete(): string;
 var
-  Bookmark: TBookmark;
   I: Integer;
-  Index: Integer;
   InternRecordBuffer: PInternRecordBuffer;
   J: Integer;
   NullValue: Boolean;
@@ -6975,19 +6956,7 @@ begin
       Values := ''; NullValue := False;
       for I := 0 to Length(DeleteBookmarks) - 1 do
       begin
-        // Debug 2016-12-07
-        Bookmark := TBookmark(DeleteBookmarks[I]);
-        Index := BookmarkToInternBufferIndex(Bookmark);
-        if (not Assigned(InternRecordBuffers)) then
-          raise ERangeError.Create(SRangeError);
-        if (not (InternRecordBuffers is TInternRecordBuffers)) then
-          raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(InternRecordBuffers).ClassName);
-        if (Index < 0) then
-          raise ERangeError.Create(SRangeError);
-        if (Index >= InternRecordBuffers.Count) then
-          raise ERangeError.Create(SRangeError + ' Index: ' + IntToStr(Index));
-
-        InternRecordBuffer := InternRecordBuffers[Index];
+        InternRecordBuffer := InternRecordBuffers[BookmarkToInternBufferIndex(TBookmark(DeleteBookmarks[I]))];
         if (not Assigned(InternRecordBuffer^.OldData) or not Assigned(InternRecordBuffer^.OldData^.LibRow^[WhereField.FieldNo - 1])) then
           NullValue := True
         else
