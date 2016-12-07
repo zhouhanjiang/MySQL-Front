@@ -404,7 +404,7 @@ begin
   if (FRights.Items.Count > 0) then
     FRights.Selected := FRights.Items[0];
 
-  FRightsSelectItem(FRights, FRights.Selected, FRights.Selected.Selected);
+  FRightsSelectItem(FRights, FRights.Selected, Assigned(FRights.Selected) and FRights.Selected.Selected);
 end;
 
 procedure TDUser.FRightsSelectItem(Sender: TObject; Item: TListItem;

@@ -2601,10 +2601,15 @@ begin
         SyncExecute(SyncThread);
         SyncExecutingFirst(SyncThread);
         SyncExecuted(SyncThread);
-        while (SyncThread.State = ssNext) do
+        while (SyncThread.State in [ssFirst, ssNext]) do
         begin
           SyncExecute(SyncThread);
-          SyncExecutingNext(SyncThread);
+          if (SyncThread.State = ssExecutingFirst) then
+            SyncExecutingFirst(SyncThread)
+          else if (SyncThread.State = ssExecutingNext) then
+            SyncExecutingNext(SyncThread)
+          else
+            raise ERangeError.Create(SRangeError);
           SyncExecuted(SyncThread);
         end;
       until (SyncThread.State <> ssExecutingFirst);

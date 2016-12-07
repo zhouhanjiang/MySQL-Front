@@ -989,8 +989,6 @@ end;
 
 function TToolItemCompareForSQL(Item1, Item2: Pointer): Integer;
 var
-  BaseTable: TSBaseTable;
-  Engine: TSEngine;
   Index1: Integer;
   Index2: Integer;
 begin
@@ -1014,24 +1012,10 @@ begin
     if ((Result = 0) and (TTool.TItem(Item1) is TTExport.TDBObjectItem)) then
     begin
       if (TTExport.TDBObjectItem(Item1).DBObject is TSBaseTable) then
-      begin
-        // Debug 2016-11-16
-        if (TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Source = '') then
-          raise ERangeError.Create(SRangeError);
-        if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine)) then
-          raise ERangeError.Create(SRangeError);
-        BaseTable := TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject);
-        if (not Assigned(BaseTable)) then
-          raise ERangeError.Create(SRangeError);
-        if (not (TObject(BaseTable) is TSBaseTable)) then
-          raise ERangeError.Create(SRangeError);
-        Engine := BaseTable.Engine;
-
         if (not TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine.IsMerge) then
           Index1 := 1
         else
-          Index1 := 2;
-      end
+          Index1 := 2
       else if (TTExport.TDBObjectItem(Item1).DBObject is TSFunction) then
         Index1 := 3
       else if (TTExport.TDBObjectItem(Item1).DBObject is TSView) then

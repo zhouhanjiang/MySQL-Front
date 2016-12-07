@@ -491,7 +491,7 @@ begin
               Pointer(GetModuleHandle('Wininet.dll')), GetLastError(), 0, @Buffer, Length(Buffer), nil);
             while (Len > 0) and (CharInSet(Buffer[Len - 1], [#0..#32])) do Dec(Len);
             SetString(ErrorMessage, Buffer, Len);
-            raise EConvertError.Create(ErrorMessage + ' URL: ' + URL);
+            raise EConvertError.Create(ErrorMessage + #10 + 'URL: ' + URL);
           end;
 
           Connection := InternetConnect(Handle, URLComponents.lpszHostName, URLComponents.nPort, URLComponents.lpszUserName, URLComponents.lpszPassword, INTERNET_SERVICE_HTTP, 0, Cardinal(Self));
