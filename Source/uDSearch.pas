@@ -328,14 +328,14 @@ begin
   SendMessage(FErrorMessages.Handle, EM_SETTEXTMODE, TM_PLAINTEXT, 0);
   SendMessage(FErrorMessages.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
 
-  PageControl.ActivePage := nil; // Make sure, not ___OnShowPage will be executed
+  PageControl.ActivePage := nil;
 end;
 
 procedure TDSearch.FormHide(Sender: TObject);
 var
   I: Integer;
 begin
-  FSelect.Selected := nil; // Make sure, not to call FSelectedChange with a selected node
+  FSelect.Selected := nil;
   FSelect.Items.BeginUpdate();
   FSelect.Items.Clear();
   FSelect.Items.EndUpdate();
@@ -367,7 +367,11 @@ begin
     Preferences.Replace.Top := Top;
   end;
 
-  PageControl.ActivePage := nil; // Make sure, not ___OnShowPage will be executed
+  // Debug 2016-12-08
+  if (not FBCancel.Enabled) then
+    raise ERangeError.Create(SRangeError);
+
+  PageControl.ActivePage := nil;
 end;
 
 procedure TDSearch.FormSessionEvent(const Event: TSSession.TEvent);

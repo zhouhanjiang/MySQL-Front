@@ -296,7 +296,11 @@ begin
   FDestination.Items.Clear();
   FDestination.Items.EndUpdate();
 
-  PageControl.ActivePage := nil; // Make sure, not ___OnShowPage will be executed
+  // Debug 2016-12-08
+  if (not FBCancel.Enabled) then
+    raise ERangeError.Create(SRangeError);
+
+  PageControl.ActivePage := nil;
 end;
 
 procedure TDTransfer.FormShow(Sender: TObject);

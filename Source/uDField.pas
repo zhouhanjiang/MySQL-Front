@@ -323,6 +323,13 @@ end;
 
 function TDField.Execute(): Boolean;
 begin
+  if (not Assigned(Table)) then
+    // Debug 2016-12-08
+    raise ERangeError.Create(SRangeError)
+  else if (not (TObject(Table) is TSBaseTable)) then
+    // Debug 2016-12-08
+    raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Table).ClassName);
+
   ShowModal();
   Result := ModalResult = mrOk;
 end;

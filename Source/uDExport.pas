@@ -655,6 +655,11 @@ begin
     end;
 
   ClearTSFields();
+
+  // Debug 2016-12-08
+  if (not FBCancel.Enabled) then
+    raise ERangeError.Create(SRangeError);
+
   PageControl.ActivePage := nil;
 end;
 

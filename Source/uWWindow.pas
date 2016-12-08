@@ -6,6 +6,9 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Types,
   Dialogs, ActnList, ComCtrls, DBActns, ExtCtrls, ImgList, Menus, StdActns,
   ActnCtrls, StdCtrls, ToolWin,
+  {$IFDEF madExcept}
+  madExcept, madStackTrace,
+  {$ENDIF}
   {$IFDEF EurekaLog}
   ExceptionLog,
   {$ENDIF}
@@ -416,6 +419,9 @@ type
     function GetActiveTab(): TFSession;
     function GetNewTabIndex(Sender: TObject; X, Y: Integer): Integer;
     procedure InformOnlineUpdateFound();
+    {$IFDEF madExcept}
+    procedure ExceptionHandler(const MEException: IMEException; var Handled: Boolean);
+    {$ENDIF}
     procedure miFReopenClick(Sender: TObject);
     procedure mtTabsClick(Sender: TObject);
     procedure MySQLConnectionSynchronize(const Data: Pointer); inline;
@@ -456,6 +462,9 @@ uses
   acQBLocalizer,
   MySQLConsts, HTTPTunnel, SQLUtils,
   uTools, uURI,
+  {$IFDEF madExcept}
+  uDBugReport,
+  {$ENDIF}
   uDAccounts, uDAccount, uDOptions, uDLogin, uDStatement, uDTransfer, uDSearch,
   uDConnecting, uDInfo, uDUpdate;
 
@@ -1042,12 +1051,20 @@ begin
 
     if (Assigned(ActiveTab)) then
     begin
+      if (EditorCommandText <> '') then
+      begin
+        Report := Report + #13#10;
+        Report := Report + 'EditorCommandText: ' + SQLEscapeBin(EditorCommandText, True) + #13#10;
+      end;
+
       Report := Report + #13#10;
       Report := Report + 'MySQL:' + #13#10;
       Report := Report + StringOfChar('-', Length('Version: ' + ActiveTab.Session.Connection.ServerVersionStr)) + #13#10;
-      Report := Report + 'Version: ' + ActiveTab.Session.Connection.ServerVersionStr + #13#10;
-      Report := Report + 'LibraryType: ' + IntToStr(Ord(ActiveTab.Session.Connection.LibraryType)) + #13#10;
-      Report := Report + #13#10;
+      Report := Report + 'Version: ' + ActiveTab.Session.Connection.ServerVersionStr;
+      if (ActiveTab.Session.Connection.LibraryType <> ltHTTP) then
+        Report := Report + ' (LibraryType: ' + IntToStr(Ord(ActiveTab.Session.Connection.LibraryType)) + ')';
+      Report := Report + #13#10#13#10;
+
       Report := Report + 'SQL Log:' + #13#10;
       Report := Report + StringOfChar('-', 72) + #13#10;
       Report := Report + ActiveTab.Session.Connection.DebugMonitor.CacheText;
@@ -1089,6 +1106,9 @@ begin
   Application.OnActivate := ApplicationActivate;
   Application.OnDeactivate := ApplicationDeactivate;
 
+  {$IFDEF madExcept}
+    RegisterExceptionHandler(ExceptionHandler, stTrySyncCallAlways);
+  {$ENDIF}
   {$IFDEF EurekaLog}
     EurekaLog := TEurekaLog.Create(Self);
     EurekaLog.OnExceptionNotify := EurekaLogExceptionNotify;
@@ -1157,6 +1177,10 @@ begin
 
   if (Assigned(CheckOnlineVersionThread)) then
     TerminateThread(CheckOnlineVersionThread.Handle, 0);
+
+  {$IFDEF madExcept}
+    UnregisterExceptionHandler(ExceptionHandler);
+  {$ENDIF}
 end;
 
 procedure TWWindow.FormHide(Sender: TObject);
@@ -1228,6 +1252,118 @@ begin
     aHUpdate.Execute();
 end;
 
+{$IFDEF madExcept}
+
+function FormatCallstack(const StackTrace: TStackTrace): string;
+var
+  I: Integer;
+  Fmt: string;
+  MaxMethodLen: Integer;
+  MaxLineLen: Integer;
+  MaxModuleLen: Integer;
+  MaxRelLineLen: Integer;
+  MaxUnitLen: Integer;
+begin
+  MaxModuleLen := Length('Module');
+  MaxUnitLen := Length('Unit');
+  MaxMethodLen := Length('Method');
+  MaxLineLen := Length('Line');
+  MaxRelLineLen := Length('Rel');
+
+  for I := 0 to Length(StackTrace) - 1 do
+  begin
+    MaxModuleLen := Max(MaxModuleLen, Length(StackTrace[I].ModuleName));
+    MaxUnitLen := Max(MaxUnitLen, Length(StackTrace[I].UnitName));
+    MaxMethodLen := Max(MaxMethodLen, Length(StackTrace[I].FunctionName));
+    MaxLineLen := Max(MaxLineLen, Length(IntToStr(StackTrace[0].Line)));
+    MaxRelLineLen := Max(MaxRelLineLen, Length(IntToStr(StackTrace[I].relLine)));
+  end;
+
+  Fmt := '|%-' + IntToStr(MaxModuleLen) + 's|%-' + IntToStr(MaxUnitLen) + 's|%-' + IntToStr(MaxMethodLen) + 's|%' + IntToStr(MaxLineLen) + 's/%' + IntToStr(MaxRelLineLen) + 's|';
+
+  Result := Result + StringOfChar('-', 1 + MaxModuleLen + 1 + MaxUnitLen + 1 + MaxMethodLen + 1 + MaxLineLen + 1 + MaxRelLineLen + 1) + #13#10;
+  Result := Result + Format(Fmt, ['Module', 'Unit', 'Method', 'Line', 'Rel']) + #13#10;
+  Result := Result + StringOfChar('-', 1 + MaxModuleLen + 1 + MaxUnitLen + 1 + MaxMethodLen + 1 + MaxLineLen + 1 + MaxRelLineLen + 1) + #13#10;
+  for I := 0 to Length(StackTrace) - 1 do
+    Result := Result + Format(Fmt, [StackTrace[I].ModuleName, StackTrace[I].UnitName, StackTrace[I].FunctionName, IntToStr(StackTrace[I].Line), IntToStr(StackTrace[I].relLine)]) + #13#10;
+  Result := Result + StringOfChar('-', 1 + MaxModuleLen + 1 + MaxUnitLen + 1 + MaxMethodLen + 1 + MaxLineLen + 1 + MaxRelLineLen + 1) + #13#10;
+end;
+
+procedure TWWindow.ExceptionHandler(const MEException: IMEException; var Handled: Boolean);
+var
+  I: Integer;
+  Report: string;
+begin
+  for I := 0 to FSessions.Count - 1 do
+    try TFSession(FSessions[I]).CrashRescue(); except end;
+  try Accounts.Save(); except end;
+  try Preferences.Save(); except end;
+
+  if ((OnlineProgramVersion < 0) and IsConnectedToInternet()) then
+    if (Assigned(CheckOnlineVersionThread)) then
+      CheckOnlineVersionThread.WaitFor()
+    else
+    begin
+      CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
+      CheckOnlineVersionThread.Execute();
+      FreeAndNil(CheckOnlineVersionThread);
+    end;
+
+  if (Preferences.Version < OnlineProgramVersion) then
+    ApplicationException(nil, MEException.ExceptionRecord.ExceptObject)
+  else
+  begin
+    if (Preferences.ObsoleteVersion < Preferences.Version) then
+      Preferences.ObsoleteVersion := Preferences.Version;
+
+    Report := LoadStr(1000) + ' ' + Preferences.VersionStr + #13#10;
+    Report := Report + #13#10;
+    if (not (MEException.ExceptObject is Exception)) then
+    begin
+      Report := Report + MEException.ExceptClass + ':' + #13#10;
+      Report := Report + MEException.ExceptMessage + #13#10;
+    end
+    else
+    begin
+      Report := Report + MEException.ExceptObject.ClassName + ':' + #13#10;
+      Report := Report + Exception(MEException.ExceptObject).Message + #13#10;
+    end;
+    Report := Report + #13#10;
+
+    MEException.GetBugReport();
+
+    I := 0;
+    while (MEException.ThreadIds[I] > 0) do
+    begin
+      if (MEException.ThreadIds[I] = MEException.CrashedThreadId) then
+        Report := Report + FormatCallstack(MEException.Callstacks[I]);
+      Inc(I);
+    end;
+
+    if (Assigned(ActiveTab)) then
+    begin
+      Report := Report + #13#10;
+      Report := Report + 'MySQL:' + #13#10;
+      Report := Report + StringOfChar('-', Length('Version: ' + ActiveTab.Session.Connection.ServerVersionStr)) + #13#10;
+      Report := Report + 'Version: ' + ActiveTab.Session.Connection.ServerVersionStr + #13#10;
+      Report := Report + 'LibraryType: ' + IntToStr(Ord(ActiveTab.Session.Connection.LibraryType)) + #13#10;
+      Report := Report + #13#10;
+      Report := Report + 'SQL Log:' + #13#10;
+      Report := Report + StringOfChar('-', 72) + #13#10;
+      Report := Report + ActiveTab.Session.Connection.DebugMonitor.CacheText;
+    end;
+
+    SendBugToDeveloper(Report);
+
+    DBugReport.MEException := MEException;
+    DBugReport.Report := Report;
+    DBugReport.Execute();
+  end;
+
+  Handled := True;
+end;
+{$ENDIF}
+
 procedure TWWindow.miFReopenClick(Sender: TObject);
 begin
   ActiveTab.OpenSQLFile(ActiveTab.Session.Account.Desktop.Files[TMenuItem(Sender).Tag].Filename, ActiveTab.Session.Account.Desktop.Files[TMenuItem(Sender).Tag].CodePage);
@@ -1245,6 +1381,10 @@ end;
 
 procedure TWWindow.MySQLConnectionSynchronize(const Data: Pointer);
 begin
+  // Debug 2016-12-07
+  if (not Assigned(Self)) then
+    raise ERangeError.Create(SRangeError);
+
   PostMessage(Handle, UM_MYSQLCLIENT_SYNCHRONIZE, 0, LPARAM(Data));
 end;
 

@@ -281,7 +281,7 @@ begin
           end;
 
           Inc(RequestTry);
-        until (Error or Terminated or (StatusCode = HTTP_STATUS_OK) or (ReceiveStream.Size = 0) or (RequestTry >= 3));
+        until (Error or Terminated or (StatusCode = HTTP_STATUS_OK) or Assigned(ReceiveStream) and (ReceiveStream.Size = 0) or (RequestTry >= 3));
 
         ReturnValue := StatusCode;
       end;

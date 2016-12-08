@@ -38,6 +38,7 @@
 			<DCC_MapFile>3</DCC_MapFile>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Base_Win32)'!=''">
+			<DCC_Define>madExcept;$(DCC_Define)</DCC_Define>
 			<Debugger_DebugSourcePath>C:\Users\Nils\Documents\MySQL-Front\Source\SynEdit\Source\;$(Debugger_DebugSourcePath)</Debugger_DebugSourcePath>
 		</PropertyGroup>
 		<ItemGroup>
@@ -70,6 +71,9 @@
 			</DCCReference>
 			<DCCReference Include="uDAccounts.pas">
 				<Form>DAccounts</Form>
+			</DCCReference>
+			<DCCReference Include="uDBugReport.pas">
+				<Form>DBugReport</Form>
 			</DCCReference>
 			<DCCReference Include="uDConnecting.pas">
 				<Form>DConnecting</Form>

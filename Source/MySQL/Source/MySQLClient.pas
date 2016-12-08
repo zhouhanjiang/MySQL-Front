@@ -1588,11 +1588,12 @@ function TMySQL_Packet.ReceivePacket(): Boolean;
                 begin
                   if (Assigned(DecompressedBuffer.Mem)) then
                     FreeBuffer(DecompressedBuffer);
-                  try
+// Debug 2016-12-08
+//                  try
                     ZDecompress(CompressedBuffer.Mem, CompressedBuffer.Size, Pointer(DecompressedBuffer.Mem), DecompressedSize);
-                  except
-                    Result := Seterror(CR_UNKNOWN_ERROR) = 0;
-                  end;
+//                  except
+//                    Result := Seterror(CR_UNKNOWN_ERROR) = 0;
+//                  end;
                 end;
 
                 if (Result) then

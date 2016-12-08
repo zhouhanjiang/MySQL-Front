@@ -2340,7 +2340,9 @@ begin
       else
       begin
         if (not GetDiskFreeSpace(PChar(ExtractFileDrive(Filename)), SectorsPerCluser, BytesPerSector, NumberofFreeClusters, TotalNumberOfClusters)) then
-          RaiseLastOSError();
+          RaiseLastOSError()
+        else if (BytesPerSector = 0) then
+          raise ERangeError.Create('Unknown sector size on drive "' + ExtractFileDrive(Filename) + '" (Filename: "' + Filename + '")');
         FileBuffer.Size := BytesPerSector + Min(FFileSize, FilePacketSize);
         Inc(FileBuffer.Size, BytesPerSector - FileBuffer.Size mod BytesPerSector);
         FileBuffer.Mem := VirtualAlloc(nil, FileBuffer.Size, MEM_COMMIT, PAGE_READWRITE);
@@ -4150,8 +4152,11 @@ begin
         repeat
           DataSet.Open(DataHandle);
           DatabaseName := DataSet.Connection.DatabaseName;
+
+          // Debug 2016-12-08
+          SQL := DataSet.CommandText;
           if (not DataSet.IsEmpty
-            and SQLCreateParse(Parse, PChar(DataSet.CommandText), Length(DataSet.CommandText), Session.Connection.MySQLVersion)
+            and SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion)
             and SQLParseKeyword(Parse, 'SELECT')
             and SQLParseValue(Parse, 'COUNT')
             and SQLParseChar(Parse, '(') and SQLParseChar(Parse, '*') and SQLParseChar(Parse, ')')
@@ -4166,7 +4171,7 @@ begin
                 Items[I].RecordsSum := DataSet.Fields[0].AsLargeInt;
             end
           else
-            raise ERangeError.Create(SRangeError + ' SQL: ' + DataSet.CommandText);
+            raise ERangeError.Create(SRangeError + ' SQL: ' + SQL + #10 + 'Bin: ' + SQLEscapeBin(SQL, True));
           DataSet.Close();
 
           DoUpdateGUI();

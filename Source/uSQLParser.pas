@@ -6835,6 +6835,7 @@ type
     function ParseDeclareStmt(): TOffset;
     function ParseDefaultFunc(): TOffset;
     function ParseDeleteStmt(): TOffset;
+    function ParseDeleteStmtTableIdent(): TOffset;
     function ParseDoStmt(): TOffset;
     function ParseDropDatabaseStmt(): TOffset;
     function ParseDropEventStmt(): TOffset;
@@ -12823,7 +12824,8 @@ begin
   FormatNode(Nodes.IgnoreTag, stSpaceBefore);
 
 
-  if ((Nodes.From1.List > 0)
+  if ((Nodes.From2.Tag = 0)
+    and (Nodes.From1.List > 0)
     and (NodePtr(Nodes.From1.List)^.NodeType = ntList)
     and (PList(NodePtr(Nodes.From1.List))^.ElementCount = 1)) then
   begin
@@ -18805,7 +18807,9 @@ end;
 function TSQLParser.ParseDeleteStmt(): TOffset;
 var
   Nodes: TDeleteStmt.TNodes;
+  TableAliasToken: PToken;
   TableCount: Integer;
+  Token: PToken;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
   TableCount := 1;
@@ -18857,7 +18861,7 @@ begin
     end
     else
     begin
-      Nodes.From1.List := ParseList(False, ParseTableIdent);
+      Nodes.From1.List := ParseList(False, ParseDeleteStmtTableIdent);
 
       if (not ErrorFound) then
         Nodes.From2.Tag := ParseTag(kiFROM);
@@ -18894,6 +18898,54 @@ begin
     end;
 
   Result := TDeleteStmt.Create(Self, Nodes);
+
+  if (IsStmt(Result)) then
+  begin
+    TableAliasToken := StmtPtr(Result)^.FirstToken;
+    while (Assigned(TableAliasToken)) do
+    begin
+      if ((TableAliasToken^.UsageType = utDbIdent)
+        and (TableAliasToken^.DbIdentType = ditTableAlias)) then
+      begin
+        Token := StmtPtr(Result)^.FirstToken;
+        while (Assigned(Token)) do
+        begin
+          if ((Token^.DbIdentType = ditTable)
+            and Assigned(Token^.ParentNode) and (PNode(Token^.ParentNode)^.NodeType = ntDbIdent) and not Assigned(PDbIdent(Token^.ParentNode)^.DatabaseIdent)
+            and (lstrcmpi(PChar(Token^.AsString), PChar(TableAliasToken^.AsString)) = 0)
+            and (PDbIdent(Token^.ParentNode)^.FDefinerToken = 0)) then
+          begin
+            PDbIdent(Token^.ParentNode)^.FDbTableType := TableAliasToken^.DbIdentType;
+            PDbIdent(Token^.ParentNode)^.FDefinerToken := TableAliasToken^.Offset;
+          end;
+
+          if (Token = StmtPtr(Result)^.LastToken) then
+            Token := nil
+          else
+            Token := Token^.NextToken;
+        end;
+      end;
+
+      if (TableAliasToken = StmtPtr(Result)^.LastToken) then
+        TableAliasToken := nil
+      else
+        TableAliasToken := TableAliasToken^.NextToken;
+    end;
+  end;
+end;
+
+function TSQLParser.ParseDeleteStmtTableIdent(): TOffset;
+begin
+  Result := 0;
+
+  if (EndOfStmt(NextToken[1]) or not IsNextSymbol(1, ttDot)) then
+    Result := ParseDbIdent(ditTable, False)
+  else if (EndOfStmt(NextToken[2])) then
+    SetError(PE_IncompleteStmt, NextToken[1])
+  else if (TokenPtr(NextToken[2])^.OperatorType <> otMulti) then
+    SetError(PE_UnexpectedToken, NextToken[2])
+  else
+    Result := ParseDbIdent(ditField, True, True);
 end;
 
 function TSQLParser.ParseDoStmt(): TOffset;
@@ -24525,7 +24577,7 @@ function TSQLParser.ParseToken(out Error: TError): TOffset;
 label
   TwoChars,
   Selection, SelSpace, SelQuotedIdent,
-    SelNot, SelDoubleQuote, SelComment, SelModulo, SelDollar, SelAmpersand2,
+    SelNot, SelUnaryNot, SelDoubleQuote, SelComment, SelModulo, SelDollar, SelAmpersand2,
     SelBitAND, SelSingleQuote, SelOpenBracket, SelCloseBracket, SelMySQLCondEnd,
     SelMulti, SelComma, SelDot, SelDot2, SelMySQLCode, SelDiv, SelHexODBCHigh,
     SelHexODBCLow, SelDigit, SelSLComment, SelExtract, SelMinus, SelPlus, SelAssign,
@@ -24633,7 +24685,15 @@ begin
         CMP AX,' '                       // <Space> ?
         JE WhiteSpace                    // Yes!
         CMP AX,'!'                       // "!" ?
-        JE UnexpectedChar                // Yes!
+        JNE SelDoubleQuote               // No!
+        CMP EAX,$003D0021                // "!=" ?
+        JNE SelUnaryNot                  // No!
+        MOV OperatorType,otNotEqual
+        JMP DoubleChar
+
+      SelUnaryNot:
+        MOV OperatorType,otUnaryNot
+        JMP SingleChar
       SelDoubleQuote:
         CMP AX,'"'                       // Double Quote  ?
         JNE SelComment                   // No!

@@ -2060,7 +2060,13 @@ begin
       ssExecutingNext:
         begin
           Connection.SyncExecuted(Self);
-          if (Mode in [smSQL, smDataSet]) then
+          if ((Connection.KillThreadId > 0) and (State = ssResult)) then
+          begin
+            Connection.SyncHandledResult(Self);
+            Connection.KillThreadId := 0;
+            Synchronize();
+          end
+          else if (Mode in [smSQL, smDataSet]) then
           begin
             if (State in [ssFirst, ssNext]) then
               Synchronize()
@@ -2434,9 +2440,9 @@ begin
 
   InternExecuteSQL(smDataHandle, False, SQL, TResultEvent(nil), DataHandleEvent);
   DataHandleEvent.WaitFor(INFINITE);
-  Result := SyncThread.ErrorCode = 0;
 
   DataHandle := SyncThread;
+  Result := ErrorCode = 0;
 end;
 
 function TMySQLConnection.GetConnected(): Boolean;
@@ -3357,10 +3363,8 @@ begin
 
 
 
-  if (not Assigned(SyncThread.OnResult) or (KillThreadId > 0)) then
+  if (not Assigned(SyncThread.OnResult)) then
   begin
-    KillThreadId := 0;
-
     if (SyncThread.ErrorCode > 0) then
     begin
       DoError(SyncThread.ErrorCode, SyncThread.ErrorMessage);
@@ -3398,7 +3402,7 @@ begin
         begin
           Log := 'Statement #' + IntToStr(SyncThread.StmtIndex) + ' has not been handled:' + #13#10 + SyncThread.SQL + #13#10;
           for I := 0 to SyncThread.StmtLengths.Count - 1 do
-            Log := #13#10 + IntToStr(Integer(SyncThread.StmtLengths[I]));
+            Log := Log + #13#10 + IntToStr(Integer(SyncThread.StmtLengths[I]));
           raise Exception.Create(Log);
         end;
     finally
@@ -6014,6 +6018,10 @@ var
   I: Integer;
   InternRecordBuffer: PInternRecordBuffer;
 begin
+  // Debug 2016-12-08
+  if (not Assigned(Self)) then
+    raise ERangeError.Create(SRangeError);
+
   if (not Assigned(LibRow)) then
     Result := True
   else
@@ -6602,6 +6610,10 @@ var
   NewData: TMySQLQuery.PRecordBufferData;
   OldData: TMySQLQuery.PRecordBufferData;
 begin
+  // Debug 2016-12-07
+  if (PExternRecordBuffer(ActiveBuffer())^.Identifier <> 654321) then
+    raise ERangeError.Create(SRangeError);
+
   OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
 
   MemSize := SizeOf(NewData^) + FieldCount * (SizeOf(NewData^.LibLengths^[0]) + SizeOf(NewData^.LibRow^[0]));

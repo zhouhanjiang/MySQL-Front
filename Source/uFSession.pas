@@ -1091,6 +1091,9 @@ const
   ToolbarTabByView: array[vObjects .. vEditor3] of TPPreferences.TToolbarTab =
     (ttObjects, ttBrowser, ttIDE, ttBuilder, ttDiagram, ttEditor, ttEditor2, ttEditor3);
 
+var
+  EditorCommandText: string;
+
 // Debug 2016-12-07
 function GetControlByHandle(const Control: TWinControl; const Wnd: HWND): TWinControl;
 var
@@ -1257,6 +1260,10 @@ begin
     XML.AddChild('datetime').Text := FloatToStr(DataHandle.Connection.ServerDateTime, FileFormatSettings);
     if (not Data and (DataHandle.Connection.RowsAffected >= 0)) then
       XML.AddChild('rows_affected').Text := IntToStr(DataHandle.Connection.RowsAffected);
+
+    // Debug 2016-12-08
+    EditorCommandText := CommandText;
+
     XML.AddChild('sql').Text := CommandText;
     if (DataHandle.Connection.Info <> '') then
       XML.AddChild('info').Text := DataHandle.Connection.Info;
@@ -4029,6 +4036,9 @@ begin
           // Debug 2016-12-05
           if (not FQueryBuilderActiveWorkArea().Visible) then
             raise ERangeError.Create(SRangeError);
+          // Debug 2016-12-08
+          if (not FQueryBuilderActiveWorkArea().Enabled) then
+            raise ERangeError.Create(SRangeError);
           Window.ActiveControl := FQueryBuilderActiveWorkArea()
         end
         else
@@ -5912,6 +5922,8 @@ begin
         raise ERangeError.Create(SRangeError);
       if (not Assigned(Session.Account)) then
         raise ERangeError.Create(SRangeError);
+      if (not (TObject(Session.Account) is TPAccount)) then
+        raise ERangeError.Create(SRangeError);
       if (not Assigned(Session.Account.Desktop)) then
         raise ERangeError.Create(SRangeError);
       ToolbarTab := ToolbarTabByView[View];
@@ -6960,6 +6972,10 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
       Child.HasChildren := True;
     if (Assigned(Child)) then
       SetNodeBoldState(Child, (Child.ImageIndex = iiKey) and TSKey(Child.Data).PrimaryKey or (Child.ImageIndex in [iiField, iiVirtualField]) and TSTableField(Child.Data).InPrimaryKey);
+
+    // Debug 2016-12-08
+    if (not Assigned(Child.Data)) then
+      raise ERangeError.Create(SRangeError);
   end;
 
   procedure DeleteNode(const Node: TTreeNode);
@@ -7597,6 +7613,10 @@ end;
 
 procedure TFSession.FQuickSearchChange(Sender: TObject);
 begin
+  // Debug 2016-12-08
+  if (not Assigned(ActiveDBGrid)) then
+    raise ERangeError.Create(SRangeError + ' Address: ' + Address);
+
   FQuickSearchEnabled.Enabled := FQuickSearch.Text <> '';
   FQuickSearchEnabled.Down := (FQuickSearch.Text <> '') and (ActiveDBGrid.DataSource.DataSet is TSTable.TDataSet) and (FQuickSearch.Text = TSTable.TDataSet(ActiveDBGrid.DataSource.DataSet).QuickSearch);
 end;
@@ -9262,7 +9282,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
       else
         Item.ImageIndex := iiView;
       Item.Caption := TSTable(Data).Caption;
-      if ((TSTable(Data) is TSBaseTable) and TSBaseTable(Data).ValidStatus) then
+      if ((TSTable(Data) is TSBaseTable) and Assigned(TSBaseTable(Data).Engine)) then
         Item.SubItems.Add(TSBaseTable(Data).Engine.Name)
       else if ((TSTable(Data) is TSView)) then
         Item.SubItems.Add(Preferences.LoadStr(738))

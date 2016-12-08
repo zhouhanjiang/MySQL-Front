@@ -2005,13 +2005,9 @@ begin
   if (SQL <> '') then
     SQL := SQL + ';' + #13#10;
 
-  // Debug 2016-12-06
-  if (SQL = '') then
-    raise ERangeError.Create(SRangeError);
-
   SetSource(SQL);
 
-  if (Now() <= Session.ParseEndDate) then
+  if ((Now() <= Session.ParseEndDate) and (SQL <> '')) then
   begin
     if (not Session.SQLParser.ParseSQL(SQL)) then
       Session.UnparsableSQL := Session.UnparsableSQL
@@ -4507,6 +4503,12 @@ begin
 
       NewField.ParseFieldType(Parse);
 
+      if (SQLParseKeyword(Parse, 'CHARACTER SET')) then
+        NewField.Charset := SQLParseValue(Parse);
+
+      if (SQLParseKeyword(Parse, 'COLLATE')) then
+        NewField.Collation := SQLParseValue(Parse);
+
       SQLParseKeyword(Parse, 'GENERATED ALWAYS');
 
       if (SQLParseChar(Parse, ',', False) or SQLParseChar(Parse, ')', False)) then
@@ -4517,11 +4519,7 @@ begin
           begin
             NewField.FieldKind := mkReal;
 
-            if (SQLParseKeyword(Parse, 'CHARACTER SET')) then
-              NewField.Charset := SQLParseValue(Parse)
-            else if (SQLParseKeyword(Parse, 'COLLATE')) then
-              NewField.Collation := SQLParseValue(Parse)
-            else if (SQLParseKeyword(Parse, 'NOT NULL')) then
+            if (SQLParseKeyword(Parse, 'NOT NULL')) then
               NewField.NullAllowed := False
             else if (SQLParseKeyword(Parse, 'NULL')) then
               NewField.NullAllowed := True

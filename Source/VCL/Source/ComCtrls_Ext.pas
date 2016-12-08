@@ -86,6 +86,8 @@ procedure TTreeView_Ext.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y
 var
   B: Boolean; // Debug 2016-11-23
   Child: TTreeNode;
+  Found: Boolean; // Debug 2016-12-08
+  I: Integer; // Debug 2016-12-08
   Node: TTreeNode;
   NodeIndex: Integer;
   OldSelectedIndex: Integer;
@@ -100,6 +102,16 @@ begin
   B := MultiSelect;
   B := B and Assigned(ShiftDownSelected);
   B := B and Assigned(Node);
+
+  if (B) then
+  begin
+    Found := False;
+    for I := 0 to Items.Count - 1 do
+      if (Items[I] = ShiftDownSelected) then
+        Found := True;
+    if (not Found) then
+      raise ERangeError.Create(SRangeError);
+  end;
 
   // Debug 2016-11-25
   if (B) then
