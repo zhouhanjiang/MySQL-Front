@@ -5,7 +5,7 @@ object DBugReport: TDBugReport
   Caption = 'DBugReport'
   ClientHeight = 223
   ClientWidth = 428
-  Color = clBtnFace
+  Color = clWindow
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -12
@@ -48,8 +48,6 @@ object DBugReport: TDBugReport
       'The application has encountered a problem. Please help to improv' +
       'e this application by sending a prepared bug report to the devel' +
       'oper.'
-    Color = clBtnFace
-    ParentColor = False
     WordWrap = True
   end
   object FLDescription: TLabel
@@ -66,8 +64,6 @@ object DBugReport: TDBugReport
     Height = 14
     AutoSize = False
     Caption = 'FLMessage'
-    Color = clBtnFace
-    ParentColor = False
     WordWrap = True
   end
   object Panel: TPanel
@@ -77,7 +73,6 @@ object DBugReport: TDBugReport
     Height = 57
     Align = alBottom
     BevelOuter = bvNone
-    Color = clWindow
     ParentBackground = False
     TabOrder = 0
     DesignSize = (

@@ -30,6 +30,9 @@ const
   sbNavigation = 1;
   sbSummarize = 2;
 
+var
+  EditorCommandText: string;
+
 type
   TSynMemoBeforeDrag = record SelStart: Integer; SelLength: Integer; end;
   TListViewSortRec = record Kind: TPAccount.TDesktop.TListViewKind; Index: Integer; Order: Integer; end;
@@ -1090,9 +1093,6 @@ const
 
   ToolbarTabByView: array[vObjects .. vEditor3] of TPPreferences.TToolbarTab =
     (ttObjects, ttBrowser, ttIDE, ttBuilder, ttDiagram, ttEditor, ttEditor2, ttEditor3);
-
-var
-  EditorCommandText: string;
 
 // Debug 2016-12-07
 function GetControlByHandle(const Control: TWinControl; const Wnd: HWND): TWinControl;
@@ -2583,6 +2583,9 @@ begin
   if (not Assigned(Session.Account)) then
     raise ERangeError.Create(SRangeError);
   if (not Assigned(Session.Account.Connection)) then
+    raise ERangeError.Create(SRangeError);
+  // Debug 2016-12-08
+  if (not (Session.Account.Connection is TPAccount.TConnection)) then
     raise ERangeError.Create(SRangeError);
   Host := URI.Host;
   if (Length(Host) > 256) then

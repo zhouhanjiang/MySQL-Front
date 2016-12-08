@@ -3362,7 +3362,6 @@ begin
   end;
 
 
-
   if (not Assigned(SyncThread.OnResult)) then
   begin
     if (SyncThread.ErrorCode > 0) then
@@ -3400,9 +3399,9 @@ begin
           raise Exception.Create('Query has not been handled: ' + SyncThread.CommandText)
         else
         begin
-          Log := 'Statement #' + IntToStr(SyncThread.StmtIndex) + ' has not been handled:' + #13#10 + SyncThread.SQL + #13#10;
+          Log := 'Statement #' + IntToStr(SyncThread.StmtIndex) + ' of ' + IntToStr(SyncThread.StmtLengths.Count) + ' has not been handled:' + #13#10 + SyncThread.SQL + #13#10;
           for I := 0 to SyncThread.StmtLengths.Count - 1 do
-            Log := Log + #13#10 + IntToStr(Integer(SyncThread.StmtLengths[I]));
+            Log := Log + #13#10 + 'Statement #' + IntToStr(I + 1) + ' Length: ' + IntToStr(Integer(SyncThread.StmtLengths[I]));
           raise Exception.Create(Log);
         end;
     finally

@@ -1061,7 +1061,7 @@ begin
       Report := Report + 'MySQL:' + #13#10;
       Report := Report + StringOfChar('-', Length('Version: ' + ActiveTab.Session.Connection.ServerVersionStr)) + #13#10;
       Report := Report + 'Version: ' + ActiveTab.Session.Connection.ServerVersionStr;
-      if (ActiveTab.Session.Connection.LibraryType <> ltHTTP) then
+      if (ActiveTab.Session.Connection.LibraryType <> MySQLDB.ltHTTP) then
         Report := Report + ' (LibraryType: ' + IntToStr(Ord(ActiveTab.Session.Connection.LibraryType)) + ')';
       Report := Report + #13#10#13#10;
 
@@ -1342,12 +1342,20 @@ begin
 
     if (Assigned(ActiveTab)) then
     begin
+      if (EditorCommandText <> '') then
+      begin
+        Report := Report + #13#10;
+        Report := Report + 'EditorCommandText: ' + SQLEscapeBin(EditorCommandText, True) + #13#10;
+      end;
+
       Report := Report + #13#10;
       Report := Report + 'MySQL:' + #13#10;
       Report := Report + StringOfChar('-', Length('Version: ' + ActiveTab.Session.Connection.ServerVersionStr)) + #13#10;
-      Report := Report + 'Version: ' + ActiveTab.Session.Connection.ServerVersionStr + #13#10;
-      Report := Report + 'LibraryType: ' + IntToStr(Ord(ActiveTab.Session.Connection.LibraryType)) + #13#10;
-      Report := Report + #13#10;
+      Report := Report + 'Version: ' + ActiveTab.Session.Connection.ServerVersionStr;
+      if (ActiveTab.Session.Connection.LibraryType <> MySQLDB.ltHTTP) then
+        Report := Report + ' (LibraryType: ' + IntToStr(Ord(ActiveTab.Session.Connection.LibraryType)) + ')';
+      Report := Report + #13#10#13#10;
+
       Report := Report + 'SQL Log:' + #13#10;
       Report := Report + StringOfChar('-', 72) + #13#10;
       Report := Report + ActiveTab.Session.Connection.DebugMonitor.CacheText;
