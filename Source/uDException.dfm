@@ -1,8 +1,8 @@
-object DBugReport: TDBugReport
+object DException: TDException
   Left = 0
   Top = 0
   BorderStyle = bsDialog
-  Caption = 'DBugReport'
+  Caption = 'DException'
   ClientHeight = 223
   ClientWidth = 428
   Color = clWindow
@@ -27,10 +27,10 @@ object DBugReport: TDBugReport
   object FLHeader: TLabel
     Left = 64
     Top = 16
-    Width = 133
+    Width = 139
     Height = 14
     AutoSize = False
-    Caption = 'Internal Program Bug'
+    Caption = 'Internal Program Error'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -12
@@ -46,16 +46,16 @@ object DBugReport: TDBugReport
     AutoSize = False
     Caption = 
       'The application has encountered a problem. Please help to improv' +
-      'e this application by sending a prepared bug report to the devel' +
-      'oper.'
+      'e this application by sending a prepared error report to the dev' +
+      'eloper.'
     WordWrap = True
   end
   object FLDescription: TLabel
     Left = 64
     Top = 104
-    Width = 64
+    Width = 94
     Height = 14
-    Caption = 'Description:'
+    Caption = 'Error Description:'
   end
   object FLMessage: TLabel
     Left = 64

@@ -1,4 +1,4 @@
-unit uDBugReport;
+unit uDException;
 
 interface {********************************************************************}
 
@@ -9,7 +9,7 @@ uses
   Forms_Ext;
 
 type
-  TDBugReport = class(TForm_Ext)
+  TDException = class(TForm_Ext)
     Panel: TPanel;
     FIcon: TImage;
     FLHeader: TLabel;
@@ -29,7 +29,7 @@ type
     function Execute(): Boolean;
   end;
 
-function DBugReport(): TDBugReport;
+function DException(): TDException;
 
 implementation {***************************************************************}
 
@@ -41,28 +41,28 @@ uses
 {$R *.dfm}
 
 var
-  FDBugReport: TDBugReport;
+  FDException: TDException;
 
-function DBugReport(): TDBugReport;
+function DException(): TDException;
 begin
-  if (not Assigned(FDBugReport)) then
+  if (not Assigned(FDException)) then
   begin
-    Application.CreateForm(TDBugReport, FDBugReport);
-    FDBugReport.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    Application.CreateForm(TDException, FDException);
+    FDException.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
-  Result := FDBugReport;
+  Result := FDException;
 end;
 
-{ TDBugReport *****************************************************************}
+{ TDException *****************************************************************}
 
-function TDBugReport.Execute(): Boolean;
+function TDException.Execute(): Boolean;
 begin
   ShowModal();
   Result := ModalResult = mrOk;
 end;
 
-procedure TDBugReport.FBClipboardClick(Sender: TObject);
+procedure TDException.FBClipboardClick(Sender: TObject);
 begin
   Clipboard.Open();
   try
@@ -72,7 +72,7 @@ begin
   end;
 end;
 
-procedure TDBugReport.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+procedure TDException.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   if (ModalResult = mrOk) then
     SendShellMail(MEException.MailAddr,
@@ -80,7 +80,7 @@ begin
       Report);
 end;
 
-procedure TDBugReport.FormCreate(Sender: TObject);
+procedure TDException.FormCreate(Sender: TObject);
 begin
   Caption := LoadStr(1000);
 
@@ -91,7 +91,7 @@ begin
   FIcon.Picture.Icon.Handle := LoadIcon(0, IDI_ERROR);
 end;
 
-procedure TDBugReport.FormShow(Sender: TObject);
+procedure TDException.FormShow(Sender: TObject);
 var
   MinWidth: Integer;
   Rect: TRect;
@@ -151,5 +151,5 @@ begin
 end;
 
 initialization
-  FDBugReport := nil;
+  FDException := nil;
 end.

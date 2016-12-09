@@ -7616,12 +7616,8 @@ end;
 
 procedure TFSession.FQuickSearchChange(Sender: TObject);
 begin
-  // Debug 2016-12-08
-  if (not Assigned(ActiveDBGrid)) then
-    raise ERangeError.Create(SRangeError + ' Address: ' + Address);
-
-  FQuickSearchEnabled.Enabled := FQuickSearch.Text <> '';
-  FQuickSearchEnabled.Down := (FQuickSearch.Text <> '') and (ActiveDBGrid.DataSource.DataSet is TSTable.TDataSet) and (FQuickSearch.Text = TSTable.TDataSet(ActiveDBGrid.DataSource.DataSet).QuickSearch);
+  FQuickSearchEnabled.Enabled := Assigned(ActiveDBGrid) and (FQuickSearch.Text <> '');
+  FQuickSearchEnabled.Down := FQuickSearchEnabled.Enabled and (FQuickSearch.Text <> '') and (ActiveDBGrid.DataSource.DataSet is TSTable.TDataSet) and (FQuickSearch.Text = TSTable.TDataSet(ActiveDBGrid.DataSource.DataSet).QuickSearch);
 end;
 
 procedure TFSession.FQuickSearchEnabledClick(Sender: TObject);

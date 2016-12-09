@@ -18439,7 +18439,8 @@ function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
       or (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent) and not (ADbIdentType in [ditCharset, ditCollation])
       or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and (AnsiQuotes or (ADbIdentType in [ditCharset, ditCollation, ditConstraint, ditColumnAlias, ditTableAlias]))
       or (TokenPtr(CurrentToken)^.TokenType = ttString) and (ADbIdentType in [ditCharset, ditCollation, ditConstraint, ditColumnAlias, ditTableAlias])
-      or (TokenPtr(CurrentToken)^.OperatorType = otMulti) and JokerAllowed and (ADbIdentType in [ditDatabase, ditTable, ditProcedure, ditFunction, ditField])) then
+      or (TokenPtr(CurrentToken)^.OperatorType = otMulti) and JokerAllowed and (ADbIdentType in [ditDatabase, ditTable, ditProcedure, ditFunction, ditField])
+      or (aDbIdentType = ditKey) and (TokenPtr(CurrentToken)^.TokenType = ttIdent) and (TokenPtr(CurrentToken)^.KeywordIndex = kiPRIMARY)) then
     begin
       TokenPtr(CurrentToken)^.FOperatorType := otNone;
       Result := ApplyCurrentToken(utDbIdent);
@@ -22371,12 +22372,8 @@ begin
     Nodes.HintTag := ParseTag(kiIGNORE, kiKEY)
   else if (IsTag(kiFORCE, kiINDEX)) then
     Nodes.HintTag := ParseTag(kiFORCE, kiINDEX)
-  else if (IsTag(kiFORCE, kiKEY)) then
-    Nodes.HintTag := ParseTag(kiFORCE, kiKEY)
-  else if (EndOfStmt(CurrentToken)) then
-    SetError(PE_IncompleteStmt)
   else
-    SetError(PE_UnexpectedToken);
+    Nodes.HintTag := ParseTag(kiFORCE, kiKEY);
 
   if (not ErrorFound) then
     if (IsTag(kiFOR, kiJOIN)) then

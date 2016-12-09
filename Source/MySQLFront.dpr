@@ -39,7 +39,7 @@ uses
   uDAccount in 'uDAccount.pas' {DAccount},
   uDAccounts in 'uDAccounts.pas' {DAccounts},
   {$IFDEF madExcept}
-  uDBugReport in 'uDBugReport.pas' {DBugReport},
+  uDException in 'uDException.pas' {DException},
   {$ENDIF}
   uDConnecting in 'uDConnecting.pas' {DConnecting},
   uDDatabase in 'uDDatabase.pas' {DDatabase},

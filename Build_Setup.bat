@@ -56,7 +56,7 @@ if Errorlevel 1 goto Error
 
 CD %BuildSourcePath%
 if exist "%BuildmadExceptPatch%" (
-  "%BuildCompiler%" /B -GD "MySQLFront.dpr"
+  "%BuildCompiler%" /B -GD -$D+ "MySQLFront.dpr"
   if Errorlevel 1 goto Error
 PAUSE
   "%BuildmadExceptPatch%" "%BuildTempPath%\MySQLFront.exe" "MySQLFront.mes" "%BuildTempPath%\MySQLFront.map"

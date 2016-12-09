@@ -1363,9 +1363,9 @@ begin
 
     SendBugToDeveloper(Report);
 
-    DBugReport.MEException := MEException;
-    DBugReport.Report := Report;
-    DBugReport.Execute();
+    DException.MEException := MEException;
+    DException.Report := Report;
+    DException.Execute();
   end;
 
   Handled := True;
