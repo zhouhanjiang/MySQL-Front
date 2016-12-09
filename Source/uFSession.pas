@@ -12345,7 +12345,10 @@ begin
         // Debug 2016-12-07
         raise ERangeError.Create(SRangeError)
       else
+      begin
+        URI.Database := LastSelectedDatabase;
         URI.Table := LastSelectedTable;
+      end;
     end
     else if ((AView = vIDE) and not (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent, iiTrigger])) then
       URI.Address := LastObjectIDEAddress

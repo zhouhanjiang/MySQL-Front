@@ -2082,7 +2082,7 @@ begin
             Connection.DoError(DataSet.SyncThread.ErrorCode, DataSet.SyncThread.ErrorMessage);
           Connection.SyncReleaseDataSet(DataSet);
           if (Mode in [smSQL, smDataSet]) then
-            if (State in [ssExecutingNext, ssExecutingFirst]) then
+            if (State in [ssNext, ssFirst]) then
             begin
               Connection.SyncExecute(Self);
               Connection.RunExecute(Self);
@@ -6498,7 +6498,7 @@ begin
   if (not (TObject(Self) is TMySQLDataSet)) then
     raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Self).ClassName);
   // Debug 2016-11-24
-  MemSize := FieldCount;
+  MemSize := FieldCount; // On 2016-12-09 I got an AV here. But why???
   MemSize := SizeOf(DestData^) + MemSize * (SizeOf(DestData^.LibLengths^[0]) + SizeOf(DestData^.LibRow^[0]));
 //  MemSize := SizeOf(DestData^) + FieldCount * (SizeOf(DestData^.LibLengths^[0]) + SizeOf(DestData^.LibRow^[0]));
 
