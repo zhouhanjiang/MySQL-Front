@@ -1,51 +1,125 @@
-﻿	<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-		<PropertyGroup>
-			<ProjectGuid>{009a1040-55cd-44d2-a22d-d603a4c2c51b}</ProjectGuid>
-			<MainSource>ShellBrowser_160.dpk</MainSource>
-			<ProjectVersion>13.4</ProjectVersion>
-			<FrameworkType>VCL</FrameworkType>
-			<Config Condition="'$(Config)'==''">Debug</Config>
-			<Platform Condition="'$(Platform)'==''">Win32</Platform>
-			<TargetedPlatforms>1</TargetedPlatforms>
-			<AppType>Package</AppType>
-			<VerInfo_IncludeVerInfo>false</VerInfo_IncludeVerInfo>
-			<SkipResGeneration>true</SkipResGeneration>
-		</PropertyGroup>
-		<PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
-			<Base>true</Base>
-		</PropertyGroup>
-		<PropertyGroup Condition="'$(Base)'!=''">
-			<VerInfo_Locale>1031</VerInfo_Locale>
-			<VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0</VerInfo_Keys>
-			<GenDll>true</GenDll>
-			<GenPackage>true</GenPackage>
-			<Manifest_File>None</Manifest_File>
-			<DCC_Platform>x86</DCC_Platform>
-			<DCC_Namespace>Vcl;Vcl.Imaging;Vcl.Shell;System;Xml;Data;Winapi;Bde;System.Win;$(DCC_Namespace)</DCC_Namespace>
-			<DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
-			<DCC_SYMBOL_PLATFORM>false</DCC_SYMBOL_PLATFORM>
-			<DCC_StringChecks>off</DCC_StringChecks>
-			<DCC_AssertionsAtRuntime>false</DCC_AssertionsAtRuntime>
-			<DCC_Optimize>false</DCC_Optimize>
-			<DCC_ImageBase>00400000</DCC_ImageBase>
-			<DCC_Description>ShellBrowser Components by JAM Software</DCC_Description>
-			<DCC_WriteableConstants>true</DCC_WriteableConstants>
-			<DCC_UnitSearchPath>..\Source;..\Resource;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
-			<DCC_BplOutput>$(BDS)\Projects\Bpl</DCC_BplOutput>
-			<DCC_DcpOutput>..\Bin</DCC_DcpOutput>
-			<DCC_DcuOutput>..\Bin</DCC_DcuOutput>
-		</PropertyGroup>
-		<ProjectExtensions>
-			<Borland.Personality>Delphi.Personality.12</Borland.Personality>
-			<Borland.ProjectType>Package</Borland.ProjectType>
-			<BorlandProject>
-				<Delphi.Personality/>
-				<Platforms>
-					<Platform value="Win32">True</Platform>
-					<Platform value="Win64">False</Platform>
-					<Platform value="OSX32">False</Platform>
-				</Platforms>
-			</BorlandProject>
-			<ProjectFileVersion>12</ProjectFileVersion>
-		</ProjectExtensions>
-	</Project>
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{009a1040-55cd-44d2-a22d-d603a4c2c51b}</ProjectGuid>
+        <MainSource>ShellBrowser_160.dpk</MainSource>
+        <ProjectVersion>14.6</ProjectVersion>
+        <FrameworkType>VCL</FrameworkType>
+        <Config Condition="'$(Config)'==''">Base</Config>
+        <Platform Condition="'$(Platform)'==''">Win32</Platform>
+        <TargetedPlatforms>1</TargetedPlatforms>
+        <AppType>Package</AppType>
+        <VerInfo_IncludeVerInfo>false</VerInfo_IncludeVerInfo>
+        <SkipResGeneration>true</SkipResGeneration>
+        <Base>True</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Base)'!=''">
+        <VerInfo_Locale>1031</VerInfo_Locale>
+        <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0</VerInfo_Keys>
+        <GenDll>true</GenDll>
+        <GenPackage>true</GenPackage>
+        <Manifest_File>None</Manifest_File>
+        <DCC_Platform>x86</DCC_Platform>
+        <DCC_Namespace>Vcl;Vcl.Imaging;Vcl.Shell;System;Xml;Data;Winapi;Bde;System.Win;$(DCC_Namespace)</DCC_Namespace>
+        <DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
+        <DCC_SYMBOL_PLATFORM>false</DCC_SYMBOL_PLATFORM>
+        <DCC_StringChecks>off</DCC_StringChecks>
+        <DCC_AssertionsAtRuntime>false</DCC_AssertionsAtRuntime>
+        <DCC_Optimize>false</DCC_Optimize>
+        <DCC_ImageBase>00400000</DCC_ImageBase>
+        <DCC_Description>ShellBrowser Components by JAM Software</DCC_Description>
+        <DCC_WriteableConstants>true</DCC_WriteableConstants>
+        <DCC_UnitSearchPath>..\Source;..\Resource;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_BplOutput>$(BDS)\Projects\Bpl</DCC_BplOutput>
+        <DCC_DcpOutput>..\Bin</DCC_DcpOutput>
+        <DCC_DcuOutput>..\Bin</DCC_DcuOutput>
+    </PropertyGroup>
+    <ItemGroup>
+        <DelphiCompile Include="$(MainSource)">
+            <MainSource>MainSource</MainSource>
+        </DelphiCompile>
+        <DCCReference Include="ShellBrowser_160.dcr"/>
+        <DCCReference Include="vcl.dcp"/>
+        <DCCReference Include="DesignIDE.dcp"/>
+        <DCCReference Include="rtl.dcp"/>
+        <DCCReference Include="vclimg.dcp"/>
+        <DCCReference Include="..\Source\Shell_Win32.pas"/>
+        <DCCReference Include="..\Source\ShellControls.pas"/>
+        <DCCReference Include="..\Source\ShellLink.pas"/>
+        <DCCReference Include="..\Source\JamSelectionList.pas"/>
+        <DCCReference Include="..\Source\ShellBrowser.pas"/>
+        <DCCReference Include="..\Source\JAMControls.pas"/>
+        <DCCReference Include="..\Source\JAMDialogs.pas"/>
+        <DCCReference Include="..\Source\ThreadPool.pas"/>
+        <DCCReference Include="..\Source\JamTools.pas"/>
+        <DCCReference Include="..\Source\JamSystemShellView.pas"/>
+        <DCCReference Include="..\Source\JamWorkItems.pas"/>
+        <BuildConfiguration Include="Base">
+            <Key>Base</Key>
+        </BuildConfiguration>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Delphi.Personality.12</Borland.Personality>
+        <Borland.ProjectType>Package</Borland.ProjectType>
+        <BorlandProject>
+            <Delphi.Personality>
+                <Source>
+                    <Source Name="MainSource">ShellBrowser_160.dpk</Source>
+                </Source>
+                <VersionInfo>
+                    <VersionInfo Name="IncludeVerInfo">False</VersionInfo>
+                    <VersionInfo Name="AutoIncBuild">False</VersionInfo>
+                    <VersionInfo Name="MajorVer">1</VersionInfo>
+                    <VersionInfo Name="MinorVer">0</VersionInfo>
+                    <VersionInfo Name="Release">0</VersionInfo>
+                    <VersionInfo Name="Build">0</VersionInfo>
+                    <VersionInfo Name="Debug">False</VersionInfo>
+                    <VersionInfo Name="PreRelease">False</VersionInfo>
+                    <VersionInfo Name="Special">False</VersionInfo>
+                    <VersionInfo Name="Private">False</VersionInfo>
+                    <VersionInfo Name="DLL">False</VersionInfo>
+                    <VersionInfo Name="Locale">1031</VersionInfo>
+                    <VersionInfo Name="CodePage">1252</VersionInfo>
+                </VersionInfo>
+                <VersionInfoKeys>
+                    <VersionInfoKeys Name="CompanyName"/>
+                    <VersionInfoKeys Name="FileDescription"/>
+                    <VersionInfoKeys Name="FileVersion">1.0.0.0</VersionInfoKeys>
+                    <VersionInfoKeys Name="InternalName"/>
+                    <VersionInfoKeys Name="LegalCopyright"/>
+                    <VersionInfoKeys Name="LegalTrademarks"/>
+                    <VersionInfoKeys Name="OriginalFilename"/>
+                    <VersionInfoKeys Name="ProductName"/>
+                    <VersionInfoKeys Name="ProductVersion">1.0.0.0</VersionInfoKeys>
+                    <VersionInfoKeys Name="Comments"/>
+                    <VersionInfoKeys Name="CFBundleName"/>
+                    <VersionInfoKeys Name="CFBundleDisplayName"/>
+                    <VersionInfoKeys Name="UIDeviceFamily"/>
+                    <VersionInfoKeys Name="CFBundleIdentifier"/>
+                    <VersionInfoKeys Name="CFBundleVersion"/>
+                    <VersionInfoKeys Name="CFBundlePackageType"/>
+                    <VersionInfoKeys Name="CFBundleSignature"/>
+                    <VersionInfoKeys Name="CFBundleAllowMixedLocalizations"/>
+                    <VersionInfoKeys Name="UISupportedInterfaceOrientations"/>
+                    <VersionInfoKeys Name="CFBundleExecutable"/>
+                    <VersionInfoKeys Name="CFBundleResourceSpecification"/>
+                    <VersionInfoKeys Name="LSRequiresIPhoneOS"/>
+                    <VersionInfoKeys Name="CFBundleInfoDictionaryVersion"/>
+                    <VersionInfoKeys Name="CFBundleDevelopmentRegion"/>
+                </VersionInfoKeys>
+            </Delphi.Personality>
+            <Platforms>
+                <Platform value="iOSDevice">False</Platform>
+                <Platform value="iOSSimulator">False</Platform>
+                <Platform value="OSX32">False</Platform>
+                <Platform value="Win32">True</Platform>
+                <Platform value="Win64">False</Platform>
+            </Platforms>
+        </BorlandProject>
+        <ProjectFileVersion>12</ProjectFileVersion>
+    </ProjectExtensions>
+    <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')"/>
+    <Import Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj" Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')"/>
+</Project>

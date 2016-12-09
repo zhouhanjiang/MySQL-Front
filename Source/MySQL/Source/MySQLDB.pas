@@ -2060,7 +2060,7 @@ begin
       ssExecutingNext:
         begin
           Connection.SyncExecuted(Self);
-          if ((Connection.KillThreadId > 0) and (State = ssResult)) then
+          if ((Connection.KillThreadId > 0) and (Mode = smDataHandle)) then
           begin
             Connection.SyncHandledResult(Self);
             Connection.KillThreadId := 0;
@@ -3362,9 +3362,14 @@ begin
   end;
 
 
-  if (not Assigned(SyncThread.OnResult)) then
+  if (not Assigned(SyncThread.OnResult) or (KillThreadId > 0) and (SyncThread.Mode <> smDataHandle)) then
   begin
-    if (SyncThread.ErrorCode > 0) then
+    if (KillThreadId > 0) then
+    begin
+      KillThreadId := 0;
+      SyncThread.State := ssResult;
+    end
+    else if (SyncThread.ErrorCode > 0) then
     begin
       DoError(SyncThread.ErrorCode, SyncThread.ErrorMessage);
       SyncThread.State := ssReady;
