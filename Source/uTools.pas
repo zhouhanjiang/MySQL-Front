@@ -7,9 +7,6 @@ interface {********************************************************************}
 uses
   Windows, XMLDoc, XMLIntf, DBGrids, WinSpool,
   SysUtils, DB, Classes, Graphics, SyncObjs,
-  {$IFDEF EurekaLog}
-  ExceptionLog,
-  {$ENDIF}
   ODBCAPI,
   SynEditHighlighter,
   SynPDF,
@@ -757,6 +754,9 @@ implementation {***************************************************************}
 uses
   ActiveX, SysConst, Shlwapi,
   Forms, DBConsts, Registry, DBCommon, StrUtils, Math, Variants,
+  {$IFDEF EurekaLog}
+  ExceptionLog7, EExceptionManager,
+  {$ENDIF}
   PerlRegEx;
 
 resourcestring
@@ -1882,6 +1882,7 @@ var
 begin
   {$IFDEF EurekaLog}
   try
+    SetEurekaLogStateInThread(0, True);
   {$ENDIF}
 
   BeforeExecute();
@@ -1926,7 +1927,8 @@ begin
 
   {$IFDEF EurekaLog}
   except
-    StandardEurekaNotify(GetLastExceptionObject(), GetLastExceptionAddress());
+    on E: Exception do
+      ExceptionManager.StandardEurekaNotify(E);
   end;
   {$ENDIF}
 end;
@@ -2509,6 +2511,7 @@ var
 begin
   {$IFDEF EurekaLog}
   try
+    SetEurekaLogStateInThread(0, True);
   {$ENDIF}
 
   if (not Assigned(Text)) then
@@ -2617,7 +2620,8 @@ begin
 
   {$IFDEF EurekaLog}
   except
-    StandardEurekaNotify(GetLastExceptionObject(), GetLastExceptionAddress());
+    on E: Exception do
+      ExceptionManager.StandardEurekaNotify(E);
   end;
   {$ENDIF}
 end;
@@ -4085,6 +4089,7 @@ var
 begin
   {$IFDEF EurekaLog}
   try
+    SetEurekaLogStateInThread(0, True);
   {$ENDIF}
 
   BeforeExecute();
@@ -4304,7 +4309,8 @@ begin
 
   {$IFDEF EurekaLog}
   except
-    StandardEurekaNotify(GetLastExceptionObject(), GetLastExceptionAddress());
+    on E: Exception do
+      ExceptionManager.StandardEurekaNotify(E);
   end;
   {$ENDIF}
 end;
@@ -8548,6 +8554,7 @@ var
 begin
   {$IFDEF EurekaLog}
   try
+    SetEurekaLogStateInThread(0, True);
   {$ENDIF}
 
   BeforeExecute();
@@ -8642,7 +8649,8 @@ begin
 
   {$IFDEF EurekaLog}
   except
-    StandardEurekaNotify(GetLastExceptionObject(), GetLastExceptionAddress());
+    on E: Exception do
+      ExceptionManager.StandardEurekaNotify(E);
   end;
   {$ENDIF}
 end;

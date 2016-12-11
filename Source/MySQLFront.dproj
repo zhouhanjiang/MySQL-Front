@@ -180,6 +180,7 @@
 			<DCCReference Include="uWWindow.pas">
 				<Form>WWindow</Form>
 			</DCCReference>
+			<DCCReference Include="uEurekaLog.pas"/>
 			<BuildConfiguration Include="Base">
 				<Key>Base</Key>
 			</BuildConfiguration>

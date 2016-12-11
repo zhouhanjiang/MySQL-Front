@@ -876,7 +876,7 @@ uses
   DBConsts, Forms, Variants,
   RTLConsts, Consts, SysConst, Math, StrUtils,
   {$IFDEF EurekaLog}
-  ExceptionLog,
+  ExceptionLog7, EExceptionManager,
   {$ENDIF}
   MySQLClient,
   SQLUtils, CSVUtils, HTTPTunnel;
@@ -1947,6 +1947,7 @@ var
 begin
   {$IFDEF EurekaLog}
   try
+    SetEurekaLogStateInThread(0, True);
   {$ENDIF}
 
   while (not Terminated) do
@@ -1994,7 +1995,8 @@ begin
 
   {$IFDEF EurekaLog}
   except
-    StandardEurekaNotify(GetLastExceptionObject(), GetLastExceptionAddress());
+    on E: Exception do
+      ExceptionManager.StandardEurekaNotify(E);
   end;
   {$ENDIF}
 end;

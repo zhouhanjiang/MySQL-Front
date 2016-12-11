@@ -6,10 +6,11 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Types,
   Dialogs, ActnList, ComCtrls, DBActns, ExtCtrls, ImgList, Menus, StdActns,
   ActnCtrls, StdCtrls, ToolWin,
-  {$IFDEF EurekaLog}
-  ExceptionLog,
-  {$ENDIF}
   SynEditHighlighter, SynHighlighterSQL,
+  {$IFDEF EurekaLog}
+  ExceptionLog7, EComponent, EException, ECallStack, EBase,
+  uEurekaLog,
+  {$ENDIF}
   ExtCtrls_Ext, Forms_Ext, StdCtrls_Ext, ComCtrls_Ext, Dialogs_Ext, StdActns_Ext,
   MySQLDB,
   uSession, uPreferences, uDeveloper,
@@ -374,7 +375,6 @@ type
       Y: Integer);
     procedure aOExportExecute(Sender: TObject);
     procedure aOImportExecute(Sender: TObject);
-    procedure Button1Click(Sender: TObject);
   const
     tiDeactivate = 1;
   type
@@ -386,7 +386,7 @@ type
   private
     CheckOnlineVersionThread: TCheckOnlineVersionThread;
     {$IFDEF EurekaLog}
-    EurekaLog: TEurekaLog;
+    EurekaLogEvents: TEurekaLogEvents;
     {$ENDIF}
     FSessions: TList;
     MouseDownPoint: TPoint;
@@ -407,12 +407,12 @@ type
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure EmptyWorkingMem();
     {$IFDEF EurekaLog}
-    procedure EurekaLogCustomButtonClickNotify(
-      EurekaExceptionRecord: TEurekaExceptionRecord; var CloseDialog: Boolean);
-    procedure EurekaLogCustomDataRequest(
-      EurekaExceptionRecord: TEurekaExceptionRecord; DataFields: TStrings);
-    procedure EurekaLogExceptionNotify(
-      EurekaExceptionRecord: TEurekaExceptionRecord; var Handle: Boolean);
+    procedure EurekaLogCustomButtonClick(const ExceptionInfo: TEurekaExceptionInfo;
+      const Dialog: TBaseDialog; var CloseDialog: Boolean; var ACallNextHandler: Boolean);
+//    procedure EurekaLogCustomDataRequest(
+//      EurekaExceptionRecord: TEurekaExceptionRecord; DataFields: TStrings);
+    procedure EurekaLogExceptionNotify(ExceptionInfo: TEurekaExceptionInfo;
+      var Handle: Boolean; var CallNextHandler: Boolean);
     {$ENDIF}
     function GetActiveTab(): TFSession;
     function GetNewTabIndex(Sender: TObject; X, Y: Integer): Integer;
@@ -775,11 +775,6 @@ begin
   MsgBox(Preferences.LoadStr(533, FindText), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
 end;
 
-procedure TWWindow.Button1Click(Sender: TObject);
-begin
-raise Exception.Create('Error Message');
-end;
-
 function TWWindow.CloseAll(): Boolean;
 var
   I: Integer;
@@ -931,7 +926,7 @@ begin
   FreeAndNil(Accounts);
 
   {$IFDEF EurekaLog}
-    EurekaLog.Free();
+    EurekaLogEvents.Free();
   {$ENDIF}
 
   inherited;
@@ -950,8 +945,8 @@ begin
 end;
 
 {$IFDEF EurekaLog}
-procedure TWWindow.EurekaLogCustomButtonClickNotify(
-  EurekaExceptionRecord: TEurekaExceptionRecord; var CloseDialog: Boolean);
+procedure TWWindow.EurekaLogCustomButtonClick(const ExceptionInfo: TEurekaExceptionInfo;
+  const Dialog: TBaseDialog; var CloseDialog: Boolean; var ACallNextHandler: Boolean);
 var
   ClipboardData: HGLOBAL;
   S: string;
@@ -963,7 +958,7 @@ begin
     try
       EmptyClipboard();
 
-      S := string(EurekaExceptionRecord.LogText);
+      S := ExceptionInfo.ReproduceText;
       ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Length(S) + 1) * SizeOf(S[1]));
       StrPCopy(GlobalLock(ClipboardData), S);
       SetClipboardData(CF_UNICODETEXT, ClipboardData);
@@ -976,40 +971,39 @@ begin
   end;
 end;
 
-procedure TWWindow.EurekaLogCustomDataRequest(
-  EurekaExceptionRecord: TEurekaExceptionRecord; DataFields: TStrings);
-var
-  I: Integer;
-  Log: TStringList;
-begin
-  for I := 0 to Sessions.Count - 1 do
-    if (Sessions[I].Connection.Connected) then
-      if (Assigned(ActiveTab) and (Sessions[I] = ActiveTab.Session)) then
-        DataFields.Add(IntToStr(I) + '=MySQL Version ' + Sessions[I].Connection.ServerVersionStr + ' (Id*: ' + IntToStr(Sessions[I].Connection.ThreadId) + ')')
-      else
-        DataFields.Add(IntToStr(I) + '=MySQL Version ' + Sessions[I].Connection.ServerVersionStr + ' (Id: ' + IntToStr(Sessions[I].Connection.ThreadId) + ')');
+//procedure TWWindow.EurekaLogCustomDataRequest(
+//  EurekaExceptionRecord: TEurekaExceptionRecord; DataFields: TStrings);
+//var
+//  I: Integer;
+//  Log: TStringList;
+//begin
+//  for I := 0 to Sessions.Count - 1 do
+//    if (Sessions[I].Connection.Connected) then
+//      if (Assigned(ActiveTab) and (Sessions[I] = ActiveTab.Session)) then
+//        DataFields.Add(IntToStr(I) + '=MySQL Version ' + Sessions[I].Connection.ServerVersionStr + ' (Id*: ' + IntToStr(Sessions[I].Connection.ThreadId) + ')')
+//      else
+//        DataFields.Add(IntToStr(I) + '=MySQL Version ' + Sessions[I].Connection.ServerVersionStr + ' (Id: ' + IntToStr(Sessions[I].Connection.ThreadId) + ')');
+//
+//  if (Assigned(ActiveTab)) then
+//  begin
+//    Log := TStringList.Create();
+//    Log.Text := ActiveTab.Session.Connection.DebugMonitor.CacheText;
+//    for I := 0 to Log.Count - 1 do
+//      DataFields.Add(IntToStr(DataFields.Count) + '=' + Log[I]);
+//    Log.Free();
+//  end;
+//
+//  EurekaExceptionRecord.CurrentModuleOptions.EMailSubject
+//    := AnsiString(SysUtils.LoadStr(1000) + ' ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor)
+//    + ' (Build: ' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + ')')
+//    + ' - Bug Report';
+//end;
 
-  if (Assigned(ActiveTab)) then
-  begin
-    Log := TStringList.Create();
-    Log.Text := ActiveTab.Session.Connection.DebugMonitor.CacheText;
-    for I := 0 to Log.Count - 1 do
-      DataFields.Add(IntToStr(DataFields.Count) + '=' + Log[I]);
-    Log.Free();
-  end;
-
-  EurekaExceptionRecord.CurrentModuleOptions.EMailSubject
-    := AnsiString(SysUtils.LoadStr(1000) + ' ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor)
-    + ' (Build: ' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + ')')
-    + ' - Bug Report';
-end;
-
-procedure TWWindow.EurekaLogExceptionNotify(
-  EurekaExceptionRecord: TEurekaExceptionRecord; var Handle: Boolean);
+procedure TWWindow.EurekaLogExceptionNotify(ExceptionInfo: TEurekaExceptionInfo;
+  var Handle: Boolean; var CallNextHandler: Boolean);
 var
   I: Integer;
   Report: string;
-  StringList: TStringList;
 begin
   for I := 0 to FSessions.Count - 1 do
     try TFSession(FSessions[I]).CrashRescue(); except end;
@@ -1036,15 +1030,20 @@ begin
 
     Report := LoadStr(1000) + ' ' + Preferences.VersionStr + #13#10;
     Report := Report + #13#10;
-    Report := Report + EurekaExceptionRecord.ExceptionObject.ClassName + ':' + #13#10;
-    if (EurekaExceptionRecord.ExceptionObject is Exception) then
-      Report := Report + Exception(EurekaExceptionRecord.ExceptionObject).Message + #13#10;
+    if (not (TObject(ExceptionInfo.ExceptionObject) is Exception)) then
+    begin
+      Report := Report + ExceptionInfo.ExceptionClass + ':' + #13#10;
+      Report := Report + ExceptionInfo.ExceptionMessage + #13#10;
+    end
+    else
+    begin
+      Report := Report + Exception(ExceptionInfo.ExceptionObject).ClassName + ':' + #13#10;
+      Report := Report + Exception(ExceptionInfo.ExceptionObject).Message + #13#10;
+    end;
     Report := Report + #13#10;
 
-    StringList := TStringList.Create();
-    CallStackToStrings(EurekaExceptionRecord.CallStack, StringList);
-    Report := Report + Trim(StringList.Text) + #13#10;
-    StringList.Free();
+    ExceptionInfo.CallStack.Formatter := TEurekaStackFormatter.Create();
+    Report := Report + ExceptionInfo.CallStack.ToString;
 
     if (Assigned(ActiveTab)) then
     begin
@@ -1068,6 +1067,8 @@ begin
     end;
 
     SendBugToDeveloper(Report);
+
+    ExceptionInfo.ReproduceText := Report;
   end;
 end;
 {$ENDIF}
@@ -1096,7 +1097,9 @@ begin
   MySQLDB.MySQLConnectionOnSynchronize := MySQLConnectionSynchronize;
 
   Application.HelpFile := ExtractFilePath(Application.ExeName) + Copy(ExtractFileName(Application.ExeName), 1, Length(ExtractFileName(Application.ExeName)) - 4) + '.chm';
+  {$IFNDEF EurekaLog}
   Application.OnException := ApplicationException;
+  {$ENDIF}
   Application.OnMessage := ApplicationMessage;
   Application.OnModalBegin := ApplicationModalBegin;
   Application.OnModalEnd := ApplicationModalEnd;
@@ -1104,10 +1107,10 @@ begin
   Application.OnDeactivate := ApplicationDeactivate;
 
   {$IFDEF EurekaLog}
-    EurekaLog := TEurekaLog.Create(Self);
-    EurekaLog.OnExceptionNotify := EurekaLogExceptionNotify;
-    EurekaLog.OnCustomButtonClickNotify := EurekaLogCustomButtonClickNotify;
-    EurekaLog.OnCustomDataRequest := EurekaLogCustomDataRequest;
+    EurekaLogEvents := TEurekaLogEvents.Create(Self);
+    EurekaLogEvents.OnExceptionNotify := EurekaLogExceptionNotify;
+    EurekaLogEvents.OnCustomButtonClick := EurekaLogCustomButtonClick;
+//    EurekaLogEvents.OnCustomDataRequest := EurekaLogCustomDataRequest;
   {$ENDIF}
 
   Accounts := TPAccounts.Create(DBLogin);
@@ -1241,43 +1244,6 @@ begin
   if (MsgBox(Preferences.LoadStr(506) + #10#10 + Preferences.LoadStr(845), Preferences.LoadStr(43), MB_ICONQUESTION + MB_YESNOCANCEL) = ID_YES) then
     aHUpdate.Execute();
 end;
-
-{$IFDEF madExcept}
-function FormatCallstack(const StackTrace: TStackTrace): string;
-var
-  I: Integer;
-  Fmt: string;
-  MaxMethodLen: Integer;
-  MaxLineLen: Integer;
-  MaxModuleLen: Integer;
-  MaxRelLineLen: Integer;
-  MaxUnitLen: Integer;
-begin
-  MaxModuleLen := Length('Module');
-  MaxUnitLen := Length('Unit');
-  MaxMethodLen := Length('Method');
-  MaxLineLen := Length('Line');
-  MaxRelLineLen := Length('Rel');
-
-  for I := 0 to Length(StackTrace) - 1 do
-  begin
-    MaxModuleLen := Max(MaxModuleLen, Length(StackTrace[I].ModuleName));
-    MaxUnitLen := Max(MaxUnitLen, Length(StackTrace[I].UnitName));
-    MaxMethodLen := Max(MaxMethodLen, Length(StackTrace[I].FunctionName));
-    MaxLineLen := Max(MaxLineLen, Length(IntToStr(StackTrace[0].Line)));
-    MaxRelLineLen := Max(MaxRelLineLen, Length(IntToStr(StackTrace[I].relLine)));
-  end;
-
-  Fmt := '|%-' + IntToStr(MaxModuleLen) + 's|%-' + IntToStr(MaxUnitLen) + 's|%-' + IntToStr(MaxMethodLen) + 's|%' + IntToStr(MaxLineLen) + 's/%' + IntToStr(MaxRelLineLen) + 's|';
-
-  Result := Result + StringOfChar('-', 1 + MaxModuleLen + 1 + MaxUnitLen + 1 + MaxMethodLen + 1 + MaxLineLen + 1 + MaxRelLineLen + 1) + #13#10;
-  Result := Result + Format(Fmt, ['Module', 'Unit', 'Method', 'Line', 'Rel']) + #13#10;
-  Result := Result + StringOfChar('-', 1 + MaxModuleLen + 1 + MaxUnitLen + 1 + MaxMethodLen + 1 + MaxLineLen + 1 + MaxRelLineLen + 1) + #13#10;
-  for I := 0 to Length(StackTrace) - 1 do
-    Result := Result + Format(Fmt, [StackTrace[I].ModuleName, StackTrace[I].UnitName, StackTrace[I].FunctionName, IntToStr(StackTrace[I].Line), IntToStr(StackTrace[I].relLine)]) + #13#10;
-  Result := Result + StringOfChar('-', 1 + MaxModuleLen + 1 + MaxUnitLen + 1 + MaxMethodLen + 1 + MaxLineLen + 1 + MaxRelLineLen + 1) + #13#10;
-end;
-{$ENDIF}
 
 procedure TWWindow.miFReopenClick(Sender: TObject);
 begin

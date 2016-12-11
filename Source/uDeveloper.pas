@@ -42,7 +42,7 @@ implementation {***************************************************************}
 uses
   XMLIntf, XMLDoc, ActiveX, SysUtils,
   {$IFDEF EurekaLog}
-  ExceptionLog,
+  ExceptionLog7, EExceptionManager,
   {$ENDIF}
   uPreferences;
 
@@ -192,6 +192,7 @@ var
 begin
   {$IFDEF EurekaLog}
   try
+    SetEurekaLogStateInThread(0, True);
   {$ENDIF}
 
   ReturnValue := 0; RequestTry := 0; Error := False;
@@ -296,7 +297,8 @@ begin
 
   {$IFDEF EurekaLog}
   except
-    StandardEurekaNotify(GetLastExceptionObject(), GetLastExceptionAddress());
+    on E: Exception do
+      ExceptionManager.StandardEurekaNotify(E);
   end;
   {$ENDIF}
 end;

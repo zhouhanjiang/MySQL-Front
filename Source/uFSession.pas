@@ -2293,8 +2293,11 @@ begin
         raise ERangeError.Create(SRangeError);
       if (NewTable.ForeignKeys.Count <> Table.ForeignKeys.Count) then
         raise ERangeError.Create(SRangeError);
-      if (NewTable.Partitions.Count <> Table.Partitions.Count) then
+      if (Assigned(NewTable.Partitions) xor Assigned(Table.Partitions)) then
         raise ERangeError.Create(SRangeError);
+      if (Assigned(Table.Partitions)) then
+        if (NewTable.Partitions.Count <> Table.Partitions.Count) then
+          raise ERangeError.Create(SRangeError);
 
       for I := Items.Count - 1 downto 0 do
         if ((TSItem(Items[I]) is TSKey) and (TSKey(Items[I]).Table = Table)) then
@@ -4065,6 +4068,13 @@ begin
             raise ERangeError.Create(SRangeError);
           // Debug 2016-12-08
           if (not FQueryBuilderActiveWorkArea().Enabled) then
+            raise ERangeError.Create(SRangeError);
+          // Debug 2016-12-11
+          if (not Assigned(FQueryBuilderActiveWorkArea().Parent)) then
+            raise ERangeError.Create(SRangeError);
+          if (not FQueryBuilderActiveWorkArea().Parent.Enabled) then
+            raise ERangeError.Create(SRangeError);
+          if (not FQueryBuilderActiveWorkArea().Parent.Visible) then
             raise ERangeError.Create(SRangeError);
           Window.ActiveControl := FQueryBuilderActiveWorkArea()
         end
@@ -10224,13 +10234,7 @@ begin
           end;
         iiProcesses:
           begin
-            // Debug 2016-12-10
-            if (not (TObject(Item.Data) is TSProcess)) then
-              raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Item.Data).ClassName);
-            if (TSProcess(Item.Data).Name = '') then
-              raise ERangeError.Create(SRangeError + ' Caption: ' + Item.Caption);
-
-            MainAction('aDDeleteProcess').Enabled := (ListView.SelCount >= 1) and Selected and (TObject(Item.Data) is TSProcess) and (TSProcess(Item.Data).ThreadId <> Session.Connection.ThreadId);
+            MainAction('aDDeleteProcess').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (TObject(Item.Data) is TSProcess) and (TSProcess(Item.Data).ThreadId <> Session.Connection.ThreadId);
             MainAction('aDEditProcess').Enabled := (ListView.SelCount = 1);
             aDDelete.Enabled := MainAction('aDDeleteProcess').Enabled;
 

@@ -5,7 +5,13 @@ uses
   FastMM4,
   {$ENDIF}
   {$IFDEF EurekaLog}
-  ExceptionLog,
+  EMemLeaks,
+  EResLeaks,
+  EDialogWinAPIMSClassic,
+  EDebugExports,
+  EMapWin32,
+  EAppVCL,
+  ExceptionLog7,
   {$ENDIF}
   Windows,
   ShellAPI,
@@ -27,6 +33,9 @@ uses
   CommCtrl_Ext in 'VCL\Source\CommCtrl_Ext.pas',
   Forms_Ext in 'VCL\Source\Forms_Ext.pas',
   uDeveloper in 'uDeveloper.pas',
+  {$IFDEF EurekaLog}
+  uEurekaLog in 'uEurekaLog.pas',
+  {$ENDIF}
   uPreferences in 'uPreferences.pas',
   uSession in 'uSession.pas',
   uSQLParser in 'uSQLParser.pas',
