@@ -3152,8 +3152,6 @@ begin
   begin
     try
       ActiveSynMemo.CopyToClipboard();
-      if (OpenClipboard(0)) then
-        raise ERangeError.Create(SRangeError);
     except
       on E: EClipboardException do
         begin
@@ -3218,9 +3216,6 @@ begin
       CloseClipboard();
     end;
   end;
-
-  if (OpenClipboard(0)) then
-    raise ERangeError.Create(SRangeError);
 end;
 
 procedure TFSession.aEFindExecute(Sender: TObject);
@@ -3315,8 +3310,6 @@ begin
   else if (Window.ActiveControl = ActiveSynMemo) then
     try
       ActiveSynMemo.PasteFromClipboard();
-      if (OpenClipboard(0)) then
-        raise ERangeError.Create(SRangeError);
     except
       on E: EClipboardException do
         begin
@@ -3345,9 +3338,6 @@ begin
     FText.PasteFromClipboard
   else
     MessageBeep(MB_ICONERROR);
-
-  if (OpenClipboard(0)) then
-    raise ERangeError.Create(SRangeError);
 end;
 
 procedure TFSession.aEPasteFromExecute(Sender: TObject);

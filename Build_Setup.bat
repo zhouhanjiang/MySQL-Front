@@ -55,7 +55,7 @@ if Errorlevel 1 goto Error
 
 CD %BuildSourcePath%
 if exist "%BuildEurekaLog%" (
-  "%BuildEurekaLog%" /B "MySQLFront.dpr" --el_config"MySQLFront.eof" --el_nostats
+  "%BuildEurekaLog%" /B -GD -$D+ "MySQLFront.dpr" --el_config"MySQLFront.eof" --el_nostats
 ) else (
   "%BuildCompiler%" /B "MySQLFront.dpr"
 )
