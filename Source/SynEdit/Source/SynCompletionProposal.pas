@@ -1862,9 +1862,9 @@ procedure TSynBaseCompletionProposalForm.SetCurrentString(const Value: UnicodeSt
         CompareString := StripFormatCommands(CompareString);
     end;}
 
-    if UseInsertList then
-      CompareString := FInsertList[aIndex]
-    else
+//    if UseInsertList then
+//      CompareString := FInsertList[aIndex]
+//    else
     begin
       if (FMatchText) and (not UseItemList) then
         CompareString := FAssignedList[aIndex]
@@ -3391,8 +3391,8 @@ begin
         Form.CurrentEditor := AEditor;
 
         FPreviousToken := GetPreviousToken(Form.CurrentEditor as TCustomSynEdit);
+        FNoNextKey := True;
         ExecuteEx(GetCurrentInput(AEditor), p.x, p.y, DefaultType);
-        FNoNextKey := (DefaultType = ctCode) and FCanExecute and Form.Visible;
       end;
     end;  
 end;

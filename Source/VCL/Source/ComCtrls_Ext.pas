@@ -6,10 +6,17 @@ uses
   Windows, SysUtils, Classes, Controls, ComCtrls, Messages, CommCtrl;
 
 type
+  TLVColumnResizeEvent = procedure(Sender: TObject; Column: TListColumn) of object;
   TListView_Ext = class(TListView)
+  private
+    FOnColumnResize: TLVColumnResizeEvent;
+    procedure WMNotify(var Message: TWMNotify); message WM_NOTIFY;
   public
+    constructor Create(AOwner: TComponent); override;
     function ExecuteAction(Action: TBasicAction): Boolean; override;
     function UpdateAction(Action: TBasicAction): Boolean; override;
+  published
+    property OnColumnResize: TLVColumnResizeEvent read FOnColumnResize write FOnColumnResize;
   end;
 
 type
@@ -38,12 +45,31 @@ end;
 
 { TListView_Ext ***************************************************************}
 
+constructor TListView_Ext.Create(AOwner: TComponent);
+begin
+  inherited;
+
+  FOnColumnResize := nil;
+end;
+
 function TListView_Ext.ExecuteAction(Action: TBasicAction): Boolean;
 begin
   if (Action is TEditSelectAll) then
     begin SelectAll(); Result := True; end
   else
     Result := inherited ExecuteAction(Action);
+end;
+
+procedure TListView_Ext.WMNotify(var Message: TWMNotify);
+begin
+  inherited;
+
+  with PHDNotify(Message.NMHdr)^ do
+    case (Hdr.Code) of
+      HDN_ITEMCHANGED:
+        if (((PItem^.mask and HDI_WIDTH) <> 0) and Assigned(FOnColumnResize)) then
+          FOnColumnResize(Self, Columns[PHDNotify(Message.NMHdr)^.Item]);
+    end;
 end;
 
 function TListView_Ext.UpdateAction(Action: TBasicAction): Boolean;

@@ -66,7 +66,6 @@ type
       var AllowExpansion: Boolean);
     procedure TreeViewGetSelectedIndex(Sender: TObject; Node: TTreeNode);
     procedure TSExecuteShow(Sender: TObject);
-    procedure TSExecuteResize(Sender: TObject);
     procedure TSSelectResize(Sender: TObject);
     procedure TSSelectShow(Sender: TObject);
     procedure TSWhatShow(Sender: TObject);
@@ -90,6 +89,7 @@ type
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMPostAfterExecuteSQL(var Message: TMessage); message UM_POST_AFTEREXECUTESQL;
+    procedure UMPostCreate(var Message: TMessage); message UM_POST_CREATE;
     procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMToolError(var Message: TMessage); message UM_TOOL_ERROR;
     procedure UMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
@@ -264,7 +264,9 @@ begin
   FStructure.Checked := Preferences.Transfer.Structure;
   FData.Checked := Preferences.Transfer.Data;
 
-  PageControl.ActivePage := nil; // Make sure, not ___OnShowPage will be executed
+  PageControl.ActivePage := nil;
+
+  PostMessage(Handle, UM_POST_CREATE, 0, 0);
 end;
 
 procedure TDTransfer.FormHide(Sender: TObject);
@@ -307,13 +309,9 @@ procedure TDTransfer.FormShow(Sender: TObject);
 var
   I: Integer;
 begin
-  HelpContext := 1094;
-
-  if ((Preferences.Transfer.Width >= Width) and (Preferences.Transfer.Height >= Height)) then
-  begin
-    Width := Preferences.Transfer.Width;
-    Height := Preferences.Transfer.Height;
-  end;
+  // Debug 2016-12-08
+  if (not FBCancel.Enabled) then
+    raise ERangeError.Create(SRangeError);
 
   Wanted.Node := nil;
   Wanted.Page := nil;
@@ -533,19 +531,6 @@ end;
 procedure TDTransfer.TreeViewGetSelectedIndex(Sender: TObject; Node: TTreeNode);
 begin
   Node.SelectedIndex := Node.ImageIndex;
-end;
-
-procedure TDTransfer.TSExecuteResize(Sender: TObject);
-begin
-  FLEntiered.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FLEntiered.Width;
-  FLDone.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FLDone.Width;
-  FEntieredObjects.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FEntieredObjects.Width;
-  FDoneObjects.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FDoneObjects.Width;
-  FEntieredRecords.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FEntieredRecords.Width;
-  FDoneRecords.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FDoneRecords.Width;
-  FEntieredTime.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FEntieredTime.Width;
-  FDoneTime.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FDoneTime.Width;
-  FErrors.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FErrors.Width;
 end;
 
 procedure TDTransfer.TSExecuteShow(Sender: TObject);
@@ -929,6 +914,15 @@ begin
     Wanted.Page.OnShow(nil);
 end;
 
+procedure TDTransfer.UMPostCreate(var Message: TMessage);
+begin
+  if ((Preferences.Transfer.Width >= Width) and (Preferences.Transfer.Height >= Height)) then
+  begin
+    Width := Preferences.Transfer.Width;
+    Height := Preferences.Transfer.Height;
+  end;
+end;
+
 procedure TDTransfer.UMTerminate(var Message: TMessage);
 var
   Success: Boolean;
@@ -938,7 +932,8 @@ begin
   Transfer.WaitFor();
 
   if (Success and (Transfer.WarningCount > 0)) then
-    MsgBox(Preferences.LoadStr(932, IntToStr(Transfer.WarningCount)), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
+    MsgBoxCheck(Preferences.LoadStr(932, IntToStr(Transfer.WarningCount)), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION,
+      ID_OK, '{3b9746df-b0d6-47e4-9fb2-b2e9dfd93596}');
 
   Transfer.Free();
   Transfer := nil;

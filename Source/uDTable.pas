@@ -629,7 +629,7 @@ begin
   FIndexSize.Caption := SizeToStr(Table.IndexSize);
   FDataSize.Caption := SizeToStr(Table.DataSize);
 
-  if (Table.Engine.IsInnoDB) then
+  if (Assigned(Table.Engine) and Table.Engine.IsInnoDB) then
     FRecordCount.Caption := FormatFloat('~#,##0', Table.RecordCount, LocaleFormatSettings)
   else
     FRecordCount.Caption := FormatFloat('#,##0', Table.RecordCount, LocaleFormatSettings);

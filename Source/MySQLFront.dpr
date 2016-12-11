@@ -4,9 +4,6 @@ uses
   {$IFDEF Debug}
   FastMM4,
   {$ENDIF}
-  {$IFDEF madExcept}
-  madExcept,
-  {$ENDIF}
   {$IFDEF EurekaLog}
   ExceptionLog,
   {$ENDIF}
@@ -38,9 +35,6 @@ uses
   uBase in 'uBase.pas',
   uDAccount in 'uDAccount.pas' {DAccount},
   uDAccounts in 'uDAccounts.pas' {DAccounts},
-  {$IFDEF madExcept}
-  uDException in 'uDException.pas' {DException},
-  {$ENDIF}
   uDConnecting in 'uDConnecting.pas' {DConnecting},
   uDDatabase in 'uDDatabase.pas' {DDatabase},
   uDDatabases in 'uDDatabases.pas' {DDatabases},

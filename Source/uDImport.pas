@@ -121,14 +121,12 @@ type
       Selected: Boolean);
     procedure ScrollBoxResize(Sender: TObject);
     procedure TSExecuteShow(Sender: TObject);
-    procedure TSExecuteResize(Sender: TObject);
     procedure TSFieldsShow(Sender: TObject);
     procedure TSStmtTypeShow(Sender: TObject);
     procedure TSTablesShow(Sender: TObject);
     procedure TSWhatShow(Sender: TObject);
     procedure WhatClick(Sender: TObject);
     procedure WhatKeyPress(Sender: TObject; var Key: Char);
-    procedure FormDestroy(Sender: TObject);
   type
     TTableName = class
     private
@@ -173,6 +171,7 @@ type
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMPostAfterExecuteSQL(var Message: TMessage); message UM_POST_AFTEREXECUTESQL;
+    procedure UMPostCreate(var Message: TMessage); message UM_POST_CREATE;
     procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
     procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMToolError(var Message: TMessage); message UM_TOOL_ERROR;
@@ -569,12 +568,8 @@ begin
   SendMessage(FErrorMessages.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
 
   PageControl.ActivePage := nil;
-end;
 
-procedure TDImport.FormDestroy(Sender: TObject);
-begin
-  if (Assigned(Import)) then
-    TerminateThread(Import.Handle, 0);
+  PostMessage(Handle, UM_POST_CREATE, 0, 0);
 end;
 
 procedure TDImport.FormHide(Sender: TObject);
@@ -670,23 +665,15 @@ procedure TDImport.FormShow(Sender: TObject);
 var
   I: Integer;
 begin
+  // Debug 2016-12-08
+  if (not FBCancel.Enabled) then
+    raise ERangeError.Create(SRangeError);
+
   Session.RegisterEventProc(FormSessionEvent);
 
   TableNames := TTableNames.Create();
 
-  if (Assigned(Import)) then
-  begin
-    TerminateThread(Import.Handle, 0);
-    Import := nil;
-  end;
-
   ModalResult := mrNone;
-
-  if ((Preferences.Import.Width >= Width) and (Preferences.Import.Height >= Height)) then
-  begin
-    Width := Preferences.Import.Width;
-    Height := Preferences.Import.Height;
-  end;
 
   Wanted.Page := nil;
 
@@ -900,19 +887,6 @@ begin
     if ((Length(FDestinationFields) > 0) and (Assigned(FDestinationFields[0]))) then
       FLDestinationFields.Left := FDestinationFields[0].Left + 6;
   end;
-end;
-
-procedure TDImport.TSExecuteResize(Sender: TObject);
-begin
-  FLEntiered.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FLEntiered.Width;
-  FLDone.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FLDone.Width;
-  FEntieredObjects.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FEntieredObjects.Width;
-  FDoneObjects.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FDoneObjects.Width;
-  FEntieredRecords.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FEntieredRecords.Width;
-  FDoneRecords.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FDoneRecords.Width;
-  FEntieredTime.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FEntieredTime.Width;
-  FDoneTime.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FDoneTime.Width;
-  FErrors.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FErrors.Width;
 end;
 
 procedure TDImport.TSExecuteShow(Sender: TObject);
@@ -1346,6 +1320,15 @@ begin
     Wanted.Page.OnShow(nil);
 end;
 
+procedure TDImport.UMPostCreate(var Message: TMessage);
+begin
+  if ((Preferences.Import.Width >= Width) and (Preferences.Import.Height >= Height)) then
+  begin
+    Width := Preferences.Import.Width;
+    Height := Preferences.Import.Height;
+  end;
+end;
+
 procedure TDImport.UMPostShow(var Message: TMessage);
 begin
   TSExecute.Enabled := True;
@@ -1361,7 +1344,8 @@ begin
   Import.WaitFor();
 
   if (Success and (Import.WarningCount > 0)) then
-    MsgBox(Preferences.LoadStr(932, IntToStr(Import.WarningCount)), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
+    MsgBoxCheck(Preferences.LoadStr(932, IntToStr(Import.WarningCount)), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION,
+      ID_OK, '{3b9746df-b0d6-47e4-9fb2-b2e9dfd93596}');
 
   Import.Free();
   Import := nil;

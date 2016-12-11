@@ -73,6 +73,7 @@ object DAccounts: TDAccounts
       BevelOuter = bvLowered
       ParentBackground = False
       TabOrder = 0
+      OnResize = FAccountsResize
       object FAccounts: TListView_Ext
         Left = 2
         Top = 2
@@ -92,14 +93,14 @@ object DAccounts: TDAccounts
         HideSelection = False
         ReadOnly = True
         RowSelect = True
-        PopupMenu = PopupMenu
         TabOrder = 0
         ViewStyle = vsReport
         OnColumnClick = FAccountsColumnClick
         OnCompare = FAccountsCompare
+        OnContextPopup = FAccountsContextPopup
         OnDblClick = FAccountsDblClick
-        OnResize = FAccountsResize
         OnSelectItem = FAccountsSelectItem
+        OnColumnResize = FAccountsColumnResize
       end
     end
   end
@@ -125,30 +126,30 @@ object DAccounts: TDAccounts
     ModalResult = 2
     TabOrder = 2
   end
-  object PopupMenu: TPopupMenu
-    OnPopup = PopupMenuPopup
-    Left = 112
-    Top = 224
-    object miOpen: TMenuItem
+  object ItemMenu: TPopupMenu
+    OnPopup = ItemMenuPopup
+    Left = 96
+    Top = 232
+    object miIOpen: TMenuItem
       Action = aOpen
       Default = True
     end
     object N2: TMenuItem
       Caption = '-'
     end
-    object miNew: TMenuItem
+    object miINew: TMenuItem
       Action = aNew
     end
-    object miDelete: TMenuItem
+    object miIDelete: TMenuItem
       Action = aDelete
     end
-    object miEdit: TMenuItem
+    object miIEdit: TMenuItem
       Action = aEdit
     end
   end
   object ActionList: TActionList
-    Left = 56
-    Top = 224
+    Left = 16
+    Top = 232
     object aNew: TAction
       Caption = 'aNew'
       ShortCut = 45
@@ -167,6 +168,37 @@ object DAccounts: TDAccounts
     object aOpen: TAction
       Caption = 'aOpen'
       OnExecute = aOpenExecute
+    end
+  end
+  object HeaderMenu: TPopupMenu
+    Left = 56
+    Top = 232
+    object miHName: TMenuItem
+      AutoCheck = True
+      Caption = 'miHName'
+      Checked = True
+      Enabled = False
+      OnClick = HeaderMenuClick
+    end
+    object miHHost: TMenuItem
+      AutoCheck = True
+      Caption = 'miHHost'
+      OnClick = HeaderMenuClick
+    end
+    object miHUser: TMenuItem
+      AutoCheck = True
+      Caption = 'miHUser'
+      OnClick = HeaderMenuClick
+    end
+    object miHDatabase: TMenuItem
+      AutoCheck = True
+      Caption = 'miHDatabase'
+      OnClick = HeaderMenuClick
+    end
+    object miHLastLogin: TMenuItem
+      AutoCheck = True
+      Caption = 'miHLastLogin'
+      OnClick = HeaderMenuClick
     end
   end
 end

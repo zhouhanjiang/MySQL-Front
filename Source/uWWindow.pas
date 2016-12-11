@@ -6,9 +6,6 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Types,
   Dialogs, ActnList, ComCtrls, DBActns, ExtCtrls, ImgList, Menus, StdActns,
   ActnCtrls, StdCtrls, ToolWin,
-  {$IFDEF madExcept}
-  madExcept, madStackTrace,
-  {$ENDIF}
   {$IFDEF EurekaLog}
   ExceptionLog,
   {$ENDIF}
@@ -377,6 +374,7 @@ type
       Y: Integer);
     procedure aOExportExecute(Sender: TObject);
     procedure aOImportExecute(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
   const
     tiDeactivate = 1;
   type
@@ -419,9 +417,6 @@ type
     function GetActiveTab(): TFSession;
     function GetNewTabIndex(Sender: TObject; X, Y: Integer): Integer;
     procedure InformOnlineUpdateFound();
-    {$IFDEF madExcept}
-    procedure ExceptionHandler(const MEException: IMEException; var Handled: Boolean);
-    {$ENDIF}
     procedure miFReopenClick(Sender: TObject);
     procedure mtTabsClick(Sender: TObject);
     procedure MySQLConnectionSynchronize(const Data: Pointer); inline;
@@ -462,9 +457,6 @@ uses
   acQBLocalizer,
   MySQLConsts, HTTPTunnel, SQLUtils,
   uTools, uURI,
-  {$IFDEF madExcept}
-  uDBugReport,
-  {$ENDIF}
   uDAccounts, uDAccount, uDOptions, uDLogin, uDStatement, uDTransfer, uDSearch,
   uDConnecting, uDInfo, uDUpdate;
 
@@ -783,6 +775,11 @@ begin
   MsgBox(Preferences.LoadStr(533, FindText), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
 end;
 
+procedure TWWindow.Button1Click(Sender: TObject);
+begin
+raise Exception.Create('Error Message');
+end;
+
 function TWWindow.CloseAll(): Boolean;
 var
   I: Integer;
@@ -1061,7 +1058,7 @@ begin
       Report := Report + 'MySQL:' + #13#10;
       Report := Report + StringOfChar('-', Length('Version: ' + ActiveTab.Session.Connection.ServerVersionStr)) + #13#10;
       Report := Report + 'Version: ' + ActiveTab.Session.Connection.ServerVersionStr;
-      if (ActiveTab.Session.Connection.LibraryType <> MySQLDB.ltHTTP) then
+      if (ActiveTab.Session.Connection.LibraryType <> MySQLDB.ltBuiltIn) then
         Report := Report + ' (LibraryType: ' + IntToStr(Ord(ActiveTab.Session.Connection.LibraryType)) + ')';
       Report := Report + #13#10#13#10;
 
@@ -1106,9 +1103,6 @@ begin
   Application.OnActivate := ApplicationActivate;
   Application.OnDeactivate := ApplicationDeactivate;
 
-  {$IFDEF madExcept}
-    RegisterExceptionHandler(ExceptionHandler, stTrySyncCallAlways);
-  {$ENDIF}
   {$IFDEF EurekaLog}
     EurekaLog := TEurekaLog.Create(Self);
     EurekaLog.OnExceptionNotify := EurekaLogExceptionNotify;
@@ -1177,10 +1171,6 @@ begin
 
   if (Assigned(CheckOnlineVersionThread)) then
     TerminateThread(CheckOnlineVersionThread.Handle, 0);
-
-  {$IFDEF madExcept}
-    UnregisterExceptionHandler(ExceptionHandler);
-  {$ENDIF}
 end;
 
 procedure TWWindow.FormHide(Sender: TObject);
@@ -1253,7 +1243,6 @@ begin
 end;
 
 {$IFDEF madExcept}
-
 function FormatCallstack(const StackTrace: TStackTrace): string;
 var
   I: Integer;
@@ -1287,88 +1276,6 @@ begin
   for I := 0 to Length(StackTrace) - 1 do
     Result := Result + Format(Fmt, [StackTrace[I].ModuleName, StackTrace[I].UnitName, StackTrace[I].FunctionName, IntToStr(StackTrace[I].Line), IntToStr(StackTrace[I].relLine)]) + #13#10;
   Result := Result + StringOfChar('-', 1 + MaxModuleLen + 1 + MaxUnitLen + 1 + MaxMethodLen + 1 + MaxLineLen + 1 + MaxRelLineLen + 1) + #13#10;
-end;
-
-procedure TWWindow.ExceptionHandler(const MEException: IMEException; var Handled: Boolean);
-var
-  I: Integer;
-  Report: string;
-begin
-  for I := 0 to FSessions.Count - 1 do
-    try TFSession(FSessions[I]).CrashRescue(); except end;
-  try Accounts.Save(); except end;
-  try Preferences.Save(); except end;
-
-  if ((OnlineProgramVersion < 0) and IsConnectedToInternet()) then
-    if (Assigned(CheckOnlineVersionThread)) then
-      CheckOnlineVersionThread.WaitFor()
-    else
-    begin
-      CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
-      CheckOnlineVersionThread.Execute();
-      FreeAndNil(CheckOnlineVersionThread);
-    end;
-
-  if (Preferences.Version < OnlineProgramVersion) then
-    ApplicationException(nil, MEException.ExceptionRecord.ExceptObject)
-  else
-  begin
-    if (Preferences.ObsoleteVersion < Preferences.Version) then
-      Preferences.ObsoleteVersion := Preferences.Version;
-
-    Report := LoadStr(1000) + ' ' + Preferences.VersionStr + #13#10;
-    Report := Report + #13#10;
-    if (not (MEException.ExceptObject is Exception)) then
-    begin
-      Report := Report + MEException.ExceptClass + ':' + #13#10;
-      Report := Report + MEException.ExceptMessage + #13#10;
-    end
-    else
-    begin
-      Report := Report + MEException.ExceptObject.ClassName + ':' + #13#10;
-      Report := Report + Exception(MEException.ExceptObject).Message + #13#10;
-    end;
-    Report := Report + #13#10;
-
-    MEException.GetBugReport();
-
-    I := 0;
-    while (MEException.ThreadIds[I] > 0) do
-    begin
-      if (MEException.ThreadIds[I] = MEException.CrashedThreadId) then
-        Report := Report + FormatCallstack(MEException.Callstacks[I]);
-      Inc(I);
-    end;
-
-    if (Assigned(ActiveTab)) then
-    begin
-      if (EditorCommandText <> '') then
-      begin
-        Report := Report + #13#10;
-        Report := Report + 'EditorCommandText: ' + SQLEscapeBin(EditorCommandText, True) + #13#10;
-      end;
-
-      Report := Report + #13#10;
-      Report := Report + 'MySQL:' + #13#10;
-      Report := Report + StringOfChar('-', Length('Version: ' + ActiveTab.Session.Connection.ServerVersionStr)) + #13#10;
-      Report := Report + 'Version: ' + ActiveTab.Session.Connection.ServerVersionStr;
-      if (ActiveTab.Session.Connection.LibraryType <> MySQLDB.ltHTTP) then
-        Report := Report + ' (LibraryType: ' + IntToStr(Ord(ActiveTab.Session.Connection.LibraryType)) + ')';
-      Report := Report + #13#10#13#10;
-
-      Report := Report + 'SQL Log:' + #13#10;
-      Report := Report + StringOfChar('-', 72) + #13#10;
-      Report := Report + ActiveTab.Session.Connection.DebugMonitor.CacheText;
-    end;
-
-    SendBugToDeveloper(Report);
-
-    DException.MEException := MEException;
-    DException.Report := Report;
-    DException.Execute();
-  end;
-
-  Handled := True;
 end;
 {$ENDIF}
 
@@ -2099,10 +2006,42 @@ begin
   for I := ToolBar.ButtonCount - 1 downto ToolButton11.Index do
     Found := Found or ToolBar.Buttons[I].Visible and (ToolBar.Buttons[I].ImageIndex >= 0) and (ToolBar.Buttons[I].Width <> ToolBar.ButtonWidth);
   if (Found) then
-    Toolbar.ButtonWidth := 0; // Without this, the Buttons are too small. Why??? A Delphi bug?
+    Toolbar.ButtonWidth := 0; // Without this, the Buttons are too small. Why??? A Delphi XE2 bug?
 
   while (miFReopen.Count > 1) do
     miFReopen.Delete(0);
+
+  // Debug 2016-12-10
+  if (Assigned(Tab)) then
+  begin
+    if (not (Tab is TFSession)) then
+      raise ERangeError.Create(SRangeError);
+    if (not Assigned(Tab.Session)) then
+      raise ERangeError.Create(SRangeError)
+    else if (not (Tab.Session is TSSession)) then
+      try
+        raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Tab.Session).ClassName);
+      except
+        raise ERangeError.Create(SRangeError);
+      end;
+    if (not Assigned(Tab.Session.Account)) then
+      raise ERangeError.Create(SRangeError)
+    else if (not (Tab.Session.Account is TPAccount)) then
+      try
+        raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Tab.Session.Account).ClassName);
+      except
+        raise ERangeError.Create(SRangeError);
+      end;
+    if (not Assigned(Tab.Session.Account.Desktop)) then
+      raise ERangeError.Create(SRangeError)
+    else if (not (Tab.Session.Account.Desktop is TPAccount.TDesktop)) then
+      try
+        raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Tab.Session.Account.Desktop).ClassName);
+      except
+        raise ERangeError.Create(SRangeError);
+      end;
+  end;
+
   miFReopen.Enabled := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vEditor, vEditor2, vEditor3]) and (Tab.Session.Account.Desktop.Files.Count > 0);
   if (miFReopen.Enabled) then
   begin

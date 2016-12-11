@@ -1,6 +1,7 @@
 object DTransfer: TDTransfer
   Left = 689
   Top = 239
+  HelpContext = 1094
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'DTransfer'
@@ -200,7 +201,6 @@ object DTransfer: TDTransfer
     object TSExecute: TTabSheet
       Caption = 'TSExecute'
       TabVisible = False
-      OnResize = TSExecuteResize
       OnShow = TSExecuteShow
       DesignSize = (
         436

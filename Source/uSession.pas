@@ -10598,28 +10598,32 @@ end;
 
 function Compare(Item1, Item2: Pointer): Integer;
 
-  function ClassOrder(const Item: TObject): Integer;
+  function ClassOrder(const Obj: TObject): Integer;
   begin
-    if (Item is TSUser) then Result := 0
-    else if (Item is TSVariables) then Result := 1
-    else if (Item is TSEngines) then Result := 3
-    else if (Item is TSCharsets) then Result := 4
-    else if (Item is TSCollations) then Result := 5
-    else if (Item is TSPlugins) then Result := 6
-    else if (Item is TSUsers) then Result := 7
-    else if (Item is TSProcesses) then Result := 8
-    else if (Item is TSDatabases) then Result := 9
-    else if (Item is TSDatabase) then Result := 10
-    else if (Item is TSTables) then Result := 11
-    else if (Item is TSRoutines) then Result := 12
-    else if (Item is TSEvents) then Result := 13
-    else if (Item is TSTriggers) then Result := 14
-    else if (Item is TSColumns) then Result := 15
-    else if (Item is TSTable) then Result := 16
-    else if (Item is TSProcedure) then Result := 17
-    else if (Item is TSFunction) then Result := 18
-    else if (Item is TSTrigger) then Result := 19
-    else if (Item is TSEvent) then Result := 20
+    // Debug 2016-12-10
+    if (not Assigned(Obj)) then
+      raise ERangeError.Create(SRangeError);
+
+    if (Obj is TSUser) then Result := 0
+    else if (Obj is TSVariables) then Result := 1
+    else if (Obj is TSEngines) then Result := 3
+    else if (Obj is TSCharsets) then Result := 4
+    else if (Obj is TSCollations) then Result := 5
+    else if (Obj is TSPlugins) then Result := 6
+    else if (Obj is TSUsers) then Result := 7
+    else if (Obj is TSProcesses) then Result := 8
+    else if (Obj is TSDatabases) then Result := 9
+    else if (Obj is TSDatabase) then Result := 10
+    else if (Obj is TSTables) then Result := 11
+    else if (Obj is TSRoutines) then Result := 12
+    else if (Obj is TSEvents) then Result := 13
+    else if (Obj is TSTriggers) then Result := 14
+    else if (Obj is TSColumns) then Result := 15
+    else if (Obj is TSTable) then Result := 16
+    else if (Obj is TSProcedure) then Result := 17
+    else if (Obj is TSFunction) then Result := 18
+    else if (Obj is TSTrigger) then Result := 19
+    else if (Obj is TSEvent) then Result := 20
     else Result := -1;
   end;
 
@@ -11028,7 +11032,7 @@ var
   SQL: string;
 begin
   Connection.BeginSynchron();
-  Update(List); // We need the sources for the references
+  Update(List); // We need the sources for the references to place the DROP statements into the correct order
   Connection.EndSynchron();
 
   List.Sort(Compare);
@@ -11358,21 +11362,8 @@ begin
 end;
 
 function TSSession.GetCaption(): string;
-var
-  URI: TUURI;
 begin
-  if (Connection.Host <> LOCAL_HOST_NAMEDPIPE) then
-    Result := Connection.Host
-  else if (Connection.LibraryType = MySQLDB.ltHTTP) then
-  begin
-    URI := TUURI.Create(Connection.LibraryName);
-    Result := URI.Host;
-    URI.Free();
-  end
-  else
-    Result := LOCAL_HOST;
-  if (Connection.Port <> MYSQL_PORT) then
-    Result := Result + ':' + IntToStr(Connection.Port);
+  Result := Account.Connection.Caption;
 end;
 
 function TSSession.GetCharset(): string;
@@ -11959,7 +11950,7 @@ begin
     else if (SQLParseKeyword(Parse, 'KILL') and (SQLParseKeyword(Parse, 'CONNECTION') or not SQLParseKeyword(Parse, 'QUERY'))) then
     begin
       ObjectName := SQLParseValue(Parse);
-      Process := ProcessByThreadId(StrToInt(ObjectName));
+      Process := ProcessByThreadId(StrToInt64(ObjectName));
       if (Assigned(Process)) then
         Processes.Delete(Process);
     end;
@@ -12557,7 +12548,6 @@ begin
 
   if (not Assigned(Database)) then
     SQL := 'CREATE DATABASE ' + Connection.EscapeIdentifier(NewDatabase.Name) + SQL + ';' + #13#10
-      + NewDatabase.SQLGetSource()
   else if (SQL <> '') then
     if (Connection.MySQLVersion < 40108) then
     begin

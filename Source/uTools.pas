@@ -2419,7 +2419,8 @@ begin
             Index := 1 + Length(FileContent.Str);
             Len := Integer(ReadSize - (FileBuffer.Index - BytesPerSector));
             SetLength(FileContent.Str, Length(FileContent.Str) + Len div SizeOf(Char));
-            MoveMemory(@FileContent.Str[Index], @FileBuffer.Mem[FileBuffer.Index], Len);
+            if (Len > 0) then
+              MoveMemory(@FileContent.Str[Index], @FileBuffer.Mem[FileBuffer.Index], Len);
             FileBuffer.Index := BytesPerSector;
           end;
         else

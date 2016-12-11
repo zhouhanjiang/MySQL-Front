@@ -22,12 +22,18 @@ type
     FBOk: TButton;
     FAccounts: TListView_Ext;
     GAccounts: TGroupBox_Ext;
-    miDelete: TMenuItem;
-    miEdit: TMenuItem;
-    miNew: TMenuItem;
-    miOpen: TMenuItem;
+    HeaderMenu: TPopupMenu;
+    ItemMenu: TPopupMenu;
+    miHHost: TMenuItem;
+    miHName: TMenuItem;
+    miHDatabase: TMenuItem;
+    miHLastLogin: TMenuItem;
+    miHUser: TMenuItem;
+    miIDelete: TMenuItem;
+    miIEdit: TMenuItem;
+    miINew: TMenuItem;
+    miIOpen: TMenuItem;
     N2: TMenuItem;
-    PopupMenu: TPopupMenu;
     PAccounts: TPanel_Ext;
     procedure aDeleteExecute(Sender: TObject);
     procedure aEditExecute(Sender: TObject);
@@ -39,15 +45,21 @@ type
     procedure FormHide(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure FAccountsColumnClick(Sender: TObject; Column: TListColumn);
+    procedure FAccountsColumnResize(Sender: TObject; Column: TListColumn);
     procedure FAccountsCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
     procedure FAccountsDblClick(Sender: TObject);
     procedure FAccountsResize(Sender: TObject);
     procedure FAccountsSelectItem(Sender: TObject; Item: TListItem;
       Selected: Boolean);
-    procedure PopupMenuPopup(Sender: TObject);
+    procedure ItemMenuPopup(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+    procedure HeaderMenuClick(Sender: TObject);
+    procedure FAccountsContextPopup(Sender: TObject; MousePos: TPoint;
+      var Handled: Boolean);
   private
+    IgnoreColumnResize: Boolean;
+    IgnoreResize: Boolean;
     procedure ListViewShowSortDirection(const ListView: TListView);
     procedure SetFAccounts(const ASelected: TPAccount);
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
@@ -66,7 +78,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  CommCtrl, Math, StrUtils,
+  CommCtrl, Math, StrUtils, SysConst,
   CommCtrl_Ext,
   MySQLConsts,
   uDAccount, uDConnecting;
@@ -175,7 +187,8 @@ begin
 
   BorderStyle := bsSizeable;
 
-  SetWindowLong(ListView_GetHeader(FAccounts.Handle), GWL_STYLE, GetWindowLong(ListView_GetHeader(FAccounts.Handle), GWL_STYLE) or HDS_NOSIZING);
+  IgnoreColumnResize := False;
+  IgnoreResize := False;
 end;
 
 procedure TDAccounts.FormHide(Sender: TObject);
@@ -184,8 +197,35 @@ begin
     Accounts.Default := Accounts.AccountByName(FAccounts.Selected.Caption);
 
   Preferences.Accounts.Height := Height;
-  Preferences.Accounts.SelectOrder := FAccounts.Tag;
+  if (FAccounts.Columns[FAccounts.Tag] = TListColumn(miHName.Tag)) then
+    Preferences.Accounts.Sort.Column := acName
+  else if (FAccounts.Columns[FAccounts.Tag] = TListColumn(miHHost.Tag)) then
+    Preferences.Accounts.Sort.Column := acHost
+  else if (FAccounts.Columns[FAccounts.Tag] = TListColumn(miHUser.Tag)) then
+    Preferences.Accounts.Sort.Column := acUser
+  else if (FAccounts.Columns[FAccounts.Tag] = TListColumn(miHDatabase.Tag)) then
+    Preferences.Accounts.Sort.Column := acDatabase
+  else if (FAccounts.Columns[FAccounts.Tag] = TListColumn(miHLastLogin.Tag)) then
+    Preferences.Accounts.Sort.Column := acLastLogin;
+  Preferences.Accounts.Sort.Ascending := FAccounts.Columns[FAccounts.Tag].Tag = 1;
   Preferences.Accounts.Width := Width;
+  Preferences.Accounts.Widths[acName] := FAccounts.Columns[0].Width;
+  if (not miHHost.Checked) then
+    Preferences.Accounts.Widths[acHost] := -1
+  else
+    Preferences.Accounts.Widths[acHost] := TListColumn(miHHost.Tag).Width;
+  if (not miHUser.Checked) then
+    Preferences.Accounts.Widths[acUser] := -1
+  else
+    Preferences.Accounts.Widths[acUser] := TListColumn(miHUser.Tag).Width;
+  if (not miHDatabase.Checked) then
+    Preferences.Accounts.Widths[acDatabase] := -1
+  else
+    Preferences.Accounts.Widths[acDatabase] := TListColumn(miHDatabase.Tag).Width;
+  if (not miHLastLogin.Checked) then
+    Preferences.Accounts.Widths[acLastLogin] := -1
+  else
+    Preferences.Accounts.Widths[acLastLogin] := TListColumn(miHLastLogin.Tag).Width;
 end;
 
 procedure TDAccounts.FormShow(Sender: TObject);
@@ -201,13 +241,38 @@ begin
   else
     Caption := Preferences.LoadStr(1);
 
-  FAccounts.Tag := Preferences.Accounts.SelectOrder;
-  if (FAccounts.Tag = 1) then
-    FAccounts.Column[FAccounts.Tag].Tag := -1
-  else
-    FAccounts.Column[FAccounts.Tag].Tag := 1;
+  FAccounts.Tag := -1;
+  miHName.Checked := True;
+  miHHost.Checked := Preferences.Accounts.Widths[acHost] >= 0;
+  miHUser.Checked := Preferences.Accounts.Widths[acUser] >= 0;
+  miHDatabase.Checked := Preferences.Accounts.Widths[acDatabase] >= 0;
+  miHLastLogin.Checked := Preferences.Accounts.Widths[acLastLogin] >= 0;
 
   SetFAccounts(Accounts.Default);
+
+  if ((Preferences.Accounts.Widths[acName] > 0) and Assigned(TListColumn(miHName.Tag))) then
+    TListColumn(miHName.Tag).Width := Preferences.Accounts.Widths[acName];
+  if ((Preferences.Accounts.Widths[acHost] > 0) and Assigned(TListColumn(miHHost.Tag))) then
+    TListColumn(miHHost.Tag).Width := Preferences.Accounts.Widths[acHost];
+  if ((Preferences.Accounts.Widths[acUser] > 0) and Assigned(TListColumn(miHUser.Tag))) then
+    TListColumn(miHUser.Tag).Width := Preferences.Accounts.Widths[acUser];
+  if ((Preferences.Accounts.Widths[acDatabase] > 0) and Assigned(TListColumn(miHDatabase.Tag))) then
+    TListColumn(miHDatabase.Tag).Width := Preferences.Accounts.Widths[acDatabase];
+  if ((Preferences.Accounts.Widths[acLastLogin] > 0) and Assigned(TListColumn(miHName.Tag))) then
+    TListColumn(miHName.Tag).Width := Preferences.Accounts.Widths[acName];
+
+  case (Preferences.Accounts.Sort.Column) of
+    acName: FAccounts.Tag := TListColumn(miHName.Tag).Index;
+    acHost: FAccounts.Tag := TListColumn(miHHost.Tag).Index;
+    acUser: FAccounts.Tag := TListColumn(miHUser.Tag).Index;
+    acDatabase: FAccounts.Tag := TListColumn(miHDatabase.Tag).Index;
+    acLastLogin: FAccounts.Tag := TListColumn(miHLastLogin.Tag).Index;
+  end;
+  if ((0 <= FAccounts.Tag) and (FAccounts.Tag < FAccounts.Columns.Count)) then
+    if (Preferences.Accounts.Sort.Ascending) then
+      FAccounts.Columns[FAccounts.Tag].Tag := 1
+    else
+      FAccounts.Columns[FAccounts.Tag].Tag := -1;
 
   Session := nil;
 
@@ -227,23 +292,32 @@ begin
   PostMessage(Handle, UM_POST_SHOW, 0, 0);
 end;
 
+procedure TDAccounts.HeaderMenuClick(Sender: TObject);
+begin
+  FAccounts.Tag := 0;
+
+  if (not Assigned(FAccounts.Selected)) then
+    SetFAccounts(nil)
+  else
+    SetFAccounts(TPAccount(FAccounts.Selected.Data));
+end;
+
 procedure TDAccounts.FAccountsColumnClick(Sender: TObject;
   Column: TListColumn);
 var
   I: Integer;
 begin
-  if (Assigned(Sender)) then
-    for I := 0 to FAccounts.Columns.Count - 1 do
-      if (FAccounts.Column[I] <> Column) then
-        FAccounts.Column[I].Tag := 0
-      else if (FAccounts.Column[I].Tag < 0) then
-        FAccounts.Column[I].Tag := 1
-      else if (FAccounts.Column[I].Tag > 0) then
-        FAccounts.Column[I].Tag := -1
-      else if (I = 1) then
-        FAccounts.Column[I].Tag := -1
-      else
-        FAccounts.Column[I].Tag := 1;
+  for I := 0 to FAccounts.Columns.Count - 1 do
+    if (FAccounts.Column[I] <> Column) then
+      FAccounts.Column[I].Tag := 0
+    else if (FAccounts.Column[I].Tag < 0) then
+      FAccounts.Column[I].Tag := 1
+    else if (FAccounts.Column[I].Tag > 0) then
+      FAccounts.Column[I].Tag := -1
+    else if (I = FAccounts.Columns.Count - 1) then
+      FAccounts.Column[I].Tag := -1
+    else
+      FAccounts.Column[I].Tag := 1;
 
   FAccounts.Tag := Column.Index;
   FAccounts.AlphaSort();
@@ -251,26 +325,71 @@ begin
   ListViewShowSortDirection(FAccounts);
 end;
 
+procedure TDAccounts.FAccountsColumnResize(Sender: TObject; Column: TListColumn);
+var
+  ColumnIndex: Integer;
+  I: Integer;
+  ColumnWidthSum: Integer;
+begin
+  if (not IgnoreColumnResize) then
+  begin
+    ColumnIndex := -1;
+    for I := 0 to FAccounts.Columns.Count - 1 do
+      if (FAccounts.Columns[I] = Column) then
+        ColumnIndex := I;
+
+    if ((0 <= ColumnIndex) and (ColumnIndex < FAccounts.Columns.Count - 1)) then
+    begin
+      IgnoreColumnResize := True;
+      IgnoreResize := True;
+      FAccounts.DisableAlign();
+
+      ColumnWidthSum := 0;
+      for I := 0 to FAccounts.Columns.Count - 1 do
+        if (I <> ColumnIndex + 1) then
+          Inc(ColumnWidthSum, FAccounts.Columns[I].Width);
+      FAccounts.Columns[ColumnIndex + 1].Width := FAccounts.ClientWidth - ColumnWidthSum;
+
+      FAccounts.EnableAlign();
+      IgnoreResize := False;
+      IgnoreColumnResize := False;
+    end;
+  end;
+end;
+
 procedure TDAccounts.FAccountsCompare(Sender: TObject; Item1,
   Item2: TListItem; Data: Integer; var Compare: Integer);
 var
   Column: TListColumn;
-  DateTime1: TDateTime;
-  DateTime2: TDateTime;
 begin
-  Column := FAccounts.Column[FAccounts.Tag];
+  Column := FAccounts.Columns[FAccounts.Tag];
 
-  if (Column.Index = 0) then
-    Compare := Sign(lstrcmpi(PChar(Item1.Caption), PChar(Item2.Caption)))
+  if (Column = TListColumn(miHName.Tag)) then
+    Compare := TListColumn(miHName.Tag).Tag * Sign(lstrcmpi(PChar(TPAccount(Item1.Data).Name), PChar(TPAccount(Item2.Data).Name)))
+  else if (Column = TListColumn(miHHost.Tag)) then
+    Compare := TListColumn(miHHost.Tag).Tag * Sign(lstrcmpi(PChar(TPAccount(Item1.Data).Connection.Caption), PChar(TPAccount(Item2.Data).Connection.Caption)))
+  else if (Column = TListColumn(miHUser.Tag)) then
+    Compare := TListColumn(miHUser.Tag).Tag * Sign(lstrcmpi(PChar(TPAccount(Item1.Data).Connection.Username), PChar(TPAccount(Item2.Data).Connection.Username)))
+  else if (Column = TListColumn(miHDatabase.Tag)) then
+    Compare := TListColumn(miHDatabase.Tag).Tag * Sign(lstrcmpi(PChar(TPAccount(Item1.Data).Connection.Database), PChar(TPAccount(Item2.Data).Connection.Database)))
+  else if (Column = TListColumn(miHLastLogin.Tag)) then
+    Compare := TListColumn(miHLastLogin.Tag).Tag * Sign(TPAccount(Item1.Data).LastLogin - TPAccount(Item2.Data).LastLogin)
   else
-  begin
-    DateTime1 := Accounts.AccountByName(Item1.Caption).LastLogin;
-    DateTime2 := Accounts.AccountByName(Item2.Caption).LastLogin;
-    Compare := Sign(DateTime1 - DateTime2);
-  end;
+    raise ERangeError.Create(SRangeError);
+end;
 
-  if (Column.Tag < 0) then
-    Compare := - Compare;
+procedure TDAccounts.FAccountsContextPopup(Sender: TObject; MousePos: TPoint;
+  var Handled: Boolean);
+var
+  HeaderRect: TRect;
+  Pos: TPoint;
+begin
+  GetWindowRect(ListView_GetHeader(FAccounts.Handle), HeaderRect);
+  Pos := FAccounts.ClientToScreen(MousePos);
+  if PtInRect(HeaderRect, Pos) then
+    HeaderMenu.Popup(Pos.X, Pos.Y)
+  else
+    ItemMenu.Popup(Pos.X, Pos.Y);
 end;
 
 procedure TDAccounts.FAccountsDblClick(Sender: TObject);
@@ -283,20 +402,34 @@ end;
 
 procedure TDAccounts.FAccountsResize(Sender: TObject);
 var
+  ColumnWidthsSum: Integer;
   I: Integer;
-  LastLoginWidth: Integer;
+  LastColumnWidth: Integer;
 begin
-  LastLoginWidth := 0;
-  for I := 0 to FAccounts.Items.Count - 1 do
-    if (LastLoginWidth < FAccounts.Canvas.TextWidth(FAccounts.Items[I].SubItems[0])) then
-      LastLoginWidth := FAccounts.Canvas.TextWidth(FAccounts.Items[I].SubItems[0]);
-  if (LastLoginWidth = 0) then
-    LastLoginWidth := FAccounts.Width div 2
-  else
-    Inc(LastLoginWidth, 35);
+  if (not IgnoreResize and (FAccounts.Columns.Count > 0)) then
+  begin
+    ColumnWidthsSum := 0;
+    for I := 0 to FAccounts.Columns.Count - 1 do
+      Inc(ColumnWidthsSum, FAccounts.Columns[I].Width);
+    if (ColumnWidthsSum > 0) then
+    begin
+      IgnoreColumnResize := True;
+      IgnoreResize := True;
+      FAccounts.DisableAlign();
 
-  FAccounts.Column[0].Width := FAccounts.ClientWidth - (LastLoginWidth);
-  FAccounts.Column[1].Width := LastLoginWidth;
+      LastColumnWidth := FAccounts.ClientWidth;
+      for I := 0 to FAccounts.Columns.Count - 2 do
+      begin
+        FAccounts.Columns[I].Width := FAccounts.Columns[I].Width * FAccounts.ClientWidth div ColumnWidthsSum;
+        Dec(LastColumnWidth, FAccounts.Columns[I].Width);
+      end;
+      FAccounts.Columns[FAccounts.Columns.Count - 1].Width := LastColumnWidth;
+
+      FAccounts.EnableAlign();
+      IgnoreResize := False;
+      IgnoreColumnResize := False;
+    end;
+  end;
 
   if (Assigned(FAccounts.ItemFocused) and (FAccounts.Items.Count > 1) and (FAccounts.ItemFocused.Position.Y - FAccounts.ClientHeight + (FAccounts.Items[1].Top - FAccounts.Items[0].Top) > 0)) then
     FAccounts.Scroll(0, FAccounts.ItemFocused.Position.Y - FAccounts.ClientHeight + (FAccounts.Items[1].Top - FAccounts.Items[0].Top));
@@ -317,6 +450,15 @@ begin
 
   FBOkEnabledCheck(Sender);
   FBOk.Default := FBOk.Enabled;
+end;
+
+procedure TDAccounts.ItemMenuPopup(Sender: TObject);
+begin
+  aOpen.Enabled := Assigned(FAccounts.Selected);
+  miIOpen.Default := Open;
+  miIEdit.Default := not miIOpen.Default;
+  ShowEnabledItems(ItemMenu.Items);
+  miINew.Visible := not Assigned(FAccounts.Selected);
 end;
 
 procedure TDAccounts.ListViewShowSortDirection(const ListView: TListView);
@@ -340,27 +482,75 @@ begin
       SendMessage(ListView_GetHeader(ListView.Handle), HDM_SETITEM, I, LParam(@HDItem));
     end;
 
-  if ((ComCtl32MajorVersion >= 6) and not CheckWin32Version(6, 1)) then
+  if (CheckWin32Version(6) and not CheckWin32Version(6, 1)) then
     SendMessage(ListView.Handle, LVM_SETSELECTEDCOLUMN, Column.Index, 0);
-end;
-
-procedure TDAccounts.PopupMenuPopup(Sender: TObject);
-begin
-  aOpen.Enabled := Assigned(FAccounts.Selected);
-  aNew.Enabled := not Assigned(FAccounts.Selected);
-  miOpen.Default := Open;
-  miEdit.Default := not miOpen.Default;
-  ShowEnabledItems(PopupMenu.Items);
 end;
 
 procedure TDAccounts.SetFAccounts(const ASelected: TPAccount);
 var
   I: Integer;
   Item: TListItem;
+  LastColumnWidth: Integer;
+  NewColumnCount: Integer;
+  OldColumnCount: Integer;
+  OldColumnWidths: array[0 .. 5 {HeaderMenu.Items.Count} - 1] of Integer;
 begin
-  FAccounts.DisableAlign(); FAccounts.Items.BeginUpdate();
-
+  IgnoreColumnResize := True;
+  FAccounts.DisableAlign();
+  FAccounts.Columns.BeginUpdate();
+  FAccounts.Items.BeginUpdate();
   FAccounts.Items.Clear();
+
+  OldColumnCount := FAccounts.Columns.Count;
+  for I := 0 to FAccounts.Columns.Count - 1 do
+    OldColumnWidths[I] := FAccounts.Columns[I].Width;
+  FAccounts.Columns.Clear();
+  if (not miHName.Checked) then
+    miHName.Tag := 0
+  else
+  begin
+    FAccounts.Columns.Add().Caption := ReplaceStr(miHName.Caption, '&', '');
+    miHName.Tag := NativeInt(FAccounts.Columns[FAccounts.Columns.Count - 1]);
+  end;
+  if (not miHHost.Checked) then
+    miHHost.Tag := 0
+  else
+  begin
+    FAccounts.Columns.Add().Caption := ReplaceStr(miHHost.Caption, '&', '');
+    miHHost.Tag := NativeInt(FAccounts.Columns[FAccounts.Columns.Count - 1]);
+  end;
+  if (not miHUser.Checked) then
+    miHUser.Tag := 0
+  else
+  begin
+    FAccounts.Columns.Add().Caption := ReplaceStr(miHUser.Caption, '&', '');
+    miHUser.Tag := NativeInt(FAccounts.Columns[FAccounts.Columns.Count - 1]);
+  end;
+  if (not miHDatabase.Checked) then
+    miHDatabase.Tag := 0
+  else
+  begin
+    FAccounts.Columns.Add().Caption := ReplaceStr(miHDatabase.Caption, '&', '');
+    miHDatabase.Tag := NativeInt(FAccounts.Columns[FAccounts.Columns.Count - 1]);
+  end;
+  if (not miHLastLogin.Checked) then
+    miHLastLogin.Tag := 0
+  else
+  begin
+    FAccounts.Columns.Add().Caption := ReplaceStr(miHLastLogin.Caption, '&', '');
+    miHLastLogin.Tag := NativeInt(FAccounts.Columns[FAccounts.Columns.Count - 1]);
+  end;
+  NewColumnCount := FAccounts.Columns.Count;
+
+  FAccounts.Columns.EndUpdate();
+
+  LastColumnWidth := FAccounts.ClientWidth;
+  for I := 0 to FAccounts.Columns.Count - 2 do
+  begin
+    FAccounts.Columns[I].Width := OldColumnWidths[I] * OldColumnCount div NewColumnCount;
+    Dec(LastColumnWidth, FAccounts.Columns[I].Width);
+  end;
+  FAccounts.Columns[FAccounts.Columns.Count - 1].Width := LastColumnWidth;
 
   if (Accounts.Count = 0) then
     FAccountsSelectItem(FAccounts, nil, False)
@@ -369,14 +559,22 @@ begin
     begin
       Item := FAccounts.Items.Add();
       Item.Caption := Accounts[I].Name;
+      if (miHHost.Checked) then
+        Item.SubItems.Add(Accounts[I].Connection.Caption);
+      if (miHUser.Checked) then
+        Item.SubItems.Add(Accounts[I].Connection.Username);
+      if (miHDatabase.Checked) then
+        Item.SubItems.Add(Accounts[I].Connection.Database);
       if (Accounts[I].LastLogin = 0) then
         Item.SubItems.Add('???')
       else
         Item.SubItems.Add(DateTimeToStr(Accounts[I].LastLogin, LocaleFormatSettings));
       Item.ImageIndex := 23;
+      Item.Data := Accounts[I];
     end;
 
-  FAccountsColumnClick(Account, FAccounts.Column[FAccounts.Tag]);
+  if ((0 <= FAccounts.Tag) and (FAccounts.Tag < FAccounts.Columns.Count)) then
+    FAccountsColumnClick(Account, FAccounts.Columns[FAccounts.Tag]);
 
   if (not Assigned(ASelected)) and (FAccounts.Items.Count > 0) then
     FAccounts.Selected := FAccounts.Items.Item[0]
@@ -388,7 +586,9 @@ begin
   FAccounts.ItemFocused := FAccounts.Selected;
   FAccountsResize(nil);
 
-  FAccounts.EnableAlign(); FAccounts.Items.EndUpdate();
+  FAccounts.Items.EndUpdate();
+  FAccounts.EnableAlign();
+  IgnoreColumnResize := False;
 end;
 
 procedure TDAccounts.UMChangePreferences(var Message: TMessage);
@@ -398,8 +598,12 @@ begin
   Preferences.Images.GetIcon(40, Icon);
 
   GAccounts.Caption := Preferences.LoadStr(25);
-  FAccounts.Columns.Items[0].Caption := Preferences.LoadStr(35);
-  FAccounts.Columns.Items[1].Caption := Preferences.LoadStr(693);
+  miHName.Caption := Preferences.LoadStr(35);
+  miHHost.Caption := Preferences.LoadStr(906);
+  miHUser.Caption := Preferences.LoadStr(561);
+  miHDatabase.Caption := Preferences.LoadStr(38);
+  miHLastLogin.Caption := Preferences.LoadStr(693);
+
   aOpen.Caption := Preferences.LoadStr(581);
   aNew.Caption := Preferences.LoadStr(26) + '...';
   aEdit.Caption := Preferences.LoadStr(97) + '...';

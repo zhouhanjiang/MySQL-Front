@@ -329,6 +329,8 @@ begin
   SendMessage(FErrorMessages.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
 
   PageControl.ActivePage := nil;
+
+  PostMessage(Handle, UM_POST_CREATE, 0, 0);
 end;
 
 procedure TDSearch.FormHide(Sender: TObject);
@@ -387,11 +389,9 @@ procedure TDSearch.FormShow(Sender: TObject);
 var
   I: Integer;
 begin
-  if (Assigned(Search)) then
-  begin
-    TerminateThread(Search.Handle, 0);
-    Search := nil;
-  end;
+  // Debug 2016-12-08
+  if (not FBCancel.Enabled) then
+    raise ERangeError.Create(SRangeError);
 
   if (SearchOnly) then
   begin
@@ -805,8 +805,6 @@ begin
     if (FRRegExpr.Checked) then
       Include(Preferences.Replace.Options, roRegExpr);
 
-    if (Assigned(Search)) then
-      TerminateThread(Search.Handle, 0);
     if (SearchOnly) then
     begin
       Search := TTSearch.Create(ExecuteSession);

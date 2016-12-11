@@ -511,11 +511,8 @@ procedure UnescapeString();
 // EDX Updated unused length of text buffer
 // ZF if no text buffer or text buffer too small or unterminated string
 label
-  StringL, String1, String2, String3, String4, String5, StringLE, StringLE2, StringE,
-  Hex, Hex1S, Hex1E, Hex2, Hex2C, Hex2S, HexE,
+  StringL, String1, String2, String3, String4, StringLE, StringLE2, StringE,
   Finish;
-const
-  HexDigits: PChar = 'FEDCBA9876543210';
 var
   Quoter: Char;
 asm
@@ -561,15 +558,9 @@ asm
         JMP StringLE
       String4:
         CMP AX,'r'                       // '\r'?
-        JNE String5                      // No!
+        JNE StringLE2                    // No!
         MOV AX,13                        // replace with CarriageReturn
         JMP StringLE
-      String5:
-        CMP AX,'x'                       // '\x'?
-        JNE StringLE                     // No!
-        CMP ECX,3                        // Are there three character left in SQL?
-        JB StringLE                      // No!
-        CALL Hex
       StringLE:
         INC EBX                          // One character needed in text buffer
         CMP EDI,0                        // Store the string somewhere?
@@ -586,49 +577,6 @@ asm
         DEC ECX                          // Ending Quoter handled
         CMP ESI,0                        // Success: Clear ZF!
         JMP Finish
-
-      // -------------------
-
-      Hex:
-        MOV AX,[ESI]                     // Get high digit
-        CMP AX,'A'                       // character digit?
-        JB Hex1S                         // No!
-        AND AX,not $20                   // Upcase digit
-      Hex1S:
-        PUSH ECX
-        PUSH EDI
-        MOV EDI,Pointer(HexDigits)
-        MOV ECX,16                       // Length(HexDigits)
-        REPNE SCASW                      // Scan Digit
-        MOV EBX,ECX
-        POP EDI
-        POP ECX
-        JE Hex2                          // HexDigit!
-        MOV AX,'x'                       // Restore hex initiating character
-        JMP StringLE
-      Hex2:
-        MOV AX,[ESI + 2]                 // Get low digit
-        CMP AX,'A'                       // character digit?
-        JB Hex2S                         // No!
-        AND AX,not $20                   // Upcase digit
-      Hex2S:
-        PUSH ECX
-        PUSH EDI
-        MOV EDI,Pointer(HexDigits)
-        MOV ECX,16                       // Length(HexDigits)
-        REPNE SCASW                      // Find Digit
-        MOV EAX,ECX
-        POP EDI
-        POP ECX
-        JE HexE                          // HexDigit!
-        MOV AX,'x'                       // Restore hex initiating character
-        JMP StringLE
-      HexE:
-        SHL BX,4
-        ADD AX,BX
-        ADD ESI,4                        // Step over hex digits
-        SUB ECX,2                        // Ignore hex digits
-        RET
 
       // -------------------
 

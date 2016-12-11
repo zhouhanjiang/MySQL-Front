@@ -291,10 +291,10 @@ begin
     if (not InternetCrackUrl(PChar(AAddress), Length(AAddress), 0, URLComponents)) then
     begin
       Len := FormatMessage(FORMAT_MESSAGE_FROM_HMODULE,
-        Pointer(GetModuleHandle('Wininet.dll')), GetLastError(), 0, @Buffer, 0, nil);
+        Pointer(GetModuleHandle('Wininet.dll')), GetLastError(), 0, @Buffer, Length(Buffer), nil);
       while (Len > 0) and (CharInSet(Buffer[Len - 1], [#0..#32])) do Dec(Len);
       SetString(ErrorMessage, Buffer, Len);
-      ErrorMessage := ErrorMessage + #13#10#13#10 + 'URL: ' + AAddress;
+      ErrorMessage := ErrorMessage + #13#10 + 'URL: ' + AAddress;
       raise EConvertError.Create(ErrorMessage);
     end;
 

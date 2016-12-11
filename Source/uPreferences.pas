@@ -10,6 +10,7 @@ uses
 type
   TExportType = (etUnknown, etSQLFile, etTextFile, etExcelFile, etAccessFile, etODBC, etHTMLFile, etXMLFile, etPDFFile);
   TImportType = (itUnknown, itSQLFile, itTextFile, itAccessFile, itExcelFile, itODBC);
+  TAccountColumn = (acName, acHost, acUser, acDatabase, acLastLogin);
 
   TPAccounts = class;
 
@@ -285,7 +286,11 @@ type
       procedure LoadFromXML(const XML: IXMLNode); override;
       procedure SaveToXML(const XML: IXMLNode); override;
     public
-      SelectOrder: Integer;
+      Sort: record
+        Column: TAccountColumn;
+        Ascending: Boolean;
+      end;
+      Widths: array[TAccountColumn] of Integer;
       constructor Create(); override;
     end;
 
@@ -525,6 +530,8 @@ type
     end;
 
     TConnection = class
+    private
+      function GetCaption(): string;
     protected
       Section: string;
       procedure LoadFromXML(const XML: IXMLNode); virtual;
@@ -540,6 +547,7 @@ type
       Username: string;
       procedure Assign(const Source: TConnection); virtual;
       constructor Create(); virtual;
+      property Caption: string read GetCaption;
     end;
 
   private
@@ -682,9 +690,9 @@ end;
 function TryStrToWindowState(const Str: string; var WindowState: TWindowState): Boolean;
 begin
   Result := True;
-  if (UpperCase(Str) = 'NORMAL') then WindowState := wsNormal
-  else if (UpperCase(Str) = 'MINIMIZED') then WindowState := wsMinimized
-  else if (UpperCase(Str) = 'MAXIMIZED') then WindowState := wsMaximized
+  if (StrIComp(PChar(Str), 'Normal') = 0) then WindowState := wsNormal
+  else if (StrIComp(PChar(Str), 'Minimized') = 0) then WindowState := wsMinimized
+  else if (StrIComp(PChar(Str), 'Maximized') = 0) then WindowState := wsMaximized
   else Result := False;
 end;
 
@@ -699,9 +707,9 @@ end;
 function TryStrToQuote(const Str: string; var Quote: TPPreferences.TQuotingType): Boolean;
 begin
   Result := True;
-  if (UpperCase(Str) = 'NOTHING') then Quote := qtNone
-  else if (UpperCase(Str) = 'STRINGS') then Quote := qtStrings
-  else if (UpperCase(Str) = 'ALL') then Quote := qtAll
+  if (StrIComp(PChar(Str), 'Nothing') = 0) then Quote := qtNone
+  else if (StrIComp(PChar(Str), 'Stings') = 0) then Quote := qtStrings
+  else if (StrIComp(PChar(Str), 'All') = 0) then Quote := qtAll
   else Result := False;
 end;
 
@@ -717,8 +725,8 @@ end;
 function TryStrToSeparatorType(const Str: string; var SeparatorType: TPPreferences.TDelimiterType): Boolean;
 begin
   Result := True;
-  if (UpperCase(Str) = 'STANDARD') then SeparatorType := dtChar
-  else if (UpperCase(Str) = 'TAB') then SeparatorType := dtTab
+  if (StrIComp(PChar(Str), 'Standard') = 0) then SeparatorType := dtChar
+  else if (StrIComp(PChar(Str), 'Tab') = 0) then SeparatorType := dtTab
   else Result := False;
 end;
 
@@ -733,9 +741,9 @@ end;
 function TryStrToNodeType(const Str: string; var NodeType: TPPreferences.TNodeType): Boolean;
 begin
   Result := True;
-  if (UpperCase(Str) = 'DISABLED') then NodeType := ntDisabled
-  else if (UpperCase(Str) = 'NAME') then NodeType := ntName
-  else if (UpperCase(Str) = 'CUSTOM') then NodeType := ntCustom
+  if (StrIComp(PChar(Str), 'Disabled') = 0) then NodeType := ntDisabled
+  else if (StrIComp(PChar(Str), 'Name') = 0) then NodeType := ntName
+  else if (StrIComp(PChar(Str), 'Custom') = 0) then NodeType := ntCustom
   else Result := False;
 end;
 
@@ -751,10 +759,10 @@ end;
 function TryStrToStmtType(const Str: string; var StmtType: TPPreferences.TStmtType): Boolean;
 begin
   Result := True;
-  if (UpperCase(Str) = 'INSERT') then StmtType := stInsert
-  else if (UpperCase(Str) = 'REPLACE') then StmtType := stReplace
-  else if (UpperCase(Str) = 'UPDATE') then StmtType := stUpdate
-  else if (UpperCase(Str) = 'INSERTUPDATE') then StmtType := stInsertOrUpdate
+  if (StrIComp(PChar(Str), 'Insert') = 0) then StmtType := stInsert
+  else if (StrIComp(PChar(Str), 'Result') = 0) then StmtType := stReplace
+  else if (StrIComp(PChar(Str), 'Update') = 0) then StmtType := stUpdate
+  else if (StrIComp(PChar(Str), 'InsertUpdate') = 0) then StmtType := stInsertOrUpdate
   else Result := False;
 end;
 
@@ -807,8 +815,8 @@ end;
 function TryStrToUpdateCheck(const Str: string; var UpdateCheckType: TPPreferences.TUpdateCheckType): Boolean;
 begin
   Result := True;
-  if (UpperCase(Str) = 'NEVER') then UpdateCheckType := utNever
-  else if (UpperCase(Str) = 'DAILY') then UpdateCheckType := utDaily
+  if (StrIComp(PChar(Str), 'Daily') = 0) then UpdateCheckType := utNever
+  else if (StrIComp(PChar(Str), 'Never') = 0) then UpdateCheckType := utDaily
   else Result := False;
 end;
 
@@ -824,11 +832,11 @@ function TryStrToRowType(const Str: string; var RowType: Integer): Boolean;
 begin
   Result := True;
   if (Str = '') then RowType := 0
-  else if (UpperCase(Str) = 'FIXED') then RowType := 1
-  else if (UpperCase(Str) = 'DYNAMIC') then RowType := 2
-  else if (UpperCase(Str) = 'COMPRESSED') then RowType := 3
-  else if (UpperCase(Str) = 'REDUNDANT') then RowType := 4
-  else if (UpperCase(Str) = 'COMPACT') then RowType := 5
+  else if (StrIComp(PChar(Str), 'Fixed') = 0) then RowType := 1
+  else if (StrIComp(PChar(Str), 'Dynamic') = 0) then RowType := 2
+  else if (StrIComp(PChar(Str), 'Compressed') = 0) then RowType := 3
+  else if (StrIComp(PChar(Str), 'Redundant') = 0) then RowType := 4
+  else if (StrIComp(PChar(Str), 'Compact') = 0) then RowType := 5
   else Result := False;
 end;
 
@@ -869,11 +877,11 @@ end;
 function TryStrToImportType(const Str: string; var ImportType: TImportType): Boolean;
 begin
   Result := True;
-  if (UpperCase(Str) = 'SQLFILE') then ImportType := itSQLFile
-  else if (UpperCase(Str) = 'TEXTFILE') then ImportType := itTextFile
-  else if (UpperCase(Str) = 'EXCELFILE') then ImportType := itExcelFile
-  else if (UpperCase(Str) = 'ACCESSFILE') then ImportType := itAccessFile
-  else if (UpperCase(Str) = 'ODBC') then ImportType := itODBC
+  if (StrIComp(PChar(Str), 'SQLFile') = 0) then ImportType := itSQLFile
+  else if (StrIComp(PChar(Str), 'TextFile') = 0) then ImportType := itTextFile
+  else if (StrIComp(PChar(Str), 'ExcelFile') = 0) then ImportType := itExcelFile
+  else if (StrIComp(PChar(Str), 'AccessFile') = 0) then ImportType := itAccessFile
+  else if (StrIComp(PChar(Str), 'ODBC') = 0) then ImportType := itODBC
   else Result := False;
 end;
 
@@ -892,14 +900,14 @@ end;
 function TryStrToExportType(const Str: string; var ExportType: TExportType): Boolean;
 begin
   Result := True;
-  if (UpperCase(Str) = 'SQLFILE') then ExportType := etSQLFile
-  else if (UpperCase(Str) = 'TEXTFILE') then ExportType := etTextFile
-  else if (UpperCase(Str) = 'EXCELFILE') then ExportType := etExcelFile
-  else if (UpperCase(Str) = 'ACCESSFILE') then ExportType := etAccessFile
-  else if (UpperCase(Str) = 'ODBC') then ExportType := etODBC
-  else if (UpperCase(Str) = 'HTMLFILE') then ExportType := etHTMLFile
-  else if (UpperCase(Str) = 'XMLFILE') then ExportType := etXMLFile
-  else if (UpperCase(Str) = 'PDFFILE') then ExportType := etPDFFile
+  if (StrIComp(PChar(Str), 'SQLFile') = 0) then ExportType := etSQLFile
+  else if (StrIComp(PChar(Str), 'TextFile') = 0) then ExportType := etTextFile
+  else if (StrIComp(PChar(Str), 'ExcelFile') = 0) then ExportType := etExcelFile
+  else if (StrIComp(PChar(Str), 'AccessFile') = 0) then ExportType := etAccessFile
+  else if (StrIComp(PChar(Str), 'ODBC') = 0) then ExportType := etODBC
+  else if (StrIComp(PChar(Str), 'HTMLFile') = 0) then ExportType := etHTMLFile
+  else if (StrIComp(PChar(Str), 'XMLFile') = 0) then ExportType := etXMLFile
+  else if (StrIComp(PChar(Str), 'PDFFile') = 0) then ExportType := etPDFFile
   else Result := False;
 end;
 
@@ -915,6 +923,29 @@ begin
     etXMLFile: Result := 'XMLFile';
     etPDFFile: Result := 'PDFFile';
     else raise ERangeError.CreateFmt(SPropertyOutOfRange, ['ExportType']);
+  end;
+end;
+
+function TryStrToColumn(const Str: string; var Column: TAccountColumn): Boolean;
+begin
+  Result := True;
+  if (StrIComp(PChar(Str), 'Name') = 0) then Column := acName
+  else if (StrIComp(PChar(Str), 'Host') = 0) then Column := acHost
+  else if (StrIComp(PChar(Str), 'User') = 0) then Column := acUser
+  else if (StrIComp(PChar(Str), 'Database') = 0) then Column := acDatabase
+  else if (StrIComp(PChar(Str), 'LastLogin') = 0) then Column := acLastLogin
+  else Result := False;
+end;
+
+function ColumnToStr(const Column: TAccountColumn): string;
+begin
+  case (Column) of
+    acName: Result := 'Name';
+    acHost: Result := 'Host';
+    acUser: Result := 'User';
+    acDatabase: Result := 'Database';
+    acLastLogin: Result := 'LastLogin';
+    else raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Column']);
   end;
 end;
 
@@ -1544,7 +1575,7 @@ begin
   XMLNode(XML, 'csv/quote/type').Text := QuoteToStr(CSV.Quote);
   XMLNode(XML, 'csv/separator/character/string').Text := CSV.Delimiter;
   XMLNode(XML, 'csv/separator/character/type').Text := SeparatorTypeToStr(CSV.DelimiterType);
-  XMLNode(XML, 'data').Attributes['enabled'] := BoolToStr(Data);
+  XMLNode(XML, 'data').Attributes['enabled'] := BoolToStr(Data, True);
   XMLNode(XML, 'data/importtype').Text := StmtTypeToStr(StmtType);
   XMLNode(XML, 'rowtype').Text := RowTypeToStr(RowType);
   XMLNode(XML, 'structure').Attributes['charset'] := Charset;
@@ -1676,21 +1707,43 @@ constructor TPPreferences.TAccounts.Create();
 begin
   inherited;
 
-  SelectOrder := 0;
+  Sort.Column := acName;
+  Sort.Ascending := True;
+  Widths[acDatabase] := -1;
+  Widths[acHost] := -1;
+  Widths[acLastLogin] := 0;
+  Widths[acName] := 0;
+  Widths[acUser] := -1;
 end;
 
 procedure TPPreferences.TAccounts.LoadFromXML(const XML: IXMLNode);
+var
+  PixelsPerInch: Integer;
 begin
   inherited;
 
-  if (Assigned(XMLNode(XML, 'selectorder'))) then TryStrToInt(XMLNode(XML, 'selectorder').Text, SelectOrder);
+  if (not TryStrToInt(XML.OwnerDocument.DocumentElement.Attributes['pixelsperinch'], PixelsPerInch)) then PixelsPerInch := Screen.PixelsPerInch;
+
+  if (Assigned(XMLNode(XML, 'database')) and (XMLNode(XML, 'database').Attributes['width'] <> Null) and TryStrToInt(XMLNode(XML, 'database').Attributes['width'], Widths[acDatabase])) then Widths[acDatabase] := Round(Widths[acDatabase] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'host')) and (XMLNode(XML, 'host').Attributes['width'] <> Null) and TryStrToInt(XMLNode(XML, 'host').Attributes['width'], Widths[acHost])) then Widths[acHost] := Round(Widths[acHost] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'lastlogin')) and (XMLNode(XML, 'lastlogin').Attributes['width'] <> Null) and TryStrToInt(XMLNode(XML, 'lastlogin').Attributes['width'], Widths[acLastLogin])) then Widths[acLastLogin] := Round(Widths[acLastLogin] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'name')) and (XMLNode(XML, 'name').Attributes['width'] <> Null) and TryStrToInt(XMLNode(XML, 'name').Attributes['width'], Widths[acName])) then Widths[acName] := Round(Widths[acName] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'sort')) and (XMLNode(XML, 'sort').Attributes['column'] <> Null)) then TryStrToColumn(XMLNode(XML, 'sort').Attributes['column'], Sort.Column);
+  if (Assigned(XMLNode(XML, 'sort')) and (XMLNode(XML, 'sort').Attributes['ascending'] <> Null)) then TryStrToBool(XMLNode(XML, 'sort').Attributes['ascending'], Sort.Ascending);
+  if (Assigned(XMLNode(XML, 'user')) and (XMLNode(XML, 'user').Attributes['width'] <> Null) and TryStrToInt(XMLNode(XML, 'user').Attributes['width'], Widths[acUser])) then Widths[acUser] := Round(Widths[acUser] * Screen.PixelsPerInch / PixelsPerInch);
 end;
 
 procedure TPPreferences.TAccounts.SaveToXML(const XML: IXMLNode);
 begin
   inherited;
 
-  XMLNode(XML, 'selectorder').Text := IntToStr(SelectOrder);
+  XMLNode(XML, 'database').Attributes['width'] := IntToStr(Widths[acDatabase]);
+  XMLNode(XML, 'host').Attributes['width'] := IntToStr(Widths[acHost]);
+  XMLNode(XML, 'lastlogin').Attributes['width'] := IntToStr(Widths[acLastLogin]);
+  XMLNode(XML, 'name').Attributes['width'] := IntToStr(Widths[acName]);
+  XMLNode(XML, 'sort').Attributes['column'] := ColumnToStr(Sort.Column);
+  XMLNode(XML, 'sort').Attributes['ascending'] := BoolToStr(Sort.Ascending, True);
+  XMLNode(XML, 'user').Attributes['width'] := IntToStr(Widths[acUser]);
 end;
 
 { TPPreferences.TTableService *************************************************}
@@ -2907,6 +2960,17 @@ begin
   Username := '';
 end;
 
+
+function TPAccount.TConnection.GetCaption(): string;
+begin
+  if (Host = LOCAL_HOST_NAMEDPIPE) then
+    Result := LOCAL_HOST
+  else
+    Result := Host;
+  if (Port <> MYSQL_PORT) then
+    Result := Result + ':' + IntToStr(Port);
+end;
+
 procedure TPAccount.TConnection.LoadFromXML(const XML: IXMLNode);
 begin
   if (Assigned(XMLNode(XML, 'database'))) then Database := XMLNode(XML, 'database').Text;
@@ -3139,11 +3203,6 @@ begin
   end;
 end;
 
-function TPAccount.GetTabCount(): Integer;
-begin
-  Result := Length(FTabs);
-end;
-
 function TPAccount.GetDesktopXML(): IXMLNode;
 begin
   if (not Assigned(DesktopXMLDocument)) then
@@ -3204,6 +3263,11 @@ begin
     FName := XML.Attributes['name'];
 
   Result := FName;
+end;
+
+function TPAccount.GetTabCount(): Integer;
+begin
+  Result := Length(FTabs);
 end;
 
 procedure TPAccount.Load();

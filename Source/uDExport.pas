@@ -157,7 +157,6 @@ type
     procedure TSSQLOptionsShow(Sender: TObject);
     procedure TSXMLOptionChange(Sender: TObject);
     procedure TSXMLOptionsShow(Sender: TObject);
-    procedure TSExecuteResize(Sender: TObject);
   private
     CodePage: Cardinal;
     Database: TSDatabase;
@@ -185,6 +184,7 @@ type
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMPostAfterExecuteSQL(var Message: TMessage); message UM_POST_AFTEREXECUTESQL;
+    procedure UMPostCreate(var Message: TMessage); message UM_POST_CREATE;
     procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMToolError(var Message: TMessage); message UM_TOOL_ERROR;
     procedure UMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
@@ -568,7 +568,7 @@ begin
 
   PageControl.ActivePage := nil;
 
-  ExportType := etSQLFile;
+  PostMessage(Handle, UM_POST_CREATE, 0, 0);
 end;
 
 procedure TDExport.FormDestroy(Sender: TObject);
@@ -680,15 +680,13 @@ procedure TDExport.FormShow(Sender: TObject);
 var
   I: Integer;
 begin
+  // Debug 2016-12-08
+  if (not FBCancel.Enabled) then
+    raise ERangeError.Create(SRangeError);
+
   Session.RegisterEventProc(FormSessionEvent);
 
   ModalResult := mrNone;
-
-  if ((Preferences.Export.Width >= Width) and (Preferences.Export.Height >= Height)) then
-  begin
-    Width := Preferences.Export.Width;
-    Height := Preferences.Export.Height;
-  end;
 
   Wanted.Page := nil;
 
@@ -966,19 +964,6 @@ begin
   else
     TSExecute.Enabled := not TSFields.Enabled;
   CheckActivePageChange(TSCSVOptions);
-end;
-
-procedure TDExport.TSExecuteResize(Sender: TObject);
-begin
-  FLEntiered.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FLEntiered.Width;
-  FLDone.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FLDone.Width;
-  FEntieredObjects.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FEntieredObjects.Width;
-  FDoneObjects.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FDoneObjects.Width;
-  FEntieredRecords.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FEntieredRecords.Width;
-  FDoneRecords.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FDoneRecords.Width;
-  FEntieredTime.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FEntieredTime.Width;
-  FDoneTime.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FDoneTime.Width;
-  FErrors.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FErrors.Width;
 end;
 
 procedure TDExport.TSExecuteShow(Sender: TObject);
@@ -1509,6 +1494,15 @@ procedure TDExport.UMPostAfterExecuteSQL(var Message: TMessage);
 begin
   if (Assigned(Wanted.Page) and Assigned(Wanted.Page.OnShow)) then
     Wanted.Page.OnShow(nil);
+end;
+
+procedure TDExport.UMPostCreate(var Message: TMessage);
+begin
+  if ((Preferences.Export.Width >= Width) and (Preferences.Export.Height >= Height)) then
+  begin
+    Width := Preferences.Export.Width;
+    Height := Preferences.Export.Height;
+  end;
 end;
 
 procedure TDExport.UMTerminate(var Message: TMessage);

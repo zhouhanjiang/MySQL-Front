@@ -716,7 +716,7 @@ type
       constructor Create(const AFClient: TFSession; const ATable: TSTable);
       function CreateDBGrid(): TMySQLDBGrid;
       function CreateListView(): TListView;
-      procedure DataSetAfterOpen(DataSet: TDataSet);
+      procedure DataSetAfterOpen(DataSet: TDataSet); virtual;
       procedure DataSetAfterRefresh(DataSet: TDataSet);
       destructor Destroy(); override;
       property DBGrid: TMySQLDBGrid read FDBGrid;
@@ -1265,6 +1265,9 @@ begin
     EditorCommandText := CommandText;
 
     XML.AddChild('sql').Text := CommandText;
+
+    EditorCommandText := '';
+
     if (DataHandle.Connection.Info <> '') then
       XML.AddChild('info').Text := DataHandle.Connection.Info;
     XML.AddChild('execution_time').Text := FloatToStr(DataHandle.Connection.ExecutionTime, FileFormatSettings);
@@ -1654,7 +1657,7 @@ begin
   if ((Table is TSBaseTable) and TSBaseTable(Table).ValidStatus and (TSBaseTable(Table).AvgRowLength > 0)) then
   begin
     Result := DefaultLimitSize div TSBaseTable(Table).AvgRowLength;
-    if (Result < 2 * DefaultLimit) then
+    if (Result < DefaultLimit) then
       Result := DefaultLimit
     else
       Result := Result div DefaultLimit * DefaultLimit;
@@ -2282,6 +2285,16 @@ begin
     begin
       NewTable := TSBaseTable.Create(Table.Database.Tables);
       NewTable.Assign(Table);
+
+      // Debug 2016-12-10
+      if (NewTable.Keys.Count <> Table.Keys.Count) then
+        raise ERangeError.Create(SRangeError);
+      if (NewTable.Fields.Count <> Table.Fields.Count) then
+        raise ERangeError.Create(SRangeError);
+      if (NewTable.ForeignKeys.Count <> Table.ForeignKeys.Count) then
+        raise ERangeError.Create(SRangeError);
+      if (NewTable.Partitions.Count <> Table.Partitions.Count) then
+        raise ERangeError.Create(SRangeError);
 
       for I := Items.Count - 1 downto 0 do
         if ((TSItem(Items[I]) is TSKey) and (TSKey(Items[I]).Table = Table)) then
@@ -3136,6 +3149,8 @@ begin
   begin
     try
       ActiveSynMemo.CopyToClipboard();
+      if (OpenClipboard(0)) then
+        raise ERangeError.Create(SRangeError);
     except
       on E: EClipboardException do
         begin
@@ -3151,7 +3166,7 @@ begin
                  + #10 + 'Name: ' + Control.Name;
           except
           end;
-          raise Exception.Create(E.Message + #10 + 'Clipboard Owner: ' + S);
+          raise Exception.Create(E.Message + #10 + 'Clipboard Owner: ' + Msg);
         end;
     end;
     exit;
@@ -3200,6 +3215,9 @@ begin
       CloseClipboard();
     end;
   end;
+
+  if (OpenClipboard(0)) then
+    raise ERangeError.Create(SRangeError);
 end;
 
 procedure TFSession.aEFindExecute(Sender: TObject);
@@ -3294,6 +3312,8 @@ begin
   else if (Window.ActiveControl = ActiveSynMemo) then
     try
       ActiveSynMemo.PasteFromClipboard();
+      if (OpenClipboard(0)) then
+        raise ERangeError.Create(SRangeError);
     except
       on E: EClipboardException do
         begin
@@ -3309,6 +3329,7 @@ begin
                  + #10 + 'Name: ' + Control.Name;
           except
           end;
+          raise Exception.Create(E.Message + #10 + 'Clipboard Owner: ' + Msg);
         end;
     end
   else if (Assigned(ActiveWorkbench) and (Window.ActiveControl = ActiveWorkbench)) then
@@ -3321,6 +3342,9 @@ begin
     FText.PasteFromClipboard
   else
     MessageBeep(MB_ICONERROR);
+
+  if (OpenClipboard(0)) then
+    raise ERangeError.Create(SRangeError);
 end;
 
 procedure TFSession.aEPasteFromExecute(Sender: TObject);
@@ -5555,6 +5579,16 @@ procedure TFSession.DBGridDblClick(Sender: TObject);
 begin
   Wanted.Clear();
 
+  // Debug 2016-12-11
+  if (not Assigned(ActiveDBGrid)) then
+    raise ERangeError.Create(SRangeError);
+  if (not Assigned(ActiveDBGrid.DataSource)) then
+    raise ERangeError.Create(SRangeError);
+  if (not ActiveDBGrid.DataSource.Enabled) then
+    raise ERangeERror.Create(SRangeError);
+  if (not Assigned(ActiveDBGrid.DataSource.DataSet)) then
+    raise ERangeError.Create(SRangeError);
+
   if (ActiveDBGrid.DataSource.DataSet.CanModify) then
     if (not Assigned(ActiveDBGrid.SelectedField) or not (ActiveDBGrid.SelectedField.DataType in [ftWideMemo, ftBlob])) then
       ActiveDBGrid.EditorMode := True
@@ -5923,10 +5957,21 @@ begin
       // Debug 2016-12-07
       if (not Assigned(Session)) then
         raise ERangeError.Create(SRangeError);
+      // Debug 2016-12-10
+      if (not (TObject(Session) is TSSession)) then
+        try
+          raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Session).ClassName)
+        except
+          raise ERangeError.Create(SRangeError);
+        end;
       if (not Assigned(Session.Account)) then
         raise ERangeError.Create(SRangeError);
       if (not (TObject(Session.Account) is TPAccount)) then
-        raise ERangeError.Create(SRangeError);
+        try
+          raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Session.Account).ClassName)
+        except
+          raise ERangeError.Create(SRangeError);
+        end;
       if (not Assigned(Session.Account.Desktop)) then
         raise ERangeError.Create(SRangeError);
       ToolbarTab := ToolbarTabByView[View];
@@ -6834,7 +6879,7 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
     if (Item1.Data = Item2.Data) then
       raise ERangeError.Create(SRangeError);
     // Debug 2016-11-21
-    if (TObject(Item1.Data) is TSItem) then ;
+    if (TObject(Item1.Data) is TSItem) then ; // On 2016-12-09 here occured an AV. Why???
     if (TObject(Item2.Data) is TSItem) then ;
     // Debug 2016-11-23
     if (not Assigned(Item1.Data)) then
@@ -8311,6 +8356,12 @@ end;
 
 function TFSession.GetSelectedImageIndex(): Integer;
 begin
+  // Debug 2016-12-09
+  if (not Assigned(Self)) then
+    raise ERangeError.Create(SRangeError);
+  if (not Assigned(FNavigator)) then
+    raise ERangeError.Create(SRangeError);
+
   if (not Assigned(FNavigator.Selected)) then
     Result := -1
   else
@@ -9130,8 +9181,20 @@ begin
         // Debug 2016-12-02
         if (not Assigned(Session)) then
           raise ERangeError.Create(SRangeError);
+        if (not (TObject(Session) is TSSession)) then
+          try
+            raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Session).ClassName);
+          except
+            raise ERangeError.Create(SRangeError);
+          end;
         if (not Assigned(Session.Account)) then
           raise ERangeError.Create(SRangeError);
+        if (not (TObject(Session.Account) is TPAccount)) then
+          try
+            raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Session.Account).ClassName);
+          except
+            raise ERangeError.Create(SRangeError);
+          end;
         if (not Assigned(Session.Account.Desktop)) then
           raise ERangeError.Create(SRangeError);
         Column := TListView(Sender).Columns[I];
@@ -9288,7 +9351,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
       else
         Item.SubItems.Add('');
       if (TSTable(Data) is TSBaseTable) then
-        if (not TSBaseTable(Data).ValidStatus or (TSBaseTable(Data).RecordCount < 0)) then
+        if (not TSBaseTable(Data).ValidStatus or (TSBaseTable(Data).RecordCount < 0) or not Assigned(TSBaseTable(Data).Engine)) then
           Item.SubItems.Add('')
         else if (TSBaseTable(Data).Engine.IsInnoDB) then
           Item.SubItems.Add(FormatFloat('~#,##0', TSBaseTable(Data).RecordCount, LocaleFormatSettings))
@@ -10161,6 +10224,12 @@ begin
           end;
         iiProcesses:
           begin
+            // Debug 2016-12-10
+            if (not (TObject(Item.Data) is TSProcess)) then
+              raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Item.Data).ClassName);
+            if (TSProcess(Item.Data).Name = '') then
+              raise ERangeError.Create(SRangeError + ' Caption: ' + Item.Caption);
+
             MainAction('aDDeleteProcess').Enabled := (ListView.SelCount >= 1) and Selected and (TObject(Item.Data) is TSProcess) and (TSProcess(Item.Data).ThreadId <> Session.Connection.ThreadId);
             MainAction('aDEditProcess').Enabled := (ListView.SelCount = 1);
             aDDelete.Enabled := MainAction('aDDeleteProcess').Enabled;
@@ -14079,9 +14148,6 @@ begin
             List := TList.Create();
             if (Session.Connection.MySQLVersion < 50002) then
               List.Add(Database);
-            if (not (Database is TSSystemDatabase)) then
-              for I := 0 to Database.Tables.Count - 1 do
-                List.Add(Database.Tables[I]);
             Result := not Session.Update(List, True);
             List.Free();
           end;
@@ -14091,12 +14157,11 @@ begin
           TSTable(FNavigator.Selected.Data).Update();
       end;
     vBrowser:
-      if ((TObject(FNavigator.Selected.Data) is TSTable) and not TSTable(FNavigator.Selected.Data).ValidData) then
-        if ((TObject(FNavigator.Selected.Data) is TSView and not TSView(FNavigator.Selected.Data).Update())
-          or (TObject(FNavigator.Selected.Data) is TSBaseTable and not TSBaseTable(FNavigator.Selected.Data).Update(True))) then
-          Wanted.Update := UpdateAfterAddressChanged
-        else
-          TableOpen(nil);
+      if ((TObject(FNavigator.Selected.Data) is TSView and not TSView(FNavigator.Selected.Data).Update())
+        or (TObject(FNavigator.Selected.Data) is TSBaseTable and not TSBaseTable(FNavigator.Selected.Data).Update(True))) then
+        Wanted.Update := UpdateAfterAddressChanged
+      else
+        TableOpen(nil);
     vIDE:
       begin
         // Debug 2016-11-26

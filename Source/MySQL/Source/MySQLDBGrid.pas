@@ -116,7 +116,7 @@ implementation {***************************************************************}
 
 uses
   Forms, SysUtils, Clipbrd, Dialogs, Consts, CommCtrl,
-  DBActns, StrUtils, Math, Variants,
+  DBActns, StrUtils, Math, Variants, SysConst,
   MySQLDB, CSVUtils;
 
 { TDBMySQLGrid.TDBMySQLInplaceEdit ********************************************}
@@ -1211,6 +1211,11 @@ var
   NewWidth: Integer;
 begin
   HDNotify := PHDNotify(Message.NMHdr);
+
+  // Debug 2016-12-11
+  if (not Assigned(HDNotify)) then
+    raise ERangeError.Create(SRangeError);
+
   if (not Assigned(FHeaderControl) or not Assigned(FHeaderControl.Parent) or (HDNotify^.Hdr.hwndFrom <> FHeaderControl.Handle)) then
     inherited
   else

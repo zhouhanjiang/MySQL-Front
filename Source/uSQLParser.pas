@@ -18437,14 +18437,15 @@ function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
           or (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0)
           or (ADbIdentType = ditCharset) and (StrLIComp(TokenPtr(CurrentToken)^.FText, 'binary', 6) = 0))
       or (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent) and not (ADbIdentType in [ditCharset, ditCollation])
-      or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and (AnsiQuotes or (ADbIdentType in [ditCharset, ditCollation, ditConstraint, ditColumnAlias, ditTableAlias]))
-      or (TokenPtr(CurrentToken)^.TokenType = ttString) and (ADbIdentType in [ditCharset, ditCollation, ditConstraint, ditColumnAlias, ditTableAlias])
-      or (TokenPtr(CurrentToken)^.OperatorType = otMulti) and JokerAllowed and (ADbIdentType in [ditDatabase, ditTable, ditProcedure, ditFunction, ditField])
-      or (aDbIdentType = ditKey) and (TokenPtr(CurrentToken)^.TokenType = ttIdent) and (TokenPtr(CurrentToken)^.KeywordIndex = kiPRIMARY)) then
+      or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and (AnsiQuotes or (ADbIdentType in [ditConstraint, ditColumnAlias]))
+      or (TokenPtr(CurrentToken)^.TokenType = ttString) and (ADbIdentType in [ditConstraint, ditColumnAlias])
+      or (TokenPtr(CurrentToken)^.OperatorType = otMulti) and JokerAllowed and (ADbIdentType in [ditDatabase, ditTable, ditProcedure, ditFunction, ditField])) then
     begin
       TokenPtr(CurrentToken)^.FOperatorType := otNone;
       Result := ApplyCurrentToken(utDbIdent);
     end
+    else if ((aDbIdentType = ditKey) and (TokenPtr(CurrentToken)^.TokenType = ttIdent) and (TokenPtr(CurrentToken)^.KeywordIndex = kiPRIMARY)) then
+      Result := ApplyCurrentToken(utKeyword)
     else
     begin
       SetError(PE_UnexpectedToken);
@@ -18459,9 +18460,7 @@ begin
   FillChar(Nodes, SizeOf(Nodes), 0);
   DbIdentType := ADbIdentType;
 
-  if (not EndOfStmt(CurrentToken)) then
-    Nodes.Ident := ParseDbIdentToken(False)
-  else
+  if (EndOfStmt(CurrentToken)) then
   begin
     case (ADbIdentType) of
       ditDatabase:
@@ -18489,7 +18488,9 @@ begin
         CompletionList.AddList(ADbIdentType);
     end;
     SetError(PE_IncompleteStmt);
-  end;
+  end
+  else
+    Nodes.Ident := ParseDbIdentToken(False);
 
   if (not ErrorFound
     and FullQualified
@@ -18509,6 +18510,8 @@ begin
             CompletionList.AddList(ADbIdentType, TokenPtr(Nodes.DatabaseIdent)^.AsString);
             Nodes.Ident := 0;
           end
+          else if (TokenPtr(CurrentToken)^.TokenType = ttInteger) then
+            Nodes.Ident := ApplyCurrentToken(utDbIdent)
           else
             Nodes.Ident := ParseDbIdentToken(True);
         end;
@@ -18530,7 +18533,10 @@ begin
           begin
             if (TokenPtr(CurrentToken)^.OperatorType = otMulti) then
               DbIdentType := ditUnknown;
-            Nodes.Ident := ParseDbIdentToken(True);
+            if (TokenPtr(CurrentToken)^.TokenType = ttInteger) then
+              Nodes.Ident := ApplyCurrentToken(utDbIdent)
+            else
+              Nodes.Ident := ParseDbIdentToken(True);
 
             if (not ErrorFound
               and FullQualified
@@ -18547,6 +18553,8 @@ begin
                 SetError(PE_IncompleteStmt);
                 Nodes.Ident := 0;
               end
+              else if (TokenPtr(CurrentToken)^.TokenType = ttInteger) then
+                Nodes.Ident := ApplyCurrentToken(utDbIdent)
               else
                 Nodes.Ident := ParseDbIdentToken(True);
             end;
@@ -19364,8 +19372,9 @@ begin
           Nodes.Add(ApplyCurrentToken(utOperator))
       else if (TokenPtr(CurrentToken)^.TokenType in ttIdents) then
         if (IsTag(kiEXISTS)
+          or IsTag(kiNOT, kiEXISTS)
           or (Nodes.Count > 0) and IsToken(Nodes[Nodes.Count - 1]) and (TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType in [otEqual, otGreater, otLess, otGreaterEqual, otLessEqual, otNotEqual])
-            and (IsTag(kiALL) or IsTag(kiANY) or IsTag(kiSOME))) then
+            and (IsTag(kiALL) or IsTag(kiANY) or IsTag(kiNOT, kiALL) or IsTag(kiNOT, kiANY) or IsTag(kiNOT, kiSOME) or IsTag(kiSOME))) then
           Nodes.Add(ParseSubquery())
         else if (IsNextSymbol(1, ttOpenBracket)) then
         begin
@@ -21922,7 +21931,7 @@ begin
     end;
   end;
 
-  if (not ErrorFound) then
+  if (not ErrorFound and not SubSelect) then
     if (IsTag(kiINTO)) then
       Nodes.Into1 := ParseInto();
 
@@ -22022,7 +22031,7 @@ begin
             Nodes.Proc.ParamList := ParseList(True, ParseExpr);
         end;
 
-      if (not ErrorFound) then
+      if (not ErrorFound and not SubSelect) then
         if (IsTag(kiINTO)) then
           if (Nodes.Into1.Tag > 0) then
             SetError(PE_UnexpectedToken)
@@ -24206,6 +24215,12 @@ begin
     Nodes.IdentTag := ParseTag(kiANY)
   else if (IsTag(kiEXISTS)) then
     Nodes.IdentTag := ParseTag(kiEXISTS)
+  else if (IsTag(kiNOT, kiALL)) then
+    Nodes.IdentTag := ParseTag(kiNOT, kiALL)
+  else if (IsTag(kiNOT, kiANY)) then
+    Nodes.IdentTag := ParseTag(kiNOT, kiANY)
+  else if (IsTag(kiNOT, kiEXISTS)) then
+    Nodes.IdentTag := ParseTag(kiNOT, kiEXISTS)
   else
     Nodes.IdentTag := ParseTag(kiSOME);
 

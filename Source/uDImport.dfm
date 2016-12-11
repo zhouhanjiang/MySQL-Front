@@ -17,7 +17,6 @@ object DImport: TDImport
   OnClose = FormClose
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
-  OnDestroy = FormDestroy
   OnHide = FormHide
   OnShow = FormShow
   DesignSize = (
@@ -613,7 +612,6 @@ object DImport: TDImport
     object TSExecute: TTabSheet
       Caption = 'TSExecute'
       TabVisible = False
-      OnResize = TSExecuteResize
       OnShow = TSExecuteShow
       DesignSize = (
         333
