@@ -1123,7 +1123,7 @@ end;
 procedure MySQLConnectionSynchronizeRequest(const SyncThread: TMySQLConnection.TSyncThread);
 begin
   if (not Assigned(MySQLConnectionOnSynchronize)) then
-    raise ERangeError.Create('MySQLConnectionOnSynchronize not set.')
+    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['MySQLConnectionOnSynchronize'])
   else
   begin
     // Debug 2016-12-10
@@ -2114,14 +2114,14 @@ var
 begin
   SynchronizingThreadsCS.Enter();
   Index := SynchronizingThreads.IndexOf(Self);
+
   if (Index >= 0) then
     SynchronizingThreads.Delete(Index);
   SynchronizingThreadsCS.Leave();
 
   inherited;
 
-  if (RunExecute.WaitFor(IGNORE) <> wrSignaled) then
-    RunExecute.SetEvent();
+  RunExecute.SetEvent();
 
   Connection.TerminatedThreads.Add(Self);
   if (Connection.SyncThread = Self) then

@@ -156,7 +156,7 @@ begin
   if (Assigned(ActivePage)) then
     for I := ActivePage.PageIndex - 1 downto 0 do
       FBBack.Enabled := FBBack.Enabled or PageControl.Pages[I].Enabled;
-  if (NextActivePageIndex < TSExecute.PageIndex) then
+  if ((NextActivePageIndex < TSExecute.PageIndex) and (ActivePage <> TSExecute)) then
     FBForward.Caption := Preferences.LoadStr(229) + ' >'
   else
     FBForward.Caption := Preferences.LoadStr(174);
@@ -714,10 +714,12 @@ begin
               SourceDatabase := SourceSession.DatabaseByName(FSource.Selected.Parent[I].Text);
               for J := 0 to SourceDatabase.Tables.Count - 1 do
                 AddDBObject(SourceDatabase.Tables[J], DestinationSession, SourceDatabase.Name);
-              for J := 0 to SourceDatabase.Routines.Count - 1 do
-                AddDBObject(SourceDatabase.Routines[J], DestinationSession, SourceDatabase.Name);
-              for J := 0 to SourceDatabase.Events.Count - 1 do
-                AddDBObject(SourceDatabase.Events[J], DestinationSession, SourceDatabase.Name);
+              if (Assigned(SourceDatabase.Routines)) then
+                for J := 0 to SourceDatabase.Routines.Count - 1 do
+                  AddDBObject(SourceDatabase.Routines[J], DestinationSession, SourceDatabase.Name);
+              if (Assigned(SourceDatabase.Events)) then
+                for J := 0 to SourceDatabase.Events.Count - 1 do
+                  AddDBObject(SourceDatabase.Events[J], DestinationSession, SourceDatabase.Name);
             end;
           iiBaseTable,
           iiView:
@@ -767,7 +769,9 @@ begin
 
   CheckActivePageChange(TSExecute);
   if (not Assigned(Transfer)) then
-    FBCancel.Caption := Preferences.LoadStr(231);
+    FBCancel.Caption := Preferences.LoadStr(231)
+  else
+    FBBack.Enabled := False;
   ActiveControl := FBCancel;
 end;
 

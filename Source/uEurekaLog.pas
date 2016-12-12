@@ -4,10 +4,10 @@ interface {********************************************************************}
 
 uses
   Classes,
-  ECallStack, ETypes;
+  EClasses, ECallStack, ETypes;
 
 type
-  TEurekaStackFormatter = class(ECallStack.TEurekaStackFormatter)
+  TStackFormatter = class(ECallStack.TEurekaStackFormatter)
   private
     FHasEncryptedData: Boolean;
     FLineLen: Integer;
@@ -20,6 +20,7 @@ type
     function AcceptableCallStackItem(const AInd: Integer): Boolean; override;
     procedure CalculateLengths; override;
     function ContainEncryptedItems(const CallStack: TEurekaBaseStackList): Boolean; virtual;
+    function CreateThreadStr(const Index, No: Integer; const DebugInfo: TEurekaDebugInfo; const TextLog: Boolean; const Session: THandle; const ExternalWCTSession: Boolean = False): String; override;
     function GetItemText(const AIndex: Integer): String; override;
     function GetStrings(): TStrings; override;
   end;
@@ -29,7 +30,7 @@ implementation {***************************************************************}
 
 uses
   SysUtils,
-  EClasses, EStackTracing, ESysInfo, EInfoFormat, EConsts;
+  EStackTracing, ESysInfo, EInfoFormat, EThreadsManager, EConsts;
 
 { TEurekaStackFormatter *******************************************************}
 
@@ -62,12 +63,12 @@ begin
     Result := Item.Location.Address <> Item.ReturnAddr;
 end;
 
-function TEurekaStackFormatter.AcceptableCallStackItem(const AInd: Integer): Boolean;
+function TStackFormatter.AcceptableCallStackItem(const AInd: Integer): Boolean;
 begin
   Result := IsAcceptableCallStackItem(CallStack, AInd, DebugDetails, AllowedMethods, DisabledMethods);
 end;
 
-procedure TEurekaStackFormatter.CalculateLengths();
+procedure TStackFormatter.CalculateLengths();
 var
   ClassName: string;
   ProcName: string;
@@ -118,7 +119,63 @@ begin
   end;
 end;
 
-function TEurekaStackFormatter.FormatLine(const AMethods, ADetails, AStackAddress, AAddress, AName, AOffset, AUnit, AClass, AProcedure, ALine: String): String;
+function TStackFormatter.CreateThreadStr(const Index, No: Integer; const DebugInfo: TEurekaDebugInfo; const TextLog: Boolean; const Session: THandle; const ExternalWCTSession: Boolean = False): String;
+var
+  CallerAddress: Pointer;
+  Line1: string;
+  Line2: string;
+  ParentID: Cardinal;
+  ThreadClassName: string;
+  ThreadData: TEurekaThreadData;
+  ThreadName: String;
+begin
+  if (not DebugInfo.RunningThread) then
+    Line1 := CaptionCallingThread
+  else if (DebugInfo.ErrorLine) then
+    Line1 := '*' + CaptionExceptionThread
+  else
+    Line1 := CaptionRunningThread;
+
+  if (DebugInfo.ThreadID > 0) then
+    Line1 := Line1 + ', ' + CaptionThreadID + ': ' + IntToStr(DebugInfo.ThreadID);
+
+  GetThreadInfo(DebugInfo.ThreadID, ParentID, ThreadClassName, ThreadName, CallerAddress);
+  if (ParentID > 0) then
+    Line1 := Line1 + ', ' + CaptionParentID + ': ' + IntToStr(ParentID);
+
+  Line2 := '';
+  if (DebugInfo.ThreadName <> '') then
+    Line2 := Line2 + CaptionThreadName + ': ' + DebugInfo.ThreadName;
+  if (DebugInfo.ThreadClass <> '') then
+  begin
+    if (Line2 <> '') then Line2 := Line2 + ', ';
+    Line2 := Line2 + CaptionThreadClass + ': ' + DebugInfo.ThreadClass;
+  end;
+
+  if (Line2 <> '') then
+  begin
+    ThreadData := AquireThreadData(DebugInfo.ThreadID);
+    if (Assigned(ThreadData)) then
+    begin
+      if (ThreadData.Thread is TThread) then
+      begin
+        if (TThread(ThreadData.Thread).CheckTerminated()) then
+          Line2 := Line2 + ', terminated';
+        if (TThread(ThreadData.Thread).Finished) then
+          Line2 := Line2 + ', finished';
+      end;
+      ThreadData.Free();
+    end;
+  end;
+
+  Result := '';
+  if (Line1 <> '') then
+    Result := Result + Line1 + #13#10;
+  if (Line2 <> '') then
+    Result := Result + Line2 + #13#10;
+end;
+
+function TStackFormatter.FormatLine(const AMethods, ADetails, AStackAddress, AAddress, AName, AOffset, AUnit, AClass, AProcedure, ALine: String): String;
 begin
   Assert(Calculated);
   Result := Format('|%s|%s|%s|%s|',
@@ -126,12 +183,9 @@ begin
      FmtStrForLog(FmtCompleteStr(AUnit, FMaxUnit)),
      FmtStrForLog(FmtCompleteStr(AProcedure, FMaxProc)),
      FmtStrForLog(FmtCompleteStr(ALine, FMaxLine))]);
-
-  if (ADetails <> '04') then
-    Result := Result + ADetails;
 end;
 
-function TEurekaStackFormatter.GetItemText(const AIndex: Integer): String;
+function TStackFormatter.GetItemText(const AIndex: Integer): String;
 
   function DetailsToStr(const ADetail: TEurekaDebugDetail): String;
   begin
@@ -172,7 +226,7 @@ begin
                        L);
 end;
 
-function TEurekaStackFormatter.GetStrings: TStrings;
+function TStackFormatter.GetStrings(): TStrings;
 
   procedure AddHeader(const LineStr: String);
   var
@@ -278,7 +332,7 @@ begin
   Result := FStr;
 end;
 
-function TEurekaStackFormatter.ContainEncryptedItems(const CallStack: TEurekaBaseStackList): Boolean;
+function TStackFormatter.ContainEncryptedItems(const CallStack: TEurekaBaseStackList): Boolean;
 var
   X: Integer;
 begin

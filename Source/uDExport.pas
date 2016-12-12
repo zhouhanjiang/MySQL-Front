@@ -242,7 +242,7 @@ begin
   if (Assigned(ActivePage)) then
     for I := ActivePage.PageIndex - 1 downto 0 do
       FBBack.Enabled := FBBack.Enabled or PageControl.Pages[I].Enabled;
-  if (NextActivePageIndex < TSExecute.PageIndex) then
+  if ((NextActivePageIndex < TSExecute.PageIndex) and (ActivePage <> TSExecute)) then
     FBForward.Caption := Preferences.LoadStr(229) + ' >'
   else
     FBForward.Caption := Preferences.LoadStr(174);
@@ -1243,7 +1243,9 @@ begin
 
   CheckActivePageChange(TSExecute);
   if (not Assigned(Export)) then
-    FBCancel.Caption := Preferences.LoadStr(231);
+    FBCancel.Caption := Preferences.LoadStr(231)
+  else
+    FBBack.Enabled := False;
   ActiveControl := FBCancel;
 end;
 

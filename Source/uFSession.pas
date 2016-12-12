@@ -4892,7 +4892,6 @@ begin
   Result.Constraints.MinHeight := 30;
   Result.DataSource := FGridDataSource;
   Result.DefaultDrawing := False;
-  Result.DoubleBuffered := True;
   Result.HelpType := htContext;
   Result.HelpContext := 1036;
   Result.Options := [dgTitles, dgColumnResize, dgColLines, dgRowLines, dgTabs, dgAlwaysShowSelection, dgConfirmDelete, dgMultiSelect, dgTitleClick, dgTitleHotTrack];

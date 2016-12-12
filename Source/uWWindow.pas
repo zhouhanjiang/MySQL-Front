@@ -1042,28 +1042,28 @@ begin
     end;
     Report := Report + #13#10;
 
-    ExceptionInfo.CallStack.Formatter := TEurekaStackFormatter.Create();
+    ExceptionInfo.CallStack.Formatter := TStackFormatter.Create();
     Report := Report + ExceptionInfo.CallStack.ToString;
 
-    if (Assigned(ActiveTab)) then
+    if (EditorCommandText <> '') then
     begin
-      if (EditorCommandText <> '') then
-      begin
-        Report := Report + #13#10;
-        Report := Report + 'EditorCommandText: ' + SQLEscapeBin(EditorCommandText, True) + #13#10;
-      end;
+      Report := Report + #13#10;
+      Report := Report + 'EditorCommandText: ' + SQLEscapeBin(EditorCommandText, True) + #13#10;
+    end;
 
+    for I := 0 to Sessions.Count - 1 do
+    begin
       Report := Report + #13#10;
       Report := Report + 'MySQL:' + #13#10;
-      Report := Report + StringOfChar('-', Length('Version: ' + ActiveTab.Session.Connection.ServerVersionStr)) + #13#10;
-      Report := Report + 'Version: ' + ActiveTab.Session.Connection.ServerVersionStr;
-      if (ActiveTab.Session.Connection.LibraryType <> MySQLDB.ltBuiltIn) then
-        Report := Report + ' (LibraryType: ' + IntToStr(Ord(ActiveTab.Session.Connection.LibraryType)) + ')';
+      Report := Report + StringOfChar('-', Length('Version: ' + Sessions[I].Connection.ServerVersionStr)) + #13#10;
+      Report := Report + 'Version: ' + Sessions[I].Connection.ServerVersionStr;
+      if (Sessions[I].Connection.LibraryType <> MySQLDB.ltBuiltIn) then
+        Report := Report + ' (LibraryType: ' + IntToStr(Ord(Sessions[I].Connection.LibraryType)) + ')';
       Report := Report + #13#10#13#10;
 
       Report := Report + 'SQL Log:' + #13#10;
       Report := Report + StringOfChar('-', 72) + #13#10;
-      Report := Report + ActiveTab.Session.Connection.DebugMonitor.CacheText;
+      Report := Report + Sessions[I].Connection.DebugMonitor.CacheText;
     end;
 
     SendBugToDeveloper(Report);
@@ -1108,8 +1108,8 @@ begin
 
   {$IFDEF EurekaLog}
     EurekaLogEvents := TEurekaLogEvents.Create(Self);
-    EurekaLogEvents.OnExceptionNotify := EurekaLogExceptionNotify;
     EurekaLogEvents.OnCustomButtonClick := EurekaLogCustomButtonClick;
+    EurekaLogEvents.OnExceptionNotify := EurekaLogExceptionNotify;
 //    EurekaLogEvents.OnCustomDataRequest := EurekaLogCustomDataRequest;
   {$ENDIF}
 

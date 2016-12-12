@@ -289,7 +289,7 @@ begin
   if (Assigned(ActivePage)) then
     for I := ActivePage.PageIndex - 1 downto 0 do
       FBBack.Enabled := FBBack.Enabled or PageControl.Pages[I].Enabled;
-  if (NextActivePageIndex < TSExecute.PageIndex) then
+  if ((NextActivePageIndex < TSExecute.PageIndex) and (ActivePage <> TSExecute)) then
     FBForward.Caption := Preferences.LoadStr(229) + ' >'
   else
     FBForward.Caption := Preferences.LoadStr(174);
@@ -578,12 +578,6 @@ begin
 
   Preferences.Import.Width := Width;
   Preferences.Import.Height := Height;
-
-  if (Assigned(Import) and Import.Suspended) then
-  begin
-    Import.Free();
-    Import := nil;
-  end;
 
   if (ModalResult = mrOk) then
   begin
@@ -1017,6 +1011,7 @@ begin
   end;
 
   CheckActivePageChange(TSTables);
+  FBBack.Enabled := False;
   ActiveControl := FBCancel;
 end;
 

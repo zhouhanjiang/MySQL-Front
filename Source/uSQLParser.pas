@@ -4040,7 +4040,7 @@ type
           StmtTag: TOffset;
           StmtIdent: TOffset;
           FromTag: TOffset;
-          StmtVariable: TOffset;
+          Stmt: TOffset;
         end;
       private
         Heritage: TStmt;
@@ -21283,7 +21283,12 @@ begin
     Nodes.FromTag := ParseTag(kiFROM);
 
   if (not ErrorFound) then
-    Nodes.StmtVariable := ParseVariableIdent();
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (TokenPtr(CurrentToken)^.TokenType in ttStrings) then
+      Nodes.Stmt := ParseString()
+    else
+      Nodes.Stmt := ParseVariableIdent();
 
   Result := TPrepareStmt.Create(Self, Nodes);
 end;
@@ -22427,11 +22432,12 @@ function TSQLParser.ParseSelectStmtTableReference(): TOffset;
   begin
     if (IsTag(kiDUAL)) then
       Result := ParseTag(kiDUAL)
-    else if (IsTag(kiSELECT)
-      or IsSymbol(ttOpenBracket)) then
+    else if (IsTag(kiSELECT)) then
       Result := ParseSelectStmtTableFactorSubquery()
     else if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType in ttIdents)) then
       Result := ParseSelectStmtTableFactor()
+    else if (IsSymbol(ttOpenBracket)) then
+      Result := ParseList(True, ParseSelectStmtTableReference, ttComma, False)
     else if (EndOfStmt(CurrentToken)) then
     begin
       CompletionList.AddList(ditDatabase);

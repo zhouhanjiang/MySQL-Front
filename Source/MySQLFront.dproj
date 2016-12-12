@@ -38,6 +38,9 @@
 			<DCC_MapFile>3</DCC_MapFile>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Base_Win32)'!=''">
+			<VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0</VerInfo_Keys>
+			<VerInfo_Locale>1031</VerInfo_Locale>
+			<DCC_GenerateStackFrames>true</DCC_GenerateStackFrames>
 			<Debugger_DebugSourcePath>C:\Users\Nils\Documents\MySQL-Front\Source\SynEdit\Source\;$(Debugger_DebugSourcePath)</Debugger_DebugSourcePath>
 		</PropertyGroup>
 		<ItemGroup>
