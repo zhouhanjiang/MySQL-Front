@@ -126,6 +126,9 @@ begin
      FmtStrForLog(FmtCompleteStr(AUnit, FMaxUnit)),
      FmtStrForLog(FmtCompleteStr(AProcedure, FMaxProc)),
      FmtStrForLog(FmtCompleteStr(ALine, FMaxLine))]);
+
+  if (ADetails <> '04') then
+    Result := Result + ADetails;
 end;
 
 function TEurekaStackFormatter.GetItemText(const AIndex: Integer): String;

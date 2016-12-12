@@ -3674,7 +3674,16 @@ begin
     DImport.CodePage := CP_ACP;
     DImport.Window := Window;
     DImport.ImportType := ImportType;
+
+    // Debug 2016-12-12
+    if (not Assigned(FNavigator)) then
+      raise ERangeError.Create(SRangeError);
+
     DImport.Execute();
+
+    // Debug 2016-12-12
+    if (not Assigned(FNavigator)) then
+      raise ERangeError.Create(SRangeError);
 
     UpdateAfterAddressChanged();
   end;
@@ -3997,6 +4006,7 @@ end;
 procedure TFSession.aViewExecute(Sender: TObject);
 var
   AllowChange: Boolean;
+  Control: TWinControl; // Debug 2016-12-12
   I: Integer;
   NewView: TView;
 begin
@@ -4059,13 +4069,19 @@ begin
           // Debug 2016-12-08
           if (not FQueryBuilderActiveWorkArea().Enabled) then
             raise ERangeError.Create(SRangeError);
-          // Debug 2016-12-11
-          if (not Assigned(FQueryBuilderActiveWorkArea().Parent)) then
-            raise ERangeError.Create(SRangeError);
-          if (not FQueryBuilderActiveWorkArea().Parent.Enabled) then
-            raise ERangeError.Create(SRangeError);
-          if (not FQueryBuilderActiveWorkArea().Parent.Visible) then
-            raise ERangeError.Create(SRangeError);
+
+          // Debug 2016-12-12
+          Control := FQueryBuilderActiveWorkArea();
+          repeat
+            if (not Control.Enabled) then
+              raise ERangeError.Create('Control is not enabled: ' + Control.Name + ' / ' + Control.ClassName);
+            if (not Control.Visible) then
+              raise ERangeError.Create('Control is not visible: ' + Control.Name + ' / ' + Control.ClassName);
+            if (not Assigned(Control.Parent)) then
+              raise ERangeError.Create('Control has no parent: ' + Control.Name + ' / ' + Control.ClassName);
+            Control := Control.Parent;
+          until (not Assigned(Control) or (Control = Window));
+
           Window.ActiveControl := FQueryBuilderActiveWorkArea()
         end
         else
@@ -12492,6 +12508,10 @@ begin
 
     URI := TUURI.Create(Address);
 
+    // Debug 2016-12-12
+    if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
+      raise ERangeError.Create(SRangeError + ' Address: ' + Address);
+
     if ((URI.Param['view'] = 'browser') and (Node.ImageIndex in [iiBaseTable, iiSystemView, iiView])) then
       NewView := vBrowser
     else if ((URI.Param['view'] = 'ide') and (Node.ImageIndex in [iiView, iiProcedure, iiFunction, iiTrigger, iiEvent])) then
@@ -13358,19 +13378,18 @@ begin
     QuickSearch := FQuickSearch.Text;
 
   SortDef := TIndexDef.Create(nil, '', '', []);
-  if (Table.DataSet.Active) then
-    SortDef.Assign(Table.DataSet.SortDef)
-  else if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).PrimaryKey)) then
-    TSBaseTable(Table).PrimaryKey.GetSortDef(SortDef);
 
   if (not Table.DataSet.Active) then
   begin
+    if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).PrimaryKey)) then
+      TSBaseTable(Table).PrimaryKey.GetSortDef(SortDef);
     Table.DataSet.AfterOpen := Desktop(Table).DataSetAfterOpen;
     Table.DataSet.AfterRefresh := Desktop(Table).DataSetAfterRefresh;
     Table.Open(FilterSQL, QuickSearch, SortDef, Offset, Limit);
   end
   else
   begin
+    SortDef.Assign(Table.DataSet.SortDef);
     Table.DataSet.FilterSQL := FilterSQL;
     Table.DataSet.QuickSearch := QuickSearch;
     Table.DataSet.SortDef.Assign(SortDef);

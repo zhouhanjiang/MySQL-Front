@@ -11363,6 +11363,10 @@ end;
 
 function TSSession.GetCaption(): string;
 begin
+  // Debug 2016-12-12
+  if (not Assigned(Account.Connection)) then
+    raise ERangeError.Create(SRangeError);
+
   Result := Account.Connection.Caption;
 end;
 
@@ -12298,6 +12302,7 @@ begin
       DataSet.Open(DataHandle);
       BuildManualURL(DataSet);
       Account.ManualURLVersion := Connection.ServerVersionStr;
+      Result := True; // If the HELP query fails, the users does not be informed
     end
     else if (SQLParseKeyword(Parse, 'OPTIMIZE')) then
     begin

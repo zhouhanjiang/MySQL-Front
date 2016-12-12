@@ -1977,36 +1977,10 @@ begin
   while (miFReopen.Count > 1) do
     miFReopen.Delete(0);
 
-  // Debug 2016-12-10
-  if (Assigned(Tab)) then
-  begin
-    if (not (Tab is TFSession)) then
-      raise ERangeError.Create(SRangeError);
-    if (not Assigned(Tab.Session)) then
-      raise ERangeError.Create(SRangeError)
-    else if (not (Tab.Session is TSSession)) then
-      try
-        raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Tab.Session).ClassName);
-      except
-        raise ERangeError.Create(SRangeError);
-      end;
-    if (not Assigned(Tab.Session.Account)) then
-      raise ERangeError.Create(SRangeError)
-    else if (not (Tab.Session.Account is TPAccount)) then
-      try
-        raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Tab.Session.Account).ClassName);
-      except
-        raise ERangeError.Create(SRangeError);
-      end;
-    if (not Assigned(Tab.Session.Account.Desktop)) then
-      raise ERangeError.Create(SRangeError)
-    else if (not (Tab.Session.Account.Desktop is TPAccount.TDesktop)) then
-      try
-        raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Tab.Session.Account.Desktop).ClassName);
-      except
-        raise ERangeError.Create(SRangeError);
-      end;
-  end;
+  // Debug 2016-12-12
+  // Somewhere, TPAccount.FDesktop will be cleared, but why and where???
+  if (Assigned(Tab) and not Assigned(Tab.Session.Account.Desktop)) then
+    raise ERangeError.Create(SRangeError);
 
   miFReopen.Enabled := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vEditor, vEditor2, vEditor3]) and (Tab.Session.Account.Desktop.Files.Count > 0);
   if (miFReopen.Enabled) then

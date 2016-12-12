@@ -3099,11 +3099,19 @@ begin
   end;
 
   DesktopXMLDocument.Options := DesktopXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
+
+  // Debug 2016-12-12
+  if (not Assigned(FDesktop)) then
+    raise ERangeError.Create(SRangeError);
 end;
 
 destructor TPAccount.Destroy();
 begin
-  if (Assigned(FDesktop)) then FDesktop.Free();
+  // Debug 2016-12-12
+  if (not Assigned(FDesktop)) then
+    raise ERangeError.Create(SRangeError);
+
+  FDesktop.Free();
   FConnection.Free();
 
   inherited;

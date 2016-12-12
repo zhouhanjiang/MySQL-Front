@@ -6622,6 +6622,7 @@ type
       InCreateFunctionStmt: Boolean;
       InCreateProcedureStmt: Boolean;
       InCreateTriggerStmt: Boolean;
+      IdentBefore: Boolean;
       Length: Integer;
       Line: Integer;
       Pos: PChar;
@@ -11845,6 +11846,7 @@ begin
   Parse.InCreateFunctionStmt := False;
   Parse.InCreateProcedureStmt := False;
   Parse.InCreateTriggerStmt := False;
+  Parse.IdentBefore := False;
   Parse.Length := 0;
   Parse.Line := 0;
   Parse.Pos := nil;
@@ -12068,10 +12070,8 @@ begin
 
     Commands.IncreaseIndent();
     FormatNode(Nodes.DoTag, stReturnBefore);
-    Commands.IncreaseIndent();
+    Commands.DecreaseIndent();
     FormatNode(Nodes.Body, stReturnBefore);
-    Commands.DecreaseIndent();
-    Commands.DecreaseIndent();
   end;
 end;
 
@@ -12541,8 +12541,8 @@ begin
     FormatNode(Nodes.SubPartition.ColumnList, stSpaceBefore);
     Commands.DecreaseIndent();
     FormatNode(Nodes.SubPartition.Value, stReturnBefore);
+    Commands.WriteReturn();
   end;
-  Commands.WriteReturn();
   Commands.IncreaseIndent();
   FormatList(Nodes.DefinitionList, sReturn);
   Commands.DecreaseIndent();
@@ -15718,15 +15718,18 @@ begin
     end;
   until (ErrorFound or not Found or EndOfStmt(CurrentToken));
 
-  if (not ErrorFound and ((Specifications.Count = 0) or Found)) then
-    if (EndOfStmt(CurrentToken)) then
-      SetError(PE_IncompleteStmt)
-    else
-      SetError(PE_UnexpectedToken);
+  if (not ErrorFound and Found) then
+    SetError(PE_UnexpectedToken);
 
   if (not ErrorFound) then
     if (IsTag(kiPARTITION, kiBY)) then
       Nodes.PartitionOptions := ParseCreateTableStmtPartitionOptions();
+
+  if (not ErrorFound and (Specifications.Count = 0) and (Nodes.PartitionOptions = 0)) then
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else
+      SetError(PE_UnexpectedToken);
 
   FillChar(ListNodes, SizeOf(ListNodes), 0);
   Nodes.SpecificationList := TList.Create(Self, ListNodes, ttComma, @Specifications);
@@ -22425,10 +22428,8 @@ function TSQLParser.ParseSelectStmtTableReference(): TOffset;
     if (IsTag(kiDUAL)) then
       Result := ParseTag(kiDUAL)
     else if (IsTag(kiSELECT)
-      or IsSymbol(ttOpenBracket) and IsNextTag(1, kiSELECT)) then
+      or IsSymbol(ttOpenBracket)) then
       Result := ParseSelectStmtTableFactorSubquery()
-    else if (IsSymbol(ttOpenBracket)) then
-      Result := ParseList(True, ParseSelectStmtTableEscapedReference)
     else if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType in ttIdents)) then
       Result := ParseSelectStmtTableFactor()
     else if (EndOfStmt(CurrentToken)) then
@@ -23132,7 +23133,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.StmtTag := ParseTag(kiSHOW, kiERRORS);
+  Nodes.StmtTag := ParseTag(kiSHOW, kiEVENTS);
 
   if (not ErrorFound) then
     if (IsTag(kiFROM)) then
@@ -24633,6 +24634,7 @@ var
   ErrorCode: Integer;
   ErrorLine: Integer;
   ErrorPos: PChar;
+  IdentBefore: Boolean;
   InMySQLCond: Boolean;
   KeywordIndex: TWordList.TIndex;
   Length: Integer;
@@ -24653,6 +24655,7 @@ begin
     ErrorCode := PE_Success;
     ErrorLine := Parse.Line;
     ErrorPos := Parse.Pos;
+    IdentBefore := Parse.IdentBefore;
     InMySQLCond := AllowedMySQLVersion > 0;
     Length := Parse.Length;
     Line := Parse.Line;
@@ -24798,14 +24801,14 @@ begin
       SelDot:
         CMP AX,'.'                       // "." ?
         JNE SelMySQLCode                 // No!
-//        CMP PreviousTokenIsIdent,True    // PreviousToken was Ident?
-//        JE SelDot2                       // Yes!
-//        CMP EAX,$0030002E                // ".0"?
-//        JB SelDot2                       // No, before!
-//        CMP EAX,$0039002E                // ".9"?
-//        JA SelDot2                       // No, after!
-//        JMP Numeric
-//      SelDot2:
+        CMP IdentBefore,True             // The last token was and Identifier, but not a reserved word?
+        JE SelDot2
+        CMP EAX,$0030002E                // ".0"?
+        JB SelDot2                       // No, before!
+        CMP EAX,$0039002E                // ".9"?
+        JA SelDot2                       // No, after!
+        JMP Numeric
+      SelDot2:
         MOV TokenType,ttDot
         MOV OperatorType,otDot
         JMP SingleChar
@@ -25609,6 +25612,7 @@ begin
     Parse.Length := Parse.Length - TokenLength;
     Parse.Line := Parse.Line + NewLines;
     Parse.Pos := @Parse.Pos[TokenLength];
+    Parse.IdentBefore := (TokenType in ttIdents) and (ReservedWordList.IndexOf(SQL, TokenLength) < 0);
   end;
 end;
 

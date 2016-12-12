@@ -1958,6 +1958,10 @@ begin
       Timeout := Connection.ServerTimeout * 1000;
     WaitResult := RunExecute.WaitFor(Timeout);
 
+    // Debug 2016-12-12
+    if (not Assigned(Connection)) then
+      raise ERangeError.Create(SRangeError);
+
     if (not Terminated) then
       if (WaitResult = wrTimeout) then
       begin
@@ -5353,6 +5357,10 @@ begin
 
       if (UniqueDatabaseName and (DName <> '')) then
         FDatabaseName := DName;
+
+      // Debug 2016-12-12
+      if (my_uint(FieldCount) <> Connection.Lib.mysql_num_fields(Handle)) then
+        raise ERangeError.Create(SRangeError + ' ' + IntToStr(Connection.Lib.mysql_num_fields(Handle)) + '/ ' + IntToStr(FieldDefs.Count) + ' / ' + IntToStr(FieldCount));
     end;
   end;
 end;
@@ -6501,25 +6509,11 @@ begin
   if (Assigned(DestData)) then
     FreeMem(DestData);
 
-  // Debug 2016-12-07
-  if (not Assigned(Self)) then
-    raise ERangeError.Create(SRangeError);
-  if (not (TObject(Self) is TMySQLDataSet)) then
-    raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Self).ClassName);
-  // Debug 2016-12-10
+  // Debug 2016-12-12
   if (not Assigned(Fields)) then
-    raise ERangeError.Create(SRangeError);
-  if (not (TObject(Fields) is TFields)) then
-    try
-      raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Fields).ClassName);
-    except
-      raise ERangeError.Create(SRangeError);
-    end;
-  // Debug 2016-11-24
-  MemSize := FieldCount; // On 2016-12-09 I got an AV here. But why???
-  MemSize := SizeOf(DestData^) + MemSize * (SizeOf(DestData^.LibLengths^[0]) + SizeOf(DestData^.LibRow^[0]));
-//  MemSize := SizeOf(DestData^) + FieldCount * (SizeOf(DestData^.LibLengths^[0]) + SizeOf(DestData^.LibRow^[0]));
+    raise ERangeError.Create(SRangeError + ' ClassType: ' + ClassName);
 
+  MemSize := SizeOf(DestData^) + FieldCount * (SizeOf(DestData^.LibLengths^[0]) + SizeOf(DestData^.LibRow^[0]));
   for I := 0 to FieldCount - 1 do
     Inc(MemSize, SourceData^.LibLengths^[I]);
   try
@@ -7085,9 +7079,7 @@ begin
     end;
 
   if (Result = '') then
-    raise ERangeError.Create(SRangeError)
-  else
-    Result := 'WHERE ' + Result;
+    raise ERangeError.Create(SRangeError);
 end;
 
 function TMySQLDataSet.SQLUpdate(): string;
@@ -7107,7 +7099,7 @@ begin
       ValueHandled := True;
     end;
   if (Result <> '') then
-    Result := 'UPDATE ' + SQLTableClause() + ' SET ' + Result + ' ' + SQLWhereClause() + ';' + #13#10;
+    Result := 'UPDATE ' + SQLTableClause() + ' SET ' + Result + ' WHERE ' + SQLWhereClause() + ';' + #13#10;
 end;
 
 procedure TMySQLDataSet.UpdateIndexDefs();

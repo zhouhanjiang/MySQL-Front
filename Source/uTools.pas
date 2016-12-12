@@ -1012,7 +1012,8 @@ begin
     if ((Result = 0) and (TTool.TItem(Item1) is TTExport.TDBObjectItem)) then
     begin
       if (TTExport.TDBObjectItem(Item1).DBObject is TSBaseTable) then
-        if (not TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine.IsMerge) then
+        if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine)
+          or not TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine.IsMerge) then
           Index1 := 1
         else
           Index1 := 2
