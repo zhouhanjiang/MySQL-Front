@@ -1,8 +1,8 @@
-Development Enviroment:
+﻿Development Enviroment:
 =======================
 
 Embarcadero Delphi XE2:
-http://www.embarcadero.com/products/delphi
+http://www.embarcadero.com/products/delphi/
 
 
 Used packages:
@@ -31,7 +31,7 @@ https://launchpad.net/dcr/
 
 Note: MPHexEditor was developed by Markus Stephany, who stopped his work.
 Later on the Delphi Code Revival project worked on it - but seems not
-very long. Inside this project there is a own transformation from Delphi 7
+very long. Inside this project there is an own transformation from Delphi 7
 to Delphi XE2.
 
 

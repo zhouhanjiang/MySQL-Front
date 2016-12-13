@@ -749,6 +749,9 @@ var
   ODBCEnv: SQLHENV;
   ODBCDrivers: set of (odAccess, odAccess2003, odExcel, odExcel2003);
 
+var
+  ImportCodePage: Cardinal; // Debug 2016-12-13
+
 implementation {***************************************************************}
 
 uses
@@ -2619,6 +2622,9 @@ begin
   if (not Assigned(Text)) then
     AfterExecute();
 
+  // Debug 2016-12-13
+  ImportCodePage := CodePage;
+
   {$IFDEF EurekaLog}
   except
     on E: Exception do
@@ -4137,6 +4143,7 @@ begin
 
         if (DataTable) then
           if ((TDBObjectItem(Items[I]).DBObject is TSBaseTable)
+            and Assigned(TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine)
             and TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine.IsInnoDB) then
           begin
             SQL := SQL + 'SELECT COUNT(*) FROM ' + Session.Connection.EscapeIdentifier(TDBObjectItem(Items[I]).DBObject.Database.Name) + '.' + Session.Connection.EscapeIdentifier(TDBObjectItem(Items[I]).DBObject.Name) + ';' + #13#10;

@@ -13,8 +13,8 @@ uses
   acQBBase, acAST, acQBEventMetaProvider, acMYSQLSynProvider, acSQLBuilderPlainText,
   ShellControls, JAMControls, ShellLink,
   ComCtrls_Ext, StdCtrls_Ext, Dialogs_Ext, Forms_Ext, ExtCtrls_Ext,
-  MySQLDB, MySQLDBGrid,
-  uSession, uSQLParser, uPreferences, uTools,
+  MySQLDB, MySQLDBGrid, SQLParser,
+  uSession, uPreferences, uTools,
   uBase, uDExport, uDImport, uCWorkbench;
 
 const
@@ -3683,7 +3683,7 @@ begin
 
     // Debug 2016-12-12
     if (not Assigned(FNavigator)) then
-      raise ERangeError.Create(SRangeError);
+      raise ERangeError.Create(SRangeError + ' CodePage: ' + IntToStr(ImportCodePage));
 
     UpdateAfterAddressChanged();
   end;
@@ -4932,7 +4932,12 @@ begin
 
   Result.DataSource := DataSource;
 
+try
   Result.Parent := PDBGrid;
+except
+  on E: Exception do
+    raise Exception.Create(E.Message + ' (Result.Parent := PDBGrid)');
+end;
 
   Result.Perform(CM_PARENTCOLORCHANGED, 0, 0);
   Result.Perform(CM_PARENTFONTCHANGED, 0, 0);

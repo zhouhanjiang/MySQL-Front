@@ -5,7 +5,7 @@ interface {********************************************************************}
 uses
   Classes, SysUtils, Windows, SyncObjs,
   DB, DBCommon, SqlTimSt,
-  MySQLConsts;
+  SQLParser, MySQLConsts;
 
 const
   DS_ASYNCHRON     = -1;
@@ -251,6 +251,7 @@ type
     FServerTimeout: Word;
     FServerVersionStr: string;
     FSQLMonitors: TList;
+    FSQLParser: TSQLParser;
     FTerminateCS: TCriticalSection;
     FTerminatedThreads: TTerminatedThreads;
     FThreadDeep: Integer;
@@ -383,6 +384,7 @@ type
     property RowsAffected: Int64 read FRowsAffected;
     property ServerDateTime: TDateTime read GetServerDateTime;
     property ServerVersionStr: string read FServerVersionStr;
+    property SQLParser: TSQLParser read FSQLParser;
     property SuccessfullExecutedSQLLength: Integer read FSuccessfullExecutedSQLLength;
     property ThreadId: my_uint read FThreadId;
     property WarningCount: Integer read FWarningCount;
@@ -571,6 +573,8 @@ type
     procedure InternalLast(); override;
     procedure InternalOpen(); override;
     procedure InternalPost(); override;
+    function InternalPostResult(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
+      const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
     procedure InternalRefresh(); override;
     procedure InternalSetToRecord(Buffer: TRecordBuffer); override;
     function IsCursorOpen(): Boolean; override;
@@ -2244,6 +2248,7 @@ begin
   FIdentifierQuoter := '`';
   FLatestConnect := 0;
   FLib := nil;
+  FSQLParser := nil;
   FSyncThread := nil;
   FLibraryType := ltBuiltIn;
   FMariaDBVersion := 0;
@@ -2617,6 +2622,20 @@ begin
       repeat
         SyncExecute(SyncThread);
         SyncExecutingFirst(SyncThread);
+        if (KillThreadId > 0) then
+        begin
+          SyncExecuted(SyncThread);
+          if (SyncThread.State in [ssFirst, ssNext]) then
+          begin
+            SyncExecute(SyncThread);
+            if (SyncThread.State = ssExecutingFirst) then
+              SyncExecutingFirst(SyncThread)
+            else if (SyncThread.State = ssExecutingNext) then
+              SyncExecutingNext(SyncThread)
+            else
+              raise ERangeError.Create(SRangeError);
+          end;
+        end;
         SyncExecuted(SyncThread);
         while (SyncThread.State in [ssFirst, ssNext]) do
         begin
@@ -2961,6 +2980,9 @@ begin
     // Maybe we're using Asynchron. So the Events should be called after
     // thread execution in SyncDisconncted.
   end;
+
+  if (Value and not Assigned(SQLParser)) then
+    FSQLParser := TSQLParser.Create(MySQLVersion);
 end;
 
 procedure TMySQLConnection.SetDatabaseName(const ADatabaseName: string);
@@ -3381,6 +3403,7 @@ begin
     begin
       KillThreadId := 0;
       SyncThread.State := ssResult;
+      SyncHandledResult(SyncThread);
     end
     else if (SyncThread.ErrorCode > 0) then
     begin
@@ -3618,6 +3641,7 @@ end;
 
 procedure TMySQLConnection.SyncPing(const SyncThread: TSyncThread);
 begin
+
   if ((Lib.LibraryType <> ltHTTP) and Assigned(SyncThread.LibHandle)) then
     Lib.mysql_ping(SyncThread.LibHandle);
 end;
@@ -3631,28 +3655,11 @@ begin
   Assert(SyncThread.DataSet is TMySQLDataSet);
   DataSet := TMySQLDataSet(SyncThread.DataSet);
 
-  // Debug 2016-11-18
-  if (not Assigned(SyncThread.ResHandle)) then
-    raise ERangeError.Create(SRangeError);
-  // Debug 2016-11-27
-  if (not Assigned(SyncThread.DataSet)) then
-    raise ERangeError.Create(SRangeError);
-
   repeat
     if (SyncThread.Terminated) then
       LibRow := nil
     else
     begin
-      // Debug 2016-11-30
-      if (not Assigned(SyncThread.ResHandle)) then
-        raise ERangeError.Create(SRangeError);
-      // Debug 2016-11-30
-      if (not Assigned(SyncThread.DataSet)) then
-        raise ERangeError.Create(SRangeError);
-      // Debug 2016-12-07
-      if (not Assigned(DataSet)) then
-        raise ERangeError.Create(SRangeError);
-
       LibRow := Lib.mysql_fetch_row(SyncThread.ResHandle);
       if (Lib.mysql_errno(SyncThread.LibHandle) <> 0) then
       begin
@@ -6278,8 +6285,15 @@ end;
 
 procedure TMySQLDataSet.InternalPost();
 var
+  DescFieldName: string;
+  Field: TField;
+  FieldName: string;
   I: Integer;
+  J: Integer;
   SQL: string;
+  SQLFields: array of record Field: TField; Ascending: Boolean; end;
+  Pos: Integer;
+  PosDescFields: Integer;
   Success: Boolean;
   Update: Boolean;
 begin
@@ -6289,10 +6303,101 @@ begin
   begin
     Update := PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag = bfCurrent;
 
+    {$IFNDEF Debug}
+    SQL := '';
+    {$ELSE}
+    if (SortDef.Fields <> '') then
+    begin
+      if (not (Self is TMySQLTable)) then
+        SQL := CommandText
+      else
+        SQL := TMySQLTable(Self).SQLSelect(True);
+      if ((SQL = '') or not Connection.SQLParser.ParseSQL(PChar(SQL), Length(SQL))) then
+        SQL := ''
+      else
+      begin
+        SetLength(SQLFields, 0);
+
+        Pos := 1;
+        repeat
+          FieldName := ExtractFieldName(SortDef.Fields, Pos);
+          if (FieldName <> '') then
+          begin
+            Field := FieldByName(FieldName);
+            if (not Assigned(Field)) then
+              raise ERangeError.Create(SRangeError);
+            SetLength(SQLFields, Length(SQLFields) + 1);
+            SQLFields[Length(SQLFields) - 1].Field := Field;
+            SQLFields[Length(SQLFields) - 1].Ascending := True;
+
+            PosDescFields := 1;
+            repeat
+              DescFieldName := ExtractFieldName(SortDef.DescFields, PosDescFields);
+              if (FindField(DescFieldName) = Field) then
+                SQLFields[Length(SQLFields) - 1].Ascending := False;
+            until (DescFieldName = '');
+          end;
+        until (FieldName = '');
+
+        SQL := '';
+        for I := 0 to Length(SQLFields) - 2 do
+        begin
+          if (I > 0) then SQL := SQL + ' AND ';
+          SQL := SQL
+            + Connection.EscapeIdentifier(SQLFields[I].Field.FieldName)
+            + '='
+            + SQLFieldValue(SQLFields[I].Field, TRecordBuffer(PExternRecordBuffer(ActiveBuffer())));
+        end;
+        if (Length(SQLFields) > 1) then SQL := SQL + ' AND ';
+        SQL := SQL + Connection.EscapeIdentifier(SQLFields[Length(SQLFields) - 1].Field.FieldName);
+        if (SQLFields[Length(SQLFields) - 1].Ascending) then
+          SQL := SQL + '>='
+        else
+          SQL := SQL + '<=';
+        SQL := SQL + SQLFieldValue(SQLFields[Length(SQLFields) - 1].Field, TRecordBuffer(PExternRecordBuffer(ActiveBuffer())));
+
+        for I := 0 to Length(SQLFields) - 2 do
+        begin
+          SQL := SQL + ' OR ';
+
+          for J := 0 to Length(SQLFields) - 1 - I - 1 do
+          begin
+            SQL := SQL
+              + Connection.EscapeIdentifier(SQLFields[J].Field.FieldName)
+              + '='
+              + SQLFieldValue(SQLFields[J].Field, TRecordBuffer(PExternRecordBuffer(ActiveBuffer())));
+            SQL := SQL + ' AND ';
+          end;
+
+          SQL := SQL + Connection.EscapeIdentifier(SQLFields[(Length(SQLFields) - 1) - I].Field.FieldName);
+          if (SQLFields[(Length(SQLFields) - 1) - I].Ascending) then
+            SQL := SQL + '>'
+          else
+            SQL := SQL + '<';
+          SQL := SQL + SQLFieldValue(SQLFields[(Length(SQLFields) - 1) - I].Field, TRecordBuffer(PExternRecordBuffer(ActiveBuffer())));
+        end;
+
+//        SQL := 'Field1 >= NewValue';
+//        SQL := 'Field1 = NewValue' and 'Field2 >= NewValue'
+//          or 'Field1 > NewValue';
+//        SQL := 'Field1 = NewValue' and 'Field2 = NewValue' and 'Field3 >= NewValue'
+//          or 'Field1 = NewValue' and 'Field2 > NewValue'
+//          or 'Field1 > NewValue';
+//        SQL := 'Field1 = NewValue' and 'Field2 = NewValue' and 'Field3 = NewValue' and 'Field4 >= NewValue'
+//          or 'Field1 = NewValue' and 'Field2 = NewValue' and 'Field3 > NewValue'
+//          or 'Field1 = NewValue' and 'Field2 > NewValue'
+//          or 'Field1 > NewValue';
+
+        SQL := '';
+      end;
+      Connection.SQLParser.Clear();
+    end;
+    {$ENDIF}
+
     if (Update) then
-      SQL := SQLUpdate()
+      SQL := SQLUpdate() + SQL
     else
-      SQL := SQLInsert();
+      SQL := SQLInsert() + SQL;
 
     if (SQL = '') then
       Success := False
@@ -6302,7 +6407,7 @@ begin
         SQL := Connection.SQLUse(DatabaseName) + SQL;
       Connection.BeginSilent();
       try
-        Success := Connection.ExecuteSQL(SQL);
+        Success := Connection.ExecuteSQL(SQL, InternalPostResult);
         if (not Success) then
           raise EMySQLError.Create(Connection.ErrorMessage, Connection.ErrorCode, Connection)
         else if (Update and (Connection.RowsAffected = 0)) then
@@ -6336,6 +6441,18 @@ begin
       FreeMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData);
     PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
   end;
+end;
+
+function TMySQLDataSet.InternalPostResult(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
+  const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+var
+  Parse: TSQLParse;
+begin
+  Result := True;
+
+  if ((ErrorCode = 0) and SQLCreateParse(Parse, PChar(CommandText), Length(CommandText), Connection.MySQLVersion)) then
+    if (SQLParseKeyword(Parse, 'SELECT')) then
+      Write;
 end;
 
 procedure TMySQLDataSet.InternalRefresh();

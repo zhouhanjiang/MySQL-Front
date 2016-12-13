@@ -49,6 +49,7 @@
 			</DelphiCompile>
 			<DCCReference Include="MySQL\Source\MySQLClient.pas"/>
 			<DCCReference Include="MySQL\Source\MySQLConsts.pas"/>
+			<DCCReference Include="MySQL\Source\SQLParser.pas"/>
 			<DCCReference Include="MySQL\Source\MySQLDB.pas"/>
 			<DCCReference Include="MySQL\Source\HTTPTunnel.pas"/>
 			<DCCReference Include="MySQL\Source\SQLUtils.pas"/>
@@ -64,7 +65,6 @@
 			<DCCReference Include="uDeveloper.pas"/>
 			<DCCReference Include="uPreferences.pas"/>
 			<DCCReference Include="uSession.pas"/>
-			<DCCReference Include="uSQLParser.pas"/>
 			<DCCReference Include="uTools.pas"/>
 			<DCCReference Include="uURI.pas"/>
 			<DCCReference Include="uBase.pas"/>

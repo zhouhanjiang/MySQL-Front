@@ -992,11 +992,6 @@ end;
 //      DataFields.Add(IntToStr(DataFields.Count) + '=' + Log[I]);
 //    Log.Free();
 //  end;
-//
-//  EurekaExceptionRecord.CurrentModuleOptions.EMailSubject
-//    := AnsiString(SysUtils.LoadStr(1000) + ' ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor)
-//    + ' (Build: ' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + ')')
-//    + ' - Bug Report';
 //end;
 
 procedure TWWindow.EurekaLogExceptionNotify(ExceptionInfo: TEurekaExceptionInfo;
@@ -1063,12 +1058,16 @@ begin
 
       Report := Report + 'SQL Log:' + #13#10;
       Report := Report + StringOfChar('-', 72) + #13#10;
-      Report := Report + Sessions[I].Connection.DebugMonitor.CacheText;
+      Report := Report + Sessions[I].Connection.DebugMonitor.CacheText + #13#10;
     end;
 
     SendBugToDeveloper(Report);
 
-    ExceptionInfo.ReproduceText := Report;
+
+    ExceptionInfo.Options.EMailSubject
+      := SysUtils.LoadStr(1000) + ' ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor)
+      + ' (Build: ' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + ')'
+      + ' - Bug Report';
   end;
 end;
 {$ENDIF}

@@ -20,6 +20,7 @@ uses
   HTMLHelpViewer,
   MySQLClient in 'MySQL\Source\MySQLClient.pas',
   MySQLConsts in 'MySQL\Source\MySQLConsts.pas',
+  SQLParser in 'MySQL\Source\SQLParser.pas',
   MySQLDB in 'MySQL\Source\MySQLDB.pas',
   HTTPTunnel in 'MySQL\Source\HTTPTunnel.pas',
   SQLUtils in 'MySQL\Source\SQLUtils.pas',
@@ -38,7 +39,6 @@ uses
   {$ENDIF}
   uPreferences in 'uPreferences.pas',
   uSession in 'uSession.pas',
-  uSQLParser in 'uSQLParser.pas',
   uTools in 'uTools.pas',
   uURI in 'uURI.pas',
   uBase in 'uBase.pas',

@@ -6,8 +6,8 @@ uses
   SysUtils, Classes, Windows, SyncObjs,
   DB,
   acMYSQLSynProvider, acQBEventMetaProvider,
-  SQLUtils, MySQLDB, MySQLConsts,
-  uSQLParser, uPreferences;
+  SQLUtils, MySQLDB, MySQLConsts, SQLParser,
+  uPreferences;
 
 type
   TSItems = class;
@@ -1470,13 +1470,13 @@ type
     function GetCaption(): string;
     function GetCharset(): string;
     function GetCollation(): string;
+    function GetSQLParser(): TSQLParser; inline;
     function GetUserRights(): TSUserRight;
     function GetValid(): Boolean;
     procedure SetCreateDesktop(ACreateDesktop: TCreateDesktop);
     procedure VariableChange(const Connection: TMySQLConnection; const Name, NewValue: string);
   protected
     FLowerCaseTableNames: Byte;
-    FSQLParser: TSQLParser;
     ParseEndDate: TDateTime;
     UnparsableSQL: string;
     procedure MonitorLog(const Connection: TMySQLConnection; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
@@ -1548,7 +1548,7 @@ type
     property Processes: TSProcesses read FProcesses;
     property StartTime: TDateTime read FStartTime;
     property SQLMonitor: TMySQLMonitor read FSQLMonitor;
-    property SQLParser: TSQLParser read FSQLParser;
+    property SQLParser: TSQLParser read GetSQLParser;
     property SyntaxProvider: TacMYSQLSyntaxProvider read FSyntaxProvider;
     property User: TSUser read FUser;
     property UserRights: TSUserRight read GetUserRights;
@@ -10814,9 +10814,6 @@ procedure TSSession.ConnectChange(Sender: TObject; Connecting: Boolean);
 begin
   if (not Assigned(FEngines) and Connecting) then
   begin
-    if (not Assigned(SQLParser)) then
-      FSQLParser := TSQLParser.Create(Connection.MySQLVersion);
-
     if (not Assigned(FCollations) and (Connection.MySQLVersion >= 40100)) then FCollations := TSCollations.Create(Self);
     if (not Assigned(FFieldTypes)) then FFieldTypes := TSFieldTypes.Create(Self);
     if (not Assigned(FEngines)) then FEngines := TSEngines.Create(Self);
@@ -10889,7 +10886,6 @@ begin
   FLowerCaseTableNames := 0;
   FMetadataProvider := TacEventMetadataProvider.Create(nil);
   FPerformanceSchema := nil;
-  FSQLParser := nil;
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.MySQLVersion;
   FUser := nil;
@@ -11386,6 +11382,11 @@ begin
     Result := VariableByName('collation_server').Value
   else
     Result := '';
+end;
+
+function TSSession.GetSQLParser(): TSQLParser;
+begin
+  Result := Connection.SQLParser;
 end;
 
 function TSSession.GetUserRights(): TSUserRight;

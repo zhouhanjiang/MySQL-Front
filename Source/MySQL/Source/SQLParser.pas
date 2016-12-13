@@ -1,4 +1,4 @@
-﻿unit uSQLParser;
+﻿unit SQLParser;
 
 interface {********************************************************************}
 
@@ -14283,6 +14283,30 @@ begin
       SQLUnescape(Text, Length, @S[1], System.Length(S));
     Commands.Write(SQLEscape(S));
   end
+  else if (Token.UsageType = utNumeric) then
+  begin
+    Token.GetText(Text, Length);
+    while ((Length > 1) and (Text[0] = '0') and (Text[0] <> '.')) do
+      begin Text := @Text[1]; Dec(Length); end;
+    while ((Length > 0) and (Text[Length - 1] = '0')) do
+      Dec(Length);
+    if ((Length > 0) and CharInSet(Text[Length - 1], ['E', 'e'])) then
+      Dec(Length);
+    while ((Length > 0) and (Text[Length - 1] = '0')) do
+      Dec(Length);
+    if ((Length > 0) and (Text[Length - 1] = '.')) then
+      Dec(Length);
+    if ((Length = 0) or (Text[0] = '.')) then
+      Commands.Write('0');
+    Commands.Write(Text, Length);
+  end
+  else if (Token.UsageType = utInteger) then
+  begin
+    Token.GetText(Text, Length);
+    while ((Length > 1) and (Text[0] = '0')) do
+      begin Text := @Text[1]; Dec(Length); end;
+    Commands.Write(Text, Length);
+  end
   else
   begin
     Token.GetText(Text, Length);
@@ -22432,7 +22456,8 @@ function TSQLParser.ParseSelectStmtTableReference(): TOffset;
   begin
     if (IsTag(kiDUAL)) then
       Result := ParseTag(kiDUAL)
-    else if (IsTag(kiSELECT)) then
+    else if (IsTag(kiSELECT)
+      or IsSymbol(ttOpenBracket) and IsNextTag(1, kiSELECT)) then
       Result := ParseSelectStmtTableFactorSubquery()
     else if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType in ttIdents)) then
       Result := ParseSelectStmtTableFactor()

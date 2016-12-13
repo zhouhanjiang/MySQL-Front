@@ -23,6 +23,8 @@ type
     function CreateThreadStr(const Index, No: Integer; const DebugInfo: TEurekaDebugInfo; const TextLog: Boolean; const Session: THandle; const ExternalWCTSession: Boolean = False): String; override;
     function GetItemText(const AIndex: Integer): String; override;
     function GetStrings(): TStrings; override;
+  public
+    constructor Create(); override;
   end;
 
 
@@ -30,42 +32,36 @@ implementation {***************************************************************}
 
 uses
   SysUtils,
-  EStackTracing, ESysInfo, EInfoFormat, EThreadsManager, EConsts;
+  EStackTracing, ESysInfo, EInfoFormat, EThreadsManager, EConsts, EWCTSupport;
 
 { TEurekaStackFormatter *******************************************************}
 
-function IsAcceptableCallStackItem(const ACallStack: TEurekaBaseStackList; const AInd: Integer; const ADebugDetails: TEurekaDebugDetails; const AAllowedMethods, ADisabledMethods: DWORD): Boolean;
+function TStackFormatter.AcceptableCallStackItem(const AInd: Integer): Boolean;
 var
   Buffer: TEurekaDebugInfo;
   Item: PEurekaDebugInfo;
 begin
-  Item := ACallStack.GetItem(AInd, Buffer);
+  Item := CallStack.GetItem(AInd, Buffer);
 
-  // Is exception itself (a.k.a. FirstAddr)?
-  Result := Item.ErrorLine or
-            ((AInd = 0) and (Item.StackAddr = nil)) or // this is FirstAddr, but not marked as error line
-            ((AInd > 0) and (Item.StackAddr = nil) and (ACallStack.Items[AInd - 1].ThreadID <> Item.ThreadID)); // this is the same, but in another thread
-  if Result then    // always keep first line in any call stack
-    Exit;
+  Result := Item^.ErrorLine // Is exception itself (a.k.a. FirstAddr)?
+    or not Assigned(Item^.StackAddr) and ((AInd = 0) or (Item^.ThreadID <> CallStack.Items[AInd - 1].ThreadID)); // always keep first line in any call stack
 
-  // Second+ entries should be filtered upon details/methods
-  Result := (Item.Location.DebugDetail in ADebugDetails) and
-            (
-              (Item.Methods and TracerUndefinedMask <> 0) or
+  if (not Result) then
+  begin
+    // Second+ entries should be filtered upon details/methods
+    Result := (Item^.Location.DebugDetail in DebugDetails) and
               (
-                ((Item.Methods and AAllowedMethods) <> 0) and
-                ((Item.Methods and ADisabledMethods) = 0)
-              )
-            );
+                (Item^.Methods and TracerUndefinedMask <> 0) or
+                (
+                  ((Item^.Methods and AllowedMethods) <> 0) and
+                  ((Item^.Methods and DisabledMethods) = 0)
+                )
+              );
 
-  // For pointers into dynamic code blocks (outside of any module) - use return addresses only
-  if Result and (Item.Location.DebugDetail = ddNone) then
-    Result := Item.Location.Address <> Item.ReturnAddr;
-end;
-
-function TStackFormatter.AcceptableCallStackItem(const AInd: Integer): Boolean;
-begin
-  Result := IsAcceptableCallStackItem(CallStack, AInd, DebugDetails, AllowedMethods, DisabledMethods);
+    // For pointers into dynamic code blocks (outside of any module) - use return addresses only
+    if (Result and (Item^.Location.DebugDetail = ddNone)) then
+      Result := Item^.Location.Address <> Item^.ReturnAddr;
+  end;
 end;
 
 procedure TStackFormatter.CalculateLengths();
@@ -119,9 +115,19 @@ begin
   end;
 end;
 
+constructor TStackFormatter.Create();
+begin
+  inherited;
+
+  DebugDetails := [ddSourceCode];
+end;
+
 function TStackFormatter.CreateThreadStr(const Index, No: Integer; const DebugInfo: TEurekaDebugInfo; const TextLog: Boolean; const Session: THandle; const ExternalWCTSession: Boolean = False): String;
 var
   CallerAddress: Pointer;
+  DeadLock: Boolean;
+  FoundItems: TStrings;
+  I: Integer;
   Line1: string;
   Line2: string;
   ParentID: Cardinal;
@@ -129,28 +135,28 @@ var
   ThreadData: TEurekaThreadData;
   ThreadName: String;
 begin
-  if (not DebugInfo.RunningThread) then
-    Line1 := CaptionCallingThread
-  else if (DebugInfo.ErrorLine) then
-    Line1 := '*' + CaptionExceptionThread
+  if (not DebugInfo.ErrorLine) then
+    Line1 := ''
   else
-    Line1 := CaptionRunningThread;
+    Line1 := '*';
+  if (DebugInfo.ThreadID = MainThreadId) then
+    Line1 := Line1 + 'Main Thread';
 
   if (DebugInfo.ThreadID > 0) then
-    Line1 := Line1 + ', ' + CaptionThreadID + ': ' + IntToStr(DebugInfo.ThreadID);
+  begin
+    if (Line1 <> '') then Line1 := Line1 + ', ';
+    Line1 := Line1 + CaptionThreadID + ': ' + IntToStr(DebugInfo.ThreadID);
+  end;
 
   GetThreadInfo(DebugInfo.ThreadID, ParentID, ThreadClassName, ThreadName, CallerAddress);
   if (ParentID > 0) then
     Line1 := Line1 + ', ' + CaptionParentID + ': ' + IntToStr(ParentID);
 
-  Line2 := '';
-  if (DebugInfo.ThreadName <> '') then
-    Line2 := Line2 + CaptionThreadName + ': ' + DebugInfo.ThreadName;
-  if (DebugInfo.ThreadClass <> '') then
-  begin
-    if (Line2 <> '') then Line2 := Line2 + ', ';
-    Line2 := Line2 + CaptionThreadClass + ': ' + DebugInfo.ThreadClass;
-  end;
+
+  if (DebugInfo.ThreadClass = '') then
+    Line2 := ''
+  else
+    Line2 := CaptionThreadClass + ': ' + DebugInfo.ThreadClass;
 
   if (Line2 <> '') then
   begin
@@ -168,11 +174,19 @@ begin
     end;
   end;
 
-  Result := '';
-  if (Line1 <> '') then
-    Result := Result + Line1 + #13#10;
+  Result := Line1 + #13#10;
   if (Line2 <> '') then
     Result := Result + Line2 + #13#10;
+
+  FoundItems := TStringList.Create();
+  if (TraverseThread(Session, DebugInfo.ThreadID, FoundItems, DeadLock)) then
+  begin
+    if (DeadLock) then
+      Result := Result + CaptionDeadLockDetected + #13#10;
+    for I := 0 to FoundItems.Count - 1 do
+      Result := Result + FoundItems[I] + #13#10;
+  end;
+  FoundItems.Free();
 end;
 
 function TStackFormatter.FormatLine(const AMethods, ADetails, AStackAddress, AAddress, AName, AOffset, AUnit, AClass, AProcedure, ALine: String): String;

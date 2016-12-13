@@ -35,7 +35,7 @@ procedure Register();
 implementation {***************************************************************}
 
 uses
-  StdActns, StdCtrls, Math, Graphics, SysConst;
+  StdActns, StdCtrls, Math;
 
 procedure Register();
 begin
@@ -88,14 +88,8 @@ end;
 
 procedure TTreeView_Ext.KeyDown(var Key: Word; Shift: TShiftState);
 begin
-  if (ssShift in Shift) then
-  begin
+  if (Key = VK_SHIFT) then
     ShiftDownSelected := Selected;
-
-    // Debug 2016-11-26
-    if (not (TObject(ShiftDownSelected) is TTreeNode)) then
-      raise ERangeError.Create(SRangeError);
-  end;
 
   inherited;
 end;
@@ -104,16 +98,13 @@ procedure TTreeView_Ext.KeyUp(var Key: Word; Shift: TShiftState);
 begin
   inherited;
 
-  if (ssShift in Shift) then
+  if (Key = VK_SHIFT) then
     ShiftDownSelected := nil;
 end;
 
 procedure TTreeView_Ext.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
-  B: Boolean; // Debug 2016-11-23
   Child: TTreeNode;
-  Found: Boolean; // Debug 2016-12-08
-  I: Integer; // Debug 2016-12-08
   Node: TTreeNode;
   NodeIndex: Integer;
   OldSelectedIndex: Integer;
@@ -125,37 +116,7 @@ begin
 
   inherited;
 
-  B := MultiSelect;
-  B := B and Assigned(ShiftDownSelected);
-  B := B and Assigned(Node);
-
-  if (B) then
-  begin
-    Found := False;
-    for I := 0 to Items.Count - 1 do
-      if (Items[I] = ShiftDownSelected) then
-        Found := True;
-    if (not Found) then
-      raise ERangeError.Create(SRangeError);
-  end;
-
-  // Debug 2016-11-25
-  if (B) then
-    if (Assigned(ShiftDownSelected)) then
-      if (not (TObject(ShiftDownSelected) is TTreeNode)) then
-        if (TObject(ShiftDownSelected) is TObject) then
-          raise ERangeError.Create(SRangeError + ' - ' + TObject(ShiftDownSelected).ClassName)
-        else
-          raise ERangeError.Create(SRangeError);
-  if (B) then
-    if (not (TObject(Node) is TTreeNode)) then
-      raise ERangeError.Create(SRangeError);
-
-  B := B and Assigned(Node.Parent); // Debug 2016-11-25
-  B := B and (ShiftDownSelected.Parent = Node.Parent);
-  B := B and (Shift = [ssShift, ssLeft]);
-
-  if (B) then
+  if (MultiSelect and Assigned(Node) and Assigned(ShiftDownSelected) and (ShiftDownSelected.Parent = Node.Parent) and (Shift = [ssShift, ssLeft])) then
   begin
     OldSelectedIndex := ShiftDownSelected.Parent.IndexOf(ShiftDownSelected);
     NodeIndex := Node.Parent.IndexOf(Node);
