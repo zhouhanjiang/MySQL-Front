@@ -1001,19 +1001,41 @@ var
   Report: string;
 begin
   for I := 0 to FSessions.Count - 1 do
-    try TFSession(FSessions[I]).CrashRescue(); except end;
-  try Accounts.Save(); except end;
-  try Preferences.Save(); except end;
-
-  if ((OnlineProgramVersion < 0) and IsConnectedToInternet()) then
-    if (Assigned(CheckOnlineVersionThread)) then
-      CheckOnlineVersionThread.WaitFor()
-    else
-    begin
-      CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
-      CheckOnlineVersionThread.Execute();
-      FreeAndNil(CheckOnlineVersionThread);
+    try
+      TFSession(FSessions[I]).CrashRescue();
+    except
+      on E: Exception do
+        try SendBugToDeveloper('EurekaLogExceptionNotify Error 1!' + #13#10#13#10 + E.Message); except end;
     end;
+
+  try
+    Accounts.Save();
+  except
+    on E: Exception do
+      try SendBugToDeveloper('EurekaLogExceptionNotify Error 2!' + #13#10#13#10 + E.Message); except end;
+  end;
+
+  try
+    Preferences.Save();
+  except
+    on E: Exception do
+      try SendBugToDeveloper('EurekaLogExceptionNotify Error 3!' + #13#10#13#10 + E.Message); except end;
+  end;
+
+  try
+    if ((OnlineProgramVersion < 0) and IsConnectedToInternet()) then
+      if (Assigned(CheckOnlineVersionThread)) then
+        CheckOnlineVersionThread.WaitFor()
+      else
+      begin
+        CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
+        CheckOnlineVersionThread.Execute();
+        FreeAndNil(CheckOnlineVersionThread);
+      end;
+  except
+    on E: Exception do
+      try SendBugToDeveloper('EurekaLogExceptionNotify Error 4!' + #13#10#13#10 + E.Message); except end;
+  end;
 
   Handle := Preferences.Version >= OnlineProgramVersion;
 
@@ -1022,52 +1044,64 @@ begin
     if (Preferences.ObsoleteVersion < Preferences.Version) then
       Preferences.ObsoleteVersion := Preferences.Version;
 
-
-    Report := LoadStr(1000) + ' ' + Preferences.VersionStr + #13#10;
-    Report := Report + #13#10;
-    if (not (TObject(ExceptionInfo.ExceptionObject) is Exception)) then
-    begin
-      Report := Report + ExceptionInfo.ExceptionClass + ':' + #13#10;
-      Report := Report + ExceptionInfo.ExceptionMessage + #13#10;
-    end
-    else
-    begin
-      Report := Report + Exception(ExceptionInfo.ExceptionObject).ClassName + ':' + #13#10;
-      Report := Report + Exception(ExceptionInfo.ExceptionObject).Message + #13#10;
-    end;
-    Report := Report + #13#10;
-
-    ExceptionInfo.CallStack.Formatter := TStackFormatter.Create();
-    Report := Report + ExceptionInfo.CallStack.ToString;
-
-    if (EditorCommandText <> '') then
-    begin
+    Report := '';
+    try
+      Report := LoadStr(1000) + ' ' + Preferences.VersionStr + #13#10;
       Report := Report + #13#10;
-      Report := Report + 'EditorCommandText: ' + SQLEscapeBin(EditorCommandText, True) + #13#10;
-    end;
-
-    for I := 0 to Sessions.Count - 1 do
-    begin
+      if (not (TObject(ExceptionInfo.ExceptionObject) is Exception)) then
+      begin
+        Report := Report + ExceptionInfo.ExceptionClass + ':' + #13#10;
+        Report := Report + ExceptionInfo.ExceptionMessage + #13#10;
+      end
+      else
+      begin
+        Report := Report + Exception(ExceptionInfo.ExceptionObject).ClassName + ':' + #13#10;
+        Report := Report + Exception(ExceptionInfo.ExceptionObject).Message + #13#10;
+      end;
       Report := Report + #13#10;
-      Report := Report + 'MySQL:' + #13#10;
-      Report := Report + StringOfChar('-', Length('Version: ' + Sessions[I].Connection.ServerVersionStr)) + #13#10;
-      Report := Report + 'Version: ' + Sessions[I].Connection.ServerVersionStr;
-      if (Sessions[I].Connection.LibraryType <> MySQLDB.ltBuiltIn) then
-        Report := Report + ' (LibraryType: ' + IntToStr(Ord(Sessions[I].Connection.LibraryType)) + ')';
-      Report := Report + #13#10#13#10;
 
-      Report := Report + 'SQL Log:' + #13#10;
-      Report := Report + StringOfChar('-', 72) + #13#10;
-      Report := Report + Sessions[I].Connection.DebugMonitor.CacheText + #13#10;
+      ExceptionInfo.CallStack.Formatter := TStackFormatter.Create();
+      Report := Report + ExceptionInfo.CallStack.ToString;
+
+      if (EditorCommandText <> '') then
+      begin
+        Report := Report + #13#10;
+        Report := Report + 'EditorCommandText: ' + SQLEscapeBin(EditorCommandText, True) + #13#10;
+      end;
+
+      for I := 0 to Sessions.Count - 1 do
+      begin
+        Report := Report + #13#10;
+        Report := Report + 'MySQL:' + #13#10;
+        Report := Report + StringOfChar('-', Length('Version: ' + Sessions[I].Connection.ServerVersionStr)) + #13#10;
+        Report := Report + 'Version: ' + Sessions[I].Connection.ServerVersionStr;
+        if (Sessions[I].Connection.LibraryType <> MySQLDB.ltBuiltIn) then
+          Report := Report + ' (LibraryType: ' + IntToStr(Ord(Sessions[I].Connection.LibraryType)) + ')';
+        Report := Report + #13#10#13#10;
+
+        Report := Report + 'SQL Log:' + #13#10;
+        Report := Report + StringOfChar('-', 72) + #13#10;
+        Report := Report + Sessions[I].Connection.DebugMonitor.CacheText + #13#10;
+      end;
+    except
+      on E: Exception do
+        try SendBugToDeveloper('EurekaLogExceptionNotify Error 5!' + #13#10#13#10 + E.Message); except end;
     end;
 
-    SendBugToDeveloper(Report);
+    try
+      SendBugToDeveloper(Report);
+    except
+    end;
 
-
-    ExceptionInfo.Options.EMailSubject
-      := SysUtils.LoadStr(1000) + ' ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor)
-      + ' (Build: ' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + ')'
-      + ' - Bug Report';
+    try
+      ExceptionInfo.Options.EMailSubject
+        := SysUtils.LoadStr(1000) + ' ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor)
+        + ' (Build: ' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + ')'
+        + ' - Bug Report';
+    except
+      on E: Exception do
+        try SendBugToDeveloper('EurekaLogExceptionNotify Error 6!' + #13#10#13#10 + E.Message); except end;
+    end;
   end;
 end;
 {$ENDIF}

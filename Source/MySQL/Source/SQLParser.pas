@@ -1598,13 +1598,13 @@ type
         {$IFDEF Debug}
         FIndex: Integer;
         {$ENDIF}
+        FIsUsed: Boolean;
         FKeywordIndex: TWordList.TIndex;
         FLength: Integer;
         FOperatorType: TOperatorType;
         FText: PChar;
         FTokenType: TTokenType;
         FUsageType: TUsageType;
-        Options: set of (oHidden, oUsed);
         class function Create(const AParser: TSQLParser;
           const AText: PChar; const ALength: Integer;
           const ATokenType: TTokenType; const AOperatorType: TOperatorType;
@@ -1613,11 +1613,9 @@ type
         function GetAsString(): string;
         function GetDbIdentType(): TDbIdentType;
         function GetDefinerToken(): PToken;
-        function GetHidden(): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
         {$IFNDEF Debug}
         function GetIndex(): Integer;
         {$ENDIF}
-        function GetIsUsed(): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
         function GetNextToken(): PToken;
         function GetNextTokenAll(): PToken;
         function GetOffset(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
@@ -1625,13 +1623,12 @@ type
         function GetPos(): Integer; {$IFNDEF Debug} inline; {$ENDIF}
         function GetText(): string; overload;
         procedure GetText(out Text: PChar; out Length: Integer); overload;
-        procedure SetHidden(AHidden: Boolean); {$IFNDEF Debug} inline; {$ENDIF}
         {$IFDEF Debug}
         property Index: Integer read FIndex;
         {$ELSE}
         property Index: Integer read GetIndex; // VERY slow.
         {$ENDIF}
-        property IsUsed: Boolean read GetIsUsed;
+        property IsUsed: Boolean read FIsUsed;
         property KeywordIndex: TWordList.TIndex read FKeywordIndex;
         property Length: Integer read FLength;
         property Offset: TOffset read GetOffset;
@@ -1640,7 +1637,6 @@ type
         property AsString: string read GetAsString;
         property DbIdentType: TDbIdentType read GetDbIdentType;
         property DefinerToken: PToken read GetDefinerToken;
-        property Hidden: Boolean read GetHidden write SetHidden;
         property NextToken: PToken read GetNextToken;
         property NextTokenAll: PToken read GetNextTokenAll;
         property OperatorType: TOperatorType read FOperatorType;
@@ -7062,12 +7058,10 @@ type
     type
       TFileType = (ftSQL, ftFormattedSQL, ftDebugHTML);
 
-    function AddDatabaseName(const DatabaseName: string): string;
     procedure Clear();
     constructor Create(const AMySQLVersion: Integer = 0);
     destructor Destroy(); override;
     function FormatSQL(): string;
-    function GetSQL(): string;
     function LoadFromFile(const Filename: string): Boolean;
     function ParseSQL(const SQL: PChar; const Length: Integer; const UseCompletionList: Boolean = False): Boolean; overload;
     function ParseSQL(const Text: string; const AUseCompletionList: Boolean = False): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
@@ -7086,6 +7080,12 @@ type
     property Keywords: string read GetKeywords write SetKeywords;
     property MySQLVersion: Integer read FMySQLVersion;
   end;
+
+function AddDatabaseName(const Stmt: TSQLParser.PStmt; const DatabaseName: string): string;
+function ExpandWhereClause(const Stmt: TSQLParser.PStmt; const WhereClause: string): string;
+function RemoveDatabaseName(const Stmt: TSQLParser.PStmt; const DatabaseName: string; const CaseSensitive: Boolean = False): string;
+function RemoveTableName(const Stmt: TSQLParser.PStmt; const TableName: string; const CaseSensitive: Boolean = False): string; overload;
+function ReplaceLimit(const Stmt: TSQLParser.PStmt; const Offset, Limit: Integer): string;
 
 const
   PE_Success = 0; // No error
@@ -8133,15 +8133,13 @@ begin
     {$IFDEF Debug}
     FIndex := AIndex;
     {$ENDIF}
+    FIsUsed := AIsUsed;
     FKeywordIndex := AKeywordIndex;
     FOperatorType := AOperatorType;
     FLength := ALength;
     FText := AText;
     FTokenType := ATokenType;
     FUsageType := utUnknown;
-    Options := [];
-    if (AIsUsed) then
-      Include(Options, oUsed);
   end;
 end;
 
@@ -8246,11 +8244,6 @@ begin
     Result := Parser.TokenPtr(PDbIdent(Heritage.ParentNode)^.FDefinerToken);
 end;
 
-function TSQLParser.TToken.GetHidden(): Boolean;
-begin
-  Result := oHidden in Options;
-end;
-
 {$IFNDEF Debug}
 function TSQLParser.TToken.GetIndex(): Integer;
 var
@@ -8265,11 +8258,6 @@ begin
   end;
 end;
 {$ENDIF}
-
-function TSQLParser.TToken.GetIsUsed(): Boolean;
-begin
-  Result := oUsed in Options;
-end;
 
 function TSQLParser.TToken.GetNextToken(): PToken;
 var
@@ -8331,11 +8319,6 @@ procedure TSQLParser.TToken.GetText(out Text: PChar; out Length: Integer);
 begin
   Text := FText;
   Length := FLength;
-end;
-
-procedure TSQLParser.TToken.SetHidden(AHidden: Boolean);
-begin
-  Include(Options, oHidden);
 end;
 
 { TSQLParser.TRange ***********************************************************}
@@ -11744,45 +11727,6 @@ end;
 
 { TSQLParser ******************************************************************}
 
-function TSQLParser.AddDatabaseName(const DatabaseName: string): string;
-var
-  Length: Integer;
-  Text: PChar;
-  Token: PToken;
-begin
-  if (not Assigned(Root)) then
-    Result := ''
-  else
-  begin
-    Commands := TFormatBuffer.Create();
-
-    Token := Root^.FirstTokenAll;
-    while (Assigned(Token)) do
-    begin
-      if (not Token^.Hidden) then
-      begin
-        if ((Token^.DbIdentType in [ditTable, ditProcedure, ditFunction, ditTrigger, ditEvent])
-          and (not Assigned(Token^.ParentNode) or (Token^.ParentNode^.NodeType = ntDbIdent) and not Assigned(PDbIdent(Token^.ParentNode)^.DatabaseIdent))) then
-        begin
-          if (AnsiQuotes) then
-            Commands.Write(SQLEscape(DatabaseName, '"'))
-          else
-            Commands.Write(SQLEscape(DatabaseName, '`'));
-          Commands.Write('.');
-        end;
-        Token^.GetText(Text, Length);
-        Commands.Write(Text, Length);
-      end;
-
-      Token := Token^.NextTokenAll;
-    end;
-
-    Result := Commands.Read();
-
-    Commands.Free(); Commands := nil;
-  end;
-end;
-
 function TSQLParser.ApplyCurrentToken(const AUsageType: TUsageType): TOffset;
 begin
   Result := CurrentToken;
@@ -13314,7 +13258,7 @@ procedure TSQLParser.FormatNode(const Node: PNode; const Separator: TSeparatorTy
   end;
 
 begin
-  if (Assigned(Node) and ((Node^.NodeType <> ntToken) or not PToken(Node)^.Hidden)) then
+  if (Assigned(Node)) then
   begin
     case (Separator) of
       stReturnBefore: Commands.WriteReturn();
@@ -14546,36 +14490,6 @@ begin
     Result := nil
   else
     Result := PRoot(NodePtr(FRoot));
-end;
-
-function TSQLParser.GetSQL(): string;
-var
-  Length: Integer;
-  Text: PChar;
-  Token: PToken;
-begin
-  if (not Assigned(Root)) then
-    Result := ''
-  else
-  begin
-    Commands := TFormatBuffer.Create();
-
-    Token := Root^.FirstTokenAll;
-    while (Assigned(Token)) do
-    begin
-      if (not Token^.Hidden) then
-      begin
-        Token^.GetText(Text, Length);
-        Commands.Write(Text, Length);
-      end;
-
-      Token := Token^.NextTokenAll;
-    end;
-
-    Result := Commands.Read();
-
-    Commands.Free(); Commands := nil;
-  end;
 end;
 
 function TSQLParser.GetToken(const Index: Integer): TOffset;
@@ -23755,7 +23669,7 @@ begin
       raise Exception.Create(E.Message + ' SQL: ' + StrPas(SQL));
   end;
 
-  Result := (FirstError.Code = PE_Success) and Assigned(FirstStmt);
+  Result := (FirstError.Code = PE_Success);
 end;
 
 function TSQLParser.ParseSQL(const Text: string; const AUseCompletionList: Boolean = False): Boolean;
@@ -27419,6 +27333,147 @@ begin
   Assert((0 < Token) and (Token < Nodes.UsedSize) and (NodePtr(Token)^.NodeType = ntToken));
 
   Result := PToken(@Nodes.Mem[Token]);
+end;
+
+{******************************************************************************}
+
+function AddDatabaseName(const Stmt: TSQLParser.PStmt; const DatabaseName: string): string;
+var
+  Length: Integer;
+  Text: PChar;
+  Token: TSQLParser.PToken;
+begin
+  if (not Assigned(Stmt)) then
+    Result := ''
+  else
+  begin
+    Stmt^.Parser.Commands := TSQLParser.TFormatBuffer.Create();
+
+    Token := Stmt^.FirstToken;
+    while (Assigned(Token)) do
+    begin
+      if ((Token^.DbIdentType in [ditTable, ditProcedure, ditFunction, ditTrigger, ditEvent])
+        and (not Assigned(Token^.ParentNode) or (Token^.ParentNode^.NodeType = ntDbIdent) and not Assigned(TSQLParser.PDbIdent(Token^.ParentNode)^.DatabaseIdent))) then
+      begin
+        if (Stmt^.Parser.AnsiQuotes) then
+          Stmt^.Parser.Commands.Write(SQLEscape(DatabaseName, '"'))
+        else
+          Stmt^.Parser.Commands.Write(SQLEscape(DatabaseName, '`'));
+        Stmt^.Parser.Commands.Write('.');
+      end;
+      Token^.GetText(Text, Length);
+      Stmt^.Parser.Commands.Write(Text, Length);
+
+      Token := Token^.NextTokenAll;
+    end;
+
+    Result := Stmt^.Parser.Commands.Read();
+
+    Stmt^.Parser.Commands.Free(); Stmt^.Parser.Commands := nil;
+  end;
+end;
+
+function ExpandWhereClause(const Stmt: TSQLParser.PStmt; const WhereClause: string): string;
+begin
+
+end;
+
+function RemoveDatabaseName(const Stmt: TSQLParser.PStmt; const DatabaseName: string; const CaseSensitive: Boolean = False): string;
+type
+  Tstrcmp = function (lpString1, lpString2: PWideChar): Integer; stdcall;
+var
+  Length: Integer;
+  Text: PChar;
+  Token: TSQLParser.PToken;
+  strcmp: Tstrcmp;
+begin
+  if (not Assigned(Stmt)) then
+    Result := ''
+  else
+  begin
+    if (CaseSensitive) then
+      strcmp := lstrcmp
+    else
+      strcmp := lstrcmpi;
+
+    Stmt^.Parser.Commands := TSQLParser.TFormatBuffer.Create();
+
+    Token := Stmt^.FirstToken;
+    while (Assigned(Token)) do
+    begin
+      if ((Token^.DbIdentType = ditDatabase)
+        and Assigned(Token^.NextToken) and (Token^.NextToken^.TokenType = ttDot)
+        and (strcmp(PChar(Token^.AsString), PChar(DatabaseName)) = 0)) then
+        Token := Token^.NextToken
+      else
+      begin
+        Token^.GetText(Text, Length);
+        Stmt^.Parser.Commands.Write(Text, Length);
+      end;
+
+      if (Token = Stmt^.LastToken) then
+        Token := nil
+      else
+        Token := Token^.NextToken;
+    end;
+
+    Result := Stmt^.Parser.Commands.Read();
+
+    Stmt^.Parser.Commands.Free(); Stmt^.Parser.Commands := nil;
+  end;
+end;
+
+function RemoveTableName(const Stmt: TSQLParser.PStmt; const TableName: string; const CaseSensitive: Boolean = False): string;
+type
+  Tstrcmp = function (lpString1, lpString2: PWideChar): Integer; stdcall;
+var
+  Length: Integer;
+  Text: PChar;
+  Token: TSQLParser.PToken;
+  PreviousToken: TSQLParser.PToken;
+  strcmp: Tstrcmp;
+begin
+  if (not Assigned(Stmt)) then
+    Result := ''
+  else
+  begin
+    if (CaseSensitive) then
+      strcmp := lstrcmp
+    else
+      strcmp := lstrcmpi;
+
+    Stmt^.Parser.Commands := TSQLParser.TFormatBuffer.Create();
+
+    Token := Stmt^.FirstToken; PreviousToken := nil;
+    while (Assigned(Token)) do
+    begin
+      if (not Assigned(PreviousToken) or (PreviousToken.TokenType <> ttDot)
+        and (Token^.DbIdentType = ditTable)
+        and Assigned(Token^.NextToken) and (Token^.NextToken^.TokenType = ttDot)
+        and (strcmp(PChar(Token^.AsString), PChar(TableName)) = 0)) then
+        Token := Token^.NextToken
+      else
+      begin
+        Token^.GetText(Text, Length);
+        Stmt^.Parser.Commands.Write(Text, Length);
+      end;
+
+      PreviousToken := Token;
+      if (Token = Stmt^.LastToken) then
+        Token := nil
+      else
+        Token := Token^.NextToken;
+    end;
+
+    Result := Stmt^.Parser.Commands.Read();
+
+    Stmt^.Parser.Commands.Free(); Stmt^.Parser.Commands := nil;
+  end;
+end;
+
+function ReplaceLimit(const Stmt: TSQLParser.PStmt; const Offset, Limit: Integer): string;
+begin
+
 end;
 
 {$IFDEF Debug}

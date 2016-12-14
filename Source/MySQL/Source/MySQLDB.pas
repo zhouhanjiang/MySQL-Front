@@ -4601,12 +4601,61 @@ begin
   Result := Result or not Assigned(LibRow^[FieldNo - 1]);
 end;
 
+// Debug 2016-12-14
+function GetMySQLText(const Field: TField): string;
+var
+  Data: string;
+  I: Integer;
+  LibLengths: MYSQL_LENGTHS;
+  LibRow: MYSQL_ROW;
+  Msg: string;
+  SQL: string;
+begin
+  LibRow := TMySQLQuery(Field.DataSet).LibRow;
+  LibLengths := TMySQLQuery(Field.DataSet).LibLengths;
+
+  try
+    Result := TMySQLQuery(Field.DataSet).Connection.LibDecode(LibRow^[Field.FieldNo - 1], LibLengths^[Field.FieldNo - 1]);
+  except
+    SetString(Data, LibRow^[Field.FieldNo - 1], LibLengths^[Field.FieldNo - 1]);
+    if (Field.DataSet is TMySQLTable) then
+      SQL := TMySQLTable(Field.DataSet).SQLSelect()
+    else
+      SQL := TMySQLQuery(Field.DataSet).CommandText;
+    Msg := 'Error while decoding data from the database server.' + #10#10
+      + 'SQL query: ' + SQL + #10
+      + 'Field: ' + Field.FieldName + #10
+      + 'Raw data: ' + Data + #10
+      + 'Hex data: ' + SQLEscapeBin(LibRow^[Field.FieldNo - 1], LibLengths^[Field.FieldNo - 1], True) + #10
+      + 'Character set: ' + TMySQLQuery(Field.DataSet).Connection.Charset + #10
+      + 'Windows codepage: '  + IntToStr(TMySQLQuery(Field.DataSet).Connection.CodePage) + #10
+      + 'Connection type: ' + IntToStr(Ord(TMySQLQuery(Field.DataSet).Connection.LibraryType)) + #10;
+
+    for I := 0 to Field.DataSet.FieldCount - 1 do
+      if (Field.DataSet.Fields[I].IsIndexField) then
+      begin
+        try
+          Msg := Msg + Field.DataSet.Fields[I].FieldName + ': ';
+        except
+          Msg := Msg + '???: ';
+        end;
+        try
+          Msg := Msg + Field.DataSet.Fields[I].AsString + #10;
+        finally
+          Msg := Msg + '???' + #10;
+        end;
+      end;
+
+    raise ERangeError.Create(Trim(Msg));
+  end;
+end;
+
 procedure TMySQLWideMemoField.GetText(var Text: string; DisplayText: Boolean);
 begin
   if (IsNull) then
     Text := ''
   else
-    Text := TMySQLQuery(DataSet).Connection.LibDecode(TMySQLQuery(DataSet).LibRow^[FieldNo - 1], TMySQLQuery(DataSet).LibLengths^[FieldNo - 1]);
+    Text := GetMySQLText(Self);
 end;
 
 procedure TMySQLWideMemoField.SetAsString(const Value: string);
@@ -4654,56 +4703,11 @@ begin
 end;
 
 procedure TMySQLWideStringField.GetText(var Text: string; DisplayText: Boolean);
-var
-  Data: string;
-  I: Integer;
-  LibLengths: MYSQL_LENGTHS;
-  LibRow: MYSQL_ROW;
-  Msg: string;
-  SQL: string;
 begin
   if (IsNull) then
     Text := ''
   else
-  begin
-    LibRow := TMySQLQuery(DataSet).LibRow;
-    LibLengths := TMySQLQuery(DataSet).LibLengths;
-
-    try
-      Text := TMySQLQuery(DataSet).Connection.LibDecode(LibRow^[FieldNo - 1], LibLengths^[FieldNo - 1]);
-    except
-      SetString(Data, LibRow^[FieldNo - 1], LibLengths^[FieldNo - 1]);
-      if (DataSet is TMySQLTable) then
-        SQL := TMySQLTable(DataSet).SQLSelect()
-      else
-        SQL := TMySQLQuery(DataSet).CommandText;
-      Msg := 'Error while decoding data from the database server.' + #10#10
-        + 'SQL query: ' + SQL + #10
-        + 'Field: ' + FieldName + #10
-        + 'Raw data: ' + Data + #10
-        + 'Hex data: ' + SQLEscapeBin(LibRow^[FieldNo - 1], LibLengths^[FieldNo - 1], True) + #10
-        + 'Character set: ' + TMySQLQuery(DataSet).Connection.Charset + #10
-        + 'Windows codepage: '  + IntToStr(TMySQLQuery(DataSet).Connection.CodePage) + #10
-        + 'Connection type: ' + IntToStr(Ord(TMySQLQuery(DataSet).Connection.LibraryType)) + #10;
-
-      for I := 0 to DataSet.FieldCount - 1 do
-        if (DataSet.Fields[I].IsIndexField) then
-        begin
-          try
-            Msg := Msg + DataSet.Fields[I].FieldName + ': ';
-          except
-            Msg := Msg + '???: ';
-          end;
-          try
-            Msg := Msg + DataSet.Fields[I].AsString + #10;
-          finally
-            Msg := Msg + '???' + #10;
-          end;
-        end;
-
-      raise ERangeError.Create(Trim(Msg));
-    end;
-  end;
+    Text := GetMySQLText(Self);
 end;
 
 procedure TMySQLWideStringField.SetAsDateTime(Value: TDateTime);
@@ -6296,6 +6300,7 @@ var
   PosDescFields: Integer;
   Success: Boolean;
   Update: Boolean;
+  WhereClause: string;
 begin
   if (CachedUpdates) then
     Success := True
@@ -6311,7 +6316,7 @@ begin
       if (not (Self is TMySQLTable)) then
         SQL := CommandText
       else
-        SQL := TMySQLTable(Self).SQLSelect(True);
+        SQL := TMySQLTable(Self).SQLSelect();
       if ((SQL = '') or not Connection.SQLParser.ParseSQL(PChar(SQL), Length(SQL))) then
         SQL := ''
       else
@@ -6339,54 +6344,48 @@ begin
           end;
         until (FieldName = '');
 
-        SQL := '';
+        WhereClause := '';
         for I := 0 to Length(SQLFields) - 2 do
         begin
-          if (I > 0) then SQL := SQL + ' AND ';
-          SQL := SQL
+          if (I > 0) then WhereClause := WhereClause + ' AND ';
+          WhereClause := WhereClause
             + Connection.EscapeIdentifier(SQLFields[I].Field.FieldName)
             + '='
             + SQLFieldValue(SQLFields[I].Field, TRecordBuffer(PExternRecordBuffer(ActiveBuffer())));
         end;
-        if (Length(SQLFields) > 1) then SQL := SQL + ' AND ';
-        SQL := SQL + Connection.EscapeIdentifier(SQLFields[Length(SQLFields) - 1].Field.FieldName);
+        if (Length(SQLFields) > 1) then WhereClause := WhereClause + ' AND ';
+        WhereClause := WhereClause + Connection.EscapeIdentifier(SQLFields[Length(SQLFields) - 1].Field.FieldName);
         if (SQLFields[Length(SQLFields) - 1].Ascending) then
-          SQL := SQL + '>='
+          WhereClause := WhereClause + '>='
         else
-          SQL := SQL + '<=';
-        SQL := SQL + SQLFieldValue(SQLFields[Length(SQLFields) - 1].Field, TRecordBuffer(PExternRecordBuffer(ActiveBuffer())));
+          WhereClause := WhereClause + '<=';
+        WhereClause := WhereClause + SQLFieldValue(SQLFields[Length(SQLFields) - 1].Field, TRecordBuffer(PExternRecordBuffer(ActiveBuffer())));
 
-        for I := 0 to Length(SQLFields) - 2 do
+        for I := 0 to Length(SQLFields) - 1 - 1 do
         begin
-          SQL := SQL + ' OR ';
+          WhereClause := WhereClause + ' OR ';
 
           for J := 0 to Length(SQLFields) - 1 - I - 1 do
           begin
-            SQL := SQL
+            WhereClause := WhereClause
               + Connection.EscapeIdentifier(SQLFields[J].Field.FieldName)
               + '='
               + SQLFieldValue(SQLFields[J].Field, TRecordBuffer(PExternRecordBuffer(ActiveBuffer())));
-            SQL := SQL + ' AND ';
+            WhereClause := WhereClause + ' AND ';
           end;
 
-          SQL := SQL + Connection.EscapeIdentifier(SQLFields[(Length(SQLFields) - 1) - I].Field.FieldName);
-          if (SQLFields[(Length(SQLFields) - 1) - I].Ascending) then
-            SQL := SQL + '>'
+          WhereClause := WhereClause + Connection.EscapeIdentifier(SQLFields[Length(SQLFields) - 1 - I].Field.FieldName);
+          if (SQLFields[Length(SQLFields) - 1 - I].Ascending) then
+            WhereClause := WhereClause + '>'
           else
-            SQL := SQL + '<';
-          SQL := SQL + SQLFieldValue(SQLFields[(Length(SQLFields) - 1) - I].Field, TRecordBuffer(PExternRecordBuffer(ActiveBuffer())));
+            WhereClause := WhereClause + '<';
+          WhereClause := WhereClause + SQLFieldValue(SQLFields[Length(SQLFields) - 1 - I].Field, TRecordBuffer(PExternRecordBuffer(ActiveBuffer())));
         end;
 
-//        SQL := 'Field1 >= NewValue';
-//        SQL := 'Field1 = NewValue' and 'Field2 >= NewValue'
-//          or 'Field1 > NewValue';
-//        SQL := 'Field1 = NewValue' and 'Field2 = NewValue' and 'Field3 >= NewValue'
-//          or 'Field1 = NewValue' and 'Field2 > NewValue'
-//          or 'Field1 > NewValue';
-//        SQL := 'Field1 = NewValue' and 'Field2 = NewValue' and 'Field3 = NewValue' and 'Field4 >= NewValue'
-//          or 'Field1 = NewValue' and 'Field2 = NewValue' and 'Field3 > NewValue'
-//          or 'Field1 = NewValue' and 'Field2 > NewValue'
-//          or 'Field1 > NewValue';
+        SQL := ExpandWhereClause(Connection.SQLParser.FirstStmt, WhereClause);
+
+        if (Connection.SQLParser.ParseSQL(SQL)) then
+          SQL := ReplaceLimit(Connection.SQLParser.FirstStmt, 0, 2);
 
         SQL := '';
       end;

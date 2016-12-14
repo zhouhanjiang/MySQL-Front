@@ -7,6 +7,9 @@ uses
   EClasses, ECallStack, ETypes;
 
 type
+  TStackList = class(TEurekaBaseStackList)
+  end;
+
   TStackFormatter = class(ECallStack.TEurekaStackFormatter)
   private
     FHasEncryptedData: Boolean;
@@ -125,9 +128,6 @@ end;
 function TStackFormatter.CreateThreadStr(const Index, No: Integer; const DebugInfo: TEurekaDebugInfo; const TextLog: Boolean; const Session: THandle; const ExternalWCTSession: Boolean = False): String;
 var
   CallerAddress: Pointer;
-  DeadLock: Boolean;
-  FoundItems: TStrings;
-  I: Integer;
   Line1: string;
   Line2: string;
   ParentID: Cardinal;
@@ -135,58 +135,59 @@ var
   ThreadData: TEurekaThreadData;
   ThreadName: String;
 begin
-  if (not DebugInfo.ErrorLine) then
-    Line1 := ''
-  else
-    Line1 := '*';
-  if (DebugInfo.ThreadID = MainThreadId) then
-    Line1 := Line1 + 'Main Thread';
-
-  if (DebugInfo.ThreadID > 0) then
-  begin
-    if (Line1 <> '') then Line1 := Line1 + ', ';
-    Line1 := Line1 + CaptionThreadID + ': ' + IntToStr(DebugInfo.ThreadID);
-  end;
-
-  GetThreadInfo(DebugInfo.ThreadID, ParentID, ThreadClassName, ThreadName, CallerAddress);
-  if (ParentID > 0) then
-    Line1 := Line1 + ', ' + CaptionParentID + ': ' + IntToStr(ParentID);
-
-
-  if (DebugInfo.ThreadClass = '') then
-    Line2 := ''
-  else
-    Line2 := CaptionThreadClass + ': ' + DebugInfo.ThreadClass;
-
-  if (Line2 <> '') then
-  begin
-    ThreadData := AquireThreadData(DebugInfo.ThreadID);
-    if (Assigned(ThreadData)) then
+  try
+    if (not DebugInfo.ErrorLine) then
+      Line1 := ''
+    else
+      Line1 := '*' + CaptionExceptionThread;
+    if (DebugInfo.ThreadID = MainThreadId) then
     begin
-      if (ThreadData.Thread is TThread) then
-      begin
-        if (TThread(ThreadData.Thread).CheckTerminated()) then
-          Line2 := Line2 + ', terminated';
-        if (TThread(ThreadData.Thread).Finished) then
-          Line2 := Line2 + ', finished';
-      end;
-      ThreadData.Free();
+      if (Line1 <> '') then Line1 := Line1 + ', ';
+      Line1 := Line1 + 'Main Thread';
     end;
-  end;
 
-  Result := Line1 + #13#10;
-  if (Line2 <> '') then
-    Result := Result + Line2 + #13#10;
+    if (DebugInfo.ThreadID > 0) then
+    begin
+      if (Line1 <> '') then Line1 := Line1 + ', ';
+      Line1 := Line1 + CaptionThreadID + ': ' + IntToStr(DebugInfo.ThreadID);
+    end;
 
-  FoundItems := TStringList.Create();
-  if (TraverseThread(Session, DebugInfo.ThreadID, FoundItems, DeadLock)) then
-  begin
-    if (DeadLock) then
-      Result := Result + CaptionDeadLockDetected + #13#10;
-    for I := 0 to FoundItems.Count - 1 do
-      Result := Result + FoundItems[I] + #13#10;
+    GetThreadInfo(DebugInfo.ThreadID, ParentID, ThreadClassName, ThreadName, CallerAddress);
+    if (ParentID > 0) then
+      Line1 := Line1 + ', ' + CaptionParentID + ' ID: ' + IntToStr(ParentID);
+
+
+    if (DebugInfo.ThreadClass = '') then
+      Line2 := ''
+    else
+      Line2 := CaptionThreadClass + ': ' + DebugInfo.ThreadClass;
+
+    if (Line2 <> '') then
+    begin
+      ThreadData := AquireThreadData(DebugInfo.ThreadID);
+      if (Assigned(ThreadData)) then
+      begin
+        if (ThreadData.Thread is TThread) then
+        begin
+          if (TThread(ThreadData.Thread).CheckTerminated()) then
+            Line2 := Line2 + ', terminated';
+          if (TThread(ThreadData.Thread).Finished) then
+            Line2 := Line2 + ', finished';
+        end;
+        ThreadData.Free();
+      end;
+    end;
+
+    if (Line1 = '') then
+      Result := ''
+    else
+      Result := Line1 + #13#10;
+    if (Line2 <> '') then
+      Result := Result + Line2 + #13#10;
+  except
+    on E: Exception do
+      Result := 'Error in CreateThreadStr(): ' + E.Message;
   end;
-  FoundItems.Free();
 end;
 
 function TStackFormatter.FormatLine(const AMethods, ADetails, AStackAddress, AAddress, AName, AOffset, AUnit, AClass, AProcedure, ALine: String): String;
@@ -304,7 +305,7 @@ begin
       LastUsedThreadID := 0;
       Z := 1;
       RunningThread := False;
-      // Nils removed: CallStack.CreateWCTSession();
+      // Removed by Nils: CallStack.CreateWCTSession();
       for I := 0 to CallStack.Count - 1 do
       begin
         if AcceptableCallStackItem(I) then
@@ -324,7 +325,7 @@ begin
             else
               if not Empty then
                 AddLine(SubLineStr);
-            AddLine(CreateThreadStr(I, Z, CallStack.Items[I], True, 0)); // Nils removed: CallStack.FWCH));
+            AddLine(CreateThreadStr(I, Z, CallStack.Items[I], True, 0)); // Removed by Nils: CallStack.FWCH));
             Inc(Z);
             AddLine(SubLineStr);
             LastUsedThreadID := CallStack.Items[I].ThreadID;

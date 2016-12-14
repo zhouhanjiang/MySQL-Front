@@ -2365,36 +2365,15 @@ end;
 { TSDBObject ******************************************************************}
 
 procedure TSDBObject.Assign(const Source: TSObject);
-var
-  PreviousToken: TSQLParser.PToken;
-  Token: TSQLParser.PToken;
 begin
   Assert(Assigned(Source) and (Source is TSDBObject));
 
   inherited;
 
-  if (Session.SQLParser.ParseSQL(FSource)) then
+  if (TSDBObject(Source).Database <> Database) then
   begin
-    Token := Session.SQLParser.FirstStmt^.FirstToken;
-
-    PreviousToken := nil;
-    while (Assigned(Token)) do
-    begin
-      if (Assigned(PreviousToken) and (PreviousToken^.DbIdentType = ditDatabase) and (Token^.TokenType = ttDot)
-        and (Session.Databases.NameCmp(PreviousToken^.AsString, TSDBObject(Source).Database.Name) = 0)) then
-      begin
-        PreviousToken^.Hidden := True;
-        Token^.Hidden := True;
-      end;
-
-      PreviousToken := Token;
-      if (Token = Session.SQLParser.FirstStmt^.LastToken) then
-        Token := nil
-      else
-        Token := Token^.NextToken;
-    end;
-
-    FSource := Session.SQLParser.GetSQL();
+    if (Session.SQLParser.ParseSQL(FSource)) then
+      FSource := RemoveDatabaseName(Session.SQLParser.FirstStmt, TSDBObject(Source).Database.Name, Session.LowerCaseTableNames = 0);
     Session.SQLParser.Clear();
   end;
 end;
@@ -2486,7 +2465,7 @@ var
 begin
   References.Clear();
 
-  if (Session.SQLParser.ParseSQL(SQL)) then
+  if (Session.SQLParser.ParseSQL(SQL) and Assigned(Session.SQLParser.FirstStmt)) then
   begin
     try
       PreviousToken1 := nil; PreviousToken2 := nil;
@@ -4225,7 +4204,7 @@ begin
   if (FullQualifiedIdentifier) then
   begin
     if (Session.SQLParser.ParseSQL(SQL)) then
-      SQL := Session.SQLParser.AddDatabaseName(Database.Name);
+      SQL := AddDatabaseName(Session.SQLParser.FirstStmt, Database.Name);
     Session.SQLParser.Clear();
   end;
 
@@ -5132,7 +5111,7 @@ begin
     if (FullQualifiedIdentifier) then
     begin
       if (Session.SQLParser.ParseSQL(SQL)) then
-        SQL := Session.SQLParser.AddDatabaseName(Database.Name);
+        SQL := AddDatabaseName(Session.SQLParser.FirstStmt, Database.Name);
       Session.SQLParser.Clear();
     end;
 
@@ -5149,11 +5128,11 @@ end;
 
 function TSView.ParseCreateView(const SQL: string): string;
 var
+  DatabaseCount: Integer;
+  DatabaseName: string;
   EndingCommentLen: Integer;
-  I: Integer;
   Len: Integer;
   Parse: TSQLParse;
-  PreviousTokens: array [1..3] of TSQLParser.PToken;
   StartingCommentLen: Integer;
   TableCount: Integer;
   TableName: string;
@@ -5233,64 +5212,41 @@ begin
     FStmt := Copy(SQL, SQLParseGetIndex(Parse), Len) + ';';
 
 
-    if (Session.SQLParser.ParseSQL(FStmt)) then
+    if (Session.SQLParser.ParseSQL(FStmt) and Assigned(Session.SQLParser.FirstStmt)) then
     begin
+      DatabaseCount := 0; DatabaseName := '';
       TableCount := 0; TableName := '';
-      for I := Low(PreviousTokens) to High(PreviousTokens) do PreviousTokens[I] := nil;
       Token := Session.SQLParser.FirstStmt^.FirstToken;
       while (Assigned(Token)) do
       begin
-        if (Assigned(PreviousTokens[1]) and (PreviousTokens[1]^.DbIdentType = ditDatabase) and (Database.Databases.NameCmp(PreviousTokens[1]^.AsString, Database.Name) = 0)
-          and (Token^.TokenType = ttDot)) then
-        begin
-          PreviousTokens[1]^.Hidden := True;
-          Token^.Hidden := True;
-        end;
-
+        if (Token^.DbIdentType = ditDatabase) then
+          if (DatabaseCount = 0) then
+          begin
+            DatabaseName := Token^.AsString;
+            DatabaseCount := 1;
+          end
+          else if (Session.TableNameCmp(Token^.AsString, DatabaseName) <> 0) then
+            DatabaseCount := 2;
         if (Token^.DbIdentType = ditTable) then
-        begin
-          if (TableName = '') then
+          if (TableCount = 0) then
           begin
             TableName := Token^.AsString;
-            Inc(TableCount);
+            TableCount := 1;
           end
-          else if (Database.Tables.NameCmp(Token^.AsString, TableName) <> 0) then
-            Inc(TableCount);
-        end;
+          else if (Session.TableNameCmp(Token^.AsString, TableName) <> 0) then
+            TableCount := 2;
 
-        PreviousTokens[1] := Token;
         if (Token = Session.SQLParser.FirstStmt^.LastToken) then
           Token := nil
         else
           Token := Token^.NextToken;
       end;
 
-      if (TableCount = 1) then
-      begin
-        for I := Low(PreviousTokens) to High(PreviousTokens) do PreviousTokens[I] := nil;
-        Token := Session.SQLParser.FirstStmt^.FirstToken;
-        while (Assigned(Token)) do
-        begin
-          if ((not Assigned(PreviousTokens[3]) or (PreviousTokens[3]^.DbIdentType <> ditDatabase) or (Database.Databases.NameCmp(PreviousTokens[3]^.AsString, Database.Name) = 0) and PreviousTokens[3]^.Hidden)
-            and (not Assigned(PreviousTokens[2]) or (PreviousTokens[2]^.TokenType <> ttDot) or PreviousTokens[2]^.Hidden)
-            and Assigned(PreviousTokens[1]) and (PreviousTokens[1]^.DbIdentType = ditTable) and (Database.Tables.NameCmp(PreviousTokens[1]^.AsString, TableName) = 0)
-            and (Token^.TokenType = ttDot)) then
-          begin
-            PreviousTokens[1]^.Hidden := True;
-            Token^.Hidden := True;
-          end;
+      if (DatabaseCount = 1) then
+        FStmt := RemoveDatabaseName(Session.SQLParser.FirstStmt, Database.Name, Session.LowerCaseTableNames = 0);
 
-          PreviousTokens[3] := PreviousTokens[2];
-          PreviousTokens[2] := PreviousTokens[1];
-          PreviousTokens[1] := Token;
-          if (Token = Session.SQLParser.FirstStmt^.LastToken) then
-            Token := nil
-          else
-            Token := Token^.NextToken;
-        end;
-      end;
-
-      FStmt := Session.SQLParser.FormatSQL();
+      if ((TableCount = 1) and Session.SQLParser.ParseSQL(FStmt)) then
+        FStmt := RemoveTableName(Session.SQLParser.FirstStmt, Name, Session.LowerCaseTableNames = 0);
     end;
 
     Session.SQLParser.Clear();
@@ -6043,7 +5999,7 @@ begin
   if (FullQualifiedIdentifier) then
   begin
     if (Session.SQLParser.ParseSQL(SQL)) then
-      SQL := Session.SQLParser.AddDatabaseName(Database.Name);
+      SQL := AddDatabaseName(Session.SQLParser.FirstStmt, Database.Name);
     Session.SQLParser.Clear();
   end;
 
@@ -6487,7 +6443,7 @@ begin
   if (FullQualifiedIdentifier) then
   begin
     if (Session.SQLParser.ParseSQL(SQL)) then
-      SQL := Session.SQLParser.AddDatabaseName(Database.Name);
+      SQL := AddDatabaseName(Session.SQLParser.FirstStmt, Database.Name);
     Session.SQLParser.Clear();
   end;
 
@@ -6518,10 +6474,8 @@ var
   DatabaseName: string;
   Index: Integer;
   Parse: TSQLParse;
-  PreviousToken: TSQLParser.PToken;
   RemovedLength: Integer;
   S: string;
-  Token: TSQLParser.PToken;
 begin
   S := SQL; RemovedLength := 0;
 
@@ -6578,29 +6532,8 @@ begin
     FSourceEx := LeftStr(S, SQLParseGetIndex(Parse) - RemovedLength - 1) + #13#10;
 
     if (Session.SQLParser.ParseSQL(FSourceEx)) then
-    begin
-      Token := Session.SQLParser.FirstStmt^.FirstToken;
-
-      PreviousToken := nil;
-      while (Assigned(Token)) do
-      begin
-        if (Assigned(PreviousToken) and (PreviousToken^.DbIdentType = ditDatabase) and (Token^.TokenType = ttDot)
-          and (Database.Databases.NameCmp(PreviousToken^.AsString, Database.Name) = 0)) then
-        begin
-          PreviousToken^.Hidden := True;
-          Token^.Hidden := True;
-        end;
-
-        PreviousToken := Token;
-        if (Token = Session.SQLParser.FirstStmt^.LastToken) then
-          Token := nil
-        else
-          Token := Token^.NextToken;
-      end;
-
-      FSourceEx := Session.SQLParser.GetSQL();
-      Session.SQLParser.Clear();
-    end;
+      FSourceEx := RemoveDatabaseName(Session.SQLParser.FirstStmt, Database.Name, Session.LowerCaseTableNames = 0);
+    Session.SQLParser.Clear();
   end;
 end;
 
@@ -6872,7 +6805,7 @@ begin
   if (FullQualifiedIdentifier) then
   begin
     if (Session.SQLParser.ParseSQL(SQL)) then
-      SQL := Session.SQLParser.AddDatabaseName(Database.Name);
+      SQL := AddDatabaseName(Session.SQLParser.FirstStmt, Database.Name);
     Session.SQLParser.Clear();
   end;
 
