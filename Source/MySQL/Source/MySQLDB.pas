@@ -1373,7 +1373,6 @@ end;
 function WideCharToAnsiChar(const CodePage: UINT; const lpWideCharStr: LPWSTR; const cchWideChar: Integer; const lpMultiByteStr: LPSTR; const cchMultiByte: Integer): Integer;
 var
   Flags: DWord;
-  Index: Integer;
 begin
   if (not Assigned(lpWideCharStr) or (cchWideChar = 0)) then
     Result := 0
@@ -1382,12 +1381,7 @@ begin
     if ((CodePage <> CP_UTF8) or not CheckWin32Version(6)) then Flags := 0 else Flags := WC_ERR_INVALID_CHARS;
     Result := WideCharToMultiByte(CodePage, Flags, lpWideCharStr, cchWideChar, lpMultiByteStr, cchMultiByte, nil, nil);
     if (Result = 0) then
-    begin
-      Index := cchMultiByte - 1;
-      while ((Index > 0) and (WideCharToMultiByte(CodePage, Flags, lpWideCharStr, Index, nil, 0, nil, nil) = 0)) do
-        Dec(Index);
-      raise EOSError.CreateFmt(SOSError + ' near "%s" (CodePage: %d)', [GetLastError(), SysErrorMessage(GetLastError()), Copy(StrPas(lpWideCharStr), 1 + Index, 20), CodePage]);
-    end;
+      raise EOSError.CreateFmt(SOSError + ' in %s (CodePage: %d)', [GetLastError(), SysErrorMessage(GetLastError()), SQLEscapeBin(StrPas(lpWideCharStr), True), CodePage]);
   end;
 end;
 
@@ -5880,8 +5874,8 @@ begin
     raise ERangeError.Create(SRangeError)
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
-  else if (not (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier = 123456)) then
-    raise ERangeError.Create(SRangeError);
+  else if (not (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier = 123456)) then // Crashe here one time on 2016-12-14
+    raise ERangeError.Create(SRangeError); // Occurred one time on 2016-12-14
 
   if (not Active
     or not Assigned(ActiveBuffer())

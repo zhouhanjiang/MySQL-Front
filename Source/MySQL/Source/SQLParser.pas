@@ -27375,7 +27375,12 @@ end;
 
 function ExpandWhereClause(const Stmt: TSQLParser.PStmt; const WhereClause: string): string;
 begin
+  if (not Assigned(Stmt) or (Stmt^.StmtType <> stSelect)) then
+    Result := ''
+  else if (TSQLParser.PSelectStmt(Stmt)^.Nodes.Where.Tag = 0) then
+  begin
 
+  end;
 end;
 
 function RemoveDatabaseName(const Stmt: TSQLParser.PStmt; const DatabaseName: string; const CaseSensitive: Boolean = False): string;
@@ -27404,7 +27409,7 @@ begin
       if ((Token^.DbIdentType = ditDatabase)
         and Assigned(Token^.NextToken) and (Token^.NextToken^.TokenType = ttDot)
         and (strcmp(PChar(Token^.AsString), PChar(DatabaseName)) = 0)) then
-        Token := Token^.NextToken
+        Token := Token^.NextTokenAll
       else
       begin
         Token^.GetText(Text, Length);
@@ -27414,7 +27419,7 @@ begin
       if (Token = Stmt^.LastToken) then
         Token := nil
       else
-        Token := Token^.NextToken;
+        Token := Token^.NextTokenAll;
     end;
 
     Result := Stmt^.Parser.Commands.Read();
@@ -27447,11 +27452,11 @@ begin
     Token := Stmt^.FirstToken; PreviousToken := nil;
     while (Assigned(Token)) do
     begin
-      if (not Assigned(PreviousToken) or (PreviousToken.TokenType <> ttDot)
+      if ((not Assigned(PreviousToken) or (PreviousToken.TokenType <> ttDot))
         and (Token^.DbIdentType = ditTable)
         and Assigned(Token^.NextToken) and (Token^.NextToken^.TokenType = ttDot)
         and (strcmp(PChar(Token^.AsString), PChar(TableName)) = 0)) then
-        Token := Token^.NextToken
+        Token := Token^.NextTokenAll
       else
       begin
         Token^.GetText(Text, Length);
@@ -27462,7 +27467,7 @@ begin
       if (Token = Stmt^.LastToken) then
         Token := nil
       else
-        Token := Token^.NextToken;
+        Token := Token^.NextTokenAll;
     end;
 
     Result := Stmt^.Parser.Commands.Read();

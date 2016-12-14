@@ -169,8 +169,6 @@ begin
       begin
         if (ThreadData.Thread is TThread) then
         begin
-          if (TThread(ThreadData.Thread).CheckTerminated()) then
-            Line2 := Line2 + ', terminated';
           if (TThread(ThreadData.Thread).Finished) then
             Line2 := Line2 + ', finished';
         end;
@@ -320,7 +318,7 @@ begin
             if (CallStack.Items[i].RunningThread) and (not Empty) then
             begin
               AddLine(SubLineStr);
-              AddLine(FmtCompleteStr('', FLineLen - 2));
+//              AddLine(FmtCompleteStr('', FLineLen - 2));
             end
             else
               if not Empty then

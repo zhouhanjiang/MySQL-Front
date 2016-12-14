@@ -1225,17 +1225,6 @@ end;
 
 function TFSession.TSQLEditor.ResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
   const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
-
-  function ValidXMLText(const Text: string): Boolean;
-  var
-    I: Integer;
-  begin
-    Result := True;
-    for I := 1 to Length(Text) do
-      if (CharInSet(Text[I], [#0 .. #8, #11 .. #12, #14 .. #31])) then
-        Exit(False);
-  end;
-
 var
   EndingCommentLength: Integer;
   Item: ^TResult;
@@ -3012,6 +3001,12 @@ var
   StringList: TStringList;
   Text: array[0..128] of Char; // Debug 2016-12-07
 begin
+  // Debug 2016-12-14
+  if (not OpenClipboard(Handle)) then
+    raise ERangeError.Create(SRangeError)
+  else
+    CloseClipboard();
+
   Data := '';
 
   if (not Assigned(Window.ActiveControl)) then
@@ -3216,6 +3211,12 @@ begin
       CloseClipboard();
     end;
   end;
+
+  // Debug 2016-12-14
+  if (not OpenClipboard(Handle)) then
+    raise ERangeError.Create(SRangeError)
+  else
+    CloseClipboard();
 end;
 
 procedure TFSession.aEFindExecute(Sender: TObject);
@@ -3241,6 +3242,12 @@ var
   S: string;
   Text: array [0..128] of Char; // Debug 2016-12-07
 begin
+  // Debug 2016-12-14
+  if (not OpenClipboard(Handle)) then
+    raise ERangeError.Create(SRangeError)
+  else
+    CloseClipboard();
+
   if (Session.Connection.InUse()) then
     MessageBeep(MB_ICONERROR)
   else if (Assigned(ActiveDBGrid) and (Window.ActiveControl = ActiveDBGrid)) then
@@ -3338,6 +3345,12 @@ begin
     FText.PasteFromClipboard
   else
     MessageBeep(MB_ICONERROR);
+
+  // Debug 2016-12-14
+  if (not OpenClipboard(Handle)) then
+    raise ERangeError.Create(SRangeError)
+  else
+    CloseClipboard();
 end;
 
 procedure TFSession.aEPasteFromExecute(Sender: TObject);
@@ -9817,6 +9830,15 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
                 raise ERangeError.Create(SRangeError + ' ClassType: ' + TSBaseTableFields(Event.Items).Table.ClassName);
               if (not Assigned(TSBaseTable(TSBaseTableFields(Event.Items).Table).Keys)) then
                 raise ERangeError.Create(SRangeError);
+              // Debug 2016-12-14
+              if (not not (TObject(TSBaseTable(TSBaseTableFields(Event.Items).Table).Keys) is TSKeys)) then
+                try
+                  raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(TSBaseTable(TSBaseTableFields(Event.Items).Table).Keys).ClassName);
+                except
+                  raise ERangeError.Create(SRangeError);
+                end;
+              if (TObject(ListView.Items[I].Data) is TSKey) then
+                Write;
               if ((TObject(ListView.Items[I].Data) is TSKey) and (TSBaseTable(TSBaseTableFields(Event.Items).Table).Keys.IndexOf(ListView.Items[I].Data) < 0)) then
                 ListView.Items.Delete(I);
             end;
@@ -14181,14 +14203,11 @@ begin
         TableOpen(nil);
     vIDE:
       begin
-        // Debug 2016-11-26
-        if (not Assigned(FNavigator.Selected)) then
-          raise ERangeError.Create(SRangeError);
-        if (not Assigned(FNavigator.Selected.Data)) then
-          raise ERangeError.Create(SRangeError);
         // Debug 2016-12-05
         if (not (TObject(FNavigator.Selected.Data) is TSDBObject)) then
-          raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(FNavigator.Selected.Data).ClassName);
+          raise ERangeError.Create(SRangeError + #13#10
+            + ' ClassType: ' + TObject(FNavigator.Selected.Data).ClassName + #13#10
+            + ' Address: ' + Address);
         TSDBObject(FNavigator.Selected.Data).Update();
       end;
     vDiagram:

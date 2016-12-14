@@ -5246,7 +5246,10 @@ begin
         FStmt := RemoveDatabaseName(Session.SQLParser.FirstStmt, Database.Name, Session.LowerCaseTableNames = 0);
 
       if ((TableCount = 1) and Session.SQLParser.ParseSQL(FStmt)) then
-        FStmt := RemoveTableName(Session.SQLParser.FirstStmt, Name, Session.LowerCaseTableNames = 0);
+        FStmt := RemoveTableName(Session.SQLParser.FirstStmt, TableName, Session.LowerCaseTableNames = 0);
+
+      if (Session.SQLParser.ParseSQL(FStmt)) then
+        FStmt := Session.SQLParser.FormatSQL();
     end;
 
     Session.SQLParser.Clear();

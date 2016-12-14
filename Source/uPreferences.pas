@@ -644,6 +644,7 @@ function XMLNode(const XML: IXMLNode; const Path: string; const NodeAutoCreate: 
 function VersionStrToVersion(VersionStr: string): Integer;
 function CopyDir(const fromDir, toDir: string): Boolean;
 function TrySplitParam(const Param: string; out Name, Value: string): Boolean;
+function ValidXMLText(const Text: string): Boolean;
 
 var
   Accounts: TPAccounts;
@@ -1062,6 +1063,16 @@ begin
     Name := Trim(Copy(Param, 2, Pos('=', Param) - 2));
     Value := Trim(Copy(Param, Pos('=', Param) + 1, Length(Param) - Pos('=', Param)));
   end;
+end;
+
+function ValidXMLText(const Text: string): Boolean;
+var
+  I: Integer;
+begin
+  Result := True;
+  for I := 1 to Length(Text) do
+    if (CharInSet(Text[I], [#0 .. #8, #11 .. #12, #14 .. #31])) then
+      Exit(False);
 end;
 
 { TPPreferences.TItem *********************************************************}
@@ -2873,9 +2884,18 @@ begin
 
   XMLNode(XML, 'datagrid/height').Text := IntToStr(DataHeight);
   XMLNode(XML, 'datagrid/blob/height').Text := IntToStr(BlobHeight);
-  try XMLNode(XML, 'editor/content').Text := EditorContent[ttEditor]; except end;
-  try XMLNode(XML, 'editor2/content').Text := EditorContent[ttEditor2]; except end;
-  try XMLNode(XML, 'editor3/content').Text := EditorContent[ttEditor3]; except end;
+  if (not ValidXMLText(EditorContent[ttEditor])) then
+    XMLNode(XML, 'editor').ChildNodes.Remove(XMLNode(XML, 'editor/content'))
+  else
+    XMLNode(XML, 'editor/content').Text := EditorContent[ttEditor];
+  if (not ValidXMLText(EditorContent[ttEditor2])) then
+    XMLNode(XML, 'editor2').ChildNodes.Remove(XMLNode(XML, 'editor2/content'))
+  else
+    XMLNode(XML, 'editor2/content').Text := EditorContent[ttEditor2];
+  if (not ValidXMLText(EditorContent[ttEditor3])) then
+    XMLNode(XML, 'editor3').ChildNodes.Remove(XMLNode(XML, 'editor3/content'))
+  else
+    XMLNode(XML, 'editor3/content').Text := EditorContent[ttEditor3];
   XMLNode(XML, 'log/height').Text := IntToStr(LogHeight);
   XMLNode(XML, 'log/visible').Text := BoolToStr(LogVisible, True);
   XMLNode(XML, 'objects/server/widths/name').Text := IntToStr(ColumnWidths[lkServer][0]);
