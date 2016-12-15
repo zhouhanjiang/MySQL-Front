@@ -499,6 +499,7 @@ type
     TTextWidth = function (const Text: string): Integer of object;
     PInternRecordBuffer = ^TInternRecordBuffer;
     TInternRecordBuffer = record
+      Identifier: Integer;
       NewData: TMySQLQuery.PRecordBufferData;
       OldData: TMySQLQuery.PRecordBufferData;
       VisibleInFilter: Boolean;
@@ -1132,7 +1133,7 @@ begin
   begin
     // Debug 2016-12-10
     if (SyncThread.State = ssResult) then
-      raise ERangeError.Create(SRangeError);
+      raise ERangeError.Create(SRangeError + ' State: ' + IntToStr(Ord(SyncThread.State)));
 
     SynchronizingThreadsCS.Enter();
     SynchronizingThreads.Add(SyncThread);
@@ -3649,6 +3650,10 @@ begin
   Assert(SyncThread.DataSet is TMySQLDataSet);
   DataSet := TMySQLDataSet(SyncThread.DataSet);
 
+  // Debug 2016-12-15
+  if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+
   repeat
     if (SyncThread.Terminated) then
       LibRow := nil
@@ -3660,6 +3665,11 @@ begin
         SyncThread.ErrorCode := Lib.mysql_errno(SyncThread.LibHandle);
         SyncThread.ErrorMessage := GetErrorMessage(SyncThread.LibHandle);
       end
+      else if (not Assigned(Lib)) then
+        raise ERangeError.Create(SRangeError)
+      else if (not Assigned(SyncThread)) then
+        // Debug 2016-12-15
+        raise ERangeError.Create(SRangeError)
       else if (not DataSet.InternAddRecord(LibRow, Lib.mysql_fetch_lengths(SyncThread.ResHandle))) then
       begin
         SyncThread.ErrorCode := DS_OUT_OF_MEMORY;
@@ -4628,6 +4638,7 @@ begin
     for I := 0 to Field.DataSet.FieldCount - 1 do
       if (Field.DataSet.Fields[I].IsIndexField) then
       begin
+        Msg := Msg + IntToStr(I + 1) + '. ';
         try
           Msg := Msg + Field.DataSet.Fields[I].FieldName + ': ';
         except
@@ -4636,7 +4647,7 @@ begin
         try
           Msg := Msg + Field.DataSet.Fields[I].AsString + #10;
         finally
-          Msg := Msg + '???' + #10;
+          Msg := Msg + '???1' + #10;
         end;
       end;
 
@@ -5646,6 +5657,7 @@ begin
 
   if (Assigned(Result)) then
   begin
+    Result^.Identifier := $ABCDEF;
     Result^.NewData := nil;
     Result^.OldData := nil;
     Result^.VisibleInFilter := True;
@@ -5870,12 +5882,14 @@ begin
   // Debug 2016-12-05
   if (not Active) then
   else if (not Assigned(ActiveBuffer())) then
-  else if (not PExternRecordBuffer(ActiveBuffer())^.Identifier = 654321) then
+  else if (not PExternRecordBuffer(ActiveBuffer())^.Identifier = 654321) then // An error occurred here on 2016-12-15
     raise ERangeError.Create(SRangeError)
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
+  else if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.Identifier <> $ABCDEF) then // Debug 2016-12-15
+    raise ERangeError.Create(SRangeError)
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
-  else if (not (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier = 123456)) then // Crashe here one time on 2016-12-14
-    raise ERangeError.Create(SRangeError); // Occurred one time on 2016-12-14
+  else if (not (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier = 123456)) then // Crashe here the second time on 2016-12-15
+    raise ERangeError.Create(SRangeError); // Occurred second time on 2016-12-15
 
   if (not Active
     or not Assigned(ActiveBuffer())
@@ -6283,17 +6297,18 @@ end;
 
 procedure TMySQLDataSet.InternalPost();
 var
+  AllWhereFieldsInWhere: Boolean;
   DescFieldName: string;
   Field: TField;
   FieldName: string;
   I: Integer;
   J: Integer;
   SQL: string;
-  SQLFields: array of record Field: TField; Ascending: Boolean; end;
   Pos: Integer;
   PosDescFields: Integer;
   Success: Boolean;
   Update: Boolean;
+  Where: array of record Field: TField; Ascending: Boolean; end;
   WhereClause: string;
 begin
   if (CachedUpdates) then
@@ -6315,7 +6330,7 @@ begin
         SQL := ''
       else
       begin
-        SetLength(SQLFields, 0);
+        SetLength(Where, 0);
 
         Pos := 1;
         repeat
@@ -6325,61 +6340,115 @@ begin
             Field := FieldByName(FieldName);
             if (not Assigned(Field)) then
               raise ERangeError.Create(SRangeError);
-            SetLength(SQLFields, Length(SQLFields) + 1);
-            SQLFields[Length(SQLFields) - 1].Field := Field;
-            SQLFields[Length(SQLFields) - 1].Ascending := True;
+            SetLength(Where, Length(Where) + 1);
+            Where[Length(Where) - 1].Field := Field;
+            Where[Length(Where) - 1].Ascending := True;
 
             PosDescFields := 1;
             repeat
               DescFieldName := ExtractFieldName(SortDef.DescFields, PosDescFields);
               if (FindField(DescFieldName) = Field) then
-                SQLFields[Length(SQLFields) - 1].Ascending := False;
+                Where[Length(Where) - 1].Ascending := False;
             until (DescFieldName = '');
           end;
         until (FieldName = '');
 
-        WhereClause := '';
-        for I := 0 to Length(SQLFields) - 2 do
-        begin
-          if (I > 0) then WhereClause := WhereClause + ' AND ';
-          WhereClause := WhereClause
-            + Connection.EscapeIdentifier(SQLFields[I].Field.FieldName)
-            + '='
-            + SQLFieldValue(SQLFields[I].Field, TRecordBuffer(PExternRecordBuffer(ActiveBuffer())));
-        end;
-        if (Length(SQLFields) > 1) then WhereClause := WhereClause + ' AND ';
-        WhereClause := WhereClause + Connection.EscapeIdentifier(SQLFields[Length(SQLFields) - 1].Field.FieldName);
-        if (SQLFields[Length(SQLFields) - 1].Ascending) then
-          WhereClause := WhereClause + '>='
-        else
-          WhereClause := WhereClause + '<=';
-        WhereClause := WhereClause + SQLFieldValue(SQLFields[Length(SQLFields) - 1].Field, TRecordBuffer(PExternRecordBuffer(ActiveBuffer())));
+        AllWhereFieldsInWhere := True;
+        for I := 0 to FieldCount - 1 do
+          if (AllWhereFieldsInWhere and (pfInWhere in Fields[I].ProviderFlags)) then
+          begin
+            AllWhereFieldsInWhere := False;
+            for J := 0 to Length(Where) - 1 do
+              if (Where[J].Field = Fields[I]) then
+                AllWhereFieldsInWhere := True;
+          end;
+        if (AllWhereFieldsInWhere) then
+          for I := Length(Where) - 1 downto 0 do
+            if (not (pfInWhere in Where[I].Field.ProviderFlags)) then
+            begin
+              if (I < Length(Where) - 1) then
+                MoveMemory(@Where[I], @Where[I + 1], SizeOf(Where[0]));
+              SetLength(Where, Length(Where) - 1);
+            end;
 
-        for I := 0 to Length(SQLFields) - 1 - 1 do
+        WhereClause := '';
+        for I := 0 to Length(Where) - 2 do
+          if (not Where[I].Field.IsNull) then
+          begin
+            if (WhereClause <> '') then WhereClause := WhereClause + ' AND ';
+            WhereClause := WhereClause
+              + Connection.EscapeIdentifier(Where[I].Field.FieldName)
+              + '='
+              + SQLFieldValue(Where[I].Field, TRecordBuffer(PExternRecordBuffer(ActiveBuffer())));
+          end
+          else if (Where[I].Field.AutoGenerateValue = arAutoInc) then
+          begin
+            if (WhereClause <> '') then WhereClause := WhereClause + ' AND ';
+            WhereClause := WhereClause
+              + Connection.EscapeIdentifier(Where[I].Field.FieldName)
+              + '='
+              + 'LAST_INSERT_ID()';
+          end;
+
+        if (not Where[Length(Where) - 1].Field.IsNull) then
+        begin
+          if (WhereClause <> '') then WhereClause := WhereClause + ' AND ';
+          WhereClause := WhereClause + Connection.EscapeIdentifier(Where[Length(Where) - 1].Field.FieldName);
+          if (Where[Length(Where) - 1].Ascending) then
+            WhereClause := WhereClause + '>='
+          else
+            WhereClause := WhereClause + '<=';
+          WhereClause := WhereClause + SQLFieldValue(Where[Length(Where) - 1].Field, TRecordBuffer(PExternRecordBuffer(ActiveBuffer())));
+        end
+        else if (Where[Length(Where) - 1].Field.AutoGenerateValue = arAutoInc) then
+        begin
+          if (WhereClause <> '') then WhereClause := WhereClause + ' AND ';
+          WhereClause := WhereClause + Connection.EscapeIdentifier(Where[Length(Where) - 1].Field.FieldName);
+          if (Where[Length(Where) - 1].Ascending) then
+            WhereClause := WhereClause + '>='
+          else
+            WhereClause := WhereClause + '<=';
+          WhereClause := WhereClause + 'LAST_INSERT_ID()';
+        end;
+
+        for I := 1 to Length(Where) - 1 do
         begin
           WhereClause := WhereClause + ' OR ';
 
-          for J := 0 to Length(SQLFields) - 1 - I - 1 do
+          for J := 0 to Length(Where) - I - 1 do
           begin
-            WhereClause := WhereClause
-              + Connection.EscapeIdentifier(SQLFields[J].Field.FieldName)
-              + '='
-              + SQLFieldValue(SQLFields[J].Field, TRecordBuffer(PExternRecordBuffer(ActiveBuffer())));
-            WhereClause := WhereClause + ' AND ';
-          end;
+            if (J > 0) then WhereClause := WhereClause + ' AND ';
 
-          WhereClause := WhereClause + Connection.EscapeIdentifier(SQLFields[Length(SQLFields) - 1 - I].Field.FieldName);
-          if (SQLFields[Length(SQLFields) - 1 - I].Ascending) then
-            WhereClause := WhereClause + '>'
-          else
-            WhereClause := WhereClause + '<';
-          WhereClause := WhereClause + SQLFieldValue(SQLFields[Length(SQLFields) - 1 - I].Field, TRecordBuffer(PExternRecordBuffer(ActiveBuffer())));
+            WhereClause := WhereClause + Connection.EscapeIdentifier(Where[J].Field.FieldName);
+
+            if (J < Length(Where) - I - 1) then
+            begin
+              if (not Where[J].Field.IsNull) then
+                WhereClause := WhereClause + '=' + SQLFieldValue(Where[J].Field, TRecordBuffer(PExternRecordBuffer(ActiveBuffer())))
+              else if (Where[J].Field.AutoGenerateValue = arAutoInc) then
+                WhereClause := WhereClause + '=LAST_INSERT_ID()'
+              else
+                WhereClause := WhereClause + ' IS NULL';
+            end
+            else
+            begin
+              if (not Where[J].Field.IsNull) then
+                if (Where[J].Ascending) then
+                  WhereClause := WhereClause + '>' + SQLFieldValue(Where[J].Field, TRecordBuffer(PExternRecordBuffer(ActiveBuffer())))
+                else
+                  WhereClause := WhereClause + '<' + SQLFieldValue(Where[J].Field, TRecordBuffer(PExternRecordBuffer(ActiveBuffer())))
+              else if (Where[J].Field.AutoGenerateValue = arAutoInc) then
+                WhereClause := WhereClause + ' = LAST_INSERT_ID()'
+              else
+                WhereClause := WhereClause + ' IS NOT NULL';
+            end;
+          end;
         end;
 
-        SQL := ExpandWhereClause(Connection.SQLParser.FirstStmt, WhereClause);
+        SQL := ExpandSelectStmtWhereClause(Connection.SQLParser.FirstStmt, WhereClause);
 
         if (Connection.SQLParser.ParseSQL(SQL)) then
-          SQL := ReplaceLimit(Connection.SQLParser.FirstStmt, 0, 2);
+          SQL := ReplaceSelectStmtLimit(Connection.SQLParser.FirstStmt, 0, 2);
 
         SQL := '';
       end;
@@ -6619,9 +6688,14 @@ begin
   if (Assigned(DestData)) then
     FreeMem(DestData);
 
-  // Debug 2016-12-12
+  // Debug 2016-12-15
   if (not Assigned(Fields)) then
-    raise ERangeError.Create(SRangeError + ' ClassType: ' + ClassName);
+    if (not Assigned(Self)) then
+      raise Exception.Create(SRangeError + ' Freed!')
+    else if (csDestroying in ComponentState) then
+      raise ERangeError.Create(SRangeError + ' ... is destroying')
+    else
+      raise ERangeError.Create(SRangeError + ' ClassType: ' + ClassName);
 
   MemSize := SizeOf(DestData^) + FieldCount * (SizeOf(DestData^.LibLengths^[0]) + SizeOf(DestData^.LibRow^[0]));
   for I := 0 to FieldCount - 1 do
@@ -6738,6 +6812,9 @@ var
 begin
   // Debug 2016-12-07
   if (PExternRecordBuffer(ActiveBuffer())^.Identifier <> 654321) then
+    raise ERangeError.Create(SRangeError);
+  // Debug 2016-12-15
+  if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.Identifier <> $ABCDEF) then
     raise ERangeError.Create(SRangeError);
 
   OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;

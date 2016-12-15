@@ -3696,7 +3696,7 @@ begin
 
     // Debug 2016-12-12
     if (not Assigned(FNavigator)) then
-      raise ERangeError.Create(SRangeError + ' CodePage: ' + IntToStr(ImportCodePage));
+      raise ERangeError.Create(SRangeError + #13#10 + 'Imported: ' + BoolToStr(Imported) + #13#10 + 'CodePage: ' + IntToStr(ImportCodePage));
 
     UpdateAfterAddressChanged();
   end;
@@ -4414,6 +4414,11 @@ var
   NonClientMetrics: TNonClientMetrics;
 begin
   inherited Create(AOwner);
+
+
+  // Debug 2016-12-15
+  if (not (ASession.Account is TPAccount)) then
+    raise ERangeError.Create(SRangeError);
 
 
   Parent := TWinControl(AParent);
@@ -5646,6 +5651,13 @@ end;
 procedure TFSession.DBGridEditExecute(Sender: TObject);
 begin
   Wanted.Clear();
+
+  // Debug 2016-12-15
+  if (not Assigned(ActiveDBGrid)) then
+    if (not Assigned(Sender)) then
+      raise ERangeError.Create(SRangeError + #13#10 + 'Address: ' + Address)
+    else
+      raise ERangeError.Create(SRangeError + #13#10 + 'Sender ClassType: ' + Sender.ClassName + #13#10 + 'Address: ' + Address);
 
   DBGridDblClick(Sender);
 end;
@@ -8323,6 +8335,15 @@ var
 begin
   DBGrid := ActiveDBGrid;
 
+  // Debug 2016-12-15
+  if (Assigned(DBGrid) and Assigned(DBGrid.SelectedField)) then
+    if (not (DBGrid.SelectedField is TField)) then
+      try
+        raise ERangeError.Create(SRangeError + ' ClassType: ' + DBGrid.SelectedField.ClassName);
+      finally
+        raise ERangeError.Create(SRangeError);
+      end;
+
   if (not Assigned(DBGrid)
     or not Assigned(DBGrid.SelectedField)
     or not (DBGrid.SelectedField.DataType in [ftString, ftWideMemo, ftBlob])) then
@@ -9831,7 +9852,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
               if (not Assigned(TSBaseTable(TSBaseTableFields(Event.Items).Table).Keys)) then
                 raise ERangeError.Create(SRangeError);
               // Debug 2016-12-14
-              if (not not (TObject(TSBaseTable(TSBaseTableFields(Event.Items).Table).Keys) is TSKeys)) then
+              if (not (TObject(TSBaseTable(TSBaseTableFields(Event.Items).Table).Keys) is TSKeys)) then
                 try
                   raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(TSBaseTable(TSBaseTableFields(Event.Items).Table).Keys).ClassName);
                 except
@@ -12486,6 +12507,10 @@ begin
       URI.Param['file'] := Null;
       URI.Param['cp'] := Null;
     end;
+
+    // Debug 2016-12-15
+    if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
+      raise ERangeError.Create(SRangeError + #13#10 + 'Address: ' + Address + #13#10 + 'SelectedImageIndex: ' + IntToStr(SelectedImageIndex) + #13#10 + 'LastSelectedDatabase: ' + LastSelectedDatabase + #13#10 + 'LastSelectedTable: ' + LastSelectedTable);
 
     Address := URI.Address;
 

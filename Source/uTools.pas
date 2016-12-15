@@ -750,6 +750,7 @@ var
   ODBCDrivers: set of (odAccess, odAccess2003, odExcel, odExcel2003);
 
 var
+  Imported: Boolean;
   ImportCodePage: Cardinal; // Debug 2016-12-13
 
 implementation {***************************************************************}

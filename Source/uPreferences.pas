@@ -3048,7 +3048,12 @@ begin
 
   Connection.Assign(Source.Connection);
   if (Assigned(Desktop) and Assigned(Source.Desktop)) then
+  try
     Desktop.Assign(Source.Desktop);
+  except
+    on E: Exception do
+      raise Exception.Create(E.Message + ' FPath: ' + Source.Desktop.FPath);
+  end;
 end;
 
 constructor TPAccount.Create(const AAccounts: TPAccounts; const AXML: IXMLNode = nil);

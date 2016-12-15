@@ -11295,11 +11295,9 @@ end;
 
 function TSSession.GetCaption(): string;
 begin
-  // Debug 2016-12-12
-  if (not Assigned(Account.Connection)) then
-    raise ERangeError.Create(SRangeError);
-
-  Result := Account.Connection.Caption;
+  Result := Connection.Host;
+  if (Connection.Port <> MYSQL_PORT) then
+    Result := Result + ':' + IntToStr(Connection.Port);
 end;
 
 function TSSession.GetCharset(): string;

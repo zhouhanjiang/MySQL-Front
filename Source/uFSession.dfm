@@ -2135,7 +2135,7 @@ object FSession: TFSession
     Top = 72
   end
   object SynCompletion: TSynCompletionProposal
-    Options = [scoLimitToMatchedText, scoUseInsertList, scoEndCharCompletion, scoCompleteWithEnter]
+    Options = [scoLimitToMatchedText, scoUseInsertList, scoEndCharCompletion, scoConsiderWordBreakChars]
     EndOfTokenChr = '()[]. '
     TriggerChars = 
       '._$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012345678' +

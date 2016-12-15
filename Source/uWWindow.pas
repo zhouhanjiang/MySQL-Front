@@ -454,6 +454,9 @@ uses
   ShellApi, ShlObj, DBConsts, CommCtrl, StrUtils, ShLwApi, IniFiles, Themes,
   Variants, WinINet, SysConst, Math, Zip,
   ODBCAPI,
+  {$IFDEF EurekaLog}
+  ESysInfo,
+  {$ENDIF}
   acQBLocalizer,
   MySQLConsts, HTTPTunnel, SQLUtils,
   uTools, uURI,
@@ -1025,11 +1028,21 @@ begin
   try
     if ((OnlineProgramVersion < 0) and IsConnectedToInternet()) then
       if (Assigned(CheckOnlineVersionThread)) then
-        CheckOnlineVersionThread.WaitFor()
+        try
+          CheckOnlineVersionThread.WaitFor();
+        except
+          on E: Exception do
+            try SendBugToDeveloper('EurekaLogExceptionNotify Error 4.1!' + #13#10#13#10 + E.Message); except end;
+        end
       else
       begin
         CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
-        CheckOnlineVersionThread.Execute();
+        try
+          CheckOnlineVersionThread.Execute();
+        except
+          on E: Exception do
+            try SendBugToDeveloper('EurekaLogExceptionNotify Error 4.2!' + #13#10#13#10 + E.Message); except end;
+        end;
         FreeAndNil(CheckOnlineVersionThread);
       end;
   except
@@ -1059,6 +1072,12 @@ begin
         Report := Report + Exception(ExceptionInfo.ExceptionObject).Message + #13#10;
       end;
       Report := Report + #13#10;
+
+      if (TObject(ExceptionInfo.ExceptionObject) is EOutOfMemory) then
+      begin
+        Report := Report + 'Free Memory: ' + IntToStr(GetFreeMemory()) + #13#10;
+        Report := Report + 'Total Memory: ' + IntToStr(GetMemPhysicalInstalled()) + #13#10;
+      end;
 
       ExceptionInfo.CallStack.Formatter := TStackFormatter.Create();
       Report := Report + ExceptionInfo.CallStack.ToString;

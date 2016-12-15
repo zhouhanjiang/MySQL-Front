@@ -1560,6 +1560,8 @@ type
 
       { Base nodes ------------------------------------------------------------}
 
+      PToken = ^TToken;
+
       PNode = ^TNode;
       TNode = packed record
       private
@@ -1567,10 +1569,14 @@ type
         FParser: TSQLParser;
       private
         class function Create(const AParser: TSQLParser; const ANodeType: TNodeType): TOffset; static; {$IFNDEF Debug} inline; {$ENDIF}
+        function GetFirstToken(): PToken;
+        function GetLastToken(): PToken;
         function GetOffset(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
         function GetText(): string;
         property Offset: TOffset read GetOffset;
       public
+        property FirstToken: PToken read GetFirstToken;
+        property LastToken: PToken read GetLastToken;
         property NodeType: TNodeType read FNodeType;
         property Parser: TSQLParser read FParser;
         property Text: string read GetText;
@@ -1590,7 +1596,6 @@ type
         property ParentNode: PNode read GetParentNode;
       end;
 
-      PToken = ^TToken;
       TToken = packed record
       private
         Heritage: TChild;
@@ -7082,10 +7087,10 @@ type
   end;
 
 function AddDatabaseName(const Stmt: TSQLParser.PStmt; const DatabaseName: string): string;
-function ExpandWhereClause(const Stmt: TSQLParser.PStmt; const WhereClause: string): string;
+function ExpandSelectStmtWhereClause(const Stmt: TSQLParser.PStmt; const WhereClause: string): string;
 function RemoveDatabaseName(const Stmt: TSQLParser.PStmt; const DatabaseName: string; const CaseSensitive: Boolean = False): string;
 function RemoveTableName(const Stmt: TSQLParser.PStmt; const TableName: string; const CaseSensitive: Boolean = False): string; overload;
-function ReplaceLimit(const Stmt: TSQLParser.PStmt; const Offset, Limit: Integer): string;
+function ReplaceSelectStmtLimit(const Stmt: TSQLParser.PStmt; const Offset, RowCount: Integer): string;
 
 const
   PE_Success = 0; // No error
@@ -8076,6 +8081,26 @@ begin
     FNodeType := ANodeType;
     FParser := AParser;
   end;
+end;
+
+function TSQLParser.TNode.GetFirstToken(): PToken;
+begin
+  if (NodeType = ntToken) then
+    Result := TSQLParser.PToken(@Self)
+  else if (Parser.IsRange(@Self)) then
+    Result := TSQLParser.PRange(@Self)^.FirstToken
+  else
+    raise ERangeError.Create(SRangeError);
+end;
+
+function TSQLParser.TNode.GetLastToken(): PToken;
+begin
+  if (NodeType = ntToken) then
+    Result := TSQLParser.PToken(@Self)
+  else if (Parser.IsRange(@Self)) then
+    Result := TSQLParser.PRange(@Self)^.LastToken
+  else
+    raise ERangeError.Create(SRangeError);
 end;
 
 function TSQLParser.TNode.GetOffset(): TOffset;
@@ -19240,12 +19265,50 @@ end;
 
 function TSQLParser.ParseExpr(const Options: TExprOptions): TOffset;
 var
-  I: Integer;
+  Nodes: TOffsetList;
+
+  procedure AddOperandsToCompletionList();
+  var
+    I: Integer;
+  begin
+    if ((Nodes.Count >= 4)
+      and IsToken(Nodes[Nodes.Count - 4]) and (TokenPtr(Nodes[Nodes.Count - 4])^.TokenType in ttIdents)
+      and IsToken(Nodes[Nodes.Count - 3]) and (TokenPtr(Nodes[Nodes.Count - 3])^.OperatorType = otDot)
+      and IsToken(Nodes[Nodes.Count - 2]) and (TokenPtr(Nodes[Nodes.Count - 2])^.TokenType in ttIdents)
+      and IsToken(Nodes[Nodes.Count - 1]) and (TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType = otDot)) then
+    begin
+      CompletionList.AddList(ditField, TokenPtr(Nodes[Nodes.Count - 4])^.AsString, TokenPtr(Nodes[Nodes.Count - 2])^.AsString);
+    end
+    else if ((Nodes.Count >= 2)
+      and IsToken(Nodes[Nodes.Count - 2]) and (TokenPtr(Nodes[Nodes.Count - 2])^.TokenType in ttIdents)
+      and IsToken(Nodes[Nodes.Count - 1]) and (TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType = otDot)) then
+    begin
+      CompletionList.AddList(ditTable, TokenPtr(Nodes[Nodes.Count - 2])^.AsString);
+      CompletionList.AddList(ditField, '', TokenPtr(Nodes[Nodes.Count - 2])^.AsString);
+    end
+    else if ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1])) then
+    begin
+      for I := 0 to FunctionList.Count - 1 do
+        CompletionList.AddText(FunctionList[I]);
+      CompletionList.AddList(ditDatabase);
+      CompletionList.AddList(ditFunction);
+      CompletionList.AddList(ditTable);
+      CompletionList.AddList(ditField);
+    end;
+    CompletionList.AddTag(kiCURRENT_DATE);
+    CompletionList.AddTag(kiCURRENT_TIME);
+    CompletionList.AddTag(kiCURRENT_TIMESTAMP);
+    CompletionList.AddTag(kiCURRENT_USER);
+    CompletionList.AddTag(kiFALSE);
+    CompletionList.AddTag(kiNULL);
+    CompletionList.AddTag(kiTRUE);
+  end;
+
+var
   KeywordIndex: Integer;
   Length: Integer;
   ListNodes: TList.TNodes;
   NodeIndex: Integer;
-  Nodes: TOffsetList;
   Operands: TOffsetList;
   OperatorPrecedence: Integer;
   Text: PChar;
@@ -19388,8 +19451,6 @@ begin
             Nodes.Add(ParseDefaultFunc()) // Db.Func()
           else
             Nodes.Add(ParseDbIdent(ditField, True, eoAllFields in Options)) // Tbl.Clmn or Db.Tbl.Clmn
-        else if (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) >= 0) then
-          SetError(PE_UnexpectedToken)
         else
           Nodes.Add(ParseDbIdent(ditUnknown, False, eoAllFields in Options))
       else
@@ -19418,7 +19479,10 @@ begin
             otBinary,
             otNot:
               if (NodeIndex + 1 = Nodes.Count) then
-                SetError(PE_IncompleteStmt)
+                begin
+                  AddOperandsToCompletionList();
+                  SetError(PE_IncompleteStmt);
+                end
               else if (IsOperator(Nodes[NodeIndex + 1])) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex + 1])
               else
@@ -19435,7 +19499,10 @@ begin
                   and IsToken(Nodes[NodeIndex + 1]) and (TokenPtr(Nodes[NodeIndex + 1])^.OperatorType in [otInvertBits, otUnaryMinus, otUnaryNot, otUnaryPlus])) do
                   Inc(NodeIndex);
                 if (NodeIndex + 1 = Nodes.Count) then
-                  SetError(PE_IncompleteStmt)
+                begin
+                  AddOperandsToCompletionList();
+                  SetError(PE_IncompleteStmt);
+                end
                 else if (IsOperator(Nodes[NodeIndex + 1])) then
                   SetError(PE_UnexpectedToken, Nodes[NodeIndex + 1])
                 else
@@ -19479,7 +19546,10 @@ begin
                 Operands.Add(Nodes[NodeIndex - 1]);
                 repeat
                   if (NodeIndex + 1 = Nodes.Count) then
-                    SetError(PE_IncompleteStmt)
+                  begin
+                    AddOperandsToCompletionList();
+                    SetError(PE_IncompleteStmt);
+                  end
                   else if (IsOperator(Nodes[NodeIndex + 1])) then
                     SetError(PE_UnexpectedToken, Nodes[NodeIndex + 1])
                   else
@@ -19500,7 +19570,10 @@ begin
                 and not ((NodePtr(Nodes[NodeIndex - 1])^.NodeType = ntDbIdent) and (PDbIdent(NodePtr(Nodes[NodeIndex - 1]))^.DbIdentType in [ditUnknown, ditField]))) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if (NodeIndex = Nodes.Count) then
-                SetError(PE_IncompleteStmt)
+              begin
+                AddOperandsToCompletionList();
+                SetError(PE_IncompleteStmt);
+              end
               else
               begin
                 Operands.Init();
@@ -19515,7 +19588,13 @@ begin
               if (NodeIndex = 0) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if (NodeIndex + 1 = Nodes.Count) then
-                SetError(PE_IncompleteStmt)
+              begin
+                CompletionList.AddTag(kiFALSE);
+                CompletionList.AddTag(kiNULL);
+                CompletionList.AddTag(kiTRUE);
+                CompletionList.AddTag(kiUNKNOWN);
+                SetError(PE_IncompleteStmt);
+              end
               else if (IsToken(Nodes[NodeIndex + 1])
                 and ((TokenPtr(Nodes[NodeIndex + 1])^.KeywordIndex = kiFALSE)
                   or (TokenPtr(Nodes[NodeIndex + 1])^.KeywordIndex = kiNULL)
@@ -19529,7 +19608,13 @@ begin
               else if (not IsToken(Nodes[NodeIndex + 1]) or (TokenPtr(Nodes[NodeIndex + 1])^.KeywordIndex <> kiNOT)) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex + 1])
               else if (NodeIndex + 2 = Nodes.Count) then
-                SetError(PE_IncompleteStmt)
+              begin
+                CompletionList.AddTag(kiFALSE);
+                CompletionList.AddTag(kiNULL);
+                CompletionList.AddTag(kiTRUE);
+                CompletionList.AddTag(kiUNKNOWN);
+                SetError(PE_IncompleteStmt);
+              end
               else if (IsToken(Nodes[NodeIndex + 2])
                 and ((TokenPtr(Nodes[NodeIndex + 2])^.KeywordIndex = kiFALSE)
                   or (TokenPtr(Nodes[NodeIndex + 2])^.KeywordIndex = kiNULL)
@@ -19559,7 +19644,10 @@ begin
               else if (not IsToken(Nodes[NodeIndex + 2]) or (TokenPtr(Nodes[NodeIndex + 2])^.OperatorType <> otAnd)) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex + 2])
               else if (NodeIndex + 3 = Nodes.Count) then
-                SetError(PE_IncompleteStmt)
+              begin
+                AddOperandsToCompletionList();
+                SetError(PE_IncompleteStmt);
+              end
               else if (IsOperator(Nodes[NodeIndex + 3])) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex + 3])
               else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.KeywordIndex = kiNOT)) then
@@ -19607,7 +19695,10 @@ begin
                 and IsOperator(Nodes[NodeIndex - 1])) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if (NodeIndex + 1 = Nodes.Count) then
-                SetError(PE_IncompleteStmt)
+              begin
+                AddOperandsToCompletionList();
+                SetError(PE_IncompleteStmt);
+              end
               else if (IsOperator(Nodes[NodeIndex + 1])) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex + 1])
               else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)) then
@@ -19619,7 +19710,10 @@ begin
                   Dec(NodeIndex, 2);
                 end
                 else if (NodeIndex + 3 = Nodes.Count) then
-                  SetError(PE_IncompleteStmt)
+                begin
+                  AddOperandsToCompletionList();
+                  SetError(PE_IncompleteStmt);
+                end
                 else if (IsOperator(Nodes[NodeIndex + 3])) then
                   SetError(PE_UnexpectedToken, Nodes[NodeIndex + 3])
                 else
@@ -19638,7 +19732,10 @@ begin
                   Dec(NodeIndex);
                 end
                 else if (NodeIndex + 3 = Nodes.Count) then
-                  SetError(PE_IncompleteStmt)
+                begin
+                  AddOperandsToCompletionList();
+                  SetError(PE_IncompleteStmt);
+                end
                 else if (IsOperator(Nodes[NodeIndex + 3])) then
                   SetError(PE_UnexpectedToken, Nodes[NodeIndex + 3])
                 else
@@ -19658,7 +19755,10 @@ begin
                 and IsOperator(Nodes[NodeIndex - 1])) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if (NodeIndex + 1 = Nodes.Count) then
-                SetError(PE_IncompleteStmt)
+              begin
+                AddOperandsToCompletionList();
+                SetError(PE_IncompleteStmt);
+              end
               else if (IsOperator(Nodes[NodeIndex + 1])) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex + 1])
               else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)) then
@@ -19683,7 +19783,10 @@ begin
                 and IsOperator(Nodes[NodeIndex - 1])) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if (NodeIndex + 1 = Nodes.Count) then
-                SetError(PE_IncompleteStmt)
+              begin
+                AddOperandsToCompletionList();
+                SetError(PE_IncompleteStmt);
+              end
               else if (IsOperator(Nodes[NodeIndex + 1])) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex + 1])
               else
@@ -19700,37 +19803,7 @@ begin
   if (not ErrorFound and EndOfStmt(CurrentToken)) then
     if ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1])) then
     begin // Add operands
-      if ((Nodes.Count >= 4)
-        and IsToken(Nodes[Nodes.Count - 4]) and (TokenPtr(Nodes[Nodes.Count - 4])^.TokenType in ttIdents)
-        and IsToken(Nodes[Nodes.Count - 3]) and (TokenPtr(Nodes[Nodes.Count - 3])^.OperatorType = otDot)
-        and IsToken(Nodes[Nodes.Count - 2]) and (TokenPtr(Nodes[Nodes.Count - 2])^.TokenType in ttIdents)
-        and IsToken(Nodes[Nodes.Count - 1]) and (TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType = otDot)) then
-      begin
-        CompletionList.AddList(ditField, TokenPtr(Nodes[Nodes.Count - 4])^.AsString, TokenPtr(Nodes[Nodes.Count - 2])^.AsString);
-      end
-      else if ((Nodes.Count >= 2)
-        and IsToken(Nodes[Nodes.Count - 2]) and (TokenPtr(Nodes[Nodes.Count - 2])^.TokenType in ttIdents)
-        and IsToken(Nodes[Nodes.Count - 1]) and (TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType = otDot)) then
-      begin
-        CompletionList.AddList(ditTable, TokenPtr(Nodes[Nodes.Count - 2])^.AsString);
-        CompletionList.AddList(ditField, '', TokenPtr(Nodes[Nodes.Count - 2])^.AsString);
-      end
-      else if ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1])) then
-      begin
-        for I := 0 to FunctionList.Count - 1 do
-          CompletionList.AddText(FunctionList[I]);
-        CompletionList.AddList(ditDatabase);
-        CompletionList.AddList(ditFunction);
-        CompletionList.AddList(ditTable);
-        CompletionList.AddList(ditField);
-      end;
-      CompletionList.AddTag(kiCURRENT_DATE);
-      CompletionList.AddTag(kiCURRENT_TIME);
-      CompletionList.AddTag(kiCURRENT_TIMESTAMP);
-      CompletionList.AddTag(kiCURRENT_USER);
-      CompletionList.AddTag(kiFALSE);
-      CompletionList.AddTag(kiNULL);
-      CompletionList.AddTag(kiTRUE);
+      AddOperandsToCompletionList();
       SetError(PE_IncompleteStmt);
     end
     else
@@ -20779,10 +20852,10 @@ begin
         if (DelimiterFound) then
           Children.Add(ParseSymbol(DelimiterType));
       end;
-    until ((CurrentToken = 0)
+    until ((CurrentToken = 0) and (DelimiterType <> ttUnknown) and not DelimiterFound
       or ErrorFound and not RootStmtList
       or (DelimiterType <> ttUnknown) and not DelimiterFound
-      or (DelimiterType <> ttSemicolon) and (ErrorFound or EndOfStmt(CurrentToken))
+      or (DelimiterType <> ttSemicolon) and (ErrorFound or (CurrentToken > 0) and (TokenPtr(CurrentToken)^.TokenType = ttSemicolon))
       or (DelimiterType = ttSemicolon)
         and InPL_SQL
         and ((TokenPtr(CurrentToken)^.KeywordIndex = kiELSE)
@@ -27373,13 +27446,109 @@ begin
   end;
 end;
 
-function ExpandWhereClause(const Stmt: TSQLParser.PStmt; const WhereClause: string): string;
+function ExpandSelectStmtWhereClause(const Stmt: TSQLParser.PStmt; const WhereClause: string): string;
+var
+  Index: Integer;
+  LastToken: TSQLParser.PToken;
+  Length: Integer;
+  MultiLine: Boolean;
+  Nodes: TSQLParser.POffsetArray;
+  Text: PChar;
+  Token: TSQLParser.PToken;
 begin
   if (not Assigned(Stmt) or (Stmt^.StmtType <> stSelect)) then
     Result := ''
-  else if (TSQLParser.PSelectStmt(Stmt)^.Nodes.Where.Tag = 0) then
+  else
   begin
+    Stmt^.Parser.Commands := TSQLParser.TFormatBuffer.Create();
 
+    if (TSQLParser.PSelectStmt(Stmt)^.Nodes.Where.Tag = 0) then
+    begin
+      MultiLine := False;
+      Token := Stmt^.FirstToken;
+      while (Assigned(Token)) do
+      begin
+        if (Token^.TokenType = ttReturn) then
+        begin
+          MultiLine := True;
+          break;
+        end;
+
+        if (Token = Stmt^.LastToken) then
+          Token := nil
+        else
+          Token := Token^.NextTokenAll;
+      end;
+
+      Nodes := TSQLParser.POffsetArray(@TSQLParser.PSelectStmt(Stmt)^.Nodes);
+      Index := (Integer(@TSQLParser.PSelectStmt(Stmt)^.Nodes.Where.Tag) - Integer(Nodes)) div SizeOf(TSQLParser.TOffset);
+      while ((Index > 0) and (Nodes^[Index] = 0)) do Dec(Index);
+      LastToken := Stmt^.Parser.NodePtr(Nodes^[Index])^.LastToken;
+
+      if (not Assigned(LastToken)) then
+        raise ERangeError.Create(SRangeError);
+
+      Token := Stmt^.FirstToken;
+      while (Assigned(Token)) do
+      begin
+        Token^.GetText(Text, Length);
+        Stmt^.Parser.Commands.Write(Text, Length);
+
+        if (Token = LastToken) then
+          Token := nil
+        else
+          Token := Token^.NextTokenAll;
+      end;
+
+      if (not MultiLine) then
+        Stmt^.Parser.Commands.WriteSpace()
+      else
+        Stmt^.Parser.Commands.WriteReturn();
+      Stmt^.Parser.Commands.Write('WHERE ');
+      Stmt^.Parser.Commands.Write(WhereClause);
+    end
+    else if (TSQLParser.PSelectStmt(Stmt)^.Nodes.Where.Expr = 0) then
+      raise ERangeError.Create(SRangeError)
+    else
+    begin
+      LastToken := Stmt^.Parser.NodePtr(TSQLParser.PSelectStmt(Stmt)^.Nodes.Where.Expr)^.LastToken;
+
+      if (not Assigned(LastToken)) then
+        raise ERangeError.Create(SRangeError);
+
+      Token := Stmt^.FirstToken;
+      while (Assigned(Token)) do
+      begin
+        Token^.GetText(Text, Length);
+        Stmt^.Parser.Commands.Write(Text, Length);
+
+        if (Token = LastToken) then
+          Token := nil
+        else
+          Token := Token^.NextTokenAll;
+      end;
+
+      Stmt^.Parser.Commands.WriteSpace();
+      Stmt^.Parser.Commands.Write('(');
+      Stmt^.Parser.Commands.Write(WhereClause);
+      Stmt^.Parser.Commands.Write(')');
+    end;
+
+    Token := LastToken^.NextTokenAll;
+    while (Assigned(Token)) do
+    begin
+      Token^.GetText(Text, Length);
+      Stmt^.Parser.Commands.Write(Text, Length);
+
+      if (Token = Stmt^.LastToken) then
+        Token := nil
+      else
+        Token := Token^.NextTokenAll;
+    end;
+
+    Result := Stmt^.Parser.Commands.Read();
+
+    Stmt^.Parser.Commands.Free(); Stmt^.Parser.Commands := nil;
   end;
 end;
 
@@ -27476,9 +27645,114 @@ begin
   end;
 end;
 
-function ReplaceLimit(const Stmt: TSQLParser.PStmt; const Offset, Limit: Integer): string;
+function ReplaceSelectStmtLimit(const Stmt: TSQLParser.PStmt; const Offset, RowCount: Integer): string;
+var
+  Index: Integer;
+  LastToken: TSQLParser.PToken;
+  Length: Integer;
+  Nodes: TSQLParser.POffsetArray;
+  MultiLine: Boolean;
+  Text: PChar;
+  Token: TSQLParser.PToken;
 begin
+  if (not Assigned(Stmt) or (Stmt^.StmtType <> stSelect)) then
+    Result := ''
+  else
+  begin
+    Stmt^.Parser.Commands := TSQLParser.TFormatBuffer.Create();
 
+    if (TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit.Tag = 0) then
+    begin
+      MultiLine := False;
+      Token := Stmt^.FirstToken;
+      while (Assigned(Token)) do
+      begin
+        if (Token^.TokenType = ttReturn) then
+        begin
+          MultiLine := True;
+          break;
+        end;
+
+        if (Token = Stmt^.LastToken) then
+          Token := nil
+        else
+          Token := Token^.NextTokenAll;
+      end;
+
+      Nodes := TSQLParser.POffsetArray(@TSQLParser.PSelectStmt(Stmt)^.Nodes);
+      Index := (Integer(@TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit.Tag) - Integer(Nodes)) div SizeOf(TSQLParser.TOffset);
+      while ((Index > 0) and (Nodes^[Index] = 0)) do Dec(Index);
+      LastToken := Stmt^.Parser.NodePtr(Nodes^[Index])^.LastToken;
+
+      if (not Assigned(LastToken)) then
+        raise ERangeError.Create(SRangeError);
+
+      Token := Stmt^.FirstToken;
+      while (Assigned(Token)) do
+      begin
+        Token^.GetText(Text, Length);
+        Stmt^.Parser.Commands.Write(Text, Length);
+
+        if (Token = LastToken) then
+          Token := nil
+        else
+          Token := Token^.NextTokenAll;
+      end;
+
+      if (not MultiLine) then
+        Stmt^.Parser.Commands.WriteSpace()
+      else
+        Stmt^.Parser.Commands.WriteReturn();
+      Stmt^.Parser.Commands.Write(' LIMIT');
+    end
+    else if (TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit.RowCountToken = 0) then
+      raise ERangeError.Create(SRangeError)
+    else
+    begin
+      LastToken := Stmt^.Parser.NodePtr(TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit.Tag)^.LastToken;
+
+      if (not Assigned(LastToken)) then
+        raise ERangeError.Create(SRangeError);
+
+      Token := Stmt^.FirstToken;
+      while (Assigned(Token)) do
+      begin
+        Token^.GetText(Text, Length);
+        Stmt^.Parser.Commands.Write(Text, Length);
+
+        if (Token = LastToken) then
+          Token := nil
+        else
+          Token := Token^.NextTokenAll;
+      end;
+
+      LastToken := Stmt^.Parser.NodePtr(TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit.RowCountToken)^.LastToken;
+    end;
+
+    Stmt^.Parser.Commands.WriteSpace();
+    if (Offset > 0) then
+    begin
+      Stmt^.Parser.Commands.Write(IntToStr(Offset));
+      Stmt^.Parser.Commands.Write(',');
+    end;
+    Stmt^.Parser.Commands.Write(IntToStr(RowCount));
+
+    Token := LastToken^.NextTokenAll;
+    while (Assigned(Token)) do
+    begin
+      Token^.GetText(Text, Length);
+      Stmt^.Parser.Commands.Write(Text, Length);
+
+      if (Token = Stmt^.LastToken) then
+        Token := nil
+      else
+        Token := Token^.NextTokenAll;
+    end;
+
+    Result := Stmt^.Parser.Commands.Read();
+
+    Stmt^.Parser.Commands.Free(); Stmt^.Parser.Commands := nil;
+  end;
 end;
 
 {$IFDEF Debug}

@@ -346,6 +346,8 @@ end;
 
 function TDImport.Execute(): Boolean;
 begin
+  Imported := False;
+
   ModalResult := mrNone;
 
   if ((ImportType in [itSQLFile, itTextFile, itAccessFile, itExcelFile]) and (Filename = '')) then
@@ -637,7 +639,10 @@ begin
 
   // Debug 2016-12-08
   if (not FBCancel.Enabled) then
-    raise ERangeError.Create(SRangeError);
+    if (not Assigned(Sender)) then
+      raise ERangeError.Create(SRangeError + #13#10 + 'ModalResult: ' + IntToStr(Ord(ModalResult)))
+    else
+      raise ERangeError.Create(SRangeError + #13#10 + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10 + 'Sender ClassType: ' + Sender.ClassName);
 
   PageControl.ActivePage := nil;
 end;
@@ -1007,6 +1012,7 @@ begin
     Import.OnError := OnError;
     Import.OnTerminate := OnTerminate;
     Import.OnUpdate := OnUpdate;
+    Imported := True;
     Import.Start();
   end;
 
