@@ -18401,7 +18401,8 @@ function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
     else if ((TokenPtr(CurrentToken)^.TokenType = ttIdent)
         and (QualifiedIdentifier
           or (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0)
-          or (ADbIdentType = ditCharset) and (StrLIComp(TokenPtr(CurrentToken)^.FText, 'binary', 6) = 0))
+          or (ADbIdentType = ditCharset) and (StrLIComp(TokenPtr(CurrentToken)^.FText, 'binary', 6) = 0)
+          or (ADbIdentType in [ditVariable]))
       or (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent) and not (ADbIdentType in [ditCharset, ditCollation])
       or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and (AnsiQuotes or (ADbIdentType in [ditConstraint, ditColumnAlias]))
       or (TokenPtr(CurrentToken)^.TokenType = ttString) and (ADbIdentType in [ditConstraint, ditColumnAlias])

@@ -691,17 +691,12 @@ begin
   end;
   FBHelp.Visible := HelpContext >= 0;
 
-  if (SObject is TSTable) then
+  if (SObject is TSDatabase) then
+    Database := TSDatabase(SObject)
+  else if (SObject is TSDBObject) then
     Database := TSDBObject(SObject).Database
   else
-  begin
-    if (SObject is TSDatabase) then
-      Database := TSDatabase(SObject)
-    else if (SObject is TSDBObject) then
-      Database := TSDBObject(SObject).Database
-    else
-      Database := nil;
-  end;
+    Database := nil;
 
   TSTables.Enabled := ImportType in [itAccessFile, itExcelFile, itODBC];
   TSCSVOptions.Enabled := ImportType in [itTextFile];
@@ -894,6 +889,10 @@ var
 
   procedure ImportAdd(TableName: string; const SourceTableName: string = '');
   begin
+    // Debug 2016-12-16
+    if (not Assigned(Database)) then
+      raise ERangeError.Create('Database not assigned' + #13#10 + 'ImportType: ' + IntToStr(Ord(ImportType)));
+
     TableName := Session.ApplyIdentifierName(TableName);
     if ((Answer <> IDYESALL) and not (SObject is TSTable) and Assigned(Database.TableByName(TableName))) then
       Answer := MsgBox(Preferences.LoadStr(700, Database.Name + '.' + TableName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);

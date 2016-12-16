@@ -1027,7 +1027,7 @@ begin
       Inc(I);
 
   if (not Assigned(Wanted.Page)) then
-    if ((ExportType = etSQLFile) and not Session.Update(DBObjects)) then
+    if (not Session.Update(DBObjects)) then
       Wanted.Page := TSExecute;
 
   if (not Assigned(Wanted.Page)) then

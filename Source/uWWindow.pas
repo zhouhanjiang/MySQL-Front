@@ -1072,16 +1072,31 @@ begin
         Report := Report + Exception(ExceptionInfo.ExceptionObject).Message + #13#10;
       end;
       Report := Report + #13#10;
+    except
+      on E: Exception do
+        try SendBugToDeveloper('EurekaLogExceptionNotify Error 5!' + #13#10#13#10 + E.Message); except end;
+    end;
 
+    try
       if (TObject(ExceptionInfo.ExceptionObject) is EOutOfMemory) then
       begin
         Report := Report + 'Free Memory: ' + IntToStr(GetFreeMemory()) + #13#10;
         Report := Report + 'Total Memory: ' + IntToStr(GetMemPhysicalInstalled()) + #13#10;
       end;
+    except
+      on E: Exception do
+        try SendBugToDeveloper('EurekaLogExceptionNotify Error 6!' + #13#10#13#10 + E.Message); except end;
+    end;
 
+    try
       ExceptionInfo.CallStack.Formatter := TStackFormatter.Create();
       Report := Report + ExceptionInfo.CallStack.ToString;
+    except
+      on E: Exception do
+        try SendBugToDeveloper('EurekaLogExceptionNotify Error 7!' + #13#10#13#10 + E.Message); except end;
+    end;
 
+    try
       if (EditorCommandText <> '') then
       begin
         Report := Report + #13#10;
@@ -1104,7 +1119,7 @@ begin
       end;
     except
       on E: Exception do
-        try SendBugToDeveloper('EurekaLogExceptionNotify Error 5!' + #13#10#13#10 + E.Message); except end;
+        try SendBugToDeveloper('EurekaLogExceptionNotify Error 8!' + #13#10#13#10 + E.Message); except end;
     end;
 
     try
@@ -1119,7 +1134,7 @@ begin
         + ' - Bug Report';
     except
       on E: Exception do
-        try SendBugToDeveloper('EurekaLogExceptionNotify Error 6!' + #13#10#13#10 + E.Message); except end;
+        try SendBugToDeveloper('EurekaLogExceptionNotify Error 9!' + #13#10#13#10 + E.Message); except end;
     end;
   end;
 end;
@@ -2031,7 +2046,14 @@ begin
 
   // Debug 2016-12-12
   // Somewhere, TPAccount.FDesktop will be cleared, but why and where???
-  if (Assigned(Tab) and not Assigned(Tab.Session.Account.Desktop)) then
+  if (Assigned(Tab)) then
+    if (not Assigned(Tab.Session.Account.Desktop)) then
+      raise ERangeError.Create(SRangeError)
+    else if (not (Tab.Session.Account.Desktop is TPAccount.TDesktop)) then
+      raise ERangeError.Create(SRangeError);
+
+  // Debug 2016-12-16
+  if (Assigned(Tab) and not Assigned(Tab.Session.Account.Desktop.Files)) then
     raise ERangeError.Create(SRangeError);
 
   miFReopen.Enabled := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vEditor, vEditor2, vEditor3]) and (Tab.Session.Account.Desktop.Files.Count > 0);

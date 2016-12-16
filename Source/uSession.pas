@@ -4036,6 +4036,14 @@ begin
   try
     inherited;
   except
+    // Debug 2016-12-16
+    if (not Assigned(Field.DataSet)) then
+      raise ERangeError.Create(SRangeError);
+    if (not Assigned(TMySQLQuery(Field.DataSet).LibRow)) then
+      raise ERangeError.Create(SRangeError);
+    if (not Assigned(TMySQLQuery(Field.DataSet).LibLengths)) then
+      raise ERangeError.Create(SRangeError);
+
     // Sometimes, the MySQL server sends wrong encoded field comments.
     // This code allow the user to handle this table - but the comments are wrong.
     SetString(RBS, TMySQLQuery(Field.DataSet).LibRow^[Field.FieldNo - 1], TMySQLQuery(Field.DataSet).LibLengths^[Field.FieldNo - 1]);
@@ -8989,9 +8997,9 @@ begin
       Result := Result + ' WHERE ' + Session.Connection.EscapeIdentifier('VARIABLE_NAME') + '=' + SQLEscape(Name);
     Result := Result + ';' + #13#10;
   end
-  else if (Session.Connection.MySQLVersion < 50715) then
+  else if (Session.Connection.MySQLVersion < 80000) then
   // PERFORMANCE_SCHEMA.SESSION_VARIABLES should be available in 5.7.8 and higher.
-  // But a user reported not to have it on your 5.7.14 server.
+  // But a user reported not to have it on your 5.7.16 server.
   begin
     Result := 'SHOW SESSION VARIABLES';
     if (Name <> '') then

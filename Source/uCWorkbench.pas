@@ -550,6 +550,12 @@ begin
     MouseDownPosition := Position;
 
   inherited;
+
+  // Debug 2016-12-16
+  if (not Workbench.Visible) then
+    raise ERangeError.Create(SRangeError);
+  if (not Workbench.Enabled) then
+    raise ERangeError.Create(SRangeError);
   Workbench.SetFocus();
 
   if ((Button in [mbLeft, mbRight]) and (not (ssCtrl in Shift) and (not Selected or (Workbench.SelCount <= 1)) or (not Workbench.MultiSelect or (not (ssCtrl in Shift) and (Workbench.SelCount <= 1))))) then

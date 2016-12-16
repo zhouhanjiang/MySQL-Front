@@ -1947,9 +1947,17 @@ begin
 end;
 
 procedure TFSession.TWanted.SetAddress(const AAddress: string);
+var
+  URI: TUURI;
 begin
   if (AAddress <> FAddress) then
   begin
+    // Debug 2016-12-16
+    URI := TUURI.Create(Address);
+    if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
+      raise ERangeError.Create('Address: ' + Address);
+    URI.Free();
+
     Clear();
     FAddress := AAddress;
   end;
@@ -3214,7 +3222,7 @@ begin
 
   // Debug 2016-12-14
   if (not OpenClipboard(Handle)) then
-    raise ERangeError.Create(SRangeError)
+    raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
   else
     CloseClipboard();
 end;
@@ -3348,7 +3356,7 @@ begin
 
   // Debug 2016-12-14
   if (not OpenClipboard(Handle)) then
-    raise ERangeError.Create(SRangeError)
+    raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
   else
     CloseClipboard();
 end;
@@ -5217,34 +5225,22 @@ end;
 
 procedure TFSession.DataSetAfterClose(DataSet: TDataSet);
 begin
-  // Debug 2016-11-22
-  if (not (Self is TFSession)) then
-    raise ERangeError.Create(SRangeError);
-
-  // Debug 2016-11-26
-  if (not Assigned(Self)) then
-    raise ERangeError.Create(SRangeError);
-  if (not Assigned(PBlob)) then
-    raise ERangeError.Create(SRangeError);
-  if (not Assigned(SBlob)) then
-    if (not (csDestroying in ComponentState)) then
-      raise ERangeError.Create(SRangeError)
-    else
-      raise ERangeError.Create(SRangeError);
-
-  PBlob.Visible := False;
-  SBlob.Visible := PBlob.Visible;
-  if (PResult.Align = alClient) then
+  if (not (csDestroying in ComponentState)) then
   begin
-    PResult.Align := alBottom;
-    PResult.Height := PResultHeight;
-    if (PQueryBuilder.Visible) then PQueryBuilder.Align := alClient;
-    if (PSynMemo.Visible) then PSynMemo.Align := alClient;
-  end;
+    PBlob.Visible := False;
+    SBlob.Visible := PBlob.Visible;
+    if (PResult.Align = alClient) then
+    begin
+      PResult.Align := alBottom;
+      PResult.Height := PResultHeight;
+      if (PQueryBuilder.Visible) then PQueryBuilder.Align := alClient;
+      if (PSynMemo.Visible) then PSynMemo.Align := alClient;
+    end;
 
-  PResult.Visible := False; SResult.Visible := False;
-  PQueryBuilder.Update(); // TSynMemo does not update immediately after a change of TSynMemo.Align
-  PSynMemo.Update(); // TSynMemo does not update immediately after a change of TSynMemo.Align
+    PResult.Visible := False; SResult.Visible := False;
+    PQueryBuilder.Update(); // TSynMemo does not update immediately after a change of TSynMemo.Align
+    PSynMemo.Update(); // TSynMemo does not update immediately after a change of TSynMemo.Align
+  end;
 
   aDPrev.Enabled := False;
   aDNext.Enabled := False;
@@ -7478,6 +7474,7 @@ end;
 
 function TFSession.FQueryBuilderActiveWorkArea(): TacQueryBuilderWorkArea;
 var
+  Control: TWinControl;
   PageControl: TPageControl;
 begin
   if (not Assigned(FQueryBuilderEditorPageControl())) then
@@ -7491,6 +7488,18 @@ begin
       Result := TacQueryBuilderWorkArea(FindChildByClassType(PageControl.Pages[0], TacQueryBuilderWorkArea))
     else
       Result := nil;
+
+    if (Result is TWinControl) then
+    begin
+      Control := TWinControl(Result);
+      while (Assigned(Control) and (Control <> PageControl)) do
+        if (not Control.Visible) then
+          Control := nil
+        else
+          Control := Control.Parent;
+      if (not Assigned(Control)) then
+        Result := nil;
+    end;
 
     if (not Assigned(PageControl.OnChange)) then
     begin
@@ -8124,7 +8133,11 @@ begin
       begin
         // Debug 2016-11-25
         if (not (TObject(FNavigator.Selected.Data) is TSDatabase)) then
-          raise ERangeError.Create(SRangeError);
+          try
+            raise ERangeError.Create(SRangeError + #13#10 + 'ClassType: ' + TObject(FNavigator.Selected.Data).ClassName + #13#10 + 'Address: ' + Address);
+          except
+            raise ERangeError.Create(SRangeError + #13#10 + 'Address: ' + Address);
+          end;
         Result := Desktop(TSDatabase(FNavigator.Selected.Data)).BuilderDBGrid;
       end;
     vEditor,
@@ -9858,6 +9871,11 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
                 except
                   raise ERangeError.Create(SRangeError);
                 end;
+              // Debug 2016-12-16
+              if (not Assigned(ListView.Items[I])) then
+                raise ERangeError.Create(SRangeError);
+              if (not Assigned(ListView.Items[I].Data)) then
+                raise ERangeError.Create('ImageIndex: ' + IntToStr(ListView.Items[I].ImageIndex));
               if (TObject(ListView.Items[I].Data) is TSKey) then
                 Write;
               if ((TObject(ListView.Items[I].Data) is TSKey) and (TSBaseTable(TSBaseTableFields(Event.Items).Table).Keys.IndexOf(ListView.Items[I].Data) < 0)) then
@@ -12561,7 +12579,7 @@ begin
 
     // Debug 2016-12-12
     if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
-      raise ERangeError.Create(SRangeError + ' Address: ' + Address);
+      raise ERangeError.Create('NewAddress: ' + NewAddress + #13#10 + 'Address: ' + Address);
 
     if ((URI.Param['view'] = 'browser') and (Node.ImageIndex in [iiBaseTable, iiSystemView, iiView])) then
       NewView := vBrowser
@@ -13405,6 +13423,13 @@ var
   SortDef: TIndexDef;
   Table: TSTable;
 begin
+  // Debug 2016-12-16
+  if (not Assigned(FNavigator.Selected.Data)) then
+    raise ERangeError.Create(SRangeError);
+  if (not (TObject(FNavigator.Selected.Data) is TSTable)) then
+    raise ERangeError.Create('ClassType: ' + TObject(FNavigator.Selected.Data).ClassName + #13#10
+      + 'ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex));
+
   Table := TSTable(FNavigator.Selected.Data);
 
   if (not FLimitEnabled.Down) then

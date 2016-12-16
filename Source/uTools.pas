@@ -2372,6 +2372,7 @@ var
   Index: Integer;
   Len: Integer;
   ReadSize: DWord;
+  Size: Integer;
   UTF8Bytes: Byte;
 begin
   // The file will be read without buffering in Windows OS. Because of this,
@@ -2417,6 +2418,9 @@ begin
           BOMLength := 0;
 
         Inc(FileBuffer.Index, BOMLength);
+
+        if ((CodePage = CP_UNICODE) and (GetFileSize(Handle, nil) mod 2 <> 0)) then
+          raise ERangeError.Create('Invalid File Size');
       end;
       Inc(FilePos, ReadSize);
 
@@ -2424,10 +2428,10 @@ begin
         CP_UNICODE:
           begin
             Index := 1 + Length(FileContent.Str);
-            Len := Integer(ReadSize - (FileBuffer.Index - BytesPerSector));
-            SetLength(FileContent.Str, Length(FileContent.Str) + Len div SizeOf(Char));
-            if (Len > 0) then
-              MoveMemory(@FileContent.Str[Index], @FileBuffer.Mem[FileBuffer.Index], Len);
+            Size := Integer(ReadSize - (FileBuffer.Index - BytesPerSector));
+            SetLength(FileContent.Str, Length(FileContent.Str) + Size div SizeOf(Char));
+            if (Size > 0) then
+              MoveMemory(@FileContent.Str[Index], @FileBuffer.Mem[FileBuffer.Index], Size);
             FileBuffer.Index := BytesPerSector;
           end;
         else
@@ -4105,57 +4109,60 @@ begin
   DataTables := TList.Create();
 
   SQL := '';
-  if ((Success = daSuccess) and Data) then
+  if (Success = daSuccess) then
   begin
     List := TList.Create();
     for I := 0 to Items.Count - 1 do
       if (Items[I] is TDBObjectItem) then
         List.Add(TDBObjectItem(Items[I]).DBObject);
-    Session.Update(List, True);
+    Session.Update(List, Data);
     List.Free();
 
-    SQL := '';
-    for I := 0 to Items.Count - 1 do
-      if (Items[I] is TDBGridItem) then
-        if (TDBGridItem(Items[I]).DBGrid.SelectedRows.Count > 0) then
-          TDBGridItem(Items[I]).RecordsSum := TDBGridItem(Items[I]).DBGrid.SelectedRows.Count
-        else
-          TDBGridItem(Items[I]).RecordsSum := TDBGridItem(Items[I]).DBGrid.DataSource.DataSet.RecordCount
-      else if (Items[I] is TDBObjectItem) then
-      begin
-        if (Self is TTExportSQL) then
+    if (Data) then
+    begin
+      SQL := '';
+      for I := 0 to Items.Count - 1 do
+        if (Items[I] is TDBGridItem) then
+          if (TDBGridItem(Items[I]).DBGrid.SelectedRows.Count > 0) then
+            TDBGridItem(Items[I]).RecordsSum := TDBGridItem(Items[I]).DBGrid.SelectedRows.Count
+          else
+            TDBGridItem(Items[I]).RecordsSum := TDBGridItem(Items[I]).DBGrid.DataSource.DataSet.RecordCount
+        else if (Items[I] is TDBObjectItem) then
         begin
-          // Debug 2016-11-25
-          if (not Assigned(Items)) then
-            raise ERangeError.Create(SRangeError);
-
-          Item := Items.Items[I];
-          DBObjectItem := TDBObjectItem(Item);
-          if (DBObjectItem.ClassType <> TDBObjectItem) then
-            raise ERangeError.Create(SRangeError);
-
-          DataTable := (DBObjectItem.DBObject is TSBaseTable)
-            and not TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine.IsMerge;
-        end
-        else if (Self is TTTransfer) then
-          DataTable := TDBObjectItem(Items[I]).DBObject is TSBaseTable and (TTTransfer(Self).DestinationSession <> Session)
-        else
-          DataTable := TDBObjectItem(Items[I]).DBObject is TSTable;
-
-        if (DataTable) then
-          if ((TDBObjectItem(Items[I]).DBObject is TSBaseTable)
-            and Assigned(TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine)
-            and TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine.IsInnoDB) then
+          if (Self is TTExportSQL) then
           begin
-            SQL := SQL + 'SELECT COUNT(*) FROM ' + Session.Connection.EscapeIdentifier(TDBObjectItem(Items[I]).DBObject.Database.Name) + '.' + Session.Connection.EscapeIdentifier(TDBObjectItem(Items[I]).DBObject.Name) + ';' + #13#10;
-            DataTables.Add(TSBaseTable(TDBObjectItem(Items[I]).DBObject));
+            // Debug 2016-11-25
+            if (not Assigned(Items)) then
+              raise ERangeError.Create(SRangeError);
+
+            Item := Items.Items[I];
+            DBObjectItem := TDBObjectItem(Item);
+            if (DBObjectItem.ClassType <> TDBObjectItem) then
+              raise ERangeError.Create(SRangeError);
+
+            DataTable := (DBObjectItem.DBObject is TSBaseTable)
+              and not TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine.IsMerge;
           end
-          else if ((TDBObjectItem(Items[I]).DBObject is TSBaseTable) and not TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine.IsMerge) then
-          begin
-            TDBObjectItem(Items[I]).RecordsSum := TSBaseTable(TDBObjectItem(Items[I]).DBObject).RecordCount;
-            DataTables.Add(TSBaseTable(TDBObjectItem(Items[I]).DBObject));
-          end;
-      end;
+          else if (Self is TTTransfer) then
+            DataTable := TDBObjectItem(Items[I]).DBObject is TSBaseTable and (TTTransfer(Self).DestinationSession <> Session)
+          else
+            DataTable := TDBObjectItem(Items[I]).DBObject is TSTable;
+
+          if (DataTable) then
+            if ((TDBObjectItem(Items[I]).DBObject is TSBaseTable)
+              and Assigned(TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine)
+              and TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine.IsInnoDB) then
+            begin
+              SQL := SQL + 'SELECT COUNT(*) FROM ' + Session.Connection.EscapeIdentifier(TDBObjectItem(Items[I]).DBObject.Database.Name) + '.' + Session.Connection.EscapeIdentifier(TDBObjectItem(Items[I]).DBObject.Name) + ';' + #13#10;
+              DataTables.Add(TSBaseTable(TDBObjectItem(Items[I]).DBObject));
+            end
+            else if ((TDBObjectItem(Items[I]).DBObject is TSBaseTable) and not TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine.IsMerge) then
+            begin
+              TDBObjectItem(Items[I]).RecordsSum := TSBaseTable(TDBObjectItem(Items[I]).DBObject).RecordCount;
+              DataTables.Add(TSBaseTable(TDBObjectItem(Items[I]).DBObject));
+            end;
+        end;
+    end;
 
     DoUpdateGUI();
 
@@ -4185,6 +4192,8 @@ begin
                 and (TDBObjectItem(Items[I]).DBObject = Database.TableByName(ObjectName))) then
                 Items[I].RecordsSum := DataSet.Fields[0].AsLargeInt;
             end
+          else if (DataSet.IsEmpty) then
+            raise ERangeError.Create('ErrorCode: ' + IntToStr(DataSet.Connection.ErrorCode) + #13#10 + 'ErrorMessage: ' + DataSet.Connection.ErrorMessage)
           else
             raise ERangeError.Create(SRangeError + ' SQL: ' + SQL + #10 + 'Bin: ' + SQLEscapeBin(SQL, True));
           DataSet.Close();
@@ -7503,23 +7512,26 @@ var
 begin
   Canvas.Pen.Width := LineHeight;
 
-  X := Columns[0].Left - LineWidth;
-  Canvas := Columns[0].Canvas;
-  for I := 0 to Length(Columns) do
+  if (Length(Columns) > 0) then
   begin
-    if ((I = Length(Columns)) or (Columns[I].Left < X)) then
+    X := Columns[0].Left - LineWidth;
+    Canvas := Columns[0].Canvas;
+    for I := 0 to Length(Columns) do
     begin
-      Canvas.MoveTo(ContentArea.Left, Y);
-      Canvas.LineTo(X + LineWidth, Canvas.PenPos.Y);
+      if ((I = Length(Columns)) or (Columns[I].Left < X)) then
+      begin
+        Canvas.MoveTo(ContentArea.Left, Y);
+        Canvas.LineTo(X + LineWidth, Canvas.PenPos.Y);
+
+        if (I < Length(Columns)) then
+          X := Columns[I].Left - LineWidth;
+      end;
 
       if (I < Length(Columns)) then
-        X := Columns[I].Left - LineWidth;
-    end;
-
-    if (I < Length(Columns)) then
-    begin
-      Inc(X, Padding + Columns[I].Width + Padding + LineWidth);
-      Canvas := Columns[I].Canvas;
+      begin
+        Inc(X, Padding + Columns[I].Width + Padding + LineWidth);
+        Canvas := Columns[I].Canvas;
+      end;
     end;
   end;
 end;

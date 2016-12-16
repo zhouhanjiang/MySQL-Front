@@ -262,6 +262,7 @@ type
     KillThreadId: my_uint;
     SilentCount: Integer;
     SynchronCount: Integer;
+    procedure DoTerminate();
     function GetNextCommandText(): string;
     function GetServerDateTime(): TDateTime;
     function GetHandle(): MySQLConsts.MYSQL;
@@ -518,7 +519,7 @@ type
       function Get(Index: Integer): PInternRecordBuffer; inline;
       procedure Put(Index: Integer; Buffer: PInternRecordBuffer); inline;
     public
-      CriticalSection: TCriticalSection;
+      xCriticalSection: TCriticalSection;
       FilteredRecordCount: Integer;
       Index: Integer;
       procedure Clear(); override;
@@ -2417,6 +2418,22 @@ begin
       FOnSQLError(Self, ErrorCode, ErrorMessage);
 end;
 
+procedure TMySQLConnection.DoTerminate();
+begin
+  if (Assigned(SyncThread) and SyncThread.IsRunning) then
+  begin
+    KillThreadId := SyncThread.ThreadId;
+
+    SyncThread.Terminate();
+
+    {$IFDEF Debug}
+      MessageBox(0, 'Terminate!', 'Warning', MB_OK + MB_ICONWARNING);
+    {$ENDIF}
+
+    WriteMonitor('--> Connection terminated', ttInfo);
+  end;
+end;
+
 procedure TMySQLConnection.DoVariableChange(const Name, NewValue: string);
 begin
   if (Assigned(FOnVariableChange)) then
@@ -3650,10 +3667,6 @@ begin
   Assert(SyncThread.DataSet is TMySQLDataSet);
   DataSet := TMySQLDataSet(SyncThread.DataSet);
 
-  // Debug 2016-12-15
-  if (not Assigned(DataSet)) then
-    raise ERangeError.Create(SRangeError);
-
   repeat
     if (SyncThread.Terminated) then
       LibRow := nil
@@ -3665,11 +3678,6 @@ begin
         SyncThread.ErrorCode := Lib.mysql_errno(SyncThread.LibHandle);
         SyncThread.ErrorMessage := GetErrorMessage(SyncThread.LibHandle);
       end
-      else if (not Assigned(Lib)) then
-        raise ERangeError.Create(SRangeError)
-      else if (not Assigned(SyncThread)) then
-        // Debug 2016-12-15
-        raise ERangeError.Create(SRangeError)
       else if (not DataSet.InternAddRecord(LibRow, Lib.mysql_fetch_lengths(SyncThread.ResHandle))) then
       begin
         SyncThread.ErrorCode := DS_OUT_OF_MEMORY;
@@ -3690,12 +3698,15 @@ begin
   begin
     SyncThread.DataSet := nil;
 
+    TerminateCS.Enter();
     if (not SyncThread.Terminated and (SyncThread.State = ssReceivingResult)) then
     begin
+      DoTerminate();
       SyncHandledResult(SyncThread);
       if ((SyncThread.Mode = smDataSet) and (SyncThread.State = ssReady)) then
         SyncAfterExecuteSQL(SyncThread);
     end;
+    TerminateCS.Enter();
   end;
 
   DataSet.SyncThread := nil;
@@ -3704,20 +3715,7 @@ end;
 procedure TMySQLConnection.Terminate();
 begin
   TerminateCS.Enter();
-
-  if (Assigned(SyncThread) and SyncThread.IsRunning) then
-  begin
-    KillThreadId := SyncThread.ThreadId;
-
-    SyncThread.Terminate();
-
-    {$IFDEF Debug}
-      MessageBox(0, 'Terminate!', 'Warning', MB_OK + MB_ICONWARNING);
-    {$ENDIF}
-
-    WriteMonitor('--> Connection terminated', ttInfo);
-  end;
-
+  DoTerminate();
   TerminateCS.Leave();
 end;
 
@@ -4638,7 +4636,6 @@ begin
     for I := 0 to Field.DataSet.FieldCount - 1 do
       if (Field.DataSet.Fields[I].IsIndexField) then
       begin
-        Msg := Msg + IntToStr(I + 1) + '. ';
         try
           Msg := Msg + Field.DataSet.Fields[I].FieldName + ': ';
         except
@@ -4646,8 +4643,8 @@ begin
         end;
         try
           Msg := Msg + Field.DataSet.Fields[I].AsString + #10;
-        finally
-          Msg := Msg + '???1' + #10;
+        except
+          Msg := Msg + '???' + #10;
         end;
       end;
 
@@ -5348,7 +5345,16 @@ begin
             end;
 
             if ((Field.Name = '') and IsValidIdent(ReplaceStr(ReplaceStr(Field.FieldName, ' ', '_'), '.', '_'))) then
-              Field.Name := ReplaceStr(ReplaceStr(Field.FieldName, ' ', '_'), '.', '_');
+              try
+                Field.Name := ReplaceStr(ReplaceStr(Field.FieldName, ' ', '_'), '.', '_');
+              except
+                // Debug 2016-12-16
+                on E: Exception do
+                  raise Exception.Create(
+                    E.Message + #13#10
+                      + 'FieldDefs.Count: ' + IntToStr(FieldDefs.Count) + #13#10
+                      + 'mysql_num_fields: ' + IntToStr(Connection.Lib.mysql_num_fields(Handle)));
+              end;
             if (Field.Name = '') then
               Field.Name := 'Field' + '_' + IntToStr(FieldDefs.Count);
             if (Field.FieldName = '') then
@@ -5578,7 +5584,7 @@ procedure TMySQLDataSet.TInternRecordBuffers.Clear();
 var
   I: Integer;
 begin
-  CriticalSection.Enter();
+  xCriticalSection.Enter();
   if ((DataSet.State = dsBrowse) and Assigned(DataSet.ActiveBuffer()) and Assigned(PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer)) then
     PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer := nil;
   for I := 0 to Count - 1 do
@@ -5587,7 +5593,7 @@ begin
   FilteredRecordCount := 0;
   Index := -1;
   Received.ResetEvent();
-  CriticalSection.Leave();
+  xCriticalSection.Leave();
 end;
 
 constructor TMySQLDataSet.TInternRecordBuffers.Create(const ADataSet: TMySQLDataSet);
@@ -5596,7 +5602,7 @@ begin
 
   FDataSet := ADataSet;
 
-  CriticalSection := TCriticalSection.Create();
+  xCriticalSection := TCriticalSection.Create();
   Index := -1;
   FRecordReceived := TEvent.Create(nil, True, False, '');
 end;
@@ -5605,7 +5611,7 @@ destructor TMySQLDataSet.TInternRecordBuffers.Destroy();
 begin
   inherited;
 
-  CriticalSection.Free();
+  xCriticalSection.Free();
   FRecordReceived.Free();
 end;
 
@@ -5886,7 +5892,7 @@ begin
     raise ERangeError.Create(SRangeError)
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
   else if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.Identifier <> $ABCDEF) then // Debug 2016-12-15
-    raise ERangeError.Create(SRangeError)
+    raise ERangeError.Create(SRangeError) // Occurrend second time on 2016-12-16
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
   else if (not (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier = 123456)) then // Crashe here the second time on 2016-12-15
     raise ERangeError.Create(SRangeError); // Occurred second time on 2016-12-15
@@ -5910,7 +5916,7 @@ begin
   else
     Result := 10;
 
-  InternRecordBuffers.CriticalSection.Enter();
+  InternRecordBuffers.xCriticalSection.Enter();
   Index := Field.FieldNo - 1;
   if ((not (Field.DataType in [ftWideString, ftWideMemo]))) then
     for I := 0 to InternRecordBuffers.Count - 1 do
@@ -5918,7 +5924,7 @@ begin
   else
     for I := 0 to InternRecordBuffers.Count - 1 do
       Result := Max(Result, TextWidth(Connection.LibDecode(InternRecordBuffers[I]^.NewData^.LibRow^[Index], InternRecordBuffers[I]^.NewData^.LibLengths^[Index])));
-  InternRecordBuffers.CriticalSection.Leave();
+  InternRecordBuffers.xCriticalSection.Leave();
 end;
 
 function TMySQLDataSet.GetRecNo(): Integer;
@@ -6007,14 +6013,14 @@ begin
 
   if (Result = grOk) then
   begin
-    InternRecordBuffers.CriticalSection.Enter();
+    InternRecordBuffers.xCriticalSection.Enter();
     InternRecordBuffers.Index := NewIndex;
 
     PExternRecordBuffer(Buffer)^.InternRecordBuffer := InternRecordBuffers[InternRecordBuffers.Index];
     PExternRecordBuffer(Buffer)^.Index := InternRecordBuffers.Index;
     PExternRecordBuffer(Buffer)^.BookmarkFlag := bfCurrent;
 
-    InternRecordBuffers.CriticalSection.Leave();
+    InternRecordBuffers.xCriticalSection.Leave();
   end;
 end;
 
@@ -6039,7 +6045,7 @@ begin
     FilterParser.Free();
   FilterParser := TExprParser.Create(Self, Filter, FilterOptions, [poExtSyntax], '', nil, FldTypeMap);
 
-  InternRecordBuffers.CriticalSection.Enter();
+  InternRecordBuffers.xCriticalSection.Enter();
 
   InternRecordBuffers.FilteredRecordCount := 0;
   for I := 0 to InternRecordBuffers.Count - 1 do
@@ -6049,7 +6055,7 @@ begin
       Inc(InternRecordBuffers.FilteredRecordCount);
   end;
 
-  InternRecordBuffers.CriticalSection.Leave();
+  InternRecordBuffers.xCriticalSection.Leave();
 end;
 
 function TMySQLDataSet.InternAddRecord(const LibRow: MYSQL_ROW; const LibLengths: MYSQL_LENGTHS; const Index: Integer = -1): Boolean;
@@ -6058,10 +6064,6 @@ var
   I: Integer;
   InternRecordBuffer: PInternRecordBuffer;
 begin
-  // Debug 2016-12-08
-  if (not Assigned(Self)) then
-    raise ERangeError.Create(SRangeError);
-
   if (not Assigned(LibRow)) then
     Result := True
   else
@@ -6088,12 +6090,12 @@ begin
         if (Filtered and InternRecordBuffer^.VisibleInFilter) then
           Inc(InternRecordBuffers.FilteredRecordCount);
 
-        InternRecordBuffers.CriticalSection.Enter();
+        InternRecordBuffers.xCriticalSection.Enter();
         if (Index >= 0) then
           InternRecordBuffers.Insert(Index, InternRecordBuffer)
         else
           InternRecordBuffers.Add(InternRecordBuffer);
-        InternRecordBuffers.CriticalSection.Leave();
+        InternRecordBuffers.xCriticalSection.Leave();
       end;
     end;
   end;
@@ -6172,7 +6174,7 @@ begin
     if (Success and (Connection.RowsAffected = 0)) then
       raise EDatabasePostError.Create(SRecordChanged);
 
-    InternRecordBuffers.CriticalSection.Enter();
+    InternRecordBuffers.xCriticalSection.Enter();
     if (Length(DeleteBookmarks) = 0) then
     begin
       InternalSetToRecord(ActiveBuffer());
@@ -6201,7 +6203,7 @@ begin
           Dec(InternRecordBuffers.FilteredRecordCount);
       end;
     end;
-    InternRecordBuffers.CriticalSection.Leave();
+    InternRecordBuffers.xCriticalSection.Leave();
 
     PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := nil;
   end;
@@ -6536,6 +6538,13 @@ begin
     SQL := TMySQLTable(Self).SQLSelect()
   else
     SQL := CommandText;
+
+  // Debug 2016-12-16
+  if (SQL = '') then
+    raise ERangeError.Create('CommandType: ' + IntToStr(Ord(CommandType)) + #13#10
+      + 'ClassType: ' + ClassName + #13#10
+      + 'CommandText: ' + CommandText);
+
   if (Connection.InternExecuteSQL(smDataSet, True, SQL)) then
     Connection.SyncBindDataSet(Self);
 end;
@@ -6688,15 +6697,6 @@ begin
   if (Assigned(DestData)) then
     FreeMem(DestData);
 
-  // Debug 2016-12-15
-  if (not Assigned(Fields)) then
-    if (not Assigned(Self)) then
-      raise Exception.Create(SRangeError + ' Freed!')
-    else if (csDestroying in ComponentState) then
-      raise ERangeError.Create(SRangeError + ' ... is destroying')
-    else
-      raise ERangeError.Create(SRangeError + ' ClassType: ' + ClassName);
-
   MemSize := SizeOf(DestData^) + FieldCount * (SizeOf(DestData^.LibLengths^[0]) + SizeOf(DestData^.LibRow^[0]));
   for I := 0 to FieldCount - 1 do
     Inc(MemSize, SourceData^.LibLengths^[I]);
@@ -6812,6 +6812,9 @@ var
 begin
   // Debug 2016-12-07
   if (PExternRecordBuffer(ActiveBuffer())^.Identifier <> 654321) then
+    raise ERangeError.Create(SRangeError);
+  // Debug 2016-12-16
+  if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
     raise ERangeError.Create(SRangeError);
   // Debug 2016-12-15
   if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.Identifier <> $ABCDEF) then

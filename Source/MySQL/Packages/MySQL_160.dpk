@@ -36,7 +36,8 @@ contains
   MySQLDB in '..\Source\MySQLDB.pas',
   MySQLDBGrid in '..\Source\MySQLDBGrid.pas',
   MySQLReg in '..\Source\MySQLReg.pas',
-  CSVUtils in '..\Source\CSVUtils.pas';
+  CSVUtils in '..\Source\CSVUtils.pas',
+  SQLParser in '..\Source\SQLParser.pas';
 
 end.
 

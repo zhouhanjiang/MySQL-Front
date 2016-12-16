@@ -930,6 +930,12 @@ begin
   FPosition.Items.Clear();
   FPosition.Enabled := not Assigned(Field) or (Table.Session.Connection.MySQLVersion >= 40001);
 
+  // Debug 2016-12-16
+  if (not Assigned(Table.Engine)) then
+    raise ERangeError.Create('Engine not assigned' + #13#10
+      + 'Table.Valid: ' + BoolToStr(Table.Valid) + #13#10
+      + 'Table.Source: ' + #13#10 + Table.Source);
+
   FFieldType.Clear();
   for I := 0 to Table.Session.FieldTypes.Count - 1 do
     if (Table.Engine.FieldAvailable(Table.Session.FieldTypes[I].MySQLFieldType)) then
