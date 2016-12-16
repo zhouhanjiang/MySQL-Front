@@ -2420,18 +2420,15 @@ end;
 
 procedure TMySQLConnection.DoTerminate();
 begin
-  if (Assigned(SyncThread) and SyncThread.IsRunning) then
-  begin
-    KillThreadId := SyncThread.ThreadId;
+  KillThreadId := SyncThread.ThreadId;
 
-    SyncThread.Terminate();
+  SyncThread.Terminate();
 
-    {$IFDEF Debug}
-      MessageBox(0, 'Terminate!', 'Warning', MB_OK + MB_ICONWARNING);
-    {$ENDIF}
+  {$IFDEF Debug}
+    MessageBox(0, 'Terminate!', 'Warning', MB_OK + MB_ICONWARNING);
+  {$ENDIF}
 
-    WriteMonitor('--> Connection terminated', ttInfo);
-  end;
+  WriteMonitor('--> Connection terminated', ttInfo);
 end;
 
 procedure TMySQLConnection.DoVariableChange(const Name, NewValue: string);
@@ -3701,12 +3698,13 @@ begin
     TerminateCS.Enter();
     if (not SyncThread.Terminated and (SyncThread.State = ssReceivingResult)) then
     begin
-      DoTerminate();
       SyncHandledResult(SyncThread);
       if ((SyncThread.Mode = smDataSet) and (SyncThread.State = ssReady)) then
         SyncAfterExecuteSQL(SyncThread);
+      if (SyncThread.IsRunning) then
+        DoTerminate();
     end;
-    TerminateCS.Enter();
+    TerminateCS.Leave();
   end;
 
   DataSet.SyncThread := nil;
@@ -3715,7 +3713,8 @@ end;
 procedure TMySQLConnection.Terminate();
 begin
   TerminateCS.Enter();
-  DoTerminate();
+  if (Assigned(SyncThread) and SyncThread.IsRunning) then
+    DoTerminate();
   TerminateCS.Leave();
 end;
 
