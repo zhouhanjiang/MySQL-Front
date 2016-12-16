@@ -3701,7 +3701,7 @@ begin
       SyncHandledResult(SyncThread);
       if ((SyncThread.Mode = smDataSet) and (SyncThread.State = ssReady)) then
         SyncAfterExecuteSQL(SyncThread);
-      if (SyncThread.IsRunning) then
+      if ((DataSet is TMySQLDataSet) and SyncThread.IsRunning) then
         DoTerminate();
     end;
     TerminateCS.Leave();
