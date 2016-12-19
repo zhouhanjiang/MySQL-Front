@@ -99,7 +99,7 @@ var
 implementation {***************************************************************}
 
 uses
-  ShlObj, ActiveX, CommCtrl, RichEdit,
+  ShlObj, ActiveX, CommCtrl, RichEdit, UITypes,
   StdActns, DB, StrUtils, StdCtrls, Math, Registry, DBCommon, DBCommonTypes,
   uSession;
 

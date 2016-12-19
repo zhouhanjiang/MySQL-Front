@@ -2,7 +2,7 @@ object FSession: TFSession
   Left = 0
   Top = 0
   Width = 591
-  Height = 304
+  Height = 315
   Align = alClient
   Constraints.MinHeight = 300
   Constraints.MinWidth = 200
@@ -11,7 +11,7 @@ object FSession: TFSession
   OnResize = FormResize
   object SLog: TSplitter_Ext
     Left = 0
-    Top = 256
+    Top = 267
     Width = 591
     Height = 4
     Cursor = crVSplit
@@ -31,7 +31,7 @@ object FSession: TFSession
     Left = 120
     Top = 22
     Width = 4
-    Height = 234
+    Height = 245
     AutoSnap = False
     ResizeStyle = rsUpdate
     OnCanResize = SSideBarCanResize
@@ -45,7 +45,7 @@ object FSession: TFSession
     Left = 0
     Top = 22
     Width = 120
-    Height = 234
+    Height = 245
     Align = alLeft
     BevelOuter = bvNone
     Color = clWindow
@@ -56,7 +56,7 @@ object FSession: TFSession
       Left = 0
       Top = 0
       Width = 120
-      Height = 234
+      Height = 245
       Align = alClient
       BevelInner = bvRaised
       BevelOuter = bvLowered
@@ -83,7 +83,7 @@ object FSession: TFSession
         Left = 2
         Top = 106
         Width = 116
-        Height = 126
+        Height = 137
         Align = alClient
         BevelOuter = bvNone
         Color = clWindow
@@ -108,7 +108,7 @@ object FSession: TFSession
       Left = 0
       Top = 0
       Width = 120
-      Height = 234
+      Height = 245
       Align = alClient
       BevelInner = bvRaised
       BevelOuter = bvLowered
@@ -119,7 +119,7 @@ object FSession: TFSession
         Left = 2
         Top = 2
         Width = 116
-        Height = 230
+        Height = 241
         HelpContext = 1112
         Align = alClient
         BorderStyle = bsNone
@@ -153,7 +153,7 @@ object FSession: TFSession
       Left = 0
       Top = 0
       Width = 120
-      Height = 234
+      Height = 245
       Align = alClient
       BevelInner = bvRaised
       BevelOuter = bvLowered
@@ -164,7 +164,7 @@ object FSession: TFSession
         Left = 2
         Top = 2
         Width = 116
-        Height = 230
+        Height = 241
         HelpContext = 1038
         Align = alClient
         BorderStyle = bsNone
@@ -200,7 +200,7 @@ object FSession: TFSession
   end
   object PLog: TPanel_Ext
     Left = 0
-    Top = 260
+    Top = 271
     Width = 591
     Height = 44
     Align = alBottom
@@ -255,7 +255,7 @@ object FSession: TFSession
     Left = 124
     Top = 22
     Width = 467
-    Height = 234
+    Height = 245
     Align = alClient
     BevelOuter = bvNone
     Color = clWindow
@@ -266,7 +266,7 @@ object FSession: TFSession
     OnResize = PContentResize
     object SResult: TSplitter_Ext
       Left = 0
-      Top = 37
+      Top = 48
       Width = 467
       Height = 4
       Cursor = crVSplit
@@ -285,7 +285,7 @@ object FSession: TFSession
     end
     object SBlob: TSplitter_Ext
       Left = 0
-      Top = 171
+      Top = 182
       Width = 467
       Height = 4
       Cursor = crVSplit
@@ -411,7 +411,7 @@ object FSession: TFSession
     end
     object PResult: TPanel_Ext
       Left = 0
-      Top = 41
+      Top = 52
       Width = 467
       Height = 130
       Align = alBottom
@@ -911,7 +911,7 @@ object FSession: TFSession
     end
     object PBlob: TPanel_Ext
       Left = 0
-      Top = 175
+      Top = 186
       Width = 467
       Height = 59
       Align = alBottom

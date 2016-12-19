@@ -149,7 +149,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  IniFiles,
+  IniFiles, UITypes,
   StrUtils;
 
 var

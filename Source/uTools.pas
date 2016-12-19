@@ -756,7 +756,7 @@ var
 implementation {***************************************************************}
 
 uses
-  ActiveX, SysConst, Shlwapi,
+  ActiveX, SysConst, Shlwapi, UITypes, Types,
   Forms, DBConsts, Registry, DBCommon, StrUtils, Math, Variants,
   {$IFDEF EurekaLog}
   ExceptionLog7, EExceptionManager,

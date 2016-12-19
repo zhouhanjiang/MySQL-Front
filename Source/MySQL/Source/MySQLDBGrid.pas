@@ -115,7 +115,7 @@ type
 implementation {***************************************************************}
 
 uses
-  Forms, SysUtils, Clipbrd, Dialogs, Consts, CommCtrl,
+  Forms, SysUtils, Clipbrd, Dialogs, Consts, CommCtrl, UITypes,
   DBActns, StrUtils, Math, Variants, SysConst,
   MySQLDB, CSVUtils;
 

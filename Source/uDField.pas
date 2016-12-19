@@ -135,7 +135,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  StrUtils, SysConst,
+  StrUtils, SysConst, UITypes,
   SQLUtils,
   uPreferences;
 

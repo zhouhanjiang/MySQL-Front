@@ -63,7 +63,7 @@ implementation {***************************************************************}
 
 uses
   ShellAPI, RichEdit, CommCtrl, Math,
-  StrUtils,
+  StrUtils, DB,
   SQLUtils,
   uPreferences,
   uDSelection;

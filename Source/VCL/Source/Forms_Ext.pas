@@ -38,8 +38,8 @@ procedure Register();
 implementation {***************************************************************}
 
 uses
-  ComCtrls, CommCtrl, Consts, Themes, UxTheme, StdCtrls, Buttons, SysConst,
-  ExtCtrls, Grids,
+  CommCtrl, Consts, Themes, UxTheme, Buttons, SysConst, Types,
+  ComCtrls, ExtCtrls, Grids, StdCtrls,
   CommCtrl_Ext;
 
 const tiMouseMove = 1;
