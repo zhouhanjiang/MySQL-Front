@@ -1,7 +1,7 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
-        <ProjectGuid>{FF234411-F330-4D89-A945-F2627A7D48D2}</ProjectGuid>
-        <MainSource>MPHexEditor_160.dpk</MainSource>
+        <ProjectGuid>{5a86e69b-444e-478a-93e7-bf0239e244e9}</ProjectGuid>
+        <MainSource>TPerlRegEx_18.dpk</MainSource>
         <ProjectVersion>14.6</ProjectVersion>
         <FrameworkType>VCL</FrameworkType>
         <Config Condition="'$(Config)'==''">Base</Config>
@@ -16,37 +16,38 @@
         <Base>true</Base>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
-        <DCC_UsePackage>rtl;$(DCC_UsePackage)</DCC_UsePackage>
         <GenDll>true</GenDll>
         <GenPackage>true</GenPackage>
         <VerInfo_IncludeVerInfo>false</VerInfo_IncludeVerInfo>
         <Manifest_File>None</Manifest_File>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;Winapi;Bde;System.Win;Vcl;$(DCC_Namespace)</DCC_Namespace>
-        <DCC_UnitSearchPath>..\Resource;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
-        <DCC_ImageBase>00400000</DCC_ImageBase>
-        <DCC_DependencyCheckOutputName>c:\program files (x86)\embarcadero\rad studio\7.0\Projects\Bpl\MPHexEditor_D2010.bpl</DCC_DependencyCheckOutputName>
-        <DCC_IOChecking>false</DCC_IOChecking>
-        <DCC_BplOutput>$(BDS)\Projects\Bpl</DCC_BplOutput>
-        <DCC_Platform>x86</DCC_Platform>
-        <DCC_Description>mirkes.de HexEditor vcl</DCC_Description>
-        <DCC_S>false</DCC_S>
-        <DCC_N>true</DCC_N>
-        <DCC_DcpOutput>..\Bin</DCC_DcpOutput>
-        <DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
-        <DCC_K>false</DCC_K>
+        <VerInfo_Keys>CompanyName=JGsoft;FileDescription=Perl Compatible Regular Expressions VCL Component Delphi 2009 Package;FileVersion=1.0.0.0;InternalName=PerlRegExD2009;LegalCopyright=Copyright (c) 1999-2008;LegalTrademarks=;OriginalFilename=PerlRegExD2009;ProductName=Perl Compatible Regular Expressions VCL Component;ProductVersion=1.0.0.0;Comments=See http://www.regular-expressions.info/delphi.html for more information</VerInfo_Keys>
+        <RuntimeOnlyPackage>true</RuntimeOnlyPackage>
+        <DCC_Define>CONDITIONALEXPRESSIONS;$(DCC_Define)</DCC_Define>
         <DCC_DcuOutput>..\Bin</DCC_DcuOutput>
-        <DCC_F>false</DCC_F>
-        <DCC_E>false</DCC_E>
+        <DCC_DcpOutput>..\Bin</DCC_DcpOutput>
+        <DCC_BplOutput>$(BDS)\Projects\Bpl</DCC_BplOutput>
+        <DCC_DependencyCheckOutputName>c:\program files (x86)\embarcadero\rad studio\7.0\Projects\Bpl\TPerlRegEx_D2010.bpl</DCC_DependencyCheckOutputName>
+        <DCC_IMPLICIT_STRING_CAST_LOSS>false</DCC_IMPLICIT_STRING_CAST_LOSS>
+        <DCC_IMPLICIT_STRING_CAST>false</DCC_IMPLICIT_STRING_CAST>
+        <DCC_WIDECHAR_REDUCED>false</DCC_WIDECHAR_REDUCED>
+        <DCC_ImageBase>00400000</DCC_ImageBase>
+        <DCC_WriteableConstants>true</DCC_WriteableConstants>
+        <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
+        <DCC_Description>TPerlRegEx - Perl Compatible Regular Expressions VCL Component</DCC_Description>
+        <DCC_AssertionsAtRuntime>false</DCC_AssertionsAtRuntime>
+        <DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
+        <DCC_DebugInformation>false</DCC_DebugInformation>
+        <DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
+        <DCCReference Include="vcl.dcp"/>
         <DCCReference Include="rtl.dcp"/>
-        <DCCReference Include="designide.dcp"/>
-        <DCCReference Include="..\Source\MPHexEditorReg.pas"/>
-        <DCCReference Include="..\Source\MPHexEditor.pas"/>
-        <DCCReference Include="..\Source\MPHexEditorEx.pas"/>
+        <DCCReference Include="..\Source\PerlRegEx.pas"/>
+        <DCCReference Include="..\Source\pcre.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -56,6 +57,9 @@
         <Borland.ProjectType>Package</Borland.ProjectType>
         <BorlandProject>
             <Delphi.Personality>
+                <Source>
+                    <Source Name="MainSource">TPerlRegEx_18.dpk</Source>
+                </Source>
                 <VersionInfo>
                     <VersionInfo Name="IncludeVerInfo">False</VersionInfo>
                     <VersionInfo Name="AutoIncBuild">False</VersionInfo>
@@ -82,10 +86,21 @@
                     <VersionInfoKeys Name="ProductName"/>
                     <VersionInfoKeys Name="ProductVersion">1.0.0.0</VersionInfoKeys>
                     <VersionInfoKeys Name="Comments"/>
+                    <VersionInfoKeys Name="CFBundleName"/>
+                    <VersionInfoKeys Name="CFBundleDisplayName"/>
+                    <VersionInfoKeys Name="UIDeviceFamily"/>
+                    <VersionInfoKeys Name="CFBundleIdentifier"/>
+                    <VersionInfoKeys Name="CFBundleVersion"/>
+                    <VersionInfoKeys Name="CFBundlePackageType"/>
+                    <VersionInfoKeys Name="CFBundleSignature"/>
+                    <VersionInfoKeys Name="CFBundleAllowMixedLocalizations"/>
+                    <VersionInfoKeys Name="UISupportedInterfaceOrientations"/>
+                    <VersionInfoKeys Name="CFBundleExecutable"/>
+                    <VersionInfoKeys Name="CFBundleResourceSpecification"/>
+                    <VersionInfoKeys Name="LSRequiresIPhoneOS"/>
+                    <VersionInfoKeys Name="CFBundleInfoDictionaryVersion"/>
+                    <VersionInfoKeys Name="CFBundleDevelopmentRegion"/>
                 </VersionInfoKeys>
-                <Source>
-                    <Source Name="MainSource">MPHexEditor_160.dpk</Source>
-                </Source>
             </Delphi.Personality>
             <Platforms>
                 <Platform value="iOSDevice">False</Platform>
@@ -97,6 +112,6 @@
         </BorlandProject>
         <ProjectFileVersion>12</ProjectFileVersion>
     </ProjectExtensions>
-    <Import Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')" Project="$(BDS)\Bin\CodeGear.Delphi.Targets"/>
-    <Import Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')" Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj"/>
+    <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')"/>
+    <Import Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj" Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')"/>
 </Project>

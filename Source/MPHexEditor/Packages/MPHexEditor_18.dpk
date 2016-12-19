@@ -1,4 +1,4 @@
-package VCL_Ext_160;
+package MPHexEditor_18;
 
 {$ALIGN 8}
 {$ASSERTIONS OFF}
@@ -16,24 +16,20 @@ package VCL_Ext_160;
 {$REFERENCEINFO OFF}
 {$SAFEDIVIDE OFF}
 {$STACKFRAMES OFF}
-{$TYPEDADDRESS ON}
+{$TYPEDADDRESS OFF}
 {$VARSTRINGCHECKS ON}
 {$WRITEABLECONST OFF}
 {$MINENUMSIZE 1}
 {$IMAGEBASE $400000}
-{$DESCRIPTION 'VCL Extensions'}
+{$DESCRIPTION 'mirkes.de HexEditor vcl'}
 
 requires
-  vcl,
-  rtl;
+  rtl,
+  designide;
 
 contains
-  ExtCtrls_Ext in '..\Source\ExtCtrls_Ext.pas',
-  StdCtrls_Ext in '..\Source\StdCtrls_Ext.pas',
-  Dialogs_Ext in '..\Source\Dialogs_Ext.pas',
-  ComCtrls_Ext in '..\Source\ComCtrls_Ext.pas',
-  Forms_Ext in '..\Source\Forms_Ext.pas',
-  CommCtrl_Ext in '..\Source\CommCtrl_Ext.pas',
-  StdActns_Ext in '..\Source\StdActns_Ext.pas';
+  MPHexEditorReg in '..\Source\MPHexEditorReg.pas',
+  MPHexEditor in '..\Source\MPHexEditor.pas',
+  MPHexEditorEx in '..\Source\MPHexEditorEx.pas';
 
 end.

@@ -1,7 +1,7 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
-        <ProjectGuid>{39126B1C-4A7C-41E2-8E2C-8B863333D738}</ProjectGuid>
-        <MainSource>SynopsePDF_160.dpk</MainSource>
+        <ProjectGuid>{0141547A-1387-459E-8E0E-FD6F0FB2EB63}</ProjectGuid>
+        <MainSource>FastMM_18.dpk</MainSource>
         <ProjectVersion>14.6</ProjectVersion>
         <FrameworkType>VCL</FrameworkType>
         <Config Condition="'$(Config)'==''">Base</Config>
@@ -16,34 +16,35 @@
         <Base>true</Base>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
-        <RuntimeOnlyPackage>true</RuntimeOnlyPackage>
         <GenDll>true</GenDll>
         <GenPackage>true</GenPackage>
-        <VerInfo_Locale>1031</VerInfo_Locale>
-        <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0</VerInfo_Keys>
-        <DCC_Define>PUREPASCAL;$(DCC_Define)</DCC_Define>
+        <VerInfo_IncludeVerInfo>false</VerInfo_IncludeVerInfo>
+        <Manifest_File>None</Manifest_File>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;Winapi;Bde;System.Win;Vcl;$(DCC_Namespace)</DCC_Namespace>
-        <DCC_BplOutput>$(BDS)\Projects\Bpl</DCC_BplOutput>
-        <DCC_Platform>x86</DCC_Platform>
+        <RuntimeOnlyPackage>true</RuntimeOnlyPackage>
+        <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <DCC_DcpOutput>..\Bin</DCC_DcpOutput>
-        <DCC_DcuOutput>..\Bin</DCC_DcuOutput>
+        <DCC_BplOutput>$(BDS)\Projects\Bpl</DCC_BplOutput>
+        <DCC_Define>FullDebugMode;ClearLogFileOnStartup;$(DCC_Define)</DCC_Define>
+        <DCC_AssertionsAtRuntime>false</DCC_AssertionsAtRuntime>
+        <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
         <DCC_IOChecking>false</DCC_IOChecking>
         <DCC_DebugInformation>false</DCC_DebugInformation>
-        <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
-        <DCC_AssertionsAtRuntime>false</DCC_AssertionsAtRuntime>
+        <DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
+        <DCC_DcuOutput>..\Bin</DCC_DcuOutput>
+        <DCC_E>false</DCC_E>
+        <DCC_N>false</DCC_N>
+        <DCC_S>false</DCC_S>
+        <DCC_F>false</DCC_F>
+        <DCC_K>false</DCC_K>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
-        <DCCReference Include="vcl.dcp"/>
         <DCCReference Include="rtl.dcp"/>
-        <DCCReference Include="..\Source\SynPdf.pas"/>
-        <DCCReference Include="..\Source\SynCommons.pas"/>
-        <DCCReference Include="..\Source\SynGdiPlus.pas"/>
-        <DCCReference Include="..\Source\SynCrypto.pas"/>
-        <DCCReference Include="..\Source\SynLZ.pas"/>
-        <DCCReference Include="..\Source\SynZip.pas"/>
+        <DCCReference Include="..\Source\FastMM4.pas"/>
+        <DCCReference Include="..\Source\FastMM4Messages.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -54,7 +55,7 @@
         <BorlandProject>
             <Delphi.Personality>
                 <Source>
-                    <Source Name="MainSource">SynopsePDF_160.dpk</Source>
+                    <Source Name="MainSource">FastMM_18.dpk</Source>
                 </Source>
                 <VersionInfo>
                     <VersionInfo Name="IncludeVerInfo">False</VersionInfo>

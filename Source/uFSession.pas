@@ -4859,6 +4859,7 @@ begin
     FFolders.Align := alClient;
     FFolders.HelpType := htContext;
     FFolders.HelpContext := 1108;
+    FFolders.HideSelection := False;
     FFolders.HotTrack := True;
     FFolders.ShellLink := ShellLink;
     FFolders.BorderStyle := bsNone;
@@ -4869,6 +4870,14 @@ begin
     FFolders.Visible := True;
     FFolders.OnChange := FFoldersChange;
 
+    if ((ComCtl32MajorVersion > 4) or (ComCtl32MinorVersion >= 71)) then
+      SendMessage(FFolders.Handle, TVM_SETITEMHEIGHT, GetSystemMetrics(SM_CYSMICON) + 2 * GetSystemMetrics(SM_CYEDGE), 0);
+    if (CheckWin32Version(6)) then
+    begin
+      FFolders.Indent := GetSystemMetrics(SM_CXSMICON) div 2 + GetSystemMetrics(SM_CXEDGE);
+      SetWindowLong(FFolders.Handle, GWL_STYLE, GetWindowLong(FFolders.Handle, GWL_STYLE) or TVS_NOHSCROLL);
+      SendMessage(FFolders.Handle, TVM_SETEXTENDEDSTYLE, TVS_EX_AUTOHSCROLL or TVS_EX_FADEINOUTEXPANDOS or TVS_EX_DOUBLEBUFFER, TVS_EX_AUTOHSCROLL or TVS_EX_FADEINOUTEXPANDOS or TVS_EX_DOUBLEBUFFER);
+    end;
     if (CheckWin32Version(6, 1)) then
       SetWindowLong(FFolders.Handle, GWL_STYLE, GetWindowLong(FFolders.Handle, GWL_STYLE) or TVS_FULLROWSELECT);
   end;
@@ -4899,6 +4908,11 @@ begin
     FFiles.OnDblClick := ListViewDblClick;
     FFiles.OnKeyDown := ListViewKeyDown;
     FFiles.OnEnter := FFilesEnter;
+
+    if (CheckWin32Version(6,1)) then
+      SendMessage(FFiles.Handle, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_JUSTIFYCOLUMNS, 0);
+    SendMessage(FFiles.Handle, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_DOUBLEBUFFER, LVS_EX_DOUBLEBUFFER);
+    SendMessage(FFiles.Handle, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_COLUMNSNAPPOINTS, LVS_EX_COLUMNSNAPPOINTS);
   end;
 
   FFolders.SelectedFolder := Path;
@@ -8484,7 +8498,7 @@ begin
     vEditor: Result := SQLEditor;
     vEditor2: Result := SQLEditor2;
     vEditor3: Result := SQLEditor3;
-    else raise ERangeError.Create(SRangeError + ' ( ' + IntToStr(Ord(View)) +  ')');
+    else raise ERangeError.Create(SRangeError + ' (' + IntToStr(Ord(View)) +  ')');
   end;
 end;
 
@@ -13915,6 +13929,9 @@ begin
               if (FNavigator.Items[J].Data = SObject) then
               begin
                 Address := NavigatorNodeToAddress(FNavigator.Items[J]);
+                if (SynMemo = SQLEditors[vEditor].SynMemo) then View := vEditor
+                else if (SynMemo = SQLEditors[vEditor2].SynMemo) then View := vEditor2
+                else if (SynMemo = SQLEditors[vEditor3].SynMemo) then View := vEditor3;
                 Window.ActiveControl := ActiveSynMemo;
                 case (MsgBox(Preferences.LoadStr(584, SObject.Name), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
                   IDYES: MainAction('aDPostObject').Execute();

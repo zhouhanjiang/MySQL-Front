@@ -1,16 +1,17 @@
-package TPerlRegEx_160;
+package SynEdit_18;
 
+{$R 'SynEditReg.dcr'}
 {$ALIGN 8}
 {$ASSERTIONS OFF}
 {$BOOLEVAL OFF}
 {$DEBUGINFO OFF}
 {$EXTENDEDSYNTAX ON}
 {$IMPORTEDDATA ON}
-{$IOCHECKS ON}
+{$IOCHECKS OFF}
 {$LOCALSYMBOLS OFF}
 {$LONGSTRINGS ON}
 {$OPENSTRINGS ON}
-{$OPTIMIZATION ON}
+{$OPTIMIZATION OFF}
 {$OVERFLOWCHECKS OFF}
 {$RANGECHECKS OFF}
 {$REFERENCEINFO OFF}
@@ -21,16 +22,19 @@ package TPerlRegEx_160;
 {$WRITEABLECONST ON}
 {$MINENUMSIZE 1}
 {$IMAGEBASE $400000}
-{$DEFINE CONDITIONALEXPRESSIONS}
-{$DESCRIPTION 'TPerlRegEx - Perl Compatible Regular Expressions VCL Component'}
-{$RUNONLY}
+{$DESCRIPTION 'SynEdit component suite'}
 
 requires
   vcl,
+  vclx,
+  vcldb,
+  designide,
   rtl;
 
 contains
-  PerlRegEx in '..\Source\PerlRegEx.pas',
-  pcre in '..\Source\pcre.pas';
+  SynEditReg,
+  SynEditPropertyReg in '..\Source\SynEditPropertyReg.pas',
+  SynHighlighterSQL in '..\Source\SynHighlighterSQL.pas',
+  SynEdit in '..\Source\SynEdit.pas';
 
 end.
