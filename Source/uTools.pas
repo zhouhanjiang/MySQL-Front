@@ -4306,7 +4306,7 @@ begin
           end;
         end;
 
-        if (Success <> daSuccess) then
+        if ((Success <> daSuccess) and Assigned(DataHandle)) then
         begin
           Session.Connection.CloseResult(DataHandle);
           DataHandle := nil;

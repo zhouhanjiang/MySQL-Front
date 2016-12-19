@@ -2294,6 +2294,12 @@ begin
       for I := Items.Count - 1 downto 0 do
         if ((TSItem(Items[I]) is TSKey) and (TSKey(Items[I]).Table = Table)) then
         begin
+          // Debug 2016-12-19
+          if (not Assigned(NewTable.KeyByName(TSKey(Items[I]).Name))) then
+            raise ERangeError.Create('Key "' + TSKey(Items[I]).Name + '" not found!' + #13#10
+              + 'Table SQL:' + #13#10
+              + Table.Source);
+
           NewTable.Keys.DeleteKey(NewTable.KeyByName(TSKey(Items[I]).Name));
           Items[I] := nil;
         end

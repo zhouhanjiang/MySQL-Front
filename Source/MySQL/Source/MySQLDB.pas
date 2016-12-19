@@ -6123,7 +6123,7 @@ begin
   // Debug 2016-12-05
   if (not Active) then
   else if (not Assigned(Pointer(ActiveBuffer()))) then
-  else if (not PExternRecordBuffer(ActiveBuffer())^.Identifier654321 = 654321) then // An error occurred here on 2016-12-15
+  else if (not PExternRecordBuffer(ActiveBuffer())^.Identifier654321 = 654321) then // Occurred second time here on 2016-12-19
     raise ERangeError.Create(SRangeError)
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
   else if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.IdentifierABCDEF <> $ABCDEF) then // Debug 2016-12-15
