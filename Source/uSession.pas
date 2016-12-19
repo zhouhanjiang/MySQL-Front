@@ -9590,6 +9590,10 @@ begin
     raise ERangeError.Create(SRangeError);
 
   inherited;
+
+  // Debug 2016-12-03
+  if (Name = '') then
+    raise ERangeError.Create(SRangeError);
 end;
 
 function TSProcess.GetThreadId(): Longword;

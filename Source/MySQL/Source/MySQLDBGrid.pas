@@ -894,6 +894,12 @@ var
   Value: Integer;
   Values: TCSVValues;
 begin
+  // Debug 2016-12-17
+  if (not OpenClipboard(Handle)) then
+    raise ERangeError.Create(SRangeError)
+  else
+    CloseClipboard();
+
   Result := not ReadOnly;
 
   if (Result) then
@@ -902,33 +908,34 @@ begin
       InplaceEditor.PasteFromClipboard();
       Result := True;
     end
-    else if ((DataLink.DataSet is TMySQLDataSet) and (Clipboard.HasFormat(CF_MYSQLRECORD) or Clipboard.HasFormat(CF_TEXT) or Clipboard.HasFormat(CF_UNICODETEXT)) and OpenClipboard(Handle)) then
+    else if ((DataLink.DataSet is TMySQLDataSet) and (Clipboard.HasFormat(CF_MYSQLRECORD) or Clipboard.HasFormat(CF_TEXT) or Clipboard.HasFormat(CF_UNICODETEXT))) then
     begin
-      try
-        if (Clipboard.HasFormat(CF_MYSQLRECORD)) then
-        begin
-          ClipboardData := GetClipboardData(CF_MYSQLRECORD);
-          SetString(Content, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(Content[1]));
-          GlobalUnlock(ClipboardData);
-        end
-        else if (Clipboard.HasFormat(CF_UNICODETEXT)) then
-        begin
-          ClipboardData := GetClipboardData(CF_UNICODETEXT);
-          SetString(Content, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(Content[1]));
-          GlobalUnlock(ClipboardData);
-        end
-        else
-        begin
-          ClipboardData := GetClipboardData(CF_TEXT);
-          SetString(S, PAnsiChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(S[1]));
-          SetLength(Content, AnsiCharToWideChar(CP_ACP, PAnsiChar(S), Length(S), nil, 0));
-          if (Length(Content) > 0) then
-            SetLength(Content, AnsiCharToWideChar(CP_ACP, PAnsiChar(S), Length(S), PChar(Content), Length(Content)));
-          GlobalUnlock(ClipboardData);
+      if (OpenClipboard(Handle)) then
+        try
+          if (Clipboard.HasFormat(CF_MYSQLRECORD)) then
+          begin
+            ClipboardData := GetClipboardData(CF_MYSQLRECORD);
+            SetString(Content, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(Content[1]));
+            GlobalUnlock(ClipboardData);
+          end
+          else if (Clipboard.HasFormat(CF_UNICODETEXT)) then
+          begin
+            ClipboardData := GetClipboardData(CF_UNICODETEXT);
+            SetString(Content, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(Content[1]));
+            GlobalUnlock(ClipboardData);
+          end
+          else
+          begin
+            ClipboardData := GetClipboardData(CF_TEXT);
+            SetString(S, PAnsiChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(S[1]));
+            SetLength(Content, AnsiCharToWideChar(CP_ACP, PAnsiChar(S), Length(S), nil, 0));
+            if (Length(Content) > 0) then
+              SetLength(Content, AnsiCharToWideChar(CP_ACP, PAnsiChar(S), Length(S), PChar(Content), Length(Content)));
+            GlobalUnlock(ClipboardData);
+          end;
+        finally
+          CloseClipboard();
         end;
-      finally
-        CloseClipboard();
-      end;
 
       Index := 1;
       if (CSVSplitValues(Content, Index, #9, '"', Values) and ((Length(Values) > 1) or (Index <= Length(Content)))) then
@@ -1012,6 +1019,12 @@ begin
     end
     else
       Result := False;
+
+  // Debug 2016-12-17
+  if (not OpenClipboard(Handle)) then
+    raise ERangeError.Create(SRangeError)
+  else
+    CloseClipboard();
 end;
 
 procedure TMySQLDBGrid.Resize();

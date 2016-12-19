@@ -1033,6 +1033,9 @@ type
     property Window: TForm_Ext read GetWindow;
   end;
 
+var
+  LastWantedAddress: string;
+
 implementation {***************************************************************}
 
 {$R *.dfm}
@@ -1240,6 +1243,9 @@ begin
 
   if ((Results.Count < 5) and Assigned(FSession.Session.Account.HistoryXML) and ValidXMLText(CommandText)) then
   begin
+    while (FSession.Session.Account.HistoryXML.ChildNodes.Count > 100) do
+      FSession.Session.Account.HistoryXML.ChildNodes.Delete(0);
+
     XML := FSession.Session.Account.HistoryXML.AddChild('sql');
     if (not Data) then
       XML.Attributes['type'] := 'statement'
@@ -1263,10 +1269,7 @@ begin
     if (DataHandle.Connection.Connected and (DataHandle.Connection.InsertId > 0)) then
       XML.AddChild('insert_id').Text := IntToStr(DataHandle.Connection.InsertId);
 
-    while (FSession.Session.Account.HistoryXML.ChildNodes.Count > 100) do
-      FSession.Session.Account.HistoryXML.ChildNodes.Delete(0);
     FSession.FSQLHistoryRefresh(nil);
-    FSession.Session.Account.HistoryXML.ChildNodes.Delete(FSession.Session.Account.HistoryXML.ChildNodes.Count - 1);
   end;
 
   if (DataHandle.Connection.ErrorCode > 0) then
@@ -1915,6 +1918,7 @@ end;
 
 procedure TFSession.TWanted.Clear();
 begin
+  LastWantedAddress := '';
   FAction := nil;
   FAddress := '';
   FUpdate := nil;
@@ -1956,9 +1960,14 @@ begin
     URI := TUURI.Create(Address);
     if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
       raise ERangeError.Create('Address: ' + Address);
+    if ((URI.Param['view'] = 'ide') and (URI.Database = '')) then
+      raise ERangeError.Create('Address: ' + Address);
+    if ((URI.Param['view'] = 'ide') and (URI.Param['object'] = Null)) then
+      raise ERangeError.Create('Address: ' + Address);
     URI.Free();
 
     Clear();
+    LastWantedAddress := AAddress;
     FAddress := AAddress;
   end;
 end;
@@ -2199,38 +2208,18 @@ begin
   begin
     for I := 0 to ActiveListView.Items.Count - 1 do
       if (ActiveListView.Items[I].Selected) then
-      begin
-        // Debug 2016-11-26
-        if (not (TObject(ActiveListView.Items[I].Data) is TSItem)) then
-          raise ERangeError.Create(SRangeError);
         Items.Add(ActiveListView.Items[I].Data);
-      end;
   end
   else if ((Window.ActiveControl = ActiveWorkbench) and (ActiveWorkbench.SelCount > 1)) then
   begin
     for I := 0 to ActiveWorkbench.ControlCount - 1 do
       if ((ActiveWorkbench.Controls[I] is TWTable) and (TWTable(ActiveWorkbench.Controls[I]).Selected)) then
-      begin
-        // Debug 2016-11-26
-        if (not (TObject(TWTable(ActiveWorkbench.Controls[I]).BaseTable) is TSItem)) then
-          raise ERangeError.Create(SRangeError);
-        Items.Add(TWTable(ActiveWorkbench.Controls[I]).BaseTable);
-      end
+        Items.Add(TWTable(ActiveWorkbench.Controls[I]).BaseTable)
       else if ((ActiveWorkbench.Controls[I] is TWForeignKey) and (TWForeignKey(ActiveWorkbench.Controls[I]).Selected)) then
-      begin
-        // Debug 2016-11-26
-        if (not (TObject(TWForeignKey(ActiveWorkbench.Controls[I]).BaseForeignKey) is TSItem)) then
-          raise ERangeError.Create(SRangeError);
-        Items.Add(TWForeignKey(ActiveWorkbench.Controls[I]).BaseForeignKey);
-      end;
+        Items.Add(TWForeignKey(ActiveWorkbench.Controls[I]).BaseForeignKey)
   end
   else if (Assigned(FocusedSItem)) then
-  begin
-    // Debug 2016-11-26
-    if (not (TObject(FocusedSItem) is TSItem)) then
-      raise ERangeError.Create(SRangeError);
     Items.Add(FocusedSItem);
-  end;
 
   if (Items.Count > 1) then
     Msg := Preferences.LoadStr(413)
@@ -2283,33 +2272,20 @@ begin
       NewTable := TSBaseTable.Create(Table.Database.Tables);
       NewTable.Assign(Table);
 
-      // Debug 2016-12-10
-      if (NewTable.Keys.Count <> Table.Keys.Count) then
-        raise ERangeError.Create(SRangeError);
-      if (NewTable.Fields.Count <> Table.Fields.Count) then
-        raise ERangeError.Create(SRangeError);
-      if (NewTable.ForeignKeys.Count <> Table.ForeignKeys.Count) then
-        raise ERangeError.Create(SRangeError);
-      if (Assigned(NewTable.Partitions) xor Assigned(Table.Partitions)) then
-        raise ERangeError.Create(SRangeError);
-      if (Assigned(Table.Partitions)) then
-        if (NewTable.Partitions.Count <> Table.Partitions.Count) then
-          raise ERangeError.Create(SRangeError);
-
       for I := Items.Count - 1 downto 0 do
         if ((TSItem(Items[I]) is TSKey) and (TSKey(Items[I]).Table = Table)) then
         begin
-          NewTable.Keys.DeleteKey(NewTable.Keys[TSKey(Items[I]).Index]);
+          NewTable.Keys.DeleteKey(NewTable.KeyByName(TSKey(Items[I]).Name));
           Items[I] := nil;
         end
-        else if ((TSItem(Items[I]) is TSBaseTableField) and (TSBaseTableField(Items[I]).Table = Table)) then
+        else if ((TSItem(Items[I]) is TSTableField) and (TSTableField(Items[I]).Table = Table)) then
         begin
-          NewTable.Fields.DeleteField(NewTable.Fields[TSBaseTableField(Items[I]).Index]);
+          NewTable.Fields.DeleteField(NewTable.FieldByName(TSTableField(Items[I]).Name));
           Items[I] := nil;
         end
         else if ((TSItem(Items[I]) is TSForeignKey) and (TSForeignKey(Items[I]).Table = Table)) then
         begin
-          NewTable.ForeignKeys.DeleteForeignKey(NewTable.ForeignKeys[TSForeignKey(Items[I]).Index]);
+          NewTable.ForeignKeys.DeleteForeignKey(NewTable.ForeignKeyByName(TSForeignKey(Items[I]).Name));
           Items[I] := nil;
         end;
 
@@ -5619,7 +5595,9 @@ begin
   if (not Assigned(ActiveDBGrid.DataSource)) then
     raise ERangeError.Create(SRangeError);
   if (not ActiveDBGrid.DataSource.Enabled) then
-    raise ERangeERror.Create(SRangeError);
+    raise ERangeERror.Create(SRangeError + #13#10
+      + 'ClassType: ' + ActiveDBGrid.ClassName + #13#10
+      + 'Name: ' + ActiveDBGrid.Name);
   if (not Assigned(ActiveDBGrid.DataSource.DataSet)) then
     raise ERangeError.Create(SRangeError);
 
@@ -5652,8 +5630,13 @@ begin
   if (not Assigned(ActiveDBGrid)) then
     if (not Assigned(Sender)) then
       raise ERangeError.Create(SRangeError + #13#10 + 'Address: ' + Address)
+    else if (Sender is TAction) then
+      raise ERangeError.Create('Action Name: ' + TAction(Sender).Name + #13#10
+        + 'Address: ' + Address + #13#10
+        + 'Assigned: ' + BoolToStr(Assigned(GetActiveDBGrid())))
     else
-      raise ERangeError.Create(SRangeError + #13#10 + 'Sender ClassType: ' + Sender.ClassName + #13#10 + 'Address: ' + Address);
+      raise ERangeError.Create('Sender ClassType: ' + Sender.ClassName + #13#10
+        + 'Address: ' + Address);
 
   DBGridDblClick(Sender);
 end;
@@ -6413,10 +6396,7 @@ begin
   KillTimer(Handle, tiNavigator);
   FNavigatorNodeAfterActivate := nil;
 
-  if (Assigned(Node)) then
-    Address := NavigatorNodeToAddress(Node)
-  else
-    Wanted.Address := NavigatorNodeToAddress(Node);
+  Address := NavigatorNodeToAddress(Node);
 end;
 
 procedure TFSession.FNavigatorChanging(Sender: TObject; Node: TTreeNode;
@@ -7964,12 +7944,25 @@ begin
 
     FSQLHistory.Items.BeginUpdate();
 
-    if (FSQLHistory.Items.Count = 0) then
-      OldNode := nil
-    else
-      OldNode := FSQLHistory.Items[FSQLHistory.Items.Count - 1];
+    Node := FSQLHistory.Items.GetFirstNode();
+    OldNode := Node;
+    while (Assigned(Node)) do
+    begin
+      OldNode := Node;
+      Node := Node.getNextSibling();
+    end;
     if (Assigned(OldNode)) then
-      XML := IXMLNode(OldNode.Data)
+    begin
+      Node := OldNode.getFirstChild();
+      while (Assigned(Node)) do
+      begin
+        OldNode := Node;
+        Node := Node.getNextSibling();
+      end;
+    end;
+
+    if (Assigned(OldNode) and (OldNode.ImageIndex in [iiStatement, iiQuery])) then
+      XML := IXMLNode(OldNode.Data).NextSibling
     else if (Session.Account.HistoryXML.ChildNodes.Count > 0) then
       XML := Session.Account.HistoryXML.ChildNodes.First()
     else
@@ -8322,6 +8315,19 @@ begin
       Result := nil;
   end;
 
+  // Debug 2016-12-17
+  if (not Assigned(PSynMemo)) then
+    if (csDestroying in ComponentState) then
+      raise ERangeError.Create('csDestroying')
+    else
+      raise ERangeError.Create('Error Message')
+  else if (not (PSynMemo is TWinControl)) then
+    try
+      raise ERangeError.Create('ClassType: ' + PSynMemo.ClassName);
+    except
+      raise ERangeError.Create(SRangeError);
+    end;
+
   for I := 0 to PSynMemo.ControlCount - 1 do
     PSynMemo.Controls[I].Visible := PSynMemo.Controls[I] = Result;
 end;
@@ -8387,6 +8393,15 @@ begin
     Result := TSItem(FNavigator.Selected.Data)
   else
     Result := nil;
+
+  // Debug 2016-12-19
+  if (Assigned(Result)) then
+    try
+      if (Result is TObject) then
+        Write;
+    except
+      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName);
+    end;
 end;
 
 function TFSession.GetMenuDatabase(): TSDatabase;
@@ -10963,52 +10978,51 @@ begin
       iiServer:
         begin
           if ((URI.Param['view'] <> Null) and not (ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3])) then URI.Param['view'] := Null;
-          if ((ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and (Session.Connection.DatabaseName <> '')) then URI.Param['view'] := Null;
         end;
       iiDatabase,
       iiSystemDatabase:
         begin
           if ((URI.Param['view'] <> Null) and not (ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and (URI.Param['view'] <> 'builder') and (URI.Param['view'] <> 'diagram')) then URI.Param['view'] := Null;
-          URI.Database := Node.Text;
+          URI.Database := TSDatabase(Node.Data).Name;
         end;
       iiBaseTable,
       iiSystemView:
         begin
           if ((URI.Param['view'] <> Null) and (URI.Param['view'] <> 'browser')) then URI.Param['view'] := Null;
-          URI.Database := Node.Parent.Text;
-          URI.Table := Node.Text;
+          URI.Database := TSDatabase(Node.Parent.Data).Name;
+          URI.Table := TSTable(Node.Data).Name;
         end;
       iiView:
         begin
           if ((URI.Param['view'] <> Null) and (URI.Param['view'] <> 'browser') and (URI.Param['view'] <> 'ide')) then URI.Param['view'] := ViewToParam(LastTableView);
-          URI.Database := Node.Parent.Text;
-          URI.Table := Node.Text;
+          URI.Database := TSDatabase(Node.Parent.Data).Name;
+          URI.Table := TSTable(Node.Data).Name;
         end;
       iiProcedure:
         begin
           URI.Param['view'] := 'ide';
-          URI.Database := Node.Parent.Text;
+          URI.Database := TSDatabase(Node.Parent.Data).Name;
           URI.Param['objecttype'] := 'procedure';
           URI.Param['object'] := Node.Text;
         end;
       iiFunction:
         begin
           URI.Param['view'] := 'ide';
-          URI.Database := Node.Parent.Text;
+          URI.Database := TSDatabase(Node.Parent.Data).Name;
           URI.Param['objecttype'] := 'function';
           URI.Param['object'] := Node.Text;
         end;
       iiEvent:
         begin
           URI.Param['view'] := 'ide';
-          URI.Database := Node.Parent.Text;
+          URI.Database := TSDatabase(Node.Parent.Data).Name;
           URI.Param['objecttype'] := 'event';
           URI.Param['object'] := Node.Text;
         end;
       iiTrigger:
         begin
           URI.Param['view'] := 'ide';
-          URI.Database := Node.Parent.Parent.Text;
+          URI.Database := TSDatabase(Node.Parent.Data).Name;
           URI.Table := Node.Parent.Text;
           URI.Param['objecttype'] := 'trigger';
           URI.Param['object'] := Node.Text;
@@ -13428,7 +13442,8 @@ begin
     raise ERangeError.Create(SRangeError);
   if (not (TObject(FNavigator.Selected.Data) is TSTable)) then
     raise ERangeError.Create('ClassType: ' + TObject(FNavigator.Selected.Data).ClassName + #13#10
-      + 'ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex));
+      + 'ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
+      + 'Address: ' + Address);
 
   Table := TSTable(FNavigator.Selected.Data);
 

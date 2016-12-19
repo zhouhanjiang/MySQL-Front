@@ -1061,21 +1061,31 @@ begin
     try
       Report := LoadStr(1000) + ' ' + Preferences.VersionStr + #13#10;
       Report := Report + #13#10;
-      if (not (TObject(ExceptionInfo.ExceptionObject) is Exception)) then
-      begin
-        Report := Report + ExceptionInfo.ExceptionClass + ':' + #13#10;
-        Report := Report + ExceptionInfo.ExceptionMessage + #13#10;
-      end
-      else
-      begin
-        Report := Report + Exception(ExceptionInfo.ExceptionObject).ClassName + ':' + #13#10;
-        Report := Report + Exception(ExceptionInfo.ExceptionObject).Message + #13#10;
-      end;
-      Report := Report + #13#10;
     except
       on E: Exception do
-        try SendBugToDeveloper('EurekaLogExceptionNotify Error 5!' + #13#10#13#10 + E.Message); except end;
+        try SendBugToDeveloper('EurekaLogExceptionNotify Error 5.1!' + #13#10#13#10 + E.Message); except end;
     end;
+    if (not (TObject(ExceptionInfo.ExceptionObject) is Exception)) then
+    begin
+      try
+        Report := Report + ExceptionInfo.ExceptionClass + ':' + #13#10;
+        Report := Report + ExceptionInfo.ExceptionMessage + #13#10;
+      except
+        on E: Exception do
+          try SendBugToDeveloper('EurekaLogExceptionNotify Error 5.2!' + #13#10#13#10 + E.Message); except end;
+      end;
+    end
+    else
+    begin
+      try
+        Report := Report + Exception(ExceptionInfo.ExceptionObject).ClassName + ':' + #13#10;
+        Report := Report + Exception(ExceptionInfo.ExceptionObject).Message + #13#10;
+      except
+        on E: Exception do
+          try SendBugToDeveloper('EurekaLogExceptionNotify Error 5.3!' + #13#10#13#10 + E.Message); except end;
+      end;
+    end;
+    Report := Report + #13#10;
 
     try
       if (TObject(ExceptionInfo.ExceptionObject) is EOutOfMemory) then
@@ -1090,10 +1100,15 @@ begin
 
     try
       ExceptionInfo.CallStack.Formatter := TStackFormatter.Create();
+    except
+      on E: Exception do
+        try SendBugToDeveloper('EurekaLogExceptionNotify Error 7.1!' + #13#10#13#10 + E.Message); except end;
+    end;
+    try
       Report := Report + ExceptionInfo.CallStack.ToString;
     except
       on E: Exception do
-        try SendBugToDeveloper('EurekaLogExceptionNotify Error 7!' + #13#10#13#10 + E.Message); except end;
+        try SendBugToDeveloper('EurekaLogExceptionNotify Error 7.2!' + #13#10#13#10 + E.Message); except end;
     end;
 
     try
@@ -1101,6 +1116,12 @@ begin
       begin
         Report := Report + #13#10;
         Report := Report + 'EditorCommandText: ' + SQLEscapeBin(EditorCommandText, True) + #13#10;
+      end;
+
+      if (LastWantedAddress <> '') then
+      begin
+        Report := Report + #13#10;
+        Report := Report + 'LastWantedAddress: ' + LastWantedAddress + #13#10;
       end;
 
       for I := 0 to Sessions.Count - 1 do
@@ -1340,7 +1361,7 @@ procedure TWWindow.OnlineVersionChecked(Sender: TObject);
 begin
   PostMessage(Handle, UM_TERMINATE, 0, 0);
   if ((OnlineRecommendedVersion > Preferences.Version)
-    or (OnlineProgramVersion > Preferences.ObsoleteVersion)) then
+    or (Preferences.ObsoleteVersion > 0) and (OnlineProgramVersion > Preferences.ObsoleteVersion)) then
     PostMessage(Handle, UM_ONLINE_UPDATE_FOUND, 0, 0);
 end;
 

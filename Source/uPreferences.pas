@@ -816,8 +816,8 @@ end;
 function TryStrToUpdateCheck(const Str: string; var UpdateCheckType: TPPreferences.TUpdateCheckType): Boolean;
 begin
   Result := True;
-  if (StrIComp(PChar(Str), 'Daily') = 0) then UpdateCheckType := utNever
-  else if (StrIComp(PChar(Str), 'Never') = 0) then UpdateCheckType := utDaily
+  if (StrIComp(PChar(Str), 'Daily') = 0) then UpdateCheckType := utDaily
+  else if (StrIComp(PChar(Str), 'Never') = 0) then UpdateCheckType := utNever
   else Result := False;
 end;
 
@@ -2801,6 +2801,10 @@ begin
   SQLHistoryVisible := False;
 
   FFiles := TFiles.Create(Self, 10);
+
+  // Debug 2016-12-17
+  if (not Assigned(FFiles)) then
+    raise ERangeError.Create(SRangeError);
 end;
 
 destructor TPAccount.TDesktop.Destroy();

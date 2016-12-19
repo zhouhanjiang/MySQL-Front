@@ -192,6 +192,11 @@ begin
     if (not Assigned(Field) or (Table.Fields[I].Name <> Field.Name)) then
       FPosition.Items.Add(Preferences.LoadStr(96) + ' "' + Table.Fields[I].Name + '"');
 
+  FFieldType.Clear();
+  for I := 0 to Table.Session.FieldTypes.Count - 1 do
+    if (not Assigned(Table.Engine) or Table.Engine.FieldAvailable(Table.Session.FieldTypes[I].MySQLFieldType)) then
+      FFieldType.Items.Add(Table.Session.FieldTypes[I].Caption);
+
   if (not Assigned(Field)) then
   begin
     FPosition.ItemIndex := FPosition.Items.Count - 1;
@@ -361,7 +366,7 @@ begin
     for I := 0 to Table.Session.Collations.Count - 1 do
       if (Table.Session.Collations[I].Charset = Charset) then
         FCollation.Items.Add(Table.Session.Collations[I].Name);
-    if (Assigned(Charset)) then
+    if (Assigned(Charset) and Assigned(Charset.DefaultCollation)) then
       FCollation.ItemIndex := FCollation.Items.IndexOf(Charset.DefaultCollation.Caption);
   end;
   FCollation.Enabled := Assigned(Charset); FLCollation.Enabled := FCollation.Enabled;
@@ -818,22 +823,13 @@ begin
       if (not Assigned(Field) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewField.Comment, Table.Session.Connection.MySQLVersion))) then
         NewField.Comment := Trim(FComment.Text);
 
-      if (ModifyTableOnly) then
-        if (not Assigned(Field)) then
-          NewTable.Fields.AddField(NewField)
-        else
-        begin
-          TSBaseTableFields(NewTable.Fields).MoveField(Field, NewField.FieldBefore);
-          NewTable.Fields[Field.Index].Assign(NewField)
-        end
+      if (not Assigned(Field)) then
+        NewTable.Fields.AddField(NewField)
       else
-        if (not Assigned(Field)) then
-          NewTable.Fields.AddField(NewField)
-        else
-        begin
-          NewTable.Fields[Field.Index].Assign(NewField);
-          TSBaseTableFields(NewTable.Fields).MoveField(NewTable.Fields[Field.Index], NewField.FieldBefore);
-        end;
+      begin
+        NewTable.Fields[Field.Index].Assign(NewField);
+        TSBaseTableFields(NewTable.Fields).MoveField(NewTable.Fields[Field.Index], NewField.FieldBefore);
+      end;
 
       if (NewField.AutoIncrement and Assigned(Table) and not Assigned(Table.PrimaryKey)) then
       begin
@@ -908,6 +904,16 @@ procedure TDField.FormShow(Sender: TObject);
 var
   I: Integer;
 begin
+  // Debug 2016-12-19
+  if (not Assigned(Table)) then
+    raise ERangeError.Create(SRangeError);
+  if (not (Table is TSBaseTable)) then
+    try
+      raise ERangeError.Create('ClassType: ' + Table.ClassName);
+    except
+      raise ERangeError.Create(SRangeError);
+    end;
+
   Table.Session.RegisterEventProc(FormSessionEvent);
 
   if ((Preferences.Field.Width >= Width) and (Preferences.Field.Height >= Height)) then
@@ -929,17 +935,6 @@ begin
 
   FPosition.Items.Clear();
   FPosition.Enabled := not Assigned(Field) or (Table.Session.Connection.MySQLVersion >= 40001);
-
-  // Debug 2016-12-16
-  if (not Assigned(Table.Engine)) then
-    raise ERangeError.Create('Engine not assigned' + #13#10
-      + 'Table.Valid: ' + BoolToStr(Table.Valid) + #13#10
-      + 'Table.Source: ' + #13#10 + Table.Source);
-
-  FFieldType.Clear();
-  for I := 0 to Table.Session.FieldTypes.Count - 1 do
-    if (Table.Engine.FieldAvailable(Table.Session.FieldTypes[I].MySQLFieldType)) then
-      FFieldType.Items.Add(Table.Session.FieldTypes[I].Caption);
 
   FCharset.Items.Clear();
   for I := 0 to Table.Session.Charsets.Count - 1 do

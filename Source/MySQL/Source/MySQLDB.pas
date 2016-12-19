@@ -420,10 +420,11 @@ type
     TCommandType = (ctQuery, ctTable);
     PRecordBufferData = ^TRecordBufferData;
     TRecordBufferData = packed record
-      Identifier: Integer; // Debug 2016-12-05
+      Identifier123456: Integer; // Debug 2016-12-05
       LibLengths: MYSQL_LENGTHS;
       LibRow: MYSQL_ROW;
     end;
+    TRecordCompareDefs = array of record Ascending: Boolean; Field: TField; end;
   private
     FConnection: TMySQLConnection;
     FIndexDefs: TIndexDefs;
@@ -455,6 +456,7 @@ type
     procedure InternalInitFieldDefs(); override;
     procedure InternalOpen(); override;
     function IsCursorOpen(): Boolean; override;
+    function RecordCompare(const CompareDefs: TRecordCompareDefs; const A, B: TMySQLQuery.PRecordBufferData; const FieldIndex: Integer = 0): Integer;
     procedure SetActive(Value: Boolean); override;
     function SetActiveEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
       const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean; virtual;
@@ -500,14 +502,14 @@ type
     TTextWidth = function (const Text: string): Integer of object;
     PInternRecordBuffer = ^TInternRecordBuffer;
     TInternRecordBuffer = record
-      Identifier: Integer;
+      IdentifierABCDEF: Integer;
       NewData: TMySQLQuery.PRecordBufferData;
       OldData: TMySQLQuery.PRecordBufferData;
       VisibleInFilter: Boolean;
     end;
     PExternRecordBuffer = ^TExternRecordBuffer;
     TExternRecordBuffer = record
-      Identifier: Integer; // Debug 2016-12-06
+      Identifier654321: Integer; // Debug 2016-12-06
       InternRecordBuffer: PInternRecordBuffer;
       Index: Integer;
       BookmarkFlag: TBookmarkFlag;
@@ -517,14 +519,17 @@ type
       FDataSet: TMySQLDataSet;
       FRecordReceived: TEvent;
       function Get(Index: Integer): PInternRecordBuffer; inline;
+      function GetSortDef(): TIndexDef; inline;
       procedure Put(Index: Integer; Buffer: PInternRecordBuffer); inline;
+      property SortDef: TIndexDef read GetSortDef;
     public
-      xCriticalSection: TCriticalSection;
+      CriticalSection: TCriticalSection;
       FilteredRecordCount: Integer;
       Index: Integer;
       procedure Clear(); override;
       constructor Create(const ADataSet: TMySQLDataSet);
       destructor Destroy(); override;
+      function IndexOf(const Data: TMySQLQuery.TRecordBufferData): Integer; overload;
       property Buffers[Index: Integer]: PInternRecordBuffer read Get write Put; default;
       property DataSet: TMySQLDataSet read FDataSet;
       property Received: TEvent read FRecordReceived;
@@ -846,11 +851,13 @@ type
 const
   MySQLZeroDate = -693593;
 
-  ftAscSortedField  = $10000;
-  ftDescSortedField = $20000;
-  ftSortedField     = $30000;
-  ftBitField        = $40000;
-  ftGeometryField   = $80000;
+  ftAscSortedField  = $010000;
+  ftDescSortedField = $020000;
+  ftSortedField     = $030000;
+  ftBitField        = $040000;
+  ftGeometryField   = $080000;
+  ftTimestampField  = $100000;
+  ftDateTimeField   = $200000;
 
 function BitField(const Field: TField): Boolean;
 function DateTimeToStr(const DateTime: TDateTime; const FormatSettings: TFormatSettings): string; overload;
@@ -3533,7 +3540,11 @@ begin
       Dec(LibLength);
 
   if (LibLength = 0) then
-    raise ERangeError.Create(SRangeError + #10 + SyncThread.SQL);
+    raise ERangeError.Create('SQL: ' + SyncThread.SQL + #13#10
+      + 'Length: ' + IntToStr(Length(SyncThread.SQL)) + #13#10
+      + 'Stmt Count: ' + IntToStr(SyncThread.StmtLengths.Count) + #13#10
+      + 'Stmt Index: ' + IntToStr(SyncThread.StmtIndex) + #13#10
+      + 'Stmt Length: ' + IntToStr(Integer(SyncThread.StmtLengths[SyncThread.StmtIndex])));
 
   Retry := 0; NeedReconnect := not Assigned(SyncThread.LibHandle);
   repeat
@@ -3670,16 +3681,20 @@ begin
     else
     begin
       LibRow := Lib.mysql_fetch_row(SyncThread.ResHandle);
-      if (Lib.mysql_errno(SyncThread.LibHandle) <> 0) then
-      begin
-        SyncThread.ErrorCode := Lib.mysql_errno(SyncThread.LibHandle);
-        SyncThread.ErrorMessage := GetErrorMessage(SyncThread.LibHandle);
-      end
-      else if (not DataSet.InternAddRecord(LibRow, Lib.mysql_fetch_lengths(SyncThread.ResHandle))) then
-      begin
-        SyncThread.ErrorCode := DS_OUT_OF_MEMORY;
-        SyncThread.ErrorMessage := StrPas(DATASET_ERRORS[DS_OUT_OF_MEMORY - DS_MIN_ERROR]);
-      end;
+
+      TerminateCS.Enter();
+      if (not SyncThread.Terminated) then
+        if (Lib.mysql_errno(SyncThread.LibHandle) <> 0) then
+        begin
+          SyncThread.ErrorCode := Lib.mysql_errno(SyncThread.LibHandle);
+          SyncThread.ErrorMessage := GetErrorMessage(SyncThread.LibHandle);
+        end
+        else if (not DataSet.InternAddRecord(LibRow, Lib.mysql_fetch_lengths(SyncThread.ResHandle))) then
+        begin
+          SyncThread.ErrorCode := DS_OUT_OF_MEMORY;
+          SyncThread.ErrorMessage := StrPas(DATASET_ERRORS[DS_OUT_OF_MEMORY - DS_MIN_ERROR]);
+        end;
+      TerminateCS.Leave();
     end;
   until (not Assigned(LibRow) or (SyncThread.ErrorCode <> 0));
 
@@ -3701,8 +3716,6 @@ begin
       SyncHandledResult(SyncThread);
       if ((SyncThread.Mode = smDataSet) and (SyncThread.State = ssReady)) then
         SyncAfterExecuteSQL(SyncThread);
-      if ((DataSet is TMySQLDataSet) and SyncThread.IsRunning) then
-        DoTerminate();
     end;
     TerminateCS.Leave();
   end;
@@ -4791,7 +4804,7 @@ begin
 
   if (Assigned(Result)) then
   begin
-    PRecordBufferData(Result)^.Identifier := 123456;
+    PRecordBufferData(Result)^.Identifier123456 := 123456;
     PRecordBufferData(Result)^.LibLengths := nil;
     PRecordBufferData(Result)^.LibRow := nil;
 
@@ -5154,12 +5167,15 @@ begin
             MYSQL_TYPE_NEWDECIMAL:
               Field := TMySQLExtendedField.Create(Self);
             MYSQL_TYPE_TIMESTAMP:
-              if (Len in [2, 4, 6, 8, 10, 12, 14]) then
-                Field := TMySQLTimeStampField.Create(Self)
-              else if ((Integer(Len) <= Length(Connection.FormatSettings.LongDateFormat + ' ' + Connection.FormatSettings.LongTimeFormat))) then
-                Field := TMySQLDateTimeField.Create(Self)
-              else // Fractal seconds
-                begin Field := TMySQLWideStringField.Create(Self); Field.Size := Len; end;
+              begin
+                if (Len in [2, 4, 6, 8, 10, 12, 14]) then
+                  Field := TMySQLTimeStampField.Create(Self)
+                else if ((Integer(Len) <= Length(Connection.FormatSettings.LongDateFormat + ' ' + Connection.FormatSettings.LongTimeFormat))) then
+                  Field := TMySQLDateTimeField.Create(Self)
+                else // Fractal seconds
+                  begin Field := TMySQLWideStringField.Create(Self); Field.Size := Len; end;
+                Field.Tag := Field.Tag or ftTimestampField;
+              end;
             MYSQL_TYPE_DATE:
               Field := TMySQLDateField.Create(Self);
             MYSQL_TYPE_TIME:
@@ -5169,10 +5185,14 @@ begin
                 begin Field := TMySQLWideStringField.Create(Self); Field.Size := Len; end;
             MYSQL_TYPE_DATETIME,
             MYSQL_TYPE_NEWDATE:
-              if ((Integer(Len) <= Length(Connection.FormatSettings.LongDateFormat + ' ' + Connection.FormatSettings.LongTimeFormat))) then
-                Field := TMySQLDateTimeField.Create(Self)
-              else
-                begin Field := TMySQLWideStringField.Create(Self); Field.Size := Len; end;
+              begin
+                if ((Integer(Len) <= Length(Connection.FormatSettings.LongDateFormat + ' ' + Connection.FormatSettings.LongTimeFormat))) then
+                  Field := TMySQLDateTimeField.Create(Self)
+                else
+                  begin Field := TMySQLWideStringField.Create(Self); Field.Size := Len; end;
+                if (LibField.field_type = MYSQL_TYPE_DATETIME) then
+                  Field.Tag := Field.Tag or ftDateTimeField;
+              end;
             MYSQL_TYPE_YEAR:
               if (Len = 2) then
                 Field := TMySQLByteField.Create(Self)
@@ -5277,8 +5297,10 @@ begin
               else
                 UniqueDatabaseName := UniqueDatabaseName and (Connection.LibDecode(LibField.db) = DName);
 
-            if (LibField.flags and (AUTO_INCREMENT_FLAG) <> 0) then
+            if (LibField.flags and AUTO_INCREMENT_FLAG <> 0) then
               Field.AutoGenerateValue := arAutoInc
+            else if (LibField.flags and NO_DEFAULT_VALUE_FLAG = 0) then
+              Field.AutoGenerateValue := arDefault
             else
               Field.AutoGenerateValue := arNone;
             if (Field.DataType = ftTime) then
@@ -5360,6 +5382,10 @@ begin
               Field.FieldName := Field.Name;
 
 
+            if (Field.ReadOnly) then
+              Field.ProviderFlags := Field.ProviderFlags - [pfInUpdate]
+            else
+              Field.ProviderFlags := Field.ProviderFlags + [pfInUpdate];
             if (LibField.flags and PRI_KEY_FLAG = 0) then
               Field.ProviderFlags := Field.ProviderFlags - [pfInKey]
             else
@@ -5425,6 +5451,100 @@ begin
 
   SetActiveEvent(DataHandle.ErrorCode, DataHandle.ErrorMessage, DataHandle.WarningCount,
     FCommandText, DataHandle, Assigned(DataHandle.ResHandle));
+end;
+
+function TMySQLQuery.RecordCompare(const CompareDefs: TRecordCompareDefs; const A, B: TMySQLQuery.PRecordBufferData; const FieldIndex: Integer = 0): Integer;
+var
+  Field: TField;
+  ShortIntA, ShortIntB: ShortInt;
+  ByteA, ByteB: Byte;
+  SmallIntA, SmallIntB: SmallInt;
+  WordA, WordB: Word;
+  IntegerA, IntegerB: Integer;
+  LongWordA, LongWordB: LongWord;
+  LargeIntA, LargeIntB: LargeInt;
+  UInt64A, UInt64B: UInt64;
+  SingleA, SingleB: Single;
+  DoubleA, DoubleB: Double;
+  ExtendedA, ExtendedB: Extended;
+  DateTimeA, DateTimeB: TDateTimeRec;
+  StringA, StringB: string;
+begin
+  Field := CompareDefs[FieldIndex].Field;
+
+  if (A = B) then
+    Result := 0
+  else if (not Assigned(A^.LibRow[Field.FieldNo - 1]) and Assigned(B^.LibRow[Field.FieldNo - 1])) then
+    Result := -1
+  else if (Assigned(A^.LibRow[Field.FieldNo - 1]) and not Assigned(B^.LibRow[Field.FieldNo - 1])) then
+    Result := +1
+  else if ((A^.LibLengths[Field.FieldNo - 1] = 0) and (B^.LibLengths[Field.FieldNo - 1] > 0)) then
+    Result := -1
+  else if ((A^.LibLengths[Field.FieldNo - 1] > 0) and (B^.LibLengths[Field.FieldNo - 1] = 0)) then
+    Result := +1
+  else if ((A^.LibLengths[Field.FieldNo - 1] = 0) and (B^.LibLengths[Field.FieldNo - 1] = 0)) then
+    Result := 0
+  else
+  begin
+    case (Field.DataType) of
+      ftString: Result := lstrcmpA(A^.LibRow^[Field.FieldNo - 1], B^.LibRow^[Field.FieldNo - 1]);
+      ftShortInt: begin GetFieldData(Field, @ShortIntA, A); GetFieldData(Field, @ShortIntB, B); Result := Sign(ShortIntA - ShortIntB); end;
+      ftByte:
+        begin
+          GetFieldData(Field, @ByteA, A);
+          GetFieldData(Field, @ByteB, B);
+          if (ByteA < ByteB) then Result := -1 else if (ByteA > ByteB) then Result := +1 else Result := 0;
+        end;
+      ftSmallInt: begin GetFieldData(Field, @SmallIntA, A); GetFieldData(Field, @SmallIntB, B); Result := Sign(SmallIntA - SmallIntB); end;
+      ftWord:
+        begin
+          GetFieldData(Field, @WordA, A);
+          GetFieldData(Field, @WordB, B);
+          if (WordA < WordB) then Result := -1 else if (WordA > WordB) then Result := +1 else Result := 0;
+        end;
+      ftInteger: begin GetFieldData(Field, @IntegerA, A); GetFieldData(Field, @IntegerB, B); Result := Sign(IntegerA - IntegerB); end;
+      ftLongWord:
+        begin
+          GetFieldData(Field, @LongWordA, A);
+          GetFieldData(Field, @LongWordB, B);
+          if (LongWordA < LongWordB) then Result := -1 else if (LongWordA > LongWordB) then Result := +1 else Result := 0;
+        end;
+      ftLargeInt:
+        if (not (Field is TMySQLLargeWordField)) then
+          begin GetFieldData(Field, @LargeIntA, A); GetFieldData(Field, @LargeIntB, B); Result := Sign(LargeIntA - LargeIntB); end
+        else
+        begin
+          GetFieldData(Field, @UInt64A, A);
+          GetFieldData(Field, @UInt64B, B);
+          if (UInt64A < UInt64B) then Result := -1 else if (UInt64A > UInt64B) then Result := +1 else Result := 0;
+        end;
+      ftSingle: begin GetFieldData(Field, @SingleA, A); GetFieldData(Field, @SingleB, B); Result := Sign(SingleA - SingleB); end;
+      ftFloat: begin GetFieldData(Field, @DoubleA, A); GetFieldData(Field, @DoubleB, B); Result := Sign(DoubleA - DoubleB); end;
+      ftExtended: begin GetFieldData(Field, @ExtendedA, A); GetFieldData(Field, @ExtendedB, B); Result := Sign(ExtendedA - ExtendedB); end;
+      ftDate: begin GetFieldData(Field, @DateTimeA, A); GetFieldData(Field, @DateTimeB, B); Result := Sign(DateTimeA.Date - DateTimeB.Date); end;
+      ftDateTime: begin GetFieldData(Field, @DateTimeA, A); GetFieldData(Field, @DateTimeB, B); Result := Sign(DateTimeA.DateTime - DateTimeB.DateTime); end;
+      ftTime: begin GetFieldData(Field, @IntegerA, A); GetFieldData(Field, @IntegerB, B); Result := Sign(IntegerA - IntegerB); end;
+      ftTimeStamp: Result := lstrcmpA(A^.LibRow^[Field.FieldNo - 1], B^.LibRow^[Field.FieldNo - 1]);
+      ftWideString,
+      ftWideMemo:
+        begin
+          StringA := Connection.LibDecode(A^.LibRow^[Field.FieldNo - 1], A^.LibLengths^[Field.FieldNo - 1]);
+          StringB := Connection.LibDecode(B^.LibRow^[Field.FieldNo - 1], B^.LibLengths^[Field.FieldNo - 1]);
+          Result := lstrcmpi(PChar(StringA), PChar(StringB));
+        end;
+      ftBlob: Result := lstrcmpA(A^.LibRow^[Field.FieldNo - 1], B^.LibRow^[Field.FieldNo - 1]);
+      else
+        raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%d)', [Field.Name, Integer(Field.DataType)]);
+    end;
+  end;
+
+  if (Result = 0) then
+  begin
+    if (FieldIndex + 1 < Length(CompareDefs)) then
+      Result := RecordCompare(CompareDefs, A, B, FieldIndex + 1);
+  end
+  else if (not CompareDefs[FieldIndex].Ascending) then
+    Result := -Result;
 end;
 
 procedure TMySQLQuery.SetActive(Value: Boolean);
@@ -5583,7 +5703,7 @@ procedure TMySQLDataSet.TInternRecordBuffers.Clear();
 var
   I: Integer;
 begin
-  xCriticalSection.Enter();
+  CriticalSection.Enter();
   if ((DataSet.State = dsBrowse) and Assigned(DataSet.ActiveBuffer()) and Assigned(PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer)) then
     PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer := nil;
   for I := 0 to Count - 1 do
@@ -5592,7 +5712,7 @@ begin
   FilteredRecordCount := 0;
   Index := -1;
   Received.ResetEvent();
-  xCriticalSection.Leave();
+  CriticalSection.Leave();
 end;
 
 constructor TMySQLDataSet.TInternRecordBuffers.Create(const ADataSet: TMySQLDataSet);
@@ -5601,7 +5721,7 @@ begin
 
   FDataSet := ADataSet;
 
-  xCriticalSection := TCriticalSection.Create();
+  CriticalSection := TCriticalSection.Create();
   Index := -1;
   FRecordReceived := TEvent.Create(nil, True, False, '');
 end;
@@ -5610,8 +5730,53 @@ destructor TMySQLDataSet.TInternRecordBuffers.Destroy();
 begin
   inherited;
 
-  xCriticalSection.Free();
+  CriticalSection.Free();
   FRecordReceived.Free();
+end;
+
+function TMySQLDataSet.TInternRecordBuffers.IndexOf(const Data: TMySQLQuery.TRecordBufferData): Integer;
+var
+  FieldName: string;
+  Left: Integer;
+  I: Integer;
+  Mid: Integer;
+  Pos: Integer;
+  Right: Integer;
+  CompareDefs: TRecordCompareDefs;
+begin
+  SetLength(CompareDefs, 0);
+  Pos := 1;
+  repeat
+    FieldName := ExtractFieldName(SortDef.Fields, Pos);
+    if (FieldName <> '') then
+    begin
+      SetLength(CompareDefs, Length(CompareDefs) + 1);
+      CompareDefs[Length(CompareDefs) - 1].Field := DataSet.FieldByName(FieldName);
+      CompareDefs[Length(CompareDefs) - 1].Ascending := True;
+    end;
+  until (FieldName = '');
+  Pos := 1;
+  repeat
+    FieldName := ExtractFieldName(SortDef.DescFields, Pos);
+    if (FieldName <> '') then
+      for I := 0 to Length(CompareDefs) - 1 do
+        if (CompareDefs[I].Field.FieldName = FieldName) then
+          CompareDefs[I].Ascending := False;
+  until (FieldName = '');
+
+  Result := -1;
+  Left := 0;
+  Right := Count - 1;
+  while (Left <= Right) do
+  begin
+    Mid := (Right - Left) div 2 + Left;
+
+    case (DataSet.RecordCompare(CompareDefs, Buffers[Mid]^.NewData, @Data)) of
+      -1: Left := Mid + 1;
+      0: begin Result := Mid; break; end;
+      1: Right := Mid - 1;
+    end;
+  end;
 end;
 
 function TMySQLDataSet.TInternRecordBuffers.Get(Index: Integer): PInternRecordBuffer;
@@ -5621,6 +5786,11 @@ begin
     raise ERangeError.Create(SRangeError);
 
   Result := PInternRecordBuffer(Items[Index]);
+end;
+
+function TMySQLDataSet.TInternRecordBuffers.GetSortDef(): TIndexDef;
+begin
+  Result := DataSet.SortDef;
 end;
 
 procedure TMySQLDataSet.TInternRecordBuffers.Put(Index: Integer; Buffer: PInternRecordBuffer);
@@ -5662,7 +5832,7 @@ begin
 
   if (Assigned(Result)) then
   begin
-    Result^.Identifier := $ABCDEF;
+    Result^.IdentifierABCDEF := $ABCDEF;
     Result^.NewData := nil;
     Result^.OldData := nil;
     Result^.VisibleInFilter := True;
@@ -5674,7 +5844,7 @@ begin
   try
     GetMem(PExternRecordBuffer(Result), SizeOf(TExternRecordBuffer));
 
-    PExternRecordBuffer(Result)^.Identifier := 654321;
+    PExternRecordBuffer(Result)^.Identifier654321 := 654321;
     PExternRecordBuffer(Result)^.InternRecordBuffer := nil;
     PExternRecordBuffer(Result)^.Index := -1;
     PExternRecordBuffer(Result)^.BookmarkFlag := bfInserted;
@@ -5867,8 +6037,12 @@ end;
 function TMySQLDataSet.GetFieldData(Field: TField; Buffer: Pointer): Boolean;
 begin
   Result := Assigned(ActiveBuffer())
-    and Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
-    and GetFieldData(Field, Buffer, PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData);
+    and Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
+  if (Result) then
+    if (State = dsOldValue) then
+      Result := GetFieldData(Field, Buffer, PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData)
+    else
+      Result := GetFieldData(Field, Buffer, PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData);
 end;
 
 function TMySQLDataSet.GetLibLengths(): MYSQL_LENGTHS;
@@ -5887,13 +6061,13 @@ begin
   // Debug 2016-12-05
   if (not Active) then
   else if (not Assigned(ActiveBuffer())) then
-  else if (not PExternRecordBuffer(ActiveBuffer())^.Identifier = 654321) then // An error occurred here on 2016-12-15
+  else if (not PExternRecordBuffer(ActiveBuffer())^.Identifier654321 = 654321) then // An error occurred here on 2016-12-15
     raise ERangeError.Create(SRangeError)
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
-  else if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.Identifier <> $ABCDEF) then // Debug 2016-12-15
+  else if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.IdentifierABCDEF <> $ABCDEF) then // Debug 2016-12-15
     raise ERangeError.Create(SRangeError) // Occurrend second time on 2016-12-16
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
-  else if (not (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier = 123456)) then // Crashe here the second time on 2016-12-15
+  else if (not (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier123456 = 123456)) then // Crashe here the second time on 2016-12-15
     raise ERangeError.Create(SRangeError); // Occurred second time on 2016-12-15
 
   if (not Active
@@ -5915,7 +6089,7 @@ begin
   else
     Result := 10;
 
-  InternRecordBuffers.xCriticalSection.Enter();
+  InternRecordBuffers.CriticalSection.Enter();
   Index := Field.FieldNo - 1;
   if ((not (Field.DataType in [ftWideString, ftWideMemo]))) then
     for I := 0 to InternRecordBuffers.Count - 1 do
@@ -5923,7 +6097,7 @@ begin
   else
     for I := 0 to InternRecordBuffers.Count - 1 do
       Result := Max(Result, TextWidth(Connection.LibDecode(InternRecordBuffers[I]^.NewData^.LibRow^[Index], InternRecordBuffers[I]^.NewData^.LibLengths^[Index])));
-  InternRecordBuffers.xCriticalSection.Leave();
+  InternRecordBuffers.CriticalSection.Leave();
 end;
 
 function TMySQLDataSet.GetRecNo(): Integer;
@@ -6012,14 +6186,14 @@ begin
 
   if (Result = grOk) then
   begin
-    InternRecordBuffers.xCriticalSection.Enter();
+    InternRecordBuffers.CriticalSection.Enter();
     InternRecordBuffers.Index := NewIndex;
 
     PExternRecordBuffer(Buffer)^.InternRecordBuffer := InternRecordBuffers[InternRecordBuffers.Index];
     PExternRecordBuffer(Buffer)^.Index := InternRecordBuffers.Index;
     PExternRecordBuffer(Buffer)^.BookmarkFlag := bfCurrent;
 
-    InternRecordBuffers.xCriticalSection.Leave();
+    InternRecordBuffers.CriticalSection.Leave();
   end;
 end;
 
@@ -6044,7 +6218,7 @@ begin
     FilterParser.Free();
   FilterParser := TExprParser.Create(Self, Filter, FilterOptions, [poExtSyntax], '', nil, FldTypeMap);
 
-  InternRecordBuffers.xCriticalSection.Enter();
+  InternRecordBuffers.CriticalSection.Enter();
 
   InternRecordBuffers.FilteredRecordCount := 0;
   for I := 0 to InternRecordBuffers.Count - 1 do
@@ -6054,7 +6228,7 @@ begin
       Inc(InternRecordBuffers.FilteredRecordCount);
   end;
 
-  InternRecordBuffers.xCriticalSection.Leave();
+  InternRecordBuffers.CriticalSection.Leave();
 end;
 
 function TMySQLDataSet.InternAddRecord(const LibRow: MYSQL_ROW; const LibLengths: MYSQL_LENGTHS; const Index: Integer = -1): Boolean;
@@ -6089,12 +6263,12 @@ begin
         if (Filtered and InternRecordBuffer^.VisibleInFilter) then
           Inc(InternRecordBuffers.FilteredRecordCount);
 
-        InternRecordBuffers.xCriticalSection.Enter();
+        InternRecordBuffers.CriticalSection.Enter();
         if (Index >= 0) then
           InternRecordBuffers.Insert(Index, InternRecordBuffer)
         else
           InternRecordBuffers.Add(InternRecordBuffer);
-        InternRecordBuffers.xCriticalSection.Leave();
+        InternRecordBuffers.CriticalSection.Leave();
       end;
     end;
   end;
@@ -6173,14 +6347,14 @@ begin
     if (Success and (Connection.RowsAffected = 0)) then
       raise EDatabasePostError.Create(SRecordChanged);
 
-    InternRecordBuffers.xCriticalSection.Enter();
+    InternRecordBuffers.CriticalSection.Enter();
     if (Length(DeleteBookmarks) = 0) then
     begin
       InternalSetToRecord(ActiveBuffer());
       FreeInternRecordBuffer(InternRecordBuffers[InternRecordBuffers.Index]);
       InternRecordBuffers.Delete(InternRecordBuffers.Index);
-        for J := ActiveRecord + 1 to BufferCount - 1 do
-          Dec(PExternRecordBuffer(Buffers[J])^.Index);
+      for J := ActiveRecord + 1 to BufferCount - 1 do
+        Dec(PExternRecordBuffer(Buffers[J])^.Index);
       if (Filtered) then
         Dec(InternRecordBuffers.FilteredRecordCount);
     end
@@ -6202,7 +6376,7 @@ begin
           Dec(InternRecordBuffers.FilteredRecordCount);
       end;
     end;
-    InternRecordBuffers.xCriticalSection.Leave();
+    InternRecordBuffers.CriticalSection.Leave();
 
     PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := nil;
   end;
@@ -6299,162 +6473,194 @@ end;
 procedure TMySQLDataSet.InternalPost();
 var
   AllWhereFieldsInWhere: Boolean;
-  DescFieldName: string;
+  AutoGeneratedValues: Boolean;
   Field: TField;
   FieldName: string;
   I: Integer;
   J: Integer;
   SQL: string;
   Pos: Integer;
-  PosDescFields: Integer;
-  Success: Boolean;
+  RowCount: Integer;
   Update: Boolean;
-  Where: array of record Field: TField; Ascending: Boolean; end;
   WhereClause: string;
+  WhereFields: array of TField;
+  WhereFieldsChanged: Boolean;
 begin
-  if (CachedUpdates) then
-    Success := True
-  else
+  if (not CachedUpdates) then
   begin
     Update := PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag = bfCurrent;
 
     {$IFNDEF Debug}
     SQL := '';
     {$ELSE}
-    if (SortDef.Fields <> '') then
+    if (not (Self is TMySQLTable)) then
+      SQL := CommandText
+    else
+      SQL := TMySQLTable(Self).SQLSelect();
+    if ((SQL <> '') and Connection.SQLParser.ParseSQL(PChar(SQL), Length(SQL))) then
     begin
-      if (not (Self is TMySQLTable)) then
-        SQL := CommandText
-      else
-        SQL := TMySQLTable(Self).SQLSelect();
-      if ((SQL = '') or not Connection.SQLParser.ParseSQL(PChar(SQL), Length(SQL))) then
-        SQL := ''
-      else
+      WhereFieldsChanged := False;
+      if (Update) then
+        for I := 0 to FieldCount - 1 do
+          WhereFieldsChanged := WhereFieldsChanged
+            or (pfInWhere in Fields[I].ProviderFlags) and (Fields[I].Value <> Fields[I].OldValue);
+
+      AutoGeneratedValues := False;
+      for I := 0 to FieldCount - 1 do
+        AutoGeneratedValues := AutoGeneratedValues
+          or Fields[I].ReadOnly
+          or (Fields[I].Tag and ftTimestampField <> 0) and (Connection.MySQLVersion >= 40102)
+          or (Fields[I].Tag and ftDateTimeField <> 0) and (Connection.MySQLVersion >= 50605);
+
+      if ((not Update or WhereFieldsChanged) and (SortDef.Fields <> '') or AutoGeneratedValues) then
       begin
-        SetLength(Where, 0);
+        SetLength(WhereFields, 0);
 
-        Pos := 1;
-        repeat
-          FieldName := ExtractFieldName(SortDef.Fields, Pos);
-          if (FieldName <> '') then
-          begin
-            Field := FieldByName(FieldName);
-            if (not Assigned(Field)) then
-              raise ERangeError.Create(SRangeError);
-            SetLength(Where, Length(Where) + 1);
-            Where[Length(Where) - 1].Field := Field;
-            Where[Length(Where) - 1].Ascending := True;
-
-            PosDescFields := 1;
-            repeat
-              DescFieldName := ExtractFieldName(SortDef.DescFields, PosDescFields);
-              if (FindField(DescFieldName) = Field) then
-                Where[Length(Where) - 1].Ascending := False;
-            until (DescFieldName = '');
-          end;
-        until (FieldName = '');
+        if (SortDef.Fields = '') then
+        begin
+          for I := 0 to Fields.Count - 1 do
+            if (pfInWhere in Fields[I].ProviderFlags) then
+            begin
+              SetLength(WhereFields, Length(WhereFields) + 1);
+              WhereFields[Length(WhereFields) - 1] := Fields[I];
+            end;
+        end
+        else
+        begin
+          Pos := 1;
+          repeat
+            FieldName := ExtractFieldName(SortDef.Fields, Pos);
+            if (FieldName <> '') then
+            begin
+              Field := FieldByName(FieldName);
+              if (not Assigned(Field)) then
+                raise ERangeError.Create(SRangeError);
+              SetLength(WhereFields, Length(WhereFields) + 1);
+              WhereFields[Length(WhereFields) - 1] := Field;
+            end;
+          until (FieldName = '');
+        end;
 
         AllWhereFieldsInWhere := True;
         for I := 0 to FieldCount - 1 do
           if (AllWhereFieldsInWhere and (pfInWhere in Fields[I].ProviderFlags)) then
           begin
             AllWhereFieldsInWhere := False;
-            for J := 0 to Length(Where) - 1 do
-              if (Where[J].Field = Fields[I]) then
+            for J := 0 to Length(WhereFields) - 1 do
+              if (WhereFields[J] = Fields[I]) then
                 AllWhereFieldsInWhere := True;
           end;
         if (AllWhereFieldsInWhere) then
-          for I := Length(Where) - 1 downto 0 do
-            if (not (pfInWhere in Where[I].Field.ProviderFlags)) then
+          for I := Length(WhereFields) - 1 downto 0 do
+            if (not (pfInWhere in WhereFields[I].ProviderFlags)) then
             begin
-              if (I < Length(Where) - 1) then
-                MoveMemory(@Where[I], @Where[I + 1], SizeOf(Where[0]));
-              SetLength(Where, Length(Where) - 1);
+              if (I < Length(WhereFields) - 1) then
+                MoveMemory(@WhereFields[I], @WhereFields[I + 1], SizeOf(WhereFields[0]));
+              SetLength(WhereFields, Length(WhereFields) - 1);
             end;
 
         WhereClause := '';
-        for I := 0 to Length(Where) - 2 do
-          if (not Where[I].Field.IsNull) then
+        for I := 0 to Length(WhereFields) - 2 do
+          if (not WhereFields[I].IsNull) then
           begin
             if (WhereClause <> '') then WhereClause := WhereClause + ' AND ';
             WhereClause := WhereClause
-              + Connection.EscapeIdentifier(Where[I].Field.FieldName)
+              + Connection.EscapeIdentifier(WhereFields[I].FieldName)
               + '='
-              + SQLFieldValue(Where[I].Field, TRecordBuffer(PExternRecordBuffer(ActiveBuffer())));
+              + SQLFieldValue(WhereFields[I], TRecordBuffer(PExternRecordBuffer(ActiveBuffer())));
           end
-          else if (Where[I].Field.AutoGenerateValue = arAutoInc) then
+          else if (WhereFields[I].AutoGenerateValue = arAutoInc) then
           begin
             if (WhereClause <> '') then WhereClause := WhereClause + ' AND ';
             WhereClause := WhereClause
-              + Connection.EscapeIdentifier(Where[I].Field.FieldName)
+              + Connection.EscapeIdentifier(WhereFields[I].FieldName)
               + '='
               + 'LAST_INSERT_ID()';
           end;
-
-        if (not Where[Length(Where) - 1].Field.IsNull) then
+        if (not WhereFields[Length(WhereFields) - 1].IsNull) then
         begin
           if (WhereClause <> '') then WhereClause := WhereClause + ' AND ';
-          WhereClause := WhereClause + Connection.EscapeIdentifier(Where[Length(Where) - 1].Field.FieldName);
-          if (Where[Length(Where) - 1].Ascending) then
+          WhereClause := WhereClause + Connection.EscapeIdentifier(WhereFields[Length(WhereFields) - 1].FieldName);
+          if (SortDef.Fields = '') then
+            WhereClause := WhereClause + '='
+          else if (WhereFields[Length(WhereFields) - 1].Tag and ftDescSortedField = 0) then
             WhereClause := WhereClause + '>='
           else
             WhereClause := WhereClause + '<=';
-          WhereClause := WhereClause + SQLFieldValue(Where[Length(Where) - 1].Field, TRecordBuffer(PExternRecordBuffer(ActiveBuffer())));
+          WhereClause := WhereClause + SQLFieldValue(WhereFields[Length(WhereFields) - 1], TRecordBuffer(PExternRecordBuffer(ActiveBuffer())));
         end
-        else if (Where[Length(Where) - 1].Field.AutoGenerateValue = arAutoInc) then
+        else if (WhereFields[Length(WhereFields) - 1].AutoGenerateValue = arAutoInc) then
         begin
           if (WhereClause <> '') then WhereClause := WhereClause + ' AND ';
-          WhereClause := WhereClause + Connection.EscapeIdentifier(Where[Length(Where) - 1].Field.FieldName);
-          if (Where[Length(Where) - 1].Ascending) then
+          WhereClause := WhereClause + Connection.EscapeIdentifier(WhereFields[Length(WhereFields) - 1].FieldName);
+          if (SortDef.Fields = '') then
+            WhereClause := WhereClause + '='
+          else if (WhereFields[Length(WhereFields) - 1].Tag and ftDescSortedField = 0) then
             WhereClause := WhereClause + '>='
           else
             WhereClause := WhereClause + '<=';
           WhereClause := WhereClause + 'LAST_INSERT_ID()';
         end;
 
-        for I := 1 to Length(Where) - 1 do
-        begin
-          WhereClause := WhereClause + ' OR ';
-
-          for J := 0 to Length(Where) - I - 1 do
+        if (SortDef.Fields <> '') then
+          for I := 1 to Length(WhereFields) - 1 do
           begin
-            if (J > 0) then WhereClause := WhereClause + ' AND ';
+            WhereClause := WhereClause + ' OR ';
 
-            WhereClause := WhereClause + Connection.EscapeIdentifier(Where[J].Field.FieldName);
+            for J := 0 to Length(WhereFields) - I - 1 do
+            begin
+              if (J > 0) then WhereClause := WhereClause + ' AND ';
 
-            if (J < Length(Where) - I - 1) then
-            begin
-              if (not Where[J].Field.IsNull) then
-                WhereClause := WhereClause + '=' + SQLFieldValue(Where[J].Field, TRecordBuffer(PExternRecordBuffer(ActiveBuffer())))
-              else if (Where[J].Field.AutoGenerateValue = arAutoInc) then
-                WhereClause := WhereClause + '=LAST_INSERT_ID()'
-              else
-                WhereClause := WhereClause + ' IS NULL';
-            end
-            else
-            begin
-              if (not Where[J].Field.IsNull) then
-                if (Where[J].Ascending) then
-                  WhereClause := WhereClause + '>' + SQLFieldValue(Where[J].Field, TRecordBuffer(PExternRecordBuffer(ActiveBuffer())))
+              WhereClause := WhereClause + Connection.EscapeIdentifier(WhereFields[J].FieldName);
+
+              if (J < Length(WhereFields) - I - 1) then
+              begin
+                if (not WhereFields[J].IsNull) then
+                  WhereClause := WhereClause + '=' + SQLFieldValue(WhereFields[J], TRecordBuffer(PExternRecordBuffer(ActiveBuffer())))
+                else if (WhereFields[J].AutoGenerateValue = arAutoInc) then
+                  WhereClause := WhereClause + '=LAST_INSERT_ID()'
                 else
-                  WhereClause := WhereClause + '<' + SQLFieldValue(Where[J].Field, TRecordBuffer(PExternRecordBuffer(ActiveBuffer())))
-              else if (Where[J].Field.AutoGenerateValue = arAutoInc) then
-                WhereClause := WhereClause + ' = LAST_INSERT_ID()'
+                  WhereClause := WhereClause + ' IS NULL';
+              end
               else
-                WhereClause := WhereClause + ' IS NOT NULL';
+              begin
+                if (not WhereFields[J].IsNull) then
+                  if (WhereFields[J].Tag and ftDescSortedField = 0) then
+                    WhereClause := WhereClause + '>' + SQLFieldValue(WhereFields[J], TRecordBuffer(PExternRecordBuffer(ActiveBuffer())))
+                  else
+                    WhereClause := WhereClause + '<' + SQLFieldValue(WhereFields[J], TRecordBuffer(PExternRecordBuffer(ActiveBuffer())))
+                else if (WhereFields[J].AutoGenerateValue = arAutoInc) then
+                  WhereClause := WhereClause + ' = LAST_INSERT_ID()'
+                else
+                  WhereClause := WhereClause + ' IS NOT NULL';
+              end;
             end;
+          end;
+
+        if (WhereClause = '') then
+          SQL := ''
+        else
+        begin
+          SQL := ExpandSelectStmtWhereClause(Connection.SQLParser.FirstStmt, WhereClause);
+
+          if (not Connection.SQLParser.ParseSQL(SQL)) then
+            SQL := ''
+          else
+          begin
+            if (SortDef.Fields = '') then
+              RowCount := -1
+            else
+              RowCount := 2;
+            SQL := ReplaceSelectStmtLimit(Connection.SQLParser.FirstStmt, 0, RowCount);
           end;
         end;
 
-        SQL := ExpandSelectStmtWhereClause(Connection.SQLParser.FirstStmt, WhereClause);
-
-        if (Connection.SQLParser.ParseSQL(SQL)) then
-          SQL := ReplaceSelectStmtLimit(Connection.SQLParser.FirstStmt, 0, 2);
-
-        SQL := '';
+        if (SQL <> '') then
+          SQL := SQL + #13#10;
       end;
-      Connection.SQLParser.Clear();
     end;
+
+    Connection.SQLParser.Clear();
     {$ENDIF}
 
     if (Update) then
@@ -6462,60 +6668,146 @@ begin
     else
       SQL := SQLInsert() + SQL;
 
-    if (SQL = '') then
-      Success := False
-    else
+    if (SQL <> '') then
     begin
       if (Connection.DatabaseName <> DatabaseName) then
         SQL := Connection.SQLUse(DatabaseName) + SQL;
       Connection.BeginSilent();
       try
-        Success := Connection.ExecuteSQL(SQL, InternalPostResult);
-        if (not Success) then
-          raise EMySQLError.Create(Connection.ErrorMessage, Connection.ErrorCode, Connection)
-        else if (Update and (Connection.RowsAffected = 0)) then
-          raise EDatabasePostError.Create(SRecordChanged);
+        Connection.ExecuteSQL(SQL, InternalPostResult);
       finally
         Connection.EndSilent();
       end;
     end;
-  end;
-
-  if (Success) then
-  begin
-    case (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag) of
-      bfInserted:
-        InternRecordBuffers.Insert(InternRecordBuffers.Index, PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
-      bfBOF,
-      bfEOF:
-        InternRecordBuffers.Index := InternRecordBuffers.Add(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
-    end;
-
-    if (Connection.Connected) then
-      for I := 0 to Fields.Count - 1 do
-      begin
-        if ((Fields[I].AutoGenerateValue = arAutoInc) and (Fields[I].IsNull or (Fields[I].AsLargeInt = 0)) and (Connection.InsertId > 0)) then
-          Fields[I].AsLargeInt := Connection.InsertId;
-        if (Fields[I].Required and Fields[I].IsNull and (Fields[I].DefaultExpression <> '')) then
-          Fields[I].AsString := SQLUnescape(Fields[I].DefaultExpression);
-    end;
-
-    if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData) then
-      FreeMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData);
-    PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
   end;
 end;
 
 function TMySQLDataSet.InternalPostResult(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
   const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
 var
+  Bookmark: TBookmark;
+  DataSet: TMySQLQuery;
+  EqualFieldNames: Boolean;
+  I: Integer;
+  Index: Integer;
   Parse: TSQLParse;
+  RecordBufferData: TMySQLQuery.TRecordBufferData;
+  RecordMatch: Boolean;
+  Update: Boolean;
 begin
   Result := True;
 
   if ((ErrorCode = 0) and SQLCreateParse(Parse, PChar(CommandText), Length(CommandText), Connection.MySQLVersion)) then
-    if (SQLParseKeyword(Parse, 'SELECT')) then
-      Write;
+  begin
+    Update := SQLParseKeyword(Parse, 'UPDATE');
+    if (Update or SQLParseKeyword(Parse, 'INSERT')) then
+    begin
+      if (ErrorCode <> 0) then
+        raise EMySQLError.Create(Connection.ErrorMessage, Connection.ErrorCode, Connection)
+      else if (Update and (Connection.RowsAffected = 0)) then
+        raise EDatabasePostError.Create(SRecordChanged);
+
+      case (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag) of
+        bfInserted:
+          InternRecordBuffers.Insert(InternRecordBuffers.Index, PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
+        bfBOF,
+        bfEOF:
+          InternRecordBuffers.Index := InternRecordBuffers.Add(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
+      end;
+
+      if (Connection.Connected) then
+        for I := 0 to Fields.Count - 1 do
+        begin
+          if ((Fields[I].AutoGenerateValue = arAutoInc) and (Fields[I].IsNull or (Fields[I].AsLargeInt = 0)) and (Connection.InsertId > 0)) then
+            Fields[I].AsLargeInt := Connection.InsertId;
+          if (Fields[I].Required and Fields[I].IsNull and (Fields[I].DefaultExpression <> '')) then
+            Fields[I].AsString := SQLUnescape(Fields[I].DefaultExpression);
+      end;
+
+      if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData) then
+        FreeMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData);
+      PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
+    end
+    else if (SQLParseKeyword(Parse, 'SELECT')) then
+    begin
+      DataSet := TMySQLQuery.Create(nil);
+      DataSet.Open(DataHandle);
+      if (DataSet.IsEmpty) then
+      begin
+        InternalSetToRecord(ActiveBuffer());
+        FreeInternRecordBuffer(InternRecordBuffers[InternRecordBuffers.Index]);
+        InternRecordBuffers.Delete(InternRecordBuffers.Index);
+        for I := ActiveRecord + 1 to BufferCount - 1 do
+          Dec(PExternRecordBuffer(Buffers[I])^.Index);
+        if (Filtered) then
+          Dec(InternRecordBuffers.FilteredRecordCount);
+      end
+      else
+      begin
+        EqualFieldNames := DataSet.FieldCount = FieldCount;
+        if (EqualFieldNames) then
+          for I := 0 to DataSet.FieldCount - 1 do
+            EqualFieldNames := EqualFieldNames and (DataSet.Fields[I].FieldName = Fields[I].FieldName);
+        if (EqualFieldNames) then
+        begin
+          RecordMatch := True;
+          for I := 0 to DataSet.FieldCount - 1 do
+            if (pfInWhere in Fields[I].ProviderFlags) then
+              RecordMatch := RecordMatch and (DataSet.Fields[I].Value = Fields[I].Value);
+          if (not RecordMatch) then
+          begin
+            InternalSetToRecord(ActiveBuffer());
+            FreeInternRecordBuffer(InternRecordBuffers[InternRecordBuffers.Index]);
+            InternRecordBuffers.Delete(InternRecordBuffers.Index);
+            for I := ActiveRecord + 1 to BufferCount - 1 do
+              Dec(PExternRecordBuffer(Buffers[I])^.Index);
+            if (Filtered) then
+              Dec(InternRecordBuffers.FilteredRecordCount);
+          end
+          else
+            for I := 0 to DataSet.FieldCount - 1 do
+              if (not (pfInWhere in Fields[I].ProviderFlags)
+                and (DataSet.Fields[I].Value <> Fields[I].Value)) then
+                SetFieldData(Fields[I], DataSet.LibRow^[I], DataSet.LibLengths[I]);
+        end;
+
+        if (DataSet.FindNext()) then
+        begin
+          RecordBufferData.Identifier123456 := 123546;
+          RecordBufferData.LibLengths := DataSet.LibLengths;
+          RecordBufferData.LibRow := DataSet.LibRow;
+
+          Index := InternRecordBuffers.IndexOf(RecordBufferData);
+
+          if (Index < 0) then
+          begin
+            InternalSetToRecord(ActiveBuffer());
+            FreeInternRecordBuffer(InternRecordBuffers[InternRecordBuffers.Index]);
+            InternRecordBuffers.Delete(InternRecordBuffers.Index);
+            for I := ActiveRecord + 1 to BufferCount - 1 do
+              Dec(PExternRecordBuffer(Buffers[I])^.Index);
+            if (Filtered) then
+              Dec(InternRecordBuffers.FilteredRecordCount);
+          end
+          else if (Index <> PExternRecordBuffer(ActiveBuffer())^.Index) then
+          begin
+            if (Index > PExternRecordBuffer(ActiveBuffer())^.Index) then
+              Dec(Index);
+            InternRecordBuffers.Move(PExternRecordBuffer(ActiveBuffer())^.Index, Index);
+            PExternRecordBuffer(ActiveBuffer())^.Index := Index;
+
+            ClearBuffers();
+
+            SetLength(Bookmark, BookmarkSize);
+            PPointer(@Bookmark[0])^ := InternRecordBuffers[Index];
+            InternalGotoBookmark(Bookmark);
+            SetLength(Bookmark, 0);
+          end;
+        end;
+      end;
+      DataSet.Free();
+    end;
+  end;
 end;
 
 procedure TMySQLDataSet.InternalRefresh();
@@ -6708,7 +7000,7 @@ begin
   Result := Assigned(DestData);
   if (Result) then
   begin
-    DestData^.Identifier := 123456;
+    DestData^.Identifier123456 := 123456;
     DestData^.LibLengths := Pointer(@PAnsiChar(DestData)[SizeOf(DestData^)]);
     DestData^.LibRow := Pointer(@PAnsiChar(DestData)[SizeOf(DestData^) + FieldCount * SizeOf(DestData^.LibLengths^[0])]);
 
@@ -6810,13 +7102,13 @@ var
   OldData: TMySQLQuery.PRecordBufferData;
 begin
   // Debug 2016-12-07
-  if (PExternRecordBuffer(ActiveBuffer())^.Identifier <> 654321) then
+  if (PExternRecordBuffer(ActiveBuffer())^.Identifier654321 <> 654321) then
     raise ERangeError.Create(SRangeError);
   // Debug 2016-12-16
   if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
     raise ERangeError.Create(SRangeError);
   // Debug 2016-12-15
-  if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.Identifier <> $ABCDEF) then
+  if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.IdentifierABCDEF <> $ABCDEF) then
     raise ERangeError.Create(SRangeError);
 
   OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
@@ -6833,7 +7125,7 @@ begin
 
   GetMem(NewData, MemSize);
 
-  NewData^.Identifier := 123456;
+  NewData^.Identifier123456 := 123456;
   NewData^.LibLengths := Pointer(@PAnsiChar(NewData)[SizeOf(NewData^)]);
   NewData^.LibRow := Pointer(@PAnsiChar(NewData)[SizeOf(NewData^) + FieldCount * SizeOf(NewData^.LibLengths^[0])]);
 
@@ -6957,105 +7249,8 @@ begin
 end;
 
 procedure TMySQLDataSet.Sort(const ASortDef: TIndexDef);
-var
-  Ascending: array of Boolean;
-  SortFields: array of TField;
 
-  function Compare(const A, B: PInternRecordBuffer; const FieldIndex: Integer = 0): Integer;
-  var
-    Field: TField;
-    ShortIntA, ShortIntB: ShortInt;
-    ByteA, ByteB: Byte;
-    SmallIntA, SmallIntB: SmallInt;
-    WordA, WordB: Word;
-    IntegerA, IntegerB: Integer;
-    LongWordA, LongWordB: LongWord;
-    LargeIntA, LargeIntB: LargeInt;
-    UInt64A, UInt64B: UInt64;
-    SingleA, SingleB: Single;
-    DoubleA, DoubleB: Double;
-    ExtendedA, ExtendedB: Extended;
-    DateTimeA, DateTimeB: TDateTimeRec;
-    StringA, StringB: string;
-  begin
-    Field := SortFields[FieldIndex];
-
-    if (A = B) then
-      Result := 0
-    else if (not Assigned(A^.NewData^.LibRow[Field.FieldNo - 1]) and Assigned(B^.NewData^.LibRow[Field.FieldNo - 1])) then
-      Result := -1
-    else if (Assigned(A^.NewData^.LibRow[Field.FieldNo - 1]) and not Assigned(B^.NewData^.LibRow[Field.FieldNo - 1])) then
-      Result := +1
-    else if ((A^.NewData^.LibLengths[Field.FieldNo - 1] = 0) and (B^.NewData^.LibLengths[Field.FieldNo - 1] > 0)) then
-      Result := -1
-    else if ((A^.NewData^.LibLengths[Field.FieldNo - 1] > 0) and (B^.NewData^.LibLengths[Field.FieldNo - 1] = 0)) then
-      Result := +1
-    else if ((A^.NewData^.LibLengths[Field.FieldNo - 1] = 0) and (B^.NewData^.LibLengths[Field.FieldNo - 1] = 0)) then
-      Result := 0
-    else
-    begin
-      case (Field.DataType) of
-        ftString: Result := lstrcmpA(A^.NewData^.LibRow^[Field.FieldNo - 1], B^.NewData^.LibRow^[Field.FieldNo - 1]);
-        ftShortInt: begin GetFieldData(Field, @ShortIntA, A^.NewData); GetFieldData(Field, @ShortIntB, B^.NewData); Result := Sign(ShortIntA - ShortIntB); end;
-        ftByte:
-          begin
-            GetFieldData(Field, @ByteA, A^.NewData);
-            GetFieldData(Field, @ByteB, B^.NewData);
-            if (ByteA < ByteB) then Result := -1 else if (ByteA > ByteB) then Result := +1 else Result := 0;
-          end;
-        ftSmallInt: begin GetFieldData(Field, @SmallIntA, A^.NewData); GetFieldData(Field, @SmallIntB, B^.NewData); Result := Sign(SmallIntA - SmallIntB); end;
-        ftWord:
-          begin
-            GetFieldData(Field, @WordA, A^.NewData);
-            GetFieldData(Field, @WordB, B^.NewData);
-            if (WordA < WordB) then Result := -1 else if (WordA > WordB) then Result := +1 else Result := 0;
-          end;
-        ftInteger: begin GetFieldData(Field, @IntegerA, A^.NewData); GetFieldData(Field, @IntegerB, B^.NewData); Result := Sign(IntegerA - IntegerB); end;
-        ftLongWord:
-          begin
-            GetFieldData(Field, @LongWordA, A^.NewData);
-            GetFieldData(Field, @LongWordB, B^.NewData);
-            if (LongWordA < LongWordB) then Result := -1 else if (LongWordA > LongWordB) then Result := +1 else Result := 0;
-          end;
-        ftLargeInt:
-          if (not (Field is TMySQLLargeWordField)) then
-            begin GetFieldData(Field, @LargeIntA, A^.NewData); GetFieldData(Field, @LargeIntB, B^.NewData); Result := Sign(LargeIntA - LargeIntB); end
-          else
-          begin
-            GetFieldData(Field, @UInt64A, A^.NewData);
-            GetFieldData(Field, @UInt64B, B^.NewData);
-            if (UInt64A < UInt64B) then Result := -1 else if (UInt64A > UInt64B) then Result := +1 else Result := 0;
-          end;
-        ftSingle: begin GetFieldData(Field, @SingleA, A^.NewData); GetFieldData(Field, @SingleB, B^.NewData); Result := Sign(SingleA - SingleB); end;
-        ftFloat: begin GetFieldData(Field, @DoubleA, A^.NewData); GetFieldData(Field, @DoubleB, B^.NewData); Result := Sign(DoubleA - DoubleB); end;
-        ftExtended: begin GetFieldData(Field, @ExtendedA, A^.NewData); GetFieldData(Field, @ExtendedB, B^.NewData); Result := Sign(ExtendedA - ExtendedB); end;
-        ftDate: begin GetFieldData(Field, @DateTimeA, A^.NewData); GetFieldData(Field, @DateTimeB, B^.NewData); Result := Sign(DateTimeA.Date - DateTimeB.Date); end;
-        ftDateTime: begin GetFieldData(Field, @DateTimeA, A^.NewData); GetFieldData(Field, @DateTimeB, B^.NewData); Result := Sign(DateTimeA.DateTime - DateTimeB.DateTime); end;
-        ftTime: begin GetFieldData(Field, @IntegerA, A^.NewData); GetFieldData(Field, @IntegerB, B^.NewData); Result := Sign(IntegerA - IntegerB); end;
-        ftTimeStamp: Result := lstrcmpA(A^.NewData^.LibRow^[Field.FieldNo - 1], B^.NewData^.LibRow^[Field.FieldNo - 1]);
-        ftWideString,
-        ftWideMemo:
-          begin
-            StringA := Connection.LibDecode(A^.NewData^.LibRow^[Field.FieldNo - 1], A^.NewData^.LibLengths^[Field.FieldNo - 1]);
-            StringB := Connection.LibDecode(B^.NewData^.LibRow^[Field.FieldNo - 1], B^.NewData^.LibLengths^[Field.FieldNo - 1]);
-            Result := lstrcmpi(PChar(StringA), PChar(StringB));
-          end;
-        ftBlob: Result := lstrcmpA(A^.NewData^.LibRow^[Field.FieldNo - 1], B^.NewData^.LibRow^[Field.FieldNo - 1]);
-        else
-          raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%d)', [Field.Name, Integer(Field.DataType)]);
-      end;
-    end;
-
-    if (Result = 0) then
-    begin
-      if (FieldIndex + 1 < Length(SortFields)) then
-        Result := Compare(A, B, FieldIndex + 1);
-    end
-    else if (not Ascending[FieldIndex]) then
-      Result := -Result;
-  end;
-
-  procedure QuickSort(const Lo, Hi: Integer);
+  procedure QuickSort(const CompareDefs: TRecordCompareDefs; const Lo, Hi: Integer);
   var
     L, R: Integer;
     M: PInternRecordBuffer;
@@ -7066,8 +7261,8 @@ var
 
     while (L <= R) do
     begin
-      while (Compare(InternRecordBuffers[L], M) < 0) do Inc(L);
-      while (Compare(InternRecordBuffers[R], M) > 0) do Dec(R);
+      while (RecordCompare(CompareDefs, InternRecordBuffers[L]^.NewData, M^.NewData) < 0) do Inc(L);
+      while (RecordCompare(CompareDefs, InternRecordBuffers[R]^.NewData, M^.NewData) > 0) do Dec(R);
       if (L <= R) then
       begin
         InternRecordBuffers.Exchange(L, R);
@@ -7075,8 +7270,8 @@ var
       end;
     end;
 
-    if (Lo < R) then QuickSort(Lo, R);
-    if (L < Hi) then QuickSort(L, Hi);
+    if (Lo < R) then QuickSort(CompareDefs, Lo, R);
+    if (L < Hi) then QuickSort(CompareDefs, L, Hi);
   end;
 
 var
@@ -7084,6 +7279,7 @@ var
   I: Integer;
   OldBookmark: TBookmark;
   Pos: Integer;
+  CompareDefs: TRecordCompareDefs;
 begin
   if (Assigned(SyncThread)) then
     Connection.Terminate();
@@ -7097,29 +7293,27 @@ begin
 
   if ((ASortDef.Fields <> '') and (InternRecordBuffers.Count > 0)) then
   begin
-    SetLength(SortFields, 0);
-    SetLength(Ascending, 0);
+    SetLength(CompareDefs, 0);
     Pos := 1;
     repeat
       FieldName := ExtractFieldName(SortDef.Fields, Pos);
       if (FieldName <> '') then
       begin
-        SetLength(SortFields, Length(SortFields) + 1);
-        SortFields[Length(SortFields) - 1] := FieldByName(FieldName);
-        SetLength(Ascending, Length(Ascending) + 1);
-        Ascending[Length(SortFields) - 1] := True;
+        SetLength(CompareDefs, Length(CompareDefs) + 1);
+        CompareDefs[Length(CompareDefs) - 1].Field := FieldByName(FieldName);
+        CompareDefs[Length(CompareDefs) - 1].Ascending := True;
       end;
     until (FieldName = '');
     Pos := 1;
     repeat
       FieldName := ExtractFieldName(SortDef.DescFields, Pos);
       if (FieldName <> '') then
-        for I := 0 to Length(SortFields) - 1 do
-          if (SortFields[I].FieldName = FieldName) then
-            Ascending[I] := False;
+        for I := 0 to Length(CompareDefs) - 1 do
+          if (CompareDefs[I].Field.FieldName = FieldName) then
+            CompareDefs[I].Ascending := False;
     until (FieldName = '');
 
-    QuickSort(0, InternRecordBuffers.Count - 1);
+    QuickSort(CompareDefs, 0, InternRecordBuffers.Count - 1);
   end;
 
   SetFieldsSortTag();
@@ -7227,7 +7421,8 @@ begin
     Result := 'INSERT INTO ' + SQLTableClause() + ' SET ';
     ValueHandled := False;
     for I := 0 to FieldCount - 1 do
-      if (Assigned(ExternRecordBuffer^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1])) then
+      if ((pfInUpdate in Fields[I].ProviderFlags)
+        and Assigned(ExternRecordBuffer^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1])) then
       begin
         if (ValueHandled) then Result := Result + ',';
         Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + '=' + SQLFieldValue(Fields[I], TRecordBuffer(ExternRecordBuffer));
@@ -7279,9 +7474,10 @@ begin
   Result := '';
   ValueHandled := False;
   for I := 0 to FieldCount - 1 do
-    if ((PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Fields[I].FieldNo - 1] <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo - 1])
-      or (Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1]) xor Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibRow^[Fields[I].FieldNo - 1]))
-      or (not CompareMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1], PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibRow^[Fields[I].FieldNo - 1], PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo - 1]))) then
+    if ((pfInUpdate in Fields[I].ProviderFlags)
+      and ((PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Fields[I].FieldNo - 1] <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo - 1])
+        or (Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1]) xor Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibRow^[Fields[I].FieldNo - 1]))
+        or (not CompareMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1], PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibRow^[Fields[I].FieldNo - 1], PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo - 1])))) then
     begin
       if (ValueHandled) then Result := Result + ',';
       Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + '=' + SQLFieldValue(Fields[I], ActiveBuffer());
@@ -7356,7 +7552,12 @@ begin
       if (not Assigned(Index) and (ixUnique in IndexDefs[I].Options)) then
         Index := IndexDefs[I];
 
-    if (Assigned(Index)) then
+    if (not Assigned(Index)) then
+    begin
+      for I := 0 to FieldCount - 1 do
+        Fields[I].ProviderFlags := Fields[I].ProviderFlags + [pfInWhere];
+    end
+    else
     begin
       FCanModify := True;
 
@@ -7369,11 +7570,6 @@ begin
           if (Fields[I].FieldName = FieldName) then
             Fields[I].ProviderFlags := Fields[I].ProviderFlags + [pfInWhere];
       until (FieldName = '');
-    end
-    else
-    begin
-      for I := 0 to FieldCount - 1 do
-        Fields[I].ProviderFlags := Fields[I].ProviderFlags + [pfInWhere];
     end;
   end;
 end;

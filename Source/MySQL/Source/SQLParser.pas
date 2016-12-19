@@ -4665,7 +4665,6 @@ type
         TAssignment = packed record
         private type
           TNodes = packed record
-            ScopeTag: TOffset;
             VariableIdent: TOffset;
             AssignToken: TOffset;
             ValueExpr: TOffset;
@@ -6619,11 +6618,11 @@ type
     end;
     OperatorTypeByKeywordIndex: array of TOperatorType;
     Parse: record
+      Before: (pbOther, pbAt, pbIdent);
       InCreateEventStmt: Boolean;
       InCreateFunctionStmt: Boolean;
       InCreateProcedureStmt: Boolean;
       InCreateTriggerStmt: Boolean;
-      IdentBefore: Boolean;
       Length: Integer;
       Line: Integer;
       Pos: PChar;
@@ -11811,11 +11810,11 @@ begin
     ReallocMem(Nodes.Mem, Nodes.MemSize);
   end;
   Nodes.UsedSize := 1; // "0" means "not assigned", so we start with "1"
+  Parse.Before := pbOther;
   Parse.InCreateEventStmt := False;
   Parse.InCreateFunctionStmt := False;
   Parse.InCreateProcedureStmt := False;
   Parse.InCreateTriggerStmt := False;
-  Parse.IdentBefore := False;
   Parse.Length := 0;
   Parse.Line := 0;
   Parse.Pos := nil;
@@ -14684,7 +14683,7 @@ begin
   begin
     S := PToken(Node)^.AsString;
     for I := 1 to Length(S) do
-      Result := Result and CharInSet(S[I], ['$', 'A'..'Z', '_', 'a'..'z']);
+      Result := Result and CharInSet(S[I], ['$', '0'..'9', 'A'..'Z', '_', 'a'..'z']);
   end;
 end;
 
@@ -22065,7 +22064,7 @@ begin
           Nodes.LockInShareMode := ParseTag(kiLOCK, kiIN, kiSHARE, kiMODE);
     end;
 
-  if (not ErrorFound) then
+  if (not ErrorFound and (Nodes.Into1.Tag = 0) and (Nodes.Into2.Tag = 0)) then
   begin
     if (IsTag(kiUNION, kiALL)) then
       Nodes.Union1.Tag := ParseTag(kiUNION, kiALL)
@@ -22120,7 +22119,7 @@ begin
   begin
     Nodes.CloseBracket := ParseSymbol(ttCloseBracket);
 
-    if (not ErrorFound) then
+    if (not ErrorFound and (Nodes.Into1.Tag = 0) and (Nodes.Into2.Tag = 0)) then
     begin
       if (IsTag(kiUNION, kiALL)) then
         Nodes.Union2.Tag := ParseTag(kiUNION, kiALL)
@@ -22700,15 +22699,9 @@ begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
   if (not ErrorFound) then
-    if (IsTag(kiGLOBAL)) then
-      Nodes.ScopeTag := ParseTag(kiGLOBAL)
-    else if (IsTag(kiSESSION)) then
-      Nodes.ScopeTag := ParseTag(kiSESSION);
-
-  if (not ErrorFound) then
     if (Parse.InCreateTriggerStmt
       and (IsTag(kiNEW) or IsTag(kiOLD))) then
-      Nodes.VariableIdent := ParseDbIdent(ditField)
+      Nodes.VariableIdent := ParseDbIdent(ditField, False)
     else
       Nodes.VariableIdent := ParseVariableIdent();
 
@@ -24645,6 +24638,7 @@ const
   TerminatorsL = 28; // Count of Terminators
 var
   AnsiQuotes: Boolean;
+  AtBefore: Boolean;
   Charset: PChar;
   CharsetFound: Boolean;
   CharsetLength: Integer;
@@ -24671,10 +24665,11 @@ begin
   else
   begin
     AnsiQuotes := Self.AnsiQuotes;
+    AtBefore := Parse.Before = pbAt;
     ErrorCode := PE_Success;
     ErrorLine := Parse.Line;
     ErrorPos := Parse.Pos;
-    IdentBefore := Parse.IdentBefore;
+    IdentBefore := Parse.Before = pbIdent;
     InMySQLCond := AllowedMySQLVersion > 0;
     Length := Parse.Length;
     Line := Parse.Line;
@@ -24820,8 +24815,8 @@ begin
       SelDot:
         CMP AX,'.'                       // "." ?
         JNE SelMySQLCode                 // No!
-        CMP IdentBefore,True             // The last token was and Identifier, but not a reserved word?
-        JE SelDot2
+        CMP IdentBefore,True             // The last token was an Identifier, but not a reserved word?
+        JE SelDot2                       // Yes
         CMP EAX,$0030002E                // ".0"?
         JB SelDot2                       // No, before!
         CMP EAX,$0039002E                // ".9"?
@@ -24852,7 +24847,10 @@ begin
         JE HexODBC                       // Yes!
       SelDigit:
         CMP AX,'9'                       // Digit?
-        JBE Numeric                      // Yes!
+        JA SelAssign                     // No!
+        CMP AtBefore,True                // The last token was a "@"?
+        JE Ident                         // Yes!
+        JMP Numeric
       SelAssign:
         CMP EAX,$003D003A                // ":=" ?
         JNE SelColon                     // No!
@@ -25631,7 +25629,13 @@ begin
     Parse.Length := Parse.Length - TokenLength;
     Parse.Line := Parse.Line + NewLines;
     Parse.Pos := @Parse.Pos[TokenLength];
-    Parse.IdentBefore := (TokenType in ttIdents) and (ReservedWordList.IndexOf(SQL, TokenLength) < 0);
+    if (IsUsed) then
+      if (TokenType = ttAt) then
+        Parse.Before := pbAt
+      else if ((TokenType in ttIdents) and (ReservedWordList.IndexOf(SQL, TokenLength) < 0)) then
+        Parse.Before := pbIdent
+      else
+        Parse.Before := pbOther;
   end;
 end;
 
@@ -25998,15 +26002,12 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  if (IsSymbol(ttAt)) then
-  begin
-    Nodes.At1Token := ParseSymbol(ttAt);
+  Nodes.At1Token := ParseSymbol(ttAt);
 
-    if (not ErrorFound and IsSymbol(ttAt)) then
-    begin
-      Nodes.At2Token := Nodes.At1Token;
-      Nodes.At1Token := ParseSymbol(ttAt);
-    end;
+  if (not ErrorFound and IsSymbol(ttAt)) then
+  begin
+    Nodes.At2Token := Nodes.At1Token;
+    Nodes.At1Token := ParseSymbol(ttAt);
   end;
 
   if (not ErrorFound and (Nodes.At1Token > 0)) then
@@ -27464,6 +27465,7 @@ begin
     Stmt^.Parser.Commands := TSQLParser.TFormatBuffer.Create();
 
     if (TSQLParser.PSelectStmt(Stmt)^.Nodes.Where.Tag = 0) then
+      // Append whole WHERE clause
     begin
       MultiLine := False;
       Token := Stmt^.FirstToken;
@@ -27486,9 +27488,6 @@ begin
       while ((Index > 0) and (Nodes^[Index] = 0)) do Dec(Index);
       LastToken := Stmt^.Parser.NodePtr(Nodes^[Index])^.LastToken;
 
-      if (not Assigned(LastToken)) then
-        raise ERangeError.Create(SRangeError);
-
       Token := Stmt^.FirstToken;
       while (Assigned(Token)) do
       begin
@@ -27508,16 +27507,20 @@ begin
       Stmt^.Parser.Commands.Write('WHERE ');
       Stmt^.Parser.Commands.Write(WhereClause);
     end
-    else if (TSQLParser.PSelectStmt(Stmt)^.Nodes.Where.Expr = 0) then
-      raise ERangeError.Create(SRangeError)
     else
+      // Expand existing WHERE clause with AND
     begin
-      LastToken := Stmt^.Parser.NodePtr(TSQLParser.PSelectStmt(Stmt)^.Nodes.Where.Expr)^.LastToken;
-
-      if (not Assigned(LastToken)) then
-        raise ERangeError.Create(SRangeError);
-
       Token := Stmt^.FirstToken;
+      repeat
+        Token^.GetText(Text, Length);
+        Stmt^.Parser.Commands.Write(Text, Length);
+
+        Token := Token^.NextTokenAll;
+      until (Token = Stmt^.Parser.NodePtr(TSQLParser.PSelectStmt(Stmt)^.Nodes.Where.Expr)^.FirstToken);
+
+      Stmt^.Parser.Commands.Write('(');
+
+      LastToken := Stmt^.Parser.NodePtr(TSQLParser.PSelectStmt(Stmt)^.Nodes.Where.Expr)^.LastToken;
       while (Assigned(Token)) do
       begin
         Token^.GetText(Text, Length);
@@ -27529,8 +27532,7 @@ begin
           Token := Token^.NextTokenAll;
       end;
 
-      Stmt^.Parser.Commands.WriteSpace();
-      Stmt^.Parser.Commands.Write('(');
+      Stmt^.Parser.Commands.Write(') AND (');
       Stmt^.Parser.Commands.Write(WhereClause);
       Stmt^.Parser.Commands.Write(')');
     end;
@@ -27662,7 +27664,9 @@ begin
   begin
     Stmt^.Parser.Commands := TSQLParser.TFormatBuffer.Create();
 
-    if (TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit.Tag = 0) then
+    if ((TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit.Tag = 0)
+      and (RowCount >= 0)) then
+      // Add new LIMIT clause
     begin
       MultiLine := False;
       Token := Stmt^.FirstToken;
@@ -27704,11 +27708,28 @@ begin
         Stmt^.Parser.Commands.WriteSpace()
       else
         Stmt^.Parser.Commands.WriteReturn();
-      Stmt^.Parser.Commands.Write(' LIMIT');
+      Stmt^.Parser.Commands.Write(' LIMIT ');
+      if (Offset > 0) then
+      begin
+        Stmt^.Parser.Commands.Write(IntToStr(Offset));
+        Stmt^.Parser.Commands.Write(',');
+      end;
+      Stmt^.Parser.Commands.Write(IntToStr(RowCount));
+
+      while (Assigned(Token)) do
+      begin
+        Token^.GetText(Text, Length);
+        Stmt^.Parser.Commands.Write(Text, Length);
+
+        if (Token = Stmt^.LastToken) then
+          Token := nil
+        else
+          Token := Token^.NextTokenAll;
+      end;
     end
-    else if (TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit.RowCountToken = 0) then
-      raise ERangeError.Create(SRangeError)
-    else
+    else if ((TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit.Tag > 0)
+      and (RowCount >= 0)) then
+      // Replace existing LIMIT clause
     begin
       LastToken := Stmt^.Parser.NodePtr(TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit.Tag)^.LastToken;
 
@@ -27727,27 +27748,57 @@ begin
           Token := Token^.NextTokenAll;
       end;
 
-      LastToken := Stmt^.Parser.NodePtr(TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit.RowCountToken)^.LastToken;
-    end;
+      Stmt^.Parser.Commands.WriteSpace();
+      if (Offset > 0) then
+      begin
+        Stmt^.Parser.Commands.Write(IntToStr(Offset));
+        Stmt^.Parser.Commands.Write(',');
+      end;
+      Stmt^.Parser.Commands.Write(IntToStr(RowCount));
 
-    Stmt^.Parser.Commands.WriteSpace();
-    if (Offset > 0) then
+      Token := Stmt^.Parser.NodePtr(TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit.RowCountToken)^.LastToken^.NextTokenAll;
+      while (Assigned(Token)) do
+      begin
+        Token^.GetText(Text, Length);
+        Stmt^.Parser.Commands.Write(Text, Length);
+
+        if (Token = Stmt^.LastToken) then
+          Token := nil
+        else
+          Token := Token^.NextTokenAll;
+      end;
+    end
+    else if (TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit.Tag > 0) then
+      // Remove existing LIMIT clause
     begin
-      Stmt^.Parser.Commands.Write(IntToStr(Offset));
-      Stmt^.Parser.Commands.Write(',');
-    end;
-    Stmt^.Parser.Commands.Write(IntToStr(RowCount));
+      Token := Stmt^.FirstToken;
+      while (Token <> Stmt^.Parser.TokenPtr(TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit.Tag)) do
+      begin
+        Token^.GetText(Text, Length);
+        Stmt^.Parser.Commands.Write(Text, Length);
 
-    Token := LastToken^.NextTokenAll;
-    while (Assigned(Token)) do
-    begin
-      Token^.GetText(Text, Length);
-      Stmt^.Parser.Commands.Write(Text, Length);
+        Token := Token^.NextTokenAll;
+      end;
 
+      if (TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit.RowCountToken = 0) then
+        raise ERangeError.Create(SRangeError);
+
+      Token := Stmt^.Parser.TokenPtr(TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit.RowCountToken);
       if (Token = Stmt^.LastToken) then
         Token := nil
       else
-        Token := Token^.NextTokenAll;
+        Token := Token^.NextToken;
+
+      while (Assigned(Token)) do
+      begin
+        Token^.GetText(Text, Length);
+        Stmt^.Parser.Commands.Write(Text, Length);
+
+        if (Token = Stmt^.LastToken) then
+          Token := nil
+        else
+          Token := Token^.NextTokenAll;
+      end;
     end;
 
     Result := Stmt^.Parser.Commands.Read();

@@ -231,7 +231,7 @@ begin
     for I := 0 to Session.Collations.Count - 1 do
       if (Assigned(Charset) and (Session.Collations[I].Charset = Charset)) then
         FCollation.Items.Add(Session.Collations[I].Name);
-    if (Assigned(Charset)) then
+    if (Assigned(Charset) and Assigned(Charset.DefaultCollation)) then
       FCollation.ItemIndex := FCollation.Items.IndexOf(Charset.DefaultCollation.Caption);
   end;
   FCollation.Enabled := FCharset.Text <> ''; FLCollation.Enabled := FCollation.Enabled;

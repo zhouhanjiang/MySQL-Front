@@ -166,11 +166,11 @@ begin
   Result := False;
 
   if (FHost.Text = '') then
-    begin MessageBeep(MB_ICONERROR); ActiveControl := FHost; end
+    begin MessageBeep(MB_ICONERROR); ActiveControl := nil; ActiveControl := FHost; end
   else if ((FConnectionType.ItemIndex = 1) and (FLibraryFilename.Text = '')) then
-    begin MessageBeep(MB_ICONERROR); ActiveControl := FLibraryFilename; end
+    begin MessageBeep(MB_ICONERROR); ActiveControl := nil; ActiveControl := FLibraryFilename; end
   else if ((FConnectionType.ItemIndex = 2) and (FHTTPTunnelURI.Text = '')) then
-    begin MessageBeep(MB_ICONERROR); ActiveControl := FHTTPTunnelURI; end
+    begin MessageBeep(MB_ICONERROR); ActiveControl := nil; ActiveControl := FHTTPTunnelURI; end
   else
     Result := True;
 end;
@@ -302,30 +302,30 @@ begin
       and ((Trim(FName.Text) = '')
         or not Assigned(Account) and Assigned(Accounts.AccountByName(Trim(FName.Text)))
         or Assigned(Account) and Assigned(Accounts.AccountByName(Trim(FName.Text))) and (Accounts.AccountByName(Trim(FName.Text)) <> Account))) then
-      begin MessageBeep(MB_ICONERROR); ActiveControl := FName; CanClose := False; end;
+      begin MessageBeep(MB_ICONERROR); ActiveControl := nil; ActiveControl := FName; CanClose := False; end;
 
     if (CanClose
       and (Trim(FHost.Text) <> LOCAL_HOST_NAMEDPIPE) and (FUDPort.Position = 0)) then
-      begin MessageBeep(MB_ICONERROR); ActiveControl := FPort; CanClose := False; end;
+      begin MessageBeep(MB_ICONERROR); ActiveControl := nil; ActiveControl := FPort; CanClose := False; end;
 
     if (CanClose
       and (Trim(FHost.Text) <> LOCAL_HOST_NAMEDPIPE) and not ValidHostname(Trim(FHost.Text), FUDPort.Position)) then
-      begin MessageBeep(MB_ICONERROR); ActiveControl := FHost; CanClose := False; end;
+      begin MessageBeep(MB_ICONERROR); ActiveControl := nil; ActiveControl := FHost; CanClose := False; end;
 
     if (CanClose
       and (Trim(FHost.Text) <> LOCAL_HOST_NAMEDPIPE)
       and (FUDPort.Position = 0)) then
-      begin MessageBeep(MB_ICONERROR); ActiveControl := FPort; CanClose := False; end;
+      begin MessageBeep(MB_ICONERROR); ActiveControl := nil; ActiveControl := FPort; CanClose := False; end;
 
     if (CanClose
       and (FConnectionType.ItemIndex = 1)
       and not TPath.HasValidFileNameChars(FLibraryFilename.Text, False)) then
-      begin MessageBeep(MB_ICONERROR); ActiveControl := FLibraryFilename; CanClose := False; end;
+      begin MessageBeep(MB_ICONERROR); ActiveControl := nil; ActiveControl := FLibraryFilename; CanClose := False; end;
 
     if (CanClose
       and (FConnectionType.ItemIndex = 2)
       and not ValidURL(PChar(FHTTPTunnelURI.Text))) then
-      begin MessageBeep(MB_ICONERROR); ActiveControl := FHTTPTunnelURI; CanClose := False; end;
+      begin MessageBeep(MB_ICONERROR); ActiveControl := nil; ActiveControl := FHTTPTunnelURI; CanClose := False; end;
 
     if (CanClose) then
     begin

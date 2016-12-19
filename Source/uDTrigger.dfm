@@ -43,6 +43,7 @@ object DTrigger: TDTrigger
     ActivePage = TSBasics
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
+    MultiLine = True
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
@@ -199,6 +200,10 @@ object DTrigger: TDTrigger
     end
     object TSInformation: TTabSheet
       Caption = 'TSInformation'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -261,6 +266,10 @@ object DTrigger: TDTrigger
     end
     object TSSource: TTabSheet
       Caption = 'TSSource'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         297)

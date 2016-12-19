@@ -369,10 +369,6 @@ begin
     Preferences.Replace.Top := Top;
   end;
 
-  // Debug 2016-12-08
-  if (not FBCancel.Enabled) then
-    raise ERangeError.Create(SRangeError);
-
   PageControl.ActivePage := nil;
 end;
 
@@ -389,10 +385,6 @@ procedure TDSearch.FormShow(Sender: TObject);
 var
   I: Integer;
 begin
-  // Debug 2016-12-08
-  if (not FBCancel.Enabled) then
-    raise ERangeError.Create(SRangeError);
-
   if (SearchOnly) then
   begin
     Caption := Preferences.LoadStr(187);
@@ -463,6 +455,7 @@ begin
       PageControl.ActivePageIndex := I;
   CheckActivePageChange(PageControl.ActivePage);
 
+  FBCancel.Enabled := True;
   if (FBForward.Visible and FBForward.Enabled) then
     ActiveControl := FBForward
   else

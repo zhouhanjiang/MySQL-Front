@@ -1982,7 +1982,7 @@ function SQLParseValue(var Handle: TSQLParse; const TrimAfterValue: Boolean = Tr
 label
   StringL,
   Quoted,
-  Unquoted, UnquotedL, Unquoted1, Unquoted2, UnquotedTerminatorsL, UnquotedC, UnquotedLE,
+  Unquoted, Unquoted1, Unquoted2, UnquotedTerminatorsL, UnquotedC, UnquotedLE,
   Finish, FinishE;
 const
   Terminators: PChar = #9#10#13#32'",-.:;=`'; // Characters, terminating the value
@@ -2026,7 +2026,6 @@ begin
         JE Quoted                        // Yes!
 
       Unquoted:
-      UnquotedL:
         MOV AX,[ESI]                     // Character in SQL
         CMP AX,';'                       // End of SQL statement?
         JE Finish                        // Yes!
@@ -2070,7 +2069,7 @@ begin
       UnquotedC:
         MOVSW                            // Copy character from SQL to Result
       UnquotedLE:
-        LOOP UnquotedL
+        LOOP StringL
         JMP Finish
 
       // -------------------

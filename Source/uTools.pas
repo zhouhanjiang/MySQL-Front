@@ -4092,6 +4092,7 @@ var
   Item: Pointer;
   Index: Integer;
   J: Integer;
+  K: Integer;
   List: TList;
   ObjectName: string;
   Objects: TList;
@@ -4115,7 +4116,8 @@ begin
     for I := 0 to Items.Count - 1 do
       if (Items[I] is TDBObjectItem) then
         List.Add(TDBObjectItem(Items[I]).DBObject);
-    Session.Update(List, Data);
+    if (not Session.Update(List, Data)) then
+      Success := daAbort;
     List.Free();
 
     if (Data) then
@@ -4175,10 +4177,8 @@ begin
           DataSet.Open(DataHandle);
           DatabaseName := DataSet.Connection.DatabaseName;
 
-          // Debug 2016-12-08
-          SQL := DataSet.CommandText;
           if (not DataSet.IsEmpty
-            and SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion)
+            and SQLCreateParse(Parse, PChar(DataSet.CommandText), Length(DataSet.CommandText), Session.Connection.MySQLVersion)
             and SQLParseKeyword(Parse, 'SELECT')
             and SQLParseValue(Parse, 'COUNT')
             and SQLParseChar(Parse, '(') and SQLParseChar(Parse, '*') and SQLParseChar(Parse, ')')
@@ -4193,46 +4193,21 @@ begin
                 Items[I].RecordsSum := DataSet.Fields[0].AsLargeInt;
             end
           else if (DataSet.IsEmpty) then
-            raise ERangeError.Create('ErrorCode: ' + IntToStr(DataSet.Connection.ErrorCode) + #13#10 + 'ErrorMessage: ' + DataSet.Connection.ErrorMessage)
+            raise ERangeError.Create('ErrorCode: ' + IntToStr(DataSet.Connection.ErrorCode) + #13#10
+              + 'ErrorMessage: ' + DataSet.Connection.ErrorMessage + #13#10
+              + 'CommandText: ' + DataSet.CommandText + #13#10
+              + 'SQL: ' + SQL)
           else
-            raise ERangeError.Create(SRangeError + ' SQL: ' + SQL + #10 + 'Bin: ' + SQLEscapeBin(SQL, True));
+            raise ERangeError.Create('ErrorCode: ' + IntToStr(DataSet.Connection.ErrorCode) + #13#10
+              + 'ErrorMessage: ' + DataSet.Connection.ErrorMessage + #13#10
+              + 'CommandText: ' + DataSet.CommandText + #13#10
+              + 'SQL: ' + SQL);
           DataSet.Close();
 
           DoUpdateGUI();
         until (not Session.Connection.NextResult(DataHandle));
       Session.Connection.CloseResult(DataHandle);
       DataSet.Free();
-    end;
-
-    SQL := '';
-    for I := 0 to DataTables.Count - 1 do
-    begin
-      Table := TSBaseTable(DataTables[I]);
-
-      if (Length(TableFields) = 0) then
-        FieldNames := '*'
-      else
-      begin
-        FieldNames := '';
-        for J := 0 to Length(TableFields) - 1 do
-        begin
-          if (FieldNames <> '') then FieldNames := FieldNames + ',';
-          FieldNames := FieldNames + Session.Connection.EscapeIdentifier(TableFields[J].Name);
-        end;
-      end;
-
-      SQL := SQL + 'SELECT ' + FieldNames + ' FROM ' + Session.Connection.EscapeIdentifier(Table.Database.Name) + '.' + Session.Connection.EscapeIdentifier(Table.Name);
-
-      if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).PrimaryKey)) then
-      begin
-        SQL := SQL + ' ORDER BY ';
-        for J := 0 to TSBaseTable(Table).PrimaryKey.Columns.Count - 1 do
-        begin
-          if (J > 0) then SQL := SQL + ',';
-          SQL := SQL + Session.Connection.EscapeIdentifier(TSBaseTable(Table).PrimaryKey.Columns[J].Field.Name);
-        end;
-      end;
-      SQL := SQL + ';' + #13#10;
     end;
   end;
 
@@ -4268,15 +4243,48 @@ begin
           else if (Items[I] is TDBObjectItem) then
           begin
             DataTablesIndex := DataTables.IndexOf(TDBObjectItem(Items[I]).DBObject);
-            case (DataTablesIndex) of
-              -1: ;
-              0:
-                if ((Success = daSuccess) and not Session.Connection.FirstResult(DataHandle, SQL)) then
-                  DoError(DatabaseError(Session), nil, False, SQL);
-              else
-                if ((Success = daSuccess) and not Session.Connection.NextResult(DataHandle)) then
+            if ((Success = daSuccess) and (DataTablesIndex >= 0)) then
+              if (not Assigned(DataHandle)) then
+              begin
+                SQL := '';
+                for J := DataTablesIndex to DataTables.Count - 1 do
+                begin
+                  Table := TSBaseTable(DataTables[J]);
+
+                  if (Length(TableFields) = 0) then
+                    FieldNames := '*'
+                  else
+                  begin
+                    FieldNames := '';
+                    for K := 0 to Length(TableFields) - 1 do
+                    begin
+                      if (FieldNames <> '') then FieldNames := FieldNames + ',';
+                      FieldNames := FieldNames + Session.Connection.EscapeIdentifier(TableFields[K].Name);
+                    end;
+                  end;
+
+                  SQL := SQL + 'SELECT ' + FieldNames + ' FROM ' + Session.Connection.EscapeIdentifier(Table.Database.Name) + '.' + Session.Connection.EscapeIdentifier(Table.Name);
+
+                  if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).PrimaryKey)) then
+                  begin
+                    SQL := SQL + ' ORDER BY ';
+                    for K := 0 to TSBaseTable(Table).PrimaryKey.Columns.Count - 1 do
+                    begin
+                      if (K > 0) then SQL := SQL + ',';
+                      SQL := SQL + Session.Connection.EscapeIdentifier(TSBaseTable(Table).PrimaryKey.Columns[K].Field.Name);
+                    end;
+                  end;
+                  SQL := SQL + ';' + #13#10;
+                end;
+
+                if (not Session.Connection.FirstResult(DataHandle, SQL)) then
                   DoError(DatabaseError(Session), nil, False);
-            end;
+              end
+              else
+              begin
+                if (not Session.Connection.NextResult(DataHandle)) then
+                  DoError(DatabaseError(Session), nil, False);
+              end;
 
             if (Success <> daAbort) then
             begin
@@ -4296,6 +4304,12 @@ begin
                   ExecuteTrigger(TSTrigger(TDBObjectItem(Items[I]).DBObject));
             end;
           end;
+        end;
+
+        if (Success <> daSuccess) then
+        begin
+          Session.Connection.CloseResult(DataHandle);
+          DataHandle := nil;
         end;
 
         if ((Success <> daAbort) and ((I = Items.Count - 1) or (TDBObjectItem(Items[I + 1]).DBObject.Database <> TDBObjectItem(Items[I]).DBObject.Database))) then

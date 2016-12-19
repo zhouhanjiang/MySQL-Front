@@ -306,7 +306,6 @@ type
     FHideSelection: Boolean;
     FFilePixelsPerInch: Integer;
     FFilename: string;
-    FLinkPoints: TList; // Debug 2016-12
     FLinks: TWLinks;
     FMultiSelect: Boolean;
     FOnChange: TChangeEvent;
@@ -315,7 +314,6 @@ type
     FSections: TWSections;
     FSelected: TWControl;
     FTableFocused: TWTable;
-    FTableList: TList; // Debug 2016-12-11
     FTables: TWTables;
     Lasso: TWLasso;
     LastScrollTickCount: DWord;
@@ -350,8 +348,6 @@ type
     function TableAt(const Position: TCoord): TWTable;
     procedure UpdateControl(const Control: TWControl); virtual;
     property FilePixelsPerInch: Integer read FFilePixelsPerInch;
-    property LinkPoints: TList read FLinkPoints; // Debug 2016-12
-    property TableList: TList read FTableList; // Debug 2016-12-11
   public
     procedure AddExistingTable(const X, Y: Integer; const ABaseTable: TSBaseTable); virtual;
     procedure BeginUpdate(); virtual;
@@ -1162,8 +1158,6 @@ begin
   ControlB := nil;
   MoveState := msNormal;
 
-  Workbench.LinkPoints.Add(Self);
-
   if (Assigned(APreviousPoint)) then
     LineA := TWLinkLine.Create(Workbench, APreviousPoint, Self);
 
@@ -1182,11 +1176,6 @@ begin
 
   TableA := nil;
   TableB := nil;
-
-  if (Workbench.LinkPoints.IndexOf(Self) < 0) then
-    raise ERangeError.Create(SRangeError)
-  else
-    Workbench.LinkPoints.Delete(Workbench.LinkPoints.IndexOf(Self));
 
   inherited;
 end;
@@ -1487,18 +1476,6 @@ begin
       else
         NewPoint := Link.CreateSegment(Self, Coord(Position.X, NewPosition.Y), Self, Assigned(Link.ParentTable) and Assigned(LineA) and not Assigned(LineB));
 
-      // Debug 2016-11-23
-      if (not Assigned(NewPoint)) then
-        raise ERangeError.Create(SRangeError);
-      // Debug 2016-12-02
-      if (Workbench.LinkPoints.IndexOf(NewPoint) < 0) then
-        raise ERangeError.Create(SRangeError);
-      // Debug 2016-11-24
-      if (not (TObject(NewPoint) is TWLinkPoint)) then
-        raise ERangeError.Create(SRangeError);
-      // Debug 2016-12-02
-      if (Workbench.LinkPoints.IndexOf(NewPoint) < 0) then
-        raise ERangeError.Create(SRangeError);
       NewPoint.MouseDown(mbLeft, [], (PointSize - 1) div 2, (PointSize - 1) div 2);
       NewPoint.MoveState := msAutomatic;
 
@@ -2498,17 +2475,7 @@ begin
           end
           else
           begin
-            // Debug 2016-12-11
-            if (Workbench.LinkPoints.IndexOf(LastPoint) < 0) then
-              raise ERangeError.Create(SRangeError);
-
             LastPoint.MoveState := msFixed;
-
-            // Debug 2016-12-11
-            if (Workbench.LinkPoints.IndexOf(LastPoint) < 0) then
-              raise ERangeError.Create(SRangeError);
-            if (Workbench.TableList.IndexOf(ATable) < 0) then
-              raise ERangeError.Create(SRangeError);
             LastPoint.MoveTo(Self, [], Coord(ATable.Position.X + (ATable.Area.Right - ATable.Area.Left) div 2, ATable.Position.Y + (ATable.Area.Bottom - ATable.Area.Top) div 2));
           end;
           LastPoint.TableB := ATable;
@@ -2637,8 +2604,6 @@ begin
 
   FBaseTable := ABaseTable;
 
-  Workbench.TableList.Add(Self);
-
   FilePosition := Point(-1, -1);
   FDoubleBuffered := True;
   SetLength(FLinkPoints, 0);
@@ -2653,10 +2618,10 @@ end;
 destructor TWTable.Destroy();
 begin
   while (Length(FLinkPoints) > 0) do
-    if (Workbench.Links.IndexOf(FLinkPoints[0].Link) >= 0) then // Why is this needed? Without this, a user got a "List index out of bounds (-1)." in the following line
-      Workbench.Links.Delete(Workbench.Links.IndexOf(FLinkPoints[0].Link));
-
-  Workbench.TableList.Delete(Workbench.TableList.IndexOf(Self));
+  begin
+    FLinkPoints[0].Link.Free();
+    SetLength(FLinkPoints, Length(FLinkPoints) - 1);
+  end;
 
   inherited;
 end;
@@ -3347,13 +3312,11 @@ begin
   FOnChange := nil;
   FOnCursorMove := nil;
   FOnValidateControl := nil;
-  FLinkPoints := TList.Create();
   FLinks := TWLinks.Create(Self);
   FHideSelection := False;
   FModified := False;
   FMultiSelect := False;
   FSections := TWSections.Create(Self);
-  FTableList := TList.Create();
   FTables := TWTables.Create(Self);
   Lasso := nil;
   LastScrollTickCount := 0;
@@ -3437,12 +3400,7 @@ begin
 
   Clear();
 
-  if (LinkPoints.Count > 0) then
-    raise ERangeError.Create(SRangeError + ' (' + IntToStr(LinkPoints.Count) + ')');
-
-  FLinkPoints.Free();
   FLinks.Free();
-  FTableList.Free();
   FTables.Free();
   FSections.Free();
 

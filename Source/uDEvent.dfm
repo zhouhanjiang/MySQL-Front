@@ -75,6 +75,7 @@ object DEvent: TDEvent
     ActivePage = TSInformation
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
+    MultiLine = True
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
@@ -598,6 +599,10 @@ object DEvent: TDEvent
     object TSSource: TTabSheet
       Caption = 'TSSource'
       OnShow = TSSourceShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         373
         455)

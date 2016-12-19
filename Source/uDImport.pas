@@ -483,7 +483,7 @@ begin
     for I := 0 to Session.Collations.Count - 1 do
       if (Assigned(Charset) and (Session.Collations[I].Charset = Charset)) then
         FCollation.Items.Add(Session.Collations[I].Name);
-    if (Assigned(Charset)) then
+    if (Assigned(Charset) and Assigned(Charset.DefaultCollation)) then
       FCollation.ItemIndex := FCollation.Items.IndexOf(Charset.DefaultCollation.Caption);
   end;
   FCollation.Enabled := FCharset.Text <> ''; FLCollation.Enabled := FCollation.Enabled;
@@ -637,13 +637,6 @@ begin
 
   TableNames.Free();
 
-  // Debug 2016-12-08
-  if (not FBCancel.Enabled) then
-    if (not Assigned(Sender)) then
-      raise ERangeError.Create(SRangeError + #13#10 + 'ModalResult: ' + IntToStr(Ord(ModalResult)))
-    else
-      raise ERangeError.Create(SRangeError + #13#10 + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10 + 'Sender ClassType: ' + Sender.ClassName);
-
   PageControl.ActivePage := nil;
 end;
 
@@ -664,10 +657,6 @@ procedure TDImport.FormShow(Sender: TObject);
 var
   I: Integer;
 begin
-  // Debug 2016-12-08
-  if (not FBCancel.Enabled) then
-    raise ERangeError.Create(SRangeError);
-
   Session.RegisterEventProc(FormSessionEvent);
 
   TableNames := TTableNames.Create();
@@ -713,6 +702,7 @@ begin
   FBBack.Visible := not (ImportType in [itSQLFile]);
   FBForward.Visible := FBBack.Visible;
 
+  FBCancel.Enabled := True;
   if (FBForward.Visible and FBForward.Enabled) then
     ActiveControl := FBForward
   else
