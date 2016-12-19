@@ -1098,17 +1098,20 @@ begin
         try SendBugToDeveloper('EurekaLogExceptionNotify Error 6!' + #13#10#13#10 + E.Message); except end;
     end;
 
-    try
-      ExceptionInfo.CallStack.Formatter := TStackFormatter.Create();
-    except
-      on E: Exception do
-        try SendBugToDeveloper('EurekaLogExceptionNotify Error 7.1!' + #13#10#13#10 + E.Message); except end;
-    end;
-    try
-      Report := Report + ExceptionInfo.CallStack.ToString;
-    except
-      on E: Exception do
-        try SendBugToDeveloper('EurekaLogExceptionNotify Error 7.2!' + #13#10#13#10 + E.Message); except end;
+    if (Assigned(ExceptionInfo.CallStack)) then
+    begin
+      try
+        ExceptionInfo.CallStack.Formatter := TStackFormatter.Create();
+      except
+        on E: Exception do
+          try SendBugToDeveloper('EurekaLogExceptionNotify Error 7.1!' + #13#10#13#10 + E.Message); except end;
+      end;
+      try
+        Report := Report + ExceptionInfo.CallStack.ToString;
+      except
+        on E: Exception do
+          try SendBugToDeveloper('EurekaLogExceptionNotify Error 7.2!' + #13#10#13#10 + E.Message); except end;
+      end;
     end;
 
     try

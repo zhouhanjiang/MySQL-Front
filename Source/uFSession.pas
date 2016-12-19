@@ -716,7 +716,7 @@ type
       constructor Create(const AFClient: TFSession; const ATable: TSTable);
       function CreateDBGrid(): TMySQLDBGrid;
       function CreateListView(): TListView;
-      procedure DataSetAfterOpen(DataSet: TDataSet); virtual;
+      procedure DataSetAfterOpen(DataSet: TDataSet);
       procedure DataSetAfterRefresh(DataSet: TDataSet);
       destructor Destroy(); override;
       property DBGrid: TMySQLDBGrid read FDBGrid;
@@ -736,6 +736,7 @@ type
       constructor Create(const AFClient: TFSession; const AView: TSView);
       function CreateSynMemo(): TSynMemo;
       destructor Destroy(); override;
+      procedure DataSetBeforeOpen(DataSet: TDataSet);
       property SynMemo: TSynMemo read FSynMemo;
     end;
 
@@ -1731,6 +1732,24 @@ begin
   Result := FSynMemo;
 end;
 
+procedure TFSession.TViewDesktop.DataSetBeforeOpen(DataSet: TDataSet);
+var
+  DescFieldNames: string;
+  FieldNames: string;
+  NewSortDef: TIndexDef;
+begin
+  if ((DataSet is TMySQLDataSet)
+    and Table.Session.SQLParser.ParseSQL(TSView(Table).Stmt)
+    and GetOrderFromSelectStmt(Table.Session.SQLParser.FirstStmt, FieldNames, DescFieldNames)) then
+  begin
+    NewSortDef := TIndexDef.Create(nil, '', FieldNames, []);
+    NewSortDef.DescFields := DescFieldNames;
+    TMySQLDataSet(DataSet).SortDef.Assign(NewSortDef);
+    NewSortDef.Free();
+  end;
+  Table.Session.SQLParser.Clear();
+end;
+
 destructor TFSession.TViewDesktop.Destroy();
 begin
   if (Assigned(SynMemo)) then
@@ -2275,6 +2294,12 @@ begin
       for I := Items.Count - 1 downto 0 do
         if ((TSItem(Items[I]) is TSKey) and (TSKey(Items[I]).Table = Table)) then
         begin
+          // Debug 2016-12-19
+          if (not Assigned(NewTable.KeyByName(TSKey(Items[I]).Name))) then
+            raise ERangeError.Create('Key "' + TSKey(Items[I]).Name + '" not found!' + #13#10
+              + 'Table SQL:' + #13#10
+              + Table.Source);
+
           NewTable.Keys.DeleteKey(NewTable.KeyByName(TSKey(Items[I]).Name));
           Items[I] := nil;
         end
@@ -2782,7 +2807,8 @@ begin
     begin
       DView.Database := TSView(SItem).Database;
       DView.View := TSView(SItem);
-      DView.Execute();
+      if (DView.Execute()) then
+        Wanted.Update := UpdateAfterAddressChanged;
     end
     else if (SItem is TSProcedure) then
     begin
@@ -3680,7 +3706,8 @@ begin
 
     // Debug 2016-12-12
     if (not Assigned(FNavigator)) then
-      raise ERangeError.Create(SRangeError + #13#10 + 'Imported: ' + BoolToStr(Imported) + #13#10 + 'CodePage: ' + IntToStr(ImportCodePage));
+      raise ERangeError.Create('Imported: ' + BoolToStr(Imported, True) + #13#10
+        + 'CodePage: ' + IntToStr(ImportCodePage));
 
     UpdateAfterAddressChanged();
   end;
@@ -5633,7 +5660,7 @@ begin
     else if (Sender is TAction) then
       raise ERangeError.Create('Action Name: ' + TAction(Sender).Name + #13#10
         + 'Address: ' + Address + #13#10
-        + 'Assigned: ' + BoolToStr(Assigned(GetActiveDBGrid())))
+        + 'Assigned: ' + BoolToStr(Assigned(GetActiveDBGrid()), True  ))
     else
       raise ERangeError.Create('Sender ClassType: ' + Sender.ClassName + #13#10
         + 'Address: ' + Address);
@@ -5830,10 +5857,10 @@ var
   SortDef: TIndexDef;
 begin
   // 2016-11-21
-  // Why is it possible, that Column.Grid.DataSource.Enabled is False???
+  if (not Column.Grid.DataSource.Enabled) then
+    raise ERangeError.Create(SRangeError);
 
-  if (Column.Grid.DataSource.Enabled
-    and not (Column.Field.DataType in [ftUnknown, ftWideMemo, ftBlob])) then
+  if (not (Column.Field.DataType in [ftUnknown, ftWideMemo, ftBlob])) then
   begin
     SortDef := TIndexDef.Create(nil, '', '', []);
 
@@ -8113,7 +8140,8 @@ begin
     vBrowser:
       begin
         if (not (FNavigator.Selected.ImageIndex in [iiBaseTable, iiView, iiSystemView])) then
-          raise ERangeError.Create(SRangeError + ' ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + ' Address: ' + Address);
+          raise ERangeError.Create('ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
+            + 'Address: ' + Address);
         Result := Desktop(TSTable(FNavigator.Selected.Data)).CreateDBGrid();
       end;
     vIDE:
@@ -11022,8 +11050,8 @@ begin
       iiTrigger:
         begin
           URI.Param['view'] := 'ide';
-          URI.Database := TSDatabase(Node.Parent.Data).Name;
-          URI.Table := Node.Parent.Text;
+          URI.Database := TSDatabase(Node.Parent.Parent.Data).Name;
+          URI.Table := TSTrigger(Node.Parent.Data).Name;
           URI.Param['objecttype'] := 'trigger';
           URI.Param['object'] := Node.Text;
         end;
@@ -13476,14 +13504,14 @@ begin
       TSBaseTable(Table).PrimaryKey.GetSortDef(SortDef);
     Table.DataSet.AfterOpen := Desktop(Table).DataSetAfterOpen;
     Table.DataSet.AfterRefresh := Desktop(Table).DataSetAfterRefresh;
+    if (Table is TSView) then
+      Table.DataSet.BeforeOpen := Desktop(TSView(Table)).DataSetBeforeOpen;
     Table.Open(FilterSQL, QuickSearch, SortDef, Offset, Limit);
   end
   else
   begin
-    SortDef.Assign(Table.DataSet.SortDef);
     Table.DataSet.FilterSQL := FilterSQL;
     Table.DataSet.QuickSearch := QuickSearch;
-    Table.DataSet.SortDef.Assign(SortDef);
     Table.DataSet.Offset := Offset;
     Table.DataSet.Limit := Limit;
     Table.DataSet.Refresh();

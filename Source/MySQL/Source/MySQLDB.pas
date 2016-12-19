@@ -100,24 +100,22 @@ type
 
   TMySQLMonitor = class(TComponent)
   type
-    TCache = record
-      First: Integer;
-      Items: TList;
-      MaxSize: Integer;
-      Mem: PChar;
-      MemSize: Integer;
-      UsedSize: Integer;
-    end;
     TTraceType = (ttTime, ttRequest, ttResult, ttInfo, ttDebug);
     TTraceTypes = set of TTraceType;
     TMySQLOnMonitor = procedure (const Connection: TMySQLConnection; const Text: PChar; const Length: Integer; const ATraceType: TTraceType) of object;
   private
-    Cache: TCache;
-    FCacheSize: Integer;
+    Cache: record
+      First: Integer;
+      ItemLengths: TList;
+      Mem: PChar;
+      MemLen: Integer;
+      UsedLen: Integer;
+    end;
     FConnection: TMySQLConnection;
     FEnabled: Boolean;
     FOnMonitor: TMySQLOnMonitor;
     FTraceTypes: TTraceTypes;
+    function GetCacheSize(): Integer;
     function GetCacheText(): string;
     procedure SetConnection(const AConnection: TMySQLConnection);
     procedure SetCacheSize(const ACacheSize: Integer);
@@ -132,7 +130,7 @@ type
     property Connection: TMySQLConnection read FConnection write SetConnection;
     property Enabled: Boolean read FEnabled write FEnabled default False;
     property OnMonitor: TMySQLOnMonitor read FOnMonitor write SetOnMonitor default nil;
-    property CacheSize: Integer read Cache.MaxSize write SetCacheSize;
+    property CacheSize: Integer read GetCacheSize write SetCacheSize;
     property TraceTypes: TTraceTypes read FTraceTypes write FTraceTypes default [ttRequest];
   end;
 
@@ -332,7 +330,7 @@ type
     procedure SyncPing(const SyncThread: TSyncThread);
     procedure SyncReceivingResult(const SyncThread: TSyncThread);
     procedure SyncReleaseDataSet(const DataSet: TMySQLQuery);
-    procedure ReleaseSQLMonitor(const SQLMonitor: TMySQLMonitor); virtual;
+    procedure UnRegisterSQLMonitor(const SQLMonitor: TMySQLMonitor); virtual;
     procedure WriteMonitor(const Text: string; const TraceType: TMySQLMonitor.TTraceType); overload; inline;
     procedure WriteMonitor(const Text: PChar; const Length: Integer; const TraceType: TMySQLMonitor.TTraceType); overload;
     property CharsetNr: Byte read FCharsetNr;
@@ -1695,131 +1693,109 @@ begin
   FErrorCode := AErrorCode;
 end;
 
-function TMySQLMonitor.GetCacheText(): string;
+{ TMySQLMonitor ***************************************************************}
+
+procedure TMySQLMonitor.Clear();
 begin
-  SetLength(Result, Cache.UsedSize);
-  if (Cache.UsedSize > 0) then
-  begin
-    if (Cache.First + Cache.UsedSize <= Cache.MemSize) then
-      MoveMemory(@Result[1], @Cache.Mem[Cache.First], Cache.UsedSize * SizeOf(Cache.Mem[0]))
-    else
-    begin
-      MoveMemory(@Result[1], @Cache.Mem[Cache.First], (Cache.MemSize - Cache.First) * SizeOf(Cache.Mem[0]));
-      MoveMemory(@Result[1 + Cache.MemSize - Cache.First], Cache.Mem, (Cache.UsedSize - (Cache.MemSize - Cache.First)) * SizeOf(Cache.Mem[0]));
-    end;
-    while ((Length(Result) > 0) and CharInSet(Result[Length(Result)], [#10,#13])) do
-      SetLength(Result, Length(Result) - 1);
-  end;
-end;
-
-procedure TMySQLMonitor.SetConnection(const AConnection: TMySQLConnection);
-begin
-  if (Assigned(Connection)) then
-    Connection.ReleaseSQLMonitor(Self);
-
-  FConnection := AConnection;
-
-  if (Assigned(Connection)) then
-    Connection.RegisterSQLMonitor(Self);
-end;
-
-procedure TMySQLMonitor.SetCacheSize(const ACacheSize: Integer);
-begin
-  while (Cache.UsedSize > ACacheSize) do
-  begin
-    Cache.First := (Cache.First + Integer(Cache.Items[0])) mod Cache.MemSize;
-    Dec(Cache.UsedSize, Integer(Cache.Items[0]));
-    Cache.Items.Delete(0);
-  end;
-
-  if (Cache.UsedSize > 0) then
-    MoveMemory(Cache.Mem, @Cache.Mem[Cache.First], Cache.UsedSize * SizeOf(Cache.Mem[0]));
   Cache.First := 0;
-
-  Cache.MaxSize := ACacheSize;
-
-  Cache.MemSize := Cache.MaxSize;
-  ReallocMem(Cache.Mem, Cache.MemSize * SizeOf(Cache.Mem[0]));
+  Cache.UsedLen := 0;
+  Cache.ItemLengths.Clear();
 end;
 
-procedure TMySQLMonitor.SetOnMonitor(const AOnMonitor: TMySQLOnMonitor);
+constructor TMySQLMonitor.Create(AOwner: TComponent);
 begin
-  FOnMonitor := AOnMonitor;
+  inherited;
+
+  FConnection := nil;
+  FEnabled := False;
+  FOnMonitor := nil;
+  FTraceTypes := [ttRequest];
+
+  Cache.First := 0;
+  Cache.ItemLengths := TList.Create();
+  Cache.Mem := nil;
+  Cache.MemLen := 0;
+  Cache.UsedLen := 0;
+end;
+
+destructor TMySQLMonitor.Destroy();
+begin
+  if (Assigned(Connection)) then
+    Connection.UnRegisterSQLMonitor(Self);
+
+  if (Assigned(Cache.Mem)) then
+    FreeMem(Cache.Mem);
+  Cache.ItemLengths.Free();
+
+  inherited;
 end;
 
 procedure TMySQLMonitor.DoMonitor(const Connection: TMySQLConnection; const Text: PChar; const Length: Integer; const ATraceType: TTraceType);
 var
-  CacheLength: Integer;
-  CacheText: PChar;
+  ItemLength: Integer;
+  ItemText: PChar;
+  MoveLen: Integer;
   Pos: Integer;
 begin
-  if ((Cache.MaxSize > 0) and (Length > 0)) then
+  if ((Cache.MemLen > 0) and (Length > 0)) then
   begin
-    CacheText := Text; CacheLength := Length;
-    while ((CacheLength > 0) and CharInSet(CacheText[0], [#9,#10,#13,' '])) do
+    ItemText := Text; ItemLength := Length;
+    while ((ItemLength > 0) and CharInSet(ItemText[0], [#9,#10,#13,' '])) do
     begin
-      CacheText := @CacheText[1];
-      Dec(CacheLength);
+      ItemText := @ItemText[1];
+      Dec(ItemLength);
     end;
 
-    while ((CacheLength > 0) and CharInSet(CacheText[CacheLength - 1], [#9,#10,#13,' ',';'])) do
-      Dec(CacheLength);
+    while ((ItemLength > 0) and CharInSet(ItemText[ItemLength - 1], [#9,#10,#13,' ',';'])) do
+      Dec(ItemLength);
+
+    MoveLen := ItemLength;
 
     if (ATraceType in [ttRequest, ttResult]) then
-      Inc(CacheLength, 3) // ';' + New Line
+      Inc(ItemLength, 3) // ';' + New Line
     else
-      Inc(CacheLength, 2); // New Line
+      Inc(ItemLength, 2); // New Line
 
-    if ((CacheLength > Cache.MemSize) or (Cache.MemSize > Cache.MaxSize)) then
+    while ((Cache.UsedLen + ItemLength > Cache.MemLen) and (Cache.ItemLengths.Count > 0)) do
     begin
-      Clear();
-
-      Cache.MemSize := Max(Cache.MaxSize, CacheLength);
-      ReallocMem(Cache.Mem, Cache.MemSize * SizeOf(Cache.Mem[0]));
-      MoveMemory(Cache.Mem, CacheText, CacheLength * SizeOf(Cache.Mem[0]));
-    end
-    else
-    begin
-      while ((Cache.UsedSize + CacheLength > Cache.MemSize) and (Cache.Items.Count > 0)) do
-      begin
-        Inc(Cache.First, Integer(Cache.Items[0])); if (Cache.First >= Cache.MemSize) then Dec(Cache.First, Cache.MemSize);
-        Dec(Cache.UsedSize, Integer(Cache.Items[0]));
-        Cache.Items.Delete(0);
-      end;
-
-      Pos := (Cache.First + Cache.UsedSize) mod Cache.MemSize;
-      if (Pos + CacheLength <= Cache.MemSize) then
-        MoveMemory(@Cache.Mem[Pos], CacheText, CacheLength * SizeOf(Cache.Mem[0]))
-      else
-      begin
-        MoveMemory(@Cache.Mem[Pos], CacheText, (Cache.MemSize - Pos) * SizeOf(Cache.Mem[0]));
-        MoveMemory(Cache.Mem, @CacheText[Cache.MemSize - Pos], (CacheLength - (Cache.MemSize - Pos)) * SizeOf(Cache.Mem[0]));
-      end;
+      Inc(Cache.First, Integer(Cache.ItemLengths[0])); if (Cache.First >= Cache.MemLen) then Dec(Cache.First, Cache.MemLen);
+      Dec(Cache.UsedLen, Integer(Cache.ItemLengths[0]));
+      Cache.ItemLengths.Delete(0);
     end;
 
-    Inc(Cache.UsedSize, CacheLength);
-    Cache.Items.Add(Pointer(CacheLength));
+    if (Cache.First + Cache.UsedLen + MoveLen <= Cache.MemLen) then
+      MoveMemory(@Cache.Mem[Cache.First + Cache.UsedLen], ItemText, MoveLen * SizeOf(Cache.Mem[0]))
+    else if (Cache.First + Cache.UsedLen <= Cache.MemLen) then
+    begin
+      MoveMemory(@Cache.Mem[Cache.First + Cache.UsedLen], @ItemText[0], (Cache.MemLen - (Cache.First + Cache.UsedLen)) * SizeOf(Cache.Mem[0]));
+      MoveMemory(@Cache.Mem[0], @ItemText[Cache.MemLen - (Cache.First + Cache.UsedLen)], (Cache.First + Cache.UsedLen + MoveLen - Cache.MemLen) * SizeOf(Cache.Mem[0]));
+    end
+    else
+      MoveMemory(@Cache.Mem[Cache.First + Cache.UsedLen - Cache.MemLen], ItemText, MoveLen * SizeOf(Cache.Mem[0]));
 
-    Pos := (Cache.First + Cache.UsedSize) mod Cache.MemSize;
+    Inc(Cache.UsedLen, ItemLength);
+    Cache.ItemLengths.Add(Pointer(ItemLength));
+
+    Pos := (Cache.First + Cache.UsedLen) mod Cache.MemLen;
     case (Pos) of
       0:
         begin
           if (ATraceType in [ttRequest, ttResult]) then
-            Cache.Mem[Cache.MemSize - 3] := ';';
-          Cache.Mem[Cache.MemSize - 2] := #13;
-          Cache.Mem[Cache.MemSize - 1] := #10;
+            Cache.Mem[Cache.MemLen - 3] := ';';
+          Cache.Mem[Cache.MemLen - 2] := #13;
+          Cache.Mem[Cache.MemLen - 1] := #10;
         end;
       1:
         begin
           if (ATraceType in [ttRequest, ttResult]) then
-            Cache.Mem[Cache.MemSize - 2] := ';';
-          Cache.Mem[Cache.MemSize - 1] := #13;
+            Cache.Mem[Cache.MemLen - 2] := ';';
+          Cache.Mem[Cache.MemLen - 1] := #13;
           Cache.Mem[0] := #10;
         end;
       2:
         begin
           if (ATraceType in [ttRequest, ttResult]) then
-            Cache.Mem[Cache.MemSize - 1] := ';';
+            Cache.Mem[Cache.MemLen - 1] := ';';
           Cache.Mem[1] := #13;
           Cache.Mem[0] := #10;
         end;
@@ -1837,41 +1813,86 @@ begin
     OnMonitor(Connection, Text, Length, ATraceType);
 end;
 
-{ TMySQLMonitor ***************************************************************}
-
-procedure TMySQLMonitor.Clear();
+function TMySQLMonitor.GetCacheSize(): Integer;
 begin
-  Cache.First := 0;
-  Cache.UsedSize := 0;
-  Cache.Items.Clear();
+  Result := Cache.MemLen * SizeOf(Cache.Mem[0]);
 end;
 
-constructor TMySQLMonitor.Create(AOwner: TComponent);
+function TMySQLMonitor.GetCacheText(): string;
+var
+  Len: Integer;
 begin
-  inherited;
-
-  FConnection := nil;
-  FEnabled := False;
-  FOnMonitor := nil;
-  FCacheSize := 0;
-  FTraceTypes := [ttRequest];
-
-  Cache.First := 0;
-  Cache.Items := TList.Create();
-  Cache.MemSize := FCacheSize;
-  GetMem(Cache.Mem, Cache.MemSize * SizeOf(Cache.Mem[0]));
-  Cache.UsedSize := 0;
+  if (Cache.UsedLen = 0) then
+    Result := ''
+  else if (Cache.First + Cache.UsedLen <= Cache.MemLen) then
+  begin
+    Len := Cache.UsedLen;
+    while ((Len > 0) and CharInSet(Cache.Mem[Len - 1], [#10, #13])) do Dec(Len);
+    SetString(Result, PChar(@Cache.Mem[Cache.First]), Len);
+  end
+  else
+  begin
+    Len := Cache.UsedLen;
+    while ((Cache.First + Len > Cache.MemLen) and CharInSet(Cache.Mem[Cache.First + Len - Cache.MemLen - 1], [#10, #13])) do Dec(Len);
+    if (Cache.First + Len = Cache.MemLen) then
+      while ((Len > 0) and CharInSet(Cache.Mem[Len - 1], [#10, #13])) do Dec(Len);
+    SetLength(Result, Len);
+    MoveMemory(@Result[1], @Cache.Mem[Cache.First], (Cache.MemLen - Cache.First) * SizeOf(Cache.Mem[0]));
+    MoveMemory(@Result[1 + Cache.MemLen - Cache.First], @Cache.Mem[0], (Cache.UsedLen - (Cache.MemLen - Cache.First)) * SizeOf(Cache.Mem[0]));
+  end;
 end;
 
-destructor TMySQLMonitor.Destroy();
+procedure TMySQLMonitor.SetConnection(const AConnection: TMySQLConnection);
 begin
   if (Assigned(Connection)) then
-    Connection.ReleaseSQLMonitor(Self);
+    Connection.UnRegisterSQLMonitor(Self);
 
-  FreeMem(Cache.Mem);
-  Cache.Items.Free();
+  FConnection := AConnection;
 
-  inherited;
+  if (Assigned(Connection)) then
+    Connection.RegisterSQLMonitor(Self);
+end;
+
+procedure TMySQLMonitor.SetCacheSize(const ACacheSize: Integer);
+var
+  NewMem: PChar;
+  NewMemLen: Integer;
+begin
+  NewMemLen := ACacheSize div 2;
+
+  if (NewMemLen = 0) then
+    NewMem := nil
+  else
+  begin
+    while (Cache.UsedLen > NewMemLen) do
+    begin
+      Inc(Cache.First, Integer(Cache.ItemLengths[0]));
+      Dec(Cache.UsedLen, Integer(Cache.ItemLengths[0]));
+      Cache.ItemLengths.Delete(0);
+    end;
+
+    GetMem(NewMem, NewMemLen * SizeOf(Cache.Mem[0]));
+
+    if (Cache.MemLen > 0) then
+      if (Cache.First + Cache.UsedLen <= Cache.MemLen) then
+        MoveMemory(@NewMem[0], @Cache.Mem[Cache.First], Cache.UsedLen * SizeOf(Cache.Mem[0]))
+      else
+      begin
+        MoveMemory(@NewMem[0], @Cache.Mem[Cache.First], (Cache.First + Cache.UsedLen - Cache.MemLen) * SizeOf(Cache.Mem[0]));
+        MoveMemory(@NewMem[Cache.First + Cache.UsedLen - Cache.MemLen], @Cache.Mem[0], Cache.UsedLen - Cache.MemLen);
+      end;
+  end;
+
+  if (Assigned(Cache.Mem)) then FreeMem(Cache.Mem);
+
+  Cache.Mem := NewMem;
+  Cache.MemLen := NewMemLen;
+  Cache.First := 0;
+end;
+
+procedure TMySQLMonitor.SetOnMonitor(const AOnMonitor: TMySQLOnMonitor);
+begin
+  FOnMonitor := AOnMonitor;
 end;
 
 { TMySQLConnection.TTerminatedThreads *****************************************}
@@ -2919,12 +2940,6 @@ begin
     FSQLMonitors.Add(SQLMonitor);
 end;
 
-procedure TMySQLConnection.ReleaseSQLMonitor(const SQLMonitor: TMySQLMonitor);
-begin
-  if (FSQLMonitors.IndexOf(SQLMonitor) >= 0) then
-    FSQLMonitors.Delete(FSQLMonitors.IndexOf(SQLMonitor));
-end;
-
 procedure TMySQLConnection.RunExecute(const SyncThread: TSyncThread);
 begin
   // Debug 2016-11-30
@@ -3729,6 +3744,12 @@ begin
   if (Assigned(SyncThread) and SyncThread.IsRunning) then
     DoTerminate();
   TerminateCS.Leave();
+end;
+
+procedure TMySQLConnection.UnRegisterSQLMonitor(const SQLMonitor: TMySQLMonitor);
+begin
+  if (FSQLMonitors.IndexOf(SQLMonitor) >= 0) then
+    FSQLMonitors.Delete(FSQLMonitors.IndexOf(SQLMonitor));
 end;
 
 function TMySQLConnection.UseCompression(): Boolean;
@@ -6061,11 +6082,11 @@ begin
   // Debug 2016-12-05
   if (not Active) then
   else if (not Assigned(ActiveBuffer())) then
-  else if (not PExternRecordBuffer(ActiveBuffer())^.Identifier654321 = 654321) then // An error occurred here on 2016-12-15
+  else if (not PExternRecordBuffer(ActiveBuffer())^.Identifier654321 = 654321) then // Occurred second time here on 2016-12-19
     raise ERangeError.Create(SRangeError)
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
   else if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.IdentifierABCDEF <> $ABCDEF) then // Debug 2016-12-15
-    raise ERangeError.Create(SRangeError) // Occurrend second time on 2016-12-16
+    raise ERangeError.Create(SRangeError) // Occurrend third time on 2016-12-16
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
   else if (not (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier123456 = 123456)) then // Crashe here the second time on 2016-12-15
     raise ERangeError.Create(SRangeError); // Occurred second time on 2016-12-15
@@ -6458,6 +6479,10 @@ begin
 end;
 
 procedure TMySQLDataSet.InternalOpen();
+var
+  DescFieldNames: string;
+  FieldNames: string;
+  NewSortDef: TIndexDef;
 begin
   Assert(not IsCursorOpen());
 
@@ -6466,6 +6491,16 @@ begin
   RecordsReceived.ResetEvent();
 
   inherited;
+
+  if (Connection.SQLParser.ParseSQL(CommandText)
+    and GetOrderFromSelectStmt(Connection.SQLParser.FirstStmt, FieldNames, DescFieldNames)) then
+  begin
+    NewSortDef := TIndexDef.Create(nil, '', FieldNames, []);
+    NewSortDef.DescFields := DescFieldNames;
+    SortDef.Assign(NewSortDef);
+    NewSortDef.Free();
+  end;
+  Connection.SQLParser.Clear();
 
   SetFieldsSortTag();
 end;

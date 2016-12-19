@@ -7087,6 +7087,7 @@ type
 
 function AddDatabaseName(const Stmt: TSQLParser.PStmt; const DatabaseName: string): string;
 function ExpandSelectStmtWhereClause(const Stmt: TSQLParser.PStmt; const WhereClause: string): string;
+function GetOrderFromSelectStmt(const Stmt: TSQLParser.PStmt; out FieldNames, DescFieldNames: string): Boolean;
 function RemoveDatabaseName(const Stmt: TSQLParser.PStmt; const DatabaseName: string; const CaseSensitive: Boolean = False): string;
 function RemoveTableName(const Stmt: TSQLParser.PStmt; const TableName: string; const CaseSensitive: Boolean = False): string; overload;
 function ReplaceSelectStmtLimit(const Stmt: TSQLParser.PStmt; const Offset, RowCount: Integer): string;
@@ -20678,6 +20679,7 @@ begin
         Inc(BracketDeep)
       else if (IsNextSymbol(Index, ttCloseBracket)) then
         Dec(BracketDeep);
+      Inc(Index);
     until (EndOfStmt(NextToken[Index])
       or (BracketDeep = 0)
       or (BracketDeep = 1) and IsNextSymbol(Index, ttComma));
@@ -22002,7 +22004,9 @@ begin
         end;
 
       if (not ErrorFound) then
-        if (IsTag(kiORDER, kiBY)) then
+        if (IsTag(kiORDER, kiBY, kiNULL)) then
+          Nodes.OrderBy.Tag := ParseTag(kiORDER, kiBY, kiNULL)
+        else if (IsTag(kiORDER, kiBY)) then
         begin
           Nodes.OrderBy.Tag := ParseTag(kiORDER, kiBY);
 
@@ -22077,7 +22081,9 @@ begin
     begin
       Nodes.Union1.SelectStmt := ParseSelectStmt(False);
 
-      if (IsTag(kiORDER, kiBY)) then
+      if (IsTag(kiORDER, kiBY, kiNULL)) then
+        Nodes.Union1.OrderBy.Tag := ParseTag(kiORDER, kiBY, kiNULL)
+      else if (IsTag(kiORDER, kiBY)) then
       begin
         Nodes.Union1.OrderBy.Tag := ParseTag(kiORDER, kiBY);
 
@@ -22132,7 +22138,9 @@ begin
       begin
         Nodes.Union2.SelectStmt := ParseSelectStmt(False);
 
-        if (IsTag(kiORDER, kiBY)) then
+        if (IsTag(kiORDER, kiBY, kiNULL)) then
+          Nodes.Union2.OrderBy.Tag := ParseTag(kiORDER, kiBY, kiNULL)
+        else if (IsTag(kiORDER, kiBY)) then
         begin
           Nodes.Union2.OrderBy.Tag := ParseTag(kiORDER, kiBY);
 
@@ -22701,7 +22709,7 @@ begin
   if (not ErrorFound) then
     if (Parse.InCreateTriggerStmt
       and (IsTag(kiNEW) or IsTag(kiOLD))) then
-      Nodes.VariableIdent := ParseDbIdent(ditField, False)
+      Nodes.VariableIdent := ParseDbIdent(ditField, True)
     else
       Nodes.VariableIdent := ParseVariableIdent();
 
@@ -26002,7 +26010,8 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.At1Token := ParseSymbol(ttAt);
+  if (IsSymbol(ttAt)) then
+    Nodes.At1Token := ParseSymbol(ttAt);
 
   if (not ErrorFound and IsSymbol(ttAt)) then
   begin
@@ -27552,6 +27561,55 @@ begin
     Result := Stmt^.Parser.Commands.Read();
 
     Stmt^.Parser.Commands.Free(); Stmt^.Parser.Commands := nil;
+  end;
+end;
+
+function GetOrderFromSelectStmt(const Stmt: TSQLParser.PStmt; out FieldNames, DescFieldNames: string): Boolean;
+var
+  Column: TSQLParser.PChild;
+  Expr: TSQLParser.PNode;
+  List: TSQLParser.PList;
+begin
+  Result := False;
+
+  if (Assigned(Stmt)
+    and (Stmt^.StmtType = stSelect)
+    and (TSQLParser.PSelectStmt(Stmt)^.Nodes.OrderBy.List > 0)
+    and (Stmt^.Parser.NodePtr(TSQLParser.PSelectStmt(Stmt)^.Nodes.OrderBy.List)^.NodeType = ntList)) then
+  begin
+    List := TSQLParser.PList(Stmt^.Parser.NodePtr(TSQLParser.PSelectStmt(Stmt)^.Nodes.OrderBy.List));
+
+    Column := List^.FirstElement;
+    while (Assigned(Column)) do
+    begin
+      if ((TSQLParser.PNode(Column)^.NodeType <> ntSelectStmtOrder)
+        or (TSQLParser.TSelectStmt.POrder(Column)^.Nodes.Expr = 0)) then
+        Exit(False);
+
+      Expr := Stmt^.Parser.NodePtr(TSQLParser.TSelectStmt.POrder(Column)^.Nodes.Expr);
+
+      if ((Expr^.NodeType <> ntDbIdent)
+        or (TSQLParser.PDbIdent(Expr)^.Nodes.Ident = 0)
+        or (Stmt^.Parser.NodePtr(TSQLParser.PDbIdent(Expr)^.Nodes.Ident)^.NodeType <> ntToken)) then
+        Exit(False);
+
+      if (FieldNames <> '') then FieldNames := FieldNames + ',';
+      FieldNames := FieldNames + Stmt^.Parser.TokenPtr(TSQLParser.PDbIdent(Expr)^.Nodes.Ident)^.AsString;
+
+      if ((TSQLParser.TSelectStmt.POrder(Column)^.Nodes.DirectionTag > 0)
+        and (Stmt^.Parser.NodePtr(TSQLParser.TSelectStmt.POrder(Column)^.Nodes.DirectionTag)^.NodeType = ntTag)
+        and (TSQLParser.PTag(Stmt^.Parser.NodePtr(TSQLParser.TSelectStmt.POrder(Column)^.Nodes.DirectionTag))^.Nodes.Keyword1Token > 0)
+        and (TSQLParser.PTag(Stmt^.Parser.NodePtr(TSQLParser.TSelectStmt.POrder(Column)^.Nodes.DirectionTag))^.Nodes.Keyword2Token = 0)
+        and (Stmt^.Parser.TokenPtr(TSQLParser.PTag(Stmt^.Parser.NodePtr(TSQLParser.TSelectStmt.POrder(Column)^.Nodes.DirectionTag))^.Nodes.Keyword1Token)^.KeywordIndex = Stmt^.Parser.kiDESC)) then
+      begin
+        if (DescFieldNames <> '') then DescFieldNames := DescFieldNames + ',';
+        DescFieldNames := DescFieldNames + Stmt^.Parser.TokenPtr(TSQLParser.PDbIdent(Expr)^.Nodes.Ident)^.AsString;
+      end;
+
+      Column := List^.GetNextElement(Column);
+    end;
+
+    Result := True;
   end;
 end;
 

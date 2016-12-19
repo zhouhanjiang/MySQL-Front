@@ -663,7 +663,6 @@ type
     procedure InvalidateData(); override;
     function KeyByCaption(const Caption: string): TSKey; virtual;
     function KeyByName(const Name: string): TSKey; virtual;
-    function KeyByDataSet(const DataSet: TSTable.TDataSet): TSKey; virtual;
     procedure Invalidate(); override;
     procedure InvalidateStatus(); virtual;
     function PartitionByName(const PartitionName: string): TSPartition; virtual;
@@ -4295,40 +4294,6 @@ begin
     else
       Result := Keys[Index];
   end;
-end;
-
-function TSBaseTable.KeyByDataSet(const DataSet: TSTable.TDataSet): TSKey;
-var
-  DescPos: Integer;
-  FieldName: string;
-  Found: Boolean;
-  I: Integer;
-  J: Integer;
-  Pos: Integer;
-begin
-  Result := nil;
-
-  for I := 0 to Keys.Count - 1 do
-    if (not Assigned(Result)) then
-    begin
-      Pos := 1; Found := True;
-      for J := 0 to Keys[I].Columns.Count - 1 do
-        if (Found) then
-        begin
-          FieldName := ExtractFieldName(DataSet.SortDef.Fields, Pos);
-          Found := Found and (FieldName = Keys[I].Columns[J].Field.Name);
-          if (Found and not Keys[I].Columns[J].Ascending) then
-          begin
-            DescPos := 1;
-            repeat
-              FieldName := ExtractFieldName(DataSet.SortDef.DescFields, DescPos);
-              Found := FieldName = Keys[I].Columns[J].Field.Name;
-            until (Found or (FieldName = ''));
-          end;
-        end;
-      if (Found) then
-        Result := Keys[I];
-    end;
 end;
 
 procedure TSBaseTable.Invalidate();
