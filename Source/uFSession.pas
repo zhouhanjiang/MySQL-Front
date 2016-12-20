@@ -13483,18 +13483,6 @@ var
   SortDef: TIndexDef;
   Table: TSTable;
 begin
-  // Debug 2016-12-16
-  if (not Assigned(FNavigator.Selected.Data)) then
-    raise ERangeError.Create(SRangeError);
-  try
-    if (not (TObject(FNavigator.Selected.Data) is TSTable)) then
-      raise ERangeError.Create('ClassType: ' + TObject(FNavigator.Selected.Data).ClassName + #13#10
-        + 'ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
-        + 'Address: ' + Address);
-  except
-    raise ERangeError.Create(SRangeError);
-  end;
-
   Table := TSTable(FNavigator.Selected.Data);
 
   if (not FLimitEnabled.Down) then

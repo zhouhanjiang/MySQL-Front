@@ -1152,7 +1152,8 @@ begin
     end;
 
     try
-      SendBugToDeveloper(Report);
+      if (Report <> '') then
+        SendBugToDeveloper(Report);
     except
     end;
 
