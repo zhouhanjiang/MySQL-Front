@@ -13929,9 +13929,9 @@ begin
               if (FNavigator.Items[J].Data = SObject) then
               begin
                 Address := NavigatorNodeToAddress(FNavigator.Items[J]);
-                if (SynMemo = SQLEditors[vEditor].SynMemo) then View := vEditor
-                else if (SynMemo = SQLEditors[vEditor2].SynMemo) then View := vEditor2
-                else if (SynMemo = SQLEditors[vEditor3].SynMemo) then View := vEditor3;
+                if (SynMemo = SQLEditors[vEditor].SynMemo) then Self.View := vEditor
+                else if (SynMemo = SQLEditors[vEditor2].SynMemo) then Self.View := vEditor2
+                else if (SynMemo = SQLEditors[vEditor3].SynMemo) then Self.View := vEditor3;
                 Window.ActiveControl := ActiveSynMemo;
                 case (MsgBox(Preferences.LoadStr(584, SObject.Name), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
                   IDYES: MainAction('aDPostObject').Execute();

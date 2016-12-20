@@ -5,7 +5,7 @@ interface {********************************************************************}
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Types,
   Dialogs, ActnList, ComCtrls, DBActns, ExtCtrls, ImgList, Menus, StdActns,
-  ActnCtrls, StdCtrls, ToolWin,
+  ActnCtrls, StdCtrls, ToolWin, Actions,
   SynEditHighlighter, SynHighlighterSQL,
   {$IFDEF EurekaLog}
   ExceptionLog7, EComponent, EException, ECallStack, EBase,

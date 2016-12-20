@@ -4049,7 +4049,13 @@ begin
     SetSource(string(RBS));
   end;
 
-  ParseCreateTable(Source);
+  try // Debug 2016-12-20
+    ParseCreateTable(Source);
+  except
+    on E: Exception do
+      raise Exception.Create(E.Message + #13#10
+        + 'SQL: ' + Source);
+  end;
 
   Session.SendEvent(etItemValid, Database, Items, Self);
   Session.SendEvent(etItemsValid, Self, Fields);

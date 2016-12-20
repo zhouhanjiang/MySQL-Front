@@ -467,6 +467,7 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy(); override;
     function CreateBlobStream(Field: TField; Mode: TBlobStreamMode): TStream; override;
+    function GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean; override;
     function GetFieldData(Field: TField; Buffer: Pointer): Boolean; override;
     procedure Open(const DataHandle: TMySQLConnection.TDataResult); overload; virtual;
     function SQLFieldValue(const Field: TField; Data: PRecordBufferData = nil): string; overload; virtual;
@@ -586,6 +587,7 @@ type
     function MoveRecordBufferData(var DestData: TMySQLQuery.PRecordBufferData; const SourceData: TMySQLQuery.PRecordBufferData): Boolean;
     procedure SetBookmarkData(Buffer: TRecordBuffer; Data: Pointer); override;
     procedure SetBookmarkFlag(Buffer: TRecordBuffer; Value: TBookmarkFlag); override;
+    procedure SetFieldData(Field: TField; Buffer: TValueBuffer); override;
     procedure SetFieldData(Field: TField; Buffer: Pointer); override;
     procedure SetFieldData(const Field: TField; const Buffer: Pointer; const Size: Integer); overload; virtual;
     procedure SetFieldsSortTag(); virtual;
@@ -1379,7 +1381,7 @@ begin
       while ((Length > 0) and (MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, lpMultiByteStr, Length, nil, 0) = 0)) do
         Dec(Length);
       Hex := SQLEscapeBin(lpMultiByteStr, cchMultiByte, True);
-      raise EOSError.CreateFmt(SOSError + ' (CodePage: %d, Hex: %s, Index: %d)', [GetLastError(), SysErrorMessage(GetLastError()), CodePage, Hex, Length]);
+      raise Exception.CreateFMT('#%d %s (CodePage: %d, Hex: %s, Index: %d)', [GetLastError(), SysErrorMessage(GetLastError()), CodePage, Hex, Length]);
     end;
   end;
 end;
@@ -1770,15 +1772,14 @@ begin
       Cache.ItemLengths.Delete(0);
     end;
 
-    if (Cache.First + Cache.UsedLen + MoveLen <= Cache.MemLen) then
-      MoveMemory(@Cache.Mem[Cache.First + Cache.UsedLen], ItemText, MoveLen * SizeOf(Cache.Mem[0]))
-    else if (Cache.First + Cache.UsedLen <= Cache.MemLen) then
-    begin
-      MoveMemory(@Cache.Mem[Cache.First + Cache.UsedLen], @ItemText[0], (Cache.MemLen - (Cache.First + Cache.UsedLen)) * SizeOf(Cache.Mem[0]));
-      MoveMemory(@Cache.Mem[0], @ItemText[Cache.MemLen - (Cache.First + Cache.UsedLen)], (Cache.First + Cache.UsedLen + MoveLen - Cache.MemLen) * SizeOf(Cache.Mem[0]));
-    end
+    Pos := (Cache.First + Cache.UsedLen) mod Cache.MemLen;
+    if (Pos + MoveLen <= Cache.MemLen) then
+      MoveMemory(@Cache.Mem[Pos], ItemText, MoveLen * SizeOf(Cache.Mem[0]))
     else
-      MoveMemory(@Cache.Mem[Cache.First + Cache.UsedLen - Cache.MemLen], ItemText, MoveLen * SizeOf(Cache.Mem[0]));
+    begin
+      MoveMemory(@Cache.Mem[Pos], @ItemText[0], (Cache.MemLen - Pos) * SizeOf(Cache.Mem[0]));
+      MoveMemory(@Cache.Mem[0], @ItemText[Cache.MemLen - Pos], (MoveLen - (Cache.MemLen - Pos)) * SizeOf(Cache.Mem[0]));
+    end;
 
     Inc(Cache.UsedLen, ItemLength);
     Cache.ItemLengths.Add(Pointer(ItemLength));
@@ -4972,6 +4973,11 @@ begin
   Result := False;
 end;
 
+function TMySQLQuery.GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean;
+begin
+  Result := GetFieldData(Field, @Buffer[0]);
+end;
+
 function TMySQLQuery.GetFieldData(Field: TField; Buffer: Pointer): Boolean;
 var
   Data: PRecordBufferData;
@@ -7113,6 +7119,11 @@ end;
 procedure TMySQLDataSet.SetBookmarkFlag(Buffer: TRecordBuffer; Value: TBookmarkFlag);
 begin
   PExternRecordBuffer(Buffer)^.BookmarkFlag := Value;
+end;
+
+procedure TMySQLDataSet.SetFieldData(Field: TField; Buffer: TValueBuffer);
+begin
+  SetFieldData(Field, @Buffer[0]);
 end;
 
 procedure TMySQLDataSet.SetFieldData(Field: TField; Buffer: Pointer);
