@@ -3042,7 +3042,9 @@ begin
     begin
       Success := daSuccess;
 
-      if (SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, DBC, @Stmt))) then
+      if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, DBC, @Stmt))) then
+        DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False)
+      else
       begin
         SQL := 'SELECT COUNT(*) FROM "' + TTImport.TItem(Items[I]).SourceTableName + '"';
         if (SQL_SUCCEEDED(SQLExecDirect(Stmt, PSQLTCHAR(SQL), SQL_NTS))
@@ -3210,7 +3212,9 @@ begin
   NewTable.Engine := Session.EngineByName(Engine);
   NewTable.RowType := RowType;
 
-  if (SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, DBC, @Stmt))) then
+  if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, DBC, @Stmt))) then
+    DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False)
+  else
   begin
     if ((Success <> daAbort) and (SQLColumns(Stmt, nil, 0, nil, 0, PSQLTCHAR(Item.SourceTableName), SQL_NTS, nil, 0) <> SQL_SUCCESS)) then
       DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
@@ -3303,75 +3307,82 @@ begin
     SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
 
 
-    if ((Success = daSuccess) and SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, DBC, @Stmt))) then
-    begin
-      if (SQL_SUCCEEDED(SQLExecDirect(Stmt, PSQLTCHAR(string('SELECT * FROM "' + Item.SourceTableName + '" WHERE 0<>0')), SQL_NTS))) then
+    if (Success = daSuccess) then
+      if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, DBC, @Stmt))) then
+        DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False)
+      else
       begin
-        ColumnNumber := 1;
-        while (SQL_SUCCEEDED(SQLColAttribute(Stmt, ColumnNumber, SQL_DESC_BASE_COLUMN_NAME, @ColumnName, SizeOf(ColumnName), @cbColumnName, nil))) do
+        if (SQL_SUCCEEDED(SQLExecDirect(Stmt, PSQLTCHAR(string('SELECT * FROM "' + Item.SourceTableName + '" WHERE 0<>0')), SQL_NTS))) then
         begin
-          ODBCException(Stmt, SQLColAttribute(Stmt, ColumnNumber, SQL_DESC_AUTO_UNIQUE_VALUE, nil, 0, nil, @AutoUniqueValue));
-          ODBCException(Stmt, SQLColAttribute(Stmt, ColumnNumber, SQL_DESC_UNSIGNED, nil, 0, nil, @Unsigned));
-          NewField := NewTable.FieldByName(ColumnName);
-          if (Assigned(NewField)) then
+          ColumnNumber := 1;
+          while (SQL_SUCCEEDED(SQLColAttribute(Stmt, ColumnNumber, SQL_DESC_BASE_COLUMN_NAME, @ColumnName, SizeOf(ColumnName), @cbColumnName, nil))) do
           begin
-            NewField.AutoIncrement := AutoUniqueValue = SQL_TRUE;
-            NewField.Unsigned := Unsigned = SQL_TRUE;
+            ODBCException(Stmt, SQLColAttribute(Stmt, ColumnNumber, SQL_DESC_AUTO_UNIQUE_VALUE, nil, 0, nil, @AutoUniqueValue));
+            ODBCException(Stmt, SQLColAttribute(Stmt, ColumnNumber, SQL_DESC_UNSIGNED, nil, 0, nil, @Unsigned));
+            NewField := NewTable.FieldByName(ColumnName);
+            if (Assigned(NewField)) then
+            begin
+              NewField.AutoIncrement := AutoUniqueValue = SQL_TRUE;
+              NewField.Unsigned := Unsigned = SQL_TRUE;
+            end;
+
+            Inc(ColumnNumber)
           end;
-
-          Inc(ColumnNumber)
         end;
-      end;
 
-      SQLFreeHandle(SQL_HANDLE_STMT, Stmt); Stmt := SQL_NULL_HANDLE;
-    end;
+        SQLFreeHandle(SQL_HANDLE_STMT, Stmt); Stmt := SQL_NULL_HANDLE;
+      end;
   end;
 
-  if ((Success = daSuccess) and SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, DBC, @Stmt))) then
+  if (Success = daSuccess) then
   begin
-    ODBCException(Stmt, SQLStatistics(Stmt, nil, 0, nil, 0, PSQLTCHAR(Item.SourceTableName), SQL_NTS, SQL_INDEX_UNIQUE, SQL_QUICK));
+    if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, DBC, @Stmt))) then
+      DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False)
+    else
+    begin
+      ODBCException(Stmt, SQLStatistics(Stmt, nil, 0, nil, 0, PSQLTCHAR(Item.SourceTableName), SQL_NTS, SQL_INDEX_UNIQUE, SQL_QUICK));
 
-    ODBCException(Stmt, SQLBindCol(Stmt, 4, SQL_C_SSHORT, @NonUnique, SizeOf(NonUnique), @cbNonUnique));
-    ODBCException(Stmt, SQLBindCol(Stmt, 6, SQL_C_WCHAR, @IndexName, SizeOf(IndexName), @cbIndexName));
-    ODBCException(Stmt, SQLBindCol(Stmt, 7, SQL_C_SSHORT, @IndexType, SizeOf(IndexType), @cbIndexType));
-    ODBCException(Stmt, SQLBindCol(Stmt, 8, SQL_C_SSHORT, @OrdinalPosition, SizeOf(OrdinalPosition), @cbOrdinalPosition));
-    ODBCException(Stmt, SQLBindCol(Stmt, 9, SQL_C_WCHAR, @ColumnName, SizeOf(ColumnName), @cbColumnName));
-    ODBCException(Stmt, SQLBindCol(Stmt, 10, SQL_C_WCHAR, @AscOrDesc[0], SizeOf(AscOrDesc), @cbAscOrDesc));
+      ODBCException(Stmt, SQLBindCol(Stmt, 4, SQL_C_SSHORT, @NonUnique, SizeOf(NonUnique), @cbNonUnique));
+      ODBCException(Stmt, SQLBindCol(Stmt, 6, SQL_C_WCHAR, @IndexName, SizeOf(IndexName), @cbIndexName));
+      ODBCException(Stmt, SQLBindCol(Stmt, 7, SQL_C_SSHORT, @IndexType, SizeOf(IndexType), @cbIndexType));
+      ODBCException(Stmt, SQLBindCol(Stmt, 8, SQL_C_SSHORT, @OrdinalPosition, SizeOf(OrdinalPosition), @cbOrdinalPosition));
+      ODBCException(Stmt, SQLBindCol(Stmt, 9, SQL_C_WCHAR, @ColumnName, SizeOf(ColumnName), @cbColumnName));
+      ODBCException(Stmt, SQLBindCol(Stmt, 10, SQL_C_WCHAR, @AscOrDesc[0], SizeOf(AscOrDesc), @cbAscOrDesc));
 
-    while (SQL_SUCCEEDED(ODBCException(Stmt, SQLFetch(Stmt)))) do
-      if ((IndexType in [SQL_INDEX_CLUSTERED, SQL_INDEX_HASHED, SQL_INDEX_OTHER])) then
-      begin
-        Name := Session.ApplyIdentifierName(IndexName);
-        if ((UpperCase(Name) = 'PRIMARY') or (UpperCase(Name) = 'PRIMARYKEY')) then Name := '';
-        Key := NewTable.KeyByName(Name);
-
-        if (not Assigned(Key)) then
+      while (SQL_SUCCEEDED(ODBCException(Stmt, SQLFetch(Stmt)))) do
+        if ((IndexType in [SQL_INDEX_CLUSTERED, SQL_INDEX_HASHED, SQL_INDEX_OTHER])) then
         begin
-          Key := TSKey.Create(NewTable.Keys);
-          Key.Name := Name;
-          Key.PrimaryKey := Name = '';
-          Key.Unique := NonUnique = SQL_FALSE;
-          NewTable.Keys.AddKey(Key);
-          Key.Free();
-
+          Name := Session.ApplyIdentifierName(IndexName);
+          if ((UpperCase(Name) = 'PRIMARY') or (UpperCase(Name) = 'PRIMARYKEY')) then Name := '';
           Key := NewTable.KeyByName(Name);
+
+          if (not Assigned(Key)) then
+          begin
+            Key := TSKey.Create(NewTable.Keys);
+            Key.Name := Name;
+            Key.PrimaryKey := Name = '';
+            Key.Unique := NonUnique = SQL_FALSE;
+            NewTable.Keys.AddKey(Key);
+            Key.Free();
+
+            Key := NewTable.KeyByName(Name);
+          end;
+
+          if (Assigned(Key)) then
+          begin
+            NewKeyColumn := TSKeyColumn.Create(Key.Columns);
+            NewKeyColumn.Field := NewTable.FieldByName(Session.ApplyIdentifierName(ColumnName));
+            NewKeyColumn.Ascending := AscOrDesc[0] = 'A';
+            Key.Columns.AddColumn(NewKeyColumn);
+
+            if (Key.PrimaryKey) then
+              NewKeyColumn.Field.NullAllowed := False;
+
+            FreeAndNil(NewKeyColumn);
+          end;
         end;
-
-        if (Assigned(Key)) then
-        begin
-          NewKeyColumn := TSKeyColumn.Create(Key.Columns);
-          NewKeyColumn.Field := NewTable.FieldByName(Session.ApplyIdentifierName(ColumnName));
-          NewKeyColumn.Ascending := AscOrDesc[0] = 'A';
-          Key.Columns.AddColumn(NewKeyColumn);
-
-          if (Key.PrimaryKey) then
-            NewKeyColumn.Field.NullAllowed := False;
-
-          FreeAndNil(NewKeyColumn);
-        end;
-      end;
-
-    SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
+      SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
+    end;
 
 
     if ((NewTable.Keys.Count > 0) and not Assigned(NewTable.KeyByName(''))) then
@@ -3456,7 +3467,7 @@ begin
   Result := False;
   if (Success = daSuccess) then
     if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, DBC, @Stmt))) then
-      raise ERangeError.Create(SRangeError)
+      DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False)
     else if (not SQL_SUCCEEDED(SQLColumns(Stmt, nil, 0, nil, 0, PSQLTCHAR(TableName), SQL_NTS, nil, 0))) then
       DoError(ODBCError(SQL_HANDLE_STMT, Stmt), nil, False)
     else
@@ -3497,7 +3508,7 @@ begin
     if (not SQL_SUCCEEDED(SQLGetInfo(DBC, SQL_MAX_TABLE_NAME_LEN, @TABLE_NAME_LEN, SizeOf(TABLE_NAME_LEN), nil))) then
       DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False)
     else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, DBC, @Stmt))) then
-      raise ERangeError.Create(SRangeError)
+      DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False)
     else
     begin
       GetMem(TABLE_NAME, (TABLE_NAME_LEN + 1) * SizeOf(SQLWCHAR));
@@ -3835,14 +3846,11 @@ end;
 
 procedure TTImportODBC.Open();
 begin
-  if (DBC = SQL_NULL_HANDLE) then
-  begin
-    if ((Success = daSuccess) and not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @DBC))) then
-      DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False);
-
-    if ((Success = daSuccess) and not SQL_SUCCEEDED(SQLConnect(DBC, PSQLTCHAR(PChar(FDataSource)), SQL_NTS, PSQLTCHAR(PChar(FUsername)), SQL_NTS, PSQLTCHAR(PChar(FPassword)), SQL_NTS))) then
-      DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False);
-  end;
+  if ((Success = daSuccess) and (DBC = SQL_NULL_HANDLE)) then
+    if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @DBC))) then
+      DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False)
+    else if (not SQL_SUCCEEDED(SQLConnect(DBC, PSQLTCHAR(PChar(FDataSource)), SQL_NTS, PSQLTCHAR(PChar(FUsername)), SQL_NTS, PSQLTCHAR(PChar(FPassword)), SQL_NTS))) then
+      DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False)
 end;
 
 { TTImportAccess **************************************************************}

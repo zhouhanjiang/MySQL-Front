@@ -115,7 +115,7 @@ type
     FEnabled: Boolean;
     FOnMonitor: TMySQLOnMonitor;
     FTraceTypes: TTraceTypes;
-    function GetCacheSize(): Integer;
+    function GetCacheSize(): Integer; inline;
     function GetCacheText(): string;
     procedure SetConnection(const AConnection: TMySQLConnection);
     procedure SetCacheSize(const ACacheSize: Integer);
@@ -557,6 +557,7 @@ type
     procedure DeactivateFilter(); virtual;
     function FindRecord(Restart, GoForward: Boolean): Boolean; override;
     procedure FreeRecordBuffer(var Buffer: TRecordBuffer); override;
+    procedure GetBookmarkData(Buffer: TRecBuf; Data: TBookmark); override;
     procedure GetBookmarkData(Buffer: TRecordBuffer; Data: Pointer); override;
     function GetBookmarkFlag(Buffer: TRecordBuffer): TBookmarkFlag; override;
     function GetCanModify(): Boolean; override;
@@ -585,6 +586,7 @@ type
     procedure InternalSetToRecord(Buffer: TRecordBuffer); override;
     function IsCursorOpen(): Boolean; override;
     function MoveRecordBufferData(var DestData: TMySQLQuery.PRecordBufferData; const SourceData: TMySQLQuery.PRecordBufferData): Boolean;
+    procedure SetBookmarkData(Buffer: TRecBuf; Data: TBookmark); override;
     procedure SetBookmarkData(Buffer: TRecordBuffer; Data: Pointer); override;
     procedure SetBookmarkFlag(Buffer: TRecordBuffer; Value: TBookmarkFlag); override;
     procedure SetFieldData(Field: TField; Buffer: TValueBuffer); override;
@@ -1804,8 +1806,8 @@ begin
         begin
           if (ATraceType in [ttRequest, ttResult]) then
             Cache.Mem[Cache.MemLen - 1] := ';';
-          Cache.Mem[1] := #13;
-          Cache.Mem[0] := #10;
+          Cache.Mem[0] := #13;
+          Cache.Mem[1] := #10;
         end;
       else
         begin
@@ -1830,23 +1832,19 @@ function TMySQLMonitor.GetCacheText(): string;
 var
   Len: Integer;
 begin
-  if (Cache.UsedLen = 0) then
+  if (Cache.UsedLen < 2) then
     Result := ''
-  else if (Cache.First + Cache.UsedLen <= Cache.MemLen) then
-  begin
-    Len := Cache.UsedLen;
-    while ((Len > 0) and CharInSet(Cache.Mem[Len - 1], [#10, #13])) do Dec(Len);
-    SetString(Result, PChar(@Cache.Mem[Cache.First]), Len);
-  end
   else
   begin
-    Len := Cache.UsedLen;
-    while ((Cache.First + Len > Cache.MemLen) and CharInSet(Cache.Mem[Cache.First + Len - Cache.MemLen - 1], [#10, #13])) do Dec(Len);
-    if (Cache.First + Len = Cache.MemLen) then
-      while ((Len > 0) and CharInSet(Cache.Mem[Len - 1], [#10, #13])) do Dec(Len);
-    SetLength(Result, Len);
-    MoveMemory(@Result[1], @Cache.Mem[Cache.First], (Cache.MemLen - Cache.First) * SizeOf(Cache.Mem[0]));
-    MoveMemory(@Result[1 + Cache.MemLen - Cache.First], @Cache.Mem[0], (Cache.UsedLen - (Cache.MemLen - Cache.First)) * SizeOf(Cache.Mem[0]));
+    Len := Cache.UsedLen - 2; // Remove terminating #13#10
+    if (Cache.First + Len <= Cache.MemLen) then
+      SetString(Result, PChar(@Cache.Mem[Cache.First]), Len)
+    else
+    begin
+      SetLength(Result, Len);
+      MoveMemory(@Result[1], @Cache.Mem[Cache.First], (Cache.MemLen - Cache.First) * SizeOf(Cache.Mem[0]));
+      MoveMemory(@Result[1 + Cache.MemLen - Cache.First], @Cache.Mem[0], (Len - (Cache.MemLen - Cache.First)) * SizeOf(Cache.Mem[0]));
+    end;
   end;
 end;
 
@@ -1886,8 +1884,8 @@ begin
         MoveMemory(@NewMem[0], @Cache.Mem[Cache.First], Cache.UsedLen * SizeOf(Cache.Mem[0]))
       else
       begin
-        MoveMemory(@NewMem[0], @Cache.Mem[Cache.First], (Cache.First + Cache.UsedLen - Cache.MemLen) * SizeOf(Cache.Mem[0]));
-        MoveMemory(@NewMem[Cache.First + Cache.UsedLen - Cache.MemLen], @Cache.Mem[0], Cache.UsedLen - Cache.MemLen);
+        MoveMemory(@NewMem[0], @Cache.Mem[Cache.First], (Cache.MemLen - Cache.First) * SizeOf(Cache.Mem[0]));
+        MoveMemory(@NewMem[Cache.MemLen - Cache.First], @Cache.Mem[0], (Cache.UsedLen - (Cache.MemLen - Cache.First)) * SizeOf(Cache.Mem[0]));
       end;
   end;
 
@@ -3803,6 +3801,9 @@ begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
+  // Debug 2016-12-20
+  if (not (TObject(Self) is TField)) then
+    raise ERangeError.Create(SRangeError);
 
   LibRow := TMySQLQuery(DataSet).LibRow;
 
@@ -3874,6 +3875,9 @@ begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
+  // Debug 2016-12-20
+  if (not (TObject(Self) is TField)) then
+    raise ERangeError.Create(SRangeError);
 
   LibRow := TMySQLQuery(DataSet).LibRow;
 
@@ -3921,6 +3925,9 @@ begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
+  // Debug 2016-12-20
+  if (not (TObject(Self) is TField)) then
+    raise ERangeError.Create(SRangeError);
 
   LibRow := TMySQLQuery(DataSet).LibRow;
 
@@ -3954,6 +3961,9 @@ var
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+  // Debug 2016-12-20
+  if (not (TObject(Self) is TField)) then
     raise ERangeError.Create(SRangeError);
 
   LibRow := TMySQLQuery(DataSet).LibRow;
@@ -4011,6 +4021,9 @@ begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
+  // Debug 2016-12-20
+  if (not (TObject(Self) is TField)) then
+    raise ERangeError.Create(SRangeError);
 
   LibRow := TMySQLQuery(DataSet).LibRow;
 
@@ -4065,6 +4078,9 @@ begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
+  // Debug 2016-12-20
+  if (not (TObject(Self) is TField)) then
+    raise ERangeError.Create(SRangeError);
 
   LibRow := TMySQLQuery(DataSet).LibRow;
 
@@ -4098,6 +4114,9 @@ var
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+  // Debug 2016-12-20
+  if (not (TObject(Self) is TField)) then
     raise ERangeError.Create(SRangeError);
 
   LibRow := TMySQLQuery(DataSet).LibRow;
@@ -4133,6 +4152,9 @@ begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
+  // Debug 2016-12-20
+  if (not (TObject(Self) is TField)) then
+    raise ERangeError.Create(SRangeError);
 
   LibRow := TMySQLQuery(DataSet).LibRow;
 
@@ -4166,6 +4188,9 @@ var
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+  // Debug 2016-12-20
+  if (not (TObject(Self) is TField)) then
     raise ERangeError.Create(SRangeError);
 
   LibRow := TMySQLQuery(DataSet).LibRow;
@@ -4210,6 +4235,9 @@ var
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+  // Debug 2016-12-20
+  if (not (TObject(Self) is TField)) then
     raise ERangeError.Create(SRangeError);
 
   LibRow := TMySQLQuery(DataSet).LibRow;
@@ -4260,6 +4288,9 @@ begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
+  // Debug 2016-12-20
+  if (not (TObject(Self) is TField)) then
+    raise ERangeError.Create(SRangeError);
 
   LibRow := TMySQLQuery(DataSet).LibRow;
 
@@ -4293,6 +4324,9 @@ var
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+  // Debug 2016-12-20
+  if (not (TObject(Self) is TField)) then
     raise ERangeError.Create(SRangeError);
 
   LibRow := TMySQLQuery(DataSet).LibRow;
@@ -4328,6 +4362,9 @@ begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
+  // Debug 2016-12-20
+  if (not (TObject(Self) is TField)) then
+    raise ERangeError.Create(SRangeError);
 
   LibRow := TMySQLQuery(DataSet).LibRow;
 
@@ -4361,6 +4398,9 @@ var
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+  // Debug 2016-12-20
+  if (not (TObject(Self) is TField)) then
     raise ERangeError.Create(SRangeError);
 
   LibRow := TMySQLQuery(DataSet).LibRow;
@@ -4406,6 +4446,9 @@ var
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+  // Debug 2016-12-20
+  if (not (TObject(Self) is TField)) then
     raise ERangeError.Create(SRangeError);
 
   LibRow := TMySQLQuery(DataSet).LibRow;
@@ -4486,6 +4529,9 @@ var
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+  // Debug 2016-12-20
+  if (not (TObject(Self) is TField)) then
     raise ERangeError.Create(SRangeError);
 
   LibRow := TMySQLQuery(DataSet).LibRow;
@@ -4569,6 +4615,9 @@ var
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+  // Debug 2016-12-20
+  if (not (TObject(Self) is TField)) then
     raise ERangeError.Create(SRangeError);
 
   LibRow := TMySQLQuery(DataSet).LibRow;
@@ -4665,6 +4714,9 @@ var
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+  // Debug 2016-12-20
+  if (not (TObject(Self) is TField)) then
     raise ERangeError.Create(SRangeError);
 
   LibRow := TMySQLQuery(DataSet).LibRow;
@@ -4767,6 +4819,9 @@ begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
     raise ERangeError.Create(SRangeError);
+  // Debug 2016-12-20
+  if (not (TObject(Self) is TField)) then
+    raise ERangeError.Create(SRangeError);
 
   LibRow := TMySQLQuery(DataSet).LibRow;
 
@@ -4805,6 +4860,9 @@ var
 begin
   // Debug 2016-11-30
   if (not Assigned(DataSet)) then
+    raise ERangeError.Create(SRangeError);
+  // Debug 2016-12-20
+  if (not (TObject(Self) is TField)) then
     raise ERangeError.Create(SRangeError);
 
   LibRow := TMySQLQuery(DataSet).LibRow;
@@ -6084,6 +6142,11 @@ begin
   FreeMem(Buffer); Buffer := nil;
 end;
 
+procedure TMySQLDataSet.GetBookmarkData(Buffer: TRecBuf; Data: TBookmark);
+begin
+  PPointer(@Data[0])^ := PExternRecordBuffer(Buffer)^.InternRecordBuffer;
+end;
+
 procedure TMySQLDataSet.GetBookmarkData(Buffer: TRecordBuffer; Data: Pointer);
 begin
   PPointer(Data)^ := PExternRecordBuffer(Buffer)^.InternRecordBuffer;
@@ -7111,6 +7174,11 @@ begin
   inherited;
 end;
 
+procedure TMySQLDataSet.SetBookmarkData(Buffer: TRecBuf; Data: TBookmark);
+begin
+  PExternRecordBuffer(Buffer)^.InternRecordBuffer := PPointer(@Data[0])^;
+end;
+
 procedure TMySQLDataSet.SetBookmarkData(Buffer: TRecordBuffer; Data: Pointer);
 begin
   PExternRecordBuffer(Buffer)^.InternRecordBuffer := PPointer(Data)^;
@@ -7123,7 +7191,10 @@ end;
 
 procedure TMySQLDataSet.SetFieldData(Field: TField; Buffer: TValueBuffer);
 begin
-  SetFieldData(Field, @Buffer[0]);
+  if (Length(Buffer) = 0) then
+    SetFieldData(Field, nil)
+  else
+    SetFieldData(Field, @Buffer[0]);
 end;
 
 procedure TMySQLDataSet.SetFieldData(Field: TField; Buffer: Pointer);

@@ -11716,6 +11716,10 @@ procedure TFSession.PContentChange(Sender: TObject);
   var
     I: Integer;
   begin
+    // Debug 2016-12-20
+    if (not Assigned(Control)) then
+      raise ERangeError.Create(SRangeError);
+
     if (Control.Top < 0) then Control.Top := 0;
     SendMessage(Control.Handle, WM_MOVE, 0, MAKELPARAM(Control.Left, Control.Top));
     Control.DisableAlign();
@@ -13482,10 +13486,14 @@ begin
   // Debug 2016-12-16
   if (not Assigned(FNavigator.Selected.Data)) then
     raise ERangeError.Create(SRangeError);
-  if (not (TObject(FNavigator.Selected.Data) is TSTable)) then
-    raise ERangeError.Create('ClassType: ' + TObject(FNavigator.Selected.Data).ClassName + #13#10
-      + 'ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
-      + 'Address: ' + Address);
+  try
+    if (not (TObject(FNavigator.Selected.Data) is TSTable)) then
+      raise ERangeError.Create('ClassType: ' + TObject(FNavigator.Selected.Data).ClassName + #13#10
+        + 'ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
+        + 'Address: ' + Address);
+  except
+    raise ERangeError.Create(SRangeError);
+  end;
 
   Table := TSTable(FNavigator.Selected.Data);
 

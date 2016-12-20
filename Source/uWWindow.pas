@@ -1126,7 +1126,12 @@ begin
         Report := Report + #13#10;
         Report := Report + 'LastWantedAddress: ' + LastWantedAddress + #13#10;
       end;
+    except
+      on E: Exception do
+        try SendBugToDeveloper('EurekaLogExceptionNotify Error 8.1!' + #13#10#13#10 + E.Message); except end;
+    end;
 
+    try
       for I := 0 to Sessions.Count - 1 do
       begin
         Report := Report + #13#10;
@@ -1143,7 +1148,7 @@ begin
       end;
     except
       on E: Exception do
-        try SendBugToDeveloper('EurekaLogExceptionNotify Error 8!' + #13#10#13#10 + E.Message); except end;
+        try SendBugToDeveloper('EurekaLogExceptionNotify Error 8.2!' + #13#10#13#10 + E.Message); except end;
     end;
 
     try

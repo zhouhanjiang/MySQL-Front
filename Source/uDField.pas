@@ -701,6 +701,10 @@ var
 begin
   if ((ModalResult = mrOk) and GBasics.Visible) then
   begin
+    // Debug 2016-12-20
+    if (not (TObject(Table) is TSBaseTable)) then
+      raise ERangeError.Create(SRangeError);
+
     if (ModifyTableOnly) then
       NewTable := Table
     else
