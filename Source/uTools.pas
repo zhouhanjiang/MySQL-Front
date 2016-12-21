@@ -2446,24 +2446,29 @@ begin
                 or (Byte(FileBuffer.Mem[BytesPerSector + ReadSize - UTF8Bytes]) and $C0 = 0)
                 or (Byte(FileBuffer.Mem[BytesPerSector + ReadSize - UTF8Bytes]) and $C0 <> $80));
 
-            if (BytesPerSector + ReadSize - FileBuffer.Index > 0) then
+            if (BytesPerSector + ReadSize - UTF8Bytes - FileBuffer.Index > 0) then
             begin
-              try
-                Len := AnsiCharToWideChar(CodePage, @FileBuffer.Mem[FileBuffer.Index], BytesPerSector + ReadSize - UTF8Bytes - FileBuffer.Index, nil, 0);
-                if (Len > 0) then
-                begin
-                  SetLength(FileContent.Str, Length(FileContent.Str) + Len);
-                  AnsiCharToWideChar(CodePage, @FileBuffer.Mem[FileBuffer.Index], BytesPerSector + ReadSize - UTF8Bytes - FileBuffer.Index, @FileContent.Str[Length(FileContent.Str) - Len + 1], Len)
-                end;
-              except
-                on E: EOSError do
-                  begin
-                    Error.ErrorType := TE_File;
-                    Error.ErrorCode := GetLastError();
-                    Error.ErrorMessage := E.Message;
-                    Error.Session := nil;
-                    DoError(Error, nil, False);
-                  end;
+              Len := MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, @FileBuffer.Mem[FileBuffer.Index], BytesPerSector + ReadSize - UTF8Bytes - FileBuffer.Index, nil, 0);
+              if (Len > 0) then
+              begin
+                SetLength(FileContent.Str, Length(FileContent.Str) + Len);
+                MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, @FileBuffer.Mem[FileBuffer.Index], BytesPerSector + ReadSize - UTF8Bytes - FileBuffer.Index, @FileContent.Str[Length(FileContent.Str) - Len + 1], Len)
+              end
+              else if (GetLastError() = ERROR_NO_UNICODE_TRANSLATION) then
+              begin
+                Error.ErrorType := TE_File;
+                Error.ErrorCode := GetLastError();
+                Error.ErrorMessage := Preferences.LoadStr(933, ExtractFileName(Filename), IntToStr(CodePage));
+                Error.Session := nil;
+                DoError(Error, nil, False);
+              end
+              else
+              begin
+                Error.ErrorType := TE_File;
+                Error.ErrorCode := GetLastError();
+                Error.ErrorMessage := SysErrorMessage(GetLastError());
+                Error.Session := nil;
+                DoError(Error, nil, False);
               end;
             end;
 

@@ -901,6 +901,7 @@ uses
   {$IFDEF EurekaLog}
   ExceptionLog7, EExceptionManager,
   {$ENDIF}
+uDeveloper,
   MySQLClient,
   SQLUtils, CSVUtils, HTTPTunnel;
 
@@ -1849,6 +1850,7 @@ begin
   else
   begin
     Len := Cache.UsedLen - 2; // Remove ending #13#10
+try // Debug 2016-12-20
     if (Cache.First + Cache.UsedLen <= Cache.MemLen) then
       SetString(Result, PChar(@Cache.Mem[Cache.First]), Len)
     else
@@ -1856,6 +1858,19 @@ begin
       MoveMemory(@Result[1], @Cache.Mem[Cache.First], (Cache.MemLen - Cache.First) * SizeOf(Cache.Mem[0]));
       MoveMemory(@Result[1 + Cache.MemLen - Cache.First], @Cache.Mem[0], (Cache.UsedLen - (Cache.MemLen - Cache.First)) * SizeOf(Cache.Mem[0]));
     end;
+except
+  on E: Exception do
+    begin
+      SendBugToDeveloper('GetCacheText()' + #13#10
+        + 'First: ' + IntToStr(Cache.First) + #13#10
+        + 'UsedLen: ' + IntToStr(Cache.UsedLen) + #13#10
+        + 'Len: ' + IntToStr(Len) + #13#10
+        + 'MemLen: ' + IntToStr(Cache.MemLen) + #13#10
+        + 'Mem assigned: ' + BoolToStr(Assigned(Cache.Mem), True) + #13#10
+        + E.Message);
+      raise Exception.Create(E.Message);
+    end;
+end;
   end;
 end;
 
@@ -3857,7 +3872,8 @@ end;
 function TMySQLBlobField.GetAsAnsiString(): AnsiString;
 begin
   SetLength(Result, TMySQLDataSet(DataSet).LibLengths^[FieldNo - 1]);
-  MoveMemory(@Result[1], TMySQLDataSet(DataSet).LibRow^[FieldNo - 1], TMySQLDataSet(DataSet).LibLengths^[FieldNo - 1]);
+  if (TMySQLDataSet(DataSet).LibLengths^[FieldNo - 1] > 0) then
+    MoveMemory(@Result[1], TMySQLDataSet(DataSet).LibRow^[FieldNo - 1], TMySQLDataSet(DataSet).LibLengths^[FieldNo - 1]);
 end;
 
 function TMySQLBlobField.GetAsString(): string;
@@ -4971,7 +4987,6 @@ end;
 procedure TMySQLQuery.DataConvert(Field: TField; Source, Dest: Pointer; ToNative: Boolean);
 var
   Len: Integer;
-  S: string;
 begin
   case (Field.DataType) of
     ftWideMemo:
@@ -4989,21 +5004,29 @@ begin
       end;
     ftWideString:
       if (ToNative) then
+      {$IFNDEF VER250} // XE4
         WideCharToAnsiChar(Connection.CodePage, PChar(Source), -1, PAnsiChar(Dest), Field.DataSize)
-      else
+      {$ELSE}
       begin
-        try
-          Len := AnsiCharToWideChar(Connection.CodePage, PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], nil, 0);
-        except
-          on E: Exception do
-            begin
-              S := SQLEscapeBin(PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], True);
-              raise Exception.CreateFmt(E.Message + '  (DatabaseName: %s, CommandText: %s, DisplayName: %s, LibRow: %s)', [DatabaseName, CommandText, Field.DisplayName, S])
-            end;
-        end;
+        Len := WideCharToAnsiChar(Connection.CodePage, PChar(Source), StrLen(PChar(Source)), nil, 0);
+        SetLength(RawByteString(Dest^), Len);
+        WideCharToAnsiChar(Connection.CodePage, PChar(Source), StrLen(PChar(Source)), PAnsiChar(RawByteString(Dest^)), Len);
+      end
+      {$ENDIF}
+      else
+      {$IFNDEF VER250} // XE4
+      begin
+        Len := AnsiCharToWideChar(Connection.CodePage, PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], nil, 0);
         AnsiCharToWideChar(Connection.CodePage, PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], PChar(Dest), Field.DataSize);
         PChar(Dest)[Len] := #0;
       end;
+      {$ELSE}
+      begin
+        Len := AnsiCharToWideChar(Connection.CodePage, PRecordBufferData(Source)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source)^.LibLengths^[Field.FieldNo - 1], nil, 0);
+        AnsiCharToWideChar(Connection.CodePage, PRecordBufferData(Source)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source)^.LibLengths^[Field.FieldNo - 1], PChar(Dest), Field.DataSize);
+        PChar(Dest)[Len] := #0;
+      end;
+      {$ENDIF}
     else
       inherited;
   end;
@@ -5038,7 +5061,7 @@ end;
 
 function TMySQLQuery.GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean;
 begin
-  Result := GetFieldData(Field, @Buffer[0]);
+  Result := Assigned(Buffer) and GetFieldData(Field, @Buffer[0]);
 end;
 
 function TMySQLQuery.GetFieldData(Field: TField; Buffer: Pointer): Boolean;
@@ -5085,7 +5108,11 @@ begin
           ftTime: begin SetString(S, Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]); Longint(Buffer^) := StrToTime(S, TMySQLTimeField(Field).SQLFormat); end;
           ftTimeStamp: begin SetString(S, Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]); PSQLTimeStamp(Buffer)^ := StrToMySQLTimeStamp(S, TMySQLTimeStampField(Field).SQLFormat); end;
           ftBlob: begin TMemoryStream(Buffer).SetSize(Data^.LibLengths^[Field.FieldNo - 1]); Move(Data^.LibRow^[Field.FieldNo - 1]^, TMemoryStream(Buffer).Memory^, Data^.LibLengths^[Field.FieldNo - 1]); end;
+          {$IFNDEF VER250} // XE4
           ftWideString: Move(Data, Buffer^, SizeOf(Data));
+          {$ELSE}
+          ftWideString: DataConvert(Field, Data, Buffer, False);
+          {$ENDIF}
           ftWideMemo: DataConvert(Field, Data, Buffer, False);
           else raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%d)', [Field.Name, Integer(Field.DataType)]);
         end;
@@ -5768,8 +5795,8 @@ begin
       ftTime: Result := '''' + Connection.LibUnpack(Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]) + '''';
       ftTimeStamp: Connection.LibUnpack(Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]);
       ftBlob: Result := SQLEscapeBin(Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1], Connection.MySQLVersion <= 40000);
-      ftWideMemo,
-      ftWideString: Result := SQLEscape(Connection.LibDecode(Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]));
+      ftWideString,
+      ftWideMemo: Result := SQLEscape(Connection.LibDecode(Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]));
       else raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%d)', [Field.Name, Integer(Field.DataType)]);
     end;
 end;
@@ -6662,7 +6689,9 @@ begin
           or (Fields[I].Tag and ftTimestampField <> 0) and (Connection.MySQLVersion >= 40102)
           or (Fields[I].Tag and ftDateTimeField <> 0) and (Connection.MySQLVersion >= 50605);
 
-      if ((not Update or WhereFieldsChanged) and (SortDef.Fields <> '') or AutoGeneratedValues) then
+      if ((Update and not WhereFieldsChanged) or not AutoGeneratedValues and (SortDef.Fields = '')) then
+        SQL := ''
+      else
       begin
         SetLength(WhereFields, 0);
 
@@ -7243,8 +7272,12 @@ begin
       ftTimeStamp: RBS := Connection.LibPack(MySQLTimeStampToStr(PSQLTimeStamp(Buffer)^, TMySQLTimeStampField(Field).DisplayFormat));
       ftDateTime: begin DataConvert(Field, Buffer, @DT, False); RBS := Connection.LibPack(MySQLDB.DateTimeToStr(DT, Connection.FormatSettings)); end;
       ftBlob: begin SetLength(RBS, TMemoryStream(Buffer).Size); Move(TMemoryStream(Buffer).Memory^, PAnsiChar(RBS)^, TMemoryStream(Buffer).Size); end;
-      ftWideMemo: DataConvert(Field, Buffer, @RBS, True);
+      {$IFNDEF VER250} // XE4
       ftWideString: RBS := PAnsiChar(Buffer);
+      {$ELSE}
+      ftWideString: DataConvert(Field, Buffer, @RBS, True);
+      {$ENDIF}
+      ftWideMemo: DataConvert(Field, Buffer, @RBS, True);
       else raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%d)', [Field.Name, Integer(Field.DataType)]);
     end;
     if (RBS = '') then
@@ -8225,7 +8258,7 @@ begin
   repeat
     FieldName := ExtractFieldName(ASortDef.Fields, Pos);
     if (Assigned(FindField(FieldName))) then
-      StringFieldsEnclosed := StringFieldsEnclosed or (FieldByName(FieldName).DataType in [ftWideMemo, ftWideString]);
+      StringFieldsEnclosed := StringFieldsEnclosed or (FieldByName(FieldName).DataType in [ftWideString, ftWideMemo]);
   until (FieldName = '');
 
   if (Active and ((ASortDef.Fields <> SortDef.Fields) or (ASortDef.DescFields <> SortDef.DescFields))) then

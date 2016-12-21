@@ -4049,13 +4049,7 @@ begin
     SetSource(string(RBS));
   end;
 
-  try // Debug 2016-12-20
-    ParseCreateTable(Source);
-  except
-    on E: Exception do
-      raise Exception.Create(E.Message + #13#10
-        + 'SQL: ' + Source);
-  end;
+  ParseCreateTable(Source);
 
   Session.SendEvent(etItemValid, Database, Items, Self);
   Session.SendEvent(etItemsValid, Self, Fields);
@@ -8892,10 +8886,8 @@ begin
       Session.Connection.IdentifierQuoted := Session.VariableByName('sql_quote_show_create').AsBoolean;
 
     if (Assigned(Session.VariableByName('wait_timeout'))) then
-      if (Session.VariableByName('wait_timeout').AsInteger >= 4) then
-        Session.Connection.ServerTimeout := Session.VariableByName('wait_timeout').AsInteger - 3
-      else if (Session.VariableByName('wait_timeout').AsInteger >= 60) then
-        Session.Connection.ServerTimeout := Session.VariableByName('wait_timeout').AsInteger - 1;
+      if (Session.VariableByName('wait_timeout').AsInteger >= 60) then
+        Session.Connection.ServerTimeout := Session.VariableByName('wait_timeout').AsInteger - 5;
 
     if (Session.Connection.MySQLVersion < 40102) then
     begin

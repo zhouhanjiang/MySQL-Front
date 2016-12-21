@@ -6,7 +6,7 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, ComCtrls, ExtCtrls, Menus, ActnList, ImgList, ToolWin,
   StdCtrls_Ext, ComCtrls_Ext, ExtCtrls_Ext, Forms_Ext,
-  uSession, uPreferences, uBase;
+  uSession, uPreferences, uBase, System.Actions;
 
 type
   TDAccounts = class (TForm_Ext)
@@ -60,8 +60,10 @@ type
   private
     IgnoreColumnResize: Boolean;
     IgnoreResize: Boolean;
+    MinColumnWidth: Integer;
     procedure ListViewShowSortDirection(const ListView: TListView);
     procedure SetFAccounts(const ASelected: TPAccount);
+    procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
   public
@@ -147,6 +149,13 @@ begin
   else
     if (Boolean(SendMessage(Application.MainForm.Handle, UM_ADDTAB, 0, LPARAM(Accounts.AccountByName(FAccounts.Selected.Caption).Desktop.Address)))) then
       FBOk.Click();
+end;
+
+procedure TDAccounts.CMSysFontChanged(var Message: TMessage);
+begin
+  inherited;
+
+  MinColumnWidth := FAccounts.Canvas.TextWidth('ee');
 end;
 
 function TDAccounts.Execute(): Boolean;
@@ -348,7 +357,7 @@ begin
       for I := 0 to FAccounts.Columns.Count - 1 do
         if (I <> ColumnIndex + 1) then
           Inc(ColumnWidthSum, FAccounts.Columns[I].Width);
-      FAccounts.Columns[ColumnIndex + 1].Width := FAccounts.ClientWidth - ColumnWidthSum;
+      FAccounts.Columns[ColumnIndex + 1].Width := Max(FAccounts.ClientWidth - ColumnWidthSum, MinColumnWidth);
 
       FAccounts.EnableAlign();
       IgnoreResize := False;

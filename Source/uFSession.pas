@@ -3708,6 +3708,7 @@ begin
     if (not Assigned(FNavigator)) then
       raise ERangeError.Create('Imported: ' + BoolToStr(Imported, True) + #13#10
         + 'CodePage: ' + IntToStr(ImportCodePage));
+      // Occurred on 2016-12-21 in aFImportExcelExecute with Imported = True, CodePage = 0
 
     UpdateAfterAddressChanged();
   end;
@@ -4411,14 +4412,6 @@ begin
   end;
 end;
 
-procedure TFSession.CreateParams(var Params: TCreateParams);
-begin
-  inherited;
-
-  Params.Style := Params.Style
-    and not (WS_THICKFRAME or WS_SYSMENU or WS_DLGFRAME or WS_BORDER);
-end;
-
 constructor TFSession.Create(const AOwner: TComponent; const AParent: TWinControl; const ASession: TSSession; const AParam: string);
 var
   Kind: TPAccount.TDesktop.TListViewKind;
@@ -4429,6 +4422,9 @@ begin
 
   // Debug 2016-12-15
   if (not (ASession.Account is TPAccount)) then
+    raise ERangeError.Create(SRangeError);
+  // Debug 2016-12-20
+  if (not Assigned(ASession.Account.Desktop)) then
     raise ERangeError.Create(SRangeError);
 
 
@@ -4717,6 +4713,14 @@ begin
 
 
   PostMessage(Handle, UM_POST_SHOW, 0, 0);
+end;
+
+procedure TFSession.CreateParams(var Params: TCreateParams);
+begin
+  inherited;
+
+  Params.Style := Params.Style
+    and not (WS_THICKFRAME or WS_SYSMENU or WS_DLGFRAME or WS_BORDER);
 end;
 
 procedure TFSession.CMSysFontChanged(var Message: TMessage);
@@ -5965,8 +5969,8 @@ begin
         DBGrid.Canvas.Font.Style := DBGrid.Font.Style + [fsBold];
 
       if (DBGrid.Columns[I].Width < DBGrid.Canvas.TextWidth('ee' + DBGrid.Columns[I].Title.Caption)) then
-        DBGrid.Columns[I].Width := DBGrid.Canvas.TextWidth('ee' + DBGrid.Columns[I].Title.Caption)
-      else if ((DBGrid.Columns[I].Width > Preferences.GridMaxColumnWidth)) then
+        DBGrid.Columns[I].Width := DBGrid.Canvas.TextWidth('ee' + DBGrid.Columns[I].Title.Caption);
+      if ((DBGrid.Columns[I].Width > Preferences.GridMaxColumnWidth)) then
         DBGrid.Columns[I].Width := Preferences.GridMaxColumnWidth;
 
       if (DBGrid.Columns[I].Field.IsIndexField) then
@@ -8239,7 +8243,7 @@ begin
   begin
     FObjectIDEGrid.Columns.BeginUpdate();
     for I := 0 to FObjectIDEGrid.Columns.Count - 1 do
-      if ((FObjectIDEGrid.Columns[I].Width > Preferences.GridMaxColumnWidth) and not (FObjectIDEGrid.Columns[I].Field.DataType in [ftSmallint, ftInteger, ftLargeint, ftWord, ftFloat, ftDate, ftDateTime, ftTime, ftCurrency])) then
+      if ((FObjectIDEGrid.Columns[I].Width > Preferences.GridMaxColumnWidth)) then
         FObjectIDEGrid.Columns[I].Width := Preferences.GridMaxColumnWidth;
     FObjectIDEGrid.Columns.EndUpdate();
   end;
@@ -9290,50 +9294,20 @@ end;
 
 procedure TFSession.ListViewExit(Sender: TObject);
 var
-  Column: TListColumn;
   I: Integer;
   ImageIndex: Integer;
-  ListViewKind: TPAccount.TDesktop.TListViewKind; // Debug 2016-12-01
-  Width: Integer; // Debug 2016-12-01
 begin
   if (Sender is TListView) then
   begin
+    // Debug 2016-12-20
+    // Somewhere, Session.Account will be cleared, but why and where???
+    if (not Assigned(Session.Account)) then // Why looses Session the Account value???
+      raise ERangeError.Create(SRangeError);
+
     ImageIndex := ImageIndexByData(TObject(TListView(Sender).Tag));
     if (ImageIndex > 0) then
       for I := 0 to TListView(Sender).Columns.Count - 1 do
-      begin
-        // Debug 2016-12-02
-        if (not Assigned(Session)) then
-          raise ERangeError.Create(SRangeError);
-        if (not (TObject(Session) is TSSession)) then
-          try
-            raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Session).ClassName);
-          except
-            raise ERangeError.Create(SRangeError);
-          end;
-        if (not Assigned(Session.Account)) then
-          raise ERangeError.Create(SRangeError);
-        if (not (TObject(Session.Account) is TPAccount)) then
-          try
-            raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Session.Account).ClassName);
-          except
-            raise ERangeError.Create(SRangeError);
-          end;
-        if (not Assigned(Session.Account.Desktop)) then
-          raise ERangeError.Create(SRangeError);
-        Column := TListView(Sender).Columns[I];
-        Width := Column.Width;
-        ListViewKind := ColumnWidthKindFromImageIndex(ImageIndex);
-        if (not (ListViewKind in [lkServer .. lkVariables])) then
-          raise ERangeError.Create(SRangeError + '(' + IntToStr(Ord(ListViewKind)) + ')');
-        if (Length(Session.Account.Desktop.ColumnWidths) < 1 + Ord(ListViewKind)) then
-          raise ERangeError.Create(SRangeError + ' ' + IntToStr(1 + Ord(ListViewKind)));
-        if (I < 0) then
-          raise ERangeError.Create(SRangeError);
-        if (I >= Length(Session.Account.Desktop.ColumnWidths[lkServer])) then
-          raise ERangeError.Create(SRangeError);
-        Session.Account.Desktop.ColumnWidths[ListViewKind, I] := Width;
-      end;
+        Session.Account.Desktop.ColumnWidths[ColumnWidthKindFromImageIndex(ImageIndex), I] := TListView(Sender).Columns[I].Width;
   end;
 
   MainAction('aESelectAll').OnExecute := nil;
@@ -11719,6 +11693,13 @@ procedure TFSession.PContentChange(Sender: TObject);
     // Debug 2016-12-20
     if (not Assigned(Control)) then
       raise ERangeError.Create(SRangeError);
+    // Debug 2016-12-21
+    if (not (TObject(Control) is TWinControl)) then
+      try
+        raise ERangeError.Create('ClassType: ' + TObject(Control).ClassName);
+      finally
+        raise ERangeError.Create(SRangeError);
+      end;
 
     if (Control.Top < 0) then Control.Top := 0;
     SendMessage(Control.Handle, WM_MOVE, 0, MAKELPARAM(Control.Left, Control.Top));
@@ -12859,9 +12840,7 @@ end;
 procedure TFSession.StatusBarRefresh(const Immediately: Boolean = False);
 var
   Control: TControl;
-  Count: Integer;
-  Data: Pointer;
-  Item: TListItem;
+  Count: Integer; // Debug 2016-12-21
   QueryBuilderWorkArea: TacQueryBuilderWorkArea;
   SelCount: Integer;
 begin
@@ -12874,27 +12853,9 @@ begin
       StatusBar.Panels[sbNavigation].Text := IntToStr(ActiveSynMemo.CaretXY.Line) + ':' + IntToStr(ActiveSynMemo.CaretXY.Char)
     else if (Window.ActiveControl = ActiveListView) then
     begin
-      // Debug 2016-11-24
-      if (not Assigned(Window.ActiveControl)) then
-        if (Control <> Window.ActiveControl) then
-          raise ERangeError.Create(SRangeError)
-        else
-          raise ERangeError.Create(SRangeError);
-      if (not Assigned(ActiveListView)) then
-        raise ERangeError.Create(SRangeError);
-      // Debug 2016-11-16
-      if (not (ActiveListView is TListView)) then
-        raise ERangeError.Create(SRangeError + ('ClassName: ' + ActiveListView.ClassName));
-      Item := ActiveListView.Selected;
-      // Debug 2016-12-03
-      if (Assigned(Item)) then
-      begin
-        Data := Item.Data;
-        if (not Assigned(Data)) then
-          raise ERangeError.Create(SRangeError);
-        if (not (TObject(Data) is TSKey)) then
-          ;
-      end;
+      // Debug 2016-12-21
+      if (Control <> Window.ActiveControl) then
+        raise ERangeError.Create('ThreadId: ' + IntToStr(GetCurrentThreadId()));
 
       if (Assigned(ActiveListView.Selected) and (TObject(ActiveListView.Selected.Data) is TSKey)) then
         StatusBar.Panels[sbNavigation].Text := Preferences.LoadStr(377) + ': ' + IntToStr(TSKey(ActiveListView.Selected.Data).Index + 1)
@@ -13483,6 +13444,10 @@ var
   SortDef: TIndexDef;
   Table: TSTable;
 begin
+  // Debug 2016-12-21
+  if (not (FNavigator.Selected.ImageIndex in [iiBaseTable, iiSystemView, iiView])) then
+    raise ERangeError.Create('ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex));
+
   Table := TSTable(FNavigator.Selected.Data);
 
   if (not FLimitEnabled.Down) then
@@ -13926,8 +13891,8 @@ begin
               begin
                 Address := NavigatorNodeToAddress(FNavigator.Items[J]);
                 if (SynMemo = SQLEditors[vEditor].SynMemo) then Self.View := vEditor
-                else if (SynMemo = SQLEditors[vEditor2].SynMemo) then Self.View := vEditor2
-                else if (SynMemo = SQLEditors[vEditor3].SynMemo) then Self.View := vEditor3;
+                else if (Assigned(SQLEditor2) and (SynMemo = SQLEditor2.SynMemo)) then Self.View := vEditor2
+                else if (Assigned(SQLEditor3) and (SynMemo = SQLEditor3.SynMemo)) then Self.View := vEditor3;
                 Window.ActiveControl := ActiveSynMemo;
                 case (MsgBox(Preferences.LoadStr(584, SObject.Name), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
                   IDYES: MainAction('aDPostObject').Execute();

@@ -187,6 +187,16 @@ var
   I: Integer;
   S: string;
 begin
+  // Debug 2016-12-19
+  if (not Assigned(Table)) then
+    raise ERangeError.Create(SRangeError);
+  if (not (Table is TSBaseTable)) then
+    try
+      raise ERangeError.Create('ClassType: ' + Table.ClassName);
+    except
+      raise ERangeError.Create(SRangeError);
+    end;
+
   FPosition.Items.Add(Preferences.LoadStr(95));
   for I := 0 to Table.Fields.Count - 1 do
     if (not Assigned(Field) or (Table.Fields[I].Name <> Field.Name)) then

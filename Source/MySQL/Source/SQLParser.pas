@@ -17496,10 +17496,8 @@ begin
     or IsTag(kiUNIQUE, kiINDEX)
     or IsTag(kiUNIQUE, kiKEY)
     or IsTag(kiUNIQUE)
-    or (ConstraintTag = 0) and IsTag(kiFULLTEXT, kiINDEX)
-    or (ConstraintTag = 0) and IsTag(kiFULLTEXT, kiKEY)
-    or (ConstraintTag = 0) and IsTag(kiSPATIAL, kiINDEX)
-    or (ConstraintTag = 0) and IsTag(kiSPATIAL, kiKEY)
+    or (ConstraintTag = 0) and IsTag(kiFULLTEXT)
+    or (ConstraintTag = 0) and IsTag(kiSPATIAL)
     or (ConstraintTag = 0) and IsTag(kiINDEX)
     or (ConstraintTag = 0) and IsTag(kiKEY)) then
     Result := ParseCreateTableStmtKey(ConstraintTag, ConstraintIdent, AddTag)
@@ -17595,10 +17593,14 @@ begin
       Nodes.KeyTag := ParseTag(kiFULLTEXT, kiINDEX)
     else if (IsTag(kiFULLTEXT, kiKEY)) then
       Nodes.KeyTag := ParseTag(kiFULLTEXT, kiKEY)
+    else if (IsTag(kiFULLTEXT)) then
+      Nodes.KeyTag := ParseTag(kiFULLTEXT)
     else if (IsTag(kiSPATIAL, kiINDEX)) then
       Nodes.KeyTag := ParseTag(kiSPATIAL, kiINDEX)
     else if (IsTag(kiSPATIAL, kiKEY)) then
       Nodes.KeyTag := ParseTag(kiSPATIAL, kiKEY)
+    else if (IsTag(kiSPATIAL)) then
+      Nodes.KeyTag := ParseTag(kiSPATIAL)
     else if (EndOfStmt(CurrentToken)) then
       SetError(PE_IncompleteStmt)
     else
