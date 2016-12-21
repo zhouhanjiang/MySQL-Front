@@ -5272,11 +5272,14 @@ function TSTables.Build(const DataSet: TMySQLQuery; const UseInformationSchema: 
 var
   DeleteList: TList;
   Index: Integer;
+  Item: TSItem;
   Name: string;
   NewTable: TSTable;
   RBS: RawByteString;
   TempCharset: TSCharset;
 begin
+  Item := nil;
+
   if (DataSet.FieldCount <= 2) then // SHOW [FULL] TABLES
   begin
     DeleteList := TList.Create();
@@ -5312,26 +5315,21 @@ begin
         end
         else if (DeleteList.IndexOf(Items[Index]) >= 0) then
           DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
-
-        if (Filtered) then
-          Session.SendEvent(etItemValid, Database, Self, Table[Index]);
       until (not DataSet.FindNext());
 
     if (not Filtered) then
       while (DeleteList.Count > 0) do
       begin
-        Index := IndexOf(DeleteList.Items[0]);
-        Delete(TSEntity(Item[Index]));
+        Delete(DeleteList.Items[0]);
         DeleteList.Delete(0);
       end;
     DeleteList.Free();
 
     if (not Filtered) then
-    begin
       FValid := True;
-      Session.SendEvent(etItemsValid, Session, Session.Databases);
-      Session.SendEvent(etItemsValid, Database, Self);
-    end;
+
+    Session.SendEvent(etItemsValid, Session, Session.Databases);
+    Session.SendEvent(etItemsValid, Database, Self);
   end
   else
   begin
@@ -5443,32 +5441,32 @@ begin
           end;
 
           TSBaseTable(Table[Index]).FValidStatus := True;
-        end;
 
-        if (Filtered) then
-        begin
-          Session.SendEvent(etItemsValid, Table[Index]);
-          Session.SendEvent(etItemValid, Database, Self, Table[Index]);
+          Item := Table[Index];
         end;
       until (not DataSet.FindNext() or (UseInformationSchema and (Session.Databases.NameCmp(DataSet.FieldByName('TABLE_SCHEMA').AsString, Database.Name) <> 0)));
 
     if (not Filtered) then
       while (DeleteList.Count > 0) do
       begin
-        Index := IndexOf(DeleteList.Items[0]);
-        Delete(TSEntity(Item[Index]));
+        Delete(DeleteList.Items[0]);
         DeleteList.Delete(0);
       end;
     DeleteList.Free();
 
     if (not Filtered) then
-    begin
       FValid := True;
-      Session.SendEvent(etItemsValid, Session, Session.Databases);
-      Session.SendEvent(etItemsValid, Database, Self);
-    end;
+
+    Session.SendEvent(etItemsValid, Session, Session.Databases);
     if (Database.Valid) then
       Session.SendEvent(etItemValid, Session, Session.Databases, Database);
+    if (DataSet.RecordCount = 1) then
+    begin
+      Session.SendEvent(etItemValid, Database, Self, Item);
+      Session.SendEvent(etItemsValid, Table[Index]);
+    end
+    else
+      Session.SendEvent(etItemsValid, Database, Self);
   end;
 
   Result := False;
@@ -6210,10 +6208,13 @@ function TSRoutines.Build(const DataSet: TMySQLQuery; const UseInformationSchema
 var
   DeleteList: TList;
   Index: Integer;
+  Item: TSItem;
   Name: string;
   NewRoutine: TSRoutine;
   RoutineType: TSRoutine.TRoutineType;
 begin
+  Item := nil;
+
   DeleteList := TList.Create();
   DeleteList.Assign(Self);
 
@@ -6263,10 +6264,9 @@ begin
         Routine[Index].FModified := DataSet.FieldByName('LAST_ALTERED').AsDateTime;
         Routine[Index].FRoutineType := RoutineType;
         Routine[Index].FStmt := DataSet.FieldByName('ROUTINE_DEFINITION').AsString;
-      end;
 
-      if (Filtered) then
-        Session.SendEvent(etItemValid, Database, Self, Routine[Index]);
+        Item := Routine[Index];
+      end;
 
       // Inside ROUTINE_DEFINITION there are no parameter, but for references
       // we don't need them, so we can set the references without a separated
@@ -6278,19 +6278,19 @@ begin
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
-      Index := IndexOf(DeleteList.Items[0]);
-      Delete(TSEntity(Item[Index]));
+      Delete(DeleteList.Items[0]);
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
 
-  if (not Filtered) then
-  begin
-    Session.SendEvent(etItemsValid, Session, Session.Databases);
-    Session.SendEvent(etItemsValid, Database, Self);
-  end;
+  Session.SendEvent(etItemsValid, Session, Session.Databases);
   if (Database.Valid) then
     Session.SendEvent(etItemValid, Session, Session.Databases, Database);
+  if (DataSet.RecordCount = 1) then
+    Session.SendEvent(etItemValid, Database, Self, Item)
+  else
+    Session.SendEvent(etItemsValid, Session, Session.Databases);
+  Session.SendEvent(etItemsValid, Database, Self);
 
   Result := inherited or (Session.Connection.ErrorCode = ER_CANNOT_LOAD_FROM_TABLE);
 end;
@@ -6598,8 +6598,11 @@ function TSTriggers.Build(const DataSet: TMySQLQuery; const UseInformationSchema
 var
   DeleteList: TList;
   Index: Integer;
+  Item: TSItem;
   Name: string;
 begin
+  Item := nil;
+
   DeleteList := TList.Create();
   DeleteList.Assign(Self);
 
@@ -6656,27 +6659,25 @@ begin
         if (Session.Connection.MySQLVersion < 50121) then
           Trigger[Index].SetSource(Trigger[Index].GetSourceEx());
 
-        if (Filtered) then
-          Session.SendEvent(etItemValid, Database, Self, Trigger[Index]);
+        Item := Trigger[Index];
       end;
     until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('TRIGGER_SCHEMA').AsString, Database.Name) <> 0));
 
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
-      Index := IndexOf(DeleteList.Items[0]);
-      Delete(TSEntity(Item[Index]));
+      Delete(DeleteList.Items[0]);
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
 
-  if (not Filtered) then
-  begin
-    Session.SendEvent(etItemsValid, Session, Session.Databases);
-    Session.SendEvent(etItemsValid, Database, Self);
-  end;
+  Session.SendEvent(etItemsValid, Session, Session.Databases);
   if (Database.Valid) then
     Session.SendEvent(etItemValid, Session, Session.Databases, Database);
+  if (DataSet.RecordCount = 1) then
+    Session.SendEvent(etItemValid, Database, Self, Item)
+  else
+    Session.SendEvent(etItemsValid, Database, Self);
 
   Result := inherited;
 end;
@@ -6882,8 +6883,11 @@ function TSEvents.Build(const DataSet: TMySQLQuery; const UseInformationSchema: 
 var
   DeleteList: TList;
   Index: Integer;
+  Item: TSItem;
   Name: string;
 begin
+  Item := nil;
+
   DeleteList := TList.Create();
   DeleteList.Assign(Self);
 
@@ -6926,27 +6930,25 @@ begin
 
         if (Copy(Event[Index].Stmt, Length(Event[Index].Stmt), 1) <> ';') then Event[Index].Stmt := Event[Index].Stmt + ';';
 
-        if (Filtered) then
-          Session.SendEvent(etItemsValid, Database, Self, Event[Index]);
+        Item := Event[Index];
       end;
     until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('EVENT_SCHEMA').AsString, Database.Name) <> 0));
 
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
-      Index := IndexOf(DeleteList.Items[0]);
-      Delete(TSEntity(Item[Index]));
+      Delete(DeleteList.Items[0]);
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
 
-  if (not Filtered) then
-  begin
-    Session.SendEvent(etItemsValid, Session, Session.Databases);
-    Session.SendEvent(etItemsValid, Database, Self);
-  end;
+  Session.SendEvent(etItemsValid, Session, Session.Databases);
   if (Database.Valid) then
     Session.SendEvent(etItemValid, Session, Session.Databases, Database);
+  if (DataSet.RecordCount = 1) then
+    Session.SendEvent(etItemsValid, Database, Self, Item)
+  else
+    Session.SendEvent(etItemsValid, Database, Self);
 
   Result := inherited or (Session.Connection.ErrorCode = ER_EVENTS_DB_ERROR);
 end;
@@ -8553,9 +8555,12 @@ var
   Found: Boolean;
   I: Integer;
   Index: Integer;
+  Item: TSItem;
   Name: string;
   NewDatabase: TSDatabase;
 begin
+  Item := nil;
+
   DeleteList := TList.Create();
   DeleteList.Assign(Self);
 
@@ -8608,8 +8613,7 @@ begin
           Database[Index].Collation := DataSet.FieldByName('DEFAULT_COLLATION_NAME').AsString;
         end;
 
-        if (Filtered) then
-          Session.SendEvent(etItemValid, Session, Self, Database[Index]);
+        Item := Database[Index];
       end;
     until (not DataSet.FindNext());
   end
@@ -8633,16 +8637,14 @@ begin
       else
         Index := Add(TSDatabase.Create(Self, Name));
 
-      if (Filtered) then
-        Session.SendEvent(etItemValid, Session, Self, Database[Index]);
+      Item := Database[Index];
     end;
   end;
 
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
-      Index := IndexOf(DeleteList.Items[0]);
-      Delete(TSEntity(Item[Index]));
+      Delete(DeleteList.Items[0]);
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
@@ -8658,8 +8660,9 @@ begin
     FValid := FValid or Found;
   end;
 
-  if (FValid and (not Filtered or Found)) then
-    Session.SendEvent(etItemsValid, Session, Self);
+  Session.SendEvent(etItemsValid, Session, Self);
+  if (DataSet.RecordCount = 1) then
+    Session.SendEvent(etItemValid, Session, Self, Item);
 end;
 
 procedure TSDatabases.Delete(const AEntity: TSEntity; const SendEvent: Boolean = True);
@@ -8828,7 +8831,6 @@ var
   I: Integer;
   Index: Integer;
   Name: string;
-  Timeout: Integer; // Debug 2016-12-21
 begin
   DeleteList := TList.Create();
   DeleteList.Assign(Self);
@@ -8887,12 +8889,7 @@ begin
       Session.Connection.IdentifierQuoted := Session.VariableByName('sql_quote_show_create').AsBoolean;
 
     if (Assigned(Session.VariableByName('wait_timeout'))) then
-      if (Session.VariableByName('wait_timeout').AsInteger >= 60) then
-      begin
-        Timeout := Session.VariableByName('wait_timeout').AsInteger;
-        Timeout := Timeout - 5;
-        Session.Connection.ServerTimeout := Timeout;
-      end;
+      Session.Connection.ServerTimeout := Session.VariableByName('wait_timeout').AsInteger;
 
     if (Session.Connection.MySQLVersion < 40102) then
     begin
@@ -8929,15 +8926,14 @@ begin
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
-      Index := IndexOf(DeleteList.Items[0]);
-      Delete(TSEntity(Item[Index]));
+      Delete(DeleteList.Items[0]);
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
 
   Result := inherited;
 
-  if (FValid and not Filtered) then
+  if (FValid) then
     Session.SendEvent(etItemsValid, Session, Self);
 end;
 
@@ -9091,15 +9087,14 @@ begin
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
-      Index := IndexOf(DeleteList.Items[0]);
-      Delete(TSEntity(Item[Index]));
+      Delete(DeleteList.Items[0]);
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
 
   Result := inherited;
 
-  if (FValid and not Filtered) then
+  if (FValid) then
     Session.SendEvent(etItemsValid, Session, Self);
 end;
 
@@ -9174,23 +9169,19 @@ begin
 
       if (UseInformationSchema) then
         Plugin[Index].FComment := DataSet.FieldByName('PLUGIN_DESCRIPTION').AsString;
-
-      if (Filtered) then
-        Session.SendEvent(etItemValid, Session, Self, Plugin[Index]);
     until (not DataSet.FindNext());
 
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
-      Index := IndexOf(DeleteList.Items[0]);
-      Delete(TSEntity(Item[Index]));
+      Delete(DeleteList.Items[0]);
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
 
   Result := inherited;
 
-  if (FValid and not Filtered) then
+  if (FValid) then
     Session.SendEvent(etItemsValid, Session, Self);
 end;
 
@@ -9433,15 +9424,14 @@ begin
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
-      Index := IndexOf(DeleteList.Items[0]);
-      Delete(TSEntity(Item[Index]));
+      Delete(DeleteList.Items[0]);
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
 
   Result := inherited;
 
-  if (FValid and not Filtered) then
+  if (FValid) then
     Session.SendEvent(etItemsValid, Session, Self);
 end;
 
@@ -9524,15 +9514,14 @@ begin
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
-      Index := IndexOf(DeleteList.Items[0]);
-      Delete(TSEntity(Item[Index]));
+      Delete(DeleteList.Items[0]);
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
 
   Result := inherited;
 
-  if (FValid and not Filtered) then
+  if (FValid) then
     Session.SendEvent(etItemsValid, Session, Self);
 end;
 
@@ -9582,11 +9571,14 @@ var
   DeleteList: TList;
   Hours: Integer;
   Index: Integer;
+  Item: TSItem;
   Minutes: Integer;
   Name: string;
   Seconds: Integer;
   ThreadId: UInt64;
 begin
+  Item := nil;
+
   DeleteList := TList.Create();
   DeleteList.Assign(Self);
 
@@ -9654,22 +9646,22 @@ begin
         Process[Index].FSQL := DataSet.FieldByName('INFO').AsString;
       end;
 
-      if (Filtered) then
-        Session.SendEvent(etItemValid, Session, Self, Process[Index]);
+      Item := Process[Index];
     until (not DataSet.FindNext());
 
   if (not Filtered) then
     while (DeleteList.Count > 0) do
     begin
-      Index := IndexOf(DeleteList.Items[0]);
-      Delete(TSEntity(Item[Index]));
+      Delete(DeleteList.Items[0]);
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
 
   Result := inherited;
 
-  if (FValid and not Filtered) then
+  if (DataSet.RecordCount = 1) then
+    Session.SendEvent(etItemValid, Session, Self, Item)
+  else
     Session.SendEvent(etItemsValid, Session, Self);
 end;
 
@@ -10328,8 +10320,7 @@ begin
     begin
       if (Items[0] = Session.User) then
         Session.FUser := nil;
-      Index := IndexOf(DeleteList.Items[0]);
-      Delete(TSEntity(Item[Index]));
+      Delete(DeleteList.Items[0]);
       DeleteList.Delete(0);
     end;
   DeleteList.Free();

@@ -315,20 +315,14 @@ begin
 end;
 
 procedure TUURI.SetDatabase(const ADatabase: string);
-var
-  S: string;
 begin
-  S := Path;
-  if (Database <> '') and (Pos('/' + EscapeURL(Database), S) = 1) then
-    Delete(S, 1, 1 + Length(EscapeURL(Database)));
-
   FDatabase := ADatabase;
   FTable := '';
 
-  if (ADatabase <> '') then
-    S := '/' + EscapeURL(ADatabase) + S;
-
-  FPath := S;
+  if (FDatabase = '') then
+    FPath := '/'
+  else
+    FPath := '/' + EscapeURL(FDatabase) + '/';
 end;
 
 procedure TUURI.SetParam(AName: string; const Value: Variant);
@@ -385,11 +379,10 @@ procedure TUURI.SetTable(const ATable: string);
 begin
   FTable := ATable;
 
-  FPath := '/';
-  if (FTable <> '') then
-    FPath := '/' + EscapeURL(FTable) + FPath;
-  if (FDatabase <> '') then
-    FPath := '/' + EscapeURL(FDatabase) + FPath;
+  if (FTable = '') then
+    FPath := '/' + EscapeURL(FDatabase) + '/'
+  else
+    FPath := '/' + EscapeURL(FDatabase) + '/' + EscapeURL(FTable) + '/';
 end;
 
 end.

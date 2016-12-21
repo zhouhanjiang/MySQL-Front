@@ -9295,8 +9295,11 @@ end;
 
 procedure TFSession.ListViewExit(Sender: TObject);
 var
+  Column: TListColumn;
   I: Integer;
   ImageIndex: Integer;
+  ListViewKind: TPAccount.TDesktop.TListViewKind; // Debug 2016-12-01
+  Width: Integer; // Debug 2016-12-01
 begin
   if (Sender is TListView) then
   begin
@@ -9308,7 +9311,39 @@ begin
     ImageIndex := ImageIndexByData(TObject(TListView(Sender).Tag));
     if (ImageIndex > 0) then
       for I := 0 to TListView(Sender).Columns.Count - 1 do
-        Session.Account.Desktop.ColumnWidths[ColumnWidthKindFromImageIndex(ImageIndex), I] := TListView(Sender).Columns[I].Width;
+      begin
+        // Debug 2016-12-02
+        if (not Assigned(Session)) then
+          raise ERangeError.Create(SRangeError);
+        if (not (TObject(Session) is TSSession)) then
+          try
+            raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Session).ClassName);
+          except
+            raise ERangeError.Create(SRangeError);
+          end;
+        if (not Assigned(Session.Account)) then
+          raise ERangeError.Create(SRangeError);
+        if (not (TObject(Session.Account) is TPAccount)) then
+          try
+            raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Session.Account).ClassName);
+          except
+            raise ERangeError.Create(SRangeError);
+          end;
+        if (not Assigned(Session.Account.Desktop)) then
+          raise ERangeError.Create(SRangeError);
+        Column := TListView(Sender).Columns[I];
+        Width := Column.Width;
+        ListViewKind := ColumnWidthKindFromImageIndex(ImageIndex);
+        if (not (ListViewKind in [lkServer .. lkVariables])) then
+          raise ERangeError.Create(SRangeError + '(' + IntToStr(Ord(ListViewKind)) + ')');
+        if (Length(Session.Account.Desktop.ColumnWidths) < 1 + Ord(ListViewKind)) then
+          raise ERangeError.Create(SRangeError + ' ' + IntToStr(1 + Ord(ListViewKind)));
+        if (I < 0) then
+          raise ERangeError.Create(SRangeError);
+        if (I >= Length(Session.Account.Desktop.ColumnWidths[lkServer])) then
+          raise ERangeError.Create(SRangeError);
+        Session.Account.Desktop.ColumnWidths[ListViewKind, I] := Width;
+      end;
   end;
 
   MainAction('aESelectAll').OnExecute := nil;
@@ -12572,15 +12607,6 @@ begin
       URI.Param['cp'] := Null;
     end;
 
-    // Debug 2016-12-15
-    if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
-      raise ERangeError.Create('AView: ' + IntToStr(Ord(AView)) + #13#10
-        + 'Address: ' + Address + #13#10
-        + 'URI.Address: ' + URI.Address + #13#10
-        + 'SelectedImageIndex: ' + IntToStr(SelectedImageIndex) + #13#10
-        + 'LastSelectedDatabase: ' + LastSelectedDatabase + #13#10
-        + 'LastSelectedTable: ' + LastSelectedTable);
-
     LockWindowUpdate(FNavigator.Handle);
     ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);
     ScrollPos.Vert := GetScrollPos(FNavigator.Handle, SB_VERT);
@@ -12588,11 +12614,6 @@ begin
     SetScrollPos(FNavigator.Handle, SB_HORZ, ScrollPos.Horz, TRUE);
     SetScrollPos(FNavigator.Handle, SB_VERT, ScrollPos.Vert, TRUE);
     LockWindowUpdate(0);
-
-    // Debug 2016-12-07
-    URI.Address := Address;
-    if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
-      raise ERangeError.Create(SRangeError + ' Address: ' + Address);
 
     URI.Free();
   end;
@@ -13946,6 +13967,11 @@ end;
 
 procedure TFSession.UMFrameActivate(var Message: TMessage);
 begin
+  // Debug 2016-12-21
+  // This is a helper for TWWindow.UMUpdateToolbar
+  if (not Assigned(Session.Account.Desktop)) then
+    raise ERangeError.Create(SRangeError);
+
   Include(FrameState, tsActive);
 
   FormatSettings.ThousandSeparator := Session.Connection.FormatSettings.ThousandSeparator;

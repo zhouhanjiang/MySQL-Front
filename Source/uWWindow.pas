@@ -2014,6 +2014,12 @@ var
 begin
   Tab := TFSession(Message.LParam);
 
+  // Debug 2016-12-12
+  // Somewhere, Session.Account.Desktop will be cleared, but why and where???
+  if (Assigned(Tab)) then
+    if (not Assigned(Tab.Session.Account.Desktop)) then
+      raise ERangeError.Create(SRangeError);
+
   for I := ToolBar.ButtonCount - 1 downto ToolButton11.Index do
     ToolBar.Buttons[I].Visible := False;
 
@@ -2086,14 +2092,6 @@ begin
 
   while (miFReopen.Count > 1) do
     miFReopen.Delete(0);
-
-  // Debug 2016-12-12
-  // Somewhere, Session.Account.Desktop will be cleared, but why and where???
-  if (Assigned(Tab)) then
-    if (not Assigned(Tab.Session.Account.Desktop)) then
-      raise ERangeError.Create(SRangeError)
-    else if (not (Tab.Session.Account.Desktop is TPAccount.TDesktop)) then
-      raise ERangeError.Create(SRangeError);
 
   miFReopen.Enabled := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vEditor, vEditor2, vEditor3]) and (Tab.Session.Account.Desktop.Files.Count > 0);
   if (miFReopen.Enabled) then

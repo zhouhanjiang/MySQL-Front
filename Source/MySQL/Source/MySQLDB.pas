@@ -1993,10 +1993,10 @@ begin
 
   while (not Terminated) do
   begin
-    if ((Connection.ServerTimeout = 0) or (Connection.LibraryType = ltHTTP)) then
+    if ((Connection.ServerTimeout < 6) or (Connection.LibraryType = ltHTTP)) then
       Timeout := INFINITE
     else
-      Timeout := Connection.ServerTimeout * 1000;
+      Timeout := (Connection.ServerTimeout - 5) * 1000;
     WaitResult := RunExecute.WaitFor(Timeout);
 
     // Debug 2016-12-12
@@ -2062,7 +2062,14 @@ begin
     if (StmtLength = 0) then
       Result := ''
     else
+try // Debug 2016-12-21
       SetString(Result, PChar(@SQL[SQLIndex + StartingCommentLength]), StmtLength);
+except
+  raise ERangeError.Create('SQLIndex: ' + IntToStr(SQLIndex) + #13#10
+    + 'StartingCommentLength: ' + IntToStr(StartingCommentLength) + #13#10
+    + 'StmtLength: ' + IntToStr(StmtLength) + #13#10
+    + 'SQL: ' + SQLEscapeBin(SQL, True));
+end;
   end;
 end;
 
@@ -4742,11 +4749,13 @@ end;
 function GetMySQLText(const Field: TField): string;
 var
   Data: string;
+  FieldInfo: TFieldInfo;
   I: Integer;
   LibLengths: MYSQL_LENGTHS;
   LibRow: MYSQL_ROW;
   Msg: string;
   SQL: string;
+  WhereClause: string;
 begin
   LibRow := TMySQLQuery(Field.DataSet).LibRow;
   LibLengths := TMySQLQuery(Field.DataSet).LibLengths;
@@ -4760,6 +4769,7 @@ begin
     else
       SQL := TMySQLQuery(Field.DataSet).CommandText;
     Msg := 'Error while decoding data from the database server.' + #10#10
+      + 'DataSet: ' + Field.DataSet.ClassName + #10
       + 'SQL query: ' + SQL + #10
       + 'Field: ' + Field.FieldName + #10
       + 'Raw data: ' + Data + #10
@@ -4768,20 +4778,41 @@ begin
       + 'Windows codepage: '  + IntToStr(TMySQLQuery(Field.DataSet).Connection.CodePage) + #10
       + 'Connection type: ' + IntToStr(Ord(TMySQLQuery(Field.DataSet).Connection.LibraryType)) + #10;
 
+    WhereClause := '';
     for I := 0 to Field.DataSet.FieldCount - 1 do
       if (Field.DataSet.Fields[I].IsIndexField) then
       begin
+        if (WhereClause <> '') then WhereClause := WhereClause + ' AND ';
         try
           Msg := Msg + Field.DataSet.Fields[I].FieldName + ': ';
+          WhereClause := WhereClause + TMySQLQuery(Field.DataSet).Connection.EscapeIdentifier(Field.DataSet.Fields[I].FieldName);
         except
           Msg := Msg + '???: ';
+          WhereClause := '';
+          break;
         end;
         try
           Msg := Msg + Field.DataSet.Fields[I].AsString + #10;
+          WhereClause := WhereClause + TMySQLQuery(Field.DataSet).SQLFieldValue(Field);
         except
           Msg := Msg + '???' + #10;
+          WhereClause := '';
+          break;
         end;
       end;
+
+    try
+      if (GetFieldInfo(Field.Origin, FieldInfo) and (FieldInfo.TableName <> '')) then
+      begin
+        SQL := 'SELECT Hex(' + TMySQLQuery(Field.DataSet).Connection.EscapeIdentifier(FieldInfo.OriginalFieldName)
+          + ') FROM ' + TMySQLQuery(Field.DataSet).Connection.EscapeIdentifier(FieldInfo.TableName)
+          + ' WHERE ' + WhereClause;
+        Msg := Msg + #10
+          + 'Query: ' + SQL + #10;
+      end;
+    except
+      Msg := Msg + 'Failor while createing query' + #10;
+    end;
 
     raise ERangeError.Create(Trim(Msg));
   end;
@@ -6211,24 +6242,41 @@ var
   Found: Boolean;
   I: Integer;
 begin
-  Found := False;
-  for I := 0 to BufferCount - 1 do
-    if (Buffers[I] = ActiveBuffer()) then
-      Found := True;
-  if (not Found) then
-    raise ERangeError.Create('ActiveBuffer() not found!');
-
-  // Debug 2016-12-05
-  if (not Active) then
-  else if (not Assigned(Pointer(ActiveBuffer()))) then
-  else if (not PExternRecordBuffer(ActiveBuffer())^.Identifier654321 = 654321) then // Occurred 2 times here
-    raise ERangeError.Create(SRangeError)
-  else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
-  else if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.IdentifierABCDEF <> $ABCDEF) then // Debug 2016-12-15
-    raise ERangeError.Create(SRangeError) // Occurrend 4 times
-  else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
-  else if (not (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier123456 = 123456)) then // Crashe here the second time on 2016-12-15
-    raise ERangeError.Create(SRangeError); // Occurred second time on 2016-12-15
+  try
+    if (not Active) then
+    else if (not Assigned(Pointer(ActiveBuffer()))) then
+    else if (not PExternRecordBuffer(ActiveBuffer())^.Identifier654321 = 654321) then // Occurred 2 times here
+      raise ERangeError.Create(SRangeError)
+    else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
+    else if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.IdentifierABCDEF <> $ABCDEF) then // Debug 2016-12-15
+      raise ERangeError.Create(SRangeError) // Occurrend 4 times
+    else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
+    else if (not (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier123456 = 123456)) then // Crashe here the second time on 2016-12-15
+      raise ERangeError.Create(SRangeError); // Occurred second time on 2016-12-15
+  except
+    Found := False;
+    for I := 0 to BufferCount - 1 do
+      if (Buffers[I] = ActiveBuffer()) then
+        Found := True;
+    if (not Found) then
+      raise ERangeError.Create('ActiveBuffer() not found!')
+    else
+    begin
+      Found := False; I := 0;
+      try
+        I := PExternRecordBuffer(ActiveBuffer())^.Index;
+        Found := True;
+      except
+      end;
+      if (Found) then
+        if (I < 0) then
+          raise ERangeError.Create(IntToStr(I) + ' < 0')
+        else if (I >= InternRecordBuffers.Count) then
+          raise ERangeError.Create(IntToStr(I) + ' >= ' + IntToStr(InternRecordBuffers.Count))
+        else
+          raise ERangeError.Create('Index present. And now???');
+    end;
+  end;
 
   if (not Active
     or not Assigned(Pointer(ActiveBuffer()))
@@ -8353,7 +8401,7 @@ end;
 //  RBS: RawByteString;
 //  SQL: string;
 initialization
-//  RBS := HexToStr('');
+//  RBS := HexToStr('E6989F');
 //  SetLength(SQL, Length(RBS));
 //  Len := AnsiCharToWideChar(65001, PAnsiChar(RBS), Length(RBS), PChar(SQL), Length(SQL));
 //  SetLength(SQL, Len);
