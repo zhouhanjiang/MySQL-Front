@@ -1057,85 +1057,86 @@ begin
     if (Preferences.ObsoleteVersion < Preferences.Version) then
       Preferences.ObsoleteVersion := Preferences.Version;
 
-    if (GetCurrentThreadId() <> MainThreadId) then
-      Report := 'EurekaLogExceptionNotify() runs in Thread ID ' + IntToStr(GetCurrentThreadId())
+    Report := '';
+
+    try
+      Report := LoadStr(1000) + ' ' + Preferences.VersionStr + #13#10;
+      Report := Report + #13#10;
+    except
+      on E: Exception do
+        try SendBugToDeveloper('EurekaLogExceptionNotify Error 5.1!' + #13#10#13#10 + E.Message); except end;
+    end;
+    if (not (TObject(ExceptionInfo.ExceptionObject) is Exception)) then
+    begin
+      try
+        Report := Report + ExceptionInfo.ExceptionClass + ':' + #13#10;
+        Report := Report + ExceptionInfo.ExceptionMessage + #13#10;
+      except
+        on E: Exception do
+          try SendBugToDeveloper('EurekaLogExceptionNotify Error 5.2!' + #13#10#13#10 + E.Message); except end;
+      end;
+    end
     else
     begin
-      Report := '';
       try
-        Report := LoadStr(1000) + ' ' + Preferences.VersionStr + #13#10;
+        Report := Report + Exception(ExceptionInfo.ExceptionObject).ClassName + ':' + #13#10;
+        Report := Report + Exception(ExceptionInfo.ExceptionObject).Message + #13#10;
+      except
+        on E: Exception do
+          try SendBugToDeveloper('EurekaLogExceptionNotify Error 5.3!' + #13#10#13#10 + E.Message); except end;
+      end;
+    end;
+    Report := Report + #13#10;
+
+    try
+      if (TObject(ExceptionInfo.ExceptionObject) is EOutOfMemory) then
+      begin
+        Report := Report + 'Free Memory: ' + IntToStr(GetFreeMemory()) + #13#10;
+        Report := Report + 'Total Memory: ' + IntToStr(GetMemPhysicalInstalled()) + #13#10;
+      end;
+    except
+      on E: Exception do
+        try SendBugToDeveloper('EurekaLogExceptionNotify Error 6!' + #13#10#13#10 + E.Message); except end;
+    end;
+
+    if (GetCurrentThreadId() <> MainThreadId) then
+      Report := Report + 'EurekaLogExceptionNotify() runs in Thread ID ' + IntToStr(GetCurrentThreadId()) + #13#10;
+
+    if (Assigned(ExceptionInfo.CallStack)) then
+    begin
+      try
+        ExceptionInfo.CallStack.Formatter := TStackFormatter.Create();
+      except
+        on E: Exception do
+          try SendBugToDeveloper('EurekaLogExceptionNotify Error 7.1!' + #13#10#13#10 + E.Message); except end;
+      end;
+      try
+        Report := Report + ExceptionInfo.CallStack.ToString;
+      except
+        on E: Exception do
+          try SendBugToDeveloper('EurekaLogExceptionNotify Error 7.2!' + #13#10#13#10 + E.Message); except end;
+      end;
+    end;
+
+    try
+      if (EditorCommandText <> '') then
+      begin
         Report := Report + #13#10;
-      except
-        on E: Exception do
-          try SendBugToDeveloper('EurekaLogExceptionNotify Error 5.1!' + #13#10#13#10 + E.Message); except end;
+        Report := Report + 'EditorCommandText: ' + SQLEscapeBin(EditorCommandText, True) + #13#10;
       end;
-      if (not (TObject(ExceptionInfo.ExceptionObject) is Exception)) then
+
+      if (LastWantedAddress <> '') then
       begin
-        try
-          Report := Report + ExceptionInfo.ExceptionClass + ':' + #13#10;
-          Report := Report + ExceptionInfo.ExceptionMessage + #13#10;
-        except
-          on E: Exception do
-            try SendBugToDeveloper('EurekaLogExceptionNotify Error 5.2!' + #13#10#13#10 + E.Message); except end;
-        end;
-      end
-      else
-      begin
-        try
-          Report := Report + Exception(ExceptionInfo.ExceptionObject).ClassName + ':' + #13#10;
-          Report := Report + Exception(ExceptionInfo.ExceptionObject).Message + #13#10;
-        except
-          on E: Exception do
-            try SendBugToDeveloper('EurekaLogExceptionNotify Error 5.3!' + #13#10#13#10 + E.Message); except end;
-        end;
+        Report := Report + #13#10;
+        Report := Report + 'LastWantedAddress: ' + LastWantedAddress + #13#10;
       end;
-      Report := Report + #13#10;
+    except
+      on E: Exception do
+        try SendBugToDeveloper('EurekaLogExceptionNotify Error 8.1!' + #13#10#13#10 + E.Message); except end;
+    end;
 
-      try
-        if (TObject(ExceptionInfo.ExceptionObject) is EOutOfMemory) then
-        begin
-          Report := Report + 'Free Memory: ' + IntToStr(GetFreeMemory()) + #13#10;
-          Report := Report + 'Total Memory: ' + IntToStr(GetMemPhysicalInstalled()) + #13#10;
-        end;
-      except
-        on E: Exception do
-          try SendBugToDeveloper('EurekaLogExceptionNotify Error 6!' + #13#10#13#10 + E.Message); except end;
-      end;
-
-      if (Assigned(ExceptionInfo.CallStack)) then
-      begin
-        try
-          ExceptionInfo.CallStack.Formatter := TStackFormatter.Create();
-        except
-          on E: Exception do
-            try SendBugToDeveloper('EurekaLogExceptionNotify Error 7.1!' + #13#10#13#10 + E.Message); except end;
-        end;
-        try
-          Report := Report + ExceptionInfo.CallStack.ToString;
-        except
-          on E: Exception do
-            try SendBugToDeveloper('EurekaLogExceptionNotify Error 7.2!' + #13#10#13#10 + E.Message); except end;
-        end;
-      end;
-
-      try
-        if (EditorCommandText <> '') then
-        begin
-          Report := Report + #13#10;
-          Report := Report + 'EditorCommandText: ' + SQLEscapeBin(EditorCommandText, True) + #13#10;
-        end;
-
-        if (LastWantedAddress <> '') then
-        begin
-          Report := Report + #13#10;
-          Report := Report + 'LastWantedAddress: ' + LastWantedAddress + #13#10;
-        end;
-      except
-        on E: Exception do
-          try SendBugToDeveloper('EurekaLogExceptionNotify Error 8.1!' + #13#10#13#10 + E.Message); except end;
-      end;
-
-      try
+    try
+      if (GetCurrentThreadId() = MainThreadId) then
         for I := 0 to Sessions.Count - 1 do
         begin
           Report := Report + #13#10;
@@ -1155,10 +1156,9 @@ begin
               try SendBugToDeveloper('EurekaLogExceptionNotify Error 8.2.1!' + #13#10#13#10 + E.Message); except end;
           end;
         end;
-      except
-        on E: Exception do
-          try SendBugToDeveloper('EurekaLogExceptionNotify Error 8.2!' + #13#10#13#10 + E.Message); except end;
-      end;
+    except
+      on E: Exception do
+        try SendBugToDeveloper('EurekaLogExceptionNotify Error 8.2!' + #13#10#13#10 + E.Message); except end;
     end;
 
     try

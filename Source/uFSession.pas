@@ -12612,7 +12612,8 @@ begin
 
     ChangingEvent := FNavigator.OnChanging; FNavigator.OnChanging := nil;
     ChangeEvent := FNavigator.OnChange; FNavigator.OnChange := nil;
-    FNavigator.Selected := Node;
+    SendMessage(FNavigator.Handle, TVM_SELECTITEM, TVGN_CARET, LPARAM(Node.ItemId));
+//    FNavigator.Selected := Node;
     FNavigator.OnChanging := ChangingEvent;
     FNavigator.OnChange := ChangeEvent;
 
