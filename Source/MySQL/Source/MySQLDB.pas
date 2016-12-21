@@ -1401,7 +1401,7 @@ begin
     if ((CodePage <> CP_UTF8) or not CheckWin32Version(6)) then Flags := 0 else Flags := WC_ERR_INVALID_CHARS;
     Result := WideCharToMultiByte(CodePage, Flags, lpWideCharStr, cchWideChar, lpMultiByteStr, cchMultiByte, nil, nil);
     if (Result = 0) then
-      raise EOSError.CreateFmt(SOSError + ' in %s (CodePage: %d)', [GetLastError(), SysErrorMessage(GetLastError()), SQLEscapeBin(StrPas(lpWideCharStr), True), CodePage]);
+      raise EOSError.CreateFmt('System Error.  Code: %d.' + #13#10 + '%s' + ' in %s (CodePage: %d)', [GetLastError(), SysErrorMessage(GetLastError()), SQLEscapeBin(StrPas(lpWideCharStr), True), CodePage]);
   end;
 end;
 
@@ -1850,27 +1850,14 @@ begin
   else
   begin
     Len := Cache.UsedLen - 2; // Remove ending #13#10
-try // Debug 2016-12-20
     if (Cache.First + Cache.UsedLen <= Cache.MemLen) then
       SetString(Result, PChar(@Cache.Mem[Cache.First]), Len)
     else
     begin
+      SetLength(Result, Cache.UsedLen);
       MoveMemory(@Result[1], @Cache.Mem[Cache.First], (Cache.MemLen - Cache.First) * SizeOf(Cache.Mem[0]));
       MoveMemory(@Result[1 + Cache.MemLen - Cache.First], @Cache.Mem[0], (Cache.UsedLen - (Cache.MemLen - Cache.First)) * SizeOf(Cache.Mem[0]));
     end;
-except
-  on E: Exception do
-    begin
-      SendBugToDeveloper('GetCacheText()' + #13#10
-        + 'First: ' + IntToStr(Cache.First) + #13#10
-        + 'UsedLen: ' + IntToStr(Cache.UsedLen) + #13#10
-        + 'Len: ' + IntToStr(Len) + #13#10
-        + 'MemLen: ' + IntToStr(Cache.MemLen) + #13#10
-        + 'Mem assigned: ' + BoolToStr(Assigned(Cache.Mem), True) + #13#10
-        + E.Message);
-      raise Exception.Create(E.Message);
-    end;
-end;
   end;
 end;
 
@@ -6220,15 +6207,25 @@ begin
 end;
 
 function TMySQLDataSet.GetLibRow(): MYSQL_ROW;
+var
+  Found: Boolean;
+  I: Integer;
 begin
+  Found := False;
+  for I := 0 to BufferCount - 1 do
+    if (Buffers[I] = ActiveBuffer()) then
+      Found := True;
+  if (not Found) then
+    raise ERangeError.Create('ActiveBuffer() not found!');
+
   // Debug 2016-12-05
   if (not Active) then
   else if (not Assigned(Pointer(ActiveBuffer()))) then
-  else if (not PExternRecordBuffer(ActiveBuffer())^.Identifier654321 = 654321) then // Occurred second time here on 2016-12-19
+  else if (not PExternRecordBuffer(ActiveBuffer())^.Identifier654321 = 654321) then // Occurred 2 times here
     raise ERangeError.Create(SRangeError)
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
   else if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.IdentifierABCDEF <> $ABCDEF) then // Debug 2016-12-15
-    raise ERangeError.Create(SRangeError) // Occurrend third time on 2016-12-16
+    raise ERangeError.Create(SRangeError) // Occurrend 4 times
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
   else if (not (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier123456 = 123456)) then // Crashe here the second time on 2016-12-15
     raise ERangeError.Create(SRangeError); // Occurred second time on 2016-12-15

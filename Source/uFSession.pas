@@ -3709,6 +3709,7 @@ begin
       raise ERangeError.Create('Imported: ' + BoolToStr(Imported, True) + #13#10
         + 'CodePage: ' + IntToStr(ImportCodePage));
       // Occurred on 2016-12-21 in aFImportExcelExecute with Imported = True, CodePage = 0
+      // Occurred on 2016-12-21 in aFImportSQLExecute with Imported = True, CodePage = 65001
 
     UpdateAfterAddressChanged();
   end;
@@ -12482,6 +12483,10 @@ end;
 
 procedure TFSession.SetView(const AView: TView);
 var
+  ScrollPos: record
+    Horz: Integer;
+    Vert: Integer;
+  end;
   URI: TUURI;
 begin
   if (AView <> View) then
@@ -12569,9 +12574,20 @@ begin
 
     // Debug 2016-12-15
     if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
-      raise ERangeError.Create(SRangeError + #13#10 + 'Address: ' + Address + #13#10 + 'SelectedImageIndex: ' + IntToStr(SelectedImageIndex) + #13#10 + 'LastSelectedDatabase: ' + LastSelectedDatabase + #13#10 + 'LastSelectedTable: ' + LastSelectedTable);
+      raise ERangeError.Create('AView: ' + IntToStr(Ord(AView)) + #13#10
+        + 'Address: ' + Address + #13#10
+        + 'URI.Address: ' + URI.Address + #13#10
+        + 'SelectedImageIndex: ' + IntToStr(SelectedImageIndex) + #13#10
+        + 'LastSelectedDatabase: ' + LastSelectedDatabase + #13#10
+        + 'LastSelectedTable: ' + LastSelectedTable);
 
+    LockWindowUpdate(FNavigator.Handle);
+    ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);
+    ScrollPos.Vert := GetScrollPos(FNavigator.Handle, SB_VERT);
     Address := URI.Address;
+    SetScrollPos(FNavigator.Handle, SB_HORZ, ScrollPos.Horz, TRUE);
+    SetScrollPos(FNavigator.Handle, SB_VERT, ScrollPos.Vert, TRUE);
+    LockWindowUpdate(0);
 
     // Debug 2016-12-07
     URI.Address := Address;
@@ -12612,8 +12628,7 @@ begin
 
     ChangingEvent := FNavigator.OnChanging; FNavigator.OnChanging := nil;
     ChangeEvent := FNavigator.OnChange; FNavigator.OnChange := nil;
-    SendMessage(FNavigator.Handle, TVM_SELECTITEM, TVGN_CARET, LPARAM(Node.ItemId));
-//    FNavigator.Selected := Node;
+    FNavigator.Selected := Node;
     FNavigator.OnChanging := ChangingEvent;
     FNavigator.OnChange := ChangeEvent;
 

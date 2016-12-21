@@ -8828,6 +8828,7 @@ var
   I: Integer;
   Index: Integer;
   Name: string;
+  Timeout: Integer; // Debug 2016-12-21
 begin
   DeleteList := TList.Create();
   DeleteList.Assign(Self);
@@ -8887,7 +8888,11 @@ begin
 
     if (Assigned(Session.VariableByName('wait_timeout'))) then
       if (Session.VariableByName('wait_timeout').AsInteger >= 60) then
-        Session.Connection.ServerTimeout := Session.VariableByName('wait_timeout').AsInteger - 5;
+      begin
+        Timeout := Session.VariableByName('wait_timeout').AsInteger;
+        Timeout := Timeout - 5;
+        Session.Connection.ServerTimeout := Timeout;
+      end;
 
     if (Session.Connection.MySQLVersion < 40102) then
     begin

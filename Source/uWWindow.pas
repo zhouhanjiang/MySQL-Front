@@ -1008,7 +1008,10 @@ begin
       TFSession(FSessions[I]).CrashRescue();
     except
       on E: Exception do
-        try SendBugToDeveloper('EurekaLogExceptionNotify Error 1!' + #13#10#13#10 + E.Message); except end;
+        try SendBugToDeveloper('EurekaLogExceptionNotify Error 1!' + #13#10
+          + 'ThreadId: ' + IntToStr(GetCurrentThreadId()) + #13#10
+          + 'MainThreadId: ' + IntToStr(MainThreadId) + #13#10
+          + E.Message); except end;
     end;
 
   try
@@ -1100,7 +1103,7 @@ begin
     end;
 
     if (GetCurrentThreadId() <> MainThreadId) then
-      Report := Report + 'EurekaLogExceptionNotify() runs in Thread ID ' + IntToStr(GetCurrentThreadId()) + #13#10;
+      Report := Report + 'EurekaLogExceptionNotify() runs in Thread ID ' + IntToStr(GetCurrentThreadId()) + #13#10#13#10;
 
     if (Assigned(ExceptionInfo.CallStack)) then
     begin
