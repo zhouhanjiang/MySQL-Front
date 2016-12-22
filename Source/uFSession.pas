@@ -2000,7 +2000,7 @@ begin
   else
   begin
     // Debug 2016-12-21
-    if ((FSession.View = vBrowser) and (FSession.FNavigator.Selected.ImageIndex <> iiBaseTable)) then
+    if ((FSession.View = vBrowser) and not (FSession.FNavigator.Selected.ImageIndex in [iiBaseTable, iiSystemView, iiView])) then
       raise ERangeError.Create(SRangeError);
 
     FUpdate := AUpdate;
@@ -8612,7 +8612,10 @@ begin
     StatusBarRefresh();
   end
   else if (ActiveDBGrid.DataSource.DataSet is TSTable.TDataSet) then
-    FFilterEnabledClick(nil);
+  begin
+    FFilterEnabled.Down := False;
+    FFilterEnabledClick(Sender);
+  end;
 end;
 
 procedure TFSession.gmFilterIntoFilterClick(Sender: TObject);

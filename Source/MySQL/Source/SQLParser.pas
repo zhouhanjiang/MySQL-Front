@@ -7683,6 +7683,7 @@ var
     Comp: Integer;
     Left: Integer;
     Mid: Integer;
+    Msg: string; // Debug 2016-12-22
     Right: Integer;
   begin
     Result := True;
@@ -7696,7 +7697,14 @@ var
       while (Left <= Right) do
       begin
         Mid := (Right - Left) div 2 + Left;
+try
         Comp := StrLComp(Words[Len][Mid], Word, Len);
+except
+  Msg := 'Len: ' + IntToStr(Len) + ' in [' + IntToStr(0) + '..' + IntToStr(Length(Words) - 1) + ']';
+  if (Len < Length(Words)) then
+    Msg := Msg + #13#10 + 'Mid: ' + IntToStr(Mid) + ' in [' + IntToStr(0) + '..' + IntToStr(Length(Words[Len]) - 1) + ']';
+  raise ERangeError.Create(Msg);
+end;
         if (Comp < 0) then
           begin Left := Mid + 1;  Index := Mid + 1; end
         else if (Comp = 0) then
@@ -7865,7 +7873,13 @@ begin
     FNodes := @DynamicArray[0];
   end;
 
+try // Debug 2016-12-22
   FNodes^[FCount] := Node;
+except
+  raise ERangeError.Create('FCount: ' + IntToStr(FCount) + #13#10
+    + 'Length(FNodes^): ' + IntToStr(Length(FNodes^)) + #13#10
+    + 'ArrayLength: ' + IntToStr(ArrayLength));
+end;
   Inc(FCount);
 end;
 

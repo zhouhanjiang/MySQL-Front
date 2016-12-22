@@ -2618,10 +2618,7 @@ end;
 destructor TWTable.Destroy();
 begin
   while (Length(FLinkPoints) > 0) do
-  begin
-    FLinkPoints[0].Link.Free();
-    SetLength(FLinkPoints, Length(FLinkPoints) - 1);
-  end;
+    Workbench.Links.Delete(Workbench.Links.IndexOf(FLinkPoints[0].Link));
 
   inherited;
 end;

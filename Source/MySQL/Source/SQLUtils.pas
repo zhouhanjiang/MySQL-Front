@@ -1911,7 +1911,7 @@ end;
 
 function SQLParseEnd(const Handle: TSQLParse): Boolean;
 begin
-  Result := Handle.Len = 0;
+  Result := (Handle.Len = 0) or (Handle.Pos[0] = ';');
 end;
 
 function SQLParseGetIndex(const Handle: TSQLParse): Integer;

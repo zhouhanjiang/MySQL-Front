@@ -10,7 +10,6 @@ uses
 type
   TMySQLDBGrid = class(TDBGrid)
   type
-    TFilterChange = procedure(Sender: TObject; Index: Integer) of object;
 
     TDBMySQLInplaceEdit = class(TInplaceEditList)
     private
@@ -40,7 +39,6 @@ type
     FMouseMoveCell: TGridCoord;
     FOnCanEditShow: TNotifyEvent;
     FOnCanEditShowExecuted: Boolean;
-    FOnFilterChange: TFilterChange;
     FOnSelect: TNotifyEvent;
     IgnoreTitleClick: Boolean;
     TitleBoldFont: TFont;
@@ -108,7 +106,6 @@ type
     property TopRow;
   published
     property OnCanEditShow: TNotifyEvent read FOnCanEditShow write FOnCanEditShow;
-    property OnFilterChange: TFilterChange read FOnFilterChange write FOnFilterChange;
     property OnSelect: TNotifyEvent read FOnSelect write FOnSelect;
   end;
 
@@ -406,8 +403,8 @@ begin
   FIgnoreKeyPress := False;
   FHeaderControl := nil;
   FListView := 0;
-  IgnoreTitleClick := False;
   FOnCanEditShowExecuted := False;
+  IgnoreTitleClick := False;
   TitleBoldFont := nil;
 
   FMouseMoveCell.X := -1;
@@ -678,9 +675,10 @@ begin
 
       HDItem.Mask := HDI_FORMAT;
       if (BOOL(SendMessage(FHeaderControl.Handle, HDM_GETITEM, Index, LParam(@HDItem))) and (HDItem.fmt and (HDF_SORTUP or HDF_SORTUP) <> 0)) then
-        Inc(NeededWidth, 2 * FHeaderControl.Height);
+        Inc(NeededWidth, 2 * DefaultRowHeight);
 
-      if (FHeaderControl.Sections[Index].Width < NeededWidth) then
+      if ((FHeaderControl.Sections[Index].Width < NeededWidth)
+        and (Y < DefaultRowHeight)) then
         FHeaderControl.Hint := Columns[LeftCol + Index].DisplayName;
     end;
 end;

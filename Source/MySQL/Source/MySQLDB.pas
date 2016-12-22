@@ -111,7 +111,6 @@ type
       MemLen: Integer;
       UsedLen: Integer;
     end;
-    FCacheSize: Integer;
     FConnection: TMySQLConnection;
     FEnabled: Boolean;
     FOnMonitor: TMySQLOnMonitor;
@@ -1721,7 +1720,6 @@ begin
   FConnection := nil;
   FEnabled := False;
   FOnMonitor := nil;
-  FCacheSize := 0;
   FTraceTypes := [ttRequest];
 
   Cache.First := 0;
@@ -1769,13 +1767,7 @@ begin
       Inc(ItemLen, 2); // New Line
 
     if (ItemLen > Cache.MemLen) then
-    begin
-      Clear();
-
-      Cache.MemLen := ItemLen;
-      ReallocMem(Cache.Mem, Cache.MemLen * SizeOf(Cache.Mem[0]));
-      MoveMemory(Cache.Mem, ItemText, MoveLen * SizeOf(Cache.Mem[0]));
-    end
+      Clear()
     else
     begin
       while ((Cache.UsedLen + ItemLen > Cache.MemLen) and (Cache.ItemsLen.Count > 0)) do
@@ -2054,30 +2046,11 @@ begin
 end;
 
 function TMySQLConnection.TSyncThread.GetCommandText(): string;
-var
-  EndingCommentLength: Integer;
-  StartingCommentLength: Integer;
-  StmtLength: Integer;
 begin
   if (StmtIndex = StmtLengths.Count) then
     Result := ''
   else
-  begin
-    StmtLength := SQLTrimStmt(PChar(@SQL[SQLIndex]), Integer(StmtLengths[StmtIndex]), StartingCommentLength, EndingCommentLength);
-    if (SQL[SQLIndex + StartingCommentLength + StmtLength - 1] = ';') then
-      Dec(StmtLength);
-    if (StmtLength = 0) then
-      Result := ''
-    else
-try // Debug 2016-12-21
-      SetString(Result, PChar(@SQL[SQLIndex + StartingCommentLength]), StmtLength);
-except
-  raise ERangeError.Create('SQLIndex: ' + IntToStr(SQLIndex) + #13#10
-    + 'StartingCommentLength: ' + IntToStr(StartingCommentLength) + #13#10
-    + 'StmtLength: ' + IntToStr(StmtLength) + #13#10
-    + 'SQL: ' + SQLEscapeBin(SQL, True));
-end;
-  end;
+    SetString(Result, PChar(@SQL[SQLIndex]), Integer(StmtLengths[StmtIndex]));
 end;
 
 function TMySQLConnection.TSyncThread.GetIsRunning(): Boolean;
@@ -7006,7 +6979,9 @@ begin
         if (EqualFieldNames) then
           for I := 0 to DataSet.FieldCount - 1 do
             EqualFieldNames := EqualFieldNames and (DataSet.Fields[I].FieldName = Fields[I].FieldName);
-        if (EqualFieldNames) then
+        if (not EqualFieldNames) then
+          RecordMatch := False
+        else
         begin
           RecordMatch := True;
           for I := 0 to DataSet.FieldCount - 1 do
@@ -7029,7 +7004,7 @@ begin
                 SetFieldData(Fields[I], DataSet.LibRow^[I], DataSet.LibLengths[I]);
         end;
 
-        if (DataSet.FindNext()) then
+        if (RecordMatch or DataSet.FindNext()) then
         begin
           RecordBufferData.Identifier123456 := 123546;
           RecordBufferData.LibLengths := DataSet.LibLengths;
@@ -8437,7 +8412,14 @@ end;
 //  RBS: RawByteString;
 //  SQL: string;
 initialization
-//  RBS := HexToStr('E6989F');
+//  RBS := HexToStr('2373656C656374202A2066726F6D20745F696D5F757365725F67726F75705'
+//    + 'F3020776865726520636F6D70616E795F6964203D203130323420616E6420757365725F69'
+//    + '64203D2031303031303820616E6420667269656E645F636F6D70616E795F6964203D20313'
+//    + '0323420616E6420667269656E645F67726F75705F6964203D20313438313935383335333B'
+//    + '0D0A73656C656374202A2066726F6D20745F696D5F67726F75705F6D656D6265725F30207'
+//    + '7686572652067726F75705F636F6D70616E795F6964203D203130323420616E642067726F'
+//    + '75705F6964203D20313438323338383939393B2320616E6420757365725F636F6D70616E7'
+//    + '95F6964203D203130323420616E6420757365725F6964203D203130303130383B');
 //  SetLength(SQL, Length(RBS));
 //  Len := AnsiCharToWideChar(65001, PAnsiChar(RBS), Length(RBS), PChar(SQL), Length(SQL));
 //  SetLength(SQL, Len);
