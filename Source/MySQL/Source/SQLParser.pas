@@ -22526,8 +22526,7 @@ function TSQLParser.ParseSelectStmtTableReference(): TOffset;
   begin
     if (IsTag(kiDUAL)) then
       Result := ParseTag(kiDUAL)
-    else if (IsTag(kiSELECT)
-      or IsSymbol(ttOpenBracket) and IsNextTag(1, kiSELECT)) then
+    else if (IsSymbol(ttOpenBracket) and IsNextTag(1, kiSELECT)) then
       Result := ParseSelectStmtTableFactorSubquery()
     else if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType in ttIdents)) then
       Result := ParseSelectStmtTableFactor()
@@ -25195,7 +25194,7 @@ begin
         CMP AX,'.'                       // "."?
         JNE IdentL5                      // No!
         CMP AtBefore,True                // Previous token was "@"?
-        JNE Numeric                      // No!
+        JNE Finish                       // No!
         JMP IPAddress
       IdentL5:
         CMP AX,'0'                       // "0"?

@@ -901,7 +901,6 @@ uses
   {$IFDEF EurekaLog}
   ExceptionLog7, EExceptionManager,
   {$ENDIF}
-uDeveloper,
   MySQLClient,
   SQLUtils, CSVUtils, HTTPTunnel;
 
@@ -1152,7 +1151,7 @@ begin
   begin
     // Debug 2016-12-10
     if (SyncThread.State = ssResult) then
-      raise ERangeError.Create(SRangeError + ' State: ' + IntToStr(Ord(SyncThread.State)));
+      raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
 
     SynchronizingThreadsCS.Enter();
     SynchronizingThreads.Add(SyncThread);
@@ -1983,6 +1982,7 @@ end;
 
 procedure TMySQLConnection.TSyncThread.Execute();
 var
+  OldState: TState; // Debug 2016-12-22
   Timeout: LongWord;
   WaitResult: TWaitResult;
 begin
@@ -2011,6 +2011,8 @@ begin
       end
       else
       begin
+        OldState := State;
+
         case (State) of
           ssConnecting:
             Connection.SyncConnecting(Self);
@@ -2025,6 +2027,11 @@ begin
           else
             raise Exception.CreateFMT(SOutOfSync + ' (State: %d)', [Ord(State)]);
         end;
+
+        // Debug 2016-12-22
+        if (State <> OldState) then
+          raise ERangeError.Create('OldState: ' + IntToStr(Ord(OldState)) + #13#10
+            + 'State: ' + IntToStr(Ord(State)));
 
         Connection.TerminateCS.Enter();
         RunExecute.ResetEvent();
@@ -3708,6 +3715,8 @@ var
 begin
   Assert(SyncThread.State = ssReceivingResult);
   Assert(SyncThread.DataSet is TMySQLDataSet);
+  Assert(Assigned(SyncThread.ResHandle));
+
   DataSet := TMySQLDataSet(SyncThread.DataSet);
 
   repeat
@@ -5880,7 +5889,9 @@ var
   I: Integer;
 begin
   CriticalSection.Enter();
-  if ((DataSet.State = dsBrowse) and Assigned(Pointer(DataSet.ActiveBuffer())) and Assigned(PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer)) then
+  if ((DataSet.State = dsBrowse)
+    and Assigned(Pointer(DataSet.ActiveBuffer()))
+    and Assigned(PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer)) then
     PExternRecordBuffer(DataSet.ActiveBuffer())^.InternRecordBuffer := nil;
   for I := 0 to Count - 1 do
     DataSet.FreeInternRecordBuffer(Items[I]);
@@ -6241,6 +6252,7 @@ function TMySQLDataSet.GetLibRow(): MYSQL_ROW;
 var
   Found: Boolean;
   I: Integer;
+  Msg: string;
 begin
   try
     if (not Active) then
@@ -6254,28 +6266,38 @@ begin
     else if (not (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier123456 = 123456)) then // Crashe here the second time on 2016-12-15
       raise ERangeError.Create(SRangeError); // Occurred second time on 2016-12-15
   except
-    Found := False;
-    for I := 0 to BufferCount - 1 do
-      if (Buffers[I] = ActiveBuffer()) then
-        Found := True;
-    if (not Found) then
-      raise ERangeError.Create('ActiveBuffer() not found!')
-    else
-    begin
-      Found := False; I := 0;
-      try
-        I := PExternRecordBuffer(ActiveBuffer())^.Index;
-        Found := True;
-      except
-      end;
-      if (Found) then
-        if (I < 0) then
-          raise ERangeError.Create(IntToStr(I) + ' < 0')
-        else if (I >= InternRecordBuffers.Count) then
-          raise ERangeError.Create(IntToStr(I) + ' >= ' + IntToStr(InternRecordBuffers.Count))
+    on E: Exception do
+      if (Active and Assigned(Pointer(ActiveBuffer()))) then
+      begin
+        Found := False;
+        for I := 0 to BufferCount - 1 do
+          if (Buffers[I] = ActiveBuffer()) then
+            Found := True;
+        if (not Found) then
+          raise ERangeError.Create('ActiveBuffer() not found!')
         else
-          raise ERangeError.Create('Index present. And now???');
-    end;
+        begin
+          Found := False; I := -1;
+          try
+            I := PExternRecordBuffer(ActiveBuffer())^.Index;
+            Found := True;
+          except
+            on E2: Exception do
+              Msg := E2.Message;
+          end;
+          if (not Found) then
+            raise ERangeError.Create(Msg)
+          else if (I < 0) then
+            raise ERangeError.Create(IntToStr(I) + ' < 0' + #13#10
+              + E.Message)
+          else if (I >= InternRecordBuffers.Count) then
+            raise ERangeError.Create(IntToStr(I) + ' >= ' + IntToStr(InternRecordBuffers.Count) + #13#10
+              + E.Message)
+          else
+            raise ERangeError.Create('Index present. And now???' + #13#10
+              + E.Message);
+        end;
+      end;
   end;
 
   if (not Active
@@ -6450,9 +6472,10 @@ begin
   else
   begin
     InternRecordBuffer := AllocInternRecordBuffer();
-    Result := Assigned(InternRecordBuffer);
 
-    if (Result) then
+    if (not Assigned(InternRecordBuffer)) then
+      Result := False
+    else
     begin
       Data.LibLengths := LibLengths;
       Data.LibRow := LibRow;
@@ -6574,7 +6597,8 @@ begin
         if (Index < InternRecordBuffers.Index) then
           Dec(InternRecordBuffers.Index);
         for J := 0 to BufferCount - 1 do
-          if (Assigned(PExternRecordBuffer(Buffers[J])) and (PExternRecordBuffer(Buffers[J])^.InternRecordBuffer = InternRecordBuffers[Index])) then
+          if (Assigned(PExternRecordBuffer(Buffers[J]))
+            and (PExternRecordBuffer(Buffers[J])^.InternRecordBuffer = InternRecordBuffers[Index])) then
             PExternRecordBuffer(Buffers[J])^.InternRecordBuffer := nil;
         FreeInternRecordBuffer(InternRecordBuffers[Index]);
         InternRecordBuffers.Delete(Index);
@@ -6708,7 +6732,17 @@ var
   WhereFields: array of TField;
   WhereFieldsChanged: Boolean;
 begin
-  if (not CachedUpdates) then
+  if (CachedUpdates) then
+  begin
+    case (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag) of
+      bfInserted:
+        InternRecordBuffers.Insert(InternRecordBuffers.Index, PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
+      bfBOF,
+      bfEOF:
+        InternRecordBuffers.Index := InternRecordBuffers.Add(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
+    end;
+  end
+  else
   begin
     Update := PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag = bfCurrent;
 
@@ -7659,7 +7693,7 @@ begin
     Result := ''
   else
   begin
-    Result := 'INSERT INTO ' + SQLTableClause() + ' SET ';
+    Result := '';
     ValueHandled := False;
     for I := 0 to FieldCount - 1 do
       if ((pfInUpdate in Fields[I].ProviderFlags)
@@ -7669,7 +7703,9 @@ begin
         Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + '=' + SQLFieldValue(Fields[I], TRecordBuffer(ExternRecordBuffer));
         ValueHandled := True;
       end;
-    Result := Result + ';' + #13#10;
+
+    if (Result <> '') then
+      Result := 'INSERT INTO ' + SQLTableClause() + ' SET ' + Result + ';' + #13#10;
   end;
 end;
 

@@ -138,6 +138,8 @@ begin
   inherited;
 
   DoNotRemove := 0; // This avoids compiler warning only
+
+  Color := clWindow;
 end;
 
 procedure TMySQLDBGrid.TDBMySQLInplaceEdit.DoEditButtonClick();
@@ -372,6 +374,11 @@ begin
     finally
       CloseClipboard();
     end;
+    // Debug 2016-12-21
+    if (not OpenClipboard(Handle)) then
+      raise ERangeError.Create(SRangeError)
+    else
+      CloseClipboard();
   end;
 end;
 
@@ -434,7 +441,7 @@ begin
   FListView := CreateWindow(WC_LISTVIEW, nil, WS_CHILD, 0, 0, 50, 50, Handle, 0, hInstance, nil);
   SendMessage(FListView, WM_SETFONT, WPARAM(Font.Handle), LPARAM(TRUE));
   LVColumn.mask := LVCF_TEXT;
-  LVColumn.pszText := 'Test';
+  LVColumn.pszText := 'E';
   LVColumn.cchTextMax := StrLen(LVColumn.pszText);
   SendMessage(FListView, LVM_INSERTCOLUMN, 0, LPARAM(@LVColumn));
 
@@ -492,7 +499,9 @@ end;
 function TMySQLDBGrid.DoMouseWheel(Shift: TShiftState; WheelDelta: Integer;
   MousePos: TPoint): Boolean;
 begin
-  Result :=  Assigned(DataSource) and Assigned(DataLink.DataSet) and DataLink.DataSet.Active and (not (ssShift in FMouseDownShiftState) and not (ssCtrl in FMouseDownShiftState));
+  Result :=  Assigned(DataSource) and Assigned(DataLink.DataSet) and DataLink.DataSet.Active
+    and (not (ssShift in FMouseDownShiftState) and not (ssCtrl in FMouseDownShiftState))
+    and not EditorMode;
 
   if (Result) then
     DataLink.DataSet.MoveBy(- WheelDelta div WHEEL_DELTA);

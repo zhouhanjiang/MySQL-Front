@@ -21,8 +21,9 @@ const
 
 const
   UM_ACTIVATETAB = WM_USER + 600;
-  UM_MYSQLCLIENT_SYNCHRONIZE = WM_USER + 601;
-  UM_ONLINE_UPDATE_FOUND = WM_USER + 602;
+  UM_CRASH_RESCUE = WM_USER + 601;
+  UM_MYSQLCLIENT_SYNCHRONIZE = WM_USER + 602;
+  UM_ONLINE_UPDATE_FOUND = WM_USER + 603;
 
 type
   TWWindow = class (TForm_Ext)
@@ -426,6 +427,7 @@ type
     procedure UMActivateTab(var Message: TMessage); message UM_ACTIVATETAB;
     procedure UMAddTab(var Message: TMessage); message UM_ADDTAB;
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMCrashRescue(var Message: TMessage); message UM_CRASH_RESCUE;
     procedure UMDeactivateTab(var Message: TMessage); message UM_DEACTIVATETAB;
     procedure UMMySQLClientSynchronize(var Message: TMessage); message UM_MYSQLCLIENT_SYNCHRONIZE;
     procedure UMOnlineUpdateFound(var Message: TMessage); message UM_ONLINE_UPDATE_FOUND;
@@ -462,14 +464,6 @@ uses
   uTools, uURI,
   uDAccounts, uDAccount, uDOptions, uDLogin, uDStatement, uDTransfer, uDSearch,
   uDConnecting, uDInfo, uDUpdate;
-
-function IsConnectedToInternet(): Boolean;
-//var
-//  ConnectionTypes: DWORD;
-begin
-//  ConnectionTypes := INTERNET_CONNECTION_MODEM + INTERNET_CONNECTION_LAN + INTERNET_CONNECTION_PROXY;
-  Result := InternetGetConnectedState(nil, 0);
-end;
 
 { TWWindow ********************************************************************}
 
@@ -672,7 +666,7 @@ begin
   if (E.Message <> SRecordChanged) then
   begin
     {$IFNDEF EurekaLog}
-    if ((OnlineProgramVersion < 0) and IsConnectedToInternet()) then
+    if ((OnlineProgramVersion < 0) and InternetGetConnectedState(nil, 0)) then
       if (Assigned(CheckOnlineVersionThread)) then
         CheckOnlineVersionThread.WaitFor()
       else
@@ -760,7 +754,14 @@ begin
       end;
 
       if (Assigned(ActiveTab)) then
+      begin
+        // Debug 2016-12-22
+        // This is a helper for UMUpdateToolbar
+        if (not Assigned(ActiveTab.Session.Account.Desktop)) then
+          raise ERangeError.Create(SRangeError);
+
         PostMessage(ActiveTab.Handle, UM_ACTIVATEFRAME, 0, 0);
+      end;
     end;
   end;
 end;
@@ -1003,143 +1004,67 @@ var
   I: Integer;
   Report: string;
 begin
-  for I := 0 to FSessions.Count - 1 do
-    try
-      TFSession(FSessions[I]).CrashRescue();
-    except
-      on E: Exception do
-        try SendBugToDeveloper('EurekaLogExceptionNotify Error 1!' + #13#10
-          + 'ThreadId: ' + IntToStr(GetCurrentThreadId()) + #13#10
-          + 'MainThreadId: ' + IntToStr(MainThreadId) + #13#10
-          + E.Message); except end;
-    end;
-
-  try
-    Accounts.Save();
-  except
-    on E: Exception do
-      try SendBugToDeveloper('EurekaLogExceptionNotify Error 2!' + #13#10#13#10 + E.Message); except end;
-  end;
-
-  try
-    Preferences.Save();
-  except
-    on E: Exception do
-      try SendBugToDeveloper('EurekaLogExceptionNotify Error 3!' + #13#10#13#10 + E.Message); except end;
-  end;
-
-  try
-    if ((OnlineProgramVersion < 0) and IsConnectedToInternet()) then
-      if (Assigned(CheckOnlineVersionThread)) then
-        try
-          CheckOnlineVersionThread.WaitFor();
-        except
-          on E: Exception do
-            try SendBugToDeveloper('EurekaLogExceptionNotify Error 4.1!' + #13#10#13#10 + E.Message); except end;
-        end
-      else
-      begin
-        CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
-        try
-          CheckOnlineVersionThread.Execute();
-        except
-          on E: Exception do
-            try SendBugToDeveloper('EurekaLogExceptionNotify Error 4.2!' + #13#10#13#10 + E.Message); except end;
-        end;
-        FreeAndNil(CheckOnlineVersionThread);
-      end;
-  except
-    on E: Exception do
-      try SendBugToDeveloper('EurekaLogExceptionNotify Error 4!' + #13#10#13#10 + E.Message); except end;
-  end;
+  if (GetCurrentThreadId() = MainThreadId) then
+    Perform(UM_CRASH_RESCUE, 0, 0)
+  else
+    PostMessage(Self.Handle, UM_CRASH_RESCUE, 0, 0);
 
   Handle := Preferences.Version >= OnlineProgramVersion;
 
   if (Handle) then
   begin
-    if (Preferences.ObsoleteVersion < Preferences.Version) then
-      Preferences.ObsoleteVersion := Preferences.Version;
-
     Report := '';
 
     try
-      Report := LoadStr(1000) + ' ' + Preferences.VersionStr + #13#10;
-      Report := Report + #13#10;
-    except
-      on E: Exception do
-        try SendBugToDeveloper('EurekaLogExceptionNotify Error 5.1!' + #13#10#13#10 + E.Message); except end;
-    end;
-    if (not (TObject(ExceptionInfo.ExceptionObject) is Exception)) then
-    begin
-      try
-        Report := Report + ExceptionInfo.ExceptionClass + ':' + #13#10;
-        Report := Report + ExceptionInfo.ExceptionMessage + #13#10;
-      except
-        on E: Exception do
-          try SendBugToDeveloper('EurekaLogExceptionNotify Error 5.2!' + #13#10#13#10 + E.Message); except end;
-      end;
-    end
-    else
-    begin
-      try
-        Report := Report + Exception(ExceptionInfo.ExceptionObject).ClassName + ':' + #13#10;
-        Report := Report + Exception(ExceptionInfo.ExceptionObject).Message + #13#10;
-      except
-        on E: Exception do
-          try SendBugToDeveloper('EurekaLogExceptionNotify Error 5.3!' + #13#10#13#10 + E.Message); except end;
-      end;
-    end;
-    Report := Report + #13#10;
+      if (Preferences.ObsoleteVersion < Preferences.Version) then
+        Preferences.ObsoleteVersion := Preferences.Version;
 
-    try
+      Report := Report + LoadStr(1000) + ' ' + Preferences.VersionStr + #13#10#13#10;
+
+      if (not (TObject(ExceptionInfo.ExceptionObject) is Exception)) then
+      begin
+        Report := Report + ExceptionInfo.ExceptionClass + ':' + #13#10;
+        Report := Report + ExceptionInfo.ExceptionMessage + #13#10#13#10;
+      end
+      else
+      begin
+        Report := Report + Exception(ExceptionInfo.ExceptionObject).ClassName + ':' + #13#10;
+        Report := Report + Exception(ExceptionInfo.ExceptionObject).Message + #13#10#13#10;
+      end;
+
       if (TObject(ExceptionInfo.ExceptionObject) is EOutOfMemory) then
       begin
         Report := Report + 'Free Memory: ' + IntToStr(GetFreeMemory()) + #13#10;
-        Report := Report + 'Total Memory: ' + IntToStr(GetMemPhysicalInstalled()) + #13#10;
+        Report := Report + 'Total Memory: ' + IntToStr(GetMemPhysicalInstalled()) + #13#10#13#10;
       end;
-    except
-      on E: Exception do
-        try SendBugToDeveloper('EurekaLogExceptionNotify Error 6!' + #13#10#13#10 + E.Message); except end;
-    end;
 
-    if (GetCurrentThreadId() <> MainThreadId) then
-      Report := Report + 'EurekaLogExceptionNotify() runs in Thread ID ' + IntToStr(GetCurrentThreadId()) + #13#10#13#10;
-
-    if (Assigned(ExceptionInfo.CallStack)) then
-    begin
-      try
+      if (Assigned(ExceptionInfo.CallStack)) then
+      begin
         ExceptionInfo.CallStack.Formatter := TStackFormatter.Create();
-      except
-        on E: Exception do
-          try SendBugToDeveloper('EurekaLogExceptionNotify Error 7.1!' + #13#10#13#10 + E.Message); except end;
-      end;
-      try
-        Report := Report + ExceptionInfo.CallStack.ToString;
-      except
-        on E: Exception do
-          try SendBugToDeveloper('EurekaLogExceptionNotify Error 7.2!' + #13#10#13#10 + E.Message); except end;
-      end;
-    end;
-
-    try
-      if (EditorCommandText <> '') then
-      begin
-        Report := Report + #13#10;
-        Report := Report + 'EditorCommandText: ' + SQLEscapeBin(EditorCommandText, True) + #13#10;
-      end;
-
-      if (LastWantedAddress <> '') then
-      begin
-        Report := Report + #13#10;
-        Report := Report + 'LastWantedAddress: ' + LastWantedAddress + #13#10;
+        Report := Report + ExceptionInfo.CallStack.ToString + #13#10;
       end;
     except
       on E: Exception do
-        try SendBugToDeveloper('EurekaLogExceptionNotify Error 8.1!' + #13#10#13#10 + E.Message); except end;
+        try SendToDeveloper('EurekaLogExceptionNotify(1)' + #13#10#13#10 + E.Message); except end;
     end;
 
     try
-      if (GetCurrentThreadId() = MainThreadId) then
+      if (GetCurrentThreadId() <> MainThreadId) then
+        Report := Report + 'EurekaLogExceptionNotify() runs in Thread ID ' + IntToStr(GetCurrentThreadId()) + #13#10#13#10
+      else
+      begin
+        if (EditorCommandText <> '') then
+        begin
+          Report := Report + #13#10;
+          Report := Report + 'EditorCommandText: ' + SQLEscapeBin(EditorCommandText, True) + #13#10;
+        end;
+
+        if (LastWantedAddress <> '') then
+        begin
+          Report := Report + #13#10;
+          Report := Report + 'LastWantedAddress: ' + LastWantedAddress + #13#10;
+        end;
+
         for I := 0 to Sessions.Count - 1 do
         begin
           Report := Report + #13#10;
@@ -1152,22 +1077,19 @@ begin
 
           Report := Report + 'SQL Log:' + #13#10;
           Report := Report + StringOfChar('-', 72) + #13#10;
-          try
-            Report := Report + Sessions[I].Connection.DebugMonitor.CacheText + #13#10;
-          except
-            on E: Exception do
-              try SendBugToDeveloper('EurekaLogExceptionNotify Error 8.2.1!' + #13#10#13#10 + E.Message); except end;
-          end;
+          Report := Report + Sessions[I].Connection.DebugMonitor.CacheText + #13#10;
         end;
+      end;
     except
       on E: Exception do
-        try SendBugToDeveloper('EurekaLogExceptionNotify Error 8.2!' + #13#10#13#10 + E.Message); except end;
+        try SendToDeveloper('EurekaLogExceptionNotify(2)' + #13#10#13#10 + E.Message); except end;
     end;
 
     try
-      if (Report <> '') then
-        SendBugToDeveloper(Report);
+      SendToDeveloper(Report);
     except
+      on E: Exception do
+        try SendToDeveloper('EurekaLogExceptionNotify(3)' + #13#10#13#10 + E.Message); except end;
     end;
 
     try
@@ -1177,7 +1099,7 @@ begin
         + ' - Bug Report';
     except
       on E: Exception do
-        try SendBugToDeveloper('EurekaLogExceptionNotify Error 9!' + #13#10#13#10 + E.Message); except end;
+        try SendToDeveloper('EurekaLogExceptionNotify(4)' + #13#10#13#10 + E.Message); except end;
     end;
   end;
 end;
@@ -1250,7 +1172,7 @@ begin
   aFExportExcel.Visible := (odExcel in ODBCDrivers) or (odExcel2003 in ODBCDrivers);
   aFExportODBC.Visible := ODBCEnv <> SQL_NULL_HANDLE;
   aHIndex.Enabled := FileExists(Application.HelpFile);
-  aHUpdate.Enabled := IsConnectedToInternet() and (Preferences.SetupProgram = '');
+  aHUpdate.Enabled := (Preferences.SetupProgram = '') and InternetGetConnectedState(nil, 0);
 
   Perform(UM_UPDATETOOLBAR, 0, 0);
 
@@ -1317,7 +1239,7 @@ end;
 
 procedure TWWindow.FormShow(Sender: TObject);
 begin
-  if ((((Preferences.UpdateCheck = utDaily) and (Trunc(Preferences.UpdateChecked) < Date())) or (Preferences.ObsoleteVersion >= Preferences.Version)) and IsConnectedToInternet()) then
+  if ((((Preferences.UpdateCheck = utDaily) and (Trunc(Preferences.UpdateChecked) < Date())) or (Preferences.ObsoleteVersion >= Preferences.Version)) and InternetGetConnectedState(nil, 0)) then
   begin
     CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
     CheckOnlineVersionThread.OnTerminate := OnlineVersionChecked;
@@ -1617,7 +1539,7 @@ begin
   Color := clBtnFace;
 
   if (ActiveTab.Visible) then
-    SendMessage(ActiveTab.Handle, UM_ACTIVATEFRAME, 0, 0);
+    ActiveTab.Perform(UM_ACTIVATEFRAME, 0, 0);
 
   tbDBPrev.Action := ActiveTab.aDPrev;
   tbDBFirst.Action := ActiveTab.DataSetFirst;
@@ -1921,6 +1843,40 @@ begin
   if (Assigned(FSessions)) then
     for I := 0 to FSessions.Count - 1 do
       SendMessage(TFSession(FSessions[0]).Handle, Message.Msg, Message.WParam, Message.LParam);
+end;
+
+procedure TWWindow.UMCrashRescue(var Message: TMessage);
+var
+  I: Integer;
+begin
+  if (GetCurrentThread() <> MainThreadId) then
+    SendToDeveloper('UMCrashRescue(1)' + #13#10
+      + 'ThreadId: ' + IntToStr(GetCurrentThreadId()) + #13#10
+      + 'MainThreadId: ' + IntToStr(MainThreadId))
+  else
+  begin
+    for I := 0 to FSessions.Count - 1 do
+      try
+        TFSession(FSessions[I]).CrashRescue();
+      except
+        on E: Exception do
+          try SendToDeveloper('UMCrashRescue(2)' + #13#10 + E.Message); except end;
+      end;
+
+    try
+      Accounts.Save();
+    except
+      on E: Exception do
+        try SendToDeveloper('UMCrashRescue(3)' + #13#10#13#10 + E.Message); except end;
+    end;
+
+    try
+      Preferences.Save();
+    except
+      on E: Exception do
+        try SendToDeveloper('UMCrashRescue(4)' + #13#10#13#10 + E.Message); except end;
+    end;
+  end;
 end;
 
 procedure TWWindow.UMDeactivateTab(var Message: TMessage);

@@ -31,7 +31,7 @@ type
   end;
 
 function CheckOnlineVersion(const Stream: TStringStream; var VersionStr: string; var SetupProgramURI: string): Boolean;
-procedure SendBugToDeveloper(const Text: string);
+procedure SendToDeveloper(const Text: string);
 
 var
   OnlineProgramVersion: Integer;
@@ -132,7 +132,7 @@ begin
   Result := (OnlineProgramVersion >= 0) and (SetupProgramURI <> '');
 end;
 
-procedure SendBugToDeveloper(const Text: string);
+procedure SendToDeveloper(const Text: string);
 var
   Flags: DWORD;
   HTTPThread: THTTPThread;

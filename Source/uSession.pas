@@ -9555,6 +9555,14 @@ end;
 
 function TSProcess.GetThreadId(): Longword;
 begin
+  // Debug 2016-12-21
+  if (not Assigned(Self)) then
+    raise ERangeError.Create(SRangeError);
+  if (not (TObject(Self) is TSProcess)) then
+    raise ERangeError.Create(SRangeError);
+  if (Name = '') then
+    raise ERangeError.Create(SRangeError);
+
   Result := StrToUInt64(Name);
 end;
 
@@ -9659,10 +9667,9 @@ begin
 
   Result := inherited;
 
+  Session.SendEvent(etItemsValid, Session, Self);
   if (DataSet.RecordCount = 1) then
-    Session.SendEvent(etItemValid, Session, Self, Item)
-  else
-    Session.SendEvent(etItemsValid, Session, Self);
+    Session.SendEvent(etItemValid, Session, Self, Item);
 end;
 
 function TSProcesses.GetProcess(Index: Integer): TSProcess;
@@ -11102,7 +11109,7 @@ begin
         '# MySQL: ' + Self.Connection.ServerVersionStr + #13#10
         + #13#10
         + UnparsableSQL;
-    SendBugToDeveloper(UnparsableSQL);
+    SendToDeveloper(UnparsableSQL);
   end;
 
   FConnection.Free();

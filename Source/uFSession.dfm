@@ -843,7 +843,6 @@ object FSession: TFSession
         HelpContext = 1122
         Align = alClient
         BorderStyle = bsNone
-        Color = clBtnFace
         DataSource = PObjectIDEGridDataSource
         DefaultDrawing = False
         Options = [dgEditing, dgTitles, dgColumnResize, dgColLines, dgRowLines, dgTabs, dgConfirmDelete]

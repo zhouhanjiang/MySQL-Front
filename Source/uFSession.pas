@@ -19,8 +19,9 @@ uses
 
 const
   UM_ACTIVATE_DBGRID = WM_USER + 500;
-  UM_ACTIVATEFTEXT = WM_USER + 501;
-  UM_POST_BUILDER_QUERY_CHANGE = WM_USER + 502;
+  UM_ACTIVATEFRAME = WM_USER + 501;
+  UM_ACTIVATEFTEXT = WM_USER + 502;
+  UM_POST_BUILDER_QUERY_CHANGE = WM_USER + 503;
   UM_SYNCOMPLETION_TIMER = WM_USER + 504;
   UM_WANTED_SYNCHRONIZE = WM_USER + 505;
   UM_STATUS_BAR_REFRESH = WM_USER + 506;
@@ -1997,7 +1998,13 @@ begin
   if (not FSession.Session.Connection.InUse()) then
     AUpdate()
   else
+  begin
+    // Debug 2016-12-21
+    if ((FSession.View = vBrowser) and (FSession.FNavigator.Selected.ImageIndex <> iiBaseTable)) then
+      raise ERangeError.Create(SRangeError);
+
     FUpdate := AUpdate;
+  end;
 end;
 
 procedure TFSession.TWanted.Synchronize();
@@ -2597,7 +2604,7 @@ begin
   if (not Assigned(Session.Account)) then
     raise ERangeError.Create(SRangeError);
   if (not Assigned(Session.Account.Connection)) then
-    raise ERangeError.Create(SRangeError);
+    raise ERangeError.Create(SRangeError); // Occurred on 2016-12-22
   // Debug 2016-12-08
   if (not (Session.Account.Connection is TPAccount.TConnection)) then
     raise ERangeError.Create(SRangeError);
@@ -3082,13 +3089,44 @@ begin
   end
   else if (Assigned(ActiveDBGrid) and (Window.ActiveControl = ActiveDBGrid)) then
   begin
+    // Debug 2016-12-21
+    if (not OpenClipboard(Handle)) then
+      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+    else
+      CloseClipboard();
     ImageIndex := 8;
     if (not Assigned(EditorField)) then
-      ActiveDBGrid.CopyToClipboard()
+    begin
+      ActiveDBGrid.CopyToClipboard();
+      // Debug 2016-12-21
+      if (not OpenClipboard(Handle)) then
+        raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+      else
+        CloseClipboard();
+    end
     else if (FText.Visible) then
-      FText.CopyToClipboard()
+    begin
+      FText.CopyToClipboard();
+      // Debug 2016-12-21
+      if (not OpenClipboard(Handle)) then
+        raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+      else
+        CloseClipboard();
+    end
     else if (FRTF.Visible) then
+    begin
       FRTF.CopyToClipboard();
+      // Debug 2016-12-21
+      if (not OpenClipboard(Handle)) then
+        raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+      else
+        CloseClipboard();
+    end;
+    // Debug 2016-12-21
+    if (not OpenClipboard(Handle)) then
+      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+    else
+      CloseClipboard();
   end
   else if (Window.ActiveControl = ActiveWorkbench) then
   begin
@@ -3271,7 +3309,7 @@ begin
   end
   else if (Assigned(ActiveDBGrid) and (Window.ActiveControl = ActiveDBGrid.InplaceEditor)) then
   begin
-    if (ActiveDBGrid.SelectedField.ReadOnly) then
+    if (not ActiveDBGrid.DataSource.DataSet.CanModify or ActiveDBGrid.SelectedField.ReadOnly) then
       MessageBeep(MB_ICONERROR)
     else
     begin
@@ -3701,6 +3739,8 @@ begin
     // Debug 2016-12-12
     if (not Assigned(FNavigator)) then
       raise ERangeError.Create(SRangeError);
+    // Debug 2016-12-22
+    DImport.FNavigator := @FNavigator;
 
     DImport.Execute();
 
@@ -11208,6 +11248,10 @@ begin
       DImport.FileName := OpenDialog.FileName;
       DImport.CodePage := EncodingToCodePage(OpenDialog.Encodings[OpenDialog.EncodingIndex]);
       DImport.ImportType := itSQLFile;
+
+      // Debug 2016-12-22
+      DImport.FNavigator := @FNavigator;
+
       DImport.Execute();
       Wanted.Update := Session.Update;
     end
@@ -12481,7 +12525,7 @@ begin
       end
       else if ((Event.Item is TSTrigger) and Assigned(Desktop(TSTrigger(Event.Item)).CreateSynMemo())) then
       begin
-        Desktop(TSTrigger(Event.Item)).SynMemo.Text := TSTrigger(Event.Item).Source;
+        Desktop(TSTrigger(Event.Item)).SynMemo.Text := TSTrigger(Event.Item).Stmt;
         PContentChange(nil);
       end
       else if ((Event.Item is TSEvent) and Assigned(Desktop(TSEvent(Event.Item)).CreateSynMemo())) then

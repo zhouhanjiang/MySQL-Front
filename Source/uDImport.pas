@@ -180,6 +180,7 @@ type
   public
     CodePage: Cardinal;
     Filename: TFileName;
+    FNavigator: PPointer; // Debug 2016-12-22
     ImportType: TImportType;
     Session: TSSession;
     SObject: TSObject;
@@ -576,6 +577,10 @@ end;
 
 procedure TDImport.FormHide(Sender: TObject);
 begin
+  // Debug 2016-12-22
+  if (not Assigned(FNavigator^)) then
+    raise ERangeError.Create(SRangeError);
+
   Session.UnRegisterEventProc(FormSessionEvent);
 
   Preferences.Import.Width := Width;
@@ -638,6 +643,10 @@ begin
   TableNames.Free();
 
   PageControl.ActivePage := nil;
+
+  // Debug 2016-12-22
+  if (not Assigned(FNavigator^)) then
+    raise ERangeError.Create(SRangeError);
 end;
 
 procedure TDImport.FormSessionEvent(const Event: TSSession.TEvent);
@@ -657,6 +666,10 @@ procedure TDImport.FormShow(Sender: TObject);
 var
   I: Integer;
 begin
+  // Debug 2016-12-22
+  if (not Assigned(FNavigator^)) then
+    raise ERangeError.Create(SRangeError);
+
   Session.RegisterEventProc(FormSessionEvent);
 
   TableNames := TTableNames.Create();
@@ -710,6 +723,10 @@ begin
 
   if (ImportType in [itSQLFile]) then
     PostMessage(Handle, UM_POST_SHOW, 0, 0);
+
+  // Debug 2016-12-22
+  if (not Assigned(FNavigator^)) then
+    raise ERangeError.Create(SRangeError);
 end;
 
 procedure TDImport.FQuoteClick(Sender: TObject);
@@ -829,6 +846,10 @@ end;
 
 procedure TDImport.OnTerminate(Sender: TObject);
 begin
+  // Debug 2016-12-22
+  if (not Assigned(FNavigator^)) then
+    raise ERangeError.Create(SRangeError);
+
   PostMessage(Handle, UM_TERMINATE, WPARAM(not Import.Terminated), 0);
 end;
 
@@ -1008,6 +1029,10 @@ begin
   CheckActivePageChange(TSTables);
   FBBack.Enabled := False;
   ActiveControl := FBCancel;
+
+  // Debug 2016-12-22
+  if (not Assigned(FNavigator^)) then
+    raise ERangeError.Create(SRangeError);
 end;
 
 procedure TDImport.TSFieldsShow(Sender: TObject);
@@ -1329,6 +1354,10 @@ procedure TDImport.UMTerminate(var Message: TMessage);
 var
   Success: Boolean;
 begin
+  // Debug 2016-12-22
+  if (not Assigned(FNavigator^)) then
+    raise ERangeError.Create(SRangeError);
+
   Success := Boolean(Message.WParam);
 
   Import.WaitFor();
@@ -1347,6 +1376,10 @@ begin
     FBCancel.ModalResult := mrOk
   else
     FBCancel.ModalResult := mrCancel;
+
+  // Debug 2016-12-22
+  if (not Assigned(FNavigator^)) then
+    raise ERangeError.Create(SRangeError);
 end;
 
 procedure TDImport.UMToolError(var Message: TMessage);
