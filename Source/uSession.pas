@@ -538,7 +538,7 @@ type
     function GetTables(): TSTables; inline;
     function GetValidData(): Boolean;
     function OpenEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
-      const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+      const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
   protected
     FDataSet: TDataSet;
     FFilterSQL: string;
@@ -988,7 +988,7 @@ type
     FTriggers: TSTriggers;
     RepairTableList: TList;
     function CheckTableEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
-      const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+      const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
     function GetCount(): Integer;
     function GetChecked(): TDateTime;
     function GetDatabases(): TSDatabases; inline;
@@ -1483,7 +1483,7 @@ type
     procedure SendEvent(const EventType: TSSession.TEvent.TEventType; const Sender: TObject; const Items: TSItems = nil; const Item: TSItem = nil); overload;
     procedure SendEvent(const EventType: TSSession.TEvent.TEventType); overload;
     function SessionResult(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
-      const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+      const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
     property Sessions: TSSessions read FSessions;
   public
     function AddDatabase(const NewDatabase: TSDatabase): Boolean;
@@ -3761,7 +3761,7 @@ begin
 end;
 
 function TSTable.OpenEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
-  const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+  const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
 begin
   DataSet.Open(DataHandle);
 
@@ -4250,13 +4250,7 @@ end;
 
 function TSBaseTable.GetValid(): Boolean;
 begin
-  // Debug 2016-11-19
-  if (not Assigned(Fields)) then
-    raise ERangeError.Create(SRangeError);
-
   Result := inherited and ValidStatus;
-
-  Assert(not Result or (Fields.Count > 0));
 end;
 
 procedure TSBaseTable.InvalidateData();
@@ -7121,7 +7115,7 @@ begin
 end;
 
 function TSDatabase.CheckTableEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
-  const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+  const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
 var
   DatabaseName: string;
   DataSet: TMySQLQuery;
@@ -7657,7 +7651,10 @@ begin
   else
   begin
     if (Assigned(Table.FDataSet)) then
+    begin
+      Table.FDataSet.Close();
       Table.FDataSet.CommandText := NewTableName;
+    end;
 
     if ((Table is TSView) and (Session.Connection.MySQLVersion < 50014)) then
     begin
@@ -8888,7 +8885,7 @@ begin
     if (Assigned(Session.VariableByName('sql_quote_show_create'))) then
       Session.Connection.IdentifierQuoted := Session.VariableByName('sql_quote_show_create').AsBoolean;
 
-    if (Assigned(Session.VariableByName('wait_timeout'))) then
+    if (Assigned(Session.VariableByName('wait_timeout')) and (Session.VariableByName('wait_timeout').AsInteger > 0)) then
       Session.Connection.ServerTimeout := Session.VariableByName('wait_timeout').AsInteger;
 
     if (Session.Connection.MySQLVersion < 40102) then
@@ -11941,7 +11938,7 @@ begin
 end;
 
 function TSSession.SessionResult(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
-  const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+  const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
 
   function SQLParseColumnNames(var Handle: TSQLParse): Boolean;
   var

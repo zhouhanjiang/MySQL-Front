@@ -81,7 +81,7 @@ function UInt64ToStr(const Value: UInt64): string;
 implementation {***************************************************************}
 
 uses
-  RTLConsts, Classes, SysConst;
+  RTLConsts, Classes, SysConst, AnsiStrings;
 
 resourcestring
   SInvalidSQLText = 'Invalid SQL text near "%s".';
@@ -3134,7 +3134,7 @@ var
   Len: Integer;
   StackBuffer: array[0 .. 255] of Char;
 begin
-  Len := StrLen(Value);
+  Len := AnsiStrings.StrLen(Value);
 
   if (Len = 0) then
     Result := ''

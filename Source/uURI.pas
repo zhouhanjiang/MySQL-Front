@@ -379,7 +379,9 @@ procedure TUURI.SetTable(const ATable: string);
 begin
   FTable := ATable;
 
-  if (FTable = '') then
+  if (FDatabase = '') then
+    FPath := '/'
+  else if (FTable = '') then
     FPath := '/' + EscapeURL(FDatabase) + '/'
   else
     FPath := '/' + EscapeURL(FDatabase) + '/' + EscapeURL(FTable) + '/';

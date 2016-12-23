@@ -769,9 +769,9 @@ object WWindow: TWWindow
       HelpContext = 1026
       HelpType = htContext
       ImageIndex = 9
-      ShortCut = 16470
       SecondaryShortCuts.Strings = (
         'Shift+Ins')
+      ShortCut = 16470
     end
     object aSSearchFind: TSearchFind_Ext
       Category = 'Search'
@@ -1161,9 +1161,9 @@ object WWindow: TWWindow
       HelpContext = 1025
       HelpType = htContext
       ImageIndex = 8
-      ShortCut = 16451
       SecondaryShortCuts.Strings = (
         'Ctrl+Ins')
+      ShortCut = 16451
     end
     object aECopyToFile: TAction
       Category = 'Edit'

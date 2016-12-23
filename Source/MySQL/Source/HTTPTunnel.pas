@@ -62,7 +62,7 @@ function mysql_init(mysql: MYSQL): MYSQL; stdcall;
 implementation {***************************************************************}
 
 uses
-  SysUtils, Forms, StrUtils,
+  SysUtils, Forms, StrUtils, AnsiStrings,
   SQLUtils;
 
 const
@@ -448,7 +448,7 @@ begin
       fport := MYSQL_PORT
     else
       fport := port;
-    if (StrLen(unix_socket) > 0) then
+    if (AnsiStrings.StrLen(unix_socket) > 0) then
       Seterror(CR_SOCKET_CREATE_ERROR)
     else
     begin

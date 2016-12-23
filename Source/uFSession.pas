@@ -655,7 +655,7 @@ type
       constructor Create(const AFClient: TFSession; const ASynMemo: TSynMemo; const APDBGrid: TPanel_Ext);
       destructor Destroy(); override;
       function ResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
-        const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+        const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
       property ActiveDBGrid: TMySQLDBGrid read GetActiveDBGrid;
       property SynMemo: TSynMemo read FSynMemo;
     end;
@@ -683,7 +683,7 @@ type
       FWorkbench: TWWorkbench;
     public
       function BuilderResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
-        const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+        const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
       procedure CloseBuilderResult();
       procedure CloseQuery(Sender: TObject; var CanClose: Boolean);
       constructor Create(const AFClient: TFSession; const ADatabase: TSDatabase);
@@ -761,7 +761,7 @@ type
       function CreateSynMemo(): TSynMemo; virtual;
       destructor Destroy(); override;
       function IDEResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
-        const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+        const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
       property ActiveDBGrid: TMySQLDBGrid read GetActiveDBGrid;
       property SynMemo: TSynMemo read FSynMemo;
     end;
@@ -1229,7 +1229,7 @@ begin
 end;
 
 function TFSession.TSQLEditor.ResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
-  const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+  const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
 var
   EndingCommentLength: Integer;
   Item: ^TResult;
@@ -1370,7 +1370,7 @@ end;
 { TFSession.TDatabaseDesktop **************************************************}
 
 function TFSession.TDatabaseDesktop.BuilderResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
-  const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+  const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
 begin
   if (Data) then
   begin
@@ -1827,7 +1827,7 @@ begin
 end;
 
 function TFSession.TRoutineDesktop.IDEResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
-  const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+  const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
 var
   Item: ^TResult;
 begin
@@ -1998,13 +1998,7 @@ begin
   if (not FSession.Session.Connection.InUse()) then
     AUpdate()
   else
-  begin
-    // Debug 2016-12-21
-    if ((FSession.View = vBrowser) and not (FSession.FNavigator.Selected.ImageIndex in [iiBaseTable, iiSystemView, iiView])) then
-      raise ERangeError.Create(SRangeError);
-
     FUpdate := AUpdate;
-  end;
 end;
 
 procedure TFSession.TWanted.Synchronize();
@@ -2388,6 +2382,12 @@ var
 begin
   if (not (csDestroying in ComponentState)) then
   begin
+    // Debug 2016-12-23
+    if ((View = vBrowser) and not (FNavigator.Selected.ImageIndex in [iiBaseTable, iiSystemView, iiView])) then
+      raise ERangeError.Create('ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
+        + 'ClassType: ' + FNavigator.Selected.ClassName + #13#10
+        + 'Address: ' + Address);
+
     OldAddressURI := TUURI.Create(OldAddress);
     NewAddressURI := TUURI.Create(Address);
     if (Session.Databases.NameCmp(NewAddressURI.Database, OldAddressURI.Database) <> 0) then
@@ -3193,6 +3193,11 @@ begin
   end
   else if (Window.ActiveControl = ActiveSynMemo) then
   begin
+    // Debug 2016-12-23
+    if (not OpenClipboard(Handle)) then
+      raise ERangeError.Create(SRangeError)
+    else
+      CloseClipboard();
     try
       ActiveSynMemo.CopyToClipboard();
     except
@@ -3210,7 +3215,7 @@ begin
                  + #10 + 'Name: ' + Control.Name;
           except
           end;
-          raise Exception.Create(E.Message + #10 + 'Clipboard Owner: ' + Msg);
+          raise Exception.Create(Msg);
         end;
     end;
     exit;
@@ -3472,17 +3477,17 @@ begin
         end
         else if (ActiveDBGrid.SelectedField.DataType = ftWideMemo) then
         begin
-          if (CompareMem(Mem, BOM_UNICODE_LE, StrLen(BOM_UNICODE_LE))) then
+          if (CompareMem(Mem, BOM_UNICODE_LE, Length(BOM_UNICODE_LE))) then
           begin
             CodePage := CP_UNICODE;
-            Content := @PAnsiChar(Mem)[StrLen(BOM_UNICODE_LE)];
-            FileSize := FileSize - StrLen(BOM_UNICODE_LE);
+            Content := @PAnsiChar(Mem)[Length(BOM_UNICODE_LE)];
+            FileSize := FileSize - Cardinal(Length(BOM_UNICODE_LE));
           end
-          else if (CompareMem(Mem, BOM_UTF8, StrLen(BOM_UTF8))) then
+          else if (CompareMem(Mem, BOM_UTF8, Length(BOM_UTF8))) then
           begin
             CodePage := CP_UTF8;
-            Content := @PAnsiChar(Mem)[StrLen(BOM_UTF8)];
-            FileSize := FileSize - StrLen(BOM_UTF8);
+            Content := @PAnsiChar(Mem)[Length(BOM_UTF8)];
+            FileSize := FileSize - Cardinal(Length(BOM_UTF8));
           end
           else
           begin
@@ -6040,6 +6045,15 @@ begin
     raise ERangeError.Create(SRangeError)
   else if (Sessions.IndexOf(Session) < 0) then
     raise ERangeError.Create(SRangeError);
+  // Debug 2016-12-23
+  if (not Assigned(Session.Account)) then
+    raise ERangeError.Create(SRangeError);
+  if (not (TObject(Session.Account) is TPAccount)) then
+    try
+      raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Session.Account).ClassName)
+    except
+      raise ERangeError.Create(SRangeError);
+    end;
 
   Session.UnRegisterEventProc(FormSessionEvent);
   Session.CreateDesktop := nil;
@@ -6052,14 +6066,6 @@ begin
   FNavigator.Items.BeginUpdate();
   FNavigator.Items.Clear();
   FNavigator.Items.EndUpdate();
-
-  try
-    if (Assigned(ShellLink)) then ShellLink.Free();
-    if (Assigned(FFolders)) then FFolders.Free();
-    if (Assigned(FFiles)) then FFiles.Free();
-  except
-    // There is a bug inside ShellBrowser.pas ver. 7.3 - but it's not interested to get informed
-  end;
 
   for View in [vEditor, vEditor2, vEditor3] do
     if (Assigned(SQLEditors[View])) then
@@ -12559,7 +12565,11 @@ begin
   // StatusBar should be refreshed, after all events applied.
   PostMessage(Handle, UM_STATUS_BAR_REFRESH, 0, 0);
 
-  if (Assigned(Event) and ((Event.EventType in [etItemCreated, etItemAltered]) or ((Event.EventType in [etItemValid]) and (Event.Item is TSObject) and not TSObject(Event.Item).Valid)) and (Screen.ActiveForm = Window) and Wanted.Nothing) then
+  if (Assigned(Event)
+    and ((Event.EventType in [etItemCreated, etItemAltered])
+      or (Event.EventType in [etItemValid]) and (Event.Item is TSObject) and not TSObject(Event.Item).Valid)
+    and (Screen.ActiveForm = Window)
+    and Wanted.Nothing) then
     Wanted.Update := Session.Update;
 end;
 
@@ -13237,7 +13247,7 @@ begin
                   ditProcedure:
                     if (Assigned(Database) and Assigned(Database.Routines)) then
                       for J := 0 to Database.Routines.Count - 1 do
-                        if (Database.Routines[I] is TSProcedure) then
+                        if (Database.Routines[J] is TSProcedure) then
                           SynCompletionListAdd(
                             Database.Routines[J].Name,
                             Session.Connection.EscapeIdentifier(Database.Routines[J].Name));

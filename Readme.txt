@@ -26,14 +26,6 @@ http://www.activequerybuilder.com/
 ShellBrowser:
 http://www.jam-software.de/shellbrowser_delphi/
 
-Mirkes MPHexEditor:
-https://launchpad.net/dcr/
-
-Note: MPHexEditor was developed by Markus Stephany, who stopped his work.
-Later on the Delphi Code Revival project worked on it - but seems not
-very long. Inside this project there is an own transformation from Delphi 7
-to Delphi XE2.
-
 
 Tools to build the setup program:
 =================================

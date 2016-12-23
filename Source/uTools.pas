@@ -379,7 +379,7 @@ type
     procedure ExecuteFooter(); virtual;
     procedure ExecuteHeader(); virtual;
     procedure ExecuteRoutine(const Item: TTool.TDBObjectItem); virtual;
-    procedure ExecuteTable(const Item: TTool.TDBObjectItem; const DataHandle: TMySQLConnection.TDataResult); virtual;
+    procedure ExecuteTable(const Item: TTool.TDBObjectItem; const ResultHandle: TMySQLConnection.TResultHandle); virtual;
     procedure ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); virtual;
     procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); virtual;
     procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); virtual;
@@ -681,8 +681,8 @@ type
     procedure BeforeExecute(); override;
     procedure ExecuteEvent(const Item: TTool.TDBObjectItem); override;
     procedure ExecuteRoutine(const Item: TTool.TDBObjectItem); override;
-    procedure ExecuteTable(const Item: TTool.TDBObjectItem; const DataHandle: TMySQLConnection.TDataResult); override;
-    procedure ExecuteTableData(const Item: TItem; const DataHandle: TMySQLConnection.TDataResult);
+    procedure ExecuteTable(const Item: TTool.TDBObjectItem; const ResultHandle: TMySQLConnection.TResultHandle); override;
+    procedure ExecuteTableData(const Item: TItem; const ResultHandle: TMySQLConnection.TResultHandle);
     procedure ExecuteTableStructure(const Item: TItem);
   public
     procedure Add(const ADBObject: TSDBObject; const ADestinationDatabaseName: string); virtual;
@@ -4094,7 +4094,6 @@ procedure TTExport.Execute();
 var
   Database: TSDatabase;
   DatabaseName: string;
-  DataHandle: TMySQLConnection.TDataResult;
   DataSet: TMySQLQuery;
   DataTable: Boolean;
   DataTables: TList;
@@ -4110,6 +4109,7 @@ var
   ObjectName: string;
   Objects: TList;
   Parse: TSQLParse;
+  ResultHandle: TMySQLConnection.TResultHandle;
   SQL: string;
   Table: TSTable;
 begin
@@ -4181,45 +4181,35 @@ begin
 
     DoUpdateGUI();
 
-    if (SQL <> '') then
+    if ((SQL <> '') and (Session.Connection.CreateResultHandle(ResultHandle, SQL))) then
     begin
       DataSet := TMySQLQuery.Create(nil);
       DataSet.Connection := Session.Connection;
-      if (Session.Connection.FirstResult(DataHandle, SQL)) then
-        repeat
-          DataSet.Open(DataHandle);
-          DatabaseName := DataSet.Connection.DatabaseName;
+      while (Session.Connection.ExecuteResult(ResultHandle)) do
+      begin
+        DataSet.Open(ResultHandle);
+        DatabaseName := DataSet.Connection.DatabaseName;
 
-          if (not DataSet.IsEmpty
-            and SQLCreateParse(Parse, PChar(DataSet.CommandText), Length(DataSet.CommandText), Session.Connection.MySQLVersion)
-            and SQLParseKeyword(Parse, 'SELECT')
-            and SQLParseValue(Parse, 'COUNT')
-            and SQLParseChar(Parse, '(') and SQLParseChar(Parse, '*') and SQLParseChar(Parse, ')')
-            and SQLParseKeyword(Parse, 'FROM')
-            and SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
-            for I := 0 to Items.Count - 1 do
-            begin
-              Database := Session.DatabaseByName(DatabaseName);
-              if (Assigned(Database)
-                and (Items[I] is TDBObjectItem)
-                and (TDBObjectItem(Items[I]).DBObject = Database.TableByName(ObjectName))) then
-                Items[I].RecordsSum := DataSet.Fields[0].AsLargeInt;
-            end
-          else if (DataSet.IsEmpty) then
-            raise ERangeError.Create('ErrorCode: ' + IntToStr(DataSet.Connection.ErrorCode) + #13#10
-              + 'ErrorMessage: ' + DataSet.Connection.ErrorMessage + #13#10
-              + 'CommandText: ' + DataSet.CommandText + #13#10
-              + 'SQL: ' + SQL)
-          else
-            raise ERangeError.Create('ErrorCode: ' + IntToStr(DataSet.Connection.ErrorCode) + #13#10
-              + 'ErrorMessage: ' + DataSet.Connection.ErrorMessage + #13#10
-              + 'CommandText: ' + DataSet.CommandText + #13#10
-              + 'SQL: ' + SQL);
-          DataSet.Close();
+        if (not DataSet.IsEmpty
+          and SQLCreateParse(Parse, PChar(DataSet.CommandText), Length(DataSet.CommandText), Session.Connection.MySQLVersion)
+          and SQLParseKeyword(Parse, 'SELECT')
+          and SQLParseValue(Parse, 'COUNT')
+          and SQLParseChar(Parse, '(') and SQLParseChar(Parse, '*') and SQLParseChar(Parse, ')')
+          and SQLParseKeyword(Parse, 'FROM')
+          and SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
+          for I := 0 to Items.Count - 1 do
+          begin
+            Database := Session.DatabaseByName(DatabaseName);
+            if (Assigned(Database)
+              and (Items[I] is TDBObjectItem)
+              and (TDBObjectItem(Items[I]).DBObject = Database.TableByName(ObjectName))) then
+              Items[I].RecordsSum := DataSet.Fields[0].AsLargeInt;
+          end;
+        DataSet.Close();
 
-          DoUpdateGUI();
-        until (not Session.Connection.NextResult(DataHandle));
-      Session.Connection.CloseResult(DataHandle);
+        DoUpdateGUI();
+      end;
+      Session.Connection.CloseResultHandle(ResultHandle);
       DataSet.Free();
     end;
   end;
@@ -4232,114 +4222,99 @@ begin
 
   if (Success <> daAbort) then
   begin
-    DataHandle := nil;
+    SQL := '';
+    for I := 0 to DataTables.Count - 1 do
+    begin
+      Table := TSBaseTable(DataTables[I]);
 
-    for I := 0 to Items.Count - 1 do
-      if (Success <> daAbort) then
+      if (Length(TableFields) = 0) then
+        FieldNames := '*'
+      else
       begin
-        if ((Success <> daAbort) and ((I = 0) or (TDBObjectItem(Items[I]).DBObject.Database <> TDBObjectItem(Items[I - 1]).DBObject.Database))) then
+        FieldNames := '';
+        for K := 0 to Length(TableFields) - 1 do
         begin
-          Success := daSuccess;
-
-          if (Items[I] is TDBGridItem) then
-            ExecuteDatabaseHeader(Session.DatabaseByName(TMySQLDataSet(TDBGridItem(Items[I]).DBGrid.DataSource.DataSet).DatabaseName))
-          else if (Items[I] is TDBObjectItem) then
-            ExecuteDatabaseHeader(TDBObjectItem(Items[I]).DBObject.Database);
+          if (FieldNames <> '') then FieldNames := FieldNames + ',';
+          FieldNames := FieldNames + Session.Connection.EscapeIdentifier(TableFields[K].Name);
         end;
-
-        if (Success <> daAbort) then
-        begin
-          Success := daSuccess;
-
-          if (Items[I] is TDBGridItem) then
-            ExecuteDataDBGrid(TDBGridItem(Items[I]))
-          else if (Items[I] is TDBObjectItem) then
-          begin
-            DataTablesIndex := DataTables.IndexOf(TDBObjectItem(Items[I]).DBObject);
-            if ((Success = daSuccess) and (DataTablesIndex >= 0)) then
-              if (not Assigned(DataHandle)) then
-              begin
-                SQL := '';
-                for J := DataTablesIndex to DataTables.Count - 1 do
-                begin
-                  Table := TSBaseTable(DataTables[J]);
-
-                  if (Length(TableFields) = 0) then
-                    FieldNames := '*'
-                  else
-                  begin
-                    FieldNames := '';
-                    for K := 0 to Length(TableFields) - 1 do
-                    begin
-                      if (FieldNames <> '') then FieldNames := FieldNames + ',';
-                      FieldNames := FieldNames + Session.Connection.EscapeIdentifier(TableFields[K].Name);
-                    end;
-                  end;
-
-                  SQL := SQL + 'SELECT ' + FieldNames + ' FROM ' + Session.Connection.EscapeIdentifier(Table.Database.Name) + '.' + Session.Connection.EscapeIdentifier(Table.Name);
-
-                  if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).PrimaryKey)) then
-                  begin
-                    SQL := SQL + ' ORDER BY ';
-                    for K := 0 to TSBaseTable(Table).PrimaryKey.Columns.Count - 1 do
-                    begin
-                      if (K > 0) then SQL := SQL + ',';
-                      SQL := SQL + Session.Connection.EscapeIdentifier(TSBaseTable(Table).PrimaryKey.Columns[K].Field.Name);
-                    end;
-                  end;
-                  SQL := SQL + ';' + #13#10;
-                end;
-
-                if (not Session.Connection.FirstResult(DataHandle, SQL)) then
-                  DoError(DatabaseError(Session), nil, False);
-              end
-              else
-              begin
-                if (not Session.Connection.NextResult(DataHandle)) then
-                  DoError(DatabaseError(Session), nil, False);
-              end;
-
-            if (Success <> daAbort) then
-            begin
-              Success := daSuccess;
-
-              if (TDBObjectItem(Items[I]).DBObject is TSTable) then
-                if (DataTablesIndex < 0) then
-                  ExecuteTable(TDBObjectItem(Items[I]), nil)
-                else
-                  ExecuteTable(TDBObjectItem(Items[I]), DataHandle)
-              else if (Structure) then
-                if (TDBObjectItem(Items[I]).DBObject is TSRoutine) then
-                  ExecuteRoutine(TDBObjectItem(Items[I]))
-                else if (TDBObjectItem(Items[I]).DBObject is TSEvent) then
-                  ExecuteEvent(TDBObjectItem(Items[I]))
-                else if ((TDBObjectItem(Items[I]).DBObject is TSTrigger) and (Self is TTExportSQL)) then
-                  ExecuteTrigger(TSTrigger(TDBObjectItem(Items[I]).DBObject));
-            end;
-          end;
-        end;
-
-        if ((Success <> daSuccess) and Assigned(DataHandle)) then
-        begin
-          Session.Connection.CloseResult(DataHandle);
-          DataHandle := nil;
-        end;
-
-        if ((Success <> daAbort) and ((I = Items.Count - 1) or (TDBObjectItem(Items[I + 1]).DBObject.Database <> TDBObjectItem(Items[I]).DBObject.Database))) then
-        begin
-          Success := daSuccess;
-
-          if (Items[I] is TDBGridItem) then
-            ExecuteDatabaseFooter(Session.DatabaseByName(TMySQLDataSet(TDBGridItem(Items[I]).DBGrid.DataSource.DataSet).DatabaseName))
-          else if (Items[I] is TDBObjectItem) then
-            ExecuteDatabaseFooter(TDBObjectItem(Items[I]).DBObject.Database);
-        end;
-
-        TItem(Items[I]).Done := True;
       end;
 
-    if (Assigned(DataHandle)) then
-      Session.Connection.CloseResult(DataHandle);
+      SQL := SQL + 'SELECT ' + FieldNames + ' FROM ' + Session.Connection.EscapeIdentifier(Table.Database.Name) + '.' + Session.Connection.EscapeIdentifier(Table.Name);
+
+      if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).PrimaryKey)) then
+      begin
+        SQL := SQL + ' ORDER BY ';
+        for K := 0 to TSBaseTable(Table).PrimaryKey.Columns.Count - 1 do
+        begin
+          if (K > 0) then SQL := SQL + ',';
+          SQL := SQL + Session.Connection.EscapeIdentifier(TSBaseTable(Table).PrimaryKey.Columns[K].Field.Name);
+        end;
+      end;
+      SQL := SQL + ';' + #13#10;
+    end;
+
+    if (Session.Connection.CreateResultHandle(ResultHandle, SQL)) then
+    begin
+      for I := 0 to Items.Count - 1 do
+        if (Success <> daAbort) then
+        begin
+          if ((Success <> daAbort) and ((I = 0) or (TDBObjectItem(Items[I]).DBObject.Database <> TDBObjectItem(Items[I - 1]).DBObject.Database))) then
+          begin
+            Success := daSuccess;
+
+            if (Items[I] is TDBGridItem) then
+              ExecuteDatabaseHeader(Session.DatabaseByName(TMySQLDataSet(TDBGridItem(Items[I]).DBGrid.DataSource.DataSet).DatabaseName))
+            else if (Items[I] is TDBObjectItem) then
+              ExecuteDatabaseHeader(TDBObjectItem(Items[I]).DBObject.Database);
+          end;
+
+          if (Success <> daAbort) then
+          begin
+            Success := daSuccess;
+
+            if (Items[I] is TDBGridItem) then
+              ExecuteDataDBGrid(TDBGridItem(Items[I]))
+            else if (Items[I] is TDBObjectItem) then
+            begin
+              if (DataTables.IndexOf(TDBObjectItem(Items[I]).DBObject) >= 0) then
+                while ((Success = daSuccess) and not Session.Connection.ExecuteResult(ResultHandle)) do
+                  DoError(DatabaseError(Session), nil, True);
+
+              if (Success <> daAbort) then
+              begin
+                Success := daSuccess;
+
+                if (TDBObjectItem(Items[I]).DBObject is TSTable) then
+                  ExecuteTable(TDBObjectItem(Items[I]), ResultHandle)
+                else if (Structure) then
+                  if (TDBObjectItem(Items[I]).DBObject is TSRoutine) then
+                    ExecuteRoutine(TDBObjectItem(Items[I]))
+                  else if (TDBObjectItem(Items[I]).DBObject is TSEvent) then
+                    ExecuteEvent(TDBObjectItem(Items[I]))
+                  else if ((TDBObjectItem(Items[I]).DBObject is TSTrigger) and (Self is TTExportSQL)) then
+                    ExecuteTrigger(TSTrigger(TDBObjectItem(Items[I]).DBObject));
+              end;
+            end;
+          end;
+
+          if (Success <> daSuccess) then
+            Session.Connection.CancelResultHandle(ResultHandle);
+
+          if ((Success <> daAbort) and ((I = Items.Count - 1) or (TDBObjectItem(Items[I + 1]).DBObject.Database <> TDBObjectItem(Items[I]).DBObject.Database))) then
+          begin
+            Success := daSuccess;
+
+            if (Items[I] is TDBGridItem) then
+              ExecuteDatabaseFooter(Session.DatabaseByName(TMySQLDataSet(TDBGridItem(Items[I]).DBGrid.DataSource.DataSet).DatabaseName))
+            else if (Items[I] is TDBObjectItem) then
+              ExecuteDatabaseFooter(TDBObjectItem(Items[I]).DBObject.Database);
+          end;
+
+          TItem(Items[I]).Done := True;
+        end;
+
+      Session.Connection.CloseResultHandle(ResultHandle);
+    end;
   end;
 
   if (Success <> daAbort) then
@@ -4455,7 +4430,7 @@ procedure TTExport.ExecuteRoutine(const Item: TTool.TDBObjectItem);
 begin
 end;
 
-procedure TTExport.ExecuteTable(const Item: TTool.TDBObjectItem; const DataHandle: TMySQLConnection.TDataResult);
+procedure TTExport.ExecuteTable(const Item: TTool.TDBObjectItem; const ResultHandle: TMySQLConnection.TResultHandle);
 var
   DataSet: TMySQLQuery;
   Fields: array of TField;
@@ -4466,14 +4441,14 @@ var
 begin
   Table := TSTable(Item.DBObject);
 
-  if (not Data or not Assigned(DataHandle)) then
+  if (not Data) then
     DataSet := nil
   else
   begin
     DataSet := TMySQLQuery.Create(nil);
     while ((Success = daSuccess) and not DataSet.Active) do
     begin
-      DataSet.Open(DataHandle);
+      DataSet.Open(ResultHandle);
       if (not DataSet.Active) then
         DoError(DatabaseError(Session), Item, False, SQL);
     end;
@@ -6956,12 +6931,13 @@ end;
 
 procedure TTExportCanvas.BeforeExecute();
 var
-  DataHandle: TMySQLConnection.TDataResult;
+  DataHandle: TMySQLConnection.TDataHandle;
   DataSet: TMySQLQuery;
   I: Integer;
   J: Integer;
   K: Integer;
   SQL: string;
+  ResultHandle: TMySQLConnection.TResultHandle;
   Table: TSTable;
   Tables: TList;
 begin
@@ -6995,42 +6971,30 @@ begin
         SQL := SQL + ' FROM ' + Session.Connection.EscapeIdentifier(Table.Database.Name) + '.' + Session.Connection.EscapeIdentifier(Table.Name) + ';' + #13#10;
       end;
 
-    if ((Success = daSuccess) and (Tables.Count > 0)) then
+    if ((Success = daSuccess) and (Tables.Count > 0) and Session.Connection.CreateResultHandle(ResultHandle, SQL)) then
     begin
-      DataHandle := nil;
-
       for J := 0 to Tables.Count - 1 do
+      begin
+        while ((Success = daSuccess) and not Session.Connection.ExecuteResult(ResultHandle)) do
+          DoError(DatabaseError(Session), nil, True);
+
         if (Success = daSuccess) then
-        begin
-          if (J = 0) then
-          begin
-            if (not Session.Connection.FirstResult(DataHandle, SQL)) then
-              DoError(DatabaseError(Session), nil, False, SQL)
-          end
-          else
-          begin
-            if (not Session.Connection.NextResult(DataHandle)) then
-              DoError(DatabaseError(Session), nil, False);
-          end;
+          for I := 0 to Items.Count - 1 do
+            if ((Items[I] is TDBObjectItem) and (TDBObjectItem(Items[I]).DBObject = Tables[J])) then
+            begin
+              SetLength(MaxFieldsCharLengths, Length(MaxFieldsCharLengths) + 1);
+              SetLength(MaxFieldsCharLengths[Length(MaxFieldsCharLengths) - 1], TSTable(Tables[J]).Fields.Count);
 
-          if (Success = daSuccess) then
-            for I := 0 to Items.Count - 1 do
-              if ((Items[I] is TDBObjectItem) and (TDBObjectItem(Items[I]).DBObject = Tables[J])) then
-              begin
-                SetLength(MaxFieldsCharLengths, Length(MaxFieldsCharLengths) + 1);
-                SetLength(MaxFieldsCharLengths[Length(MaxFieldsCharLengths) - 1], TSTable(Tables[J]).Fields.Count);
+              DataSet := TMySQLQuery.Create(nil);
+              DataSet.Open(DataHandle);
+              if (not DataSet.IsEmpty()) then
+                for K := 0 to DataSet.FieldCount - 1 do
+                  MaxFieldsCharLengths[Length(MaxFieldsCharLengths) - 1][K] := DataSet.Fields[K].AsInteger;
+              DataSet.Free();
+            end;
+      end;
 
-                DataSet := TMySQLQuery.Create(nil);
-                DataSet.Open(DataHandle);
-                if (not DataSet.IsEmpty()) then
-                  for K := 0 to DataSet.FieldCount - 1 do
-                    MaxFieldsCharLengths[Length(MaxFieldsCharLengths) - 1][K] := DataSet.Fields[K].AsInteger;
-                DataSet.Free();
-              end;
-        end;
-
-      if (Assigned(DataHandle)) then
-        Session.Connection.CloseResult(DataHandle);
+      Session.Connection.CloseResultHandle(ResultHandle);
     end;
 
     Tables.Free();
@@ -8029,7 +7993,7 @@ begin
   if (Success = daFail) then Success := daSuccess;
 end;
 
-procedure TTTransfer.ExecuteTable(const Item: TTool.TDBObjectItem; const DataHandle: TMySQLConnection.TDataResult);
+procedure TTTransfer.ExecuteTable(const Item: TTool.TDBObjectItem; const ResultHandle: TMySQLConnection.TResultHandle);
 var
   I: Integer;
   DestinationDatabase: TSDatabase;
@@ -8082,7 +8046,7 @@ begin
 
       if ((Success = daSuccess) and Data and (SourceTable is TSBaseTable)) then
       begin
-        ExecuteTableData(TItem(Item), DataHandle);
+        ExecuteTableData(TItem(Item), ResultHandle);
         if (Terminated) then Success := daAbort;
       end;
 
@@ -8113,7 +8077,7 @@ begin
   if (Success = daFail) then Success := daSuccess;
 end;
 
-procedure TTTransfer.ExecuteTableData(const Item: TItem; const DataHandle: TMySQLConnection.TDataResult);
+procedure TTTransfer.ExecuteTableData(const Item: TItem; const ResultHandle: TMySQLConnection.TResultHandle);
 var
   Buffer: TTool.TStringBuffer;
   DataFileBuffer: TDataFileBuffer;
@@ -8169,11 +8133,11 @@ begin
     DataSet := TMySQLQuery.Create(nil);
     while ((Success = daSuccess) and not DataSet.Active) do
     begin
-      DataSet.Open(DataHandle);
+      DataSet.Open(ResultHandle);
       if (not DataSet.Active) then
         DoError(DatabaseError(Session), Item, False, SQL)
       else if (DataSet.FieldCount = 0) then
-        raise ERangeError.CreateFMT(SRangeError + ' (FieldCount: %d, ErrorCode: %d, SQL: %s)', ['FieldCount', FieldCount, DataHandle.Connection.ErrorCode, DataSet.CommandText]);
+        raise ERangeError.CreateFMT(SRangeError + ' (FieldCount: %d, ErrorCode: %d, SQL: %s)', ['FieldCount', FieldCount, DataSet.Connection.ErrorCode, DataSet.CommandText]);
     end;
 
     if (Success = daSuccess) then
@@ -8590,13 +8554,14 @@ procedure TTSearch.Execute();
 var
   Database: TSDatabase;
   DatabaseName: string;
-  DataHandle: TMySQLConnection.TDataResult;
+  DataHandle: TMySQLConnection.TDataHandle;
   DataSet: TMySQLQuery;
   I: Integer;
   J: Integer;
   List: TList;
   ObjectName: string;
   Parse: TSQLParse;
+  ResultHandle: TMySQLConnection.TResultHandle;
   SQL: string;
   Table: TSTable;
 begin
@@ -8636,34 +8601,34 @@ begin
 
   DoUpdateGUI();
 
-  if (SQL <> '') then
+  if ((SQL <> '') and Session.Connection.CreateResultHandle(ResultHandle, SQL)) then
   begin
     DataSet := TMySQLQuery.Create(nil);
     DataSet.Connection := Session.Connection;
-    if (Session.Connection.FirstResult(DataHandle, SQL)) then
-      repeat
-        DataSet.Open(DataHandle);
-        DatabaseName := DataSet.Connection.DatabaseName;
-        if (not DataSet.IsEmpty
-          and SQLCreateParse(Parse, PChar(DataSet.CommandText), Length(DataSet.CommandText), Session.Connection.MySQLVersion)
-          and SQLParseKeyword(Parse, 'SELECT')
-          and SQLParseValue(Parse, 'COUNT')
-          and SQLParseChar(Parse, '(') and SQLParseChar(Parse, '*') and SQLParseChar(Parse, ')')
-          and SQLParseKeyword(Parse, 'FROM')
-          and SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
-          for I := 0 to Items.Count - 1 do
-          begin
-            Database := Session.DatabaseByName(DatabaseName);
-            if (Assigned(Database) and (TItem(Items[I]).SObject = Database.TableByName(ObjectName))) then
-              TItem(Items[I]).RecordsSum := DataSet.Fields[0].AsLargeInt;
-          end
-        else
-          raise ERangeError.Create(SRangeError);
-        DataSet.Close();
 
-        DoUpdateGUI();
-      until (not Session.Connection.NextResult(DataHandle));
-    Session.Connection.CloseResult(DataHandle);
+    while (Session.Connection.ExecuteResult(ResultHandle)) do
+    begin
+      DataSet.Open(ResultHandle);
+      DatabaseName := DataSet.Connection.DatabaseName;
+      if (not DataSet.IsEmpty
+        and SQLCreateParse(Parse, PChar(DataSet.CommandText), Length(DataSet.CommandText), Session.Connection.MySQLVersion)
+        and SQLParseKeyword(Parse, 'SELECT')
+        and SQLParseValue(Parse, 'COUNT')
+        and SQLParseChar(Parse, '(') and SQLParseChar(Parse, '*') and SQLParseChar(Parse, ')')
+        and SQLParseKeyword(Parse, 'FROM')
+        and SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
+        for I := 0 to Items.Count - 1 do
+        begin
+          Database := Session.DatabaseByName(DatabaseName);
+          if (Assigned(Database) and (TItem(Items[I]).SObject = Database.TableByName(ObjectName))) then
+            TItem(Items[I]).RecordsSum := DataSet.Fields[0].AsLargeInt;
+        end;
+      DataSet.Close();
+
+      DoUpdateGUI();
+    end;
+
+    Session.Connection.CloseResultHandle(ResultHandle);
     DataSet.Free();
   end;
 

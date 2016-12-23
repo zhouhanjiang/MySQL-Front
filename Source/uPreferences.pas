@@ -3055,8 +3055,11 @@ begin
   try
     Desktop.Assign(Source.Desktop);
   except
+    // Debug 2016-12-23
     on E: Exception do
-      raise Exception.Create(E.Message + ' FPath: ' + Source.Desktop.FPath);
+      raise Exception.Create(E.Message + #13#10
+        + 'Source.Desktop.FPath: ' + Source.Desktop.FPath + #13#10
+        + 'Source.Desktop.Address: ' + Source.Desktop.Address);
   end;
 end;
 

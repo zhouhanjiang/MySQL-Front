@@ -539,7 +539,7 @@ begin
     // Needed for TacQueryBuilder
     Control := Control.Parent;
 
-  if (not Assigned(ActiveControl) or (Control.HelpContext < 0)) then
+  if (not Assigned(Control) or (Control.HelpContext < 0)) then
     Application.HelpCommand(HELP_FINDER, 0)
   else
     Application.HelpCommand(HELP_CONTEXT, Control.HelpContext);
@@ -1018,9 +1018,19 @@ begin
     try
       if (Preferences.ObsoleteVersion < Preferences.Version) then
         Preferences.ObsoleteVersion := Preferences.Version;
+    except
+      on E: Exception do
+        try SendToDeveloper('EurekaLogExceptionNotify(1)' + #13#10#13#10 + E.Message); except end;
+    end;
 
+    try
       Report := Report + LoadStr(1000) + ' ' + Preferences.VersionStr + #13#10#13#10;
+    except
+      on E: Exception do
+        try SendToDeveloper('EurekaLogExceptionNotify(2)' + #13#10#13#10 + E.Message); except end;
+    end;
 
+    try
       if (not (TObject(ExceptionInfo.ExceptionObject) is Exception)) then
       begin
         Report := Report + ExceptionInfo.ExceptionClass + ':' + #13#10;
@@ -1031,13 +1041,23 @@ begin
         Report := Report + Exception(ExceptionInfo.ExceptionObject).ClassName + ':' + #13#10;
         Report := Report + Exception(ExceptionInfo.ExceptionObject).Message + #13#10#13#10;
       end;
+    except
+      on E: Exception do
+        try SendToDeveloper('EurekaLogExceptionNotify(3)' + #13#10#13#10 + E.Message); except end;
+    end;
 
+    try
       if (TObject(ExceptionInfo.ExceptionObject) is EOutOfMemory) then
       begin
         Report := Report + 'Free Memory: ' + IntToStr(GetFreeMemory()) + #13#10;
         Report := Report + 'Total Memory: ' + IntToStr(GetMemPhysicalInstalled()) + #13#10#13#10;
       end;
+    except
+      on E: Exception do
+        try SendToDeveloper('EurekaLogExceptionNotify(4)' + #13#10#13#10 + E.Message); except end;
+    end;
 
+    try
       if (Assigned(ExceptionInfo.CallStack)) then
       begin
         ExceptionInfo.CallStack.Formatter := TStackFormatter.Create();
@@ -1045,7 +1065,7 @@ begin
       end;
     except
       on E: Exception do
-        try SendToDeveloper('EurekaLogExceptionNotify(1)' + #13#10#13#10 + E.Message); except end;
+        try SendToDeveloper('EurekaLogExceptionNotify(5)' + #13#10#13#10 + E.Message); except end;
     end;
 
     try
@@ -1082,14 +1102,14 @@ begin
       end;
     except
       on E: Exception do
-        try SendToDeveloper('EurekaLogExceptionNotify(2)' + #13#10#13#10 + E.Message); except end;
+        try SendToDeveloper('EurekaLogExceptionNotify(6)' + #13#10#13#10 + E.Message); except end;
     end;
 
     try
       SendToDeveloper(Report);
     except
       on E: Exception do
-        try SendToDeveloper('EurekaLogExceptionNotify(3)' + #13#10#13#10 + E.Message); except end;
+        try SendToDeveloper('EurekaLogExceptionNotify(7)' + #13#10#13#10 + E.Message); except end;
     end;
 
     try
@@ -1099,7 +1119,7 @@ begin
         + ' - Bug Report';
     except
       on E: Exception do
-        try SendToDeveloper('EurekaLogExceptionNotify(4)' + #13#10#13#10 + E.Message); except end;
+        try SendToDeveloper('EurekaLogExceptionNotify(8)' + #13#10#13#10 + E.Message); except end;
     end;
   end;
 end;
@@ -1849,33 +1869,26 @@ procedure TWWindow.UMCrashRescue(var Message: TMessage);
 var
   I: Integer;
 begin
-  if (GetCurrentThread() <> MainThreadId) then
-    SendToDeveloper('UMCrashRescue(1)' + #13#10
-      + 'ThreadId: ' + IntToStr(GetCurrentThreadId()) + #13#10
-      + 'MainThreadId: ' + IntToStr(MainThreadId))
-  else
-  begin
-    for I := 0 to FSessions.Count - 1 do
-      try
-        TFSession(FSessions[I]).CrashRescue();
-      except
-        on E: Exception do
-          try SendToDeveloper('UMCrashRescue(2)' + #13#10 + E.Message); except end;
-      end;
-
+  for I := 0 to FSessions.Count - 1 do
     try
-      Accounts.Save();
+      TFSession(FSessions[I]).CrashRescue();
     except
       on E: Exception do
-        try SendToDeveloper('UMCrashRescue(3)' + #13#10#13#10 + E.Message); except end;
+        try SendToDeveloper('UMCrashRescue(1)' + #13#10 + E.Message); except end;
     end;
 
-    try
-      Preferences.Save();
-    except
-      on E: Exception do
-        try SendToDeveloper('UMCrashRescue(4)' + #13#10#13#10 + E.Message); except end;
-    end;
+  try
+    Accounts.Save();
+  except
+    on E: Exception do
+      try SendToDeveloper('UMCrashRescue(2)' + #13#10#13#10 + E.Message); except end;
+  end;
+
+  try
+    Preferences.Save();
+  except
+    on E: Exception do
+      try SendToDeveloper('UMCrashRescue(3)' + #13#10#13#10 + E.Message); except end;
   end;
 end;
 

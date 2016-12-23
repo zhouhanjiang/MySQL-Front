@@ -293,7 +293,7 @@ const
 implementation {***************************************************************}
 
 uses
-  ZLib, StrUtils, SysConst;
+  ZLib, StrUtils, SysConst, AnsiStrings;
 
 const
   AF_INET6 = 23;
@@ -548,7 +548,7 @@ begin
   MaxValue := $3FFFFFFF;
   Seed  := (hp0 xor hm0) mod maxValue ;
   Seed2 := (hp1 xor hm1) mod maxValue ;
-  for I := 0 to StrLen(Salt) - 1 do
+  for I := 0 to AnsiStrings.StrLen(Salt) - 1 do
   begin
     Seed  := (Seed * 3 + Seed2) mod MaxValue;
     Seed2 := (Seed + Seed2 + 33) mod MaxValue;
@@ -557,10 +557,10 @@ begin
   end;
   dRes := (Seed * 3 + Seed2) mod MaxValue / MaxValue;
   e := Floor(dRes * 31);
-  for I := 0 to StrLen(Salt) - 1 do
+  for I := 0 to AnsiStrings.StrLen(Salt) - 1 do
     Scramled[I] := AnsiChar(Byte(Scramled[I]) xor e);
 
-  SetString(Result, PAnsiChar(@Scramled), StrLen(Salt));
+  SetString(Result, PAnsiChar(@Scramled), AnsiStrings.StrLen(Salt));
 end;
 
 function SecureScramble(const Password: my_char; const Salt: my_char): RawByteString;
@@ -573,7 +573,7 @@ var
 begin
   sha1_reset(sha1_context);
   //* stage 1: hash Password */
-  sha1_input(sha1_context, Password, StrLen(Password));
+  sha1_input(sha1_context, Password, AnsiStrings.StrLen(Password));
   sha1_result(sha1_context, @hash_stage1[0]);
   //* stage 2: hash stage 1; note that hash_stage2 is stored in the database */
   sha1_reset(sha1_context);
@@ -2096,7 +2096,7 @@ begin
     MYSQL_OPT_COMPRESS: fcompress := True;
     MYSQL_OPT_NAMED_PIPE: UseNamedPipe := True;
     MYSQL_OPT_PROTOCOL: if (TryStrToInt(string(arg), I)) then UseNamedPipe := I = Ord(MYSQL_PROTOCOL_PIPE);
-    MYSQL_SET_CHARSET_NAME: fcharacter_set_name := StrPas(arg);
+    MYSQL_SET_CHARSET_NAME: fcharacter_set_name := AnsiStrings.StrPas(arg);
     MYSQL_OPT_RECONNECT: freconnect := my_bool(arg) = 0;
   end;
 
@@ -2261,7 +2261,7 @@ end;
 
 function MYSQL.query(const q: my_char): my_int;
 begin
-  Result := real_query(q, StrLen(q));
+  Result := real_query(q, AnsiStrings.StrLen(q));
 end;
 
 function MYSQL.real_connect(host, user, passwd, db: my_char; port: my_uint; unix_socket: my_char; client_flag: my_uint): MYSQL;
@@ -2288,7 +2288,7 @@ begin
       fport := MYSQL_PORT
     else
       fport := port;
-    if (StrLen(unix_socket) = 0) then
+    if (AnsiStrings.StrLen(unix_socket) = 0) then
       fpipe_name := MYSQL_NAMEDPIPE
     else
       fpipe_name := unix_socket;
@@ -2370,14 +2370,14 @@ begin
         begin
           CharsetNr := 0;
 
-          if ((get_server_version() >= 50503) and (StrIComp(PAnsiChar(fcharacter_set_name), 'utf8') = 0)) then
+          if ((get_server_version() >= 50503) and (AnsiStrings.StrIComp(PAnsiChar(fcharacter_set_name), 'utf8') = 0)) then
           begin
             CharsetNr := 45;
             fcharacter_set_name := 'utf8mb4';
           end
           else
             for I := 0 to Length(MySQL_Collations) - 1 do
-              if ((StrIComp(MySQL_Collations[I].CharsetName, PAnsiChar(fcharacter_set_name)) = 0) and MySQL_Collations[I].Default) then
+              if ((AnsiStrings.StrIComp(MySQL_Collations[I].CharsetName, PAnsiChar(fcharacter_set_name)) = 0) and MySQL_Collations[I].Default) then
               begin
                 CharsetNr := MySQL_Collations[I].CharsetNr;
                 fcharacter_set_name := MySQL_Collations[I].CharsetName;
@@ -2479,13 +2479,13 @@ begin
 
   RBS := EncodeString(StringReplace(StringReplace(StringReplace(StringReplace(StringReplace(StringReplace(DecodeString(RBS), '\', '\\', [rfReplaceAll]), #0, '\0', [rfReplaceAll]), #10, '\n', [rfReplaceAll]), #13, '\r', [rfReplaceAll]), '''', '\''', [rfReplaceAll]), '"', '\"', [rfReplaceAll]));
 
-  StrPCopy(_to, RBS);
+  AnsiStrings.StrPCopy(_to, RBS);
   Result := System.Length(RBS);
 end;
 
 function MYSQL.real_query(query: my_char; length: my_int): my_int;
 begin
-  if (StrLen(query) = 0) then
+  if (AnsiStrings.StrLen(query) = 0) then
     Result := -1
   else
     Result := ExecuteCommand(COM_QUERY, query, length, False);
@@ -2513,7 +2513,7 @@ begin
     Result := 1
   else
   begin
-    Result := ExecuteCommand(COM_INIT_DB, db, StrLen(db), freconnect);
+    Result := ExecuteCommand(COM_INIT_DB, db, AnsiStrings.StrLen(db), freconnect);
     if (Result = 0) then
       fdb := db;
   end;
@@ -2586,7 +2586,7 @@ begin
     ptr := nil;
     Result := flocal_infile_init(@ptr, my_char(Filename), flocal_infile_userdata^) = 0;
     if (not Result) then
-      Seterror(flocal_infile_error(ptr, @ErrMsg, Length(ErrMsg)), StrPas(ErrMsg))
+      Seterror(flocal_infile_error(ptr, @ErrMsg, Length(ErrMsg)), AnsiStrings.StrPas(ErrMsg))
     else
     begin
       BufferSize := MaxFileBufferSize;
@@ -2606,7 +2606,7 @@ begin
           Result := Size >= 0;
 
           if (not Result) then
-            Seterror(flocal_infile_error(ptr, @ErrMsg, Length(ErrMsg)), StrPas(ErrMsg))
+            Seterror(flocal_infile_error(ptr, @ErrMsg, Length(ErrMsg)), AnsiStrings.StrPas(ErrMsg))
           else
           begin
             if ((GetPacketSize() > 0) and (GetPacketSize() + Size > 2 * NET_BUFFER_LENGTH)) then

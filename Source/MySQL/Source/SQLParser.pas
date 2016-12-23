@@ -14802,13 +14802,13 @@ begin
           RaiseLastOSError()
         else if (BytesRead <> FileSize) then
           raise Exception.Create(SUnknownError)
-        else if ((BytesRead >= DWord(Length(BOM_UTF8))) and (CompareMem(Mem, BOM_UTF8, StrLen(BOM_UTF8)))) then
+        else if ((BytesRead >= DWord(Length(BOM_UTF8))) and (CompareMem(Mem, BOM_UTF8, Length(BOM_UTF8)))) then
         begin
           Len := MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, @Mem[Length(BOM_UTF8)], BytesRead - DWord(Length(BOM_UTF8)), nil, 0);
           SetLength(Parse.SQL, Len);
           MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, @Mem[Length(BOM_UTF8)], BytesRead - DWord(Length(BOM_UTF8)), @Parse.SQL[1], Len);
         end
-        else if ((BytesRead >= DWord(Length(BOM_UNICODE_LE))) and (CompareMem(Mem, BOM_UNICODE_LE, StrLen(BOM_UNICODE_LE)))) then
+        else if ((BytesRead >= DWord(Length(BOM_UNICODE_LE))) and (CompareMem(Mem, BOM_UNICODE_LE, Length(BOM_UNICODE_LE)))) then
         begin
           Len := (BytesRead - DWord(Length(BOM_UNICODE_LE))) div SizeOf(WideChar);
           SetLength(Parse.SQL, Len);
@@ -16502,12 +16502,14 @@ begin
 
   if (IsStmt(Result)) then
   begin
+
+    // Change ditUnknown in ditCompoundVariable and set DefinerToken
     CompoundVariableToken := StmtPtr(Result)^.FirstToken;
     while (Assigned(CompoundVariableToken)) do
     begin
       if ((CompoundVariableToken^.UsageType = utDbIdent)
         and (CompoundVariableToken^.DbIdentType = ditCompoundVariable)
-        and Assigned(CompoundVariableToken^.ParentNode) and IsChild(CompoundVariableToken^.ParentNode) and Assigned(PChild(CompoundVariableToken^.ParentNode)^.ParentNode) and (PNode(PChild(CompoundVariableToken^.ParentNode)^.ParentNode)^.NodeType = ntDeclareStmt)) then
+        and Assigned(CompoundVariableToken^.ParentNode) and IsChild(CompoundVariableToken^.ParentNode) and Assigned(PChild(CompoundVariableToken^.ParentNode)^.ParentNode)) then
       begin
         Token := StmtPtr(Result)^.FirstToken;
         while (Assigned(Token)) do
@@ -16534,6 +16536,8 @@ begin
         CompoundVariableToken := CompoundVariableToken^.NextToken;
     end;
 
+
+    // Change ditUnknown to ditCursor and set DefinerToken
     CursorToken := StmtPtr(Result)^.FirstToken;
     while (Assigned(CursorToken)) do
     begin
@@ -17136,6 +17140,7 @@ end;
 
 function TSQLParser.ParseCreateTableStmt(const CreateTag, OrReplaceTag, TemporaryTag: TOffset): TOffset;
 var
+  DelimiterFound: Boolean;
   Found: Boolean;
   ListNodes: TList.TNodes;
   Nodes: TCreateTableStmt.TNodes;
@@ -17195,7 +17200,7 @@ begin
     FillChar(TableOptions, SizeOf(TableOptions), 0);
     Options.Init();
 
-    Found := True;
+    Found := True; DelimiterFound := False;
     while (not ErrorFound and Found) do
     begin
       if ((TableOptions.AutoIncrementValue = 0) and IsTag(kiAUTO_INCREMENT)) then
@@ -17361,9 +17366,19 @@ begin
       else
         Found := False;
 
+      DelimiterFound := False;
       if (Found and IsSymbol(ttComma)) then
+      begin
+        DelimiterFound := True;
         Options.Add(ParseSymbol(ttComma));
+      end;
     end;
+
+    if (not ErrorFound and DelimiterFound) then
+      if (EndOfStmt(CurrentToken)) then
+        SetError(PE_IncompleteStmt)
+      else
+        SetError(PE_UnexpectedToken);
 
     if (Options.Count > 0) then
     begin
@@ -18470,7 +18485,7 @@ end;
 
 function TSQLParser.ParseDbIdent(): TOffset;
 begin
-  Result := ParseDbIdent(ditUnknown);
+  Result := ParseDbIdent(ditUnknown, False);
 end;
 
 function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
@@ -18827,6 +18842,8 @@ begin
 
       Result := TDeclareStmt.Create(Self, Nodes);
 
+
+      // change FDbIdentType to ditCompoundVariabel for IdentList elements
       if (IsRange(IdentList)) then
       begin
         Token := RangePtr(IdentList)^.FirstToken;
@@ -20940,7 +20957,7 @@ begin
         if (DelimiterFound) then
           Children.Add(ParseSymbol(DelimiterType));
       end;
-    until ((CurrentToken = 0) and (DelimiterType <> ttUnknown) and not DelimiterFound
+    until ((CurrentToken = 0)
       or ErrorFound and not RootStmtList
       or (DelimiterType <> ttUnknown) and not DelimiterFound
       or (DelimiterType <> ttSemicolon) and (ErrorFound or (CurrentToken > 0) and (TokenPtr(CurrentToken)^.TokenType = ttSemicolon))
@@ -21974,7 +21991,7 @@ function TSQLParser.ParseSelectStmt(const SubSelect: Boolean): TOffset;
       Result.Tag := ParseTag(kiINTO);
 
       if (not ErrorFound) then
-        Result.VariableList := ParseList(False, ParseVariableIdent);
+        Result.VariableList := ParseList(False, ParseDbIdent);
     end;
   end;
 
@@ -23829,7 +23846,8 @@ begin
     FRoot := ParseRoot();
   except
     on E: Exception do
-      raise Exception.Create(E.Message + ' SQL: ' + StrPas(SQL));
+      raise Exception.Create(E.Message + #13#10
+        + ' SQL: ' + StrPas(SQL));
   end;
 
   Result := (FirstError.Code = PE_Success);
@@ -24210,7 +24228,7 @@ begin
   if ((Result = 0) and not EndOfStmt(FirstToken)) then
     Result := ParseUnknownStmt(FirstToken);
 
-  if (IsStmt(Result)) then
+  if (IsStmt(Result) and not InCompound) then
   begin
     Token := StmtPtr(Result)^.FirstToken;
     while (Assigned(Token)) do
@@ -24701,7 +24719,7 @@ label
     SelNot, SelUnaryNot, SelDoubleQuote, SelComment, SelModulo, SelDollar, SelAmpersand2,
     SelBitAND, SelSingleQuote, SelOpenBracket, SelCloseBracket, SelMySQLCondEnd,
     SelMulti, SelComma, SelDot, SelDot2, SelMySQLCode, SelDiv, SelHexODBCHigh,
-    SelHexODBCLow, SelDigit, SelSLComment, SelExtract, SelMinus, SelPlus, SelAssign,
+    SelHexODBCLow, SelDigit, SelSLComment, SelSLComment2, SelExtract, SelMinus, SelPlus, SelAssign,
     SelColon, SelDelimiter, SelNULLSaveEqual, SelLessEqual, SelShiftLeft,
     SelNotEqual2, SelLess, SelEqual, SelGreaterEqual, SelShiftRight, SelGreater,
     SelAt, SelQuestionMark, SelBitLiteral, SelNatStringHigh, SelNatStringLow,
@@ -24889,7 +24907,11 @@ begin
         CMP EAX,$002D002D                // "--" ?
         JNE SelExtract                   // No!
         CMP ECX,3                        // Three characters in SQL?
-        JB DoubleChar                    // No!
+        JAE SelSLComment2                // Yes!
+        ADD ESI,4                        // Step over "--"
+        SUB ECX,2                        // Two character handled
+        JMP IncompleteToken
+      SelSLComment2:
         CMP WORD PTR [ESI + 4],9         // "--<Tab>" ?
         JE SLComment                     // Yes!
         CMP WORD PTR [ESI + 4],10        // "--<LF>" ?
@@ -25142,6 +25164,7 @@ begin
         MOV TokenType,ttMLComment
         ADD ESI,4                        // Step over "/*" in SQL
         SUB ECX,2                        // Two characters handled
+        JZ IncompleteToken               // End of SQL!
       MLCommentL:
         CMP ECX,1                        // Last characters in SQL?
         JE MLCommentLSingle              // Yes!
@@ -26378,7 +26401,7 @@ begin
     RaiseLastOSError()
   else
   begin
-    if (not WriteFile(Handle, PChar(BOM_UNICODE_LE)^, StrLen(BOM_UNICODE_LE), Size, nil)) then
+    if (not WriteFile(Handle, PChar(BOM_UNICODE_LE)^, System.Length(BOM_UNICODE_LE), Size, nil)) then
       RaiseLastOSError();
 
     HTML :=
@@ -26708,7 +26731,7 @@ begin
 
   SQL := FormatSQL();
 
-  if (not WriteFile(Handle, PChar(BOM_UNICODE_LE)^, StrLen(BOM_UNICODE_LE), Size, nil)
+  if (not WriteFile(Handle, PChar(BOM_UNICODE_LE)^, Length(BOM_UNICODE_LE), Size, nil)
     or not WriteFile(Handle, PChar(SQL)^, Length(SQL) * SizeOf(SQL[1]), Size, nil)
     or not CloseHandle(Handle)) then
     RaiseLastOSError();
@@ -26745,7 +26768,7 @@ begin
   if (Handle = INVALID_HANDLE_VALUE) then
     RaiseLastOSError();
 
-  if (not WriteFile(Handle, PChar(BOM_UNICODE_LE)^, StrLen(BOM_UNICODE_LE), Size, nil)
+  if (not WriteFile(Handle, PChar(BOM_UNICODE_LE)^, System.Length(BOM_UNICODE_LE), Size, nil)
     or not WriteFile(Handle, StringBuffer.Data^, StringBuffer.Size, Size, nil)
     or not CloseHandle(Handle)) then
     RaiseLastOSError();

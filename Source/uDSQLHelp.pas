@@ -43,7 +43,7 @@ type
     ManualURL: string;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     function HelpResult(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
-      const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+      const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMSendSQL(var Message: TMessage); message UM_SEND_SQL;
     procedure WMNotify(var Message: TWMNotify); message WM_NOTIFY;
@@ -100,7 +100,7 @@ begin
 end;
 
 function TDSQLHelp.HelpResult(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
-  const CommandText: string; const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+  const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
 var
   DataSet: TMySQLQuery;
 begin
