@@ -11146,18 +11146,18 @@ begin
         URI.Param['system'] := 'variables';
     end;
 
-    if (View <> vBrowser) then
+    if (URI.Param['view'] <> 'browser') then
     begin
       URI.Param['offset'] := Null;
       URI.Param['filter'] := Null;
       URI.Param['search'] := Null;
     end;
-    if (View <> vIDE) then
+    if (URI.Param['view'] <> 'ide') then
     begin
       URI.Param['objecttype'] := Null;
       URI.Param['object'] := Null;
     end;
-    if (not (View in [vEditor, vEditor2, vEditor3])) then
+    if (not (ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3])) then
     begin
       URI.Param['file'] := Null;
       URI.Param['cp'] := Null;
@@ -11165,7 +11165,7 @@ begin
 
     if (Node = FNavigator.Selected) then
     begin
-      if (View = vBrowser) then
+      if (URI.Param['view'] = 'browser') then
       begin
         // Debug 2016-11-23
         if (not (FNavigator.Selected.ImageIndex in [iiBaseTable, iiSystemView, iiView])) then
@@ -11186,7 +11186,7 @@ begin
             URI.Param['search'] := Desktop(TSTable(FNavigator.Selected.Data)).Table.DataSet.QuickSearch;
         end;
       end
-      else if (View in [vEditor, vEditor2, vEditor3]) then
+      else if (ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) then
       begin
         if (SQLEditors[ParamToView(URI.Param['view'])].Filename = '') then
         begin

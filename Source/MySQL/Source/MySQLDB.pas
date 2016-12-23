@@ -4517,15 +4517,18 @@ end;
 
 function TMySQLTimeField.GetAsDateTime(): TDateTime;
 var
+  Buffer: TValueBuffer;
   Hour: Word;
   Min: Word;
   Sec: Word;
   Time: Integer;
 begin
-  if (not GetData(@Time)) then
+  SetLength(Buffer, SizeOf(Integer));
+  if (not GetData(Buffer)) then
     Result := Null
   else
   begin
+    Time := Integer((@Buffer[0])^);
     Sec := Time mod 60; Time := Time div 60;
     Min := Time mod 60; Time := Time div 60;
     Hour := Time mod 60;
@@ -4540,12 +4543,13 @@ end;
 
 function TMySQLTimeField.GetAsVariant(): Variant;
 var
-  Time: Integer;
+  Buffer: TValueBuffer;
 begin
-  if (not GetData(@Time)) then
+  SetLength(Buffer, SizeOf(Integer));
+  if (not GetData(Buffer)) then
     Result := Null
   else
-    Result := TimeToStr(Time, SQLFormat);
+    Result := TimeToStr(Integer((@Buffer[0])^), SQLFormat);
 end;
 
 function TMySQLTimeField.GetDataSize(): Integer;
@@ -4614,9 +4618,14 @@ end;
 { TMySQLTimeStampField ********************************************************}
 
 function TMySQLTimeStampField.GetAsSQLTimeStamp(): TSQLTimeStamp;
+var
+  Buffer: TValueBuffer;
 begin
-  if (not GetData(@Result)) then
-    Result := NULLSQLTimeStamp;
+  SetLength(Buffer, SizeOf(TSQLTimeStamp));
+  if (not GetData(Buffer)) then
+    Result := NULLSQLTimeStamp
+  else
+    Result := TSQLTimeStamp((@Buffer[0])^);
 end;
 
 function TMySQLTimeStampField.GetAsString(): string;
@@ -4626,12 +4635,13 @@ end;
 
 function TMySQLTimeStampField.GetAsVariant: Variant;
 var
-  SQLTimeStamp: TSQLTimeStamp;
+  Buffer: TValueBuffer;
 begin
-  if (not GetData(@SQLTimeStamp)) then
+  SetLength(Buffer, SizeOf(TSQLTimeStamp));
+  if (not GetData(Buffer)) then
     Result := ''
   else
-    Result := MySQLTimeStampToStr(SQLTimeStamp, SQLFormatToDisplayFormat(SQLFormat));
+    Result := MySQLTimeStampToStr(TSQLTimeStamp((@Buffer[0])^), SQLFormatToDisplayFormat(SQLFormat));
 end;
 
 function TMySQLTimeStampField.GetDataSize: Integer;
@@ -4663,12 +4673,13 @@ end;
 
 function TMySQLTimeStampField.GetOldValue: Variant;
 var
-  SQLTimeStamp: TSQLTimeStamp;
+  Buffer: TValueBuffer;
 begin
-  if (not GetData(@SQLTimeStamp)) then
+  SetLength(Buffer, SizeOf(TSQLTimeStamp));
+  if (not GetData(Buffer)) then
     Result := ''
   else
-    Result := MySQLTimeStampToStr(SQLTimeStamp, SQLFormatToDisplayFormat(SQLFormat));
+    Result := MySQLTimeStampToStr(TSQLTimeStamp((@Buffer[0])^), SQLFormatToDisplayFormat(SQLFormat));
 end;
 
 procedure TMySQLTimeStampField.GetText(var Text: string; DisplayText: Boolean);
@@ -4974,7 +4985,7 @@ begin
     PRecordBufferData(Result)^.LibLengths := nil;
     PRecordBufferData(Result)^.LibRow := nil;
 
-    InitRecord(Result);
+    InitRecord(TRecBuf(Result));
   end;
 end;
 
