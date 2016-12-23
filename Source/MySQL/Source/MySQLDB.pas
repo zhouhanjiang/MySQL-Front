@@ -985,8 +985,6 @@ type
   TMySQLQueryBlobStream = class(TMemoryStream)
   public
     constructor Create(const AField: TBlobField);
-    function Write(const Buffer; Len: Integer): Longint; override;
-    procedure WriteBuffer(const Buffer; Count: Longint);
   end;
 
   TMySQLQueryMemoStream = TMySQLQueryBlobStream;
@@ -999,7 +997,7 @@ type
   public
     constructor Create(const AField: TBlobField; AMode: TBlobStreamMode);
     destructor Destroy; override;
-    function Write(const Buffer; Len: Integer): Longint; override;
+    function Write(const Buffer: TBytes; Offset, Count: Longint): Longint; override;
   end;
 
 var
@@ -2317,7 +2315,7 @@ begin
 
   FDebugMonitor := TMySQLMonitor.Create(nil);
   FDebugMonitor.Connection := Self;
-  FDebugMonitor.CacheSize := 500;
+  FDebugMonitor.CacheSize := 1000;
   FDebugMonitor.Enabled := True;
   FDebugMonitor.TraceTypes := [ttTime, ttRequest, ttInfo, ttDebug];
 end;
@@ -3497,17 +3495,18 @@ begin
         SyncHandledResult(SyncThread);
       end
       else if ((SyncThread.State = ssResult) and Assigned(SyncThread.ResHandle)) then
+        // Debug 2016-12-23
         if (SyncThread.CommandText <> '') then
           raise Exception.Create('Query has not been handled: ' + SyncThread.CommandText)
         else
         begin
-          Log := 'Statement #' + IntToStr(SyncThread.StmtIndex + 1) + ' of ' + IntToStr(SyncThread.StmtLengths.Count) + ' has not been handled' + #13#10;
+          Log := 'Statement #' + IntToStr(SyncThread.StmtIndex) + ' of ' + IntToStr(SyncThread.StmtLengths.Count) + ' has not been handled' + #13#10;
           for I := 0 to SyncThread.StmtLengths.Count - 1 do
-            Log := Log + #13#10 + 'Statement #' + IntToStr(I + 1) + ' Length: ' + IntToStr(Integer(SyncThread.StmtLengths[I]));
-          Log := Log + 'Statement #' + IntToStr(SyncThread.StmtIndex + 1) + ' CommandText:' + #13#10
+            Log := Log + #13#10 + 'Statement #' + IntToStr(I + 1) + ' Length: ' + IntToStr(Integer(SyncThread.StmtLengths[I])) + #13#10;
+          Log := Log + 'Statement #' + IntToStr(SyncThread.StmtIndex) + ' CommandText:' + #13#10
             + SyncThread.CommandText + #13#10;
           Log := Log + 'SQL:' + #13#10
-            + SyncThread.SQL + #13#10;
+            + SQLEscapeBin(SyncThread.SQL, True) + #13#10;
           raise Exception.Create(Log);
         end;
     finally
@@ -4954,18 +4953,9 @@ begin
         SetSize(TMySQLQuery.PRecordBufferData(AField.DataSet.ActiveBuffer())^.LibLengths^[AField.FieldNo - 1]);
         Move(TMySQLQuery.PRecordBufferData(AField.DataSet.ActiveBuffer())^.LibRow^[AField.FieldNo - 1]^, Memory^, TMySQLQuery.PRecordBufferData(AField.DataSet.ActiveBuffer())^.LibLengths^[AField.FieldNo - 1]);
       end;
-    ftWideMemo: TMySQLQuery(AField.DataSet).DataConvert(AField, Pointer(AField.DataSet.ActiveBuffer()), Self, False);
+    ftWideMemo:
+      TMySQLQuery(AField.DataSet).DataConvert(AField, Pointer(AField.DataSet.ActiveBuffer()), Self, False);
   end;
-end;
-
-function TMySQLQueryBlobStream.Write(const Buffer; Len: Integer): Integer;
-begin
-  Result := inherited Write(Buffer, Len);
-end;
-
-procedure TMySQLQueryBlobStream.WriteBuffer(const Buffer; Count: Longint);
-begin
-  inherited WriteBuffer(Buffer, Count);
 end;
 
 { TMySQLQuery *****************************************************************}
@@ -5872,10 +5862,10 @@ begin
   inherited;
 end;
 
-function TMySQLDataSetBlobStream.Write(const Buffer; Len: Integer): Longint;
+function TMySQLDataSetBlobStream.Write(const Buffer: TBytes; Offset, Count: Longint): Longint;
 begin
   Empty := False;
-  Result := inherited Write(Buffer, Len);
+  Result := Write(Buffer[Offset], Count);
 end;
 
 { TMySQLDataSet.TInternRecordBuffers ******************************************}
@@ -6881,7 +6871,7 @@ begin
                   else
                     WhereClause := WhereClause + '<' + SQLFieldValue(WhereFields[J], TRecordBuffer(PExternRecordBuffer(ActiveBuffer())))
                 else if (WhereFields[J].AutoGenerateValue = arAutoInc) then
-                  WhereClause := WhereClause + ' = LAST_INSERT_ID()'
+                  WhereClause := WhereClause + '=LAST_INSERT_ID()'
                 else
                   WhereClause := WhereClause + ' IS NOT NULL';
               end;
@@ -7024,7 +7014,7 @@ begin
                 SetFieldData(Fields[I], DataSet.LibRow^[I], DataSet.LibLengths[I]);
         end;
 
-        if (RecordMatch or DataSet.FindNext()) then
+        if (not RecordMatch or DataSet.FindNext()) then
         begin
           RecordBufferData.Identifier123456 := 123546;
           RecordBufferData.LibLengths := DataSet.LibLengths;
@@ -7058,6 +7048,22 @@ begin
               InternalGotoBookmark(Bookmark);
               SetLength(Bookmark, 0);
             end;
+          end;
+        end
+        else if (RecordMatch) then
+        begin
+          Index := InternRecordBuffers.Count - 1;
+          InternRecordBuffers.Move(PExternRecordBuffer(ActiveBuffer())^.Index, Index);
+          PExternRecordBuffer(ActiveBuffer())^.Index := Index;
+
+          ClearBuffers();
+
+          if (Index >= 0) then
+          begin
+            SetLength(Bookmark, BookmarkSize);
+            PPointer(@Bookmark[0])^ := InternRecordBuffers[Index];
+            InternalGotoBookmark(Bookmark);
+            SetLength(Bookmark, 0);
           end;
         end;
       end;

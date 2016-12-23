@@ -3087,7 +3087,7 @@ begin
     if (Data <> '') then
       Data := 'Address=' + NavigatorNodeToAddress(FNavigator.Selected) + #13#10 + Data;
   end
-  else if (Assigned(ActiveDBGrid) and (Window.ActiveControl = ActiveDBGrid)) then
+  else if (Window.ActiveControl = ActiveDBGrid) then
   begin
     // Debug 2016-12-21
     if (not OpenClipboard(Handle)) then
@@ -3121,7 +3121,9 @@ begin
         raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
       else
         CloseClipboard();
-    end;
+    end
+    else
+      MessageBeep(MB_ICONERROR);
     // Debug 2016-12-21
     if (not OpenClipboard(Handle)) then
       raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
@@ -3162,11 +3164,6 @@ begin
           Data := 'Address=' + NavigatorNodeToAddress(FNavigator.Selected) + #13#10 + Data;
       end;
     end;
-  end
-  else if (Window.ActiveControl = ActiveDBGrid) then
-  begin
-    ActiveDBGrid.CopyToClipboard();
-    Exit;
   end
   else if (Window.ActiveControl = FSQLHistory) then
   begin
@@ -3226,6 +3223,12 @@ begin
       SendMessage(Window.ActiveControl.Handle, WM_COPY, 0, 0);
     exit;
   end;
+
+  // Debug 2016-12-23
+  if (not OpenClipboard(Handle)) then
+    raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+  else
+    CloseClipboard();
 
   if ((Data <> '') and OpenClipboard(Handle)) then
   begin
@@ -5322,12 +5325,15 @@ end;
 
 procedure TFSession.DataSetAfterOpen(DataSet: TDataSet);
 begin
-  if (Assigned(ActiveDBGrid) and (ActiveDBGrid.DataSource.DataSet = DataSet)) then
-  begin
-    ActiveDBGrid.DataSource.Enabled := False;
-    DBGridInitialize(ActiveDBGrid);
-    PContentChange(nil);
-  end;
+  // Debug 2016-12-23
+  if (not Assigned(ActiveDBGrid)) then
+    raise ERangeError.Create(SRangeError);
+  if (ActiveDBGrid.DataSource.DataSet <> DataSet) then
+    raise ERangeError.Create(SRangeError);
+
+  ActiveDBGrid.DataSource.Enabled := False;
+  DBGridInitialize(ActiveDBGrid);
+  PContentChange(nil);
 end;
 
 procedure TFSession.DataSetAfterPost(DataSet: TDataSet);
@@ -5686,8 +5692,7 @@ begin
   if (not Assigned(ActiveDBGrid.DataSource)) then
     raise ERangeError.Create(SRangeError);
   if (not ActiveDBGrid.DataSource.Enabled) then
-    raise ERangeERror.Create(SRangeError + #13#10
-      + 'ClassType: ' + ActiveDBGrid.ClassName + #13#10
+    raise ERangeERror.Create('ClassType: ' + ActiveDBGrid.ClassName + #13#10
       + 'Name: ' + ActiveDBGrid.Name);
   if (not Assigned(ActiveDBGrid.DataSource.DataSet)) then
     raise ERangeError.Create(SRangeError);
@@ -8204,6 +8209,11 @@ begin
   case (View) of
     vBrowser:
       begin
+        // Debug 2016-12-23
+        if (not Assigned(FNavigator)) then
+          raise ERangeError.Create(SRangeError);
+        if (not Assigned(FNavigator.Selected)) then
+          raise ERangeError.Create(SRangeError);
         if (not (FNavigator.Selected.ImageIndex in [iiBaseTable, iiView, iiSystemView])) then
           raise ERangeError.Create('ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
             + 'Address: ' + Address);
@@ -11136,9 +11146,26 @@ begin
         URI.Param['system'] := 'variables';
     end;
 
+    if (View <> vBrowser) then
+    begin
+      URI.Param['offset'] := Null;
+      URI.Param['filter'] := Null;
+      URI.Param['search'] := Null;
+    end;
+    if (View <> vIDE) then
+    begin
+      URI.Param['objecttype'] := Null;
+      URI.Param['object'] := Null;
+    end;
+    if (not (View in [vEditor, vEditor2, vEditor3])) then
+    begin
+      URI.Param['file'] := Null;
+      URI.Param['cp'] := Null;
+    end;
+
     if (Node = FNavigator.Selected) then
     begin
-      if (URI.Param['view'] = 'browser') then
+      if (View = vBrowser) then
       begin
         // Debug 2016-11-23
         if (not (FNavigator.Selected.ImageIndex in [iiBaseTable, iiSystemView, iiView])) then
@@ -11159,7 +11186,7 @@ begin
             URI.Param['search'] := Desktop(TSTable(FNavigator.Selected.Data)).Table.DataSet.QuickSearch;
         end;
       end
-      else if (ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) then
+      else if (View in [vEditor, vEditor2, vEditor3]) then
       begin
         if (SQLEditors[ParamToView(URI.Param['view'])].Filename = '') then
         begin
@@ -12933,7 +12960,7 @@ end;
 
 procedure TFSession.StatusBarRefresh(const Immediately: Boolean = False);
 var
-  Control: TControl;
+  Control: TControl; // Debug
   Count: Integer; // Debug 2016-12-21
   QueryBuilderWorkArea: TacQueryBuilderWorkArea;
   SelCount: Integer;
@@ -14372,14 +14399,7 @@ begin
       else
         TableOpen(nil);
     vIDE:
-      begin
-        // Debug 2016-12-05
-        if (not (TObject(FNavigator.Selected.Data) is TSDBObject)) then
-          raise ERangeError.Create(SRangeError + #13#10
-            + ' ClassType: ' + TObject(FNavigator.Selected.Data).ClassName + #13#10
-            + ' Address: ' + Address);
-        TSDBObject(FNavigator.Selected.Data).Update();
-      end;
+      TSDBObject(FNavigator.Selected.Data).Update();
     vDiagram:
       if (not Assigned(ActiveWorkbench) and Assigned(FNavigator.Selected)) then
       begin

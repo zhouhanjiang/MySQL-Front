@@ -21991,7 +21991,7 @@ function TSQLParser.ParseSelectStmt(const SubSelect: Boolean): TOffset;
       Result.Tag := ParseTag(kiINTO);
 
       if (not ErrorFound) then
-        Result.VariableList := ParseList(False, ParseDbIdent);
+        Result.VariableList := ParseList(False, ParseVariableIdent);
     end;
   end;
 
@@ -25240,6 +25240,8 @@ begin
         JBE IdentLE                      // Before or equal!
         CMP AX,':'                       // ":"?
         JNE IdentL6                      // No!
+        CMP DigitsOnly,True              // Only digits in this token?
+        JNE Finish                       // No!
         CMP AtBefore,True                // Previous token was "@"?
         JNE Finish                       // No!
         JMP IPAddress
@@ -27843,9 +27845,6 @@ begin
       while ((Index > 0) and (Nodes^[Index] = 0)) do Dec(Index);
       LastToken := Stmt^.Parser.NodePtr(Nodes^[Index])^.LastToken;
 
-      if (not Assigned(LastToken)) then
-        raise ERangeError.Create(SRangeError);
-
       Token := Stmt^.FirstToken;
       while (Assigned(Token)) do
       begin
@@ -27862,7 +27861,7 @@ begin
         Stmt^.Parser.Commands.WriteSpace()
       else
         Stmt^.Parser.Commands.WriteReturn();
-      Stmt^.Parser.Commands.Write(' LIMIT ');
+      Stmt^.Parser.Commands.Write('LIMIT ');
       if (Offset > 0) then
       begin
         Stmt^.Parser.Commands.Write(IntToStr(Offset));
@@ -27886,9 +27885,6 @@ begin
       // Replace existing LIMIT clause
     begin
       LastToken := Stmt^.Parser.NodePtr(TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit.Tag)^.LastToken;
-
-      if (not Assigned(LastToken)) then
-        raise ERangeError.Create(SRangeError);
 
       Token := Stmt^.FirstToken;
       while (Assigned(Token)) do

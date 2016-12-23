@@ -758,7 +758,8 @@ begin
         // Debug 2016-12-22
         // This is a helper for UMUpdateToolbar
         if (not Assigned(ActiveTab.Session.Account.Desktop)) then
-          raise ERangeError.Create(SRangeError);
+          raise ERangeError.Create('TabControl.Tabs.Count: ' + IntToStr(TabControl.Tabs.Count) + #13#10
+            + 'Sessions.Count: ' + IntToStr(Sessions.Count));
 
         PostMessage(ActiveTab.Handle, UM_ACTIVATEFRAME, 0, 0);
       end;
@@ -1033,17 +1034,34 @@ begin
     try
       if (not (TObject(ExceptionInfo.ExceptionObject) is Exception)) then
       begin
+        try
         Report := Report + ExceptionInfo.ExceptionClass + ':' + #13#10;
         Report := Report + ExceptionInfo.ExceptionMessage + #13#10#13#10;
+        except
+          on E: Exception do
+            try SendToDeveloper('EurekaLogExceptionNotify(3.1)' + #13#10#13#10 + E.Message); except end;
+        end;
       end
       else
       begin
+        try
         Report := Report + Exception(ExceptionInfo.ExceptionObject).ClassName + ':' + #13#10;
         Report := Report + Exception(ExceptionInfo.ExceptionObject).Message + #13#10#13#10;
+        except
+          on E: Exception do
+            try SendToDeveloper('EurekaLogExceptionNotify(3.2)' + #13#10#13#10 + E.Message); except end;
+        end;
       end;
     except
       on E: Exception do
+      begin
         try SendToDeveloper('EurekaLogExceptionNotify(3)' + #13#10#13#10 + E.Message); except end;
+        try
+          Report := Report + ExceptionInfo.ToString + #13#10;
+        except
+          try SendToDeveloper('EurekaLogExceptionNotify(3.a)' + #13#10#13#10 + E.Message); except end;
+        end;
+      end;
     end;
 
     try

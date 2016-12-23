@@ -2960,6 +2960,8 @@ end;
 
 procedure TPAccount.TConnection.Assign(const Source: TConnection);
 begin
+  Assert(Assigned(Source));
+
   Database := Source.Database;
   Host := Source.Host;
   HTTPTunnelURI := Source.HTTPTunnelURI;
@@ -3041,6 +3043,8 @@ end;
 
 procedure TPAccount.Assign(const Source: TPAccount);
 begin
+  Assert(Assigned(Source));
+
   if (not Assigned(Accounts)) then FAccounts := Source.Accounts;
 
   FLastLogin := Source.LastLogin;

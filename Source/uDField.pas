@@ -970,6 +970,16 @@ begin
   ActiveControl := FBCancel;
   if (GBasics.Visible) then
     ActiveControl := FName;
+
+  // Debug 2016-12-19
+  if (not Assigned(Table)) then
+    raise ERangeError.Create(SRangeError);
+  if (not (Table is TSBaseTable)) then
+    try
+      raise ERangeError.Create('ClassType: ' + Table.ClassName);
+    except
+      raise ERangeError.Create(SRangeError);
+    end;
 end;
 
 procedure TDField.FRDefaultClick(Sender: TObject);
