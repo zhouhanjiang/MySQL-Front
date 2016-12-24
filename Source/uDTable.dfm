@@ -75,7 +75,7 @@ object DTable: TDTable
     Top = 8
     Width = 321
     Height = 325
-    ActivePage = TSBasics
+    ActivePage = TSDependency
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
@@ -783,9 +783,9 @@ object DTable: TDTable
         end
       end
     end
-    object TSReferenced: TTabSheet
-      Caption = 'TSReferenced'
-      OnShow = TSReferencedShow
+    object TSDependency: TTabSheet
+      Caption = 'TSDependency'
+      OnShow = TSDependencyShow
       ExplicitLeft = 0
       ExplicitTop = 0
       ExplicitWidth = 0
@@ -793,7 +793,7 @@ object DTable: TDTable
       DesignSize = (
         313
         261)
-      object FReferenced: TListView
+      object FDependency: TListView
         Left = 8
         Top = 8
         Width = 297

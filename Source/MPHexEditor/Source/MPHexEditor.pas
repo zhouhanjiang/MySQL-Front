@@ -1379,9 +1379,7 @@ type
       ref 279)
     *)
 
-    function CanFocus: Boolean;
-{$IFDEF DELPHi5UP} override;
-{$ENDIF}
+    function CanFocus: Boolean; override;
     // @exclude(use TMPHexEditor.WriteBuffer!)
     procedure SetMemory(const Index: integer; const Value: char);
 
@@ -2143,7 +2141,7 @@ const
 
 procedure RaiseLastOSError;
 begin
-  RaiseLastWin32Error;
+  RaiseLastOSError;
 end;
 {$ENDIF}
 
@@ -7684,7 +7682,7 @@ function TCustomMPHexEditor.CanFocus: Boolean;
 var
   Form: TCustomForm;
 begin
-  Result := {$IFDEF DELPHI5UP}inherited CanFocus{$ELSE}True{$ENDIF};
+  Result := inherited CanFocus;
   if Result and not (csDesigning in ComponentState) then
   begin
     Form := GetParentForm(Self);

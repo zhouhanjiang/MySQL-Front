@@ -20,6 +20,7 @@ type
     FCheckOptionCascade: TCheckBox;
     FCheckOptionLocal: TCheckBox;
     FDefiner: TLabel;
+    FDependency: TListView;
     FFields: TListView;
     FLAlgorithm: TLabel;
     FLCheckOption: TLabel;
@@ -28,7 +29,6 @@ type
     FLSecurity: TLabel;
     FLStmt: TLabel;
     FName: TEdit;
-    FReferenced: TListView;
     FSecurityDefiner: TRadioButton;
     FSecurityInvoker: TRadioButton;
     FSource: TSynMemo;
@@ -47,10 +47,10 @@ type
     PageControl: TPageControl;
     PSQLWait: TPanel;
     TSBasics: TTabSheet;
+    TSDependency: TTabSheet;
+    TSFields: TTabSheet;
     TSInformation: TTabSheet;
     TSSource: TTabSheet;
-    TSFields: TTabSheet;
-    TSReferenced: TTabSheet;
     procedure FAlgorithmSelect(Sender: TObject);
     procedure FBHelpClick(Sender: TObject);
     procedure FCheckOptionCascadeClick(Sender: TObject);
@@ -70,12 +70,12 @@ type
       Changes: TSynStatusChanges);
     procedure FStmtChange(Sender: TObject);
     procedure FSourceChange(Sender: TObject);
-    procedure TSReferencedShow(Sender: TObject);
+    procedure TSDependencyShow(Sender: TObject);
   private
     RecordCount: Integer;
     procedure Built();
     procedure FBOkCheckEnabled(Sender: TObject);
-    procedure FReferencedBuild();
+    procedure FDependencyBuild();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
@@ -308,7 +308,7 @@ begin
   FFields.SmallImages := Preferences.Images;
 
   FStmt.Highlighter := MainHighlighter;
-  FReferenced.SmallImages := Preferences.Images;
+  FDependency.SmallImages := Preferences.Images;
   FSource.Highlighter := MainHighlighter;
 
   Constraints.MinWidth := Width;
@@ -325,7 +325,7 @@ begin
 
   PageControl.ActivePage := TSBasics;
 
-  FReferenced.RowSelect := CheckWin32Version(6);
+  FDependency.RowSelect := CheckWin32Version(6);
 end;
 
 procedure TDView.FormHide(Sender: TObject);
@@ -340,9 +340,9 @@ begin
   FFields.Items.BeginUpdate();
   FFields.Items.Clear();
   FFields.Items.EndUpdate();
-  FReferenced.Items.BeginUpdate();
-  FReferenced.Items.Clear();
-  FReferenced.Items.EndUpdate();
+  FDependency.Items.BeginUpdate();
+  FDependency.Items.Clear();
+  FDependency.Items.EndUpdate();
 
   FSource.Lines.Clear();
 
@@ -360,10 +360,10 @@ begin
     ModalResult := mrCancel
   else if (Event.EventType = etAfterExecuteSQL) then
   begin
-    if (FReferenced.Cursor = crSQLWait) then
+    if (FDependency.Cursor = crSQLWait) then
     begin
-      FReferencedBuild();
-      FReferenced.Cursor := crDefault;
+      FDependencyBuild();
+      FDependency.Cursor := crDefault;
     end;
 
     if (not PageControl.Visible and (ModalResult = mrNone)) then
@@ -446,11 +446,11 @@ begin
       Built();
   end;
 
-  FReferenced.Cursor := crDefault;
+  FDependency.Cursor := crDefault;
 
   TSInformation.TabVisible := Assigned(View);
   TSFields.TabVisible := Assigned(View);
-  TSReferenced.TabVisible := Assigned(View);
+  TSDependency.TabVisible := Assigned(View);
 
   FBOk.Enabled := PageControl.Visible and not Assigned(View);
 
@@ -459,7 +459,7 @@ begin
     ActiveControl := FName;
 end;
 
-procedure TDView.FReferencedBuild();
+procedure TDView.FDependencyBuild();
 
   procedure AddDBObject(const DBObject: TSDBObject);
   var
@@ -469,7 +469,7 @@ procedure TDView.FReferencedBuild();
     for I := 0 to DBObject.References.Count - 1 do
       if (DBObject.References[I].DBObject = View) then
       begin
-        Item := FReferenced.Items.Add();
+        Item := FDependency.Items.Add();
 
         if (DBObject is TSView) then
         begin
@@ -510,8 +510,8 @@ procedure TDView.FReferencedBuild();
 var
   I: Integer;
 begin
-  FReferenced.Items.BeginUpdate();
-  FReferenced.Items.Clear();
+  FDependency.Items.BeginUpdate();
+  FDependency.Items.Clear();
 
   for I := 0 to Database.Tables.Count - 1 do
     if (Database.Tables[I] <> View) then
@@ -529,7 +529,7 @@ begin
     for I := 0 to Database.Events.Count - 1 do
       AddDBObject(Database.Events[I]);
 
-  FReferenced.Items.EndUpdate();
+  FDependency.Items.EndUpdate();
 end;
 
 procedure TDView.FSecurityClick(Sender: TObject);
@@ -561,18 +561,18 @@ begin
   TSSource.TabVisible := False;
 end;
 
-procedure TDView.TSReferencedShow(Sender: TObject);
+procedure TDView.TSDependencyShow(Sender: TObject);
 var
   List: TList;
 begin
-  if (FReferenced.Items.Count = 0) then
+  if (FDependency.Items.Count = 0) then
   begin
     List := TList.Create();
-    List.Add(View.ReferencedRequester);
+    List.Add(View.DependencyRequester);
     if (not Database.Session.Update(List)) then
-      FReferenced.Cursor := crSQLWait
+      FDependency.Cursor := crSQLWait
     else
-      FReferencedBuild();
+      FDependencyBuild();
     List.Free();
   end;
 end;
@@ -630,9 +630,9 @@ begin
   FFields.Column[4].Caption := Preferences.LoadStr(73);
   FFields.Column[5].Caption := Preferences.LoadStr(111);
 
-  TSReferenced.Caption := Preferences.LoadStr(782);
-  FReferenced.Column[0].Caption := Preferences.LoadStr(35);
-  FReferenced.Column[1].Caption := Preferences.LoadStr(69);
+  TSDependency.Caption := Preferences.LoadStr(782);
+  FDependency.Column[0].Caption := Preferences.LoadStr(35);
+  FDependency.Column[1].Caption := Preferences.LoadStr(69);
 
   TSSource.Caption := Preferences.LoadStr(198);
   FSource.Font.Name := Preferences.SQLFontName;

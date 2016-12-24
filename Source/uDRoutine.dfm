@@ -72,7 +72,7 @@ object DRoutine: TDRoutine
     Top = 8
     Width = 321
     Height = 325
-    ActivePage = TSInformation
+    ActivePage = TSDependency
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
@@ -274,10 +274,10 @@ object DRoutine: TDRoutine
         end
       end
     end
-    object TSReferenced: TTabSheet
-      Caption = 'TSReferenced'
+    object TSDependency: TTabSheet
+      Caption = 'TSDependency'
       ImageIndex = 3
-      OnShow = TSReferencedShow
+      OnShow = TSDependencyShow
       ExplicitLeft = 0
       ExplicitTop = 0
       ExplicitWidth = 0
@@ -285,7 +285,7 @@ object DRoutine: TDRoutine
       DesignSize = (
         313
         297)
-      object FReferenced: TListView
+      object FDependency: TListView
         Left = 8
         Top = 8
         Width = 297

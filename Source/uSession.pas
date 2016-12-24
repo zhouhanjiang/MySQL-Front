@@ -196,7 +196,7 @@ type
     property Session: TSSession read GetSession;
   end;
 
-  TSReferencedRequester = class
+  TSDependencyRequester = class
   private
     FDBObject: TSDBObject;
     function GetDatabase(): TSDatabase; inline;
@@ -218,7 +218,7 @@ type
     TSecurity = (seDefiner, seInvoker);
   private
     FDatabase: TSDatabase;
-    FReferencedRequester: TSReferencedRequester;
+    FDependendyRequester: TSDependencyRequester;
     FReferences: TSReferences;
     function GetDBObjects(): TSDBObjects; inline;
   protected
@@ -239,7 +239,7 @@ type
     property Database: TSDatabase read FDatabase;
     property DBObjects: TSDBObjects read GetDBObjects;
     property References: TSReferences read FReferences;
-    property ReferencedRequester: TSReferencedRequester read FReferencedRequester;
+    property DependencyRequester: TSDependencyRequester read FDependendyRequester;
   end;
 
   TSDBObjects = class(TSObjects)
@@ -2226,9 +2226,9 @@ begin
   Result := FDBObject.Session;
 end;
 
-{ TSReferencedRequester *******************************************************}
+{ TSDependencyRequester *******************************************************}
 
-function TSReferencedRequester.BuildBaseTableReferences(const DataSet: TMySQLQuery): Boolean;
+function TSDependencyRequester.BuildBaseTableReferences(const DataSet: TMySQLQuery): Boolean;
 var
   DatabaseName: string;
   TableName: string;
@@ -2246,24 +2246,24 @@ begin
   Result := False;
 end;
 
-constructor TSReferencedRequester.Create(const ADBObject: TSDBObject);
+constructor TSDependencyRequester.Create(const ADBObject: TSDBObject);
 begin
   inherited Create();
 
   FDBObject := ADBObject;
 end;
 
-function TSReferencedRequester.GetDatabase(): TSDatabase;
+function TSDependencyRequester.GetDatabase(): TSDatabase;
 begin
   Result := DBObject.Database;
 end;
 
-function TSReferencedRequester.GetSession(): TSSession;
+function TSDependencyRequester.GetSession(): TSSession;
 begin
   Result := DBObject.Session;
 end;
 
-function TSReferencedRequester.GetValid(): Boolean;
+function TSDependencyRequester.GetValid(): Boolean;
 var
   I: Integer;
 begin
@@ -2296,7 +2296,7 @@ begin
       Result := Result and Database.Events[I].ValidSource;
 end;
 
-function TSReferencedRequester.SQLGetReferences(): string;
+function TSDependencyRequester.SQLGetReferences(): string;
 var
   I: Integer;
   SQL: string;
@@ -2399,13 +2399,13 @@ begin
   FDatabase := ADBObjects.Database;
 
   FReferences := TSReferences.Create(Self);
-  FReferencedRequester := TSReferencedRequester.Create(Self);
+  FDependendyRequester := TSDependencyRequester.Create(Self);
 end;
 
 destructor TSDBObject.Destroy();
 begin
   FReferences.Free();
-  FReferencedRequester.Free();
+  FDependendyRequester.Free();
 
   inherited;
 end;
@@ -12037,7 +12037,7 @@ begin
             begin
               Table := Database.TableByName(SQLParseValue(Parse));
               if (Assigned(Table)) then
-                Result := Table.ReferencedRequester.BuildBaseTableReferences(DataSet);
+                Result := Table.DependencyRequester.BuildBaseTableReferences(DataSet);
             end;
           end
           else if ((TableNameCmp(ObjectName, 'ROUTINES') = 0) and (SQLParseKeyword(Parse, 'ORDER') or SQLParseEnd(Parse))) then
@@ -12414,8 +12414,8 @@ begin
     end
     else if ((TObject(List[I]) is TSUser) and not TSUser(List[I]).Valid) then
       SQL := SQL + TSUser(List[I]).SQLGetSource()
-    else if ((TObject(List[I]) is TSReferencedRequester) and not TSReferencedRequester(List[I]).Valid) then
-      SQL := SQL + TSReferencedRequester(List[I]).SQLGetReferences;
+    else if ((TObject(List[I]) is TSDependencyRequester) and not TSDependencyRequester(List[I]).Valid) then
+      SQL := SQL + TSDependencyRequester(List[I]).SQLGetReferences;
   if (Tables.Count > 0) then
   begin
     if (BaseTableInTables and Status and not Database.Tables.ValidStatus) then

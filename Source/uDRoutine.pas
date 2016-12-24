@@ -18,6 +18,7 @@ type
     FComment: TEdit;
     FCreated: TLabel;
     FDefiner: TLabel;
+    FDependency: TListView;
     FLComment: TLabel;
     FLCreated: TLabel;
     FLDefiner: TLabel;
@@ -30,7 +31,6 @@ type
     FSecurityInvoker: TRadioButton;
     FSize: TLabel;
     FSource: TSynMemo;
-    FReferenced: TListView;
     FUpdated: TLabel;
     GBasics: TGroupBox_Ext;
     GDates: TGroupBox_Ext;
@@ -48,9 +48,9 @@ type
     PageControl: TPageControl;
     PSQLWait: TPanel;
     TSBasics: TTabSheet;
+    TSDependency: TTabSheet;
     TSInformation: TTabSheet;
     TSSource: TTabSheet;
-    TSReferenced: TTabSheet;
     procedure FBHelpClick(Sender: TObject);
     procedure FBOkCheckEnabled(Sender: TObject);
     procedure FCommentChange(Sender: TObject);
@@ -62,11 +62,11 @@ type
     procedure FSecurityClick(Sender: TObject);
     procedure FSecurityKeyPress(Sender: TObject; var Key: Char);
     procedure FSourceChange(Sender: TObject);
-    procedure TSReferencedShow(Sender: TObject);
+    procedure TSDependencyShow(Sender: TObject);
   private
     procedure Built();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
-    procedure FReferencedBuild();
+    procedure FDependencyBuild();
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Database: TSDatabase;
@@ -229,7 +229,7 @@ end;
 
 procedure TDRoutine.FormCreate(Sender: TObject);
 begin
-  FReferenced.SmallImages := Preferences.Images;
+  FDependency.SmallImages := Preferences.Images;
   FSource.Highlighter := MainHighlighter;
 
   Constraints.MinWidth := Width;
@@ -237,7 +237,7 @@ begin
 
   BorderStyle := bsSizeable;
 
-  FReferenced.RowSelect := CheckWin32Version(6);
+  FDependency.RowSelect := CheckWin32Version(6);
 
   PageControl.ActivePage := TSBasics;
 end;
@@ -249,9 +249,9 @@ begin
   Preferences.Routine.Width := Width;
   Preferences.Routine.Height := Height;
 
-  FReferenced.Items.BeginUpdate();
-  FReferenced.Items.Clear();
-  FReferenced.Items.EndUpdate();
+  FDependency.Items.BeginUpdate();
+  FDependency.Items.Clear();
+  FDependency.Items.EndUpdate();
 
   PageControl.ActivePage := TSBasics;
 end;
@@ -267,10 +267,10 @@ begin
     ModalResult := mrCancel
   else if (Event.EventType = etAfterExecuteSQL) then
   begin
-    if (FReferenced.Cursor = crSQLWait) then
+    if (FDependency.Cursor = crSQLWait) then
     begin
-      FReferencedBuild();
-      FReferenced.Cursor := crDefault;
+      FDependencyBuild();
+      FDependency.Cursor := crDefault;
     end;
 
     if (not PageControl.Visible and (ModalResult = mrNone)) then
@@ -373,11 +373,11 @@ begin
       Built();
   end;
 
-  FReferenced.Cursor := crDefault;
+  FDependency.Cursor := crDefault;
 
   TSBasics.TabVisible := True;
   TSInformation.TabVisible := Assigned(Routine);
-  TSReferenced.TabVisible := Assigned(Routine);
+  TSDependency.TabVisible := Assigned(Routine);
 
   FBOk.Enabled := PageControl.Visible and not Assigned(Routine);
 
@@ -395,7 +395,7 @@ begin
     end;
 end;
 
-procedure TDRoutine.FReferencedBuild();
+procedure TDRoutine.FDependencyBuild();
 
   procedure AddDBObject(const DBObject: TSDBObject);
   var
@@ -405,7 +405,7 @@ procedure TDRoutine.FReferencedBuild();
     for I := 0 to DBObject.References.Count - 1 do
       if (DBObject.References[I].DBObject = Routine) then
       begin
-        Item := FReferenced.Items.Add();
+        Item := FDependency.Items.Add();
 
         if (DBObject is TSView) then
         begin
@@ -446,8 +446,8 @@ procedure TDRoutine.FReferencedBuild();
 var
   I: Integer;
 begin
-  FReferenced.Items.BeginUpdate();
-  FReferenced.Items.Clear();
+  FDependency.Items.BeginUpdate();
+  FDependency.Items.Clear();
 
   for I := 0 to Database.Tables.Count - 1 do
     if (Database.Tables[I] is TSView) then
@@ -466,7 +466,7 @@ begin
     for I := 0 to Database.Events.Count - 1 do
       AddDBObject(Database.Events[I]);
 
-  FReferenced.Items.EndUpdate();
+  FDependency.Items.EndUpdate();
 end;
 
 procedure TDRoutine.FSecurityClick(Sender: TObject);
@@ -495,18 +495,18 @@ begin
   FBOkCheckEnabled(Sender);
 end;
 
-procedure TDRoutine.TSReferencedShow(Sender: TObject);
+procedure TDRoutine.TSDependencyShow(Sender: TObject);
 var
   List: TList;
 begin
-  if (FReferenced.Items.Count = 0) then
+  if (FDependency.Items.Count = 0) then
   begin
     List := TList.Create();
-    List.Add(Routine.ReferencedRequester);
+    List.Add(Routine.DependencyRequester);
     if (not Database.Session.Update(List)) then
-      FReferenced.Cursor := crSQLWait
+      FDependency.Cursor := crSQLWait
     else
-      FReferencedBuild();
+      FDependencyBuild();
     List.Free();
   end;
 end;
@@ -532,9 +532,9 @@ begin
   GSize.Caption := Preferences.LoadStr(67);
   FLSize.Caption := Preferences.LoadStr(67) + ':';
 
-  TSReferenced.Caption := Preferences.LoadStr(782);
-  FReferenced.Column[0].Caption := Preferences.LoadStr(35);
-  FReferenced.Column[1].Caption := Preferences.LoadStr(69);
+  TSDependency.Caption := Preferences.LoadStr(782);
+  FDependency.Column[0].Caption := Preferences.LoadStr(35);
+  FDependency.Column[1].Caption := Preferences.LoadStr(69);
 
   TSSource.Caption := Preferences.LoadStr(198);
   if (not Preferences.Editor.CurrRowBGColorEnabled) then

@@ -3,6 +3,7 @@ unit uEurekaLog;
 interface {********************************************************************}
 
 uses
+  EMemLeaks,
   Classes,
   EClasses, ECallStack, ETypes;
 
@@ -34,8 +35,14 @@ type
 implementation {***************************************************************}
 
 uses
+  Windows,
   SysUtils,
-  EStackTracing, ESysInfo, EInfoFormat, EThreadsManager, EConsts, EWCTSupport;
+  Forms,
+  EException, EStackTracing, ESysInfo, EInfoFormat, EThreadsManager, EConsts,
+  EWCTSupport, EEvents,
+  MySQLDB,
+  uDeveloper, uPreferences, uSession,
+  uBase;
 
 { TEurekaStackFormatter *******************************************************}
 
@@ -358,4 +365,173 @@ begin
     end;
 end;
 
+{******************************************************************************}
+
+procedure CustomButtonClick(const Custom: Pointer;
+  ExceptionInfo: TEurekaExceptionInfo; Dialog: TObject;
+  var CloseDialog: Boolean; var CallNextHandler: Boolean);
+var
+  ClipboardData: HGLOBAL;
+  S: string;
+begin
+  if (not OpenClipboard(Application.Handle)) then
+    MessageBox(0, PChar(SysErrorMessage(GetLastError())), 'Error', MB_OK)
+  else
+  begin
+    try
+      EmptyClipboard();
+
+      S := ExceptionInfo.ToString;
+      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Length(S) + 1) * SizeOf(S[1]));
+      StrPCopy(GlobalLock(ClipboardData), S);
+      SetClipboardData(CF_UNICODETEXT, ClipboardData);
+      GlobalUnlock(ClipboardData);
+    finally
+      CloseClipboard();
+    end;
+
+    CloseDialog := False;
+  end;
+end;
+
+procedure ExceptionNotify(const Custom: Pointer;
+  ExceptionInfo: TEurekaExceptionInfo; var Handle: Boolean;
+  var CallNextHandler: Boolean);
+var
+  I: Integer;
+  Report: string;
+begin
+  Handle := Preferences.Version >= OnlineProgramVersion;
+
+  PostMessage(Application.MainFormHandle, UM_CRASH_RESCUE, 0, 0);
+
+  if (Handle) then
+  begin
+    Report := '';
+
+    try
+      if (Preferences.ObsoleteVersion < Preferences.Version) then
+        Preferences.ObsoleteVersion := Preferences.Version;
+    except
+      on E: Exception do
+        try SendToDeveloper('EurekaLogExceptionNotify(1)' + #13#10#13#10 + E.Message); except end;
+    end;
+
+    try
+      Report := Report + LoadStr(1000) + ' ' + Preferences.VersionStr + #13#10#13#10;
+    except
+      on E: Exception do
+        try SendToDeveloper('EurekaLogExceptionNotify(2)' + #13#10#13#10 + E.Message); except end;
+    end;
+
+    try
+      if (not (TObject(ExceptionInfo.ExceptionObject) is Exception)) then
+      begin
+        try
+        Report := Report + ExceptionInfo.ExceptionClass + ':' + #13#10;
+        Report := Report + ExceptionInfo.ExceptionMessage + #13#10#13#10;
+        except
+          on E: Exception do
+            try SendToDeveloper('EurekaLogExceptionNotify(3.1)' + #13#10#13#10 + E.Message); except end;
+        end;
+      end
+      else
+      begin
+        try
+        Report := Report + Exception(ExceptionInfo.ExceptionObject).ClassName + ':' + #13#10;
+        Report := Report + Exception(ExceptionInfo.ExceptionObject).Message + #13#10#13#10;
+        except
+          on E: Exception do
+            try SendToDeveloper('EurekaLogExceptionNotify(3.2)' + #13#10#13#10 + E.Message); except end;
+        end;
+      end;
+    except
+      on E: Exception do
+      begin
+        try SendToDeveloper('EurekaLogExceptionNotify(3)' + #13#10#13#10 + E.Message); except end;
+        try
+          Report := Report + ExceptionInfo.ToString + #13#10;
+        except
+          try SendToDeveloper('EurekaLogExceptionNotify(3.a)' + #13#10#13#10 + E.Message); except end;
+        end;
+      end;
+    end;
+
+    try
+      if (TObject(ExceptionInfo.ExceptionObject) is EOutOfMemory) then
+      begin
+        Report := Report + 'Free Memory: ' + IntToStr(GetFreeMemory()) + #13#10;
+        Report := Report + 'Total Memory: ' + IntToStr(GetMemPhysicalInstalled()) + #13#10#13#10;
+      end;
+    except
+      on E: Exception do
+        try SendToDeveloper('EurekaLogExceptionNotify(4)' + #13#10#13#10 + E.Message); except end;
+    end;
+
+    try
+      if (Assigned(ExceptionInfo.CallStack)) then
+      begin
+        ExceptionInfo.CallStack.Formatter := TStackFormatter.Create();
+        Report := Report + ExceptionInfo.CallStack.ToString + #13#10;
+      end;
+    except
+      on E: Exception do
+        try SendToDeveloper('EurekaLogExceptionNotify(5)' + #13#10#13#10 + E.Message); except end;
+    end;
+
+    try
+      if (GetCurrentThreadId() <> MainThreadId) then
+        Report := Report + 'EurekaLogExceptionNotify() runs in Thread ID ' + IntToStr(GetCurrentThreadId()) + #13#10#13#10
+      else
+      begin
+        for I := 0 to Sessions.Count - 1 do
+        begin
+          Report := Report + #13#10;
+          Report := Report + 'MySQL:' + #13#10;
+          Report := Report + StringOfChar('-', Length('Version: ' + Sessions[I].Connection.ServerVersionStr)) + #13#10;
+          Report := Report + 'Version: ' + Sessions[I].Connection.ServerVersionStr;
+          if (Sessions[I].Connection.LibraryType <> MySQLDB.ltBuiltIn) then
+            Report := Report + ' (LibraryType: ' + IntToStr(Ord(Sessions[I].Connection.LibraryType)) + ')';
+          Report := Report + #13#10#13#10;
+
+          Report := Report + 'SQL Log:' + #13#10;
+          Report := Report + StringOfChar('-', 72) + #13#10;
+    try
+          Report := Report + Sessions[I].Connection.DebugMonitor.CacheText + #13#10;
+    except
+      on E: Exception do
+        try SendToDeveloper('EurekaLogExceptionNotify(6.1)' + #13#10#13#10 + E.Message); except end;
+    end;
+        end;
+      end;
+    except
+      on E: Exception do
+        try SendToDeveloper('EurekaLogExceptionNotify(6)' + #13#10#13#10 + E.Message); except end;
+    end;
+
+    try
+      SendToDeveloper(Report);
+    except
+      on E: Exception do
+        try SendToDeveloper('EurekaLogExceptionNotify(7)' + #13#10#13#10 + E.Message); except end;
+    end;
+
+    try
+      ExceptionInfo.Options.EMailSubject
+        := SysUtils.LoadStr(1000) + ' ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor)
+        + ' (Build: ' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + ')'
+        + ' - Bug Report';
+    except
+      on E: Exception do
+        try SendToDeveloper('EurekaLogExceptionNotify(8)' + #13#10#13#10 + E.Message); except end;
+    end;
+  end;
+end;
+
+initialization
+  RegisterEventExceptionNotify(nil, ExceptionNotify);
+  RegisterEventCustomButtonClick(nil, CustomButtonClick);
+finalization
+  UnRegisterEventCustomButtonClick(nil, CustomButtonClick);
+  UnRegisterEventExceptionNotify(nil, ExceptionNotify);
 end.

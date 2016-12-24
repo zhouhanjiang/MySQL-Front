@@ -7,10 +7,6 @@ uses
   Dialogs, ActnList, ComCtrls, DBActns, ExtCtrls, ImgList, Menus, StdActns,
   ActnCtrls, StdCtrls, ToolWin, Actions,
   SynEditHighlighter, SynHighlighterSQL,
-  {$IFDEF EurekaLog}
-  ExceptionLog7, EComponent, EException, ECallStack, EBase,
-  uEurekaLog,
-  {$ENDIF}
   ExtCtrls_Ext, Forms_Ext, StdCtrls_Ext, ComCtrls_Ext, Dialogs_Ext, StdActns_Ext,
   MySQLDB,
   uSession, uPreferences, uDeveloper,
@@ -21,7 +17,6 @@ const
 
 const
   UM_ACTIVATETAB = WM_USER + 600;
-  UM_CRASH_RESCUE = WM_USER + 601;
   UM_MYSQLCLIENT_SYNCHRONIZE = WM_USER + 602;
   UM_ONLINE_UPDATE_FOUND = WM_USER + 603;
 
@@ -386,9 +381,6 @@ type
     end;
   private
     CheckOnlineVersionThread: TCheckOnlineVersionThread;
-    {$IFDEF EurekaLog}
-    EurekaLogEvents: TEurekaLogEvents;
-    {$ENDIF}
     FSessions: TList;
     MouseDownPoint: TPoint;
     PreviousForm: TForm;
@@ -407,14 +399,6 @@ type
     procedure CloseTab(const Tab: TFSession);
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure EmptyWorkingMem();
-    {$IFDEF EurekaLog}
-    procedure EurekaLogCustomButtonClick(const ExceptionInfo: TEurekaExceptionInfo;
-      const Dialog: TBaseDialog; var CloseDialog: Boolean; var ACallNextHandler: Boolean);
-//    procedure EurekaLogCustomDataRequest(
-//      EurekaExceptionRecord: TEurekaExceptionRecord; DataFields: TStrings);
-    procedure EurekaLogExceptionNotify(ExceptionInfo: TEurekaExceptionInfo;
-      var Handle: Boolean; var CallNextHandler: Boolean);
-    {$ENDIF}
     function GetActiveTab(): TFSession;
     function GetNewTabIndex(Sender: TObject; X, Y: Integer): Integer;
     procedure InformOnlineUpdateFound();
@@ -438,7 +422,9 @@ type
     procedure WMTimer(var Message: TWMTimer); message WM_TIMER;
     property ActiveTab: TFSession read GetActiveTab write SetActiveTab;
   protected
+    {$IFNDEF EurekaLog}
     procedure ApplicationException(Sender: TObject; E: Exception);
+    {$ENDIF}
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy(); override;
@@ -456,9 +442,6 @@ uses
   ShellApi, ShlObj, DBConsts, CommCtrl, StrUtils, ShLwApi, IniFiles, Themes,
   Variants, WinINet, SysConst, Math, Zip,
   ODBCAPI,
-  {$IFDEF EurekaLog}
-  ESysInfo,
-  {$ENDIF}
   acQBLocalizer,
   MySQLConsts, HTTPTunnel, SQLUtils,
   uTools, uURI,
@@ -661,11 +644,11 @@ begin
   SetTimer(Handle, tiDeactivate, 60000, nil);
 end;
 
+{$IFNDEF EurekaLog}
 procedure TWWindow.ApplicationException(Sender: TObject; E: Exception);
 begin
   if (E.Message <> SRecordChanged) then
   begin
-    {$IFNDEF EurekaLog}
     if ((OnlineProgramVersion < 0) and InternetGetConnectedState(nil, 0)) then
       if (Assigned(CheckOnlineVersionThread)) then
         CheckOnlineVersionThread.WaitFor()
@@ -675,7 +658,6 @@ begin
         CheckOnlineVersionThread.Execute();
         FreeAndNil(CheckOnlineVersionThread);
       end;
-    {$ENDIF}
 
     MsgBox('Internal Program Bug:' + #13#10 + E.Message, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
 
@@ -685,6 +667,7 @@ begin
       Preferences.ObsoleteVersion := Preferences.Version;
   end;
 end;
+{$ENDIF}
 
 procedure TWWindow.ApplicationMessage(var Msg: TMsg; var Handled: Boolean);
 var
@@ -930,10 +913,6 @@ begin
   FreeAndNil(FSessions);
   FreeAndNil(Accounts);
 
-  {$IFDEF EurekaLog}
-    EurekaLogEvents.Free();
-  {$ENDIF}
-
   inherited;
 end;
 
@@ -948,200 +927,6 @@ begin
     CloseHandle(Process);
   end;
 end;
-
-{$IFDEF EurekaLog}
-procedure TWWindow.EurekaLogCustomButtonClick(const ExceptionInfo: TEurekaExceptionInfo;
-  const Dialog: TBaseDialog; var CloseDialog: Boolean; var ACallNextHandler: Boolean);
-var
-  ClipboardData: HGLOBAL;
-  S: string;
-begin
-  if (not OpenClipboard(Handle)) then
-    MessageBox(0, PChar(SysErrorMessage(GetLastError())), 'Error', MB_OK)
-  else
-  begin
-    try
-      EmptyClipboard();
-
-      S := ExceptionInfo.ReproduceText;
-      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Length(S) + 1) * SizeOf(S[1]));
-      StrPCopy(GlobalLock(ClipboardData), S);
-      SetClipboardData(CF_UNICODETEXT, ClipboardData);
-      GlobalUnlock(ClipboardData);
-    finally
-      CloseClipboard();
-    end;
-
-    CloseDialog := False;
-  end;
-end;
-
-//procedure TWWindow.EurekaLogCustomDataRequest(
-//  EurekaExceptionRecord: TEurekaExceptionRecord; DataFields: TStrings);
-//var
-//  I: Integer;
-//  Log: TStringList;
-//begin
-//  for I := 0 to Sessions.Count - 1 do
-//    if (Sessions[I].Connection.Connected) then
-//      if (Assigned(ActiveTab) and (Sessions[I] = ActiveTab.Session)) then
-//        DataFields.Add(IntToStr(I) + '=MySQL Version ' + Sessions[I].Connection.ServerVersionStr + ' (Id*: ' + IntToStr(Sessions[I].Connection.ThreadId) + ')')
-//      else
-//        DataFields.Add(IntToStr(I) + '=MySQL Version ' + Sessions[I].Connection.ServerVersionStr + ' (Id: ' + IntToStr(Sessions[I].Connection.ThreadId) + ')');
-//
-//  if (Assigned(ActiveTab)) then
-//  begin
-//    Log := TStringList.Create();
-//    Log.Text := ActiveTab.Session.Connection.DebugMonitor.CacheText;
-//    for I := 0 to Log.Count - 1 do
-//      DataFields.Add(IntToStr(DataFields.Count) + '=' + Log[I]);
-//    Log.Free();
-//  end;
-//end;
-
-procedure TWWindow.EurekaLogExceptionNotify(ExceptionInfo: TEurekaExceptionInfo;
-  var Handle: Boolean; var CallNextHandler: Boolean);
-var
-  I: Integer;
-  Report: string;
-begin
-  if (GetCurrentThreadId() = MainThreadId) then
-    Perform(UM_CRASH_RESCUE, 0, 0)
-  else
-    PostMessage(Self.Handle, UM_CRASH_RESCUE, 0, 0);
-
-  Handle := Preferences.Version >= OnlineProgramVersion;
-
-  if (Handle) then
-  begin
-    Report := '';
-
-    try
-      if (Preferences.ObsoleteVersion < Preferences.Version) then
-        Preferences.ObsoleteVersion := Preferences.Version;
-    except
-      on E: Exception do
-        try SendToDeveloper('EurekaLogExceptionNotify(1)' + #13#10#13#10 + E.Message); except end;
-    end;
-
-    try
-      Report := Report + LoadStr(1000) + ' ' + Preferences.VersionStr + #13#10#13#10;
-    except
-      on E: Exception do
-        try SendToDeveloper('EurekaLogExceptionNotify(2)' + #13#10#13#10 + E.Message); except end;
-    end;
-
-    try
-      if (not (TObject(ExceptionInfo.ExceptionObject) is Exception)) then
-      begin
-        try
-        Report := Report + ExceptionInfo.ExceptionClass + ':' + #13#10;
-        Report := Report + ExceptionInfo.ExceptionMessage + #13#10#13#10;
-        except
-          on E: Exception do
-            try SendToDeveloper('EurekaLogExceptionNotify(3.1)' + #13#10#13#10 + E.Message); except end;
-        end;
-      end
-      else
-      begin
-        try
-        Report := Report + Exception(ExceptionInfo.ExceptionObject).ClassName + ':' + #13#10;
-        Report := Report + Exception(ExceptionInfo.ExceptionObject).Message + #13#10#13#10;
-        except
-          on E: Exception do
-            try SendToDeveloper('EurekaLogExceptionNotify(3.2)' + #13#10#13#10 + E.Message); except end;
-        end;
-      end;
-    except
-      on E: Exception do
-      begin
-        try SendToDeveloper('EurekaLogExceptionNotify(3)' + #13#10#13#10 + E.Message); except end;
-        try
-          Report := Report + ExceptionInfo.ToString + #13#10;
-        except
-          try SendToDeveloper('EurekaLogExceptionNotify(3.a)' + #13#10#13#10 + E.Message); except end;
-        end;
-      end;
-    end;
-
-    try
-      if (TObject(ExceptionInfo.ExceptionObject) is EOutOfMemory) then
-      begin
-        Report := Report + 'Free Memory: ' + IntToStr(GetFreeMemory()) + #13#10;
-        Report := Report + 'Total Memory: ' + IntToStr(GetMemPhysicalInstalled()) + #13#10#13#10;
-      end;
-    except
-      on E: Exception do
-        try SendToDeveloper('EurekaLogExceptionNotify(4)' + #13#10#13#10 + E.Message); except end;
-    end;
-
-    try
-      if (Assigned(ExceptionInfo.CallStack)) then
-      begin
-        ExceptionInfo.CallStack.Formatter := TStackFormatter.Create();
-        Report := Report + ExceptionInfo.CallStack.ToString + #13#10;
-      end;
-    except
-      on E: Exception do
-        try SendToDeveloper('EurekaLogExceptionNotify(5)' + #13#10#13#10 + E.Message); except end;
-    end;
-
-    try
-      if (GetCurrentThreadId() <> MainThreadId) then
-        Report := Report + 'EurekaLogExceptionNotify() runs in Thread ID ' + IntToStr(GetCurrentThreadId()) + #13#10#13#10
-      else
-      begin
-        if (EditorCommandText <> '') then
-        begin
-          Report := Report + #13#10;
-          Report := Report + 'EditorCommandText: ' + SQLEscapeBin(EditorCommandText, True) + #13#10;
-        end;
-
-        if (LastWantedAddress <> '') then
-        begin
-          Report := Report + #13#10;
-          Report := Report + 'LastWantedAddress: ' + LastWantedAddress + #13#10;
-        end;
-
-        for I := 0 to Sessions.Count - 1 do
-        begin
-          Report := Report + #13#10;
-          Report := Report + 'MySQL:' + #13#10;
-          Report := Report + StringOfChar('-', Length('Version: ' + Sessions[I].Connection.ServerVersionStr)) + #13#10;
-          Report := Report + 'Version: ' + Sessions[I].Connection.ServerVersionStr;
-          if (Sessions[I].Connection.LibraryType <> MySQLDB.ltBuiltIn) then
-            Report := Report + ' (LibraryType: ' + IntToStr(Ord(Sessions[I].Connection.LibraryType)) + ')';
-          Report := Report + #13#10#13#10;
-
-          Report := Report + 'SQL Log:' + #13#10;
-          Report := Report + StringOfChar('-', 72) + #13#10;
-          Report := Report + Sessions[I].Connection.DebugMonitor.CacheText + #13#10;
-        end;
-      end;
-    except
-      on E: Exception do
-        try SendToDeveloper('EurekaLogExceptionNotify(6)' + #13#10#13#10 + E.Message); except end;
-    end;
-
-    try
-      SendToDeveloper(Report);
-    except
-      on E: Exception do
-        try SendToDeveloper('EurekaLogExceptionNotify(7)' + #13#10#13#10 + E.Message); except end;
-    end;
-
-    try
-      ExceptionInfo.Options.EMailSubject
-        := SysUtils.LoadStr(1000) + ' ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor)
-        + ' (Build: ' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + ')'
-        + ' - Bug Report';
-    except
-      on E: Exception do
-        try SendToDeveloper('EurekaLogExceptionNotify(8)' + #13#10#13#10 + E.Message); except end;
-    end;
-  end;
-end;
-{$ENDIF}
 
 procedure TWWindow.FormActivate(Sender: TObject);
 begin
@@ -1175,13 +960,6 @@ begin
   Application.OnModalEnd := ApplicationModalEnd;
   Application.OnActivate := ApplicationActivate;
   Application.OnDeactivate := ApplicationDeactivate;
-
-  {$IFDEF EurekaLog}
-    EurekaLogEvents := TEurekaLogEvents.Create(Self);
-    EurekaLogEvents.OnCustomButtonClick := EurekaLogCustomButtonClick;
-    EurekaLogEvents.OnExceptionNotify := EurekaLogExceptionNotify;
-//    EurekaLogEvents.OnCustomDataRequest := EurekaLogCustomDataRequest;
-  {$ENDIF}
 
   Accounts := TPAccounts.Create(DBLogin);
 
@@ -1241,6 +1019,15 @@ begin
     TabControlRepaint.Delete(0);
   end;
   TabControlRepaint.Free();
+
+  {$IFNDEF EurekaLog}
+  Application.OnException := nil;
+  {$ENDIF}
+  Application.OnMessage := nil;
+  Application.OnModalBegin := nil;
+  Application.OnModalEnd := nil;
+  Application.OnActivate := nil;
+  Application.OnDeactivate := nil;
 
   if (Assigned(CheckOnlineVersionThread)) then
     TerminateThread(CheckOnlineVersionThread.Handle, 0);

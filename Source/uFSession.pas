@@ -31,9 +31,6 @@ const
   sbNavigation = 1;
   sbSummarize = 2;
 
-var
-  EditorCommandText: string;
-
 type
   TSynMemoBeforeDrag = record SelStart: Integer; SelLength: Integer; end;
   TListViewSortRec = record Kind: TPAccount.TDesktop.TListViewKind; Index: Integer; Order: Integer; end;
@@ -1035,9 +1032,6 @@ type
     property Window: TForm_Ext read GetWindow;
   end;
 
-var
-  LastWantedAddress: string;
-
 implementation {***************************************************************}
 
 {$R *.dfm}
@@ -1235,6 +1229,7 @@ var
   Item: ^TResult;
   Len: Integer;
   Msg: string;
+  Parse: TSQLParse;
   SQL: string;
   StartingCommentLength: Integer;
   URI: TUURI;
@@ -1243,7 +1238,11 @@ begin
   if (not Assigned(Results)) then
     Results := TList.Create();
 
-  if ((Results.Count < 5) and Assigned(FSession.Session.Account.HistoryXML) and ValidXMLText(CommandText)) then
+  if ((Results.Count < 5)
+    and Assigned(FSession.Session.Account.HistoryXML)
+    and ValidXMLText(CommandText)
+    and SQLCreateParse(Parse, PChar(CommandText), Length(CommandText), DataHandle.Connection.MySQLVersion)
+    and not SQLParseKeyword(Parse, 'USE')) then
   begin
     while (FSession.Session.Account.HistoryXML.ChildNodes.Count > 100) do
       FSession.Session.Account.HistoryXML.ChildNodes.Delete(0);
@@ -1257,14 +1256,7 @@ begin
     XML.AddChild('datetime').Text := FloatToStr(DataHandle.Connection.ServerDateTime, FileFormatSettings);
     if (not Data and (DataHandle.Connection.RowsAffected >= 0)) then
       XML.AddChild('rows_affected').Text := IntToStr(DataHandle.Connection.RowsAffected);
-
-    // Debug 2016-12-08
-    EditorCommandText := CommandText;
-
     XML.AddChild('sql').Text := CommandText;
-
-    EditorCommandText := '';
-
     if (DataHandle.Connection.Info <> '') then
       XML.AddChild('info').Text := DataHandle.Connection.Info;
     XML.AddChild('execution_time').Text := FloatToStr(DataHandle.Connection.ExecutionTime, FileFormatSettings);
@@ -1938,7 +1930,6 @@ end;
 
 procedure TFSession.TWanted.Clear();
 begin
-  LastWantedAddress := '';
   FAction := nil;
   FAddress := '';
   FUpdate := nil;
@@ -1987,7 +1978,6 @@ begin
     URI.Free();
 
     Clear();
-    LastWantedAddress := AAddress;
     FAddress := AAddress;
   end;
 end;
@@ -3033,6 +3023,10 @@ begin
   end
   else if (Window.ActiveControl = FNavigator) then
   begin
+    if (not OpenClipboard(Handle)) then
+      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+    else
+      CloseClipboard();
     if (not Assigned(FNavigatorMenuNode.Parent)) then
       ImageIndex := -1
     else
@@ -3057,9 +3051,17 @@ begin
       if (Data <> '') then
         Data := 'Address=' + NavigatorNodeToAddress(FNavigatorMenuNode.Parent) + #13#10 + Data;
     end;
+    if (not OpenClipboard(Handle)) then
+      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+    else
+      CloseClipboard();
   end
   else if (Window.ActiveControl = ActiveListView) then
   begin
+    if (not OpenClipboard(Handle)) then
+      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+    else
+      CloseClipboard();
     ImageIndex := SelectedImageIndex;
     for I := 0 to ActiveListView.Items.Count - 1 do
       if (ActiveListView.Items[I].Selected) then
@@ -3086,6 +3088,10 @@ begin
         end;
     if (Data <> '') then
       Data := 'Address=' + NavigatorNodeToAddress(FNavigator.Selected) + #13#10 + Data;
+    if (not OpenClipboard(Handle)) then
+      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+    else
+      CloseClipboard();
   end
   else if (Window.ActiveControl = ActiveDBGrid) then
   begin
@@ -3132,6 +3138,10 @@ begin
   end
   else if (Window.ActiveControl = ActiveWorkbench) then
   begin
+    if (not OpenClipboard(Handle)) then
+      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+    else
+      CloseClipboard();
     if ((ActiveWorkbench.Selected is TWSection) and OpenClipboard(Handle)) then
     begin
       try
@@ -3164,9 +3174,17 @@ begin
           Data := 'Address=' + NavigatorNodeToAddress(FNavigator.Selected) + #13#10 + Data;
       end;
     end;
+    if (not OpenClipboard(Handle)) then
+      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+    else
+      CloseClipboard();
   end
   else if (Window.ActiveControl = FSQLHistory) then
   begin
+    if (not OpenClipboard(Handle)) then
+      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+    else
+      CloseClipboard();
     if (Assigned(FSQLHistory.Selected) and OpenClipboard(Handle)) then
     begin
       try
@@ -3181,11 +3199,23 @@ begin
         CloseClipboard();
       end;
     end;
+    if (not OpenClipboard(Handle)) then
+      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+    else
+      CloseClipboard();
     exit;
   end
   else if (Window.ActiveControl = FHexEditor) then
   begin
+    if (not OpenClipboard(Handle)) then
+      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+    else
+      CloseClipboard();
     FHexEditor.ExecuteAction(MainAction('aECopy'));
+    if (not OpenClipboard(Handle)) then
+      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+    else
+      CloseClipboard();
     exit;
   end
   else if (Window.ActiveControl = ActiveSynMemo) then
@@ -3215,12 +3245,23 @@ begin
           raise Exception.Create(Msg);
         end;
     end;
+    if (not OpenClipboard(Handle)) then
+      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+    else
+      CloseClipboard();
     exit;
   end
   else
   begin
-    if (Assigned(Window.ActiveControl)) then
-      SendMessage(Window.ActiveControl.Handle, WM_COPY, 0, 0);
+    if (not OpenClipboard(Handle)) then
+      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+    else
+      CloseClipboard();
+    SendMessage(Window.ActiveControl.Handle, WM_COPY, 0, 0);
+    if (not OpenClipboard(Handle)) then
+      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+    else
+      CloseClipboard();
     exit;
   end;
 
@@ -5325,13 +5366,8 @@ end;
 
 procedure TFSession.DataSetAfterOpen(DataSet: TDataSet);
 begin
-  // Debug 2016-12-23
-  if (not Assigned(ActiveDBGrid)) then
-    raise ERangeError.Create(SRangeError);
-  if (ActiveDBGrid.DataSource.DataSet <> DataSet) then
-    raise ERangeError.Create(SRangeError);
-
   ActiveDBGrid.DataSource.Enabled := False;
+  ActiveDBGrid.DataSource.DataSet := DataSet;
   DBGridInitialize(ActiveDBGrid);
   PContentChange(nil);
 end;
@@ -8457,14 +8493,23 @@ var
 begin
   DBGrid := ActiveDBGrid;
 
-  // Debug 2016-12-15
-  if (Assigned(DBGrid) and Assigned(DBGrid.SelectedField)) then
-    if (not (DBGrid.SelectedField is TField)) then
+  // Debug 2016-12-24
+  if (Assigned(DBGrid)) then
+  begin
+    if (not (TObject(DBGrid) is TDBGrid)) then
       try
-        raise ERangeError.Create(SRangeError + ' ClassType: ' + DBGrid.SelectedField.ClassName);
-      finally
+        raise ERangeERror.Create('ClassType: ' + TObject(DBGrid).ClassName);
+      except
         raise ERangeError.Create(SRangeError);
       end;
+    if (Assigned(DBGrid.SelectedField)) then
+      if (not (DBGrid.SelectedField is TField)) then
+        try
+          raise ERangeError.Create(SRangeError + ' ClassType: ' + DBGrid.SelectedField.ClassName);
+        finally
+          raise ERangeError.Create(SRangeError);
+        end;
+  end;
 
   if (not Assigned(DBGrid)
     or not Assigned(DBGrid.SelectedField)
@@ -10000,6 +10045,12 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
               // Debug 2016-12-16
               if (not Assigned(ListView.Items[I])) then
                 raise ERangeError.Create(SRangeError);
+              if (not (TObject(ListView.Items[I]) is TListItem)) then
+                try
+                  raise ERangeError.Create('ClassType: ' + TObject(ListView.Items[I]).ClassName);
+                except
+                  raise ERangeError.Create(SRangeError);
+                end;
               if (not Assigned(ListView.Items[I].Data)) then
                 raise ERangeError.Create('ImageIndex: ' + IntToStr(ListView.Items[I].ImageIndex));
               if (TObject(ListView.Items[I].Data) is TSKey) then
@@ -14826,8 +14877,6 @@ begin
     Result := Assigned(ChildTable) and Assigned(ParentTable);
   end
   else
-
-
     Result := False;
 end;
 

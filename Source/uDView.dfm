@@ -41,7 +41,7 @@ object DView: TDView
     Top = 8
     Width = 321
     Height = 325
-    ActivePage = TSInformation
+    ActivePage = TSDependency
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
@@ -290,10 +290,10 @@ object DView: TDView
         ViewStyle = vsReport
       end
     end
-    object TSReferenced: TTabSheet
-      Caption = 'TSReferenced'
+    object TSDependency: TTabSheet
+      Caption = 'TSDependency'
       ImageIndex = 4
-      OnShow = TSReferencedShow
+      OnShow = TSDependencyShow
       ExplicitLeft = 0
       ExplicitTop = 0
       ExplicitWidth = 0
@@ -301,7 +301,7 @@ object DView: TDView
       DesignSize = (
         313
         279)
-      object FReferenced: TListView
+      object FDependency: TListView
         Left = 8
         Top = 8
         Width = 297
