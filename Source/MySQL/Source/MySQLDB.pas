@@ -1838,8 +1838,16 @@ begin
       SetString(Result, PChar(@Cache.Mem[Cache.First]), Len)
     else
     begin
-      SetLength(Result, Cache.UsedLen);
+      SetLength(Result, Len);
+try
       MoveMemory(@Result[1], @Cache.Mem[Cache.First], (Cache.MemLen - Cache.First) * SizeOf(Cache.Mem[0]));
+except
+  raise ERangeError.Create('Len: ' + IntToStr(Len) + #13#10
+    + 'Cache.First: ' + IntToStr(Cache.First) + #13#10
+    + 'Cache.MemLen: ' + IntToStr(Cache.MemLen) + #13#10
+    + 'Cache.UsedLen: ' + IntToStr(Cache.UsedLen) + #13#10
+    + 'Result length: ' + IntToStr(Length(Result)));
+end;
       MoveMemory(@Result[1 + Cache.MemLen - Cache.First], @Cache.Mem[0], (Len - (Cache.MemLen - Cache.First)) * SizeOf(Cache.Mem[0]));
     end;
   end;
