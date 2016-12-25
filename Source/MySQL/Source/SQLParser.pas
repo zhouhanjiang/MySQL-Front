@@ -24085,7 +24085,7 @@ begin
   else
   {$IFDEF Debug}
     Continue := True; // This "Hack" is needed to use <Ctrl+LeftClick>
-  if (Continue) then  // the Delphi XE2 IDE. But why???
+  if (Continue) then  // the Delphi XE4 IDE. But why???
   {$ENDIF}
   if (IsTag(kiSHOW, kiBINARY, kiLOGS)) then
     Result := ParseShowBinaryLogsStmt()
@@ -25230,6 +25230,8 @@ begin
       IdentL4:
         CMP AX,'.'                       // "."?
         JNE IdentL5                      // No!
+        CMP DigitsOnly,True              // Only digits in this token?
+        JNE Finish                       // No!
         CMP AtBefore,True                // Previous token was "@"?
         JNE Finish                       // No!
         JMP IPAddress

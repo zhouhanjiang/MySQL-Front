@@ -2,7 +2,7 @@
 
 [Exception Log]
 EurekaLog Version=7007
-Activate Handle=1
+Activate Handle=0
 Activate=1
 atCGI=0
 atCLX=0
@@ -67,7 +67,7 @@ DoNotTouchCompilation=0
 DoNotTouchOptions=0
 DoNotTouchPackages=0
 DoNotTouchUnits=0
-dpDLLExports=1
+dpDLLExports=0
 dpJCL=0
 dpMadExcept=0
 dpMap=0
@@ -126,11 +126,11 @@ loAllowManualActivation=0
 loAppendReproduceText=0
 loAppendReproduceTextOnlyWhenSending=1
 loAttemptToUseSharedMM=0
-loCatchLeaks=1
+loCatchLeaks=0
 loCatchLeaksExceptions=1
 loDeleteLogAtVersionChange=0
-loEmptyFreedMemory=1
-loEnableMMDebugMode=0
+loEmptyFreedMemory=0
+loEnableMMDebugMode=1
 loFreeAllLeaks=1
 loGroupsSonLeaks=1
 loHideRTLLeaks=1

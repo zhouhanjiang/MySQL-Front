@@ -122,7 +122,7 @@ type
     procedure SetOnMonitor(const AOnMonitor: TMySQLOnMonitor);
   public
     property CacheText: string read GetCacheText;
-    procedure Clear(); virtual;
+    procedure Clear();
     constructor Create(AOwner: TComponent); reintroduce;
     destructor Destroy(); override;
     procedure DoMonitor(const Connection: TMySQLConnection; const Text: PChar; const Length: Integer; const ATraceType: TTraceType); virtual;
@@ -251,7 +251,7 @@ type
     FOnVariableChange: TVariableChangeEvent;
     FPassword: string;
     FPort: Word;
-    FServerTimeout: Integer;
+    FServerTimeout: LongWord;
     FServerVersionStr: string;
     FSQLMonitors: TList;
     FSQLParser: TSQLParser;
@@ -410,7 +410,7 @@ type
     property OnVariableChange: TVariableChangeEvent read FOnVariableChange write FOnVariableChange;
     property Password: string read FPassword write SetPassword;
     property Port: Word read FPort write SetPort default MYSQL_PORT;
-    property ServerTimeout: Integer read FServerTimeout write FServerTimeout default 0;
+    property ServerTimeout: LongWord read FServerTimeout write FServerTimeout default 0;
     property Username: string read FUsername write SetUsername;
     property Connected;
     property AfterConnect;
@@ -451,7 +451,7 @@ type
     function GetLibRow(): MYSQL_ROW; virtual;
     function GetIsIndexField(Field: TField): Boolean; override;
     function GetRecNo(): Integer; override;
-    function GetRecord(Buffer: TRecordBuffer; GetMode: TGetMode; DoCheck: Boolean): TGetResult; override;
+    function GetRecord(Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult; override;
     function GetRecordCount(): Integer; override;
     function GetUniDirectional(): Boolean; virtual;
     procedure InternalClose(); override;
@@ -515,7 +515,7 @@ type
     TExternRecordBuffer = record
       Identifier654321: Integer; // Debug 2016-12-06
       InternRecordBuffer: PInternRecordBuffer;
-      Index: Integer;
+      xIndex: Integer;
       BookmarkFlag: TBookmarkFlag;
     end;
     TInternRecordBuffers = class(TList)
@@ -530,6 +530,7 @@ type
       CriticalSection: TCriticalSection;
       FilteredRecordCount: Integer;
       Index: Integer;
+      InsertedIndex: Integer;
       procedure Clear(); override;
       constructor Create(const ADataSet: TMySQLDataSet);
       destructor Destroy(); override;
@@ -569,7 +570,7 @@ type
     function GetLibLengths(): MYSQL_LENGTHS; override;
     function GetLibRow(): MYSQL_ROW; override;
     function GetRecNo(): Integer; override;
-    function GetRecord(Buffer: TRecordBuffer; GetMode: TGetMode; DoCheck: Boolean): TGetResult; override;
+    function GetRecord(Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult; override;
     function GetRecordCount(): Integer; override;
     function GetUniDirectional(): Boolean; override;
     function InternAddRecord(const LibRow: MYSQL_ROW; const LibLengths: MYSQL_LENGTHS; const Index: Integer = -1): Boolean; virtual;
@@ -588,7 +589,7 @@ type
     function InternalPostResult(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
       const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
     procedure InternalRefresh(); override;
-    procedure InternalSetToRecord(Buffer: TRecordBuffer); override;
+    procedure InternalSetToRecord(Buffer: TRecBuf); override;
     function IsCursorOpen(): Boolean; override;
     function MoveRecordBufferData(var DestData: TMySQLQuery.PRecordBufferData; const SourceData: TMySQLQuery.PRecordBufferData): Boolean;
     procedure SetBookmarkData(Buffer: TRecBuf; Data: TBookmark); override;
@@ -1778,41 +1779,41 @@ begin
         MoveMemory(@Cache.Mem[Pos], @ItemText[0], (Cache.MemLen - Pos) * SizeOf(Cache.Mem[0]));
         MoveMemory(@Cache.Mem[0], @ItemText[Cache.MemLen - Pos], (MoveLen - (Cache.MemLen - Pos)) * SizeOf(Cache.Mem[0]));
       end;
-    end;
 
-    Inc(Cache.UsedLen, ItemLen);
-    Cache.ItemsLen.Add(Pointer(ItemLen));
+      Inc(Cache.UsedLen, ItemLen);
+      Cache.ItemsLen.Add(Pointer(ItemLen));
 
-    Pos := (Cache.First + Cache.UsedLen) mod Cache.MemLen;
-    case (Pos) of
-      0:
-        begin
-          if (ATraceType in [ttRequest, ttResult]) then
-            Cache.Mem[Cache.MemLen - 3] := ';';
-          Cache.Mem[Cache.MemLen - 2] := #13;
-          Cache.Mem[Cache.MemLen - 1] := #10;
-        end;
-      1:
-        begin
-          if (ATraceType in [ttRequest, ttResult]) then
-            Cache.Mem[Cache.MemLen - 2] := ';';
-          Cache.Mem[Cache.MemLen - 1] := #13;
-          Cache.Mem[0] := #10;
-        end;
-      2:
-        begin
-          if (ATraceType in [ttRequest, ttResult]) then
-            Cache.Mem[Cache.MemLen - 1] := ';';
-          Cache.Mem[0] := #13;
-          Cache.Mem[1] := #10;
-        end;
-      else
-        begin
-          if (ATraceType in [ttRequest, ttResult]) then
-            Cache.Mem[Pos - 3] := ';';
-          Cache.Mem[Pos - 2] := #13;
-          Cache.Mem[Pos - 1] := #10;
-        end;
+      Pos := (Cache.First + Cache.UsedLen) mod Cache.MemLen;
+      case (Pos) of
+        0:
+          begin
+            if (ATraceType in [ttRequest, ttResult]) then
+              Cache.Mem[Cache.MemLen - 3] := ';';
+            Cache.Mem[Cache.MemLen - 2] := #13;
+            Cache.Mem[Cache.MemLen - 1] := #10;
+          end;
+        1:
+          begin
+            if (ATraceType in [ttRequest, ttResult]) then
+              Cache.Mem[Cache.MemLen - 2] := ';';
+            Cache.Mem[Cache.MemLen - 1] := #13;
+            Cache.Mem[0] := #10;
+          end;
+        2:
+          begin
+            if (ATraceType in [ttRequest, ttResult]) then
+              Cache.Mem[Cache.MemLen - 1] := ';';
+            Cache.Mem[0] := #13;
+            Cache.Mem[1] := #10;
+          end;
+        else
+          begin
+            if (ATraceType in [ttRequest, ttResult]) then
+              Cache.Mem[Pos - 3] := ';';
+            Cache.Mem[Pos - 2] := #13;
+            Cache.Mem[Pos - 1] := #10;
+          end;
+      end;
     end;
   end;
 
@@ -1839,15 +1840,7 @@ begin
     else
     begin
       SetLength(Result, Len);
-try
       MoveMemory(@Result[1], @Cache.Mem[Cache.First], (Cache.MemLen - Cache.First) * SizeOf(Cache.Mem[0]));
-except
-  raise ERangeError.Create('Len: ' + IntToStr(Len) + #13#10
-    + 'Cache.First: ' + IntToStr(Cache.First) + #13#10
-    + 'Cache.MemLen: ' + IntToStr(Cache.MemLen) + #13#10
-    + 'Cache.UsedLen: ' + IntToStr(Cache.UsedLen) + #13#10
-    + 'Result length: ' + IntToStr(Length(Result)));
-end;
       MoveMemory(@Result[1 + Cache.MemLen - Cache.First], @Cache.Mem[0], (Len - (Cache.MemLen - Cache.First)) * SizeOf(Cache.Mem[0]));
     end;
   end;
@@ -1871,11 +1864,11 @@ begin
   NewSize := ACacheSize - ACacheSize mod SizeOf(Cache.Mem[0]);
   if (NewSize = 0) then
   begin
-    Clear();
     if (Assigned(Cache.Mem)) then
       FreeMem(Cache.Mem);
     Cache.Mem := nil;
     Cache.MemLen := 0;
+    Clear();
   end
   else
   begin
@@ -5112,7 +5105,7 @@ begin
   Result := FRecNo;
 end;
 
-function TMySQLQuery.GetRecord(Buffer: TRecordBuffer; GetMode: TGetMode; DoCheck: Boolean): TGetResult;
+function TMySQLQuery.GetRecord(Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult;
 begin
   if (GetMode <> gmNext) then
     Result := grError
@@ -5953,7 +5946,7 @@ begin
 
     PExternRecordBuffer(Result)^.Identifier654321 := 654321;
     PExternRecordBuffer(Result)^.InternRecordBuffer := nil;
-    PExternRecordBuffer(Result)^.Index := -1;
+    PExternRecordBuffer(Result)^.xIndex := -1;
     PExternRecordBuffer(Result)^.BookmarkFlag := bfInserted;
   except
     Result := nil;
@@ -6176,7 +6169,7 @@ begin
     raise ERangeError.Create(SRangeError)
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
   else if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.IdentifierABCDEF <> $ABCDEF) then // Debug 2016-12-15
-    raise ERangeError.Create(SRangeError) // Occurrend 4 times
+    raise ERangeError.Create(SRangeError) // Occurrend 5 times here
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
   else if (not (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier123456 = 123456)) then // Crashe here the second time on 2016-12-15
     raise ERangeError.Create(SRangeError); // Occurred second time on 2016-12-15
@@ -6216,10 +6209,10 @@ begin
   if (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag <> bfCurrent) then
     Result := -1
   else
-    Result := PExternRecordBuffer(ActiveBuffer())^.Index;
+    Result := PExternRecordBuffer(ActiveBuffer())^.xIndex;
 end;
 
-function TMySQLDataSet.GetRecord(Buffer: TRecordBuffer; GetMode: TGetMode; DoCheck: Boolean): TGetResult;
+function TMySQLDataSet.GetRecord(Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult;
 var
   NewIndex: Integer;
 begin
@@ -6301,7 +6294,7 @@ begin
     InternRecordBuffers.Index := NewIndex;
 
     PExternRecordBuffer(Buffer)^.InternRecordBuffer := InternRecordBuffers[InternRecordBuffers.Index];
-    PExternRecordBuffer(Buffer)^.Index := InternRecordBuffers.Index;
+    PExternRecordBuffer(Buffer)^.xIndex := InternRecordBuffers.Index;
     PExternRecordBuffer(Buffer)^.BookmarkFlag := bfCurrent;
 
     InternRecordBuffers.CriticalSection.Leave();
@@ -6466,7 +6459,7 @@ begin
       FreeInternRecordBuffer(InternRecordBuffers[InternRecordBuffers.Index]);
       InternRecordBuffers.Delete(InternRecordBuffers.Index);
       for J := ActiveRecord + 1 to BufferCount - 1 do
-        Dec(PExternRecordBuffer(Buffers[J])^.Index);
+        Dec(PExternRecordBuffer(Buffers[J])^.xIndex);
       if (Filtered) then
         Dec(InternRecordBuffers.FilteredRecordCount);
     end
@@ -6484,7 +6477,7 @@ begin
         FreeInternRecordBuffer(InternRecordBuffers[Index]);
         InternRecordBuffers.Delete(Index);
         for J := ActiveRecord + 1 to BufferCount - 1 do
-          Dec(PExternRecordBuffer(Buffers[J])^.Index);
+          Dec(PExternRecordBuffer(Buffers[J])^.xIndex);
         if (Filtered) then
           Dec(InternRecordBuffers.FilteredRecordCount);
       end;
@@ -6539,7 +6532,7 @@ end;
 procedure TMySQLDataSet.InternalInitRecord(Buffer: TRecordBuffer);
 begin
   PExternRecordBuffer(Buffer)^.InternRecordBuffer := nil;
-  PExternRecordBuffer(Buffer)^.Index := -1;
+  PExternRecordBuffer(Buffer)^.xIndex := -1;
   PExternRecordBuffer(Buffer)^.BookmarkFlag := bfCurrent;
 end;
 
@@ -6548,7 +6541,7 @@ var
   I: Integer;
   RBS: RawByteString;
 begin
-  InternalSetToRecord(ActiveBuffer());
+  InternRecordBuffers.InsertedIndex := InternRecordBuffers.Index;
 
   PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := AllocInternRecordBuffer();
 
@@ -6817,7 +6810,10 @@ end;
         SQL := Connection.SQLUse(DatabaseName) + SQL;
       Connection.BeginSilent();
       try
-        Connection.ExecuteSQL(SQL, InternalPostResult);
+        if (not Connection.ExecuteSQL(SQL, InternalPostResult)) then
+          raise EMySQLError.Create(Connection.ErrorMessage, Connection.ErrorCode, Connection)
+        else if (Update and (Connection.RowsAffected = 0)) then
+          raise EDatabasePostError.Create(SRecordChanged);
       finally
         Connection.EndSilent();
       end;
@@ -6836,10 +6832,9 @@ var
   Parse: TSQLParse;
   RecordBufferData: TMySQLQuery.TRecordBufferData;
   RecordMatch: Boolean;
-S: string; // Debug 2016-12-24
   Update: Boolean;
 begin
-  Result := True;
+  Result := False;
 
   if ((ErrorCode = 0) and SQLCreateParse(Parse, PChar(CommandText), Length(CommandText), Connection.MySQLVersion)) then
   begin
@@ -6858,7 +6853,7 @@ begin
         bfEOF:
           InternRecordBuffers.Index := InternRecordBuffers.Add(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
       end;
-      PExternRecordBuffer(ActiveBuffer())^.Index := InternRecordBuffers.Index;
+      PExternRecordBuffer(ActiveBuffer())^.xIndex := InternRecordBuffers.Index;
 
       if (Connection.Connected) then
         for I := 0 to Fields.Count - 1 do
@@ -6875,28 +6870,17 @@ begin
     end
     else if (SQLParseKeyword(Parse, 'SELECT')) then
     begin
+      Result := True;
+
       DataSet := TMySQLQuery.Create(nil);
-
-// Debug 2016-12-24
-S := '# Debug: Before open DataSet';
-TMySQLConnection(Connection).DebugMonitor.DoMonitor(Connection, PChar(S), Length(S), ttDebug);
       DataSet.Open(DataHandle);
-S := '# Debug: After open DataSet';
-TMySQLConnection(Connection).DebugMonitor.DoMonitor(Connection, PChar(S), Length(S), ttDebug);
-
       if (DataSet.IsEmpty) then
       begin
         InternalSetToRecord(ActiveBuffer());
-
-        // Debug 2016-12-24
-        if ((InternRecordBuffers.Index < 0) or (InternRecordBuffers.Count <= InternRecordBuffers.Index)) then
-          raise ERangeError.Create('InternRecordBuffers.Index: ' + IntToStr(InternRecordBuffers.Index) + #13#10
-            + 'ActiveBuffer().Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer()).Index));
-
         FreeInternRecordBuffer(InternRecordBuffers[InternRecordBuffers.Index]);
         InternRecordBuffers.Delete(InternRecordBuffers.Index);
         for I := ActiveRecord + 1 to BufferCount - 1 do
-          Dec(PExternRecordBuffer(Buffers[I])^.Index);
+          Dec(PExternRecordBuffer(Buffers[I])^.xIndex);
         if (Filtered) then
           Dec(InternRecordBuffers.FilteredRecordCount);
       end
@@ -6920,7 +6904,7 @@ TMySQLConnection(Connection).DebugMonitor.DoMonitor(Connection, PChar(S), Length
             FreeInternRecordBuffer(InternRecordBuffers[InternRecordBuffers.Index]);
             InternRecordBuffers.Delete(InternRecordBuffers.Index);
             for I := ActiveRecord + 1 to BufferCount - 1 do
-              Dec(PExternRecordBuffer(Buffers[I])^.Index);
+              Dec(PExternRecordBuffer(Buffers[I])^.xIndex);
             if (Filtered) then
               Dec(InternRecordBuffers.FilteredRecordCount);
           end
@@ -6945,16 +6929,16 @@ TMySQLConnection(Connection).DebugMonitor.DoMonitor(Connection, PChar(S), Length
             FreeInternRecordBuffer(InternRecordBuffers[InternRecordBuffers.Index]);
             InternRecordBuffers.Delete(InternRecordBuffers.Index);
             for I := ActiveRecord + 1 to BufferCount - 1 do
-              Dec(PExternRecordBuffer(Buffers[I])^.Index);
+              Dec(PExternRecordBuffer(Buffers[I])^.xIndex);
             if (Filtered) then
               Dec(InternRecordBuffers.FilteredRecordCount);
           end
-          else if (Index <> PExternRecordBuffer(ActiveBuffer())^.Index) then
+          else if (Index <> PExternRecordBuffer(ActiveBuffer())^.xIndex) then
           begin
-            if (Index > PExternRecordBuffer(ActiveBuffer())^.Index) then
+            if (Index > PExternRecordBuffer(ActiveBuffer())^.xIndex) then
               Dec(Index);
-            InternRecordBuffers.Move(PExternRecordBuffer(ActiveBuffer())^.Index, Index);
-            PExternRecordBuffer(ActiveBuffer())^.Index := Index;
+            InternRecordBuffers.Move(PExternRecordBuffer(ActiveBuffer())^.xIndex, Index);
+            PExternRecordBuffer(ActiveBuffer())^.xIndex := Index;
 
             ClearBuffers();
 
@@ -6970,8 +6954,8 @@ TMySQLConnection(Connection).DebugMonitor.DoMonitor(Connection, PChar(S), Length
         else if (RecordMatch) then
         begin
           Index := InternRecordBuffers.Count - 1;
-          InternRecordBuffers.Move(PExternRecordBuffer(ActiveBuffer())^.Index, Index);
-          PExternRecordBuffer(ActiveBuffer())^.Index := Index;
+          InternRecordBuffers.Move(PExternRecordBuffer(ActiveBuffer())^.xIndex, Index);
+          PExternRecordBuffer(ActiveBuffer())^.xIndex := Index;
 
           ClearBuffers();
 
@@ -7020,27 +7004,27 @@ begin
     Connection.SyncBindDataSet(Self);
 end;
 
-procedure TMySQLDataSet.InternalSetToRecord(Buffer: TRecordBuffer);
+procedure TMySQLDataSet.InternalSetToRecord(Buffer: TRecBuf);
 var
   MaxIndex: Integer;
   NewIndex: Integer;
-  NewInternBuffersIndex: Integer;
 begin
-  NewInternBuffersIndex := InternRecordBuffers.Index;
-
-  NewIndex := Max(InternRecordBuffers.Index - BufferCount, 0);
-  MaxIndex := Min(InternRecordBuffers.Index + BufferCount, RecordCount);
-  while ((NewInternBuffersIndex = InternRecordBuffers.Index) and (NewIndex < MaxIndex)) do
+  if (PExternRecordBuffer(Buffer)^.BookmarkFlag = bfInserted) then
+    InternRecordBuffers.Index := InternRecordBuffers.InsertedIndex
+  else
   begin
-    if (PExternRecordBuffer(Buffer)^.InternRecordBuffer = InternRecordBuffers[NewIndex]) then
+    NewIndex := Max(InternRecordBuffers.Index - BufferCount, 0);
+    MaxIndex := Min(InternRecordBuffers.Index + BufferCount, RecordCount);
+    while (NewIndex < MaxIndex) do
     begin
-      NewInternBuffersIndex := NewIndex;
-      break;
+      if (PExternRecordBuffer(Buffer)^.InternRecordBuffer = InternRecordBuffers[NewIndex]) then
+      begin
+        InternRecordBuffers.Index := NewIndex;
+        break;
+      end;
+      Inc(NewIndex);
     end;
-    Inc(NewIndex);
   end;
-
-  InternRecordBuffers.Index := NewInternBuffersIndex;
 end;
 
 function TMySQLDataSet.IsCursorOpen(): Boolean;
@@ -7201,10 +7185,14 @@ end;
 procedure TMySQLDataSet.Resync(Mode: TResyncMode);
 begin
   // Why is this needed in Delphi XE2? Without this, Buffers are not reinitialized well.
-  if ((InternRecordBuffers.Index >= 0) and (PExternRecordBuffer(ActiveBuffer())^.Index >= 0)
+  if ((InternRecordBuffers.Index >= 0) and (PExternRecordBuffer(ActiveBuffer())^.xIndex >= 0)
     and Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
     and (Mode = [])) then
-    InternRecordBuffers.Index := PExternRecordBuffer(ActiveBuffer())^.Index;
+    {$IFNDEF Debug}
+      raise Exception.Create('Happened!');
+    {$ELSE}
+      InternRecordBuffers.Index := PExternRecordBuffer(ActiveBuffer())^.xIndex;
+    {$ENDIF}
 
   inherited;
 end;

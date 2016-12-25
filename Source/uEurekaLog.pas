@@ -3,7 +3,6 @@ unit uEurekaLog;
 interface {********************************************************************}
 
 uses
-  EMemLeaks,
   Classes,
   EClasses, ECallStack, ETypes;
 
@@ -425,6 +424,13 @@ begin
     end;
 
     try
+      try
+        if (not (TObject(ExceptionInfo.ExceptionObject) is Exception)) then
+          Write;
+      except
+        on E: Exception do
+          try SendToDeveloper('EurekaLogExceptionNotify(3.0)' + #13#10#13#10 + E.Message); except end;
+      end;
       if (not (TObject(ExceptionInfo.ExceptionObject) is Exception)) then
       begin
         try
@@ -496,12 +502,7 @@ begin
 
           Report := Report + 'SQL Log:' + #13#10;
           Report := Report + StringOfChar('-', 72) + #13#10;
-    try
           Report := Report + Sessions[I].Connection.DebugMonitor.CacheText + #13#10;
-    except
-      on E: Exception do
-        try SendToDeveloper('EurekaLogExceptionNotify(6.1)' + #13#10#13#10 + E.Message); except end;
-    end;
         end;
       end;
     except

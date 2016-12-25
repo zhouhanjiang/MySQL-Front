@@ -40,11 +40,14 @@ var
 implementation {***************************************************************}
 
 uses
-  XMLIntf, XMLDoc, ActiveX, SysUtils,
+  XMLIntf, XMLDoc, ActiveX, SysUtils, SyncObjs,
   {$IFDEF EurekaLog}
   ExceptionLog7, EExceptionManager,
   {$ENDIF}
   uPreferences;
+
+var
+  SendThreads: TList;
 
 {******************************************************************************}
 
@@ -135,7 +138,7 @@ end;
 procedure SendToDeveloper(const Text: string);
 var
   Flags: DWORD;
-  HTTPThread: THTTPThread;
+  Thread: THTTPThread;
   Size: Integer;
   Stream: TMemoryStream;
 begin
@@ -146,9 +149,9 @@ begin
   Stream.SetSize(Size);
   WideCharToMultiByte(CP_UTF8, Flags, PChar(Text), Length(Text), PAnsiChar(Stream.Memory), Stream.Size, nil, nil);
 
-  HTTPThread := THTTPThread.Create(LoadStr(1010), Stream, nil);
-  HTTPThread.FreeOnTerminate := True;
-  HTTPThread.Start();
+  Thread := THTTPThread.Create(LoadStr(1010), Stream, nil);
+  SendThreads.Add(Thread);
+  Thread.Start();
 end;
 
 { THTTPThread *****************************************************************}
@@ -336,4 +339,16 @@ begin
   end;
 end;
 
+{******************************************************************************}
+
+initialization
+  SendThreads := TList.Create();
+finalization
+  while (SendThreads.Count > 0) do
+  begin
+    TThread(SendThreads[0]).WaitFor();
+    TThread(SendThreads[0]).Free();
+    SendThreads.Delete(0);
+  end;
+  SendThreads.Free();
 end.

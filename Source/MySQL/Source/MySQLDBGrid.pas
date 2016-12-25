@@ -13,7 +13,9 @@ type
 
     TDBMySQLInplaceEdit = class(TInplaceEditList)
     private
-      DoNotRemove: Integer; // Why is this needed??? Without this, there is Access Violation while freeing TMySQLDBGrid, if the InplaceEditor has been used in Delphi XE2
+      DoNotRemove: Integer; // Why is this needed???
+      // Without this, there is Access Violation while freeing TMySQLDBGrid,
+      // if the InplaceEditor has been used in Delphi XE4
     protected
       procedure CloseUp(Accept: Boolean); override;
       procedure DoEditButtonClick(); override;
@@ -576,7 +578,7 @@ begin
     Result := 0
   else
     case (SelectedField.DataType) of
-      ftString: Result := SelectedField.DataSize;
+      ftString: Result := SelectedField.DataSize - 1;
       ftVarBytes:  Result := SelectedField.Size - 1;
       ftSmallInt,
       ftInteger:

@@ -5366,6 +5366,10 @@ end;
 
 procedure TFSession.DataSetAfterOpen(DataSet: TDataSet);
 begin
+  // Debug 2016-12-25
+  if (not Assigned(ActiveDBGrid)) then
+    raise ERangeError.Create(SRangeError);
+
   ActiveDBGrid.DataSource.Enabled := False;
   ActiveDBGrid.DataSource.DataSet := DataSet;
   DBGridInitialize(ActiveDBGrid);
@@ -8802,7 +8806,7 @@ procedure TFSession.ListViewAdvancedCustomDrawSubItem(
   Sender: TCustomListView; Item: TListItem; SubItem: Integer;
   State: TCustomDrawState; Stage: TCustomDrawStage; var DefaultDraw: Boolean);
 begin
-  Sender.Canvas.Font.Style := [fsBold]; // Without this the first sub item is Bold (Delphi XE2)
+  Sender.Canvas.Font.Style := [fsBold]; // Without this the first sub item is Bold (Delphi XE4)
   Sender.Canvas.Font.Style := [];
 end;
 
@@ -9851,8 +9855,10 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
 
   function InsertOrUpdateItem(const Kind: TPAccount.TDesktop.TListViewKind; const Data: TObject): TListItem;
   var
+    {$IFNDEF Debug}
     GroupID: Integer;
     I: Integer;
+    {$ENDIF}
     Item: TListItem;
     Index: Integer;
     Left: Integer;
@@ -9906,6 +9912,9 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
 
     if (ReorderGroup and ListView.GroupView) then
     begin
+      {$IFDEF Debug}
+      // Is this code needed in Delphi XE4?
+      {$ELSE}
       GroupID := Result.GroupID;
       for I := Result.Index + 1 to ListView.Items.Count - 1 do
         if (ListView.Items[I].GroupID = GroupID) then
@@ -9913,6 +9922,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
           ListView.Items[I].GroupID := -1;
           ListView.Items[I].GroupID := GroupID; // Why is this needed (in Delphi XE2)???
         end;
+      {$ENDIF}
     end;
   end;
 
@@ -10027,6 +10037,9 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
               ListView.Items.Delete(I);
           if ((Kind = lkTable) and (Event.Items is TSBaseTableFields)) then
           begin
+            // Debug 2016-12-25
+            if (not (TObject(ListView.Tag) is TSBaseTable)) then
+              raise ERangeError.Create(SRangeError);
             for I := ListView.Items.Count - 1 downto 0 do
             begin
               if (not Assigned(TSBaseTableFields(Event.Items).Table)) then
@@ -10051,6 +10064,13 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
                 except
                   raise ERangeError.Create(SRangeError);
                 end;
+              if (not (TSObject(ListView.Tag) is TSTable)) then
+                raise ERangeError.Create(SRangeError);
+              if ((TSBaseTable(ListView.Tag).Keys.IndexOf(ListView.Items[I].Data) < 0)
+                and (TSBaseTable(ListView.Tag).Fields.IndexOf(ListView.Items[I].Data) < 0)
+                and (not Assigned(TSBaseTable(ListView.Tag).ForeignKeys) or (TSBaseTable(ListView).ForeignKeys.IndexOf(ListView.Items[I].Data) < 0))
+                and (not Assigned(TSBaseTable(ListView.Tag).Partitions) or (TSBaseTable(ListView).Partitions.IndexOf(ListView.Items[I].Data) < 0))) then
+                raise ERangeError.Create(SRangeError);
               if (not Assigned(ListView.Items[I].Data)) then
                 raise ERangeError.Create('ImageIndex: ' + IntToStr(ListView.Items[I].ImageIndex));
               if (TObject(ListView.Items[I].Data) is TSKey) then
@@ -12115,7 +12135,7 @@ var
   Msg: TMsg;
 begin
   // With higher DPI system, the width of the following components are not
-  // applyed in a "frame" (Delphi XE2). So there is the PDataBrowserDummy as
+  // applyed in a "frame" (Delphi XE4). So there is the PDataBrowserDummy as
   // a "form" to get the correct values...
 
   if (not (PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (Msg.wParam = MK_LBUTTON))) then
