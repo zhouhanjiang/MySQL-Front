@@ -423,6 +423,9 @@ begin
         try SendToDeveloper('EurekaLogExceptionNotify(2)' + #13#10#13#10 + E.Message); except end;
     end;
 
+    if (not Assigned(ExceptionInfo)) then
+      try SendToDeveloper('EurekaLogExceptionNotify(2.2)'); except end;
+
     try
       try
         if (not (TObject(ExceptionInfo.ExceptionObject) is Exception)) then
@@ -521,7 +524,7 @@ begin
       ExceptionInfo.Options.EMailSubject
         := SysUtils.LoadStr(1000) + ' ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor)
         + ' (Build: ' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + ')'
-        + ' - Bug Report';
+        + ' - Error Report';
     except
       on E: Exception do
         try SendToDeveloper('EurekaLogExceptionNotify(8)' + #13#10#13#10 + E.Message); except end;

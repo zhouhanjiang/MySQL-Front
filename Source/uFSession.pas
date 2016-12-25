@@ -5368,7 +5368,7 @@ procedure TFSession.DataSetAfterOpen(DataSet: TDataSet);
 begin
   // Debug 2016-12-25
   if (not Assigned(ActiveDBGrid)) then
-    raise ERangeError.Create(SRangeError);
+    raise ERangeError.Create('Address: ' + Address);
 
   ActiveDBGrid.DataSource.Enabled := False;
   ActiveDBGrid.DataSource.DataSet := DataSet;
