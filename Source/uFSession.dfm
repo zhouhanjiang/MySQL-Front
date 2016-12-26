@@ -1273,7 +1273,6 @@ object FSession: TFSession
       Visible = False
       OnChange = FObjectSearchChange
       OnKeyPress = FObjectSearchKeyPress
-      ExplicitLeft = 1619
     end
     object TBObjectSearch: TToolBar
       Left = 2323
@@ -1287,7 +1286,6 @@ object FSession: TFSession
       TabOrder = 3
       Transparent = True
       Visible = False
-      ExplicitLeft = 1869
       object FObjectSearchStart: TToolButton
         Left = 0
         Top = 0

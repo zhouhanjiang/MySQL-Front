@@ -824,7 +824,6 @@ type
     ActiveWorkbench: TWWorkbench;
     aDRunExecuteSelStart: Integer;
     BMPImage: TBitmap;
-    CloseButton: TPicture;
     FAddress: string;
     FFiles: TJamShellList;
     FFolders: TJamShellTree;
@@ -4877,11 +4876,6 @@ begin
   FilterMRU := TPPreferences.TMRUList.Create(100);
 
 
-  CloseButton := TPicture.Create();
-  CloseButton.Bitmap.Height := GetSystemMetrics(SM_CXSMSIZE) + 1;
-  CloseButton.Bitmap.Width := GetSystemMetrics(SM_CXSMSIZE) + 1;
-  DrawCloseBitmap(CloseButton.Bitmap);
-
   FOffset.Constraints.MaxWidth := FOffset.Width;
 
   Perform(UM_CHANGEPREFERENCES, 0, 0);
@@ -4956,9 +4950,9 @@ begin
   SQueryBuilderSynMemo.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
   SResult.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
   SBlob.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
-  PResultHeader.Width := CloseButton.Bitmap.Width + 2 * GetSystemMetrics(SM_CXEDGE);
+  PResultHeader.Width := GetSystemMetrics(SM_CXSMSIZE) + 2 * GetSystemMetrics(SM_CXEDGE);
   SLog.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
-  PLogHeader.Width := CloseButton.Bitmap.Width + 2 * GetSystemMetrics(SM_CXEDGE);
+  PLogHeader.Width := GetSystemMetrics(SM_CXSMSIZE) + 2 * GetSystemMetrics(SM_CXEDGE);
 
   FormResize(nil);
 
@@ -6319,8 +6313,6 @@ begin
 
   FLog.Lines.Clear();
 
-  FreeAndNil(CloseButton);
-
   FreeAndNil(FilterMRU);
   FreeAndNil(Wanted);
 
@@ -7623,6 +7615,14 @@ end;
 
 procedure TFSession.FObjectSearchStartClick(Sender: TObject);
 begin
+  if (Assigned(ObjectSearchListView)) then
+  begin
+    ObjectSearchListView.Free();
+    ObjectSearchListView := nil;
+  end;
+  if (Assigned(ObjectSearch)) then
+    ObjectSearch.Free();
+
   ObjectSearch := TSObjectSearch.Create(Session);
   if (FNavigator.Selected.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiUsers]) then
     ObjectSearch.Location := TObject(FNavigator.Selected.Data);
@@ -9563,7 +9563,7 @@ var
   ListViewKind: TPAccount.TDesktop.TListViewKind; // Debug 2016-12-01
   Width: Integer; // Debug 2016-12-01
 begin
-  if (Sender is TListView) then
+  if ((Sender is TListView) and (Sender <> ObjectSearchListView)) then
   begin
     // Debug 2016-12-20
     // Somewhere, Session.Account will be cleared, but why and where???
@@ -10297,22 +10297,118 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
 
   procedure UpdateObjectSearch();
   var
+    DatabaseCount: Integer;
+    EventCount: Integer;
+    FieldCount: Integer;
+    Header: string;
     I: Integer;
     Item: TListItem;
+    TableCount: Integer;
+    TriggerCount: Integer;
+    RoutineCount: Integer;
+    UserCount: Integer;
   begin
     for I := ListView.Items.Count to Event.Items.Count - 1 do
-      if (Event.Items[I] is TSBaseTable) then
+    begin
+      Item := nil;
+      if (Event.Items[I] is TSDatabase) then
       begin
         Item := ListView.Items.Add();
-        Item.ImageIndex := iiBaseTable;
-        Item.Caption := TSBaseTable(Event.Items[I]).Name;
+        Item.GroupID := giDatabases;
+      end
+      else if (Event.Items[I] is TSBaseTable) then
+      begin
+        Item := ListView.Items.Add();
+        Item.GroupID := giTables;
       end
       else if (Event.Items[I] is TSView) then
       begin
         Item := ListView.Items.Add();
-        Item.ImageIndex := iiView;
-        Item.Caption := TSBaseTable(Event.Items[I]).Name;
+        Item.GroupID := giTables;
+      end
+      else if (Event.Items[I] is TSRoutine) then
+      begin
+        Item := ListView.Items.Add();
+        Item.GroupID := giRoutines;
+      end
+      else if (Event.Items[I] is TSEvent) then
+      begin
+        Item := ListView.Items.Add();
+        Item.GroupID := giEvents;
+      end
+      else if (Event.Items[I] is TSField) then
+      begin
+        Item := ListView.Items.Add();
+        Item.GroupID := giFields;
+      end
+      else if (Event.Items[I] is TSTrigger) then
+      begin
+        Item := ListView.Items.Add();
+        Item.GroupID := giTriggers;
+      end
+      else if (Event.Items[I] is TSUser) then
+      begin
+        Item := ListView.Items.Add();
+        Item.GroupID := giUsers;
       end;
+      if (Assigned(Item)) then
+      begin
+        Item.Caption := Event.Items[I].Name;
+        Item.ImageIndex := ImageIndexByData(Event.Items[I]);
+        Item.Data := Event.Items[I];
+      end;
+    end;
+
+    DatabaseCount := 0;
+    TableCount := 0;
+    RoutineCount := 0;
+    EventCount := 0;
+    FieldCount := 0;
+    TriggerCount := 0;
+    UserCount := 0;
+    for I := 0 to ListView.Items.Count - 1 do
+      case (ListView.Items[I].ImageIndex) of
+        iiDatabase,
+        iiSystemDatabase:
+          Inc(DatabaseCount);
+        iiBaseTable,
+        iiSystemView,
+        iiView:
+          Inc(TableCount);
+        iiProcedure,
+        iiFunction:
+          Inc(RoutineCount);
+        iiEvent:
+          Inc(EventCount);
+        iiField,
+        iiViewField:
+          Inc(FieldCount);
+        iiTrigger:
+          Inc(TriggerCount);
+        iiUser:
+          Inc(UserCount);
+      end;
+
+      if (DatabaseCount > 0) then
+        SetListViewGroupHeader(ListView, giDatabases, Preferences.LoadStr(265) + ' (' + IntToStr(DatabaseCount) + ')');
+      if (TableCount > 0) then
+        begin
+          Header := Preferences.LoadStr(234);
+          if (Session.Connection.MySQLVersion >= 50001) then
+            Header := Header + ' + ' + Preferences.LoadStr(873);
+          Header := Header + ' (' + IntToStr(TableCount) + ')';
+          SetListViewGroupHeader(ListView, giTables, Header);
+        end;
+      if (RoutineCount > 0) then
+        SetListViewGroupHeader(ListView, giRoutines, Preferences.LoadStr(874) + ' + ' + Preferences.LoadStr(875) + ' (' + IntToStr(RoutineCount) + ')');
+      if (EventCount > 0) then
+        SetListViewGroupHeader(ListView, giEvents, Preferences.LoadStr(876) + ' (' + IntToStr(EventCount) + ')');
+      if (FieldCount > 0) then
+        SetListViewGroupHeader(ListView, giFields, Preferences.LoadStr(253) + ' (' + IntToStr(FieldCount) + ')');
+      if (TriggerCount > 0) then
+        SetListViewGroupHeader(ListView, giTriggers, Preferences.LoadStr(797) + ' (' + IntToStr(TriggerCount) + ')');
+      if (UserCount > 0) then
+        SetListViewGroupHeader(ListView, giUsers, Preferences.LoadStr(561) + ' (' + IntToStr(UserCount) + ')');
   end;
 
 var
@@ -11616,39 +11712,35 @@ begin
   begin
     Panel := TPanel_Ext(Sender);
 
-    Rect.Left := Panel.Width - CloseButton.Bitmap.Width - GetSystemMetrics(SM_CXEDGE) - 1;
+    Rect.Left := Panel.Width - GetSystemMetrics(SM_CXSMSIZE) - GetSystemMetrics(SM_CXEDGE) - 1;
     Rect.Top := GetSystemMetrics(SM_CYEDGE) - 1;
-    Rect.Right := Rect.Left + CloseButton.Bitmap.Width + 2;
-    Rect.Bottom := Rect.Top + CloseButton.Bitmap.Height + 2;
+    Rect.Right := Rect.Left + GetSystemMetrics(SM_CXSMSIZE) + 2;
+    Rect.Bottom := Rect.Top + GetSystemMetrics(SM_CXSMSIZE) + 2;
 
     if (StyleServices.Enabled) then
     begin
       if (PtInRect(Rect, Point(X, Y))) then
         if (PanelMouseDownPoint.X < 0) then
-          StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle,
-            StyleServices.GetElementDetails(twSmallCloseButtonHot),
-            Rect)
+          StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonHot), Rect)
         else
-          StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle,
-            StyleServices.GetElementDetails(twSmallCloseButtonPushed),
-            Rect)
+          StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonPushed), Rect)
       else if (ReleaseCapture()) then
-        StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle,
-          StyleServices.GetElementDetails(twSmallCloseButtonNormal),
-          Rect);
+        StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonNormal), Rect);
     end
     else
+    begin
       if (PtInRect(Rect, Point(X, Y))) then
       begin
         SetCapture(Panel.Handle);
 
-        if (PtInRect(Rect, PanelMouseDownPoint)) then
-          Frame3D(Panel.Canvas, Rect, clDkGray, clWhite, 1)
+        if (not PtInRect(Rect, PanelMouseDownPoint)) then
+          DrawFrameControl(TPanel_Ext(Sender).Canvas.Handle, Rect, DFC_CAPTION, DFCS_CAPTIONCLOSE or DFCS_HOT)
         else
-          Frame3D(Panel.Canvas, Rect, clWhite, clDkGray, 1);
+          DrawFrameControl(TPanel_Ext(Sender).Canvas.Handle, Rect, DFC_CAPTION, DFCS_CAPTIONCLOSE or DFCS_PUSHED)
       end
       else if (ReleaseCapture()) then
-        Frame3D(Panel.Canvas, Rect, Panel.Color, Panel.Color, 1);
+        DrawFrameControl(TPanel_Ext(Sender).Canvas.Handle, Rect, DFC_CAPTION, DFCS_CAPTIONCLOSE or DFCS_FLAT);
+    end
   end;
 end;
 
@@ -11662,10 +11754,10 @@ begin
   begin
     Panel := TPanel_Ext(Sender);
 
-    Rect.Left := Panel.Width - CloseButton.Bitmap.Width - GetSystemMetrics(SM_CXEDGE) - 1;
+    Rect.Left := Panel.Width - GetSystemMetrics(SM_CXSMSIZE) - GetSystemMetrics(SM_CXEDGE) - 1;
     Rect.Top := GetSystemMetrics(SM_CYEDGE) - 1;
-    Rect.Right := Rect.Left + CloseButton.Bitmap.Width + 2;
-    Rect.Bottom := Rect.Top + CloseButton.Bitmap.Height + 2;
+    Rect.Right := Rect.Left + GetSystemMetrics(SM_CXSMSIZE) + 2;
+    Rect.Bottom := Rect.Top + GetSystemMetrics(SM_CXSMSIZE) + 2;
 
     if (PtInRect(Rect, Point(X, Y)) and PtInRect(Rect, PanelMouseDownPoint)) then
       if (Sender = PHeader) then
@@ -11690,17 +11782,21 @@ begin
 end;
 
 procedure TFSession.PanelPaint(Sender: TObject);
+var
+  Panel: TPanel_Ext;
+  Rect: TRect;
 begin
+  Panel := TPanel_Ext(Sender);
+
+  Rect.Left := Panel.Width - GetSystemMetrics(SM_CXSMSIZE) - GetSystemMetrics(SM_CXEDGE) - 1;
+  Rect.Top := GetSystemMetrics(SM_CYEDGE) - 1;
+  Rect.Right := Rect.Left + GetSystemMetrics(SM_CXSMSIZE) + 2;
+  Rect.Bottom := Rect.Top + GetSystemMetrics(SM_CXSMSIZE) + 2;
+
   if (StyleServices.Enabled) then
-    StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle,
-      StyleServices.GetElementDetails(twSmallCloseButtonNormal),
-      Rect(
-        TPanel_Ext(Sender).Width - CloseButton.Bitmap.Width - GetSystemMetrics(SM_CXEDGE),
-        GetSystemMetrics(SM_CYEDGE),
-        TPanel_Ext(Sender).Width - GetSystemMetrics(SM_CXEDGE),
-        GetSystemMetrics(SM_CYEDGE) + CloseButton.Bitmap.Height))
-  else if ((Sender is TPanel_Ext) and Assigned(CloseButton)) then
-    TPanel_Ext(Sender).Canvas.Draw(TPanel_Ext(Sender).Width - CloseButton.Bitmap.Width - GetSystemMetrics(SM_CXEDGE), GetSystemMetrics(SM_CYEDGE), CloseButton.Bitmap)
+    StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonNormal), Rect)
+  else if (Sender is TPanel_Ext) then
+    DrawFrameControl(TPanel_Ext(Sender).Canvas.Handle, Rect, DFC_CAPTION, DFCS_CAPTIONCLOSE or DFCS_FLAT);
 end;
 
 procedure TFSession.PanelResize(Sender: TObject);
@@ -14800,6 +14896,7 @@ begin
 
     ObjectSearch.Free();
     ObjectSearch := nil;
+    FObjectSearch.Text := '';
   end;
 end;
 

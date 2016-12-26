@@ -1433,6 +1433,7 @@ type
   public
     Location: TObject;
     ObjectName: string;
+    procedure Clear(); override;
     constructor Create(const ASession: TSSession);
     function SearchResult(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
       const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
@@ -5466,12 +5467,12 @@ begin
           end;
 
           TSBaseTable(Table[Index]).FValidStatus := True;
-
-          Item := Table[Index];
-
-          if (Assigned(ObjectSearch)) then
-            ObjectSearch.Add(Item);
         end;
+
+        Item := Table[Index];
+
+        if (Assigned(ObjectSearch)) then
+          ObjectSearch.Add(Item);
       until (not DataSet.FindNext() or (UseInformationSchema and (Session.Databases.NameCmp(DataSet.FieldByName('TABLE_SCHEMA').AsString, Database.Name) <> 0)));
 
     if (not Filtered) then
@@ -10575,6 +10576,12 @@ end;
 function TSConnection.SQLUse(const DatabaseName: string): string;
 begin
   Result := inherited;
+end;
+
+procedure TSObjectSearch.Clear();
+begin
+  while (Count > 0) do
+    Delete(0);
 end;
 
 constructor TSObjectSearch.Create(const ASession: TSSession);
