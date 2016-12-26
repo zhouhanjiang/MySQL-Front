@@ -2583,13 +2583,6 @@ begin
       Exclude(FrameState, tsLoading);
     end;
 
-    // Debug 2016-12-26
-    if (not Assigned(ActiveDBGrid) and MainAction('aDEditRecord').Enabled) then
-      SendToDeveloper('TFSession.AddressChanged:' + #13#10
-        + 'aDEditRecord.Enabled: True' + #13#10
-        + 'OldAddress: ' + OldAddress + #13#10
-        + 'Address: ' + Address);
-
     OldAddress := Address;
 
     KillTimer(Handle, tiShowSynCompletion);
