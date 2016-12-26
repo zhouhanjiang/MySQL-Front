@@ -1,3 +1,4 @@
+
 unit uWWindow;
 
 interface {********************************************************************}
@@ -117,13 +118,13 @@ type
     aSSearchFind: TSearchFind_Ext;
     aSSearchNext: TSearchFindNext;
     aSSearchReplace: TSearchReplace_Ext;
-    aVDataBrowser: TAction;
+    aVBrowser: TAction;
+    aVBuilder: TAction;
     aVDiagram: TAction;
     aVExplorer: TAction;
     aVNavigator: TAction;
-    aVObjectBrowser: TAction;
-    aVObjectIDE: TAction;
-    aVQueryBuilder: TAction;
+    aVObjects: TAction;
+    aVIDE: TAction;
     aVRefresh: TAction;
     aVRefreshAll: TAction;
     aVSQLEditor: TAction;
@@ -236,13 +237,13 @@ type
     miSSearchNext: TMenuItem;
     miSSearchReplace: TMenuItem;
     miVBrowser: TMenuItem;
+    miVBuilder: TMenuItem;
     miVDiagram: TMenuItem;
     miVExplorer: TMenuItem;
+    miVIDE: TMenuItem;
     miView: TMenuItem;
     miVNavigator: TMenuItem;
-    miVObjectBrowser: TMenuItem;
-    miVObjectIDE: TMenuItem;
-    miVQueryBuilder: TMenuItem;
+    miVObjects: TMenuItem;
     miVRefresh: TMenuItem;
     miVRefreshAll: TMenuItem;
     miVSidebar: TMenuItem;
@@ -823,7 +824,7 @@ begin
   if (StyleServices.Enabled or not CheckWin32Version(6)) then
     ToolBar.BorderWidth := 0
   else
-    ToolBar.BorderWidth := 2;
+    ToolBar.BorderWidth := GetSystemMetrics(SM_CXEDGE);
 
   if (Assigned(ToolBar.Images)) then
   begin
@@ -831,8 +832,8 @@ begin
     CToolBar.AutoSize := False;
     ToolBar.AutoSize := False;
     ToolBar.ButtonHeight := 0;
-    ToolBar.ButtonHeight := ToolBar.Images.Height + 6;
-    ToolBar.ButtonWidth := ToolBar.Images.Width + 7;
+    ToolBar.ButtonHeight := ToolBar.Images.Height + 2 * GetSystemMetrics(SM_CYFIXEDFRAME);
+    ToolBar.ButtonWidth := ToolBar.Images.Width + 2 * GetSystemMetrics(SM_CXFIXEDFRAME) + 1;
     ToolBar.AutoSize := True;
     CToolBar.AutoSize := True;
   end;
@@ -1460,11 +1461,6 @@ begin
 
   Perform(CM_SYSFONTCHANGED, 0, 0);
 
-  if (not CheckWin32Version(6)) then
-    ToolBar.BorderWidth := 0
-  else
-    ToolBar.BorderWidth := 2;
-
   TabControl.Canvas.Font := Font;
 
   Caption := LoadStr(1000);
@@ -1512,10 +1508,10 @@ begin
   aSSearchNext.Caption := Preferences.LoadStr(188);
 
   miView.Caption := Preferences.LoadStr(9);
-  aVObjectBrowser.Caption := Preferences.LoadStr(4);
-  aVDataBrowser.Caption := Preferences.LoadStr(5);
-  aVObjectIDE.Caption := Preferences.LoadStr(865);
-  aVQueryBuilder.Caption := Preferences.LoadStr(852);
+  aVObjects.Caption := Preferences.LoadStr(4);
+  aVBrowser.Caption := Preferences.LoadStr(5);
+  aVIDE.Caption := Preferences.LoadStr(865);
+  aVBuilder.Caption := Preferences.LoadStr(852);
   aVDiagram.Caption := Preferences.LoadStr(800);
   aVSQLEditor.Caption := Preferences.LoadStr(6);
   aVSQLEditor2.Caption := Preferences.LoadStr(6) + ' #2';
@@ -1712,10 +1708,10 @@ begin
     aFClose.Enabled := False;
 
 
-    aVObjectBrowser.Checked := False;
-    aVDataBrowser.Checked := False;
-    aVObjectIDE.Checked := False;
-    aVQueryBuilder.Checked := False;
+    aVObjects.Checked := False;
+    aVBrowser.Checked := False;
+    aVIDE.Checked := False;
+    aVBuilder.Checked := False;
     aVSQLEditor.Checked := False;
     aVSQLEditor2.Checked := False;
     aVSQLEditor3.Checked := False;
@@ -1730,10 +1726,10 @@ begin
     aFSaveAs.Enabled := False;
     aECopy.Enabled := False;
     aEPaste.Enabled := False;
-    aVObjectBrowser.Enabled := False;
-    aVDataBrowser.Enabled := False;
-    aVObjectIDE.Enabled := False;
-    aVQueryBuilder.Enabled := False;
+    aVObjects.Enabled := False;
+    aVBrowser.Enabled := False;
+    aVIDE.Enabled := False;
+    aVBuilder.Enabled := False;
     aVDiagram.Enabled := False;
     aVSQLEditor.Enabled := False;
     aVSQLEditor2.Enabled := False;

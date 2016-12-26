@@ -21,10 +21,11 @@ const
   UM_ACTIVATE_DBGRID = WM_USER + 500;
   UM_ACTIVATEFRAME = WM_USER + 501;
   UM_ACTIVATEFTEXT = WM_USER + 502;
-  UM_POST_BUILDER_QUERY_CHANGE = WM_USER + 503;
-  UM_SYNCOMPLETION_TIMER = WM_USER + 504;
-  UM_WANTED_SYNCHRONIZE = WM_USER + 505;
-  UM_STATUS_BAR_REFRESH = WM_USER + 506;
+  UM_CLOSE_FRAME = WM_USER + 503;
+  UM_POST_BUILDER_QUERY_CHANGE = WM_USER + 504;
+  UM_SYNCOMPLETION_TIMER = WM_USER + 505;
+  UM_WANTED_SYNCHRONIZE = WM_USER + 506;
+  UM_STATUS_BAR_REFRESH = WM_USER + 507;
 
 const
   sbMessage = 0;
@@ -50,6 +51,7 @@ type
     aPExpand: TAction;
     aPObjectBrowserTable: TAction;
     aPResult: TAction;
+    aSynCompletionExecute: TAction;
     aTBFilter: TAction;
     aTBLimit: TAction;
     aTBOffset: TAction;
@@ -78,6 +80,8 @@ type
     FLog: TRichEdit;
     FNavigator: TTreeView_Ext;
     FObjectIDEGrid: TMySQLDBGrid;
+    FObjectSearch: TEdit;
+    FObjectSearchStart: TToolButton;
     FOffset: TEdit;
     FQueryBuilder: TacQueryBuilder;
     FQueryBuilderSynMemo: TSynMemo;
@@ -91,6 +95,7 @@ type
     FText: TRichEdit;
     FUDLimit: TUpDown;
     FUDOffset: TUpDown;
+    ghmCopy: TMenuItem;
     ghmGoto: TMenuItem;
     gmDDeleteRecord: TMenuItem;
     gmDEditRecord: TMenuItem;
@@ -259,6 +264,7 @@ type
     mwFImportSQL: TMenuItem;
     mwFImportText: TMenuItem;
     MWorkbench: TPopupMenu;
+    N1: TMenuItem;
     N02: TMenuItem;
     N03: TMenuItem;
     N04: TMenuItem;
@@ -347,6 +353,7 @@ type
     tbNavigator: TToolButton;
     tbObjects: TToolButton;
     TBQuickSearchEnabled: TToolBar;
+    TBObjectSearch: TToolBar;
     TBSideBar: TToolBar;
     tbSQLHistory: TToolButton;
     tmECopy: TMenuItem;
@@ -355,7 +362,6 @@ type
     tmEPaste: TMenuItem;
     tmESelectAll: TMenuItem;
     ToolBar: TToolBar;
-    aSynCompletionExecute: TAction;
     procedure aDCreateDatabaseExecute(Sender: TObject);
     procedure aDCreateEventExecute(Sender: TObject);
     procedure aDCreateExecute(Sender: TObject);
@@ -467,6 +473,9 @@ type
       Shift: TShiftState);
     procedure FNavigatorKeyPress(Sender: TObject; var Key: Char);
     procedure FNavigatorSetMenuItems(Sender: TObject; const Node: TTreeNode);
+    procedure FObjectSearchChange(Sender: TObject);
+    procedure FObjectSearchKeyPress(Sender: TObject; var Key: Char);
+    procedure FObjectSearchStartClick(Sender: TObject);
     procedure FOffsetChange(Sender: TObject);
     procedure FOffsetKeyPress(Sender: TObject; var Key: Char);
     procedure FormResize(Sender: TObject);
@@ -579,7 +588,9 @@ type
     procedure PanelResize(Sender: TObject);
     procedure PContentResize(Sender: TObject);
     procedure PGridResize(Sender: TObject);
+    procedure PHeaderCheckElements(Sender: TObject);
     procedure PHeaderPaint(Sender: TObject);
+    procedure PHeaderResize(Sender: TObject);
     procedure PLogResize(Sender: TObject);
     procedure PObjectIDEResize(Sender: TObject);
     procedure PToolBarBlobResize(Sender: TObject);
@@ -622,7 +633,7 @@ type
   type
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
     TTabState = set of (tsLoading, tsActive);
-    TView = (vObjects, vBrowser, vIDE, vBuilder, vDiagram, vEditor, vEditor2, vEditor3);
+    TView = (vObjects, vBrowser, vIDE, vBuilder, vDiagram, vEditor, vEditor2, vEditor3, vObjectSearch);
     TToolBarData = record
       Caption: string;
       tbPropertiesAction: TBasicAction;
@@ -826,6 +837,7 @@ type
     FSQLEditorSynMemo2: TSynMemo;
     FSQLEditorSynMemo3: TSynMemo;
     FSQLHistoryMenuNode: TTreeNode;
+    FView: TView;
     GIFImage: TGIFImage;
     JPEGImage: TJPEGImage;
     LastFNavigatorSelected: TTreeNode;
@@ -835,10 +847,13 @@ type
     LastTableView: TView;
     LeftMousePressed: Boolean;
     ListViewSortData: TListViewSortData;
+    MGridHeaderColumn: TColumn;
     MouseDownNode: TTreeNode;
     MovingToAddress: Boolean;
     NewLineFormat: TNewLineFormat;
     NMListView: PNMListView;
+    ObjectSearch: TSObjectSearch;
+    ObjectSearchListView: TListView;
     OldAddress: string;
     OldFListOrderIndex: Integer;
     PanelMouseDownPoint: TPoint;
@@ -948,7 +963,6 @@ type
     function GetSelectedDatabase(): string;
     function GetSelectedImageIndex(): Integer;
     function GetSQLEditors(View: TView): TSQLEditor;
-    function GetView(): TView;
     function GetWindow(): TForm_Ext;
     procedure gmFilterClearClick(Sender: TObject);
     procedure gmFilterIntoFilterClick(Sender: TObject);
@@ -979,6 +993,7 @@ type
     procedure UMActivateDBGrid(var Message: TMessage); message UM_ACTIVATE_DBGRID;
     procedure UMActivateFText(var Message: TMessage); message UM_ACTIVATEFTEXT;
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMCloseFrame(var Message: TMessage); message UM_CLOSE_FRAME;
     procedure UMCloseTabQuery(var Message: TMessage); message UM_CLOSE_TAB_QUERY;
     procedure UMFrameActivate(var Message: TMessage); message UM_ACTIVATEFRAME;
     procedure UMFrameDeactivate(var Message: TMessage); message UM_DEACTIVATEFRAME;
@@ -988,6 +1003,7 @@ type
     procedure UMSynCompletionTime(var Message: TMessage); message UM_SYNCOMPLETION_TIMER;
     procedure UMWantedSynchronize(var Message: TMessage); message UM_WANTED_SYNCHRONIZE;
     function UpdateAfterAddressChanged(): Boolean;
+    procedure ViewChanged(Sender: TObject);
     function ViewToParam(const AView: TView): Variant;
     procedure WorkbenchAddTable(Sender: TObject);
     procedure WorkbenchChange(Sender: TObject; Control: TWControl);
@@ -1028,7 +1044,7 @@ type
     property Address: string read FAddress write SetAddress;
     property Path: TFileName read GetPath write SetPath;
     property SelectedDatabase: string read GetSelectedDatabase;
-    property View: TView read GetView write SetView;
+    property View: TView read FView write SetView;
     property Window: TForm_Ext read GetWindow;
   end;
 
@@ -1043,10 +1059,15 @@ uses
   acQBLocalizer, acQBStrings,
   CommCtrl_Ext, StdActns_Ext,
   MySQLConsts, SQLUtils,
+  uDeveloper,
   uDField, uDKey, uDTable, uDTables, uDVariable, uDDatabase, uDForeignKey,
   uDUser, uDQuickFilter, uDSQLHelp, uDTransfer, uDSearch, uDServer,
   uURI, uDView, uDRoutine, uDTrigger, uDStatement, uDEvent, uDPaste, uDSegment,
   uDConnecting, uPDataBrowserDummy, uDExecutingSQL;
+
+// Debug 2016-12-26
+type TMyClipboard = class(TClipBoard)
+end;
 
 const
   nlHost = 0;
@@ -2372,33 +2393,24 @@ var
 begin
   if (not (csDestroying in ComponentState)) then
   begin
-    // Debug 2016-12-23
-    if ((View = vBrowser) and not (FNavigator.Selected.ImageIndex in [iiBaseTable, iiSystemView, iiView])) then
-      raise ERangeError.Create('ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
-        + 'ClassType: ' + FNavigator.Selected.ClassName + #13#10
-        + 'Address: ' + Address);
-
     OldAddressURI := TUURI.Create(OldAddress);
     NewAddressURI := TUURI.Create(Address);
+
     if (Session.Databases.NameCmp(NewAddressURI.Database, OldAddressURI.Database) <> 0) then
       LastSelectedTable := '';
+
+    if (NewAddressURI.Param['view'] <> OldAddressURI.Param['view']) then
+      ViewChanged(nil);
+
     NewAddressURI.Free();
     OldAddressURI.Free();
-
-    tbObjects.Down := MainAction('aVObjectBrowser').Checked;
-    tbBrowser.Down := MainAction('aVDataBrowser').Checked;
-    tbIDE.Down := MainAction('aVObjectIDE').Checked;
-    tbBuilder.Down := MainAction('aVQueryBuilder').Checked;
-    tbDiagram.Down := MainAction('aVDiagram').Checked;
-    tbEditor.Down := MainAction('aVSQLEditor').Checked;
-    tbEditor2.Down := MainAction('aVSQLEditor2').Checked;
-    tbEditor3.Down := MainAction('aVSQLEditor3').Checked;
 
 
     LeftMousePressed := False;
 
     OldControl := Window.ActiveControl;
 
+    PHeaderCheckElements(Sender);
     PContentChange(Sender);
 
 
@@ -2414,6 +2426,7 @@ begin
       vEditor,
       vEditor2,
       vEditor3: NewActiveControl := ActiveSynMemo;
+      vObjectSearch: NewActiveControl := ObjectSearchListView;
       else NewActiveControl := nil;
     end;
 
@@ -2520,10 +2533,10 @@ begin
     MainAction('aFOpen').Enabled := (View = vDiagram) or (View in [vEditor, vEditor2, vEditor3]);
     MainAction('aFSave').Enabled := (View = vDiagram) or (View in [vEditor, vEditor2, vEditor3]) and not Empty and ((SQLEditors[View].Filename = '') or ActiveSynMemo.Modified);
     MainAction('aFSaveAs').Enabled := (View = vDiagram) or (View in [vEditor, vEditor2, vEditor3]) and not Empty;
-    MainAction('aVObjectBrowser').Enabled := True;
-    MainAction('aVDataBrowser').Enabled := (SelectedImageIndex in [iiBaseTable, iiSystemView, iiView, iiTrigger]) or ((LastSelectedDatabase <> '') and (LastSelectedDatabase = SelectedDatabase) and (LastSelectedTable <> ''));
-    MainAction('aVObjectIDE').Enabled := (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]) or (LastObjectIDEAddress <> '');
-    MainAction('aVQueryBuilder').Enabled := (LastSelectedDatabase <> '');
+    MainAction('aVObjects').Enabled := True;
+    MainAction('aVBrowser').Enabled := (SelectedImageIndex in [iiBaseTable, iiSystemView, iiView, iiTrigger]) or ((LastSelectedDatabase <> '') and (LastSelectedDatabase = SelectedDatabase) and (LastSelectedTable <> ''));
+    MainAction('aVIDE').Enabled := (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]) or (LastObjectIDEAddress <> '');
+    MainAction('aVBuilder').Enabled := (LastSelectedDatabase <> '');
     MainAction('aVSQLEditor').Enabled := True;
     MainAction('aVSQLEditor2').Enabled := True;
     MainAction('aVSQLEditor3').Enabled := True;
@@ -2566,9 +2579,17 @@ begin
           vEditor,
           vEditor2,
           vEditor3: if (PSynMemo.Visible) then Window.ActiveControl := ActiveSynMemo;
+          vObjectSearch: if (PListView.Visible) then Window.ActiveControl := ObjectSearchListView;
         end;
       Exclude(FrameState, tsLoading);
     end;
+
+    // Debug 2016-12-26
+    if (not Assigned(ActiveDBGrid) and MainAction('aDEditRecord').Enabled) then
+      SendToDeveloper('TFSession.AddressChanged:' + #13#10
+        + 'aDEditRecord.Enabled: True' + #13#10
+        + 'OldAddress: ' + OldAddress + #13#10
+        + 'Address: ' + Address);
 
     OldAddress := Address;
 
@@ -3013,6 +3034,9 @@ begin
     raise ERangeError.Create(SRangeError)
   else
     CloseClipboard();
+  // Debug 2016-12-26
+  if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+    raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
 
   Data := '';
 
@@ -3027,6 +3051,9 @@ begin
       raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
+    // Debug 2016-12-26
+    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     if (not Assigned(FNavigatorMenuNode.Parent)) then
       ImageIndex := -1
     else
@@ -3055,6 +3082,9 @@ begin
       raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
+    // Debug 2016-12-26
+    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
   end
   else if (Window.ActiveControl = ActiveListView) then
   begin
@@ -3062,6 +3092,9 @@ begin
       raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
+    // Debug 2016-12-26
+    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     ImageIndex := SelectedImageIndex;
     for I := 0 to ActiveListView.Items.Count - 1 do
       if (ActiveListView.Items[I].Selected) then
@@ -3092,6 +3125,9 @@ begin
       raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
+    // Debug 2016-12-26
+    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
   end
   else if (Window.ActiveControl = ActiveDBGrid) then
   begin
@@ -3100,6 +3136,9 @@ begin
       raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
+    // Debug 2016-12-26
+    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     ImageIndex := 8;
     if (not Assigned(EditorField)) then
     begin
@@ -3109,6 +3148,9 @@ begin
         raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
       else
         CloseClipboard();
+      // Debug 2016-12-26
+      if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+        raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     end
     else if (FText.Visible) then
     begin
@@ -3118,6 +3160,9 @@ begin
         raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
       else
         CloseClipboard();
+      // Debug 2016-12-26
+      if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+        raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     end
     else if (FRTF.Visible) then
     begin
@@ -3127,6 +3172,9 @@ begin
         raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
       else
         CloseClipboard();
+      // Debug 2016-12-26
+      if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+        raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     end
     else
       MessageBeep(MB_ICONERROR);
@@ -3135,6 +3183,9 @@ begin
       raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
+    // Debug 2016-12-26
+    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
   end
   else if (Window.ActiveControl = ActiveWorkbench) then
   begin
@@ -3142,6 +3193,9 @@ begin
       raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
+    // Debug 2016-12-26
+    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     if ((ActiveWorkbench.Selected is TWSection) and OpenClipboard(Handle)) then
     begin
       try
@@ -3178,6 +3232,9 @@ begin
       raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
+    // Debug 2016-12-26
+    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
   end
   else if (Window.ActiveControl = FSQLHistory) then
   begin
@@ -3185,6 +3242,9 @@ begin
       raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
+    // Debug 2016-12-26
+    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     if (Assigned(FSQLHistory.Selected) and OpenClipboard(Handle)) then
     begin
       try
@@ -3203,6 +3263,9 @@ begin
       raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
+    // Debug 2016-12-26
+    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     exit;
   end
   else if (Window.ActiveControl = FHexEditor) then
@@ -3211,11 +3274,17 @@ begin
       raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
+    // Debug 2016-12-26
+    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     FHexEditor.ExecuteAction(MainAction('aECopy'));
     if (not OpenClipboard(Handle)) then
       raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
+    // Debug 2016-12-26
+    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     exit;
   end
   else if (Window.ActiveControl = ActiveSynMemo) then
@@ -3225,8 +3294,14 @@ begin
       raise ERangeError.Create(SRangeError)
     else
       CloseClipboard();
+    // Debug 2016-12-26
+    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     try
       ActiveSynMemo.CopyToClipboard();
+      // Debug 2016-12-26
+      if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+        raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     except
       on E: EClipboardException do
         begin
@@ -3235,6 +3310,7 @@ begin
           Msg := Msg + #10 + 'Filename: ' + S;
           SetString(S, PChar(@Text[0]), GetWindowText(GetClipboardOwner(), PChar(@Text[0]), Length(Text)));
           Msg := Msg + #10 + 'WindowText: ' + S;
+          Msg := Msg + #10 + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount);
           try
             Control := GetControlByHandle(Window, GetClipboardOwner());
             if (Assigned(Control)) then
@@ -3249,6 +3325,9 @@ begin
       raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
+    // Debug 2016-12-26
+    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     exit;
   end
   else
@@ -3257,11 +3336,17 @@ begin
       raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
+    // Debug 2016-12-26
+    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     SendMessage(Window.ActiveControl.Handle, WM_COPY, 0, 0);
     if (not OpenClipboard(Handle)) then
       raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
+    // Debug 2016-12-26
+    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     exit;
   end;
 
@@ -3270,6 +3355,9 @@ begin
     raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
   else
     CloseClipboard();
+  // Debug 2016-12-26
+  if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+    raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
 
   if ((Data <> '') and OpenClipboard(Handle)) then
   begin
@@ -3434,6 +3522,8 @@ begin
     end
   else if (Assigned(ActiveWorkbench) and (Window.ActiveControl = ActiveWorkbench)) then
     WorkbenchPasteExecute(Sender)
+  else if (Window.ActiveControl = FObjectSearch) then
+    FObjectSearch.PasteFromClipboard()
   else if (Window.ActiveControl = FFilter) then
     FFilter.PasteFromClipboard()
   else if (Window.ActiveControl = FQuickSearch) then
@@ -4125,13 +4215,13 @@ var
   I: Integer;
   NewView: TView;
 begin
-  if (Sender = MainAction('aVObjectBrowser')) then
+  if (Sender = MainAction('aVObjects')) then
     NewView := vObjects
-  else if (Sender = MainAction('aVDataBrowser')) then
+  else if (Sender = MainAction('aVBrowser')) then
     NewView := vBrowser
-  else if (Sender = MainAction('aVObjectIDE')) then
+  else if (Sender = MainAction('aVIDE')) then
     NewView := vIDE
-  else if (Sender = MainAction('aVQueryBuilder')) then
+  else if (Sender = MainAction('aVBuilder')) then
     NewView := vBuilder
   else if (Sender = MainAction('aVDiagram')) then
     NewView := vDiagram
@@ -4142,7 +4232,7 @@ begin
   else if (Sender = MainAction('aVSQLEditor3')) then
     NewView := vEditor3
   else
-    NewView := View;
+    raise ERangeError.Create(SRangeError);
 
   AllowChange := True;
   if (AllowChange and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then
@@ -4153,15 +4243,6 @@ begin
     except
       AllowChange := False;
     end;
-
-  tbObjects.Down := MainAction('aVObjectBrowser').Checked;
-  tbBrowser.Down := MainAction('aVDataBrowser').Checked;
-  tbIDE.Down := MainAction('aVObjectIDE').Checked;
-  tbBuilder.Down := MainAction('aVQueryBuilder').Checked;
-  tbDiagram.Down := MainAction('aVDiagram').Checked;
-  tbEditor.Down := MainAction('aVSQLEditor').Checked;
-  tbEditor2.Down := MainAction('aVSQLEditor2').Checked;
-  tbEditor3.Down := MainAction('aVSQLEditor3').Checked;
 
   if (AllowChange) then
   begin
@@ -4215,6 +4296,7 @@ begin
               raise ERangeError.Create(SRangeError + '(' + PSynMemo.Controls[I].ClassName + ')');
           Window.ActiveControl := ActiveSynMemo;
         end;
+      vObjectSearch: if (PListView.Visible) then Window.ActiveControl := ObjectSearchListView;
     end;
   end;
 end;
@@ -4318,6 +4400,11 @@ begin
           List.Add(TSDatabase(FNavigator.Selected.Data).Tables);
           Session.Update(List);
           List.Free();
+        end;
+      vObjectSearch:
+        begin
+          ObjectSearchListView.Free();
+          ObjectSearch.Start();
         end;
     end;
   end;
@@ -4534,6 +4621,8 @@ begin
   ActiveIDEInputDataSet := nil;
   ActiveListView := FServerListView;
   ActiveWorkbench := nil;
+  ObjectSearch := nil;
+  ObjectSearchListView := nil;
   ProcessesListView := nil;
   UsersListView := nil;
   VariablesListView := nil;
@@ -4555,6 +4644,7 @@ begin
 
   TBSideBar.Images := Preferences.Images;
   ToolBar.Images := Preferences.Images;
+  TBObjectSearch.Images := Preferences.Images;
   FNavigator.Images := Preferences.Images;
   FSQLHistory.Images := Preferences.Images;
   TBLimitEnabled.Images := Preferences.Images;
@@ -4571,10 +4661,10 @@ begin
   tbExplorer.Action := MainAction('aVExplorer');
   tbSQLHistory.Action := MainAction('aVSQLHistory');
 
-  tbObjects.Action := MainAction('aVObjectBrowser'); tbObjects.Caption := tbObjects.Caption;
-  tbBrowser.Action := MainAction('aVDataBrowser'); tbBrowser.Caption := tbBrowser.Caption;
-  tbIDE.Action := MainAction('aVObjectIDE'); tbIDE.Caption := tbIDE.Caption;
-  tbBuilder.Action := MainAction('aVQueryBuilder'); tbBuilder.Caption := tbBuilder.Caption;
+  tbObjects.Action := MainAction('aVObjects'); tbObjects.Caption := tbObjects.Caption;
+  tbBrowser.Action := MainAction('aVBrowser'); tbBrowser.Caption := tbBrowser.Caption;
+  tbIDE.Action := MainAction('aVIDE'); tbIDE.Caption := tbIDE.Caption;
+  tbBuilder.Action := MainAction('aVBuilder'); tbBuilder.Caption := tbBuilder.Caption;
   tbDiagram.Action := MainAction('aVDiagram'); tbDiagram.Caption := tbDiagram.Caption;
   tbEditor.Action := MainAction('aVSQLEditor'); tbEditor.Caption := tbEditor.Caption;
   tbEditor2.Action := MainAction('aVSQLEditor2'); tbEditor2.Caption := tbEditor2.Caption;
@@ -4788,8 +4878,8 @@ begin
 
 
   CloseButton := TPicture.Create();
-  CloseButton.Bitmap.Height := 11;
-  CloseButton.Bitmap.Width := CloseButton.Bitmap.Height + 1;
+  CloseButton.Bitmap.Height := GetSystemMetrics(SM_CXSMSIZE) + 1;
+  CloseButton.Bitmap.Width := GetSystemMetrics(SM_CXSMSIZE) + 1;
   DrawCloseBitmap(CloseButton.Bitmap);
 
   FOffset.Constraints.MaxWidth := FOffset.Width;
@@ -4824,13 +4914,17 @@ begin
   Font := Window.Font;
 
   ToolBar.AutoSize := False;
-  ToolBar.ButtonHeight := Max(ToolBar.Images.Height + 6, ToolBar.Canvas.TextHeight('I') + 10);
-  ToolBar.ButtonWidth := ToolBar.Images.Width + 7;
+  ToolBar.ButtonHeight := Max(ToolBar.Images.Height + 2 * GetSystemMetrics(SM_CYFIXEDFRAME), ToolBar.Canvas.TextHeight('I') + 10);
+  ToolBar.ButtonWidth := ToolBar.Images.Width + 2 * GetSystemMetrics(SM_CXFIXEDFRAME) + 1;
   ToolBar.AutoSize := True;
 
   TBSideBar.Left := 0;
   TBSideBar.Top := 0;
   TBSideBar.ButtonHeight := ToolBar.ButtonHeight;
+
+  TBObjectSearch.ButtonHeight := Toolbar.ButtonHeight;
+  TBObjectSearch.ButtonWidth := TBObjectSearch.Images.Width + 2 * GetSystemMetrics(SM_CXFIXEDFRAME) + 1;
+  TBObjectSearch.Width := TBObjectSearch.ButtonCount * TBObjectSearch.ButtonWidth + 2 * 2 * TBObjectSearch.BorderWidth;
 
   PHeader.ClientHeight := ToolBar.Height + PHeader.Canvas.Pen.Width;
   if (not StyleServices.Enabled or not StyleServices.GetElementColor(StyleServices.GetElementDetails(ttTopTabItemSelected), ecGlowColor, Color)) then
@@ -5938,8 +6032,10 @@ end;
 procedure TFSession.DBGridMouseMove(Sender: TObject; Shift: TShiftState; X,
   Y: Integer);
 var
-  GridCoord: TGridCoord;
+  ColumnX: Integer;
   DBGrid: TMySQLDBGrid;
+  GridCoord: TGridCoord;
+  I: Integer;
 begin
   inherited;
 
@@ -5951,8 +6047,24 @@ begin
       DBGrid.EndDrag(False);
 
     GridCoord := DBGrid.MouseCoord(X, Y);
+
     if ((GridCoord.X >= 0) and (GridCoord.Y = 0)) then
-      DBGrid.PopupMenu := MGridHeader
+    begin
+      MGridHeaderColumn := nil;
+      ColumnX := 0;
+      for I := DBGrid.LeftCol to DBGrid.Columns.Count - 1 do
+      begin
+        if ((ColumnX <= X) and (X <= ColumnX + DBGrid.Columns[I].Width)) then
+          MGridHeaderColumn := DBGrid.Columns[I];
+
+        Inc(ColumnX, DBGrid.Columns[I].Width);
+        if (dgRowLines in DBGrid.Options) then
+          Inc(ColumnX, DBGrid.GridLineWidth);
+      end;
+
+
+      DBGrid.PopupMenu := MGridHeader;
+    end
     else
       DBGrid.PopupMenu := MGrid;
   end;
@@ -6097,7 +6209,7 @@ begin
     try
       raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Session.Account).ClassName)
     except
-      raise ERangeError.Create(SRangeError);
+      raise ERangeError.Create(SRangeError); // Occured on 2016-12-25
     end;
 
   Session.UnRegisterEventProc(FormSessionEvent);
@@ -6149,11 +6261,7 @@ begin
   Session.Account.Desktop.FoldersHeight := PFolders.Height;
 
   if (Assigned(FFiles)) then
-    try
-      Session.Account.Desktop.FilesFilter := FFiles.Filter;
-    except
-      // There is a bug inside ShellBrowser.pas ver. 7.3 - but it's not interested to be informed
-    end;
+    Session.Account.Desktop.FilesFilter := FFiles.Filter;
   Session.Account.Desktop.NavigatorVisible := PNavigator.Visible;
   Session.Account.Desktop.ExplorerVisible := PExplorer.Visible;
   Session.Account.Desktop.SQLHistoryVisible := PSQLHistory.Visible;
@@ -6161,6 +6269,8 @@ begin
   Session.Account.Desktop.LogVisible := PLog.Visible;
   Session.Account.Desktop.LogHeight := PLog.Height;
   URI := TUURI.Create(Address);
+  if (URI.Param['view'] = 'objectsearch') then
+    URI.Param['view'] := Null;
   URI.Param['file'] := Null;
   URI.Param['cp'] := Null;
   Session.Account.Desktop.Address := URI.Address;
@@ -6182,6 +6292,9 @@ begin
   end;
 
   Session.Account.UnRegisterTab(Self);
+
+  if (Assigned(ObjectSearch)) then
+    ObjectSearch.Free();
 
   FServerListView.OnChanging := nil;
   FServerListView.Items.BeginUpdate();
@@ -7492,6 +7605,32 @@ begin
   FNavigator.ReadOnly := not MainAction('aERename').Enabled;
 end;
 
+procedure TFSession.FObjectSearchChange(Sender: TObject);
+begin
+  FObjectSearchStart.Enabled := Trim(FObjectSearch.Text) <> '';
+end;
+
+procedure TFSession.FObjectSearchKeyPress(Sender: TObject; var Key: Char);
+begin
+  if (Key = #13) then
+  begin
+    FObjectSearchStart.Click();
+    Key := #0;
+  end
+  else
+    inherited;
+end;
+
+procedure TFSession.FObjectSearchStartClick(Sender: TObject);
+begin
+  ObjectSearch := TSObjectSearch.Create(Session);
+  if (FNavigator.Selected.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiUsers]) then
+    ObjectSearch.Location := TObject(FNavigator.Selected.Data);
+  ObjectSearch.ObjectName := Trim(FObjectSearch.Text);
+  ObjectSearch.Start();
+  View := vObjectSearch;
+end;
+
 procedure TFSession.FOffsetChange(Sender: TObject);
 begin
   if (Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet)) then
@@ -7558,6 +7697,7 @@ var
   MaxHeight: Integer;
 begin
   PHeader.ClientHeight := ToolBar.Height + PHeader.Canvas.Pen.Width;
+  PHeaderResize(Sender);
 
   if (PSideBar.Visible) then
   begin
@@ -8363,6 +8503,12 @@ var
 begin
   if (not Assigned(FNavigator.Selected)) then
     Result := FServerListView
+  else if (View = vObjectSearch) then
+  begin
+    if (not Assigned(ObjectSearchListView)) then
+      ObjectSearchListView := CreateListView(ObjectSearch);
+    Result := ObjectSearchListView;
+  end
   else
     case (FNavigator.Selected.ImageIndex) of
       iiServer: Result := FServerListView;
@@ -8612,15 +8758,6 @@ begin
   end;
 end;
 
-function TFSession.GetView(): TView;
-var
-  URI: TUURI;
-begin
-  URI := TUURI.Create(Address);
-  Result := ParamToView(URI.Param['view']);
-  URI.Free();
-end;
-
 function TFSession.GetWindow(): TForm_Ext;
 begin
   if (not (Owner is TForm_Ext)) then
@@ -8636,7 +8773,7 @@ var
   FieldInfo: TFieldInfo;
   Len: Integer;
 begin
-  if (GetFieldInfo(ActiveDBGrid.SelectedField.Origin, FieldInfo) and OpenClipboard(Handle)) then
+  if (GetFieldInfo(MGridHeaderColumn.Field.Origin, FieldInfo) and OpenClipboard(Handle)) then
   begin
     try
       EmptyClipboard();
@@ -9234,6 +9371,18 @@ begin
       SetColumnWidths(ListView, lkVariables);
 
       ListView.Groups.Add().GroupID := giVariables;
+    end
+    else if (TObject(ListView.Tag) is TSObjectSearch) then
+    begin
+      ListView.Columns.Add();
+      ListView.Columns.Add();
+      ListView.Columns.EndUpdate();
+
+      ListView.Groups.Add().GroupID := giDatabases;
+      ListView.Groups.Add().GroupID := giTables;
+      ListView.Groups.Add().GroupID := giRoutines;
+      ListView.Groups.Add().GroupID := giEvents;
+      ListView.Groups.Add().GroupID := giFields;
     end;
   end;
 
@@ -9307,6 +9456,11 @@ begin
   begin
     ListView.Columns[0].Caption := Preferences.LoadStr(267);
     ListView.Columns[1].Caption := Preferences.LoadStr(268);
+  end
+  else if (TObject(ListView.Tag) is TSObjectSearch) then
+  begin
+    ListView.Columns[0].Caption := Preferences.LoadStr(35);
+    ListView.Columns[1].Caption := Preferences.LoadStr(69);
   end;
 end;
 
@@ -9938,15 +10092,17 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
     Add: Boolean;
     ColumnWidths: array [0..7] of Integer;
     Count: Integer;
+    Data: Pointer; // Debug 2016-12-26
     Header: string;
     I: Integer;
     Index: Integer;
     Item: TListItem;
+    ItemFocused: Boolean;
+    ItemSelected: Boolean;
     J: Integer;
     NewIndex: Integer;
     S: string;
-    ItemSelected: Boolean;
-    ItemFocused: Boolean;
+    Table: TSBaseTable; // Debug 2016-12-26
   begin
     case (Event.EventType) of
       etItemsValid:
@@ -10064,13 +10220,22 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
                 except
                   raise ERangeError.Create(SRangeError);
                 end;
-              if (not (TSObject(ListView.Tag) is TSTable)) then
+              if (not (TSObject(ListView.Tag) is TSBaseTable)) then
                 raise ERangeError.Create(SRangeError);
-              if ((TSBaseTable(ListView.Tag).Keys.IndexOf(ListView.Items[I].Data) < 0)
-                and (TSBaseTable(ListView.Tag).Fields.IndexOf(ListView.Items[I].Data) < 0)
-                and (not Assigned(TSBaseTable(ListView.Tag).ForeignKeys) or (TSBaseTable(ListView).ForeignKeys.IndexOf(ListView.Items[I].Data) < 0))
-                and (not Assigned(TSBaseTable(ListView.Tag).Partitions) or (TSBaseTable(ListView).Partitions.IndexOf(ListView.Items[I].Data) < 0))) then
-                raise ERangeError.Create(SRangeError);
+              Table := TSBaseTable(ListView.Tag);
+              try
+                Data := ListView.Items[I].Data;
+                if ((Table.Keys.IndexOf(Data) < 0)
+                  and (Table.Fields.IndexOf(Data) < 0)
+                  and (not Assigned(Table.ForeignKeys) or (Table.ForeignKeys.IndexOf(Data) < 0))
+                  and (not Assigned(Table.Partitions) or (Table.Partitions.IndexOf(Data) < 0))) then
+                  raise ERangeError.Create('ImageIndex: ' + IntToStr(ListView.Items[I].ImageIndex));
+              except
+                on E: Exception do
+                  raise ERangeError.Create('ImageIndex: ' + IntToStr(ListView.Items[I].ImageIndex) + #13#10
+                    + 'Caption: ' + ListView.Items[I].Caption + #13#10
+                    + E.Message);
+              end;
               if (not Assigned(ListView.Items[I].Data)) then
                 raise ERangeError.Create('ImageIndex: ' + IntToStr(ListView.Items[I].ImageIndex));
               if (TObject(ListView.Items[I].Data) is TSKey) then
@@ -10130,80 +10295,107 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
       end;
   end;
 
+  procedure UpdateObjectSearch();
+  var
+    I: Integer;
+    Item: TListItem;
+  begin
+    for I := ListView.Items.Count to Event.Items.Count - 1 do
+      if (Event.Items[I] is TSBaseTable) then
+      begin
+        Item := ListView.Items.Add();
+        Item.ImageIndex := iiBaseTable;
+        Item.Caption := TSBaseTable(Event.Items[I]).Name;
+      end
+      else if (Event.Items[I] is TSView) then
+      begin
+        Item := ListView.Items.Add();
+        Item.ImageIndex := iiView;
+        Item.Caption := TSBaseTable(Event.Items[I]).Name;
+      end;
+  end;
+
 var
   ChangingEvent: TLVChangingEvent;
   I: Integer;
   Kind: TPAccount.TDesktop.TListViewKind;
   Table: TSTable;
 begin
-  if (Assigned(ListView) and (Assigned(Event.Items) or (Event.Sender is TSTable))) then
+  if (Assigned(ListView) and (Assigned(Event.Items)
+    or (Event.Sender is TSTable)
+    or (Event.Sender is TSObjectSearch))) then
   begin
     ChangingEvent := ListView.OnChanging;
     ListView.OnChanging := nil;
 
-    Kind := ColumnWidthKindFromImageIndex(ImageIndexByData(TObject(ListView.Tag)));
+    if (Event.Sender is TSObjectSearch) then
+      UpdateObjectSearch()
+    else
+    begin
+      Kind := ColumnWidthKindFromImageIndex(ImageIndexByData(TObject(ListView.Tag)));
 
-    case (Kind) of
-      lkServer:
-        begin
-          if (ListView.Items.Count = 0) then
+      case (Kind) of
+        lkServer:
           begin
-            if (Assigned(Session.Processes)) then
-              InsertOrUpdateItem(Kind, Session.Processes);
-            if (Assigned(Session.Users)) then
-              InsertOrUpdateItem(Kind, Session.Users);
-            if (Assigned(Session.Variables)) then
-              InsertOrUpdateItem(Kind, Session.Variables);
-            ListViewInitialize(ListView);
-          end;
+            if (ListView.Items.Count = 0) then
+            begin
+              if (Assigned(Session.Processes)) then
+                InsertOrUpdateItem(Kind, Session.Processes);
+              if (Assigned(Session.Users)) then
+                InsertOrUpdateItem(Kind, Session.Users);
+              if (Assigned(Session.Variables)) then
+                InsertOrUpdateItem(Kind, Session.Variables);
+              ListViewInitialize(ListView);
+            end;
 
-          if (Event.Items is TSDatabases) then
-            UpdateGroup(Kind, giDatabases, Event.Items)
-          else if ((Event.Items is TSProcesses) or (Event.Items is TSUsers) or (Event.Items is TSVariables)) then
-          begin
-            for I := 0 to ListView.Items.Count - 1 do
-              if (ListView.Items[I].Data = Event.Items) then
-                UpdateItem(ListView.Items[I], Event.Items);
+            if (Event.Items is TSDatabases) then
+              UpdateGroup(Kind, giDatabases, Event.Items)
+            else if ((Event.Items is TSProcesses) or (Event.Items is TSUsers) or (Event.Items is TSVariables)) then
+            begin
+              for I := 0 to ListView.Items.Count - 1 do
+                if (ListView.Items[I].Data = Event.Items) then
+                  UpdateItem(ListView.Items[I], Event.Items);
+            end;
           end;
-        end;
-      lkDatabase:
-        begin
-          if (Event.Items is TSTables) then
-            UpdateGroup(Kind, giTables, Event.Items)
-          else if (Event.Items is TSRoutines) then
-            UpdateGroup(Kind, giRoutines, Event.Items)
-          else if (Event.Items is TSEvents) then
-            UpdateGroup(Kind, giEvents, Event.Items);
-        end;
-      lkTable:
-        begin
-          if ((Event.Sender is TSTable) or (Event.Item is TSTrigger) and (TSTrigger(Event.Item).Table = Pointer(ListView.Tag))) then
+        lkDatabase:
           begin
-            if (Event.Item is TSTrigger) then
-              Table := TSTrigger(Event.Item).Table
-            else
-              Table := TSTable(Event.Sender);
-            ListView.Items.BeginUpdate();
-            ListView.DisableAlign();
-            if (Table is TSBaseTable) then
-              UpdateGroup(Kind, giKeys, TSBaseTable(Table).Keys);
-            UpdateGroup(Kind, giFields, Table.Fields);
-            if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).ForeignKeys)) then
-              UpdateGroup(Kind, giForeignKeys, TSBaseTable(Table).ForeignKeys);
-            if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).Database.Triggers)) then
-              UpdateGroup(Kind, giTriggers, TSBaseTable(Table).Database.Triggers);
-            ListView.EnableAlign();
-            ListView.Items.EndUpdate();
-          end
-          else if ((Event.Sender is TSDatabase) and (Event.Items is TSTriggers)) then
-            UpdateGroup(Kind, giTriggers, Event.Items);
-        end;
-      lkProcesses:
-        UpdateGroup(Kind, giProcesses, Event.Items);
-      lkUsers:
-        UpdateGroup(Kind, giUsers, Event.Items);
-      lkVariables:
-        UpdateGroup(Kind, giVariables, Event.Items);
+            if (Event.Items is TSTables) then
+              UpdateGroup(Kind, giTables, Event.Items)
+            else if (Event.Items is TSRoutines) then
+              UpdateGroup(Kind, giRoutines, Event.Items)
+            else if (Event.Items is TSEvents) then
+              UpdateGroup(Kind, giEvents, Event.Items);
+          end;
+        lkTable:
+          begin
+            if ((Event.Sender is TSTable) or (Event.Item is TSTrigger) and (TSTrigger(Event.Item).Table = Pointer(ListView.Tag))) then
+            begin
+              if (Event.Item is TSTrigger) then
+                Table := TSTrigger(Event.Item).Table
+              else
+                Table := TSTable(Event.Sender);
+              ListView.Items.BeginUpdate();
+              ListView.DisableAlign();
+              if (Table is TSBaseTable) then
+                UpdateGroup(Kind, giKeys, TSBaseTable(Table).Keys);
+              UpdateGroup(Kind, giFields, Table.Fields);
+              if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).ForeignKeys)) then
+                UpdateGroup(Kind, giForeignKeys, TSBaseTable(Table).ForeignKeys);
+              if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).Database.Triggers)) then
+                UpdateGroup(Kind, giTriggers, TSBaseTable(Table).Database.Triggers);
+              ListView.EnableAlign();
+              ListView.Items.EndUpdate();
+            end
+            else if ((Event.Sender is TSDatabase) and (Event.Items is TSTriggers)) then
+              UpdateGroup(Kind, giTriggers, Event.Items);
+          end;
+        lkProcesses:
+          UpdateGroup(Kind, giProcesses, Event.Items);
+        lkUsers:
+          UpdateGroup(Kind, giUsers, Event.Items);
+        lkVariables:
+          UpdateGroup(Kind, giVariables, Event.Items);
+      end;
     end;
 
     if ((Window.ActiveControl = ListView) and Assigned(ListView.OnSelectItem)) then
@@ -11476,7 +11668,9 @@ begin
     Rect.Bottom := Rect.Top + CloseButton.Bitmap.Height + 2;
 
     if (PtInRect(Rect, Point(X, Y)) and PtInRect(Rect, PanelMouseDownPoint)) then
-      if (Sender = PResultHeader) then
+      if (Sender = PHeader) then
+        PostMessage(Handle, UM_CLOSE_FRAME, 0, 0)
+      else if (Sender = PResultHeader) then
       begin
         SResult.Visible := False;
         PResult.Visible := False;
@@ -11562,6 +11756,8 @@ begin
     Result := vEditor2
   else if (AParam = 'editor3') then
     Result := vEditor3
+  else if (AParam = 'objectsearch') then
+    Result := vObjectSearch
   else
     Result := vObjects;
 end;
@@ -11877,17 +12073,6 @@ procedure TFSession.PContentChange(Sender: TObject);
   var
     I: Integer;
   begin
-    // Debug 2016-12-20
-    if (not Assigned(Control)) then
-      raise ERangeError.Create(SRangeError);
-    // Debug 2016-12-21
-    if (not (TObject(Control) is TWinControl)) then
-      try
-        raise ERangeError.Create('ClassType: ' + TObject(Control).ClassName);
-      finally
-        raise ERangeError.Create(SRangeError);
-      end;
-
     if (Control.Top < 0) then Control.Top := 0;
     SendMessage(Control.Handle, WM_MOVE, 0, MAKELPARAM(Control.Left, Control.Top));
     Control.DisableAlign();
@@ -11936,8 +12121,7 @@ begin
     PSynMemo.Align := alNone;
     SResult.Align := alNone;
     PResult.Align := alNone;
-    if (Assigned(SBlob)) then // Why is it unassigned sometimes???
-      SBlob.Align := alNone;
+    SBlob.Align := alNone;
     PBlob.Align := alNone;
 
     PBlob.Visible := False;
@@ -11945,7 +12129,7 @@ begin
 
     EnableAligns(PContent);
 
-    ActiveListView := nil; if (View in [vObjects]) then ActiveListView := GetActiveListView();
+    if (View in [vObjects, vObjectSearch]) then ActiveListView := GetActiveListView() else ActiveListView := nil;
     if (View in [vIDE]) then ActiveIDEInputDataSet := GetActiveIDEInputDataSet() else ActiveIDEInputDataSet := nil;
     if (View in [vBrowser, vIDE, vBuilder, vEditor, vEditor2, vEditor3]) then ActiveDBGrid := GetActiveDBGrid() else ActiveDBGrid := nil;
     if (View in [vDiagram]) then ActiveWorkbench := GetActiveWorkbench() else ActiveWorkbench := nil;
@@ -12103,7 +12287,9 @@ begin
     else
       PSynMemo.Visible := False;
 
-    if ((View = vObjects) and not (SelectedImageIndex in [iiKey, iiField, iiVirtualField, iiForeignKey]) or ((View = vBrowser) and (SelectedImageIndex = iiServer))) then
+    if ((View = vObjects) and not (SelectedImageIndex in [iiKey, iiField, iiVirtualField, iiForeignKey])
+      or ((View = vBrowser) and (SelectedImageIndex = iiServer))
+      or (View = vObjectSearch)) then
     begin
       PListView.Align := alClient;
       PListView.Visible := True;
@@ -12126,7 +12312,6 @@ begin
 
   PanelResize(Sender);
   Toolbar.Left := ClientWidth - PContent.Width;
-  Toolbar.Width := PContent.Width;
 end;
 
 procedure TFSession.PDataBrowserResize(Sender: TObject);
@@ -12174,6 +12359,17 @@ begin
     ActiveDBGrid.Invalidate();
 end;
 
+procedure TFSession.PHeaderCheckElements(Sender: TObject);
+begin
+  {$IFDEF Debug}
+  FObjectSearch.Visible := (Session.Connection.MySQLVersion >= 50002)
+    and (View in [vObjects, vObjectSearch])
+    and (FObjectSearch.Left > Toolbar.Left + Toolbar.Width + GetSystemMetrics(SM_CXFIXEDFRAME))
+    and Assigned(FNavigator.Selected) and (FNavigator.Selected.ImageIndex in [iiServer, iiDatabase, iiTable, iiView, iiUsers]);
+  TBObjectSearch.Visible := FObjectSearch.Visible;
+  {$ENDIF}
+end;
+
 procedure TFSession.PHeaderPaint(Sender: TObject);
 begin
   if (StyleServices.Enabled) then
@@ -12182,6 +12378,20 @@ begin
     PHeader.Canvas.MoveTo(0, PHeader.ClientHeight - 1);
     PHeader.Canvas.LineTo(PHeader.ClientWidth, PHeader.ClientHeight - 1);
   end;
+
+  PanelPaint(Sender);
+end;
+
+procedure TFSession.PHeaderResize(Sender: TObject);
+begin
+  TBObjectSearch.Left := PHeader.ClientWidth - GetSystemMetrics(SM_CYHSCROLL) - TBObjectSearch.Width;
+  TBObjectSearch.Top := 0;
+  TBObjectSearch.Height := Toolbar.Height;
+  FObjectSearch.Left := TBObjectSearch.Left - FObjectSearch.Width;
+  FObjectSearch.Top := 2 * Toolbar.BorderWidth;
+  FObjectSearch.Height := Toolbar.Height - 2 * 2 * Toolbar.BorderWidth;
+
+  PHeaderCheckElements(Sender);
 end;
 
 procedure TFSession.PLogResize(Sender: TObject);
@@ -12301,9 +12511,10 @@ end;
 
 procedure TFSession.PToolBarBlobResize(Sender: TObject);
 begin
-  if (Assigned(ToolBar.Images)) then
+  if (Assigned(TBBlob.Images)) then
   begin
-    TBBlob.ButtonHeight := Max(ToolBar.Images.Height + 6, ToolBar.Canvas.TextHeight('I') + 10);
+    TBBlob.ButtonHeight := Max(TBBlob.Images.Height + 2 * GetSystemMetrics(SM_CYFIXEDFRAME), ToolBar.Canvas.TextHeight('I') + 10);
+    TBBlob.ButtonWidth := TBBlob.Images.Width + 2 * GetSystemMetrics(SM_CXFIXEDFRAME) + 1;
     TBBlob.Height := TBBlob.ButtonHeight;
     PToolBarBlob.ClientHeight := TBBlob.Height;
   end;
@@ -12583,74 +12794,77 @@ begin
   TempActiveControl := Window.ActiveControl;
 
   if (Assigned(Event)) then
-  begin
-    if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemAltered, etItemDropped]) then
-      FNavigatorUpdate(Event);
-
-    if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemAltered, etItemDropped]) then
+    if (Event.Sender is TSObjectSearch) then
+      ListViewUpdate(Event, ObjectSearchListView)
+    else
     begin
-      if (Event.Items is TSDatabases) then
-        ListViewUpdate(Event, FServerListView)
-      else if (Event.Items is TSProcesses) then
-        ListViewUpdate(Event, ProcessesListView)
-      else if (Event.Items is TSUsers) then
-        ListViewUpdate(Event, UsersListView)
-      else if (Event.Items is TSVariables) then
-        ListViewUpdate(Event, VariablesListView)
-      else if (Event.Sender is TSSession) then
-        ListViewUpdate(Event, FServerListView)
-      else if ((Event.Sender is TSDatabase) and not (Event.Items is TSTriggers)) then
-      begin
-        ListViewUpdate(Event, FServerListView);
-        if (not (Event.Items is TSTriggers)) then
-          ListViewUpdate(Event, Desktop(TSDatabase(Event.Sender)).ListView)
-        else if (Event.EventType = etItemDropped) then
-          ListViewUpdate(Event, Desktop(TSTrigger(Event.Item).Table).ListView)
-        else
-          for I := 0 to TSTriggers(Event.Items).Count - 1 do
-            if (Assigned(TSTriggers(Event.Items)[I].Table)) then
-              ListViewUpdate(Event, Desktop(TSTriggers(Event.Items)[I].Table).ListView);
-      end
-      else if ((Event.Sender is TSTable) or (Event.Item is TSTrigger) and Assigned(TSTrigger(Event.Item).Table)) then
-      begin
-        if (Event.Item is TSTrigger) then
-          Table := TSTrigger(Event.Item).Table
-        else
-          Table := TSTable(Event.Sender);
-        ListViewUpdate(Event, Desktop(Table.Database).ListView);
-        ListViewUpdate(Event, Desktop(Table).ListView);
-      end;
-    end;
+      if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemAltered, etItemDropped]) then
+        FNavigatorUpdate(Event);
 
-    if ((Event.EventType = etItemValid)) then
-      if ((Event.Item is TSView) and Assigned(Desktop(TSView(Event.Item)).SynMemo)) then
-        Desktop(TSView(Event.Item)).SynMemo.Text := TSView(Event.Item).Stmt + #13#10
-      else if ((Event.Item is TSRoutine) and Assigned(Desktop(TSRoutine(Event.Item)).CreateSynMemo())) then
+      if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemAltered, etItemDropped]) then
       begin
-        Desktop(TSRoutine(Event.Item)).SynMemo.Text := TSRoutine(Event.Item).Source;
-        PContentChange(nil);
-      end
-      else if ((Event.Item is TSTrigger) and Assigned(Desktop(TSTrigger(Event.Item)).CreateSynMemo())) then
-      begin
-        Desktop(TSTrigger(Event.Item)).SynMemo.Text := TSTrigger(Event.Item).Stmt;
-        PContentChange(nil);
-      end
-      else if ((Event.Item is TSEvent) and Assigned(Desktop(TSEvent(Event.Item)).CreateSynMemo())) then
-      begin
-        Desktop(TSEvent(Event.Item)).SynMemo.Text := TSEvent(Event.Item).Stmt;
-        Desktop(TSEvent(Event.Item)).SynMemo.Modified := False;
-        PContentChange(nil);
+        if (Event.Items is TSDatabases) then
+          ListViewUpdate(Event, FServerListView)
+        else if (Event.Items is TSProcesses) then
+          ListViewUpdate(Event, ProcessesListView)
+        else if (Event.Items is TSUsers) then
+          ListViewUpdate(Event, UsersListView)
+        else if (Event.Items is TSVariables) then
+          ListViewUpdate(Event, VariablesListView)
+        else if (Event.Sender is TSSession) then
+          ListViewUpdate(Event, FServerListView)
+        else if ((Event.Sender is TSDatabase) and not (Event.Items is TSTriggers)) then
+        begin
+          ListViewUpdate(Event, FServerListView);
+          if (not (Event.Items is TSTriggers)) then
+            ListViewUpdate(Event, Desktop(TSDatabase(Event.Sender)).ListView)
+          else if (Event.EventType = etItemDropped) then
+            ListViewUpdate(Event, Desktop(TSTrigger(Event.Item).Table).ListView)
+          else
+            for I := 0 to TSTriggers(Event.Items).Count - 1 do
+              if (Assigned(TSTriggers(Event.Items)[I].Table)) then
+                ListViewUpdate(Event, Desktop(TSTriggers(Event.Items)[I].Table).ListView);
+        end
+        else if ((Event.Sender is TSTable) or (Event.Item is TSTrigger) and Assigned(TSTrigger(Event.Item).Table)) then
+        begin
+          if (Event.Item is TSTrigger) then
+            Table := TSTrigger(Event.Item).Table
+          else
+            Table := TSTable(Event.Sender);
+          ListViewUpdate(Event, Desktop(Table.Database).ListView);
+          ListViewUpdate(Event, Desktop(Table).ListView);
+        end;
       end;
 
-    if (Event.EventType = etItemValid) then
-    begin
-      if ((View = vBrowser)
-        and Assigned(FNavigator.Selected) and (Event.Item = FNavigator.Selected.Data)) then
-        Wanted.Update := UpdateAfterAddressChanged;
-      if ((View = vIDE) and (Event.Item is TSFunction)) then
-        PContentChange(nil);
+      if ((Event.EventType = etItemValid)) then
+        if ((Event.Item is TSView) and Assigned(Desktop(TSView(Event.Item)).SynMemo)) then
+          Desktop(TSView(Event.Item)).SynMemo.Text := TSView(Event.Item).Stmt + #13#10
+        else if ((Event.Item is TSRoutine) and Assigned(Desktop(TSRoutine(Event.Item)).CreateSynMemo())) then
+        begin
+          Desktop(TSRoutine(Event.Item)).SynMemo.Text := TSRoutine(Event.Item).Source;
+          PContentChange(nil);
+        end
+        else if ((Event.Item is TSTrigger) and Assigned(Desktop(TSTrigger(Event.Item)).CreateSynMemo())) then
+        begin
+          Desktop(TSTrigger(Event.Item)).SynMemo.Text := TSTrigger(Event.Item).Stmt;
+          PContentChange(nil);
+        end
+        else if ((Event.Item is TSEvent) and Assigned(Desktop(TSEvent(Event.Item)).CreateSynMemo())) then
+        begin
+          Desktop(TSEvent(Event.Item)).SynMemo.Text := TSEvent(Event.Item).Stmt;
+          Desktop(TSEvent(Event.Item)).SynMemo.Modified := False;
+          PContentChange(nil);
+        end;
+
+      if (Event.EventType = etItemValid) then
+      begin
+        if ((View = vBrowser)
+          and Assigned(FNavigator.Selected) and (Event.Item = FNavigator.Selected.Data)) then
+          Wanted.Update := UpdateAfterAddressChanged;
+        if ((View = vIDE) and (Event.Item is TSFunction)) then
+          PContentChange(nil);
+      end;
     end;
-  end;
 
   if (PContent.Visible and Assigned(TempActiveControl) and TempActiveControl.Visible) then
   begin
@@ -12679,99 +12893,110 @@ var
   end;
   URI: TUURI;
 begin
-  if (AView <> View) then
-  begin
-    URI := TUURI.Create(Address);
+  URI := TUURI.Create(Address);
 
-    case (AView) of
-      vObjects: URI.Param['view'] := Null;
-      vBrowser: URI.Param['view'] := 'browser';
-      vIDE: URI.Param['view'] := 'ide';
-      vBuilder: URI.Param['view'] := 'builder';
-      vDiagram: URI.Param['view'] := 'diagram';
-      vEditor,
-      vEditor2,
-      vEditor3:
-        begin
-          URI.Param['view'] := ViewToParam(AView);
-          if (Assigned(SQLEditors[AView])) then
-            if (SQLEditors[AView].Filename = '') then
-            begin
-              URI.Param['file'] := Null;
-              URI.Param['cp'] := Null;
-            end
-            else
-            begin
-              URI.Param['file'] := EscapeURL(SQLEditors[AView].Filename);
-              if (SQLEditors[AView].FileCodePage = 0) then
-                URI.Param['cp'] := Null
-              else
-                URI.Param['cp'] := IntToStr(SQLEditors[AView].FileCodePage);
-            end;
-        end;
-    end;
-
-
-    if ((AView = vObjects) and (SelectedImageIndex in [iiProcedure, iiFunction, iiTrigger, iiEvent])) then
-    begin
-      URI.Param['objecttype'] := Null;
-      URI.Param['object'] := Null;
-    end
-    else if ((AView = vBrowser) and not (SelectedImageIndex in [iiBaseTable, iiSystemView, iiView])) then
-    begin
-      if (SelectedImageIndex = iiTrigger) then
-        URI.Table := TSTrigger(FNavigator.Selected.Data).TableName
-      else if (LastSelectedTable = '') then
-        // Debug 2016-12-07
-        raise ERangeError.Create(SRangeError)
-      else
+  case (AView) of
+    vObjects: URI.Param['view'] := Null;
+    vBrowser: URI.Param['view'] := 'browser';
+    vIDE: URI.Param['view'] := 'ide';
+    vBuilder: URI.Param['view'] := 'builder';
+    vDiagram: URI.Param['view'] := 'diagram';
+    vEditor,
+    vEditor2,
+    vEditor3:
       begin
-        URI.Database := LastSelectedDatabase;
-        URI.Table := LastSelectedTable;
+        URI.Param['view'] := ViewToParam(AView);
+        if (Assigned(SQLEditors[AView])) then
+          if (SQLEditors[AView].Filename = '') then
+          begin
+            URI.Param['file'] := Null;
+            URI.Param['cp'] := Null;
+          end
+          else
+          begin
+            URI.Param['file'] := EscapeURL(SQLEditors[AView].Filename);
+            if (SQLEditors[AView].FileCodePage = 0) then
+              URI.Param['cp'] := Null
+            else
+              URI.Param['cp'] := IntToStr(SQLEditors[AView].FileCodePage);
+          end;
       end;
-    end
-    else if ((AView = vIDE) and not (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent, iiTrigger])) then
-      URI.Address := LastObjectIDEAddress
-    else if ((AView = vBuilder) and not (SelectedImageIndex in [iiDatabase, iiSystemDatabase])
-      or (AView in [vEditor, vEditor2, vEditor3]) and not (SelectedImageIndex in [iiServer, iiDatabase, iiSystemDatabase])) then
-    begin
-      if (URI.Database = '') then
-        URI.Database := LastSelectedDatabase;
-      URI.Table := '';
-      URI.Param['objecttype'] := Null;
-      URI.Param['object'] := Null;
-      URI.Param['system'] := Null;
-      URI.Param['filter'] := Null;
-      URI.Param['search'] := Null;
-      URI.Param['offset'] := Null;
-      URI.Param['file'] := Null;
-      URI.Param['cp'] := Null;
-    end
-    else if ((AView in [vEditor, vEditor2, vEditor3]) and (Session.Connection.DatabaseName <> '') and not (SelectedImageIndex in [iiDatabase, iiSystemDatabase])) then
-      URI.Database := Session.Connection.DatabaseName
-    else if ((AView = vDiagram) and not (SelectedImageIndex in [iiDatabase, iiSystemDatabase])) then
-    begin
-      if (URI.Database = '') then
-        URI.Database := LastSelectedDatabase;
-      URI.Table := '';
-      URI.Param['system'] := Null;
-      URI.Param['filter'] := Null;
-      URI.Param['search'] := Null;
-      URI.Param['offset'] := Null;
-      URI.Param['file'] := Null;
-      URI.Param['cp'] := Null;
-    end;
-
-    LockWindowUpdate(FNavigator.Handle);
-    ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);
-    ScrollPos.Vert := GetScrollPos(FNavigator.Handle, SB_VERT);
-    Address := URI.Address;
-    SetScrollPos(FNavigator.Handle, SB_HORZ, ScrollPos.Horz, TRUE);
-    SetScrollPos(FNavigator.Handle, SB_VERT, ScrollPos.Vert, TRUE);
-    LockWindowUpdate(0);
-
-    URI.Free();
+    vObjectSearch: URI.Param['view'] := 'objectsearch';
   end;
+
+
+  if ((URI.Param['view'] = 'objects') and (SelectedImageIndex in [iiProcedure, iiFunction, iiTrigger, iiEvent])) then
+  begin
+    URI.Param['objecttype'] := Null;
+    URI.Param['object'] := Null;
+  end
+  else if ((URI.Param['view'] = 'browser') and not (SelectedImageIndex in [iiBaseTable, iiSystemView, iiView])) then
+  begin
+    if (SelectedImageIndex = iiTrigger) then
+      URI.Table := TSTrigger(FNavigator.Selected.Data).TableName
+    else if (LastSelectedTable = '') then
+      // Debug 2016-12-07
+      raise ERangeError.Create(SRangeError)
+    else
+    begin
+      URI.Database := LastSelectedDatabase;
+      URI.Table := LastSelectedTable;
+    end;
+  end
+  else if ((URI.Param['view'] = 'ide') and not (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent, iiTrigger])) then
+    URI.Address := LastObjectIDEAddress
+  else if ((URI.Param['view'] = 'builder') and not (SelectedImageIndex in [iiDatabase, iiSystemDatabase])
+    or (ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and not (SelectedImageIndex in [iiServer, iiDatabase, iiSystemDatabase])) then
+  begin
+    if (URI.Database = '') then
+      URI.Database := LastSelectedDatabase;
+    URI.Table := '';
+    URI.Param['objecttype'] := Null;
+    URI.Param['object'] := Null;
+    URI.Param['system'] := Null;
+    URI.Param['filter'] := Null;
+    URI.Param['search'] := Null;
+    URI.Param['offset'] := Null;
+    URI.Param['file'] := Null;
+    URI.Param['cp'] := Null;
+  end
+  else if ((ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and (Session.Connection.DatabaseName <> '') and not (SelectedImageIndex in [iiDatabase, iiSystemDatabase])) then
+    URI.Database := Session.Connection.DatabaseName
+  else if ((URI.Param['view'] = 'diagram') and not (SelectedImageIndex in [iiDatabase, iiSystemDatabase])) then
+  begin
+    if (URI.Database = '') then
+      URI.Database := LastSelectedDatabase;
+    URI.Table := '';
+    URI.Param['system'] := Null;
+    URI.Param['filter'] := Null;
+    URI.Param['search'] := Null;
+    URI.Param['offset'] := Null;
+    URI.Param['file'] := Null;
+    URI.Param['cp'] := Null;
+  end
+  else if (URI.Param['view'] = 'objectsearch') then
+  begin
+    URI.Database := LastSelectedDatabase;
+    URI.Table := '';
+    URI.Param['objecttype'] := Null;
+    URI.Param['object'] := Null;
+    URI.Param['system'] := Null;
+    URI.Param['filter'] := Null;
+    URI.Param['search'] := Null;
+    URI.Param['offset'] := Null;
+    URI.Param['file'] := Null;
+    URI.Param['cp'] := Null;
+  end;
+
+  LockWindowUpdate(FNavigator.Handle);
+  ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);
+  ScrollPos.Vert := GetScrollPos(FNavigator.Handle, SB_VERT);
+  Address := URI.Address;
+  SetScrollPos(FNavigator.Handle, SB_HORZ, ScrollPos.Horz, TRUE);
+  SetScrollPos(FNavigator.Handle, SB_VERT, ScrollPos.Vert, TRUE);
+  LockWindowUpdate(0);
+
+  URI.Free();
 end;
 
 procedure TFSession.SetAddress(const AAddress: string);
@@ -12828,13 +13053,15 @@ begin
       NewView := vEditor2
     else if (URI.Param['view'] = 'editor3') then
       NewView := vEditor3
+    else if ((URI.Param['view'] = 'objectsearch') and Assigned(ObjectSearch)) then
+      NewView := vObjectSearch
     else
       NewView := vObjects;
 
-    MainAction('aVObjectBrowser').Checked := NewView = vObjects;
-    MainAction('aVDataBrowser').Checked := NewView = vBrowser;
-    MainAction('aVObjectIDE').Checked := NewView = vIDE;
-    MainAction('aVQueryBuilder').Checked := NewView = vBuilder;
+    MainAction('aVObjects').Checked := NewView = vObjects;
+    MainAction('aVBrowser').Checked := NewView = vBrowser;
+    MainAction('aVIDE').Checked := NewView = vIDE;
+    MainAction('aVBuilder').Checked := NewView = vBuilder;
     MainAction('aVDiagram').Checked := NewView = vDiagram;
     MainAction('aVSQLEditor').Checked := NewView = vEditor;
     MainAction('aVSQLEditor2').Checked := NewView = vEditor2;
@@ -13066,7 +13293,8 @@ begin
 
     Count := -1;
     case (View) of
-      vObjects:
+      vObjects,
+      vObjectSearch:
         if (Assigned(ActiveListView)) then Count := ActiveListView.Items.Count;
       vBrowser:
         if (Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then Count := ActiveDBGrid.DataSource.DataSet.RecordCount;
@@ -13863,8 +14091,9 @@ begin
   end
   else
   begin
-    TBSideBar.BorderWidth := 2;
-    ToolBar.BorderWidth := 2;
+    TBSideBar.BorderWidth := GetSystemMetrics(SM_CXEDGE);
+    ToolBar.BorderWidth := GetSystemMetrics(SM_CXEDGE);
+    TBObjectSearch.BorderWidth := GetSystemMetrics(SM_CXEDGE);
   end;
 
   Session.SQLMonitor.CacheSize := Preferences.LogSize;
@@ -13947,6 +14176,7 @@ begin
   gmFExport.Caption := Preferences.LoadStr(200);
   gmFilter.Caption := Preferences.LoadStr(209);
 
+  ghmCopy.Caption := Preferences.LoadStr(64);
   ghmGoto.Caption := Preferences.LoadStr(676);
 
   mtObjects.Caption := tbObjects.Caption;
@@ -13966,6 +14196,7 @@ begin
   tbEditor2.Visible := ttEditor2 in Preferences.ToolbarTabs;
   tbEditor3.Visible := ttEditor3 in Preferences.ToolbarTabs;
   tbDiagram.Visible := ttDiagram in Preferences.ToolbarTabs;
+  PHeaderResize(nil);
 
 
   if (not (tsLoading in FrameState)) then
@@ -13992,6 +14223,8 @@ begin
       end;
   end;
 
+  FObjectSearch.Hint := Preferences.LoadStr(934);
+  FObjectSearchStart.Hint := Preferences.LoadStr(424);
   FOffset.Hint := Preferences.LoadStr(846) + ' (' + ShortCutToText(aTBOffset.ShortCut) + ')';
   FUDOffset.Hint := Preferences.LoadStr(846);
   FLimit.Hint := Preferences.LoadStr(197) + ' (' + ShortCutToText(aTBLimit.ShortCut) + ')';
@@ -14005,6 +14238,7 @@ begin
   begin
     SendMessage(FFilter.Handle, CB_SETCUEBANNER, 0, LParam(PChar(Preferences.LoadStr(209))));
     SendMessage(FQuickSearch.Handle, EM_SETCUEBANNER, 0, LParam(PChar(Preferences.LoadStr(424))));
+    SendMessage(FObjectSearch.Handle, EM_SETCUEBANNER, 0, LParam(PChar(Preferences.LoadStr(934))));
   end;
 
   if (not Preferences.Editor.CurrRowBGColorEnabled) then
@@ -14055,6 +14289,11 @@ begin
   PasteMode := False;
 end;
 
+procedure TFSession.UMCloseFrame(var Message: TMessage);
+begin
+  MainAction('aFClose').Execute();
+end;
+
 procedure TFSession.UMCloseTabQuery(var Message: TMessage);
 var
   CanClose: Boolean;
@@ -14064,6 +14303,16 @@ var
   SynMemo: TSynMemo;
   View: TView;
 begin
+  // Debug 2016-12-26
+  if (not Assigned(Session.Account)) then
+    raise ERangeError.Create(SRangeError);
+  if (not (TObject(Session.Account) is TPAccount)) then
+    try
+      raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Session.Account).ClassName)
+    except
+      raise ERangeError.Create(SRangeError); // Occured on 2016-12-25
+    end;
+
   CanClose := True;
 
   if (CanClose and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then
@@ -14118,6 +14367,16 @@ begin
     Message.Result := 0
   else
     Message.Result := 1;
+
+  // Debug 2016-12-26
+  if (not Assigned(Session.Account)) then
+    raise ERangeError.Create(SRangeError);
+  if (not (TObject(Session.Account) is TPAccount)) then
+    try
+      raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Session.Account).ClassName)
+    except
+      raise ERangeError.Create(SRangeError); // Occured on 2016-12-25
+    end;
 end;
 
 procedure TFSession.UMFrameActivate(var Message: TMessage);
@@ -14171,10 +14430,10 @@ begin
     MainAction('aECopy').OnExecute := aECopyExecute;
     MainAction('aEPaste').OnExecute := aEPasteExecute;
     MainAction('aERename').OnExecute := aERenameExecute;
-    MainAction('aVObjectBrowser').OnExecute := aViewExecute;
-    MainAction('aVDataBrowser').OnExecute := aViewExecute;
-    MainAction('aVObjectIDE').OnExecute := aViewExecute;
-    MainAction('aVQueryBuilder').OnExecute := aViewExecute;
+    MainAction('aVObjects').OnExecute := aViewExecute;
+    MainAction('aVBrowser').OnExecute := aViewExecute;
+    MainAction('aVIDE').OnExecute := aViewExecute;
+    MainAction('aVBuilder').OnExecute := aViewExecute;
     MainAction('aVSQLEditor').OnExecute := aViewExecute;
     MainAction('aVSQLEditor2').OnExecute := aViewExecute;
     MainAction('aVSQLEditor3').OnExecute := aViewExecute;
@@ -14231,10 +14490,10 @@ begin
     MainAction('aHManual').OnExecute := aHManualExecute;
 
 
-    MainAction('aVObjectBrowser').Enabled := True;
-    MainAction('aVDataBrowser').Enabled := (SelectedImageIndex in [iiBaseTable, iiSystemView, iiView, iiTrigger]) or ((LastSelectedDatabase <> '') and (LastSelectedDatabase = SelectedDatabase) and (LastSelectedTable <> ''));
-    MainAction('aVObjectIDE').Enabled := (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]) or (LastObjectIDEAddress <> '');
-    MainAction('aVQueryBuilder').Enabled := (LastSelectedDatabase <> '');
+    MainAction('aVObjects').Enabled := True;
+    MainAction('aVBrowser').Enabled := (SelectedImageIndex in [iiBaseTable, iiSystemView, iiView, iiTrigger]) or ((LastSelectedDatabase <> '') and (LastSelectedDatabase = SelectedDatabase) and (LastSelectedTable <> ''));
+    MainAction('aVIDE').Enabled := (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]) or (LastObjectIDEAddress <> '');
+    MainAction('aVBuilder').Enabled := (LastSelectedDatabase <> '');
     MainAction('aVSQLEditor').Enabled := True;
     MainAction('aVSQLEditor2').Enabled := True;
     MainAction('aVSQLEditor3').Enabled := True;
@@ -14279,10 +14538,10 @@ begin
 
   ActiveControlOnDeactivate := Window.ActiveControl;
 
-  MainAction('aVObjectBrowser').Enabled := False;
-  MainAction('aVDataBrowser').Enabled := False;
-  MainAction('aVObjectIDE').Enabled := False;
-  MainAction('aVQueryBuilder').Enabled := False;
+  MainAction('aVObjects').Enabled := False;
+  MainAction('aVBrowser').Enabled := False;
+  MainAction('aVIDE').Enabled := False;
+  MainAction('aVBuilder').Enabled := False;
   MainAction('aVSQLEditor').Enabled := False;
   MainAction('aVSQLEditor2').Enabled := False;
   MainAction('aVSQLEditor3').Enabled := False;
@@ -14407,6 +14666,7 @@ begin
   end
   else
     Address := Session.Account.Desktop.Address;
+  PHeaderCheckElements(nil);
 end;
 
 procedure TFSession.UMStausBarRefresh(var Message: TMessage);
@@ -14445,12 +14705,14 @@ begin
               List.Add(Session.Databases[I]);
             Result := not Session.Update(List, True);
             List.Free();
-          end;
+          end
+          else
+            Session.Update(nil, True);
         iiDatabase,
         iiSystemDatabase:
           begin
             Database := TSDatabase(FNavigator.Selected.Data);
-            if (not Database.Tables.Valid) then
+            if (not Database.Tables.Update()) then
               Wanted.Update := UpdateAfterAddressChanged;
             List := TList.Create();
             if (Session.Connection.MySQLVersion < 50002) then
@@ -14470,7 +14732,21 @@ begin
       else
         TableOpen(nil);
     vIDE:
-      TSDBObject(FNavigator.Selected.Data).Update();
+      begin
+        // Debug 2016-12-26
+        if (not (TObject(FNavigator.Selected.Data) is TSDBObject)) then
+          try
+            raise ERangeError.Create('ClassType: ' + TObject(FNavigator.Selected.Data).ClassName + #13#10
+              + 'ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
+              + 'Text: ' + FNavigator.Selected.Text + #13#10
+              + 'Address: ' + Address);
+          except
+            raise ERangeError.Create('ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
+              + 'Text: ' + FNavigator.Selected.Text + #13#10
+              + 'Address: ' + Address);
+          end;
+        TSDBObject(FNavigator.Selected.Data).Update();
+      end;
     vDiagram:
       if (not Assigned(ActiveWorkbench) and Assigned(FNavigator.Selected)) then
       begin
@@ -14479,6 +14755,51 @@ begin
         if (FileExists(Session.Account.DataPath + ActiveWorkbench.Database.Name + PathDelim + 'Diagram.xml')) then
           ActiveWorkbench.LoadFromFile(Session.Account.DataPath + ActiveWorkbench.Database.Name + PathDelim + 'Diagram.xml');
       end;
+  end;
+end;
+
+procedure TFSession.ViewChanged(Sender: TObject);
+begin
+  tbObjects.Down := MainAction('aVObjects').Checked;
+  tbBrowser.Down := MainAction('aVBrowser').Checked;
+  tbIDE.Down := MainAction('aVIDE').Checked;
+  tbBuilder.Down := MainAction('aVBuilder').Checked;
+  tbDiagram.Down := MainAction('aVDiagram').Checked;
+  tbEditor.Down := MainAction('aVSQLEditor').Checked;
+  tbEditor2.Down := MainAction('aVSQLEditor2').Checked;
+  tbEditor3.Down := MainAction('aVSQLEditor3').Checked;
+
+  if (tbObjects.Down) then
+    FView := vObjects
+  else if (tbBrowser.Down) then
+    FView := vBrowser
+  else if (tbIDE.Down) then
+    FView := vIDE
+  else if (tbBuilder.Down) then
+    FView := vBuilder
+  else if (tbDiagram.Down) then
+    FView := vDiagram
+  else if (tbEditor.Down) then
+    FView := vEditor
+  else if (tbEditor2.Down) then
+    FView := vEditor2
+  else if (tbEditor3.Down) then
+    FView := vEditor3
+  else if (Assigned(ObjectSearch)) then
+    FView := vObjectSearch
+  else
+    FView := vObjects;
+
+  if ((View <> vObjectSearch) and Assigned(ObjectSearch)) then
+  begin
+    if (Assigned(ObjectSearchListView)) then
+    begin
+      ObjectSearchListView.Free();
+      ObjectSearchListView := nil;
+    end;
+
+    ObjectSearch.Free();
+    ObjectSearch := nil;
   end;
 end;
 

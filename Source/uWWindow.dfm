@@ -465,16 +465,16 @@ object WWindow: TWWindow
       Caption = 'aOImport'
       OnExecute = aOImportExecute
     end
-    object aVObjectBrowser: TAction
+    object aVObjects: TAction
       Category = 'View'
-      Caption = 'aVObjectBrowser'
+      Caption = 'aVObjects'
       Enabled = False
       HelpContext = 1035
       HelpType = htContext
       ImageIndex = 1
       ShortCut = 117
     end
-    object aVDataBrowser: TAction
+    object aVBrowser: TAction
       Category = 'View'
       Caption = 'aVBrowser'
       Enabled = False
@@ -483,32 +483,17 @@ object WWindow: TWWindow
       ImageIndex = 2
       ShortCut = 118
     end
-    object aHIndex: TAction
-      Category = 'Help'
-      Caption = 'aHIndex'
-      HelpContext = 1069
-      HelpType = htContext
-      ShortCut = 112
-      OnExecute = aHIndexExecute
-    end
-    object aVObjectIDE: TAction
+    object aVIDE: TAction
       Category = 'View'
-      Caption = 'aVObjectIDE'
+      Caption = 'aVIDE'
       Enabled = False
       HelpContext = 1121
       HelpType = htContext
       ImageIndex = 98
     end
-    object aHManual: TAction
-      Category = 'Help'
-      Caption = 'aHManual'
-      Enabled = False
-      HelpContext = 1119
-      HelpType = htContext
-    end
-    object aVQueryBuilder: TAction
+    object aVBuilder: TAction
       Category = 'View'
-      Caption = 'aVQueryBuilder'
+      Caption = 'aVBuilder'
       Enabled = False
       HelpContext = 1120
       HelpType = htContext
@@ -548,6 +533,21 @@ object WWindow: TWWindow
       HelpType = htContext
       ImageIndex = 3
       ShortCut = 119
+    end
+    object aHIndex: TAction
+      Category = 'Help'
+      Caption = 'aHIndex'
+      HelpContext = 1069
+      HelpType = htContext
+      ShortCut = 112
+      OnExecute = aHIndexExecute
+    end
+    object aHManual: TAction
+      Category = 'Help'
+      Caption = 'aHManual'
+      Enabled = False
+      HelpContext = 1119
+      HelpType = htContext
     end
     object aHSQL: TAction
       Category = 'Help'
@@ -1396,19 +1396,21 @@ object WWindow: TWWindow
     object miView: TMenuItem
       Caption = 'miView'
       GroupIndex = 3
-      object miVObjectBrowser: TMenuItem
-        Action = aVObjectBrowser
+      object miVObjects: TMenuItem
+        Action = aVObjects
         RadioItem = True
       end
       object miVBrowser: TMenuItem
-        Action = aVDataBrowser
+        Action = aVBrowser
         RadioItem = True
       end
-      object miVObjectIDE: TMenuItem
-        Action = aVObjectIDE
+      object miVIDE: TMenuItem
+        Action = aVIDE
+        RadioItem = True
       end
-      object miVQueryBuilder: TMenuItem
-        Action = aVQueryBuilder
+      object miVBuilder: TMenuItem
+        Action = aVBuilder
+        RadioItem = True
       end
       object miVDiagram: TMenuItem
         Action = aVDiagram

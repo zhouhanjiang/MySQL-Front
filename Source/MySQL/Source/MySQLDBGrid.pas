@@ -221,7 +221,7 @@ begin
       Rect.Left := 0;
       for I := LeftCol to FMouseMoveCell.X - 1 do
         if (Columns[I].Visible) then
-          if (dgRowLines in Options) then
+          if (dgColLines in Options) then
             Inc(Rect.Left, Columns[I].Width + GridLineWidth)
           else
             Inc(Rect.Left, Columns[I].Width);
@@ -1238,7 +1238,10 @@ begin
   if (not Assigned(HDNotify)) then
     raise ERangeError.Create(SRangeError);
 
-  if (not Assigned(FHeaderControl) or not Assigned(FHeaderControl.Parent) or (HDNotify^.Hdr.hwndFrom <> FHeaderControl.Handle)) then
+  if (not Assigned(FHeaderControl)
+    or not Assigned(FHeaderControl.Parent)
+    or not Assigned(HDNotify)
+    or (HDNotify^.Hdr.hwndFrom <> FHeaderControl.Handle)) then
     inherited
   else
     case (HDNotify^.Hdr.code) of

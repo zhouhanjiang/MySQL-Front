@@ -2625,6 +2625,12 @@ end;
 
 function TWTable.GetCaption(): TCaption;
 begin
+  // Debug 2016-12-26
+  if (not Assigned(BaseTable)) then
+    raise ERangeError.Create(SRangeError);
+  if (Workbench.Database.Tables.IndexOf(BaseTable) < 0) then
+    raise ERangeError.Create(SRangeError);
+
   Result := BaseTable.Name;
 end;
 

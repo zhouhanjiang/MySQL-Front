@@ -7868,6 +7868,9 @@ begin
   begin
     ArrayLength := 10 * ArrayLength;
     SetLength(DynamicArray, ArrayLength);
+    if (Length(DynamicArray) < ArrayLength) then
+      raise ERangeError.Create('ArrayLength: ' + IntToStr(ArrayLength) + #13#10
+        + 'Length(DynamicArray): ' + IntToStr(Length(DynamicArray)));
     if (Count = Length(StackArray)) then
       Move(StackArray[0], DynamicArray[0], SizeOf(StackArray));
     FNodes := @DynamicArray[0];
@@ -27693,7 +27696,7 @@ begin
         or (Stmt^.Parser.NodePtr(TSQLParser.PDbIdent(Expr)^.Nodes.Ident)^.NodeType <> ntToken)) then
         Exit(False);
 
-      if (FieldNames <> '') then FieldNames := FieldNames + ',';
+      if (FieldNames <> '') then FieldNames := FieldNames + ';';
       FieldNames := FieldNames + Stmt^.Parser.TokenPtr(TSQLParser.PDbIdent(Expr)^.Nodes.Ident)^.AsString;
 
       if ((TSQLParser.TSelectStmt.POrder(Column)^.Nodes.DirectionTag > 0)
@@ -27702,7 +27705,7 @@ begin
         and (TSQLParser.PTag(Stmt^.Parser.NodePtr(TSQLParser.TSelectStmt.POrder(Column)^.Nodes.DirectionTag))^.Nodes.Keyword2Token = 0)
         and (Stmt^.Parser.TokenPtr(TSQLParser.PTag(Stmt^.Parser.NodePtr(TSQLParser.TSelectStmt.POrder(Column)^.Nodes.DirectionTag))^.Nodes.Keyword1Token)^.KeywordIndex = Stmt^.Parser.kiDESC)) then
       begin
-        if (DescFieldNames <> '') then DescFieldNames := DescFieldNames + ',';
+        if (DescFieldNames <> '') then DescFieldNames := DescFieldNames + ';';
         DescFieldNames := DescFieldNames + Stmt^.Parser.TokenPtr(TSQLParser.PDbIdent(Expr)^.Nodes.Ident)^.AsString;
       end;
 

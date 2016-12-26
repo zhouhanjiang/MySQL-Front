@@ -379,7 +379,7 @@ type
     procedure ExecuteFooter(); virtual;
     procedure ExecuteHeader(); virtual;
     procedure ExecuteRoutine(const Item: TTool.TDBObjectItem); virtual;
-    procedure ExecuteTable(const Item: TTool.TDBObjectItem; const ResultHandle: TMySQLConnection.TResultHandle); virtual;
+    procedure ExecuteTable(const Item: TTool.TDBObjectItem; const ResultHandle: TMySQLConnection.PResultHandle); virtual;
     procedure ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); virtual;
     procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); virtual;
     procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); virtual;
@@ -681,7 +681,7 @@ type
     procedure BeforeExecute(); override;
     procedure ExecuteEvent(const Item: TTool.TDBObjectItem); override;
     procedure ExecuteRoutine(const Item: TTool.TDBObjectItem); override;
-    procedure ExecuteTable(const Item: TTool.TDBObjectItem; const ResultHandle: TMySQLConnection.TResultHandle); override;
+    procedure ExecuteTable(const Item: TTool.TDBObjectItem; const ResultHandle: TMySQLConnection.PResultHandle); override;
     procedure ExecuteTableData(const Item: TItem; const ResultHandle: TMySQLConnection.TResultHandle);
     procedure ExecuteTableStructure(const Item: TItem);
   public
@@ -4185,6 +4185,7 @@ begin
     begin
       DataSet := TMySQLQuery.Create(nil);
       DataSet.Connection := Session.Connection;
+
       while (Session.Connection.ExecuteResult(ResultHandle)) do
       begin
         DataSet.Open(ResultHandle);
@@ -4276,7 +4277,9 @@ begin
               ExecuteDataDBGrid(TDBGridItem(Items[I]))
             else if (Items[I] is TDBObjectItem) then
             begin
-              if (DataTables.IndexOf(TDBObjectItem(Items[I]).DBObject) >= 0) then
+              DataTable := DataTables.IndexOf(TDBObjectItem(Items[I]).DBObject) >= 0;
+
+              if (DataTable) then
                 while ((Success = daSuccess) and not Session.Connection.ExecuteResult(ResultHandle)) do
                   DoError(DatabaseError(Session), nil, True);
 
@@ -4285,7 +4288,10 @@ begin
                 Success := daSuccess;
 
                 if (TDBObjectItem(Items[I]).DBObject is TSTable) then
-                  ExecuteTable(TDBObjectItem(Items[I]), ResultHandle)
+                  if (not DataTable) then
+                    ExecuteTable(TDBObjectItem(Items[I]), nil)
+                  else
+                    ExecuteTable(TDBObjectItem(Items[I]), @ResultHandle)
                 else if (Structure) then
                   if (TDBObjectItem(Items[I]).DBObject is TSRoutine) then
                     ExecuteRoutine(TDBObjectItem(Items[I]))
@@ -4430,7 +4436,7 @@ procedure TTExport.ExecuteRoutine(const Item: TTool.TDBObjectItem);
 begin
 end;
 
-procedure TTExport.ExecuteTable(const Item: TTool.TDBObjectItem; const ResultHandle: TMySQLConnection.TResultHandle);
+procedure TTExport.ExecuteTable(const Item: TTool.TDBObjectItem; const ResultHandle: TMySQLConnection.PResultHandle);
 var
   DataSet: TMySQLQuery;
   Fields: array of TField;
@@ -4441,14 +4447,14 @@ var
 begin
   Table := TSTable(Item.DBObject);
 
-  if (not Data) then
+  if (not Data or not Assigned(ResultHandle)) then
     DataSet := nil
   else
   begin
     DataSet := TMySQLQuery.Create(nil);
     while ((Success = daSuccess) and not DataSet.Active) do
     begin
-      DataSet.Open(ResultHandle);
+      DataSet.Open(ResultHandle^);
       if (not DataSet.Active) then
         DoError(DatabaseError(Session), Item, False, SQL);
     end;
@@ -7182,7 +7188,7 @@ begin
 
       SetFont(SQLFont);
       StringList := TStringList.Create();
-      StringList.Text := DataSet.CommandText + ';';
+      StringList.Text := DataSet.CommandText;
       for I := 0 to StringList.Count - 1 do
         ContentTextOut(StringList[I]);
       StringList.Free();
@@ -7993,7 +7999,7 @@ begin
   if (Success = daFail) then Success := daSuccess;
 end;
 
-procedure TTTransfer.ExecuteTable(const Item: TTool.TDBObjectItem; const ResultHandle: TMySQLConnection.TResultHandle);
+procedure TTTransfer.ExecuteTable(const Item: TTool.TDBObjectItem; const ResultHandle: TMySQLConnection.PResultHandle);
 var
   I: Integer;
   DestinationDatabase: TSDatabase;
@@ -8044,9 +8050,9 @@ begin
         if (Terminated) then Success := daAbort;
       end;
 
-      if ((Success = daSuccess) and Data and (SourceTable is TSBaseTable)) then
+      if ((Success = daSuccess) and Data and Assigned(ResultHandle)) then
       begin
-        ExecuteTableData(TItem(Item), ResultHandle);
+        ExecuteTableData(TItem(Item), ResultHandle^);
         if (Terminated) then Success := daAbort;
       end;
 

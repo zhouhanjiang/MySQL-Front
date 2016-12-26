@@ -179,44 +179,48 @@ begin
 end;
 
 procedure DrawCloseBitmap(const Bitmap: Graphics.TBitmap);
+var
+  Edge: Integer;
 begin
   Bitmap.TransparentMode := tmAuto;
   Bitmap.Transparent := True;
   Bitmap.Canvas.Brush.Color := clBtnFace;
   Bitmap.Canvas.FillRect(Rect(0, 0, Bitmap.Height + 1, Bitmap.Width + 1));
 
+  Edge := GetSystemMetrics(SM_CXEDGE) + 1;
+
   if (Bitmap.Height <= 11) then
   begin
-    Bitmap.Canvas.MoveTo(2, 2);
-    Bitmap.Canvas.LineTo(Bitmap.Width - 3, Bitmap.Height - 2);
-    Bitmap.Canvas.MoveTo(3, 2);
-    Bitmap.Canvas.LineTo(Bitmap.Width - 2, Bitmap.Height - 2);
+    Bitmap.Canvas.MoveTo(Edge, Edge);
+    Bitmap.Canvas.LineTo(Bitmap.Width - Edge - 1, Bitmap.Height - Edge);
+    Bitmap.Canvas.MoveTo(Edge + 1, Edge);
+    Bitmap.Canvas.LineTo(Bitmap.Width - Edge, Bitmap.Height - Edge);
   end
   else
   begin
-    Bitmap.Canvas.MoveTo(3, 2);
-    Bitmap.Canvas.LineTo(Bitmap.Width - 2, Bitmap.Height - 3);
-    Bitmap.Canvas.MoveTo(2, 2);
-    Bitmap.Canvas.LineTo(Bitmap.Width - 2, Bitmap.Height - 2);
-    Bitmap.Canvas.MoveTo(2, 3);
-    Bitmap.Canvas.LineTo(Bitmap.Width - 3, Bitmap.Height - 2);
+    Bitmap.Canvas.MoveTo(Edge + 1, Edge);
+    Bitmap.Canvas.LineTo(Bitmap.Width - Edge, Bitmap.Height - Edge - 1);
+    Bitmap.Canvas.MoveTo(Edge, Edge);
+    Bitmap.Canvas.LineTo(Bitmap.Width - Edge, Bitmap.Height - Edge);
+    Bitmap.Canvas.MoveTo(Edge, Edge + 1);
+    Bitmap.Canvas.LineTo(Bitmap.Width - Edge - 1, Bitmap.Height - Edge);
   end;
 
   if (Bitmap.Height <= 11) then
   begin
-    Bitmap.Canvas.MoveTo(2, Bitmap.Height - 3);
-    Bitmap.Canvas.LineTo(Bitmap.Width - 3, 1);
-    Bitmap.Canvas.MoveTo(3, Bitmap.Height - 3);
-    Bitmap.Canvas.LineTo(Bitmap.Width - 2, 1);
+    Bitmap.Canvas.MoveTo(Edge, Bitmap.Height - Edge - 1);
+    Bitmap.Canvas.LineTo(Bitmap.Width - Edge - 1, 1);
+    Bitmap.Canvas.MoveTo(Edge + 1, Bitmap.Height - Edge - 1);
+    Bitmap.Canvas.LineTo(Bitmap.Width - Edge, 1);
   end
   else
   begin
-    Bitmap.Canvas.MoveTo(2, Bitmap.Height - 4);
-    Bitmap.Canvas.LineTo(Bitmap.Width - 3, 1);
-    Bitmap.Canvas.MoveTo(2, Bitmap.Height - 3);
-    Bitmap.Canvas.LineTo(Bitmap.Width - 2, 1);
-    Bitmap.Canvas.MoveTo(3, Bitmap.Height - 3);
-    Bitmap.Canvas.LineTo(Bitmap.Width - 2, 2);
+    Bitmap.Canvas.MoveTo(Edge, Bitmap.Height - Edge - 2);
+    Bitmap.Canvas.LineTo(Bitmap.Width - Edge - 1, Edge - 1);
+    Bitmap.Canvas.MoveTo(Edge, Bitmap.Height - Edge - 1);
+    Bitmap.Canvas.LineTo(Bitmap.Width - Edge, Edge - 1);
+    Bitmap.Canvas.MoveTo(Edge + 1, Bitmap.Height - Edge - 1);
+    Bitmap.Canvas.LineTo(Bitmap.Width - Edge, Edge);
   end;
 end;
 

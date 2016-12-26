@@ -34,7 +34,7 @@ type
 implementation {***************************************************************}
 
 uses
-  Windows,
+  Windows, WinInet,
   SysUtils,
   Forms,
   EException, EStackTracing, ESysInfo, EInfoFormat, EThreadsManager, EConsts,
@@ -397,9 +397,17 @@ procedure ExceptionNotify(const Custom: Pointer;
   ExceptionInfo: TEurekaExceptionInfo; var Handle: Boolean;
   var CallNextHandler: Boolean);
 var
+  CheckOnlineVersionThread: TCheckOnlineVersionThread;
   I: Integer;
   Report: string;
 begin
+  if ((OnlineProgramVersion < 0) and InternetGetConnectedState(nil, 0)) then
+  begin
+    CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
+    CheckOnlineVersionThread.Execute();
+    FreeAndNil(CheckOnlineVersionThread);
+  end;
+
   Handle := Preferences.Version >= OnlineProgramVersion;
 
   PostMessage(Application.MainFormHandle, UM_CRASH_RESCUE, 0, 0);
@@ -489,9 +497,7 @@ begin
     end;
 
     try
-      if (GetCurrentThreadId() <> MainThreadId) then
-        Report := Report + 'EurekaLogExceptionNotify() runs in Thread ID ' + IntToStr(GetCurrentThreadId()) + #13#10#13#10
-      else
+      if (GetCurrentThreadId() = MainThreadId) then
       begin
         for I := 0 to Sessions.Count - 1 do
         begin

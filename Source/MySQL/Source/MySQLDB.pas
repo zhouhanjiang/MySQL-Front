@@ -138,6 +138,7 @@ type
   type
     TSyncThread = class;
     TDataHandle = TSyncThread;
+    PResultHandle = ^TResultHandle;
     TResultHandle = record
       Done: TEvent;
       SQL: string;
@@ -1979,10 +1980,16 @@ begin
 
   while (not Terminated) do
   begin
-    if ((Connection.ServerTimeout < 6) or (Connection.LibraryType = ltHTTP)) then
+    if ((Connection.ServerTimeout < 5) or (Connection.LibraryType = ltHTTP)) then
       Timeout := INFINITE
     else
-      Timeout := (Connection.ServerTimeout - 5) * 1000;
+      try // Debug 2016-12-26
+       Timeout := (Connection.ServerTimeout - 5) * 1000;
+      except
+        on E: Exception do
+          raise ERangeError.Create('ServerTimeout: ' + IntToStr(Connection.ServerTimeout) + #13#10
+            + E.Message);
+      end;
     WaitResult := RunExecute.WaitFor(Timeout);
 
     // Debug 2016-12-12
@@ -2018,6 +2025,8 @@ begin
         if (State <> OldState) then
           raise ERangeError.Create('OldState: ' + IntToStr(Ord(OldState)) + #13#10
             + 'State: ' + IntToStr(Ord(State)));
+        // On 2016-12-26 there was a ssExecutingFirst -> ssResult problem.
+        // Inside TTExportSQL there was a problem in TTExport.ExecuteTable while DataSet.Open(DataHandle)
 
         Connection.TerminateCS.Enter();
         RunExecute.ResetEvent();
@@ -2459,7 +2468,7 @@ begin
   if (not Assigned(SyncThread)) then
     FErrorCommandText := ''
   else
-    FErrorCommandText := SyncThread.CommandText + ';' + #13#10;
+    FErrorCommandText := SyncThread.CommandText;
 
   if (SilentCount = 0) then
     if (not Assigned(FOnSQLError)) then
@@ -2472,11 +2481,11 @@ procedure TMySQLConnection.DoTerminate();
 begin
   KillThreadId := SyncThread.ThreadId;
 
-  SyncThread.Terminate();
-
   {$IFDEF Debug}
     MessageBox(0, 'Terminate!', 'Warning', MB_OK + MB_ICONWARNING);
   {$ENDIF}
+
+  SyncThread.Terminate();
 
   WriteMonitor('--> Connection terminated', ttInfo);
 end;
@@ -3160,7 +3169,7 @@ begin
 
     Lib.mysql_options(SyncThread.LibHandle, MYSQL_OPT_READ_TIMEOUT, my_char(RawByteString(IntToStr(NET_WAIT_TIMEOUT))));
     Lib.mysql_options(SyncThread.LibHandle, MYSQL_OPT_WRITE_TIMEOUT, my_char(RawByteString(IntToStr(NET_WAIT_TIMEOUT))));
-    Lib.mysql_options(SyncThread.LibHandle, MYSQL_SET_CHARSET_NAME, my_char(RawByteString(FCharset)));
+    Lib.mysql_options(SyncThread.LibHandle, MYSQL_SET_CHARSET_NAME, my_char(RawByteString(Charset)));
     if (UseCompression()) then
       Lib.mysql_options(SyncThread.LibHandle, MYSQL_OPT_COMPRESS, nil);
     if (LibraryType = ltHTTP) then
@@ -3195,7 +3204,7 @@ begin
       and Assigned(Lib.mysql_set_character_set)
       and (Lib.mysql_get_server_version(SyncThread.LibHandle) >= 50503)
       and (AnsiStrings.StrIComp(Lib.mysql_character_set_name(SyncThread.LibHandle), 'utf8') = 0)) then
-      Lib.mysql_set_character_set(SyncThread.LibHandle, 'utf8mb4');
+      Lib.mysql_set_character_set(SyncThread.LibHandle, 'utf8mb5');
 
     if (SyncThread.ErrorCode > 0) then
       SyncDisconnecting(SyncThread);
@@ -3289,9 +3298,9 @@ begin
       else
       begin
         FCharset := string(Lib.mysql_character_set_name(SyncThread.LibHandle));
-        FCharsetNr := CharsetToCharsetNr(FCharset);
+        FCharsetNr := CharsetToCharsetNr(Charset);
       end;
-      FCodePage := CharsetToCodePage(FCharset);
+      FCodePage := CharsetToCodePage(Charset);
 
       FHostInfo := LibDecode(Lib.mysql_get_host_info(SyncThread.LibHandle));
       FMultiStatements := FMultiStatements and Assigned(Lib.mysql_more_results) and Assigned(Lib.mysql_next_result) and ((MySQLVersion > 40100) or (Lib.FLibraryType = ltHTTP)) and not ((50000 <= MySQLVersion) and (MySQLVersion < 50007));
@@ -3576,6 +3585,7 @@ begin
     while ((LibLength > 0) and (LibSQL[LibLength] in [#9, #10, #13, ' ', ';'])) do
       Dec(LibLength);
 
+  // Debug 2016-12
   if (LibLength = 0) then
     raise ERangeError.Create('SQL: ' + SyncThread.SQL + #13#10
       + 'Length: ' + IntToStr(Length(SyncThread.SQL)) + #13#10
@@ -3698,7 +3708,6 @@ end;
 
 procedure TMySQLConnection.SyncPing(const SyncThread: TSyncThread);
 begin
-
   if ((Lib.LibraryType <> ltHTTP) and Assigned(SyncThread.LibHandle)) then
     Lib.mysql_ping(SyncThread.LibHandle);
 end;
@@ -5041,11 +5050,10 @@ begin
             end;
           ftTimeStamp: begin SetString(S, Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]); PSQLTimeStamp(Buffer)^ := StrToMySQLTimeStamp(S, TMySQLTimeStampField(Field).SQLFormat); end;
           ftBlob: MoveMemory(Buffer, Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]);
-          ftWideString,
-          ftWideMemo:
-            PChar(Buffer)[AnsiCharToWideChar(Connection.CodePage,
+          ftWideString:
+            AnsiCharToWideChar(Connection.CodePage,
               Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1],
-              Buffer, Field.DataSize div SizeOf(Char))] := #0;
+              Buffer, Field.Size div SizeOf(Char));
           else raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%d)', [Field.Name, Integer(Field.DataType)]);
         end;
     except
@@ -5749,8 +5757,6 @@ end;
 { TMySQLDataSetBlobStream *****************************************************}
 
 constructor TMySQLDataSetBlobStream.Create(const AField: TBlobField; AMode: TBlobStreamMode);
-var
-  Data: TValueBuffer;
 begin
   inherited Create();
 
@@ -5764,13 +5770,27 @@ begin
       or not Assigned(TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer)
       or not Assigned(TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData)
       or not Assigned(TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Field.FieldNo - 1]);
-    SetSize(TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Field.FieldNo - 1]);
-    if (not Empty and (Size > 0)) then
+    if (Field.DataType in [ftMemo, ftBlob]) then
     begin
-      SetLength(Data, Size);
-      Field.DataSet.GetFieldData(AField, Data);
-      MoveMemory(Memory, @Data[0], Size);
-    end;
+      SetSize(TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Field.FieldNo - 1]);
+      MoveMemory(Memory, @TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Field.FieldNo - 1], Size);
+    end
+    else if (Field.DataType = ftWideMemo) then
+    begin
+      SetSize(
+        AnsiCharToWideChar(TMySQLQuery(Field.DataSet).Connection.CodePage,
+          TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Field.FieldNo - 1],
+          TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Field.FieldNo - 1],
+          nil,
+          0) * SizeOf(Char));
+      AnsiCharToWideChar(TMySQLQuery(Field.DataSet).Connection.CodePage,
+        TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Field.FieldNo - 1],
+        TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Field.FieldNo - 1],
+        Memory,
+        Size);
+    end
+    else
+      raise ERangeError.Create('DataType: ' + IntToStr(Ord(Field.DataType)));
   end;
 end;
 
@@ -6143,7 +6163,7 @@ function TMySQLDataSet.GetFieldData(Field: TField; var Buffer: TValueBuffer): Bo
 begin
   Result := Assigned(Pointer(ActiveBuffer()))
     and Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
-  if (Result) then
+  if (Result and (Length(Buffer) > 0)) then
     if (State = dsOldValue) then
       Result := GetFieldData(Field, @Buffer[0], PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData)
     else
@@ -6163,16 +6183,18 @@ end;
 
 function TMySQLDataSet.GetLibRow(): MYSQL_ROW;
 begin
+  // Counters resetted on 2016-12-26
   if (not Active) then
   else if (not Assigned(Pointer(ActiveBuffer()))) then
-  else if (not PExternRecordBuffer(ActiveBuffer())^.Identifier654321 = 654321) then // Occurred 2 times here
-    raise ERangeError.Create(SRangeError)
+  else if (not PExternRecordBuffer(ActiveBuffer())^.Identifier654321 = 654321) then
+    raise ERangeError.Create(SRangeError) // Occurred 0 times
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
-  else if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.IdentifierABCDEF <> $ABCDEF) then // Debug 2016-12-15
-    raise ERangeError.Create(SRangeError) // Occurrend 5 times here
+  else if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.IdentifierABCDEF <> $ABCDEF) then
+    raise ERangeError.Create('Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
+      + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag))) // Occurrend 0 times
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
-  else if (not (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier123456 = 123456)) then // Crashe here the second time on 2016-12-15
-    raise ERangeError.Create(SRangeError); // Occurred second time on 2016-12-15
+  else if (not (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier123456 = 123456)) then // Crashed 0 times
+    raise ERangeError.Create(SRangeError); // Occurred 0 times
 
   if (not Active
     or not Assigned(Pointer(ActiveBuffer()))
@@ -6926,7 +6948,13 @@ begin
           if (Index < 0) then
           begin
             InternalSetToRecord(ActiveBuffer());
+try
             FreeInternRecordBuffer(InternRecordBuffers[InternRecordBuffers.Index]);
+except
+  raise ERangeError.Create('ActiveBuffer Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
+    + 'New Index: ' + IntToStr(Index) + #13#10
+    + 'Count: ' + IntToStr(InternRecordBuffers.Count));
+end;
             InternRecordBuffers.Delete(InternRecordBuffers.Index);
             for I := ActiveRecord + 1 to BufferCount - 1 do
               Dec(PExternRecordBuffer(Buffers[I])^.Index);
@@ -6937,7 +6965,13 @@ begin
           begin
             if (Index > PExternRecordBuffer(ActiveBuffer())^.Index) then
               Dec(Index);
+try
             InternRecordBuffers.Move(PExternRecordBuffer(ActiveBuffer())^.Index, Index);
+except
+  raise ERangeError.Create('ActiveBuffer Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
+    + 'New Index: ' + IntToStr(Index) + #13#10
+    + 'Count: ' + IntToStr(InternRecordBuffers.Count));
+end;
             PExternRecordBuffer(ActiveBuffer())^.Index := Index;
 
             ClearBuffers();

@@ -1131,7 +1131,14 @@ object FSession: TFSession
     ParentBackground = False
     ParentDoubleBuffered = False
     TabOrder = 3
+    OnMouseDown = PanelMouseDown
+    OnMouseMove = PanelMouseMove
+    OnMouseUp = PanelMouseUp
+    OnResize = PHeaderResize
     OnPaint = PHeaderPaint
+    DesignSize = (
+      591
+      22)
     object TBSideBar: TToolBar
       Left = 2
       Top = 0
@@ -1168,12 +1175,15 @@ object FSession: TFSession
     object ToolBar: TToolBar
       Left = 124
       Top = 0
-      Width = 541
-      Height = 22
+      Width = 508
+      Height = 20
       Align = alNone
+      AutoSize = True
       ButtonHeight = 20
       ButtonWidth = 68
+      Color = clBtnFace
       List = True
+      ParentColor = False
       PopupMenu = MToolBar
       ShowCaptions = True
       TabOrder = 1
@@ -1250,6 +1260,41 @@ object FSession: TFSession
         ImageIndex = 5
         PopupMenu = MToolBar
         Style = tbsCheck
+      end
+    end
+    object FObjectSearch: TEdit
+      Left = 2027
+      Top = 0
+      Width = 140
+      Height = 22
+      Anchors = []
+      AutoSize = False
+      TabOrder = 2
+      Visible = False
+      OnChange = FObjectSearchChange
+      OnKeyPress = FObjectSearchKeyPress
+      ExplicitLeft = 1619
+    end
+    object TBObjectSearch: TToolBar
+      Left = 2323
+      Top = 0
+      Width = 23
+      Height = 22
+      Align = alNone
+      Anchors = []
+      Color = clBtnFace
+      ParentColor = False
+      TabOrder = 3
+      Transparent = True
+      Visible = False
+      ExplicitLeft = 1869
+      object FObjectSearchStart: TToolButton
+        Left = 0
+        Top = 0
+        Caption = 'FObjectSearchStart'
+        Enabled = False
+        ImageIndex = 89
+        OnClick = FObjectSearchStartClick
       end
     end
   end
@@ -1819,6 +1864,13 @@ object FSession: TFSession
     Top = 472
     object ghmGoto: TMenuItem
       Caption = 'ghmGoto'
+    end
+    object N1: TMenuItem
+      Caption = '-'
+    end
+    object ghmCopy: TMenuItem
+      Caption = 'ghmCopy'
+      OnClick = ghmCopyClick
     end
   end
   object MSideBar: TPopupMenu
