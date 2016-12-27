@@ -431,16 +431,15 @@ begin
         try SendToDeveloper('EurekaLogExceptionNotify(2)' + #13#10#13#10 + E.Message); except end;
     end;
 
-    if (not Assigned(ExceptionInfo)) then
-      try SendToDeveloper('EurekaLogExceptionNotify(2.2)'); except end;
-
     try
       try
         if (not (TObject(ExceptionInfo.ExceptionObject) is Exception)) then
           Write;
       except
         on E: Exception do
-          try SendToDeveloper('EurekaLogExceptionNotify(3.0)' + #13#10#13#10 + E.Message); except end;
+          try SendToDeveloper('EurekaLogExceptionNotify(3.0)' + #13#10
+            + 'ExceptionInfo: ' + IntToStr(Integer(ExceptionInfo)) + #13#10
+            + E.Message); except end;
       end;
       if (not (TObject(ExceptionInfo.ExceptionObject) is Exception)) then
       begin
@@ -514,6 +513,21 @@ begin
           Report := Report + Sessions[I].Connection.DebugMonitor.CacheText + #13#10;
         end;
       end;
+    except
+      on E: Exception do
+        try SendToDeveloper('EurekaLogExceptionNotify(6)' + #13#10#13#10 + E.Message); except end;
+    end;
+
+    try
+      MySQLSyncThreads.Lock();
+      for I := 0 to MySQLSyncThreads.Count - 1 do
+      begin
+        Report := Report + #13#10;
+        Report := Report + 'SyncThread ID: ' + IntToStr(MySQLSyncThreads[I].ThreadID) + #13#10;
+        Report := Report + StringOfChar('-', 72) + #13#10;
+        Report := Report + MySQLSyncThreads[I].Log;
+      end;
+      MySQLSyncThreads.Release();
     except
       on E: Exception do
         try SendToDeveloper('EurekaLogExceptionNotify(6)' + #13#10#13#10 + E.Message); except end;

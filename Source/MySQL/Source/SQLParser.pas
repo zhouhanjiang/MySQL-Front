@@ -10,7 +10,7 @@ type
     type
       TOffset = Integer;
       POffsetArray = ^TOffsetArray;
-      TOffsetArray = array [0..$FFFF] of TOffset;
+      TOffsetArray = array [0..$FFFFFFF] of TOffset;
 
       TError = record
         Code: Byte;
@@ -7868,21 +7868,12 @@ begin
   begin
     ArrayLength := 10 * ArrayLength;
     SetLength(DynamicArray, ArrayLength);
-    if (Length(DynamicArray) < ArrayLength) then
-      raise ERangeError.Create('ArrayLength: ' + IntToStr(ArrayLength) + #13#10
-        + 'Length(DynamicArray): ' + IntToStr(Length(DynamicArray)));
     if (Count = Length(StackArray)) then
       Move(StackArray[0], DynamicArray[0], SizeOf(StackArray));
     FNodes := @DynamicArray[0];
   end;
 
-try // Debug 2016-12-22
   FNodes^[FCount] := Node;
-except
-  raise ERangeError.Create('FCount: ' + IntToStr(FCount) + #13#10
-    + 'Length(FNodes^): ' + IntToStr(Length(FNodes^)) + #13#10
-    + 'ArrayLength: ' + IntToStr(ArrayLength));
-end;
   Inc(FCount);
 end;
 
@@ -18507,8 +18498,8 @@ function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
           or (ADbIdentType = ditCharset) and (StrLIComp(TokenPtr(CurrentToken)^.FText, 'binary', 6) = 0)
           or (ADbIdentType in [ditVariable]))
       or (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent) and not (ADbIdentType in [ditCharset, ditCollation])
-      or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and (AnsiQuotes or (ADbIdentType in [ditUser, ditHost, ditConstraint, ditColumnAlias]))
-      or (TokenPtr(CurrentToken)^.TokenType = ttString) and (ADbIdentType in [ditUser, ditHost, ditConstraint, ditColumnAlias])
+      or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and (AnsiQuotes or (ADbIdentType in [ditUser, ditHost, ditConstraint, ditColumnAlias, ditCharset, ditCollation]))
+      or (TokenPtr(CurrentToken)^.TokenType = ttString) and (ADbIdentType in [ditUser, ditHost, ditConstraint, ditColumnAlias, ditCharset, ditCollation])
       or (TokenPtr(CurrentToken)^.TokenType = ttIPAddress) and (ADbIdentType in [ditHost])
       or (TokenPtr(CurrentToken)^.OperatorType = otMulti) and JokerAllowed and (ADbIdentType in [ditDatabase, ditTable, ditProcedure, ditFunction, ditField])) then
     begin

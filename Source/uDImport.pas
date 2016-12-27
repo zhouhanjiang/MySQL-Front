@@ -533,6 +533,8 @@ begin
   // Debug 2016-12-22
   if (not Assigned(FNavigator^)) then
     raise ERangeError.Create('Progress: ' + Progress);
+  // 2016-12-27 occurred this Progress: 05467123
+
   Progress := Progress + '1';
 
   if (Assigned(Import) and Import.Suspended) then
@@ -600,6 +602,11 @@ begin
   if (not Assigned(FNavigator^)) then
     raise ERangeError.Create('Progress: ' + Progress);
   Progress := Progress + '3';
+  // 2016-12-27 occurred this Progress: 051b2
+  // 2016-12-27 occurred this Progress: 051b21b21b21b21b2467
+  // 2016-12-27 occurred this Progress: 051b21b21b21b21b2467
+  // 2016-12-27 occurred this Progress: 051b21b21b21b2
+  // 2016-12-27 occurred this Progress: 051b21b21b2
 
   Session.UnRegisterEventProc(FormSessionEvent);
 
@@ -663,6 +670,11 @@ begin
   TableNames.Free();
 
   PageControl.ActivePage := nil;
+
+  // Debug 2016-12-22
+  if (not Assigned(FNavigator^)) then
+    raise ERangeError.Create('Progress: ' + Progress);
+  Progress := Progress + 'A';
 end;
 
 procedure TDImport.FormSessionEvent(const Event: TSSession.TEvent);

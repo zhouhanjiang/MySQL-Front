@@ -229,7 +229,7 @@ type
     procedure PaintTo(const Canvas: TCanvas; const X, Y: Integer); override;
     procedure RegisterLinkPoint(const APoint: TWLinkPoint); virtual;
     procedure ReleaseLinkPoint(const APoint: TWLinkPoint); virtual;
-    property LinkPoint[Index: Integer]: TWLinkPoint read GetLinkPoint;
+    property LinkPoints[Index: Integer]: TWLinkPoint read GetLinkPoint;
     property LinkPointCount: Integer read GetLinkPointCount;
   public
     constructor Create(const ATables: TWTables; const APosition: TCoord; const ABaseTable: TSBaseTable = nil); reintroduce; virtual;
@@ -539,6 +539,8 @@ begin
 end;
 
 procedure TWControl.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+var
+  Control: TWinControl;
 begin
   if (Self is TWLinkLine) then
     MouseDownPosition := TWLinkLine(Self).PointA.Position
@@ -548,11 +550,17 @@ begin
   inherited;
 
   // Debug 2016-12-16
-  if (not Workbench.Visible) then
-    raise ERangeError.Create(SRangeError);
-  if (not Workbench.Enabled) then
-    raise ERangeError.Create(SRangeError);
-  Workbench.SetFocus();
+  Control := Workbench;
+  while (Assigned(Control) and Control.Visible and Control.Enabled and Assigned(Control.Parent)) do
+    Control := Control.Parent;
+  try
+    Workbench.SetFocus();
+  except
+    raise ERangeError.Create('ClassType: ' + Control.ClassName + #13#10
+      + 'Name: ' + Control.Name + #13#10
+      + 'Enabled: ' + BoolToStr(Control.Enabled, True) + #13#10
+      + 'Visible: ' + BoolToStr(Control.Visible, True));
+  end;
 
   if ((Button in [mbLeft, mbRight]) and (not (ssCtrl in Shift) and (not Selected or (Workbench.SelCount <= 1)) or (not Workbench.MultiSelect or (not (ssCtrl in Shift) and (Workbench.SelCount <= 1))))) then
   begin
@@ -758,7 +766,7 @@ begin
     TWLinkLine(Self).Link.Cleanup(Self)
   else if (Self is TWTable) then
     for I := 0 to TWTable(Self).LinkPointCount - 1 do
-      TWTable(Self).LinkPoint[I].Link.Cleanup(Self);
+      TWTable(Self).LinkPoints[I].Link.Cleanup(Self);
 end;
 
 procedure TWControl.Move(const Sender: TWControl; const Shift: TShiftState; NewPosition: TCoord);
@@ -2172,8 +2180,15 @@ end;
 
 destructor TWLink.Destroy();
 var
+  CT: TWTable; // Debug 2016-12-27
+  I: Integer; // Debug 2016-12-27
+  J: Integer; // Debug 2016-12-27
   Point: TWLinkPoint;
+  PT: TWTable; // Debug 2016-12-27
 begin
+  CT := ChildTable;
+  PT := ParentTable;
+
   Point := LastPoint;
   while (Assigned(Point) and Assigned(Point.LineA)) do
   begin
@@ -2182,6 +2197,18 @@ begin
   end;
 
   inherited;
+
+  for I := 0 to Workbench.Tables.Count - 1 do
+    for J := 0 to Workbench.Tables[I].LinkPointCount - 1 do
+      if (not (Workbench.Tables[I].LinkPoints[J] is TWLink)) then
+        raise ERangeError.Create('Unknown Link!' + #13#10
+          + 'ClassType: ' + Workbench.Tables[I].LinkPoints[J].ClassName)
+      else if (Workbench.Links.IndexOf(Workbench.Tables[I].LinkPoints[J]) < 0) then
+        raise ERangeError.Create('Link still exists!' + #13#10
+          + 'Table: ' + Workbench.Tables[I].Caption + #13#10
+          + 'Link: ' + Workbench.Tables[I].LinkPoints[J].Caption + #13#10
+          + 'ChildTable: ' + CT.Caption + #13#10
+          + 'ParentTable: ' + PT.Caption);
 end;
 
 procedure TWLink.FreeSegment(const Point: TWLinkPoint; const Line: TWLinkLine);
@@ -3242,18 +3269,36 @@ end;
 
 procedure TWWorkbench.AddExistingTable(const X, Y: Integer; const ABaseTable: TSBaseTable);
 var
+  I: Integer;
+  Link: TWLink;
+  ParentBaseTable: TSBaseTable;
+  ParentTable: TWTable;
   Table: TWTable;
 begin
   Table := TWTable.Create(Tables, Position(X, Y), ABaseTable);
   Tables.Add(Table);
-  if (Assigned(OnValidateControl)) then
-  begin
-    if (not OnValidateControl(Self, Table)) then
-      Table.Selected := True
-    else
-      Selected := Table;
-    FModified := True;
-  end;
+  if (Assigned(OnValidateControl) and OnValidateControl(Self, Table)
+    and Assigned(Table.BaseTable.ForeignKeys)) then
+    for I := 0 to Table.BaseTable.ForeignKeys.Count - 1 do
+      if (Database.Session.DatabaseByName(Table.BaseTable.ForeignKeys[I].Parent.DatabaseName) = Database) then
+      begin
+        ParentBaseTable := Database.BaseTableByName(Table.BaseTable.ForeignKeys[I].Parent.TableName);
+        if (Assigned(ParentBaseTable)) then
+        begin
+          ParentTable := TableByBaseTable(ParentBaseTable);
+          if (Assigned(ParentTable)) then
+          begin
+            Link := TWForeignKey.Create(Self, Coord(-1, -1));
+            TWForeignKey(Link).BaseForeignKey := Table.BaseTable.ForeignKeys[I];
+            Link.ChildTable := Table;
+            Link.ParentTable := ParentTable;
+            Links.Add(Link);
+          end;
+        end;
+      end;
+
+  Selected := Table;
+  FModified := True;
 end;
 
 procedure TWWorkbench.BeginUpdate();

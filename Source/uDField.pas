@@ -142,6 +142,8 @@ uses
 var
   FDField: TDField;
 
+  TableDebug: TSBaseTable;
+
 function DField(): TDField;
 begin
   if (not Assigned(FDField)) then
@@ -188,6 +190,8 @@ var
   S: string;
 begin
   // Debug 2016-12-19
+  if (TableDebug <> Table) then
+    raise ERangeError.Create(SRangeError);
   if (not Assigned(Table)) then
     raise ERangeError.Create(SRangeError);
   if (not (Table is TSBaseTable)) then
@@ -711,9 +715,15 @@ var
 begin
   if ((ModalResult = mrOk) and GBasics.Visible) then
   begin
-    // Debug 2016-12-20
-    if (not (TObject(Table) is TSBaseTable)) then
+    if (TableDebug <> Table) then
       raise ERangeError.Create(SRangeError);
+    // Debug 2016-12-20
+    if (not (Table is TSBaseTable)) then
+      try
+        raise ERangeError.Create('ClassType: ' + Table.ClassName);
+      except
+        raise ERangeError.Create(SRangeError);
+      end;
 
     if (ModifyTableOnly) then
       NewTable := Table
@@ -888,6 +898,18 @@ end;
 
 procedure TDField.FormHide(Sender: TObject);
 begin
+  // Debug 2016-12-19
+  if (TableDebug <> Table) then
+    raise ERangeError.Create(SRangeError);
+  if (not Assigned(Table)) then
+    raise ERangeError.Create(SRangeError);
+  if (not (Table is TSBaseTable)) then
+    try
+      raise ERangeError.Create('ClassType: ' + Table.ClassName);
+    except
+      raise ERangeError.Create(SRangeError);
+    end;
+
   Table.Session.UnRegisterEventProc(FormSessionEvent);
 
   Preferences.Field.Width := Width;
@@ -918,7 +940,11 @@ procedure TDField.FormShow(Sender: TObject);
 var
   I: Integer;
 begin
+  TableDebug := Table;
+
   // Debug 2016-12-19
+  if (TableDebug <> Table) then
+    raise ERangeError.Create(SRangeError);
   if (not Assigned(Table)) then
     raise ERangeError.Create(SRangeError);
   if (not (Table is TSBaseTable)) then
@@ -972,6 +998,8 @@ begin
     ActiveControl := FName;
 
   // Debug 2016-12-19
+  if (TableDebug <> Table) then
+    raise ERangeError.Create(SRangeError);
   if (not Assigned(Table)) then
     raise ERangeError.Create(SRangeError);
   if (not (Table is TSBaseTable)) then

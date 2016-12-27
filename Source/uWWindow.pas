@@ -768,14 +768,13 @@ function TWWindow.CloseAll(): Boolean;
 var
   I: Integer;
 begin
-  Result := Assigned(FSessions); // Prevent a new call, while closing
-  if (Result) then
-    for I := FSessions.Count - 1 downto 0 do
-    begin
-      Result := Result and (SendMessage(TFSession(FSessions[I]).Handle, UM_CLOSE_TAB_QUERY, 0, 0) = 1);
-      if (Result) then
-        CloseTab(TFSession(FSessions[I]));
-    end;
+  Result := True;
+  for I := FSessions.Count - 1 downto 0 do
+  begin
+    Result := Result and (SendMessage(TFSession(FSessions[I]).Handle, UM_CLOSE_TAB_QUERY, 0, 0) = 1);
+    if (Result) then
+      CloseTab(TFSession(FSessions[I]));
+  end;
 end;
 
 procedure TWWindow.CloseTab(const Tab: TFSession);
@@ -1671,12 +1670,7 @@ var
   I: Integer;
 begin
   for I := 0 to FSessions.Count - 1 do
-    try
-      TFSession(FSessions[I]).CrashRescue();
-    except
-      on E: Exception do
-        try SendToDeveloper('UMCrashRescue(1)' + #13#10 + E.Message); except end;
-    end;
+    try TFSession(FSessions[I]).CrashRescue(); except end;
 
   try
     Accounts.Save();

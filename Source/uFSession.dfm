@@ -1017,6 +1017,7 @@ object FSession: TFSession
         HideSelection = False
         ParentFont = False
         PopupMenu = MText
+        ScrollBars = ssVertical
         TabOrder = 0
         WantTabs = True
         OnChange = FTextChange
@@ -1263,7 +1264,7 @@ object FSession: TFSession
       end
     end
     object FObjectSearch: TEdit
-      Left = 2027
+      Left = 3163
       Top = 0
       Width = 140
       Height = 22
@@ -1273,9 +1274,10 @@ object FSession: TFSession
       Visible = False
       OnChange = FObjectSearchChange
       OnKeyPress = FObjectSearchKeyPress
+      ExplicitLeft = 2027
     end
     object TBObjectSearch: TToolBar
-      Left = 2323
+      Left = 3587
       Top = 0
       Width = 23
       Height = 22
@@ -1286,6 +1288,7 @@ object FSession: TFSession
       TabOrder = 3
       Transparent = True
       Visible = False
+      ExplicitLeft = 2323
       object FObjectSearchStart: TToolButton
         Left = 0
         Top = 0

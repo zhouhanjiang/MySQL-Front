@@ -1582,7 +1582,7 @@ begin
 
   FSession.DataSetAfterOpen(DataSet);
 
-  DBGrid.ReadOnly := (Table is TSSystemView5) or (Table is TSSystemView8);
+  DBGrid.ReadOnly := Table is TSSystemView;
 end;
 
 procedure TFSession.TTableDesktop.DataSetAfterRefresh(DataSet: TDataSet);
@@ -3017,6 +3017,7 @@ var
   I: Integer;
   ImageIndex: Integer;
   Msg: string; // Debug 2016-12-07
+  Progress: string;
   S: string;
   StringList: TStringList;
   Text: array[0..128] of Char; // Debug 2016-12-07
@@ -3030,22 +3031,29 @@ begin
   if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
     raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
 
+  Progress := '1';
+
   Data := '';
 
   if (not Assigned(Window.ActiveControl)) then
   begin
+    Progress := Progress + '2';
     MessageBeep(MB_ICONERROR);
+    Progress := Progress + '3';
     Exit;
   end
   else if (Window.ActiveControl = FNavigator) then
   begin
+    Progress := Progress + '4';
     if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
     // Debug 2016-12-26
     if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     if (not Assigned(FNavigatorMenuNode.Parent)) then
       ImageIndex := -1
     else
@@ -3071,22 +3079,28 @@ begin
         Data := 'Address=' + NavigatorNodeToAddress(FNavigatorMenuNode.Parent) + #13#10 + Data;
     end;
     if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
     // Debug 2016-12-26
     if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+    Progress := Progress + '5';
   end
   else if (Window.ActiveControl = ActiveListView) then
   begin
+    Progress := Progress + '6';
     if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
     // Debug 2016-12-26
     if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     ImageIndex := SelectedImageIndex;
     for I := 0 to ActiveListView.Items.Count - 1 do
       if (ActiveListView.Items[I].Selected) then
@@ -3101,7 +3115,8 @@ begin
             begin
               // Debug 2016-11-11
               if (not (TObject(ActiveListView.Items[I].Data) is TSKey)) then
-                raise ERangeError.Create(SPropertyOutOfRange + ' (' + TObject(ActiveListView.Items[I].Data).ClassName + ')');
+                raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + SPropertyOutOfRange + ' (' + TObject(ActiveListView.Items[I].Data).ClassName + ')');
               Data := Data + 'Key='        + TSKey(ActiveListView.Items[I].Data).Name + #13#10;
             end;
           iiField,
@@ -3114,80 +3129,98 @@ begin
     if (Data <> '') then
       Data := 'Address=' + NavigatorNodeToAddress(FNavigator.Selected) + #13#10 + Data;
     if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
     // Debug 2016-12-26
     if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+    Progress := Progress + '7';
   end
   else if (Window.ActiveControl = ActiveDBGrid) then
   begin
+    Progress := Progress + '8';
     // Debug 2016-12-21
     if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
     // Debug 2016-12-26
     if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     ImageIndex := 8;
     if (not Assigned(EditorField)) then
     begin
       ActiveDBGrid.CopyToClipboard();
       // Debug 2016-12-21
       if (not OpenClipboard(Handle)) then
-        raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+        raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
       else
         CloseClipboard();
       // Debug 2016-12-26
       if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-        raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+        raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     end
     else if (FText.Visible) then
     begin
       FText.CopyToClipboard();
       // Debug 2016-12-21
       if (not OpenClipboard(Handle)) then
-        raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+        raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
       else
         CloseClipboard();
       // Debug 2016-12-26
       if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-        raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+        raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     end
     else if (FRTF.Visible) then
     begin
       FRTF.CopyToClipboard();
       // Debug 2016-12-21
       if (not OpenClipboard(Handle)) then
-        raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+        raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
       else
         CloseClipboard();
       // Debug 2016-12-26
       if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-        raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+        raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     end
     else
       MessageBeep(MB_ICONERROR);
     // Debug 2016-12-21
     if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
     // Debug 2016-12-26
     if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+    Progress := Progress + '9';
   end
   else if (Window.ActiveControl = ActiveWorkbench) then
   begin
+    Progress := Progress + 'A';
     if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
     // Debug 2016-12-26
     if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     if ((ActiveWorkbench.Selected is TWSection) and OpenClipboard(Handle)) then
     begin
       try
@@ -3221,22 +3254,28 @@ begin
       end;
     end;
     if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
     // Debug 2016-12-26
     if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+    Progress := Progress + 'B';
   end
   else if (Window.ActiveControl = FSQLHistory) then
   begin
+    Progress := Progress + 'C';
     if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
     // Debug 2016-12-26
     if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     if (Assigned(FSQLHistory.Selected) and OpenClipboard(Handle)) then
     begin
       try
@@ -3252,48 +3291,60 @@ begin
       end;
     end;
     if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
     // Debug 2016-12-26
     if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+    Progress := Progress + 'D';
     exit;
   end
   else if (Window.ActiveControl = FHexEditor) then
   begin
     if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
     // Debug 2016-12-26
     if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     FHexEditor.ExecuteAction(MainAction('aECopy'));
     if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
     // Debug 2016-12-26
     if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+    Progress := Progress + 'E';
     exit;
   end
   else if (Window.ActiveControl = ActiveSynMemo) then
   begin
+    Progress := Progress + 'F';
     // Debug 2016-12-23
     if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create(SRangeError)
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + SRangeError)
     else
       CloseClipboard();
     // Debug 2016-12-26
     if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     try
       ActiveSynMemo.CopyToClipboard();
       // Debug 2016-12-26
       if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-        raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+        raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     except
       on E: EClipboardException do
         begin
@@ -3310,49 +3361,66 @@ begin
                  + #10 + 'Name: ' + Control.Name;
           except
           end;
-          raise Exception.Create(Msg);
+          raise Exception.Create('Progress: ' + Progress + #13#10
+      + Msg);
         end;
     end;
     if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
     // Debug 2016-12-26
     if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+    Progress := Progress + 'G';
     exit;
   end
   else
   begin
+    Progress := Progress + 'H';
     if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
     // Debug 2016-12-26
     if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     SendMessage(Window.ActiveControl.Handle, WM_COPY, 0, 0);
     if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
     // Debug 2016-12-26
     if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+    Progress := Progress + 'I';
     exit;
   end;
 
+  Progress := Progress + 'J';
+
   // Debug 2016-12-23
   if (not OpenClipboard(Handle)) then
-    raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+    raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
   else
     CloseClipboard();
   // Debug 2016-12-26
   if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-    raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+    raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+
+  Progress := Progress + 'K';
 
   if ((Data <> '') and OpenClipboard(Handle)) then
   begin
+    Progress := Progress + 'L';
     try
       EmptyClipboard();
 
@@ -3387,11 +3455,13 @@ begin
     finally
       CloseClipboard();
     end;
+    Progress := Progress + 'M';
   end;
 
   // Debug 2016-12-14
   if (not OpenClipboard(Handle)) then
-    raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
+    raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
   else
     CloseClipboard();
 end;
@@ -5447,14 +5517,10 @@ end;
 
 procedure TFSession.DataSetAfterOpen(DataSet: TDataSet);
 begin
-  // Debug 2016-12-25
-  if (not Assigned(ActiveDBGrid)) then
-    raise ERangeError.Create('Address: ' + Address);
-
+  PContentChange(nil);
   ActiveDBGrid.DataSource.Enabled := False;
   ActiveDBGrid.DataSource.DataSet := DataSet;
   DBGridInitialize(ActiveDBGrid);
-  PContentChange(nil);
 end;
 
 procedure TFSession.DataSetAfterPost(DataSet: TDataSet);
@@ -7062,6 +7128,12 @@ begin
   end
   else
     Result := FNavigator.Items.getFirstNode();
+
+  // Debug 2016-12-27
+  if (Assigned(Result)
+    and not (Result.ImageIndex in [iiBaseTable, iiSystemView, iiView])
+    and (URI.Param['view'] = 'browser')) then
+    raise ERangeError.Create(SRangeError);
 
   URI.Free();
 end;
@@ -8875,8 +8947,7 @@ begin
     Result := iiSystemDatabase
   else if (TObject(Data) is TSDatabase) then
     Result := iiDatabase
-  else if ((TObject(Data) is TSSystemView5)
-    or (TObject(Data) is TSSystemView8)) then
+  else if (TObject(Data) is TSSystemView) then
     Result := iiSystemView
   else if (TObject(Data) is TSBaseTable) then
     Result := iiBaseTable
@@ -8891,8 +8962,7 @@ begin
   else if (TObject(Data) is TSKey) then
     Result := iiKey
   else if (TObject(Data) is TSTableField) then
-    if ((TSTableField(Data).Table is TSSystemView5)
-      or (TSTableField(Data).Table is TSSystemView8)) then
+    if (TSTableField(Data).Table is TSSystemView) then
       Result := iiSystemViewField
     else if (TSTableField(Data).Table is TSView) then
       Result := iiViewField
@@ -9725,8 +9795,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
     else if (Data is TSTable) then
     begin
       Item.GroupID := giTables;
-      if ((Data is TSSystemView5)
-        or (Data is TSSystemView8)) then
+      if (Data is TSSystemView) then
         Item.ImageIndex := iiSystemView
       else if (Data is TSBaseTable) then
         Item.ImageIndex := iiBaseTable
@@ -9873,7 +9942,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
         Item.SubItems.Add(S);
         if (Session.Connection.MySQLVersion >= 40100) then
           Item.SubItems.Add(TSBaseTableField(Data).Comment);
-        if (TSBaseTableField(Data).Table is TSSystemView5) then
+        if (TSBaseTableField(Data).Table is TSSystemView) then
           Item.ImageIndex := iiSystemViewField
         else
           Item.ImageIndex := iiField;
@@ -10186,38 +10255,11 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
               ListView.Items.Delete(I);
           if ((Kind = lkTable) and (Event.Items is TSBaseTableFields)) then
           begin
-            // Debug 2016-12-25
-            if (not (TObject(ListView.Tag) is TSBaseTable)) then
-              raise ERangeError.Create(SRangeError);
             for I := ListView.Items.Count - 1 downto 0 do
             begin
-              if (not Assigned(TSBaseTableFields(Event.Items).Table)) then
-                raise ERangeError.Create(SRangeError);
-              if (not (TSBaseTableFields(Event.Items).Table is TSBaseTable)) then
-                raise ERangeError.Create(SRangeError + ' ClassType: ' + TSBaseTableFields(Event.Items).Table.ClassName);
-              if (not Assigned(TSBaseTable(TSBaseTableFields(Event.Items).Table).Keys)) then
-                raise ERangeError.Create(SRangeError);
-              // Debug 2016-12-14
-              if (not (TObject(TSBaseTable(TSBaseTableFields(Event.Items).Table).Keys) is TSKeys)) then
-                try
-                  raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(TSBaseTable(TSBaseTableFields(Event.Items).Table).Keys).ClassName);
-                except
-                  raise ERangeError.Create(SRangeError);
-                end;
-              // Debug 2016-12-16
-              if (not Assigned(ListView.Items[I])) then
-                raise ERangeError.Create(SRangeError);
-              if (not (TObject(ListView.Items[I]) is TListItem)) then
-                try
-                  raise ERangeError.Create('ClassType: ' + TObject(ListView.Items[I]).ClassName);
-                except
-                  raise ERangeError.Create(SRangeError);
-                end;
-              if (not (TSObject(ListView.Tag) is TSBaseTable)) then
-                raise ERangeError.Create(SRangeError);
               Table := TSBaseTable(ListView.Tag);
+              Data := ListView.Items[I].Data;
               try
-                Data := ListView.Items[I].Data;
                 if ((Table.Keys.IndexOf(Data) < 0)
                   and (Table.Fields.IndexOf(Data) < 0)
                   and (not Assigned(Table.ForeignKeys) or (Table.ForeignKeys.IndexOf(Data) < 0))
@@ -10227,12 +10269,15 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
                 on E: Exception do
                   raise ERangeError.Create('ImageIndex: ' + IntToStr(ListView.Items[I].ImageIndex) + #13#10
                     + 'Caption: ' + ListView.Items[I].Caption + #13#10
+                    + 'Kind: ' + IntToStr(Ord(Kind)) + #13#10
+                    + 'GroupdID: ' + IntToStr(GroupID) + #13#10
+                    + 'EventType: ' + IntToStr(Ord(Event.EventType)) + #13#10
+                    + 'Event Sender: ' + Event.Sender.ClassName + #13#10
+                    + 'Event Items: ' + Event.Items.ClassName + #13#10
+                    + 'Table: ' + Table.Name + #13#10
+                    + #13#10
                     + E.Message);
               end;
-              if (not Assigned(ListView.Items[I].Data)) then
-                raise ERangeError.Create('ImageIndex: ' + IntToStr(ListView.Items[I].ImageIndex));
-              if (TObject(ListView.Items[I].Data) is TSKey) then
-                Write;
               if ((TObject(ListView.Items[I].Data) is TSKey) and (TSBaseTable(TSBaseTableFields(Event.Items).Table).Keys.IndexOf(ListView.Items[I].Data) < 0)) then
                 ListView.Items.Delete(I);
             end;
@@ -12210,6 +12255,11 @@ begin
     PSynMemo.Align := alNone;
     SResult.Align := alNone;
     PResult.Align := alNone;
+
+    // Debug 2016-12-27
+    if (not Assigned(SBlob)) then
+      raise ERangeError.Create('Destroying: ' + BoolToStr(csDestroying in ComponentState, True));
+
     SBlob.Align := alNone;
     PBlob.Align := alNone;
 
@@ -13210,6 +13260,10 @@ begin
               OpenSQLFile(FileName, CodePage);
         end;
     end;
+
+    // Debug 2016-12-27
+    if ((URI.Param['view'] = 'browser') and not (FNavigator.Selected.ImageIndex in [iiBaseTable, iiSystemView, iiView])) then
+      raise ERangeError.Create(SRangeError);
 
     URI.Free();
 
@@ -14810,9 +14864,11 @@ begin
             List.Free();
           end;
         iiBaseTable,
-        iiSystemView,
         iiView:
           TSTable(FNavigator.Selected.Data).Update();
+        iiSystemView:
+          if (Session.Connection.MySQLVersion < 80000) then
+            TSTable(FNavigator.Selected.Data).Update();
       end;
     vBrowser:
       if ((TObject(FNavigator.Selected.Data) is TSView and not TSView(FNavigator.Selected.Data).Update())

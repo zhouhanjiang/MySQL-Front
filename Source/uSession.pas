@@ -109,7 +109,7 @@ type
     function Add(const AEntity: TSEntity; const SendEvent: Boolean = False): Integer; virtual;
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
       Filtered: Boolean = False; const ObjectSearch: TSObjectSearch = nil): Boolean; virtual;
-    procedure Delete(const AEntity: TSEntity; const SendEvent: Boolean = True); overload; virtual;
+    procedure Delete(const AEntity: TSEntity); overload; virtual;
     function GetValid(): Boolean; virtual;
     function SQLGetItems(const Name: string = ''): string; virtual; abstract;
   public
@@ -160,7 +160,7 @@ type
   TSObjects = class(TSEntities)
   protected
     function Add(const AEntity: TSEntity; const SendEvent: Boolean = False): Integer; override;
-    procedure Delete(const AEntity: TSEntity; const SendEvent: Boolean = True); override;
+    procedure Delete(const AEntity: TSEntity); override;
   public
     procedure Invalidate(); override;
   end;
@@ -249,7 +249,7 @@ type
     FDatabase: TSDatabase;
   protected
     function Add(const AEntity: TSEntity; const SendEvent: Boolean = False): Integer; override;
-    procedure Delete(const AEntity: TSEntity; const SendEvent: Boolean = True); override;
+    procedure Delete(const AEntity: TSEntity); override;
   public
     constructor Create(const ADatabase: TSDatabase); reintroduce; virtual;
     property Database: TSDatabase read FDatabase;
@@ -739,10 +739,7 @@ type
     property Stmt: string read FStmt write FStmt;
   end;
 
-  TSSystemView5 = class(TSBaseTable)
-  end;
-
-  TSSystemView8 = class(TSView)
+  TSSystemView = class(TSBaseTable)
   end;
 
   TSTables = class(TSDBObjects)
@@ -753,7 +750,7 @@ type
     function Add(const AEntity: TSEntity; const SendEvent: Boolean = False): Integer; override;
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const ObjectSearch: TSObjectSearch = nil): Boolean; overload; override;
     function BuildViewFields(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean): Boolean;
-    procedure Delete(const AEntity: TSEntity; const SendEvent: Boolean = True); override;
+    procedure Delete(const AEntity: TSEntity); override;
     function SQLGetItems(const Name: string = ''): string; override;
     function SQLGetStatus(const List: TList = nil): string;
     function SQLGetViewFields(): string;
@@ -1078,7 +1075,7 @@ type
   protected
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
       Filtered: Boolean = False; const ObjectSearch: TSObjectSearch = nil): Boolean; override;
-    procedure Delete(const AEntity: TSEntity; const SendEvent: Boolean = True); override;
+    procedure Delete(const AEntity: TSEntity); override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     function NameCmp(const Name1, Name2: string): Integer; override;
@@ -1400,7 +1397,7 @@ type
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
       Filtered: Boolean = False; const ObjectSearch: TSObjectSearch = nil): Boolean; override;
     function BuildItems(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; const Filtered: Boolean = False; const ObjectSearch: TSObjectSearch = nil): Boolean; overload;
-    procedure Delete(const AEntity: TSEntity; const SendEvent: Boolean = True); override;
+    procedure Delete(const AEntity: TSEntity); override;
     function GetValid(): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
@@ -1957,7 +1954,7 @@ begin
   FValid := False;
 end;
 
-procedure TSEntities.Delete(const AEntity: TSEntity; const SendEvent: Boolean = True);
+procedure TSEntities.Delete(const AEntity: TSEntity);
 var
   Index: Integer;
 begin
@@ -2139,21 +2136,11 @@ begin
     Session.SendEvent(etItemCreated, Session, Self, AEntity);
 end;
 
-procedure TSObjects.Delete(const AEntity: TSEntity; const SendEvent: Boolean = True);
-var
-  Index: Integer;
+procedure TSObjects.Delete(const AEntity: TSEntity);
 begin
   Assert(AEntity is TSObject);
 
-  Index := IndexOf(AEntity);
-
-  if (Index >= 0) then
-  begin
-    Delete(Index);
-
-    if (SendEvent) then
-      Session.SendEvent(etItemDropped, Session, Self, AEntity);
-  end;
+  Delete(IndexOf(AEntity));
 
   AEntity.Free();
 end;
@@ -2578,23 +2565,15 @@ begin
   FDatabase := ADatabase;
 end;
 
-procedure TSDBObjects.Delete(const AEntity: TSEntity; const SendEvent: Boolean = True);
-var
-  Index: Integer;
+procedure TSDBObjects.Delete(const AEntity: TSEntity);
 begin
   Assert(AEntity is TSObject);
 
-  Index := IndexOf(AEntity);
+  Delete(IndexOf(AEntity));
 
-  if (Index >= 0) then
-  begin
-    Delete(Index);
+  Session.SendEvent(etItemDropped, Database, Self, AEntity);
 
-    if (SendEvent) then
-      Session.SendEvent(etItemDropped, Database, Self, AEntity);
-
-    AEntity.Free();
-  end;
+  AEntity.Free();
 end;
 
 { TSKeyColumn *****************************************************************}
@@ -3615,10 +3594,7 @@ var
   I: Integer;
   Pos: Integer;
 begin
-  Result := 'SELECT * FROM ';
-  if (DatabaseName <> '') then
-    Result := Result + Connection.EscapeIdentifier(FDatabaseName) + '.';
-  Result := Result + Connection.EscapeIdentifier(Table.Name);
+  Result := 'SELECT * FROM ' + Connection.EscapeIdentifier(Table.Database.Name) + '.' + Connection.EscapeIdentifier(Table.Name);
   if ((FilterSQL <> '') or (QuickSearch <> '')) then
   begin
     Result := Result + ' WHERE ';
@@ -4993,7 +4969,10 @@ end;
 
 function TSBaseTable.SQLGetSource(): string;
 begin
-  Result := 'SHOW CREATE TABLE ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10
+  if ((Session.Connection.MySQLVersion < 80000) or not (Self is TSSystemView)) then
+    Result := 'SHOW CREATE TABLE ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10
+  else
+    Result := '';
 end;
 
 function TSBaseTable.Update(const Status: Boolean): Boolean;
@@ -5318,17 +5297,11 @@ begin
         if (InsertIndex(Name, Index)) then
         begin
           if (Database = Session.PerformanceSchema) then
-            if (Session.Connection.MySQLVersion < 80000) then
-              NewTable := TSSystemView5.Create(Self, Name, True)
-            else
-              NewTable := TSSystemView8.Create(Self, Name)
+            NewTable := TSSystemView.Create(Self, Name, True)
           else if ((Session.Connection.MySQLVersion < 50002) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'BASE TABLE') = 0) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'ERROR') = 0)) then
             NewTable := TSBaseTable.Create(Self, Name)
           else if ((StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'SYSTEM VIEW') = 0) or ((50000 <= Session.Connection.MySQLVersion) and (Session.Connection.MySQLVersion < 50012) and (Database = Session.InformationSchema)) or (Database = Session.PerformanceSchema)) then
-            if (Session.Connection.MySQLVersion < 80000) then
-              NewTable := TSSystemView5.Create(Self, Name, True)
-            else
-              NewTable := TSSystemView8.Create(Self, Name)
+            NewTable := TSSystemView.Create(Self, Name, True)
           else if (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'VIEW') = 0) then
             NewTable := TSView.Create(Self, Name)
           else
@@ -5372,17 +5345,11 @@ begin
         if (InsertIndex(Name, Index)) then
         begin
           if (Database = Session.PerformanceSchema) then
-            if (Session.Connection.MySQLVersion < 80000) then
-              NewTable := TSSystemView5.Create(Self, Name, True)
-            else
-              NewTable := TSSystemView8.Create(Self, Name)
+            NewTable := TSSystemView.Create(Self, Name, True)
           else if ((Session.Connection.MySQLVersion < 50002) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'BASE TABLE') = 0) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'ERROR') = 0)) then
             NewTable := TSBaseTable.Create(Self, Name)
           else if ((StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'SYSTEM VIEW') = 0) or ((50000 <= Session.Connection.MySQLVersion) and (Session.Connection.MySQLVersion < 50012) and (Database = Session.InformationSchema)) or (Database = Session.PerformanceSchema)) then
-            if (Session.Connection.MySQLVersion < 80000) then
-              NewTable := TSSystemView5.Create(Self, Name, True)
-            else
-              NewTable := TSSystemView8.Create(Self, Name)
+            NewTable := TSSystemView.Create(Self, Name, True)
           else if (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'VIEW') = 0) then
             NewTable := TSView.Create(Self, Name)
           else
@@ -5405,7 +5372,7 @@ begin
             else
               TSBaseTable(Table[Index]).FEngine := Session.EngineByName(DataSet.FieldByName('Engine').AsString);
             TSBaseTable(Table[Index]).FRowType := StrToMySQLRowType(DataSet.FieldByName('Row_format').AsString);
-            if (TSBaseTable(Table[Index]) is TSSystemView5) then
+            if (TSBaseTable(Table[Index]) is TSSystemView) then
               TSBaseTable(Table[Index]).FRecordCount := -1
             else
               if (not TryStrToInt64(DataSet.FieldByName('Rows').AsString, TSBaseTable(Table[Index]).FRecordCount)) then TSBaseTable(Table[Index]).FRecordCount := 0;
@@ -5424,7 +5391,7 @@ begin
           begin
             TSBaseTable(Table[Index]).FEngine := Session.EngineByName(DataSet.FieldByName('ENGINE').AsString);
             TSBaseTable(Table[Index]).RowType := StrToMySQLRowType(DataSet.FieldByName('ROW_FORMAT').AsString);
-            if (TSBaseTable(Table[Index]) is TSSystemView5) then
+            if (TSBaseTable(Table[Index]) is TSSystemView) then
               TSBaseTable(Table[Index]).FRecordCount := -1
             else
               if (not TryStrToInt64(DataSet.FieldByName('TABLE_ROWS').AsString, TSBaseTable(Table[Index]).FRecordCount)) then TSBaseTable(Table[Index]).FRecordCount := 0;
@@ -5628,7 +5595,7 @@ begin
   Result := False;
 end;
 
-procedure TSTables.Delete(const AEntity: TSEntity; const SendEvent: Boolean = True);
+procedure TSTables.Delete(const AEntity: TSEntity);
 begin
   if (Assigned(Database.Columns)) then Database.Columns.Invalidate();
 
@@ -8726,7 +8693,7 @@ begin
     Session.SendEvent(etItemValid, Session, Self, Item);
 end;
 
-procedure TSDatabases.Delete(const AEntity: TSEntity; const SendEvent: Boolean = True);
+procedure TSDatabases.Delete(const AEntity: TSEntity);
 var
   I: Integer;
   J: Integer;
@@ -10421,7 +10388,7 @@ begin
       Session.SendEvent(etItemsValid, Session, Self);
 end;
 
-procedure TSUsers.Delete(const AEntity: TSEntity; const SendEvent: Boolean = True);
+procedure TSUsers.Delete(const AEntity: TSEntity);
 begin
   if (AEntity = Session.FUser) then
     Session.FUser := nil;
@@ -11734,7 +11701,7 @@ begin
                             and (NextDDLStmt.ObjectName = DDLStmt.ObjectName)) then
                             // will be handled in the next Stmt
                           else
-                            Database.Tables.Delete(Table, False);
+                            Database.Tables.Delete(Table);
                         end;
                       end;
                       First := False;
