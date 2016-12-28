@@ -2458,7 +2458,7 @@ label
   SimpelStmtL, SimpelStmtLE,
   Body, BodyL, BodyCase, BodyIf, BodyIf2, BodyIf3, BodyIfFunc, BodyLoop, BodyRepeat, BodyWhile, BodyEnd,
   BodyChar, BodyCharTL, BodyCharE,
-  BodyEndCase, BodyEndIf, BodyEndLoop, BodyEndRepeat, BodyEndWhile, BodyEndCompound, BodyLE,
+  BodyEndCase, BodyEndIf, BodyEndLoop, BodyEndRepeat, BodyEndWhile, BodyEndCompound, BodyEndCaseOp, BodyLE,
   BodyBracket,
   BracketArea, BracketAreaL, BracketAreaE,
   Complete, Complete2, Complete3, Complete4,
@@ -2717,10 +2717,15 @@ begin
           JE BodyLE
           DEC WhileDeep
           JMP BodyLE
-        BodyEndCompound:                   // 'END'
-          CMP CompoundDeep,0
-          JE BodyLE
+        BodyEndCompound:                   // 'END'?
+          CMP CompoundDeep,0               // No!
+          JE BodyEndCaseOp
           DEC CompoundDeep
+          JMP BodyLE
+        BodyEndCaseOp:
+          CMP CaseDeep,0                   // 'END' inside a CASE Op?
+          JE BodyLE                        // No!
+          DEC CaseDeep
           JMP BodyLE
 
         BodyChar:

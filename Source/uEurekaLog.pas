@@ -398,6 +398,9 @@ procedure ExceptionNotify(const Custom: Pointer;
   var CallNextHandler: Boolean);
 var
   CheckOnlineVersionThread: TCheckOnlineVersionThread;
+  E: Exception;
+  ExceptionClass: TClass;
+  ExceptionMessage: string;
   I: Integer;
   Report: string;
 begin
@@ -432,56 +435,31 @@ begin
     end;
 
     try
-      try
-        if (not (TObject(ExceptionInfo.ExceptionObject) is Exception)) then
-          Write;
-      except
-        on E: Exception do
-          try SendToDeveloper('EurekaLogExceptionNotify(3.0)' + #13#10
-            + 'ExceptionInfo: ' + IntToStr(Integer(ExceptionInfo)) + #13#10
-            + E.Message); except end;
-      end;
+      // In EurekaLog 7.5.0.0 is ExceptionInfo.ExceptionObject not always the exception.
+      // Is this a bug of 7.5.0.0?
       if (not (TObject(ExceptionInfo.ExceptionObject) is Exception)) then
-      begin
-        try
-        Report := Report + ExceptionInfo.ExceptionClass + ':' + #13#10;
-        Report := Report + ExceptionInfo.ExceptionMessage + #13#10#13#10;
-        except
-          on E: Exception do
-            try SendToDeveloper('EurekaLogExceptionNotify(3.1)' + #13#10#13#10 + E.Message); except end;
-        end;
-      end
+        E := nil
       else
-      begin
-        try
-        Report := Report + Exception(ExceptionInfo.ExceptionObject).ClassName + ':' + #13#10;
-        Report := Report + Exception(ExceptionInfo.ExceptionObject).Message + #13#10#13#10;
-        except
-          on E: Exception do
-            try SendToDeveloper('EurekaLogExceptionNotify(3.2)' + #13#10#13#10 + E.Message); except end;
-        end;
-      end;
+        E := ExceptionInfo.ExceptionObject;
     except
-      on E: Exception do
-      begin
-        try SendToDeveloper('EurekaLogExceptionNotify(3)' + #13#10#13#10 + E.Message); except end;
-        try
-          Report := Report + ExceptionInfo.ToString + #13#10;
-        except
-          try SendToDeveloper('EurekaLogExceptionNotify(3.a)' + #13#10#13#10 + E.Message); except end;
-        end;
-      end;
+      E := nil;
     end;
 
-    try
-      if (TObject(ExceptionInfo.ExceptionObject) is EOutOfMemory) then
+    if (not Assigned(E)) then
+    begin
+      Report := Report + ExceptionInfo.ExceptionClass + ':' + #13#10;
+      Report := Report + ExceptionInfo.ExceptionMessage + #13#10#13#10;
+    end
+    else
+    begin
+      Report := Report + Exception(ExceptionInfo.ExceptionObject).ClassName + ':' + #13#10;
+      Report := Report + Exception(ExceptionInfo.ExceptionObject).Message + #13#10#13#10;
+
+      if (E is EOutOfMemory) then
       begin
         Report := Report + 'Free Memory: ' + IntToStr(GetFreeMemory()) + #13#10;
         Report := Report + 'Total Memory: ' + IntToStr(GetMemPhysicalInstalled()) + #13#10#13#10;
       end;
-    except
-      on E: Exception do
-        try SendToDeveloper('EurekaLogExceptionNotify(4)' + #13#10#13#10 + E.Message); except end;
     end;
 
     try
@@ -525,7 +503,7 @@ begin
         Report := Report + #13#10;
         Report := Report + 'SyncThread ID: ' + IntToStr(MySQLSyncThreads[I].ThreadID) + #13#10;
         Report := Report + StringOfChar('-', 72) + #13#10;
-        Report := Report + MySQLSyncThreads[I].Log;
+        Report := Report + MySQLSyncThreads[I].Log + #13#10;
       end;
       MySQLSyncThreads.Release();
     except

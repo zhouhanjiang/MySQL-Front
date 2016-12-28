@@ -198,7 +198,7 @@ type
     property Session: TSSession read GetSession;
   end;
 
-  TSDependencyRequester = class
+  TSDependencySearch = class
   private
     FDBObject: TSDBObject;
     function GetDatabase(): TSDatabase; inline;
@@ -220,7 +220,7 @@ type
     TSecurity = (seDefiner, seInvoker);
   private
     FDatabase: TSDatabase;
-    FDependendyRequester: TSDependencyRequester;
+    FDependendySearch: TSDependencySearch;
     FReferences: TSReferences;
     function GetDBObjects(): TSDBObjects; inline;
   protected
@@ -241,7 +241,7 @@ type
     property Database: TSDatabase read FDatabase;
     property DBObjects: TSDBObjects read GetDBObjects;
     property References: TSReferences read FReferences;
-    property DependencyRequester: TSDependencyRequester read FDependendyRequester;
+    property DependencySearch: TSDependencySearch read FDependendySearch;
   end;
 
   TSDBObjects = class(TSObjects)
@@ -322,7 +322,7 @@ type
     procedure AddKey(const NewKey: TSKey); virtual;
     procedure Assign(const Source: TSKeys); virtual;
     constructor Create(const ATable: TSBaseTable); reintroduce; virtual;
-    procedure DeleteKey(const AKey: TSKey); virtual;
+    procedure Delete(const AKey: TSKey); overload;
     property Key[Index: Integer]: TSKey read GetKey; default;
     property PrimaryKey: TSKey read GetPrimaryKey;
     property Table: TSBaseTable read FTable;
@@ -433,7 +433,7 @@ type
     procedure AddField(const NewField: TSTableField); virtual;
     procedure Assign(const Source: TSTableFields); virtual;
     constructor Create(const ATable: TSTable);
-    procedure DeleteField(const AField: TSTableField); virtual;
+    procedure Delete(const AField: TSTableField); overload;
     function IndexByName(const Name: string): Integer; override;
     function IndexOf(const AField: TSTableField): Integer; virtual;
     property Field[Index: Integer]: TSTableField read GetField; default;
@@ -498,8 +498,7 @@ type
     procedure Assign(const Source: TSForeignKeys); virtual;
     procedure Clear(); override;
     constructor Create(const ATable: TSBaseTable); reintroduce; virtual;
-    procedure DeleteForeignKey(const AForeignKey: TSForeignKey); virtual;
-    procedure InsertForeignKey(const Index: Integer; const NewForeignKey: TSForeignKey); virtual;
+    procedure Delete(const AForeignKey: TSForeignKey); overload;
     property ForeignKey[Index: Integer]: TSForeignKey read GetForeignKey; default;
     property Table: TSBaseTable read FTable;
     property Valid: Boolean read FValid;
@@ -596,7 +595,7 @@ type
     procedure Assign(const Source: TSPartitions); virtual;
     procedure Clear(); override;
     constructor Create(const ATable: TSBaseTable); reintroduce; virtual;
-    procedure DeletePartition(const APartition: TSPartition); virtual;
+    procedure Delete(const APartition: TSPartition); overload;
     function IndexOf(const APartition: TSPartition): Integer; virtual;
     procedure MovePartition(const APartition: TSPartition; const NewIndex: Integer); virtual;
     function UpdatePartition(const Partition, NewPartition: TSPartition): Boolean; virtual;
@@ -2245,9 +2244,9 @@ begin
   Result := FDBObject.Session;
 end;
 
-{ TSDependencyRequester *******************************************************}
+{ TSDependencySearch **********************************************************}
 
-function TSDependencyRequester.BuildBaseTableReferences(const DataSet: TMySQLQuery): Boolean;
+function TSDependencySearch.BuildBaseTableReferences(const DataSet: TMySQLQuery): Boolean;
 var
   DatabaseName: string;
   TableName: string;
@@ -2265,24 +2264,24 @@ begin
   Result := False;
 end;
 
-constructor TSDependencyRequester.Create(const ADBObject: TSDBObject);
+constructor TSDependencySearch.Create(const ADBObject: TSDBObject);
 begin
   inherited Create();
 
   FDBObject := ADBObject;
 end;
 
-function TSDependencyRequester.GetDatabase(): TSDatabase;
+function TSDependencySearch.GetDatabase(): TSDatabase;
 begin
   Result := DBObject.Database;
 end;
 
-function TSDependencyRequester.GetSession(): TSSession;
+function TSDependencySearch.GetSession(): TSSession;
 begin
   Result := DBObject.Session;
 end;
 
-function TSDependencyRequester.GetValid(): Boolean;
+function TSDependencySearch.GetValid(): Boolean;
 var
   I: Integer;
 begin
@@ -2315,7 +2314,7 @@ begin
       Result := Result and Database.Events[I].ValidSource;
 end;
 
-function TSDependencyRequester.SQLGetReferences(): string;
+function TSDependencySearch.SQLGetReferences(): string;
 var
   I: Integer;
   SQL: string;
@@ -2418,13 +2417,13 @@ begin
   FDatabase := ADBObjects.Database;
 
   FReferences := TSReferences.Create(Self);
-  FDependendyRequester := TSDependencyRequester.Create(Self);
+  FDependendySearch := TSDependencySearch.Create(Self);
 end;
 
 destructor TSDBObject.Destroy();
 begin
   FReferences.Free();
-  FDependendyRequester.Free();
+  FDependendySearch.Free();
 
   inherited;
 end;
@@ -2819,7 +2818,7 @@ begin
   FTable := ATable;
 end;
 
-procedure TSKeys.DeleteKey(const AKey: TSKey);
+procedure TSKeys.Delete(const AKey: TSKey);
 var
   I: Integer;
 begin
@@ -3265,7 +3264,7 @@ begin
   FTable := ATable;
 end;
 
-procedure TSTableFields.DeleteField(const AField: TSTableField);
+procedure TSTableFields.Delete(const AField: TSTableField);
 var
   I: Integer;
   Index: Integer;
@@ -3280,7 +3279,7 @@ begin
         if (TSBaseTable(Table).Keys[I].Columns[J].Field = AField) then
           TSBaseTable(Table).Keys[I].Columns.DeleteColumn(TSBaseTable(Table).Keys[I].Columns[J]);
       if (TSBaseTable(Table).Keys[I].Columns.Count = 0) then
-        TSBaseTable(Table).Keys.DeleteKey(TSBaseTable(Table).Keys[I]);
+        TSBaseTable(Table).Keys.Delete(TSBaseTable(Table).Keys[I]);
     end;
 
   if (Index + 1 < Count) then
@@ -3512,7 +3511,9 @@ end;
 
 procedure TSForeignKeys.AddForeignKey(const NewForeignKey: TSForeignKey);
 begin
-  InsertForeignKey(TList(Self).Count, NewForeignKey);
+  Insert(TList(Self).Count, TSForeignKey.Create(Self));
+  ForeignKey[TList(Self).Count - 1].Assign(NewForeignKey);
+  ForeignKey[TList(Self).Count - 1].Created := True;
 end;
 
 procedure TSForeignKeys.Assign(const Source: TSForeignKeys);
@@ -3545,7 +3546,7 @@ begin
   FTable := ATable;
 end;
 
-procedure TSForeignKeys.DeleteForeignKey(const AForeignKey: TSForeignKey);
+procedure TSForeignKeys.Delete(const AForeignKey: TSForeignKey);
 var
   Index: Integer;
 begin
@@ -3558,13 +3559,6 @@ end;
 function TSForeignKeys.GetForeignKey(Index: Integer): TSForeignKey;
 begin
   Result := TSForeignKey(Items[Index]);
-end;
-
-procedure TSForeignKeys.InsertForeignKey(const Index: Integer; const NewForeignKey: TSForeignKey);
-begin
-  Insert(Index, TSForeignKey.Create(Self));
-  ForeignKey[Index].Assign(NewForeignKey);
-  ForeignKey[Index].Created := True;
 end;
 
 { TSTableDataSet **************************************************************}
@@ -3912,7 +3906,7 @@ begin
   FTable := ATable;
 end;
 
-procedure TSPartitions.DeletePartition(const APartition: TSPartition);
+procedure TSPartitions.Delete(const APartition: TSPartition);
 var
   Index: Integer;
 begin
@@ -4381,39 +4375,8 @@ begin
     end;
 
 
-    // Remove deleted (and renamed) fields to reduce SendEvent for "moved"
-    // fields
-
     DeleteList := TList.Create();
     DeleteList.Assign(FFields);
-
-    TempParse := Parse;
-    while (Session.Connection.IdentifierQuoted and SQLParseChar(TempParse, Session.Connection.IdentifierQuoter, False))
-      or (not SQLParseChar(TempParse, ')', False)
-      and not SQLParseKeyword(TempParse, 'PRIMARY', False)
-      and not SQLParseKeyword(TempParse, 'SPATIAL', False)
-      and not SQLParseKeyword(TempParse, 'KEY', False)
-      and not SQLParseKeyword(TempParse, 'INDEX', False)
-      and not SQLParseKeyword(TempParse, 'UNIQUE', False)
-      and not SQLParseKeyword(TempParse, 'FULLTEXT', False)
-      and not SQLParseKeyword(TempParse, 'CONSTRAINT', False)
-      and not SQLParseKeyword(TempParse, 'FOREIGN KEY', False)) do
-    begin
-      NewName := SQLParseValue(TempParse);
-      for I := DeleteList.Count - 1 downto 0 do
-        if (Fields.NameCmp(TSField(DeleteList[I]).Name, NewName) = 0) then
-          DeleteList.Delete(I);
-    end;
-    for I := DeleteList.Count - 1 downto 0 do
-    begin
-      Session.SendEvent(etItemDropped, Self, FFields, DeleteList[I]);
-      if (TObject(DeleteList[I]) is TSTableField) then
-        FFields.DeleteField(TSTableField(DeleteList[I]));
-    end;
-
-    DeleteList.Free();
-
-
     Index := 0;
     while (Session.Connection.IdentifierQuoted and SQLParseChar(Parse, Session.Connection.IdentifierQuoter, False))
       or (not SQLParseChar(Parse, ')', False)
@@ -4436,6 +4399,7 @@ begin
       else if (Index < FFields.IndexByName(NewName)) then
       begin
         FFields.Move(FFields.IndexByName(NewName), Index);
+        DeleteList.Delete(DeleteList.IndexOf(FFields[Index]));
         TSBaseTableField(FFields[Index]).Clear();
         TSBaseTableField(FFields[Index]).FName := NewName;
         Moved := True;
@@ -4444,6 +4408,7 @@ begin
         FFields.Insert(Index, TSBaseTableField.Create(TSBaseTableFields(FFields), NewName))
       else
       begin
+        DeleteList.Delete(DeleteList.IndexOf(FFields[Index]));
         TSBaseTableField(FFields[Index]).Clear();
         TSBaseTableField(FFields[Index]).FName := NewName;
       end;
@@ -4563,14 +4528,13 @@ begin
       Inc(Index);
       SQLParseChar(Parse, ',');
     end;
-    while (Index < FFields.Count) do
+    while (DeleteList.Count > 0) do
     begin
-      FFields[Index].Free();
-      FFields.Delete(Index);
+      FFields.Delete(DeleteList.Items[0]);
+      DeleteList.Delete(0);
     end;
 
 
-    DeleteList := TList.Create();
     DeleteList.Assign(FKeys);
     while (SQLParseKeyword(Parse, 'PRIMARY', False)
       or SQLParseKeyword(Parse, 'SPATIAL', False)
@@ -4657,9 +4621,7 @@ begin
     end;
     while (DeleteList.Count > 0) do
     begin
-      Index := FKeys.IndexOf(DeleteList.Items[0]);
-      FKeys[Index].Free();
-      FKeys.Delete(Index);
+      FKeys.Delete(DeleteList.Items[0]);
       DeleteList.Delete(0);
     end;
 
@@ -4756,9 +4718,7 @@ begin
     end;
     while (DeleteList.Count > 0) do
     begin
-      Index := FForeignKeys.IndexOf(DeleteList.Items[0]);
-      FForeignKeys[Index].Free();
-      FForeignKeys.Delete(Index);
+      FForeignKeys.Delete(DeleteList.Items[0]);
       DeleteList.Delete(0);
     end;
     DeleteList.Free();
@@ -8720,7 +8680,11 @@ begin
     end;
   end;
 
-  inherited;
+  Delete(IndexOf(AEntity));
+
+  Session.SendEvent(etItemDropped, Session, Self, AEntity);
+
+  AEntity.Free();
 end;
 
 function TSDatabases.GetDatabase(Index: Integer): TSDatabase;
@@ -8918,7 +8882,7 @@ begin
       Session.Connection.IdentifierQuoted := Session.VariableByName('sql_quote_show_create').AsBoolean;
 
     if (Assigned(Session.VariableByName('wait_timeout')) and (Session.VariableByName('wait_timeout').AsInteger > 0)) then
-      Session.Connection.ServerTimeout := Session.VariableByName('wait_timeout').AsInteger;
+      Session.Connection.ServerTimeout := Max(Session.VariableByName('wait_timeout').AsInteger, 24 * 60 * 60);
 
     if (Session.Connection.MySQLVersion < 40102) then
     begin
@@ -12184,7 +12148,7 @@ begin
             begin
               Table := Database.TableByName(SQLParseValue(Parse));
               if (Assigned(Table)) then
-                Result := Table.DependencyRequester.BuildBaseTableReferences(DataSet);
+                Result := Table.DependencySearch.BuildBaseTableReferences(DataSet);
             end;
           end
           else if ((TableNameCmp(ObjectName, 'ROUTINES') = 0) and (SQLParseKeyword(Parse, 'ORDER') or SQLParseEnd(Parse))) then
@@ -12565,8 +12529,8 @@ begin
     end
     else if ((TObject(List[I]) is TSUser) and not TSUser(List[I]).Valid) then
       SQL := SQL + TSUser(List[I]).SQLGetSource()
-    else if ((TObject(List[I]) is TSDependencyRequester) and not TSDependencyRequester(List[I]).Valid) then
-      SQL := SQL + TSDependencyRequester(List[I]).SQLGetReferences;
+    else if ((TObject(List[I]) is TSDependencySearch) and not TSDependencySearch(List[I]).Valid) then
+      SQL := SQL + TSDependencySearch(List[I]).SQLGetReferences;
   if (Tables.Count > 0) then
   begin
     if (BaseTableInTables and Status and not Database.Tables.ValidStatus) then

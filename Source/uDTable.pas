@@ -305,7 +305,7 @@ begin
   begin
     for I := FFields.Items.Count - 1 downto 0 do
       if (FFields.Items[I].Selected) then
-        NewTable.Fields.DeleteField(NewTable.Fields[I]);
+        NewTable.Fields.Delete(NewTable.Fields[I]);
 
     FFieldsRefresh(Sender);
   end;
@@ -324,7 +324,7 @@ begin
   begin
     for I := FForeignKeys.Items.Count - 1 downto 0 do
       if (FForeignKeys.Items[I].Selected) then
-        NewTable.ForeignKeys.DeleteForeignKey(NewTable.ForeignKeys[I]);
+        NewTable.ForeignKeys.Delete(NewTable.ForeignKeys[I]);
 
     FForeignKeysRefresh(Sender);
 
@@ -345,7 +345,7 @@ begin
   begin
     for I := FKeys.Items.Count - 1 downto 0 do
       if (FKeys.Items[I].Selected) then
-        NewTable.Keys.DeleteKey(NewTable.Keys[I]);
+        NewTable.Keys.Delete(NewTable.Keys[I]);
 
     FIndicesRefresh(Sender);
 
@@ -365,7 +365,7 @@ begin
   if (MsgBox(Msg, Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES) then
     for I := FPartitions.Items.Count - 1 downto 0 do
       if (FPartitions.Items[I].Selected) then
-        NewTable.Partitions.DeletePartition(NewTable.Partitions.Partition[I]);
+        NewTable.Partitions.Delete(NewTable.Partitions.Partition[I]);
 
   FPartitionsRefresh(Sender);
 end;
@@ -1643,7 +1643,7 @@ begin
   if (FDependency.Items.Count = 0) then
   begin
     List := TList.Create();
-    List.Add(Table.DependencyRequester);
+    List.Add(Table.DependencySearch);
     if (not Database.Session.Update(List)) then
       FDependency.Cursor := crSQLWait
     else

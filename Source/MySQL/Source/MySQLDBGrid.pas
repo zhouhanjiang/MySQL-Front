@@ -498,7 +498,7 @@ end;
 function TMySQLDBGrid.DoMouseWheel(Shift: TShiftState; WheelDelta: Integer;
   MousePos: TPoint): Boolean;
 begin
-  Result :=  Assigned(DataSource) and Assigned(DataLink.DataSet) and DataLink.DataSet.Active
+  Result := not TMySQLDataSet(DataLink.DataSet).CachedUpdates
     and (not (ssShift in FMouseDownShiftState) and not (ssCtrl in FMouseDownShiftState))
     and not EditorMode;
 
@@ -794,68 +794,65 @@ begin
   if (Assigned(FHintWindow)) then
     FreeAndNil(FHintWindow);
 
-  if (Assigned(DataSource) and Assigned(DataLink.DataSet) and DataLink.DataSet.Active) then
+  FMouseDownPoint.X := X; FMouseDownPoint.Y := Y;
+  FMouseDownShiftState := Shift + (FMouseDownShiftState - [ssLeft, ssRight, ssMiddle, ssDouble]);
+
+  Coord := MouseCoord(X, Y);
+  if ((Coord.X = -1) and (Coord.Y = -1) and EditorMode) then
+    try
+      SelectedField.AsString := TDBMySQLInplaceEdit(InplaceEditor).Text;
+    except
+    end;
+
+  if (Y <= RowHeights[0]) then
+    OldRecord := -1
+  else
+    OldRecord := DataLink.ActiveRecord;
+  OldBookmark := DataLink.DataSet.Bookmark;
+  OldSelectedRows := SelectedRows.Count;
+
+  inherited;
+
+  if (Y <= RowHeights[0]) then
+    NewRecord := -1
+  else
+    NewRecord := DataLink.ActiveRecord;
+
+  Cell := MouseCoord(X, Y);
+  if (((Cell.X > 0) or not (dgIndicator in Options)) and (Cell.Y > 0) and (Button = mbLeft)) then
   begin
-    FMouseDownPoint.X := X; FMouseDownPoint.Y := Y;
-    FMouseDownShiftState := Shift + (FMouseDownShiftState - [ssLeft, ssRight, ssMiddle, ssDouble]);
-
-    Coord := MouseCoord(X, Y);
-    if ((Coord.X = -1) and (Coord.Y = -1) and EditorMode) then
-      try
-        SelectedField.AsString := TDBMySQLInplaceEdit(InplaceEditor).Text;
-      except
-      end;
-
-    if (Y <= RowHeights[0]) then
-      OldRecord := -1
-    else
-      OldRecord := DataLink.ActiveRecord;
-    OldBookmark := DataLink.DataSet.Bookmark;
-    OldSelectedRows := SelectedRows.Count;
-
-    inherited;
-
-    if (Y <= RowHeights[0]) then
-      NewRecord := -1
-    else
-      NewRecord := DataLink.ActiveRecord;
-
-    Cell := MouseCoord(X, Y);
-    if (((Cell.X > 0) or not (dgIndicator in Options)) and (Cell.Y > 0) and (Button = mbLeft)) then
+    if (ssShift in Shift) then
     begin
-      if (ssShift in Shift) then
+      DataLink.DataSet.DisableControls();
+      SelectedRows.CurrentRowSelected := True;
+      if (NewRecord < OldRecord) then
+        for I := OldRecord downto NewRecord do
+        begin
+          DataLink.ActiveRecord := I;
+          SelectedRows.CurrentRowSelected := True;
+        end;
+      if (NewRecord > OldRecord) then
+        for I := OldRecord to NewRecord do
+        begin
+          DataLink.ActiveRecord := I;
+          SelectedRows.CurrentRowSelected := True;
+        end;
+      DataLink.DataSet.EnableControls();
+    end
+    else if (ssCtrl in Shift) then
+    begin
+      if (OldSelectedRows = 0) then
       begin
         DataLink.DataSet.DisableControls();
+        NewBookmark := DataLink.DataSet.Bookmark;
+        DataLink.DataSet.Bookmark := OldBookmark;
         SelectedRows.CurrentRowSelected := True;
-        if (NewRecord < OldRecord) then
-          for I := OldRecord downto NewRecord do
-          begin
-            DataLink.ActiveRecord := I;
-            SelectedRows.CurrentRowSelected := True;
-          end;
-        if (NewRecord > OldRecord) then
-          for I := OldRecord to NewRecord do
-          begin
-            DataLink.ActiveRecord := I;
-            SelectedRows.CurrentRowSelected := True;
-          end;
+        DataLink.DataSet.Bookmark := NewBookmark;
         DataLink.DataSet.EnableControls();
-      end
-      else if (ssCtrl in Shift) then
-      begin
-        if (OldSelectedRows = 0) then
-        begin
-          DataLink.DataSet.DisableControls();
-          NewBookmark := DataLink.DataSet.Bookmark;
-          DataLink.DataSet.Bookmark := OldBookmark;
-          SelectedRows.CurrentRowSelected := True;
-          DataLink.DataSet.Bookmark := NewBookmark;
-          DataLink.DataSet.EnableControls();
-        end;
-      end
-      else
-        SelectedRows.Clear();
-    end;
+      end;
+    end
+    else
+      SelectedRows.Clear();
   end;
 end;
 
@@ -1045,8 +1042,7 @@ var
 begin
   inherited;
 
-  if (Assigned(DataLink) and Assigned(DataSource) and Assigned(DataLink.DataSet)) then
-    DataLink.BufferCount := RowCount - 1;
+  DataLink.BufferCount := RowCount - 1;
 
   if (Assigned(FHeaderControl)) then
   begin

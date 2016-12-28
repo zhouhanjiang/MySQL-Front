@@ -496,7 +496,7 @@ type
 
     TDesktop = class
     type
-      TListViewKind = (lkServer, lkDatabase, lkTable, lkProcesses, lkUsers, lkVariables);
+      TListViewKind = (lkServer, lkDatabase, lkTable, lkProcesses, lkUsers, lkVariables, lkObjectSearch);
     private
       FAccount: TPAccount;
       FAddressMRU: TPPreferences.TMRUList;
@@ -511,7 +511,7 @@ type
       property Account: TPAccount read FAccount;
     public
       BlobHeight: Integer;
-      ColumnWidths: array [lkServer .. lkVariables] of array [0..7] of Integer;
+      ColumnWidths: array [lkServer .. lkObjectSearch] of array [0..7] of Integer;
       DataHeight: Integer;
       EditorContent: array [ttEditor .. ttEditor3] of string;
       ExplorerVisible: Boolean;
@@ -2757,7 +2757,7 @@ var
 begin
   Address := Account.ExpandAddress(Source.Account.ExtractPath(Source.Address));
   BlobHeight := Source.BlobHeight;
-  for Kind := lkServer to lkVariables do
+  for Kind := Low(Kind) to High(Kind) do
     for I := 0 to Length(ColumnWidths[Kind]) - 1 do
       ColumnWidths[Kind, I] := Source.ColumnWidths[Kind, I];
   DataHeight := Source.DataHeight;
@@ -2783,7 +2783,7 @@ begin
 
   FAddressMRU := TPPreferences.TMRUList.Create(10);
   BlobHeight := Round(100 * Screen.PixelsPerInch / USER_DEFAULT_SCREEN_DPI);
-  for Kind := lkServer to lkVariables do
+  for Kind := Low(Kind) to High(Kind) do
     for I := 0 to Length(ColumnWidths[Kind]) - 1 do
       ColumnWidths[Kind][I] := ColumnTextWidth;
   DataHeight := Round(150 * Screen.PixelsPerInch / USER_DEFAULT_SCREEN_DPI);
@@ -2866,6 +2866,7 @@ begin
   if (Assigned(XMLNode(XML, 'objects/users/widths/comment')) and TryStrToInt(XMLNode(XML, 'objects/users/widths/comment').Text, ColumnWidths[lkUsers][2])) then ColumnWidths[lkUsers][2] := Round(ColumnWidths[lkUsers][2] * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'objects/variables/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/variables/widths/name').Text, ColumnWidths[lkVariables][0])) then ColumnWidths[lkVariables][0] := Round(ColumnWidths[lkVariables][0] * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'objects/variables/widths/value')) and TryStrToInt(XMLNode(XML, 'objects/variables/widths/value').Text, ColumnWidths[lkVariables][1])) then ColumnWidths[lkVariables][1] := Round(ColumnWidths[lkVariables][1] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/objectsearch/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/objectsearch/widths/name').Text, ColumnWidths[lkObjectSearch][0])) then ColumnWidths[lkObjectSearch][0] := Round(ColumnWidths[lkObjectSearch][0] * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'path'))) then FPath := XMLNode(XML, 'path').Text;
   if (Assigned(XMLNode(XML, 'sidebar/explorer/folders/height')) and TryStrToInt(XMLNode(XML, 'sidebar/explorer/folders/height').Text, FoldersHeight)) then FoldersHeight := Round(FoldersHeight * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'sidebar/explorer/files/filter'))) then FilesFilter := XMLNode(XML, 'sidebar/explorer/files/filter').Text;
@@ -2933,6 +2934,7 @@ begin
   XMLNode(XML, 'objects/users/widths/comment').Text := IntToStr(ColumnWidths[lkUsers][2]);
   XMLNode(XML, 'objects/variables/widths/name').Text := IntToStr(ColumnWidths[lkVariables][0]);
   XMLNode(XML, 'objects/variables/widths/value').Text := IntToStr(ColumnWidths[lkVariables][1]);
+  XMLNode(XML, 'objects/objectsearch/widths/name').Text := IntToStr(ColumnWidths[lkObjectSearch][0]);
   XMLNode(XML, 'path').Text := FPath;
   XMLNode(XML, 'sidebar/explorer/folders/height').Text := IntToStr(FoldersHeight);
   XMLNode(XML, 'sidebar/explorer/files/filter').Text := FilesFilter;

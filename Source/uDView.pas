@@ -568,7 +568,7 @@ begin
   if (FDependency.Items.Count = 0) then
   begin
     List := TList.Create();
-    List.Add(View.DependencyRequester);
+    List.Add(View.DependencySearch);
     if (not Database.Session.Update(List)) then
       FDependency.Cursor := crSQLWait
     else

@@ -196,7 +196,7 @@ begin
       NewTable.Assign(Table);
     end;
 
-    NewForeignKey := TSForeignKey.Create(Table.ForeignKeys);
+    NewForeignKey := TSForeignKey.Create(nil);
     if (Assigned(ForeignKey)) then
       NewForeignKey.Assign(ForeignKey);
 

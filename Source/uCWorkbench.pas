@@ -2183,9 +2183,16 @@ var
   CT: TWTable; // Debug 2016-12-27
   I: Integer; // Debug 2016-12-27
   J: Integer; // Debug 2016-12-27
+  LinkPoints: TList; // Debug 2016-12-28
   Point: TWLinkPoint;
   PT: TWTable; // Debug 2016-12-27
 begin
+  LinkPoints := TList.Create();
+  for I := 0 to Workbench.Tables.Count - 1 do
+    for J := 0 to Workbench.Tables[I].LinkPointCount - 1 do
+      if (Workbench.Tables[I].LinkPoints[J].Link = Self) then
+        LinkPoints.Add(Workbench.Tables[I].LinkPoints[J]);
+
   CT := ChildTable;
   PT := ParentTable;
 
@@ -2196,19 +2203,19 @@ begin
     Point.LineB.Free();
   end;
 
+  if (Self is TWLinkPoint) then
+
   inherited;
 
   for I := 0 to Workbench.Tables.Count - 1 do
     for J := 0 to Workbench.Tables[I].LinkPointCount - 1 do
-      if (not (Workbench.Tables[I].LinkPoints[J] is TWLink)) then
-        raise ERangeError.Create('Unknown Link!' + #13#10
-          + 'ClassType: ' + Workbench.Tables[I].LinkPoints[J].ClassName)
-      else if (Workbench.Links.IndexOf(Workbench.Tables[I].LinkPoints[J]) < 0) then
+      if (LinkPoints.IndexOf(Workbench.Tables[I].LinkPoints[J]) >= 0) then
         raise ERangeError.Create('Link still exists!' + #13#10
           + 'Table: ' + Workbench.Tables[I].Caption + #13#10
-          + 'Link: ' + Workbench.Tables[I].LinkPoints[J].Caption + #13#10
           + 'ChildTable: ' + CT.Caption + #13#10
           + 'ParentTable: ' + PT.Caption);
+
+  LinkPoints.Free();
 end;
 
 procedure TWLink.FreeSegment(const Point: TWLinkPoint; const Line: TWLinkLine);

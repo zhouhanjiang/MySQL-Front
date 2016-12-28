@@ -1264,7 +1264,7 @@ object FSession: TFSession
       end
     end
     object FObjectSearch: TEdit
-      Left = 3163
+      Left = 4914
       Top = 0
       Width = 140
       Height = 22
@@ -1277,7 +1277,7 @@ object FSession: TFSession
       ExplicitLeft = 2027
     end
     object TBObjectSearch: TToolBar
-      Left = 3587
+      Left = 5535
       Top = 0
       Width = 23
       Height = 22

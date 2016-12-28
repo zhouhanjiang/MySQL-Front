@@ -3423,7 +3423,7 @@ begin
       for J := I - 1 downto 0 do
         if (I <> J) then
           if (NewTable.Keys[J].Equal(NewTable.Keys[I])) then
-            NewTable.Keys.DeleteKey(NewTable.Keys[J])
+            NewTable.Keys.Delete(NewTable.Keys[J])
           else if (SysUtils.UpperCase(NewTable.Keys[I].Name) = SysUtils.UpperCase(NewTable.Keys[J].Name)) then
             NewTable.Keys[I].Name := 'Index_' + IntToStr(I);
 

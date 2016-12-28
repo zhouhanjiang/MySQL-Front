@@ -908,7 +908,7 @@ type
     procedure BeforeExecuteSQL(Sender: TObject);
     procedure BeginEditLabel(Sender: TObject);
     procedure SessionUpdate(const Event: TSSession.TEvent);
-    function ColumnWidthKindFromImageIndex(const AImageIndex: Integer): TPAccount.TDesktop.TListViewKind;
+    function ColumnWidthKindByListView(const ListView: TListView): TPAccount.TDesktop.TListViewKind;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     function CreateDesktop(const CObject: TSObject): TSObject.TDesktop;
     procedure CreateExplorer();
@@ -1113,6 +1113,9 @@ const
   ToolbarTabByView: array[vObjects .. vEditor3] of TPPreferences.TToolbarTab =
     (ttObjects, ttBrowser, ttIDE, ttBuilder, ttDiagram, ttEditor, ttEditor2, ttEditor3);
 
+var
+  SBlobDebug: Pointer; // Debug 2016-12-28
+
 // Debug 2016-12-07
 function GetControlByHandle(const Control: TWinControl; const Wnd: HWND): TWinControl;
 var
@@ -1258,10 +1261,11 @@ begin
   if (not Assigned(Results)) then
     Results := TList.Create();
 
-  if ((Results.Count < 5)
+  if ((ErrorCode = 0)
+    and (Results.Count < 5)
     and Assigned(FSession.Session.Account.HistoryXML)
     and ValidXMLText(CommandText)
-    and SQLCreateParse(Parse, PChar(CommandText), Length(CommandText), DataHandle.Connection.MySQLVersion)
+    and SQLCreateParse(Parse, PChar(CommandText), Length(CommandText), FSession.Session.Connection.MySQLVersion)
     and not SQLParseKeyword(Parse, 'USE')) then
   begin
     while (FSession.Session.Account.HistoryXML.ChildNodes.Count > 100) do
@@ -1272,28 +1276,28 @@ begin
       XML.Attributes['type'] := 'statement'
     else
       XML.Attributes['type'] := 'query';
-    XML.AddChild('database').Text := DataHandle.Connection.DatabaseName;
-    XML.AddChild('datetime').Text := FloatToStr(DataHandle.Connection.ServerDateTime, FileFormatSettings);
-    if (not Data and (DataHandle.Connection.RowsAffected >= 0)) then
-      XML.AddChild('rows_affected').Text := IntToStr(DataHandle.Connection.RowsAffected);
+    XML.AddChild('database').Text := FSession.Session.Connection.DatabaseName;
+    XML.AddChild('datetime').Text := FloatToStr(FSession.Session.Connection.ServerDateTime, FileFormatSettings);
+    if (not Data and (FSession.Session.Connection.RowsAffected >= 0)) then
+      XML.AddChild('rows_affected').Text := IntToStr(FSession.Session.Connection.RowsAffected);
     XML.AddChild('sql').Text := CommandText;
-    if (DataHandle.Connection.Info <> '') then
-      XML.AddChild('info').Text := DataHandle.Connection.Info;
-    XML.AddChild('execution_time').Text := FloatToStr(DataHandle.Connection.ExecutionTime, FileFormatSettings);
-    if (DataHandle.Connection.Connected and (DataHandle.Connection.InsertId > 0)) then
-      XML.AddChild('insert_id').Text := IntToStr(DataHandle.Connection.InsertId);
+    if (FSession.Session.Connection.Info <> '') then
+      XML.AddChild('info').Text := FSession.Session.Connection.Info;
+    XML.AddChild('execution_time').Text := FloatToStr(FSession.Session.Connection.ExecutionTime, FileFormatSettings);
+    if (FSession.Session.Connection.Connected and (FSession.Session.Connection.InsertId > 0)) then
+      XML.AddChild('insert_id').Text := IntToStr(FSession.Session.Connection.InsertId);
 
     FSession.FSQLHistoryRefresh(nil);
   end;
 
-  if (DataHandle.Connection.ErrorCode > 0) then
+  if (ErrorCode > 0) then
   begin
     if ((CommandText <> '') and (Length(FSynMemo.Text) > Length(CommandText) + 5)) then
     begin
       SQL := CommandText;
       Len := SQLStmtLength(PChar(SQL), Length(SQL));
       SQLTrimStmt(SQL, 1, Len, StartingCommentLength, EndingCommentLength);
-      FSynMemo.SelStart := FSession.aDRunExecuteSelStart + DataHandle.Connection.SuccessfullExecutedSQLLength + StartingCommentLength;
+      FSynMemo.SelStart := FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength;
       FSynMemo.SelLength := Len - StartingCommentLength - EndingCommentLength;
     end
   end
@@ -1313,10 +1317,10 @@ begin
 
     if (not Data) then
     begin
-      if (FSession.Session.Databases.NameCmp(DataHandle.Connection.DatabaseName, FSession.SelectedDatabase) <> 0) then
+      if (FSession.Session.Databases.NameCmp(FSession.Session.Connection.DatabaseName, FSession.SelectedDatabase) <> 0) then
       begin
         URI := TUURI.Create(FSession.Address);
-        URI.Database := DataHandle.Connection.DatabaseName;
+        URI.Database := FSession.Session.Connection.DatabaseName;
         FSession.Wanted.Address := URI.Address;
         URI.Free();
       end;
@@ -2311,17 +2315,17 @@ begin
               + 'Table SQL:' + #13#10
               + Table.Source);
 
-          NewTable.Keys.DeleteKey(NewTable.KeyByName(TSKey(Items[I]).Name));
+          NewTable.Keys.Delete(NewTable.KeyByName(TSKey(Items[I]).Name));
           Items[I] := nil;
         end
         else if ((TSItem(Items[I]) is TSTableField) and (TSTableField(Items[I]).Table = Table)) then
         begin
-          NewTable.Fields.DeleteField(NewTable.FieldByName(TSTableField(Items[I]).Name));
+          NewTable.Fields.Delete(NewTable.FieldByName(TSTableField(Items[I]).Name));
           Items[I] := nil;
         end
         else if ((TSItem(Items[I]) is TSForeignKey) and (TSForeignKey(Items[I]).Table = Table)) then
         begin
-          NewTable.ForeignKeys.DeleteForeignKey(NewTable.ForeignKeyByName(TSForeignKey(Items[I]).Name));
+          NewTable.ForeignKeys.Delete(NewTable.ForeignKeyByName(TSForeignKey(Items[I]).Name));
           Items[I] := nil;
         end;
 
@@ -3078,15 +3082,15 @@ begin
       if (Data <> '') then
         Data := 'Address=' + NavigatorNodeToAddress(FNavigatorMenuNode.Parent) + #13#10 + Data;
     end;
+    // Debug 2016-12-26
+    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     if (not OpenClipboard(Handle)) then
       raise ERangeError.Create('Progress: ' + Progress + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
-    // Debug 2016-12-26
-    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     Progress := Progress + '5';
   end
   else if (Window.ActiveControl = ActiveListView) then
@@ -3128,15 +3132,15 @@ begin
         end;
     if (Data <> '') then
       Data := 'Address=' + NavigatorNodeToAddress(FNavigator.Selected) + #13#10 + Data;
+    // Debug 2016-12-26
+    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     if (not OpenClipboard(Handle)) then
       raise ERangeError.Create('Progress: ' + Progress + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
-    // Debug 2016-12-26
-    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     Progress := Progress + '7';
   end
   else if (Window.ActiveControl = ActiveDBGrid) then
@@ -3156,57 +3160,57 @@ begin
     if (not Assigned(EditorField)) then
     begin
       ActiveDBGrid.CopyToClipboard();
+      // Debug 2016-12-26
+      if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+        raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
       // Debug 2016-12-21
       if (not OpenClipboard(Handle)) then
         raise ERangeError.Create('Progress: ' + Progress + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
       else
         CloseClipboard();
-      // Debug 2016-12-26
-      if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-        raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     end
     else if (FText.Visible) then
     begin
       FText.CopyToClipboard();
+      // Debug 2016-12-26
+      if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+        raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
       // Debug 2016-12-21
       if (not OpenClipboard(Handle)) then
         raise ERangeError.Create('Progress: ' + Progress + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
       else
         CloseClipboard();
-      // Debug 2016-12-26
-      if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-        raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     end
     else if (FRTF.Visible) then
     begin
       FRTF.CopyToClipboard();
+      // Debug 2016-12-26
+      if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+        raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
       // Debug 2016-12-21
       if (not OpenClipboard(Handle)) then
         raise ERangeError.Create('Progress: ' + Progress + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
       else
         CloseClipboard();
-      // Debug 2016-12-26
-      if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-        raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     end
     else
       MessageBeep(MB_ICONERROR);
+    // Debug 2016-12-26
+    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     // Debug 2016-12-21
     if (not OpenClipboard(Handle)) then
       raise ERangeError.Create('Progress: ' + Progress + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
-    // Debug 2016-12-26
-    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     Progress := Progress + '9';
   end
   else if (Window.ActiveControl = ActiveWorkbench) then
@@ -3253,15 +3257,15 @@ begin
           Data := 'Address=' + NavigatorNodeToAddress(FNavigator.Selected) + #13#10 + Data;
       end;
     end;
+    // Debug 2016-12-26
+    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     if (not OpenClipboard(Handle)) then
       raise ERangeError.Create('Progress: ' + Progress + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
-    // Debug 2016-12-26
-    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     Progress := Progress + 'B';
   end
   else if (Window.ActiveControl = FSQLHistory) then
@@ -3290,15 +3294,15 @@ begin
         CloseClipboard();
       end;
     end;
+    // Debug 2016-12-26
+    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     if (not OpenClipboard(Handle)) then
       raise ERangeError.Create('Progress: ' + Progress + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
-    // Debug 2016-12-26
-    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     Progress := Progress + 'D';
     exit;
   end
@@ -3314,15 +3318,15 @@ begin
       raise ERangeError.Create('Progress: ' + Progress + #13#10
       + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     FHexEditor.ExecuteAction(MainAction('aECopy'));
+    // Debug 2016-12-26
+    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     if (not OpenClipboard(Handle)) then
       raise ERangeError.Create('Progress: ' + Progress + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
-    // Debug 2016-12-26
-    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     Progress := Progress + 'E';
     exit;
   end
@@ -3365,15 +3369,15 @@ begin
       + Msg);
         end;
     end;
+    // Debug 2016-12-26
+    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     if (not OpenClipboard(Handle)) then
       raise ERangeError.Create('Progress: ' + Progress + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
-    // Debug 2016-12-26
-    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     Progress := Progress + 'G';
     exit;
   end
@@ -3390,31 +3394,31 @@ begin
       raise ERangeError.Create('Progress: ' + Progress + #13#10
       + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     SendMessage(Window.ActiveControl.Handle, WM_COPY, 0, 0);
+    // Debug 2016-12-26
+    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     if (not OpenClipboard(Handle)) then
       raise ERangeError.Create('Progress: ' + Progress + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
-    // Debug 2016-12-26
-    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     Progress := Progress + 'I';
     exit;
   end;
 
   Progress := Progress + 'J';
 
+  // Debug 2016-12-26
+  if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
+    raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
   // Debug 2016-12-23
   if (not OpenClipboard(Handle)) then
     raise ERangeError.Create('Progress: ' + Progress + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
   else
     CloseClipboard();
-  // Debug 2016-12-26
-  if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-    raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
 
   Progress := Progress + 'K';
 
@@ -4618,20 +4622,24 @@ begin
   end;
 end;
 
-function TFSession.ColumnWidthKindFromImageIndex(const AImageIndex: Integer): TPAccount.TDesktop.TListViewKind;
+function TFSession.ColumnWidthKindByListView(const ListView: TListView): TPAccount.TDesktop.TListViewKind;
 begin
-  case (AImageIndex) of
-    iiServer: Result := lkServer;
-    iiDatabase,
-    iiSystemDatabase: Result := lkDatabase;
-    iiBaseTable,
-    iiSystemView,
-    iiView: Result := lkTable;
-    iiProcesses: Result := lkProcesses;
-    iiUsers: Result := lkUsers;
-    iiVariables: Result := lkVariables;
-    else raise ERangeError.Create(SRangeError);
-  end;
+  if (ListView.Tag = 0) then
+    Result := lkServer
+  else if (TObject(ListView.Tag) is TSDatabase) then
+    Result := lkDatabase
+  else if (TObject(ListView.Tag) is TSTable) then
+    Result := lkTable
+  else if (TObject(ListView.Tag) is TSProcesses) then
+    Result := lkProcesses
+  else if (TObject(ListView.Tag) is TSUsers) then
+    Result := lkUsers
+  else if (TObject(ListView.Tag) is TSVariables) then
+    Result := lkVariables
+  else if (TOBJECT(ListView.Tag) is TSObjectSearch) then
+    Result := lkObjectSearch
+  else
+    raise ERangeError.Create(SRangeError);
 end;
 
 procedure TFSession.CrashRescue();
@@ -4947,6 +4955,10 @@ begin
   NonClientMetrics.cbSize := SizeOf(NonClientMetrics);
   if (SystemParametersInfo(SPI_GETNONCLIENTMETRICS, SizeOf(NonClientMetrics), @NonClientMetrics, 0)) then
     Window.ApplyWinAPIUpdates(Self, NonClientMetrics.lfStatusFont);
+
+
+  // Debug 2016-12-28
+  SBlobDebug := SBlob;
 
 
   PostMessage(Handle, UM_POST_SHOW, 0, 0);
@@ -9014,28 +9026,31 @@ procedure TFSession.ListViewColumnClick(Sender: TObject; Column: TListColumn);
 var
   HDItem: THDItem;
   I: Integer;
+  ListView: TListView;
   Kind: TPAccount.TDesktop.TListViewKind;
 begin
-  Kind := ColumnWidthKindFromImageIndex(SelectedImageIndex);
+  if (not (Sender is TListView)) then
+    raise ERangeError.Create(SRangeError)
+  else
+    ListView := TListView(Sender);
+
+  Kind := ColumnWidthKindByListView(ListView);
 
   with (ListViewSortData[Kind]) do
   begin
     ListViewSortData[Kind].Index := Column.Index;
-    if (Sender = ActiveListView) then
-    begin
-      if ((OldFListOrderIndex <> Index) or ((Order = 0) or (Order < 0) and (not (SelectedImageIndex in [iiBaseTable, iiSystemView, iiView]) or (Index > 0)))) then
-        ListViewSortData[Kind].Order := 1
-      else if (Order = 1) then
-        ListViewSortData[Kind].Order := -1
-      else
-        ListViewSortData[Kind].Order := 0;
+    if ((OldFListOrderIndex <> Index) or ((Order = 0) or (Order < 0) and (not (SelectedImageIndex in [iiBaseTable, iiSystemView, iiView]) or (Index > 0)))) then
+      ListViewSortData[Kind].Order := 1
+    else if (Order = 1) then
+      ListViewSortData[Kind].Order := -1
+    else
+      ListViewSortData[Kind].Order := 0;
 
-      ActiveListView.CustomSort(nil, LPARAM(@ListViewSortData[Kind]));
-    end;
+    ListView.CustomSort(nil, LPARAM(@ListViewSortData[Kind]));
 
     HDItem.Mask := HDI_FORMAT;
-    for I := 0 to ActiveListView.Columns.Count - 1 do
-      if (BOOL(SendMessage(ListView_GetHeader(ActiveListView.Handle), HDM_GETITEM, I, LParam(@HDItem)))) then
+    for I := 0 to ListView.Columns.Count - 1 do
+      if (BOOL(SendMessage(ListView_GetHeader(ListView.Handle), HDM_GETITEM, I, LParam(@HDItem)))) then
       begin
         if ((Order = 0) or (I <> Index)) then
           HDItem.fmt := HDItem.fmt and not HDF_SORTUP and not HDF_SORTDOWN
@@ -9043,14 +9058,14 @@ begin
           HDItem.fmt := HDItem.fmt and not HDF_SORTDOWN or HDF_SORTUP
         else
           HDItem.fmt := HDItem.fmt and not HDF_SORTUP or HDF_SORTDOWN;
-        SendMessage(ListView_GetHeader(ActiveListView.Handle), HDM_SETITEM, I, LParam(@HDItem));
+        SendMessage(ListView_GetHeader(ListView.Handle), HDM_SETITEM, I, LParam(@HDItem));
       end;
 
     if ((ComCtl32MajorVersion >= 6) and not CheckWin32Version(6, 1)) then
       if (Order = 0) then
-        SendMessage(ActiveListView.Handle, LVM_SETSELECTEDCOLUMN, -1, 0)
+        SendMessage(ListView.Handle, LVM_SETSELECTEDCOLUMN, -1, 0)
       else
-        SendMessage(ActiveListView.Handle, LVM_SETSELECTEDCOLUMN, Index, 0);
+        SendMessage(ListView.Handle, LVM_SETSELECTEDCOLUMN, Index, 0);
 
     OldFListOrderIndex := Index;
   end;
@@ -9440,6 +9455,7 @@ begin
       ListView.Columns.Add();
       ListView.Columns.Add();
       ListView.Columns.EndUpdate();
+      SetColumnWidths(ListView, lkObjectSearch);
 
       ListView.Groups.Add().GroupID := giDatabases;
       ListView.Groups.Add().GroupID := giTables;
@@ -9622,53 +9638,50 @@ procedure TFSession.ListViewExit(Sender: TObject);
 var
   Column: TListColumn;
   I: Integer;
-  ImageIndex: Integer;
   ListViewKind: TPAccount.TDesktop.TListViewKind; // Debug 2016-12-01
   Width: Integer; // Debug 2016-12-01
 begin
-  if ((Sender is TListView) and (Sender <> ObjectSearchListView)) then
+  if (Sender is TListView) then
   begin
     // Debug 2016-12-20
-    // Somewhere, Session.Account will be cleared, but why and where???
+    // Somewhere, Session demagged, but why and where???
     if (not Assigned(Session.Account)) then // Why looses Session the Account value???
       raise ERangeError.Create(SRangeError);
 
-    ImageIndex := ImageIndexByData(TObject(TListView(Sender).Tag));
-    if (ImageIndex > 0) then
-      for I := 0 to TListView(Sender).Columns.Count - 1 do
-      begin
-        // Debug 2016-12-02
-        if (not Assigned(Session)) then
+    for I := 0 to TListView(Sender).Columns.Count - 1 do
+    begin
+      // Debug 2016-12-02
+      if (not Assigned(Session)) then
+        raise ERangeError.Create(SRangeError);
+      if (not (TObject(Session) is TSSession)) then
+        try
+          raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Session).ClassName);
+        except
           raise ERangeError.Create(SRangeError);
-        if (not (TObject(Session) is TSSession)) then
-          try
-            raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Session).ClassName);
-          except
-            raise ERangeError.Create(SRangeError);
-          end;
-        if (not Assigned(Session.Account)) then
+        end;
+      if (not Assigned(Session.Account)) then
+        raise ERangeError.Create(SRangeError);
+      if (not (TObject(Session.Account) is TPAccount)) then
+        try
+          raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Session.Account).ClassName);
+        except
           raise ERangeError.Create(SRangeError);
-        if (not (TObject(Session.Account) is TPAccount)) then
-          try
-            raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Session.Account).ClassName);
-          except
-            raise ERangeError.Create(SRangeError);
-          end;
-        if (not Assigned(Session.Account.Desktop)) then
-          raise ERangeError.Create(SRangeError);
-        Column := TListView(Sender).Columns[I];
-        Width := Column.Width;
-        ListViewKind := ColumnWidthKindFromImageIndex(ImageIndex);
-        if (not (ListViewKind in [lkServer .. lkVariables])) then
-          raise ERangeError.Create(SRangeError + '(' + IntToStr(Ord(ListViewKind)) + ')');
-        if (Length(Session.Account.Desktop.ColumnWidths) < 1 + Ord(ListViewKind)) then
-          raise ERangeError.Create(SRangeError + ' ' + IntToStr(1 + Ord(ListViewKind)));
-        if (I < 0) then
-          raise ERangeError.Create(SRangeError);
-        if (I >= Length(Session.Account.Desktop.ColumnWidths[lkServer])) then
-          raise ERangeError.Create(SRangeError);
-        Session.Account.Desktop.ColumnWidths[ListViewKind, I] := Width;
-      end;
+        end;
+      if (not Assigned(Session.Account.Desktop)) then
+        raise ERangeError.Create(SRangeError);
+      Column := TListView(Sender).Columns[I];
+      Width := Column.Width;
+      ListViewKind := ColumnWidthKindByListView(TListView(Sender));
+      if (not (ListViewKind in [lkServer .. lkObjectSearch])) then
+        raise ERangeError.Create(SRangeError + '(' + IntToStr(Ord(ListViewKind)) + ')');
+      if (Length(Session.Account.Desktop.ColumnWidths) < 1 + Ord(ListViewKind)) then
+        raise ERangeError.Create(SRangeError + ' ' + IntToStr(1 + Ord(ListViewKind)));
+      if (I < 0) then
+        raise ERangeError.Create(SRangeError);
+      if (I >= Length(Session.Account.Desktop.ColumnWidths[lkServer])) then
+        raise ERangeError.Create(SRangeError);
+      Session.Account.Desktop.ColumnWidths[ListViewKind, I] := Width;
+    end;
   end;
 
   MainAction('aESelectAll').OnExecute := nil;
@@ -10256,31 +10269,8 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
           if ((Kind = lkTable) and (Event.Items is TSBaseTableFields)) then
           begin
             for I := ListView.Items.Count - 1 downto 0 do
-            begin
-              Table := TSBaseTable(ListView.Tag);
-              Data := ListView.Items[I].Data;
-              try
-                if ((Table.Keys.IndexOf(Data) < 0)
-                  and (Table.Fields.IndexOf(Data) < 0)
-                  and (not Assigned(Table.ForeignKeys) or (Table.ForeignKeys.IndexOf(Data) < 0))
-                  and (not Assigned(Table.Partitions) or (Table.Partitions.IndexOf(Data) < 0))) then
-                  raise ERangeError.Create('ImageIndex: ' + IntToStr(ListView.Items[I].ImageIndex));
-              except
-                on E: Exception do
-                  raise ERangeError.Create('ImageIndex: ' + IntToStr(ListView.Items[I].ImageIndex) + #13#10
-                    + 'Caption: ' + ListView.Items[I].Caption + #13#10
-                    + 'Kind: ' + IntToStr(Ord(Kind)) + #13#10
-                    + 'GroupdID: ' + IntToStr(GroupID) + #13#10
-                    + 'EventType: ' + IntToStr(Ord(Event.EventType)) + #13#10
-                    + 'Event Sender: ' + Event.Sender.ClassName + #13#10
-                    + 'Event Items: ' + Event.Items.ClassName + #13#10
-                    + 'Table: ' + Table.Name + #13#10
-                    + #13#10
-                    + E.Message);
-              end;
               if ((TObject(ListView.Items[I].Data) is TSKey) and (TSBaseTable(TSBaseTableFields(Event.Items).Table).Keys.IndexOf(ListView.Items[I].Data) < 0)) then
                 ListView.Items.Delete(I);
-            end;
             for I := ListView.Items.Count - 1 downto 0 do
               if ((TObject(ListView.Items[I].Data) is TSField) and (TSBaseTable(TSBaseTableFields(Event.Items).Table).Fields.IndexOf(ListView.Items[I].Data) < 0)) then
                 ListView.Items.Delete(I);
@@ -10466,7 +10456,7 @@ begin
       UpdateObjectSearch()
     else
     begin
-      Kind := ColumnWidthKindFromImageIndex(ImageIndexByData(TObject(ListView.Tag)));
+      Kind := ColumnWidthKindByListView(ListView);
 
       case (Kind) of
         lkServer:
@@ -11527,6 +11517,13 @@ begin
           URI.Param['objecttype'] := 'event';
           URI.Param['object'] := Node.Text;
         end;
+      iiField,
+      iiViewField:
+        begin
+          URI.Param['view'] := Null;
+          URI.Database := TSDatabase(Node.Parent.Parent.Data).Name;
+          URI.Table := TSTable(Node.Parent.Data).Name;
+        end;
       iiTrigger:
         begin
           URI.Param['view'] := 'ide';
@@ -12207,6 +12204,10 @@ procedure TFSession.PContentChange(Sender: TObject);
   var
     I: Integer;
   begin
+    // Debug 2016-12-28
+    if (not Assigned(Control)) then
+      raise ERangeError.Create(SRangeError);
+
     if (Control.Top < 0) then Control.Top := 0;
     SendMessage(Control.Handle, WM_MOVE, 0, MAKELPARAM(Control.Left, Control.Top));
     Control.DisableAlign();
@@ -12258,7 +12259,10 @@ begin
 
     // Debug 2016-12-27
     if (not Assigned(SBlob)) then
-      raise ERangeError.Create('Destroying: ' + BoolToStr(csDestroying in ComponentState, True));
+      raise ERangeError.Create('Destroying: ' + BoolToStr(csDestroying in ComponentState, True) + #13#10
+        + 'Assigned(SBlobDebug): ' + BoolToStr(Assigned(SBlobDebug), True) + #13#10
+        + 'SBlob = SBlobDebug): ' + BoolToStr(SBlob = SBlobDebug, True) + #13#10
+        + 'Assigned(PBlob): ' + BoolToStr(Assigned(PBlob), True));
 
     SBlob.Align := alNone;
     PBlob.Align := alNone;
@@ -12346,19 +12350,18 @@ begin
     end;
     FText.OnChange := FTextChange;
 
-    if (Assigned(SBlob)) then
-      if (PBlob.Visible) then
-      begin
-        SBlob.Parent := PBlob.Parent;
-        SBlob.Top := PBlob.Top - SBlob.Height;
-        SBlob.Align := alBottom;
-        SBlob.Visible := True;
-      end
-      else
-      begin
-        SBlob.Visible := False;
-        SBlob.Parent := nil;
-      end;
+    if (PBlob.Visible) then
+    begin
+      SBlob.Parent := PBlob.Parent;
+      SBlob.Top := PBlob.Top - SBlob.Height;
+      SBlob.Align := alBottom;
+      SBlob.Visible := True;
+    end
+    else
+    begin
+      SBlob.Visible := False;
+      SBlob.Parent := nil;
+    end;
 
     if (PResultVisible and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then
     begin

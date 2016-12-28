@@ -2041,13 +2041,7 @@ begin
     if ((Connection.ServerTimeout < 5) or (Connection.LibraryType = ltHTTP)) then
       Timeout := INFINITE
     else
-      try // Debug 2016-12-26
-       Timeout := (Connection.ServerTimeout - 5) * 1000;
-      except
-        on E: Exception do
-          raise ERangeError.Create('ServerTimeout: ' + IntToStr(Connection.ServerTimeout) + #13#10
-            + E.Message);
-      end;
+      Timeout := (Connection.ServerTimeout - 5) * 1000;
     WaitResult := RunExecute.WaitFor(Timeout);
 
     // Debug 2016-12-12
@@ -2084,7 +2078,8 @@ begin
         end;
 
         // Debug 2016-12-22
-        if (State <> OldState) then
+        if ((State <> OldState)
+          and (OldState <> ssReceivingResult) and not (State in [ssReady, ssFirst, ssNext])) then
           raise ERangeError.Create('OldState: ' + IntToStr(Ord(OldState)) + #13#10
             + 'State: ' + IntToStr(Ord(State)));
         // On 2016-12-26 there was a ssExecutingFirst -> ssResult problem.
@@ -2559,13 +2554,16 @@ begin
     SynchronizingThreads.Delete(Index);
   SynchronizingThreadsCS.Leave();
 
-  MySQLSyncThreads.Delete(MySQLSyncThreads.IndexOf(SyncThread));
+//  Debug 2016-12-28 disabled, to find out, if terminated SyncThreads are still
+//  synchronizated
+//  MySQLSyncThreads.Delete(MySQLSyncThreads.IndexOf(SyncThread));
 
   TerminateThread(SyncThread.ThreadID, 0);
 
-  FSyncThread := nil;
-
   WriteMonitor('--> Connection terminated', ttInfo);
+  DebugMonitor.Append('--> SyncThread: ' + IntToStr(SyncThread.ThreadID), ttInfo);
+
+  FSyncThread := nil;
 end;
 
 procedure TMySQLConnection.DoVariableChange(const Name, NewValue: string);
@@ -3458,7 +3456,8 @@ end;
 procedure TMySQLConnection.SyncDisconnected(const SyncThread: TSyncThread);
 begin
   {$IFDEF Log}
-  SyncThread.AppendLog('SyncDisconnected - start');
+  if (Assigned(SyncThread)) then
+    SyncThread.AppendLog('SyncDisconnected - start');
   {$ENDIF}
 
   FThreadId := 0;
@@ -3470,7 +3469,8 @@ begin
   if (Assigned(AfterDisconnect)) then AfterDisconnect(Self);
 
   {$IFDEF Log}
-  SyncThread.AppendLog('SyncDisconnected - end');
+  if (Assigned(SyncThread)) then
+    SyncThread.AppendLog('SyncDisconnected - end');
   {$ENDIF}
 end;
 
@@ -3508,6 +3508,7 @@ procedure TMySQLConnection.SyncExecuted(const SyncThread: TSyncThread);
 var
   CLStmt: TSQLCLStmt;
   Data: my_char;
+  DataHandle: TDataHandle;
   Info: my_char;
   Len: Integer;
   Log: string;
@@ -3629,8 +3630,13 @@ begin
 
     InOnResult := True;
     try
+      if (SyncThread.ErrorCode <> 0) then
+        DataHandle := nil
+      else
+        DataHandle := SyncThread;
+
       if (not SyncThread.OnResult(SyncThread.ErrorCode, SyncThread.ErrorMessage, SyncThread.WarningCount,
-        SyncThread.CommandText, SyncThread, Assigned(SyncThread.ResHandle))
+        SyncThread.CommandText, DataHandle, Assigned(SyncThread.ResHandle))
         and (SyncThread.ErrorCode > 0)
         and (not Assigned(SyncThread.DataSet) or not (SyncThread.DataSet is TMySQLDataSet))) then
       begin
@@ -3730,6 +3736,19 @@ begin
     Inc(StmtIndex);
     Inc(SQLIndex, StmtLength);
   end;
+
+  // Debug 2016-12-28
+  if (SyncThread.SQL = '') then
+    raise ERangeError.Create(SRangeError);
+  if (SyncThread.SQLIndex = 0) then
+    raise ERangeError.Create(SRangeError);
+  if (SyncThread.SQLIndex - 1 > Length(SyncThread.SQL)) then
+    raise ERangeError.Create('SQLIndex: ' + IntToStr(SQLIndex) + #13#10
+      + 'StmtIndex: ' + IntToStr(StmtIndex) + #13#10
+      + 'SyncThread.SQLIndex: ' + IntToStr(SyncThread.SQLIndex) + #13#10
+      + 'SyncThread.StmtLengths.Count: ' + IntToStr(SyncThread.StmtLengths.Count) + #13#10
+      + 'Length(SyncThread.SQL): ' + IntToStr(Length(SyncThread.SQL)) + #13#10
+      + 'SQL: ' + SQLEscapeBin(SyncThread.SQL, True));
 
   LibLength := WideCharToAnsiChar(CodePage, PChar(@SyncThread.SQL[SyncThread.SQLIndex]), PacketLength, nil, 0);
   SetLength(LibSQL, LibLength);
@@ -3883,7 +3902,17 @@ end;
 procedure TMySQLConnection.SyncPing(const SyncThread: TSyncThread);
 begin
   if ((Lib.LibraryType <> ltHTTP) and Assigned(SyncThread.LibHandle)) then
+  begin
+    {$IFDEF Log}
+    SyncThread.AppendLog('SyncPing - start');
+    {$ENDIF}
+
     Lib.mysql_ping(SyncThread.LibHandle);
+
+    {$IFDEF Log}
+    SyncThread.AppendLog('SyncPing - end');
+    {$ENDIF}
+  end;
 end;
 
 procedure TMySQLConnection.SyncReceivingResult(const SyncThread: TSyncThread);
@@ -5718,17 +5747,31 @@ begin
 end;
 
 procedure TMySQLQuery.Open(const DataHandle: TMySQLConnection.TDataHandle);
+var
+  EndingCommentLength: Integer;
+  StartingCommentLength: Integer;
+  StmtLength: Integer;
 begin
-  Connection := DataHandle.Connection;
-
-  if (CommandType = ctQuery) then
+  if (Assigned(DataHandle)) then
   begin
-    FCommandText := DataHandle.CommandText;
-    FDatabaseName := Connection.DatabaseName;
-  end;
+    Connection := DataHandle.Connection;
 
-  SetActiveEvent(DataHandle.ErrorCode, DataHandle.ErrorMessage, DataHandle.WarningCount,
-    FCommandText, DataHandle, Assigned(DataHandle.ResHandle));
+    if (CommandType = ctQuery) then
+    begin
+      FDatabaseName := Connection.DatabaseName;
+      FCommandText := DataHandle.CommandText;
+      StmtLength := SQLTrimStmt(PChar(FCommandText), Integer(Length(FCommandText)), StartingCommentLength, EndingCommentLength);
+      if (FCommandText[1 + StartingCommentLength + StmtLength - 1] = ';') then
+        Dec(StmtLength);
+      if (StmtLength = 0) then
+        FCommandText := ''
+      else
+        SetString(FCommandText, PChar(@FCommandText[1 + StartingCommentLength]), StmtLength);
+    end;
+
+    SetActiveEvent(DataHandle.ErrorCode, DataHandle.ErrorMessage, DataHandle.WarningCount,
+      FCommandText, DataHandle, Assigned(DataHandle.ResHandle));
+  end;
 end;
 
 procedure TMySQLQuery.Open(const ResultHandle: TMySQLConnection.TResultHandle);
@@ -6372,10 +6415,10 @@ begin
     raise ERangeError.Create(SRangeError) // Occurred 0 times
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
   else if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.IdentifierABCDEF <> $ABCDEF) then
-    raise ERangeError.Create('Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
-      + 'Count: ' + IntToStr(InternRecordBuffers.Index) + #13#10
+    raise ERangeError.Create('ActiveBuffer.Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
+      + 'Index: ' + IntToStr(InternRecordBuffers.Index) + #13#10
+      + 'Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
       + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)))
-      // Occurrend 1 times with bfCurrent
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
   else if (not (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier123456 = 123456)) then // Crashed 0 times
     raise ERangeError.Create(SRangeError); // Occurred 0 times
@@ -6979,6 +7022,7 @@ begin
         begin
           SQL := ExpandSelectStmtWhereClause(Connection.SQLParser.FirstStmt, WhereClause);
 
+//SQL := '';
           if (not Connection.SQLParser.ParseSQL(SQL)) then
             SQL := ''
           else
@@ -6992,7 +7036,7 @@ try // Debug 2016-12-24
 except
   on E: Exception do
     raise Exception.Create(E.Message + #13#10
-      + 'SQL: ' + SQL + #13#10
+      + 'SQL: ' + SQLEscapeBin(SQL, True) + #13#10
       + 'RowCount: ' + IntToStr(RowCount));
 end;
           end;
@@ -7075,7 +7119,7 @@ begin
             Fields[I].AsLargeInt := Connection.InsertId;
           if (Fields[I].Required and Fields[I].IsNull and (Fields[I].DefaultExpression <> '')) then
             Fields[I].AsString := SQLUnescape(Fields[I].DefaultExpression);
-      end;
+        end;
 
       if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData) then
         FreeMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData);
@@ -7148,9 +7192,12 @@ end;
 try
             FreeInternRecordBuffer(InternRecordBuffers[InternRecordBuffers.Index]);
 except
-  raise ERangeError.Create('ActiveBuffer Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
-    + 'New Index: ' + IntToStr(Index) + #13#10
-    + 'Count: ' + IntToStr(InternRecordBuffers.Count));
+  on E: Exception do
+    raise ERangeError.Create('ActiveBuffer.Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
+      + 'New Index: ' + IntToStr(Index) + #13#10
+      + 'Index: ' + IntToStr(InternRecordBuffers.Index) + #13#10
+      + 'Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
+      + E.Message);
 end;
             InternRecordBuffers.Delete(InternRecordBuffers.Index);
             for I := ActiveRecord + 1 to BufferCount - 1 do
@@ -7241,7 +7288,7 @@ var
   NewIndex: Integer;
 begin
   if (PExternRecordBuffer(Buffer)^.BookmarkFlag = bfInserted) then
-    InternRecordBuffers.Index := InternRecordBuffers.InsertedIndex
+    InternRecordBuffers.Index := InternRecordBuffers.InsertedIndex - 1
   else
   begin
     NewIndex := Max(InternRecordBuffers.Index - BufferCount, 0);
@@ -8636,14 +8683,7 @@ end;
 //  RBS: RawByteString;
 //  SQL: string;
 initialization
-//  RBS := HexToStr('2373656C656374202A2066726F6D20745F696D5F757365725F67726F75705'
-//    + 'F3020776865726520636F6D70616E795F6964203D203130323420616E6420757365725F69'
-//    + '64203D2031303031303820616E6420667269656E645F636F6D70616E795F6964203D20313'
-//    + '0323420616E6420667269656E645F67726F75705F6964203D20313438313935383335333B'
-//    + '0D0A73656C656374202A2066726F6D20745F696D5F67726F75705F6D656D6265725F30207'
-//    + '7686572652067726F75705F636F6D70616E795F6964203D203130323420616E642067726F'
-//    + '75705F6964203D20313438323338383939393B2320616E6420757365725F636F6D70616E7'
-//    + '95F6964203D203130323420616E6420757365725F6964203D203130303130383B');
+//  RBS := HexToStr('');
 //  SetLength(SQL, Length(RBS));
 //  Len := AnsiCharToWideChar(65001, PAnsiChar(RBS), Length(RBS), PChar(SQL), Length(SQL));
 //  SetLength(SQL, Len);

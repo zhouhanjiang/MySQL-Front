@@ -534,6 +534,7 @@ begin
   if (not Assigned(FNavigator^)) then
     raise ERangeError.Create('Progress: ' + Progress);
   // 2016-12-27 occurred this Progress: 05467123
+  // 2016-12-28 occurred this Progress: 05467123A
 
   Progress := Progress + '1';
 

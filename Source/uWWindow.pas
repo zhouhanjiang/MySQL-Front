@@ -660,7 +660,7 @@ begin
         FreeAndNil(CheckOnlineVersionThread);
       end;
 
-    MsgBox('Internal Program Bug:' + #13#10 + E.Message, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+    MsgBox('Internal Program Error:' + #13#10 + E.Message, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
 
     if ((OnlineProgramVersion > Preferences.Version) and (OnlineProgramVersion > Preferences.ObsoleteVersion)) then
       InformOnlineUpdateFound();
