@@ -2198,9 +2198,7 @@ begin
             begin
               Connection.SyncExecute(Self);
               Connection.RunExecute(Self);
-            end
-            else if (State = ssReady) then
-              Connection.SyncAfterExecuteSQL(Self);
+            end;
         end;
       ssDisconnecting:
         Connection.SyncDisconnected(Self);
@@ -2551,6 +2549,7 @@ begin
   // Debug 2016-12-29
   SyncThread.AppendLog('Terminate!');
   SyncThread.Terminate();
+  TerminatedThreads.Add(SyncThread);
 
   WriteMonitor('--> Connection terminated', ttInfo);
 
@@ -3961,6 +3960,10 @@ begin
 
   if (DataSet.SyncThread = SyncThread) then
   begin
+    {$IFDEF Log}
+    SyncThread.AppendLog('SyncReleaseDataSet - start');
+    {$ENDIF}
+
     SyncThread.DataSet := nil;
 
     TerminateCS.Enter();
@@ -3971,6 +3974,10 @@ begin
         SyncAfterExecuteSQL(SyncThread);
     end;
     TerminateCS.Leave();
+
+    {$IFDEF Log}
+    SyncThread.AppendLog('SyncReleaseDataSet - end');
+    {$ENDIF}
   end;
 
   DataSet.SyncThread := nil;
