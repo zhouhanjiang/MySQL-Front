@@ -423,9 +423,7 @@ type
     procedure WMTimer(var Message: TWMTimer); message WM_TIMER;
     property ActiveTab: TFSession read GetActiveTab write SetActiveTab;
   protected
-    {$IFNDEF EurekaLog}
     procedure ApplicationException(Sender: TObject; E: Exception);
-    {$ENDIF}
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy(); override;
@@ -645,7 +643,6 @@ begin
   SetTimer(Handle, tiDeactivate, 60000, nil);
 end;
 
-{$IFNDEF EurekaLog}
 procedure TWWindow.ApplicationException(Sender: TObject; E: Exception);
 begin
   if (E.Message <> SRecordChanged) then
@@ -668,7 +665,6 @@ begin
       Preferences.ObsoleteVersion := Preferences.Version;
   end;
 end;
-{$ENDIF}
 
 procedure TWWindow.ApplicationMessage(var Msg: TMsg; var Handled: Boolean);
 var
@@ -952,9 +948,7 @@ begin
   MySQLDB.MySQLConnectionOnSynchronize := MySQLConnectionSynchronize;
 
   Application.HelpFile := ExtractFilePath(Application.ExeName) + Copy(ExtractFileName(Application.ExeName), 1, Length(ExtractFileName(Application.ExeName)) - 4) + '.chm';
-  {$IFNDEF EurekaLog}
   Application.OnException := ApplicationException;
-  {$ENDIF}
   Application.OnMessage := ApplicationMessage;
   Application.OnModalBegin := ApplicationModalBegin;
   Application.OnModalEnd := ApplicationModalEnd;

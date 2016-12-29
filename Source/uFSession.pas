@@ -3051,6 +3051,7 @@ begin
     Progress := Progress + '4';
     if (not OpenClipboard(Handle)) then
       raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
@@ -3088,6 +3089,7 @@ begin
       + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     if (not OpenClipboard(Handle)) then
       raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
@@ -3098,6 +3100,7 @@ begin
     Progress := Progress + '6';
     if (not OpenClipboard(Handle)) then
       raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
@@ -3138,6 +3141,7 @@ begin
       + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     if (not OpenClipboard(Handle)) then
       raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
@@ -3149,6 +3153,7 @@ begin
     // Debug 2016-12-21
     if (not OpenClipboard(Handle)) then
       raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
@@ -3167,6 +3172,7 @@ begin
       // Debug 2016-12-21
       if (not OpenClipboard(Handle)) then
         raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
       else
         CloseClipboard();
@@ -3181,6 +3187,7 @@ begin
       // Debug 2016-12-21
       if (not OpenClipboard(Handle)) then
         raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
       else
         CloseClipboard();
@@ -3195,6 +3202,7 @@ begin
       // Debug 2016-12-21
       if (not OpenClipboard(Handle)) then
         raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
       else
         CloseClipboard();
@@ -3208,6 +3216,7 @@ begin
     // Debug 2016-12-21
     if (not OpenClipboard(Handle)) then
       raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
@@ -3218,6 +3227,7 @@ begin
     Progress := Progress + 'A';
     if (not OpenClipboard(Handle)) then
       raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
@@ -3263,6 +3273,7 @@ begin
       + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     if (not OpenClipboard(Handle)) then
       raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
@@ -3273,6 +3284,7 @@ begin
     Progress := Progress + 'C';
     if (not OpenClipboard(Handle)) then
       raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
@@ -3300,6 +3312,7 @@ begin
       + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     if (not OpenClipboard(Handle)) then
       raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
@@ -3310,6 +3323,7 @@ begin
   begin
     if (not OpenClipboard(Handle)) then
       raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
@@ -3324,6 +3338,7 @@ begin
       + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     if (not OpenClipboard(Handle)) then
       raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
@@ -3375,6 +3390,7 @@ begin
       + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     if (not OpenClipboard(Handle)) then
       raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
@@ -3386,6 +3402,7 @@ begin
     Progress := Progress + 'H';
     if (not OpenClipboard(Handle)) then
       raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
@@ -3400,6 +3417,7 @@ begin
       + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     if (not OpenClipboard(Handle)) then
       raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
     else
       CloseClipboard();
@@ -3416,6 +3434,7 @@ begin
   // Debug 2016-12-23
   if (not OpenClipboard(Handle)) then
     raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
   else
     CloseClipboard();
@@ -3465,6 +3484,7 @@ begin
   // Debug 2016-12-14
   if (not OpenClipboard(Handle)) then
     raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
       + 'ActiveControl: ' + Window.ActiveControl.ClassName)
   else
     CloseClipboard();
@@ -3495,7 +3515,8 @@ var
 begin
   // Debug 2016-12-14
   if (not OpenClipboard(Handle)) then
-    raise ERangeError.Create(SRangeError)
+    raise ERangeError.Create('LastError: ' + SysErrorMessage(GetLastError()) + #13#10
+      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
   else
     CloseClipboard();
 
@@ -5529,6 +5550,10 @@ end;
 
 procedure TFSession.DataSetAfterOpen(DataSet: TDataSet);
 begin
+  // Debug 2016-12-29
+  if (not Assigned(ActiveDBGrid)) then
+    raise ERangeError.Create(SRangeError);
+
   PContentChange(nil);
   ActiveDBGrid.DataSource.Enabled := False;
   ActiveDBGrid.DataSource.DataSet := DataSet;
@@ -6227,6 +6252,7 @@ begin
   DBGrid.DataSource.DataSet.OnDeleteError := SQLError;
   DBGrid.DataSource.DataSet.OnEditError := SQLError;
   DBGrid.DataSource.DataSet.OnPostError := SQLError;
+
   DBGrid.DataSource.Enabled := True;
 
   DBGrid.Columns.BeginUpdate();
@@ -12243,6 +12269,10 @@ begin
       PResultHeight := PResult.Height;
 
     OldActiveControl := Window.ActiveControl;
+
+    // Debug 2016-12-28
+    if (not Assigned(PContent)) then
+      raise ERangeError.Create(SRangeError);
     DisableAligns(PContent);
 
     if (PListView.Align = alClient) then PListView.Align := alNone;
@@ -14010,10 +14040,6 @@ var
   SortDef: TIndexDef;
   Table: TSTable;
 begin
-  // Debug 2016-12-21
-  if (not (FNavigator.Selected.ImageIndex in [iiBaseTable, iiSystemView, iiView])) then
-    raise ERangeError.Create('ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex));
-
   Table := TSTable(FNavigator.Selected.Data);
 
   if (not FLimitEnabled.Down) then

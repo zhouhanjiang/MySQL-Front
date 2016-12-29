@@ -1131,6 +1131,8 @@ begin
   else if (not Assigned(Table)) then
     // Debug 2016-11-16
     raise ERangeError.Create(SRangeError)
+  else if (Table <> TableDebug) then
+    raise ERangeError.Create(SRangeError)
   else if (not (TObject(Table) is TSBaseTable)) then
     // Debug 2016-11-30
     raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Table).ClassName)

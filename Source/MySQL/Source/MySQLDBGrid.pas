@@ -11,6 +11,11 @@ type
   TMySQLDBGrid = class(TDBGrid)
   type
 
+    TDBMySQLGridColumns = class(TDBGridColumns)
+    protected
+      procedure Update(Item: TCollectionItem); override;
+    end;
+
     TDBMySQLInplaceEdit = class(TInplaceEditList)
     private
       DoNotRemove: Integer; // Why is this needed???
@@ -64,6 +69,7 @@ type
     function CanEditShow(): Boolean; override;
     function CanGridAcceptKey(Key: Word; Shift: TShiftState): Boolean; override;
     procedure ColEnter(); override;
+    function CreateColumns(): TDBGridColumns; override;
     function CreateEditor(): TInplaceEdit; override;
     procedure CreateWnd(); override;
     procedure DoEnter(); override;
@@ -81,9 +87,9 @@ type
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState;
       X, Y: Integer); override;
     procedure Resize(); override;
-    procedure SetColumnAttributes(); override;
     procedure TitleClick(Column: TColumn); override;
     procedure TopLeftChanged(); override;
+    property HeaderControl: THeaderControl read FHeaderControl;
   public
     procedure CopyToClipboard(); virtual;
     constructor Create(AOwner: TComponent); override;
@@ -118,7 +124,53 @@ uses
   DBActns, StrUtils, Math, Variants, SysConst,
   MySQLDB, CSVUtils;
 
-{ TDBMySQLGrid.TDBMySQLInplaceEdit ********************************************}
+{ TMySQLDBGrid.TDBMySQLGridColumns ********************************************}
+
+procedure TMySQLDBGrid.TDBMySQLGridColumns.Update(Item: TCollectionItem);
+var
+  I: Integer;
+  Section: THeaderSection;
+begin
+  inherited;
+
+  if (Assigned(TMySQLDBGrid(Grid).HeaderControl)) then
+  begin
+    TMySQLDBGrid(Grid).HeaderControl.Sections.BeginUpdate();
+    TMySQLDBGrid(Grid).HeaderControl.Sections.Clear();
+
+    for I := 0 to Count - 1 do
+    begin
+      with Items[I] do
+        TMySQLDBGrid(Grid).TabStops[I + TMySQLDBGrid(Grid).IndicatorOffset] := Showing and TMySQLDBGrid(Grid).DataLink.Active and
+          Assigned(Field) and not (Field.FieldKind = fkCalculated);
+
+      if (I >= TMySQLDBGrid(Grid).LeftCol) then
+      begin
+        Section := TMySQLDBGrid(Grid).HeaderControl.Sections.Insert(I - TMySQLDBGrid(Grid).LeftCol);
+        Section.MinWidth := TMySQLDBGrid(Grid).HeaderControl.Height;
+        Section.MaxWidth := TMySQLDBGrid(Grid).Width - TMySQLDBGrid(Grid).HeaderControl.Height - GetSystemMetrics(SM_CXVSCROLL);
+        if (dgColLines in TMySQLDBGrid(Grid).Options) then
+          Section.Width := Items[I].Width + TMySQLDBGrid(Grid).GridLineWidth
+        else
+          Section.Width := Items[I].Width;
+        if (Assigned(Items[I].Field)) then
+          Section.Text := Items[I].Field.DisplayName;
+      end;
+
+      if (Assigned(Items[I].Field) and Items[I].Field.IsIndexField) then
+        Items[I].Font.Style := Items[I].Font.Style + [fsBold]
+      else
+        Items[I].Font.Style := Items[I].Font.Style - [fsBold];
+    end;
+
+    TMySQLDBGrid(Grid).HeaderControl.Sections.EndUpdate();
+  end;
+
+  TMySQLDBGrid(Grid).SetHeaderColumnArrows();
+  TMySQLDBGrid(Grid).Resize();
+end;
+
+{ TMySQLDBGrid.TDBMySQLInplaceEdit ********************************************}
 
 procedure TMySQLDBGrid.TDBMySQLInplaceEdit.CloseUp(Accept: Boolean);
 begin
@@ -415,6 +467,11 @@ begin
   inherited;
 end;
 
+function TMySQLDBGrid.CreateColumns(): TDBGridColumns;
+begin
+  Result := TDBMySQLGridColumns.Create(Self, TColumn);
+end;
+
 function TMySQLDBGrid.CreateEditor(): TInplaceEdit;
 begin
   Result := TDBMySQLInplaceEdit.Create(Self);
@@ -448,6 +505,7 @@ begin
   FHeaderControl := THeaderControl.Create(Self);
   FHeaderControl.ControlStyle := FHeaderControl.ControlStyle + [csDoubleClicks];
   FHeaderControl.DoubleBuffered := True;
+  FHeaderControl.DragReorder := True;
   FHeaderControl.NoSizing := not (dgColumnResize in Options);
   if (not Assigned(OnTitleClick) or not (dgTitleClick in Options)) then
     FHeaderControl.Style := hsFlat
@@ -676,7 +734,8 @@ begin
       Canvas.Font := Font;
 
       HDItem.Mask := HDI_FORMAT;
-      if (BOOL(SendMessage(FHeaderControl.Handle, HDM_GETITEM, Index, LParam(@HDItem))) and (HDItem.fmt and (HDF_SORTUP or HDF_SORTUP) <> 0)) then
+      if (BOOL(SendMessage(FHeaderControl.Handle, HDM_GETITEM, Index, LParam(@HDItem)))
+        and (HDItem.fmt and (HDF_SORTUP or HDF_SORTUP) <> 0)) then
         Inc(NeededWidth, 2 * DefaultRowHeight);
 
       if ((FHeaderControl.Sections[Index].Width < NeededWidth)
@@ -1101,50 +1160,6 @@ begin
     SetFocus();
 end;
 
-procedure TMySQLDBGrid.SetColumnAttributes();
-var
-  I: Integer;
-  Section: THeaderSection;
-begin
-  inherited;
-
-  if (Assigned(FHeaderControl)) then
-  begin
-    FHeaderControl.Sections.BeginUpdate();
-    FHeaderControl.Sections.Clear();
-
-    for I := 0 to Columns.Count - 1 do
-    begin
-      with Columns[I] do
-        TabStops[I + IndicatorOffset] := Showing and DataLink.Active and
-          Assigned(Field) and not (Field.FieldKind = fkCalculated);
-
-      if (I >= LeftCol) then
-      begin
-        Section := FHeaderControl.Sections.Insert(I - LeftCol);
-        Section.MinWidth := FHeaderControl.Height;
-        Section.MaxWidth := Width - FHeaderControl.Height - GetSystemMetrics(SM_CXVSCROLL);
-        if (dgColLines in Options) then
-          Section.Width := Columns[I].Width + GridLineWidth
-        else
-          Section.Width := Columns[I].Width;
-        if (Assigned(Columns[I].Field)) then
-          Section.Text := Columns[I].Field.DisplayName;
-      end;
-
-      if (Assigned(Columns[I].Field) and Columns[I].Field.IsIndexField) then
-        Columns[I].Font.Style := Columns[I].Font.Style + [fsBold]
-      else
-        Columns[I].Font.Style := Columns[I].Font.Style - [fsBold];
-    end;
-
-    FHeaderControl.Sections.EndUpdate();
-  end;
-
-  SetHeaderColumnArrows();
-  Resize();
-end;
-
 procedure TMySQLDBGrid.SetHeaderColumnArrows();
 var
   HDItem: THDItem;
@@ -1160,9 +1175,9 @@ begin
         and BOOL(SendMessage(Header, HDM_GETITEM, Index, LParam(@HDItem)))) then
       begin
         if (Columns[I].Field.Tag and ftAscSortedField <> 0) then
-          HDItem.fmt := HDItem.fmt and not HDF_SORTUP or HDF_SORTUP
+          HDItem.fmt := HDItem.fmt and not HDF_SORTDOWN or HDF_SORTUP
         else if (Columns[I].Field.Tag and ftDescSortedField <> 0) then
-          HDItem.fmt := HDItem.fmt and not HDF_SORTDOWN or HDF_SORTDOWN
+          HDItem.fmt := HDItem.fmt and not HDF_SORTUP or HDF_SORTDOWN
         else
           HDItem.fmt := HDItem.fmt and not HDF_SORTUP and not HDF_SORTDOWN;
         SendMessage(Header, HDM_SETITEM, Index, LPARAM(@HDItem));
@@ -1216,7 +1231,7 @@ end;
 
 procedure TMySQLDBGrid.UpdateHeader();
 begin
-  SetColumnAttributes();
+  SetHeaderColumnArrows();
 end;
 
 procedure TMySQLDBGrid.WMNotify(var Message: TWMNotify);

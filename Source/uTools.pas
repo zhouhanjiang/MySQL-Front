@@ -4502,7 +4502,7 @@ begin
   if (Success = daSuccess) then
     Item.RecordsSum := Item.RecordsDone;
 
-  if (Assigned(DataSet) and (Success <> daAbort)) then
+  if (Assigned(DataSet)) then
     DataSet.Free();
 
   if ((Table is TSBaseTable) and not (Self is TTExportSQL)) then
@@ -6937,7 +6937,6 @@ end;
 
 procedure TTExportCanvas.BeforeExecute();
 var
-  DataHandle: TMySQLConnection.TDataHandle;
   DataSet: TMySQLQuery;
   I: Integer;
   J: Integer;
@@ -6992,7 +6991,7 @@ begin
               SetLength(MaxFieldsCharLengths[Length(MaxFieldsCharLengths) - 1], TSTable(Tables[J]).Fields.Count);
 
               DataSet := TMySQLQuery.Create(nil);
-              DataSet.Open(DataHandle);
+              DataSet.Open(ResultHandle);
               if (not DataSet.IsEmpty()) then
                 for K := 0 to DataSet.FieldCount - 1 do
                   MaxFieldsCharLengths[Length(MaxFieldsCharLengths) - 1][K] := DataSet.Fields[K].AsInteger;

@@ -27918,7 +27918,7 @@ begin
       // Remove existing LIMIT clause
     begin
       Token := Stmt^.FirstToken;
-      while (Token <> Stmt^.Parser.TokenPtr(TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit.Tag)) do
+      while (Token <> Stmt^.Parser.NodePtr(TSQLParser.PSelectStmt(Stmt)^.Nodes.Limit.Tag)^.LastToken) do
       begin
         Token^.GetText(Text, Length);
         Stmt^.Parser.Commands.Write(Text, Length);

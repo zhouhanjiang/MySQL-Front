@@ -1423,7 +1423,7 @@ begin
     if ((CodePage <> CP_UTF8) or not CheckWin32Version(6)) then Flags := 0 else Flags := WC_ERR_INVALID_CHARS;
     Result := WideCharToMultiByte(CodePage, Flags, lpWideCharStr, cchWideChar, lpMultiByteStr, cchMultiByte, nil, nil);
     if (Result = 0) then
-      raise EOSError.CreateFmt('System Error.  Code: %d.' + #13#10 + '%s' + ' in %s (CodePage: %d)', [GetLastError(), SysErrorMessage(GetLastError()), SQLEscapeBin(StrPas(lpWideCharStr), True), CodePage]);
+      raise EOSError.CreateFmt('System Error.  Code: %d.' + #13#10 + '%s' + ' in %s (CodePage: %d)', [GetLastError(), SysErrorMessage(GetLastError()), '"' + StrPas(lpWideCharStr) + '"', CodePage]);
   end;
 end;
 
@@ -2027,7 +2027,6 @@ end;
 
 procedure TMySQLConnection.TSyncThread.Execute();
 var
-  OldState: TState; // Debug 2016-12-22
   Timeout: LongWord;
   WaitResult: TWaitResult;
 begin
@@ -2041,7 +2040,13 @@ begin
     if ((Connection.ServerTimeout < 5) or (Connection.LibraryType = ltHTTP)) then
       Timeout := INFINITE
     else
+try
       Timeout := (Connection.ServerTimeout - 5) * 1000;
+except
+  on E: Exception do
+    raise ERangeError.Create('ServerTimeout: ' + IntToStr(Connection.ServerTimeout) + #13#10
+      + E.Message);
+end;
     WaitResult := RunExecute.WaitFor(Timeout);
 
     // Debug 2016-12-12
@@ -2060,8 +2065,6 @@ begin
         AppendLog('Execute - start');
         {$ENDIF}
 
-        OldState := State;
-
         case (State) of
           ssConnecting:
             Connection.SyncConnecting(Self);
@@ -2076,14 +2079,6 @@ begin
           else
             raise Exception.CreateFMT(SOutOfSync + ' (State: %d)', [Ord(State)]);
         end;
-
-        // Debug 2016-12-22
-        if ((State <> OldState)
-          and (OldState <> ssReceivingResult) and not (State in [ssReady, ssFirst, ssNext])) then
-          raise ERangeError.Create('OldState: ' + IntToStr(Ord(OldState)) + #13#10
-            + 'State: ' + IntToStr(Ord(State)));
-        // On 2016-12-26 there was a ssExecutingFirst -> ssResult problem.
-        // Inside TTExportSQL there was a problem in TTExport.ExecuteTable while DataSet.Open(DataHandle)
 
         {$IFDEF Log}
         AppendLog('Execute - end');
@@ -2398,7 +2393,6 @@ end;
 destructor TMySQLConnection.Destroy();
 var
   I: Integer;
-  TempSyncThread: TSyncThread;
 begin
   Asynchron := False;
   Close();
@@ -2406,16 +2400,12 @@ begin
   while (DataSetCount > 0) do
     DataSets[0].Free();
 
-  TempSyncThread := SyncThread;
-  TerminateCS.Enter();
   if (Assigned(SyncThread)) then
-    SyncThread.Terminate();
-  TerminateCS.Leave();
-  if (Assigned(TempSyncThread)) then
   begin
-    TempSyncThread.RunExecute.SetEvent();
-    TempSyncThread.WaitFor();
-    TempSyncThread.Free();
+    SyncThread.Terminate();
+    SyncThread.RunExecute.SetEvent();
+    SyncThread.WaitFor();
+    SyncThread.Free();
   end;
   TerminateCS.Enter();
   for I := 0 to TerminatedThreads.Count - 1 do
@@ -2558,10 +2548,14 @@ begin
 //  synchronizated
 //  MySQLSyncThreads.Delete(MySQLSyncThreads.IndexOf(SyncThread));
 
-  TerminateThread(SyncThread.ThreadID, 0);
+  // Debug 2016-12-29
+  SyncThread.AppendLog('Terminate!');
+  SyncThread.Terminate();
 
   WriteMonitor('--> Connection terminated', ttInfo);
-  DebugMonitor.Append('--> SyncThread: ' + IntToStr(SyncThread.ThreadID), ttInfo);
+
+  // Debug 2016-12-29
+  DebugMonitor.Append('Debug - ID:' + IntToStr(SyncThread.ThreadID), ttInfo);
 
   FSyncThread := nil;
 end;
@@ -3699,7 +3693,7 @@ begin
   Assert(SyncThread.State = ssExecutingFirst);
 
   {$IFDEF Log}
-  SyncThread.AppendLog('SyncExecuting - start');
+  SyncThread.AppendLog('SyncExecutingFirst - start');
   {$ENDIF}
 
   CreateTableInPacket := False; AlterTableAfterCreateTable := False;
@@ -3821,7 +3815,7 @@ begin
   end;
 
   {$IFDEF Log}
-  SyncThread.AppendLog('SyncExecutingFirst - end');
+  SyncThread.AppendLog('SyncExecutingFirst - end - ' + IntToStr(SyncThread.ErrorCode));
   {$ENDIF}
 end;
 
@@ -3850,17 +3844,17 @@ begin
     SyncThread.WarningCount := Lib.mysql_warning_count(SyncThread.LibHandle);
 
   {$IFDEF Log}
-  SyncThread.AppendLog('SyncExecutingNext - end');
+  SyncThread.AppendLog('SyncExecutingNext - end - ' + IntToStr(SyncThread.ErrorCode));
   {$ENDIF}
 end;
 
 procedure TMySQLConnection.SyncHandledResult(const SyncThread: TSyncThread);
 begin
-  Assert((SyncThread.State in [ssReceivingResult, ssReady]) or (SyncThread.State = ssResult) and not Assigned(SyncThread.ResHandle));
-
   {$IFDEF Log}
   SyncThread.AppendLog('SyncHandledResult - start');
   {$ENDIF}
+
+  Assert((SyncThread.State in [ssReceivingResult, ssReady]) or (SyncThread.State = ssResult) and not Assigned(SyncThread.ResHandle));
 
   if (SyncThread.State = ssReceivingResult) then
   begin
@@ -5761,7 +5755,7 @@ begin
       FDatabaseName := Connection.DatabaseName;
       FCommandText := DataHandle.CommandText;
       StmtLength := SQLTrimStmt(PChar(FCommandText), Integer(Length(FCommandText)), StartingCommentLength, EndingCommentLength);
-      if (FCommandText[1 + StartingCommentLength + StmtLength - 1] = ';') then
+      if ((StmtLength > 0) and (FCommandText[1 + StartingCommentLength + StmtLength - 1] = ';')) then
         Dec(StmtLength);
       if (StmtLength = 0) then
         FCommandText := ''
@@ -5897,6 +5891,12 @@ function TMySQLQuery.SetActiveEvent(const ErrorCode: Integer; const ErrorMessage
   const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
 begin
   Assert(not Assigned(SyncThread));
+
+  // Debug 2016-12-29
+  if (DataHandle <> Connection.SyncThread) then
+    raise ERangeError.Create('DataHandle ID: ' + IntToStr(DataHandle.ThreadID) + #13#10
+      + 'SyncThread ID: ' + IntToStr(SyncThread.ThreadID));
+
   Assert(DataHandle = Connection.SyncThread);
 
   if (not Data or (DataHandle.ErrorCode <> 0)) then
@@ -5995,27 +5995,28 @@ begin
       or not Assigned(TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer)
       or not Assigned(TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData)
       or not Assigned(TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Field.FieldNo - 1]);
-    if (Field.DataType in [ftMemo, ftBlob]) then
-    begin
-      SetSize(TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Field.FieldNo - 1]);
-      MoveMemory(Memory, @TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Field.FieldNo - 1], Size);
-    end
-    else if (Field.DataType = ftWideMemo) then
-    begin
-      SetSize(
+    if (not Empty) then
+      if (Field.DataType in [ftMemo, ftBlob]) then
+      begin
+        SetSize(TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Field.FieldNo - 1]);
+        MoveMemory(Memory, TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Field.FieldNo - 1], Size);
+      end
+      else if (Field.DataType = ftWideMemo) then
+      begin
+        SetSize(
+          AnsiCharToWideChar(TMySQLQuery(Field.DataSet).Connection.CodePage,
+            TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Field.FieldNo - 1],
+            TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Field.FieldNo - 1],
+            nil,
+            0) * SizeOf(Char));
         AnsiCharToWideChar(TMySQLQuery(Field.DataSet).Connection.CodePage,
           TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Field.FieldNo - 1],
           TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Field.FieldNo - 1],
-          nil,
-          0) * SizeOf(Char));
-      AnsiCharToWideChar(TMySQLQuery(Field.DataSet).Connection.CodePage,
-        TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Field.FieldNo - 1],
-        TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Field.FieldNo - 1],
-        Memory,
-        Size);
-    end
-    else
-      raise ERangeError.Create('DataType: ' + IntToStr(Ord(Field.DataType)));
+          Memory,
+          Size);
+      end
+      else
+        raise ERangeError.Create('DataType: ' + IntToStr(Ord(Field.DataType)));
   end;
 end;
 
@@ -6411,7 +6412,7 @@ begin
   // Counters resetted on 2016-12-26
   if (not Active) then
   else if (not Assigned(Pointer(ActiveBuffer()))) then
-  else if (not PExternRecordBuffer(ActiveBuffer())^.Identifier654321 = 654321) then
+  else if (PExternRecordBuffer(ActiveBuffer())^.Identifier654321 <> 654321) then
     raise ERangeError.Create(SRangeError) // Occurred 0 times
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
   else if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.IdentifierABCDEF <> $ABCDEF) then
@@ -6420,7 +6421,7 @@ begin
       + 'Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
       + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)))
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
-  else if (not (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier123456 = 123456)) then // Crashed 0 times
+  else if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier123456 <> 123456) then // Crashed 0 times
     raise ERangeError.Create(SRangeError); // Occurred 0 times
 
   if (not Active
@@ -7022,7 +7023,6 @@ begin
         begin
           SQL := ExpandSelectStmtWhereClause(Connection.SQLParser.FirstStmt, WhereClause);
 
-//SQL := '';
           if (not Connection.SQLParser.ParseSQL(SQL)) then
             SQL := ''
           else
@@ -7031,14 +7031,7 @@ begin
               RowCount := -1
             else
               RowCount := 2;
-try // Debug 2016-12-24
             SQL := ReplaceSelectStmtLimit(Connection.SQLParser.FirstStmt, 0, RowCount);
-except
-  on E: Exception do
-    raise Exception.Create(E.Message + #13#10
-      + 'SQL: ' + SQLEscapeBin(SQL, True) + #13#10
-      + 'RowCount: ' + IntToStr(RowCount));
-end;
           end;
         end;
 
@@ -7098,7 +7091,10 @@ begin
 
       case (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag) of
         bfInserted:
+        begin
+          Inc(InternRecordBuffers.Index);
           InternRecordBuffers.Insert(InternRecordBuffers.Index, PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
+        end;
         bfBOF,
         bfEOF:
           InternRecordBuffers.Index := InternRecordBuffers.Add(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
@@ -8683,7 +8679,7 @@ end;
 //  RBS: RawByteString;
 //  SQL: string;
 initialization
-//  RBS := HexToStr('');
+//  RBS := HexToStr('457374652072656C6174F372696F206C6973746120746F646F73206C616EE7616D656E746F7320646520646573706573612071756520C9BA');
 //  SetLength(SQL, Length(RBS));
 //  Len := AnsiCharToWideChar(65001, PAnsiChar(RBS), Length(RBS), PChar(SQL), Length(SQL));
 //  SetLength(SQL, Len);

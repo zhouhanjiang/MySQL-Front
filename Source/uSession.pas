@@ -4531,6 +4531,7 @@ begin
     while (DeleteList.Count > 0) do
     begin
       FFields.Delete(DeleteList.Items[0]);
+      Session.SendEvent(etItemDropped, Self, FFields, DeleteList.Items[0]);
       DeleteList.Delete(0);
     end;
 
@@ -4622,6 +4623,7 @@ begin
     while (DeleteList.Count > 0) do
     begin
       FKeys.Delete(DeleteList.Items[0]);
+      Session.SendEvent(etItemDropped, Self, FKeys, DeleteList.Items[0]);
       DeleteList.Delete(0);
     end;
 
@@ -4719,6 +4721,7 @@ begin
     while (DeleteList.Count > 0) do
     begin
       FForeignKeys.Delete(DeleteList.Items[0]);
+      Session.SendEvent(etItemDropped, Self, FForeignKeys, DeleteList.Items[0]);
       DeleteList.Delete(0);
     end;
     DeleteList.Free();
@@ -10357,7 +10360,11 @@ begin
   if (AEntity = Session.FUser) then
     Session.FUser := nil;
 
-  inherited;
+  Delete(IndexOf(AEntity));
+
+  Session.SendEvent(etItemDropped, Session, Self, AEntity);
+
+  AEntity.Free();
 end;
 
 function TSUsers.GetUser(Index: Integer): TSUser;

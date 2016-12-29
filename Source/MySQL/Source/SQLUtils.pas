@@ -558,7 +558,7 @@ asm
         JMP StringLE
       String4:
         CMP AX,'r'                       // '\r'?
-        JNE StringLE2                    // No!
+        JNE StringLE                     // No!
         MOV AX,13                        // replace with CarriageReturn
         JMP StringLE
       StringLE:
@@ -1130,7 +1130,6 @@ begin
       // -------------------
 
       BinL:
-        MOV EAX,0                        // Clear EAX since AX will be loaded, but be EAX used
         LODSW                            // Read byte
         AND AX,$00FF                     // Interpret value as binary
         PUSH EAX

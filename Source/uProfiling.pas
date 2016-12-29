@@ -102,7 +102,7 @@ begin
       RaiseLastOSError()
     else
     begin
-      WriteFile(Handle, BOM^, StrLen(BOM), BytesWritten, nil);
+      WriteFile(Handle, BOM^, Length(BOM), BytesWritten, nil);
       WriteFile(Handle, Result[1], Length(Result) * SizeOf(Result[1]), BytesWritten, nil);
       CloseHandle(Handle);
     end;
