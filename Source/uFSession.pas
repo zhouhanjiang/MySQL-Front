@@ -2460,7 +2460,7 @@ begin
     begin
       if (FNavigator.AutoExpand and Assigned(FNavigator.Selected)) then
       begin
-        if ((FNavigator.Selected.ImageIndex in [iiBaseTable, iiSystemView, iiView]) and not Dragging(FNavigator)) then
+        if ((FNavigator.Selected.ImageIndex in [iiBaseTable, iiView, iiSystemView]) and not Dragging(FNavigator)) then
           FNavigator.Selected.Expand(False);
 
         if (Assigned(FNavigator.Selected.Parent)) then
@@ -2478,7 +2478,7 @@ begin
       if ((tsActive in FrameState) and not (tsLoading in FrameState) and Wanted.Nothing) then
         PlaySound(PChar(Preferences.SoundFileNavigating), Handle, SND_FILENAME or SND_ASYNC);
 
-      if ((View = vBrowser) and (FNavigator.Selected.ImageIndex in [iiBaseTable, iiSystemView, iiView])) then
+      if ((View = vBrowser) and (FNavigator.Selected.ImageIndex in [iiBaseTable, iiView, iiSystemView])) then
       begin
         Table := TSTable(FNavigator.Selected.Data);
 
@@ -2511,7 +2511,7 @@ begin
       if (Window.ActiveControl = FNavigator) then
         FNavigatorSetMenuItems(FNavigator, FNavigator.Selected);
 
-      FNavigator.AutoExpand := not (FNavigator.Selected.ImageIndex in [iiBaseTable, iiSystemView, iiView]) and not CheckWin32Version(6);
+      FNavigator.AutoExpand := not (FNavigator.Selected.ImageIndex in [iiBaseTable, iiView, iiSystemView]) and not CheckWin32Version(6);
 
       TreeViewExpanded(FNavigator, FNavigator.Selected);
     end;
@@ -2519,7 +2519,7 @@ begin
     LastFNavigatorSelected := FNavigator.Selected;
     if (SelectedDatabase <> '') then
       LastSelectedDatabase := SelectedDatabase;
-    if (SelectedImageIndex in [iiBaseTable, iiSystemView, iiView]) then
+    if (SelectedImageIndex in [iiBaseTable, iiView, iiSystemView]) then
     begin
       LastSelectedTable := FNavigator.Selected.Text;
       LastTableView := View;
@@ -2537,7 +2537,7 @@ begin
     MainAction('aFSave').Enabled := (View = vDiagram) or (View in [vEditor, vEditor2, vEditor3]) and not Empty and ((SQLEditors[View].Filename = '') or ActiveSynMemo.Modified);
     MainAction('aFSaveAs').Enabled := (View = vDiagram) or (View in [vEditor, vEditor2, vEditor3]) and not Empty;
     MainAction('aVObjects').Enabled := True;
-    MainAction('aVBrowser').Enabled := (SelectedImageIndex in [iiBaseTable, iiSystemView, iiView, iiTrigger]) or ((LastSelectedDatabase <> '') and (LastSelectedDatabase = SelectedDatabase) and (LastSelectedTable <> ''));
+    MainAction('aVBrowser').Enabled := (SelectedImageIndex in [iiBaseTable, iiView, iiSystemView, iiTrigger]) or ((LastSelectedDatabase <> '') and (LastSelectedDatabase = SelectedDatabase) and (LastSelectedTable <> ''));
     MainAction('aVIDE').Enabled := (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]) or (LastObjectIDEAddress <> '');
     MainAction('aVBuilder').Enabled := (LastSelectedDatabase <> '');
     MainAction('aVSQLEditor').Enabled := True;
@@ -4430,8 +4430,8 @@ begin
             iiDatabase,
             iiSystemDatabase: TSDatabase(FNavigator.Selected.Data).Invalidate();
             iiBaseTable,
-            iiSystemView,
-            iiView:
+            iiView,
+            iiSystemView:
               begin
                 // Debug 2016-11-21
                 if (not Assigned(FNavigator.Selected.Data)) then
@@ -5110,6 +5110,8 @@ begin
     Result := TTableDesktop.Create(Self, TSBaseTable(CObject))
   else if (CObject is TSView) then
     Result := TViewDesktop.Create(Self, TSView(CObject))
+  else if (CObject is TSSystemView) then
+    Result := TTableDesktop.Create(Self, TSSystemView(CObject))
   else if (CObject is TSRoutine) then
     Result := TRoutineDesktop.Create(Self, TSRoutine(CObject))
   else if (CObject is TSEvent) then
@@ -7012,8 +7014,8 @@ begin
           AllowExpansion := AllowExpansion and Database.Update();
         end;
       iiBaseTable,
-      iiSystemView,
-      iiView:
+      iiView,
+      iiSystemView:
         begin
           Table := TSTable(Node.Data);
           // Debug 2016-11-26
@@ -7123,7 +7125,7 @@ begin
           TableName := TSDatabase(DatabaseNode.Data).TriggerByName(URI.Param['object']).TableName;
         TableNode := nil;
         while (Assigned(Child) and not Assigned(TableNode)) do
-          if ((Child.ImageIndex in [iiBaseTable, iiSystemView, iiView]) and (TSDatabase(DatabaseNode.Data).Tables.NameCmp(TableName, Child.Text) = 0)) then
+          if ((Child.ImageIndex in [iiBaseTable, iiView, iiSystemView]) and (TSDatabase(DatabaseNode.Data).Tables.NameCmp(TableName, Child.Text) = 0)) then
             TableNode := Child
           else
             Child := Child.getNextSibling();
@@ -7169,7 +7171,7 @@ begin
 
   // Debug 2016-12-27
   if (Assigned(Result)
-    and not (Result.ImageIndex in [iiBaseTable, iiSystemView, iiView])
+    and not (Result.ImageIndex in [iiBaseTable, iiView, iiSystemView])
     and (URI.Param['view'] = 'browser')) then
     raise ERangeError.Create(SRangeError);
 
@@ -7203,8 +7205,8 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
         Result := giDatabases;
       iiTable,
       iiBaseTable,
-      iiSystemView,
-      iiView:
+      iiView,
+      iiSystemView:
         Result := giTables;
       iiProcedure,
       iiFunction:
@@ -7352,7 +7354,7 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
     Child.Data := Data;
     Child.ImageIndex := ImageIndexByData(Data);
     Child.Text := Text;
-    if (Added and (Child.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiSystemView, iiView])) then
+    if (Added and (Child.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView])) then
       Child.HasChildren := True;
     if (Assigned(Child)) then
       SetNodeBoldState(Child, (Child.ImageIndex = iiKey) and TSKey(Child.Data).PrimaryKey or (Child.ImageIndex in [iiField, iiVirtualField]) and TSTableField(Child.Data).InPrimaryKey);
@@ -7382,7 +7384,7 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
     Child.Data := Data;
     Child.ImageIndex := ImageIndexByData(Data);
     Child.Text := Text;
-    if (Child.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiSystemView, iiView]) then
+    if (Child.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView]) then
       Child.HasChildren := True;
     if (Assigned(Child)) then
       SetNodeBoldState(Child, (Child.ImageIndex = iiKey) and TSKey(Child.Data).PrimaryKey or (Child.ImageIndex in [iiField, iiVirtualField]) and TSTableField(Child.Data).InPrimaryKey);
@@ -7532,12 +7534,13 @@ begin
 
       Expanded := Node.Expanded;
 
-      if (Event.Items is TSTables) then
-        UpdateGroup(Node, giTables, Event.Items)
-      else if (Event.Items is TSRoutines) then
-        UpdateGroup(Node, giRoutines, Event.Items)
-      else if (Event.Items is TSEvents) then
-        UpdateGroup(Node, giEvents, Event.Items);
+      if (Expanded or (Node = FNavigatorNodeToExpand)) then
+        if (Event.Items is TSTables) then
+          UpdateGroup(Node, giTables, Event.Items)
+        else if (Event.Items is TSRoutines) then
+          UpdateGroup(Node, giRoutines, Event.Items)
+        else if (Event.Items is TSEvents) then
+          UpdateGroup(Node, giEvents, Event.Items);
 
       Node.HasChildren := Assigned(Node.getFirstChild());
       Node.Expanded := Expanded;
@@ -7568,13 +7571,14 @@ begin
 
         Expanded := Node.Expanded;
 
-        if (Table is TSBaseTable) then
-          UpdateGroup(Node, giKeys, TSBaseTable(Table).Keys);
-        UpdateGroup(Node, giFields, Table.Fields);
-        if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).ForeignKeys)) then
-          UpdateGroup(Node, giForeignKeys, TSBaseTable(Table).ForeignKeys);
-        if ((Table is TSBaseTable) and Assigned(Table.Database.Triggers)) then
-          UpdateGroup(Node, giTriggers, Table.Database.Triggers);
+        if (Expanded or (Node = FNavigatorNodeToExpand)) then
+          if (Table is TSBaseTable) then
+            UpdateGroup(Node, giKeys, TSBaseTable(Table).Keys);
+          UpdateGroup(Node, giFields, Table.Fields);
+          if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).ForeignKeys)) then
+            UpdateGroup(Node, giForeignKeys, TSBaseTable(Table).ForeignKeys);
+          if ((Table is TSBaseTable) and Assigned(Table.Database.Triggers)) then
+            UpdateGroup(Node, giTriggers, Table.Database.Triggers);
 
         Node.HasChildren := Assigned(Node.getFirstChild());
         Node.Expanded := Expanded;
@@ -7898,7 +7902,7 @@ procedure TFSession.FQueryBuilderDragDrop(Sender, Source: TObject; X, Y: Integer
 var
   SQLQualifiedName: TSQLQualifiedName;
 begin
-  if ((Source = FNavigator) and (MouseDownNode.ImageIndex in [iiBaseTable, iiSystemView, iiView])) then
+  if ((Source = FNavigator) and (MouseDownNode.ImageIndex in [iiBaseTable, iiView, iiSystemView])) then
   begin
     SQLQualifiedName := TSQLQualifiedName.Create(FQueryBuilder.MetadataContainer.SQLContext);
     SQLQualifiedName.AddName(TSTable(MouseDownNode.Data).Name);
@@ -7919,7 +7923,7 @@ begin
   begin
     SourceNode := MouseDownNode;
 
-    Accept := SourceNode.ImageIndex in [iiBaseTable, iiSystemView, iiView];
+    Accept := SourceNode.ImageIndex in [iiBaseTable, iiView, iiSystemView];
   end
 end;
 
@@ -8619,8 +8623,8 @@ begin
       iiSystemDatabase:
         Result := Desktop(TSDatabase(FNavigator.Selected.Data)).CreateListView();
       iiBaseTable,
-      iiSystemView,
-      iiView:
+      iiView,
+      iiSystemView:
         Result := Desktop(TSTable(FNavigator.Selected.Data)).CreateListView();
       iiProcesses:
         begin
@@ -8985,12 +8989,12 @@ begin
     Result := iiSystemDatabase
   else if (TObject(Data) is TSDatabase) then
     Result := iiDatabase
-  else if (TObject(Data) is TSSystemView) then
-    Result := iiSystemView
   else if (TObject(Data) is TSBaseTable) then
     Result := iiBaseTable
   else if (TObject(Data) is TSView) then
     Result := iiView
+  else if (TObject(Data) is TSSystemView) then
+    Result := iiSystemView
   else if (TObject(Data) is TSProcedure) then
     Result := iiProcedure
   else if (TObject(Data) is TSFunction) then
@@ -9065,7 +9069,7 @@ begin
   with (ListViewSortData[Kind]) do
   begin
     ListViewSortData[Kind].Index := Column.Index;
-    if ((OldFListOrderIndex <> Index) or ((Order = 0) or (Order < 0) and (not (SelectedImageIndex in [iiBaseTable, iiSystemView, iiView]) or (Index > 0)))) then
+    if ((OldFListOrderIndex <> Index) or ((Order = 0) or (Order < 0) and (not (SelectedImageIndex in [iiBaseTable, iiView, iiSystemView]) or (Index > 0)))) then
       ListViewSortData[Kind].Order := 1
     else if (Order = 1) then
       ListViewSortData[Kind].Order := -1
@@ -9430,7 +9434,8 @@ begin
       ListView.Groups.Add().GroupID := giForeignKeys;
       ListView.Groups.Add().GroupID := giTriggers;
     end
-    else if (TObject(ListView.Tag) is TSView) then
+    else if ((TObject(ListView.Tag) is TSView)
+      or (TObject(ListView.Tag) is TSSystemView)) then
     begin
       ListView.Columns.Add();
       ListView.Columns.Add();
@@ -9534,7 +9539,8 @@ begin
     if (Session.Connection.MySQLVersion >= 40100) then
       ListView.Columns[5].Caption := Preferences.LoadStr(111);
   end
-  else if (TObject(ListView.Tag) is TSView) then
+  else if ((TObject(ListView.Tag) is TSView)
+    or (TObject(ListView.Tag) is TSSystemView)) then
   begin
     ListView.Columns[0].Caption := Preferences.LoadStr(35);
     ListView.Columns[1].Caption := Preferences.LoadStr(69);
@@ -9834,12 +9840,12 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
     else if (Data is TSTable) then
     begin
       Item.GroupID := giTables;
-      if (Data is TSSystemView) then
-        Item.ImageIndex := iiSystemView
-      else if (Data is TSBaseTable) then
+      if (Data is TSBaseTable) then
         Item.ImageIndex := iiBaseTable
-      else
-        Item.ImageIndex := iiView;
+      else if (Data is TSView) then
+        Item.ImageIndex := iiView
+      else if (Data is TSSystemView) then
+        Item.ImageIndex := iiSystemView;
       Item.Caption := TSTable(Data).Caption;
       if ((TSTable(Data) is TSBaseTable) and Assigned(TSBaseTable(Data).Engine)) then
         Item.SubItems.Add(TSBaseTable(Data).Engine.Name)
@@ -9981,10 +9987,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
         Item.SubItems.Add(S);
         if (Session.Connection.MySQLVersion >= 40100) then
           Item.SubItems.Add(TSBaseTableField(Data).Comment);
-        if (TSBaseTableField(Data).Table is TSSystemView) then
-          Item.ImageIndex := iiSystemViewField
-        else
-          Item.ImageIndex := iiField;
+        Item.ImageIndex := iiField;
       end
       else if (TSBaseTableField(Data).FieldKind = mkVirtual) then
       begin
@@ -10033,24 +10036,27 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
       end;
       Item.SubItems.Add(S);
     end
-    else if (Data is TSViewField) then
+    else if (Data is TSTableField) then
     begin
       Item.GroupID := giFields;
-      Item.ImageIndex := iiViewField;
-      Item.Caption := TSViewField(Data).Caption;
-      if (TSViewField(Data).FieldType <> mfUnknown) then
+      if (Data is TSViewField) then
+        Item.ImageIndex := iiViewField
+      else
+        Item.ImageIndex := iiSystemViewField;
+      Item.Caption := TSTableField(Data).Caption;
+      if (TSTableField(Data).FieldType <> mfUnknown) then
       begin
-        Item.SubItems.Add(TSViewField(Data).DBTypeStr());
-        if (TSViewField(Data).NullAllowed) then
+        Item.SubItems.Add(TSTableField(Data).DBTypeStr());
+        if (TSTableField(Data).NullAllowed) then
           Item.SubItems.Add(Preferences.LoadStr(74))
         else
           Item.SubItems.Add(Preferences.LoadStr(75));
-        if (TSViewField(Data).AutoIncrement) then
+        if (TSTableField(Data).AutoIncrement) then
           Item.SubItems.Add('<auto_increment>')
         else
-          Item.SubItems.Add(TSViewField(Data).Default);
-        if (TSViewField(Data).Charset <> TSViewField(Data).Table.Database.Charset) then
-          Item.SubItems.Add(TSViewField(Data).Charset);
+          Item.SubItems.Add(TSTableField(Data).Default);
+        if (TSTableField(Data).Charset <> TSTableField(Data).Table.Database.Charset) then
+          Item.SubItems.Add(TSTableField(Data).Charset);
       end;
     end
     else if (Data is TSProcesses) then
@@ -10426,8 +10432,8 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
         iiSystemDatabase:
           Inc(DatabaseCount);
         iiBaseTable,
-        iiSystemView,
-        iiView:
+        iiView,
+        iiSystemView:
           Inc(TableCount);
         iiProcedure,
         iiFunction:
@@ -10749,7 +10755,7 @@ begin
                 aDDelete.Enabled := aDDelete.Enabled and not (ListView.Items[I].ImageIndex in [iiSystemView]);
               end;
 
-            mlOpen.Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiSystemView, iiView, iiProcedure, iiFunction, iiEvent]);
+            mlOpen.Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent]);
 
             if (SelectedImageIndex = iiSystemDatabase) then
               mlEProperties.Action := nil
@@ -11588,7 +11594,7 @@ begin
       if (URI.Param['view'] = 'browser') then
       begin
         // Debug 2016-11-23
-        if (not (FNavigator.Selected.ImageIndex in [iiBaseTable, iiSystemView, iiView])) then
+        if (not (FNavigator.Selected.ImageIndex in [iiBaseTable, iiView, iiSystemView])) then
           raise ERangeError.Create(SRangeError);
         if (not Assigned(FNavigator.Selected.Data)) then
           raise ERangeError.Create(SRangeError);
@@ -13102,7 +13108,7 @@ begin
     URI.Param['objecttype'] := Null;
     URI.Param['object'] := Null;
   end
-  else if ((URI.Param['view'] = 'browser') and not (SelectedImageIndex in [iiBaseTable, iiSystemView, iiView])) then
+  else if ((URI.Param['view'] = 'browser') and not (SelectedImageIndex in [iiBaseTable, iiView, iiSystemView])) then
   begin
     if (SelectedImageIndex = iiTrigger) then
       URI.Table := TSTrigger(FNavigator.Selected.Data).TableName
@@ -13211,7 +13217,7 @@ begin
     if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
       raise ERangeError.Create('NewAddress: ' + NewAddress + #13#10 + 'Address: ' + Address);
 
-    if ((URI.Param['view'] = 'browser') and (Node.ImageIndex in [iiBaseTable, iiSystemView, iiView])) then
+    if ((URI.Param['view'] = 'browser') and (Node.ImageIndex in [iiBaseTable, iiView, iiSystemView])) then
       NewView := vBrowser
     else if ((URI.Param['view'] = 'ide') and (Node.ImageIndex in [iiView, iiProcedure, iiFunction, iiTrigger, iiEvent])) then
       NewView := vIDE
@@ -13295,7 +13301,7 @@ begin
     end;
 
     // Debug 2016-12-27
-    if ((URI.Param['view'] = 'browser') and not (FNavigator.Selected.ImageIndex in [iiBaseTable, iiSystemView, iiView])) then
+    if ((URI.Param['view'] = 'browser') and not (FNavigator.Selected.ImageIndex in [iiBaseTable, iiView, iiSystemView])) then
       raise ERangeError.Create(SRangeError);
 
     URI.Free();
@@ -13936,7 +13942,7 @@ procedure TFSession.SynMemoDragOver(Sender, Source: TObject; X, Y: Integer;
   State: TDragState; var Accept: Boolean);
 begin
   if (Source = FNavigator) then
-    Accept := MouseDownNode.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiSystemView, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiKey, iiField, iiVirtualField, iiSystemViewField, iiViewField, iiForeignKey]
+    Accept := MouseDownNode.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiKey, iiField, iiVirtualField, iiSystemViewField, iiViewField, iiForeignKey]
   else if (Source = FSQLHistory) then
     Accept := MouseDownNode.ImageIndex in [iiStatement, iiQuery, iiClock]
   else if (Source = ActiveDBGrid) then
@@ -14183,7 +14189,7 @@ procedure TFSession.TreeViewCollapsing(Sender: TObject;
 begin
   if ((Sender is TTreeView_Ext) and Assigned(TTreeView_Ext(Sender).Selected) and Assigned(TTreeView_Ext(Sender).OnChange)) then
   begin
-    if ((View = vBrowser) and not (Node.ImageIndex in [iiBaseTable, iiSystemView, iiView]) and (Node = TTreeView_Ext(Sender).Selected.Parent)) then
+    if ((View = vBrowser) and not (Node.ImageIndex in [iiBaseTable, iiView, iiSystemView]) and (Node = TTreeView_Ext(Sender).Selected.Parent)) then
       TTreeView_Ext(Sender).Selected := Node;
 
     AllowCollapse := Node <> TTreeView_Ext(Sender).Items.getFirstNode();
@@ -14663,7 +14669,7 @@ begin
 
 
     MainAction('aVObjects').Enabled := True;
-    MainAction('aVBrowser').Enabled := (SelectedImageIndex in [iiBaseTable, iiSystemView, iiView, iiTrigger]) or ((LastSelectedDatabase <> '') and (LastSelectedDatabase = SelectedDatabase) and (LastSelectedTable <> ''));
+    MainAction('aVBrowser').Enabled := (SelectedImageIndex in [iiBaseTable, iiView, iiSystemView, iiTrigger]) or ((LastSelectedDatabase <> '') and (LastSelectedDatabase = SelectedDatabase) and (LastSelectedTable <> ''));
     MainAction('aVIDE').Enabled := (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]) or (LastObjectIDEAddress <> '');
     MainAction('aVBuilder').Enabled := (LastSelectedDatabase <> '');
     MainAction('aVSQLEditor').Enabled := True;
@@ -14893,11 +14899,9 @@ begin
             List.Free();
           end;
         iiBaseTable,
-        iiView:
-          TSTable(FNavigator.Selected.Data).Update();
+        iiView,
         iiSystemView:
-          if (Session.Connection.MySQLVersion < 80000) then
-            TSTable(FNavigator.Selected.Data).Update();
+          TSTable(FNavigator.Selected.Data).Update();
       end;
     vBrowser:
       if ((TObject(FNavigator.Selected.Data) is TSView and not TSView(FNavigator.Selected.Data).Update())

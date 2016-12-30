@@ -1202,7 +1202,7 @@ procedure TMySQLDBGrid.TopLeftChanged();
 begin
   inherited;
 
-  SetColumnAttributes();
+  TDBMySQLGridColumns(Columns).Update(nil);
 end;
 
 function TMySQLDBGrid.UpdateAction(Action: TBasicAction): Boolean;
@@ -1256,6 +1256,14 @@ begin
     inherited
   else
     case (HDNotify^.Hdr.code) of
+      HDN_ENDDRAG:
+        if ((HDNotify^.PItem.Mask and HDI_ORDER <> 0) and (HDNotify^.PItem.iOrder >= 0)) then
+        begin
+          Column := Columns[LeftCol + HDNotify^.Item];
+          Column.Index := HDNotify^.PItem.iOrder + LeftCol;
+          Message.Result := LRESULT(TRUE);
+          Resize();
+        end;
       HDN_DIVIDERDBLCLICK:
         begin
           Column := Columns[LeftCol + HDNotify^.Item];

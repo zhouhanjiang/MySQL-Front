@@ -538,8 +538,7 @@ type
         ttMySQLCondStart,         // MySQL specific code, like /*!50000 SELECT 1; */
         ttMySQLCondEnd,
         ttOperator,               // Symbolic operator like +, -, &&, *=
-        ttAt,                     // "@"
-        ttIPAddress               // "123.123.123.123"
+        ttAt                      // "@"
       );
 
       TOperatorType = (
@@ -1030,8 +1029,7 @@ type
         'ttMySQLCondStart',
         'ttMySQLCondEnd',
         'ttOperator',
-        'ttAt',
-        'ttIPAddress'
+        'ttAt'
       );
 
       UsageTypeToString: array [TUsageType] of PChar = (
@@ -18500,7 +18498,6 @@ function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
       or (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent) and not (ADbIdentType in [ditCharset, ditCollation])
       or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and (AnsiQuotes or (ADbIdentType in [ditUser, ditHost, ditConstraint, ditColumnAlias, ditCharset, ditCollation]))
       or (TokenPtr(CurrentToken)^.TokenType = ttString) and (ADbIdentType in [ditUser, ditHost, ditConstraint, ditColumnAlias, ditCharset, ditCollation])
-      or (TokenPtr(CurrentToken)^.TokenType = ttIPAddress) and (ADbIdentType in [ditHost])
       or (TokenPtr(CurrentToken)^.OperatorType = otMulti) and JokerAllowed and (ADbIdentType in [ditDatabase, ditTable, ditProcedure, ditFunction, ditField])) then
     begin
       TokenPtr(CurrentToken)^.FOperatorType := otNone;
@@ -24724,7 +24721,7 @@ label
     SelCloseCurlyBracket, SelTilde, SelE,
   SLComment, SLCommentL,
   MLComment, MLCommentL, MLCommentLSingle, MLCommentLNLDouble, MLCommentLNLSingle, MLCommentLE,
-  Ident, IdentL, IdentL2, IdentL3, IdentL4, IdentL5, IdentL6, IdentLE,
+  Ident, IdentL, IdentL2, IdentLE,
     IdentCharset, IdentCharsetL, IdentCharsetLE, IdentString, IdentString2, IdentStringE,
   Quoted, QuotedL, QuotedL2, QuotedLE, QuotedE, QuotedE2, QuotedE3,
     QuotedSecondQuoter, QuotedSecondQuoterL, QuotedSecondQuoterLE,
@@ -24732,7 +24729,6 @@ label
   HexODBC, HexODBCL, HexODBCLE, HexODBCE,
   HexSQL, HexSQLL, HexSQLLE, HexSQLE,
   Bit, BitL, BitLE, BitE,
-  IPAddress, IPAddressL, IPAddressLE,
   Return, Return2, ReturnE,
   WhiteSpace, WhiteSpaceL, WhiteSpaceLE,
   MySQLCondStart, MySQLCondStartL, MySQLCondStartErr,
@@ -24750,7 +24746,6 @@ var
   Charset: PChar;
   CharsetFound: Boolean;
   CharsetLength: Integer;
-  DigitsOnly: Boolean;
   DotFound: Boolean;
   EFound: Boolean;
   ErrorCode: Integer;
@@ -25191,22 +25186,11 @@ begin
         MOV TokenType,ttIdent
         MOV EDI,ESI
         MOV EDX,ECX
-        MOV DigitsOnly,True
         ADD ESI,2                        // Step over first character
         DEC ECX                          // One character handled
         JZ Finish
       IdentL:
         MOV AX,[ESI]                     // One character from SQL to AX
-        CMP AX,'$'                       // "$"?
-        JNE IdentL2                      // No!
-        MOV DigitsOnly,True
-        JMP IdentLE                      // Yes!
-      IdentL2:
-        CMP AX,'_'                       // "_"?
-        JNE IdentL3                      // No!
-        MOV DigitsOnly,True
-        JMP IdentLE
-      IdentL3:
         CMP AX,9                         // <Tabulator>?
         JE IdentCharset                  // Yes!
         CMP AX,10                        // <NewLine>?
@@ -25215,38 +25199,25 @@ begin
         JE IdentCharset                  // Yes!
         CMP AX,' '                       // " "?
         JE IdentCharset                  // Yes!
+        CMP AX,'$'                       // "$"?
+        JE IdentLE                       // Yes!
         CMP AX,''''                      // "'"?
         JE IdentCharset                  // Yes!
         CMP AnsiQuotes,True              // AnsiQuotes?
-        JE IdentL4                       // Yes!
+        JE IdentL2                       // Yes!
         CMP AX,'"'                       // '"'?
         JE IdentCharset                  // Yes!
-      IdentL4:
-        CMP AX,'.'                       // "."?
-        JNE IdentL5                      // No!
-        CMP DigitsOnly,True              // Only digits in this token?
-        JNE Finish                       // No!
-        CMP AtBefore,True                // Previous token was "@"?
-        JNE Finish                       // No!
-        JMP IPAddress
-      IdentL5:
+      IdentL2:
         CMP AX,'0'                       // "0"?
         JB Finish                        // Before!
         CMP AX,'9'                       // "9"?
         JBE IdentLE                      // Before or equal!
-        CMP AX,':'                       // ":"?
-        JNE IdentL6                      // No!
-        CMP DigitsOnly,True              // Only digits in this token?
-        JNE Finish                       // No!
-        CMP AtBefore,True                // Previous token was "@"?
-        JNE Finish                       // No!
-        JMP IPAddress
-      IdentL6:
-        MOV DigitsOnly,False
         CMP AX,'A'                       // "A"?
         JB Finish                        // Before!
         CMP AX,'Z'                       // "Z"?
         JBE IdentLE                      // Before or equal!
+        CMP AX,'_'                       // "_"?
+        JE IdentLE                       // Yes!
         CMP AX,'a'                       // "a"?
         JB Finish                        // Before!
         CMP AX,'z'                       // "z"?
@@ -25453,8 +25424,8 @@ begin
       NumericDot:
         CMP EFound,False                 // A 'e' before?
         JNE UnexpectedChar               // Yes!
-        CMP DotFound,False               // A '.' before?
-        JNE IPAddress                    // Yes!
+        CMP DotFound,True                // A '.' before?
+        JE Finish                        // Yes!
         MOV DotFound,True
         MOV TokenType,ttNumeric          // A dot means it's an Numeric token
         JMP NumericLE
@@ -25589,25 +25560,6 @@ begin
       BitE:
         ADD ESI,2                        // Step over quoter
         DEC ECX                          // One character handled
-        JMP Finish
-
-      // ------------------------------
-
-      IPAddress:
-        MOV TokenType,ttIPAddress        // A dot means it's an Numeric token
-      IPAddressL:
-        MOV AX,[ESI]                     // One character from SQL to AX
-        CMP AX,'.'                       // Dot?
-        JE IPAddressLE                   // Yes!
-        CMP AX,'0'                       // Digit?
-        JB Finish                        // No!
-        CMP AX,'9'
-        JBE IPAddressLE                  // Yes!
-        CMP AX,':'                       // ":"?
-        JNE Finish                       // No!
-      IPAddressLE:
-        ADD ESI,2                        // Next character in SQL
-        LOOP IPAddressL
         JMP Finish
 
       // ------------------------------

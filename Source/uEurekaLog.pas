@@ -415,7 +415,16 @@ begin
 
   PostMessage(Application.MainFormHandle, UM_CRASH_RESCUE, 0, 0);
 
-  if (Handle) then
+  if (not Handle) then
+  begin
+    MessageBox(0, PChar('Internal Program Error:' + #10 + ExceptionInfo.ExceptionMessage), PChar(Preferences.LoadStr(45)), MB_OK + MB_ICONERROR);
+
+    if ((OnlineProgramVersion > Preferences.Version) and (OnlineProgramVersion > Preferences.ObsoleteVersion)) then
+      PostMessage(Application.MainFormHandle, UM_ONLINE_UPDATE_FOUND, 0, 0);
+    if (Preferences.ObsoleteVersion < Preferences.Version) then
+      Preferences.ObsoleteVersion := Preferences.Version;
+  end
+  else
   begin
     Report := '';
 

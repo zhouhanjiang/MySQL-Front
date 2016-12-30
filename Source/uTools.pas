@@ -4300,11 +4300,11 @@ begin
                   else if ((TDBObjectItem(Items[I]).DBObject is TSTrigger) and (Self is TTExportSQL)) then
                     ExecuteTrigger(TSTrigger(TDBObjectItem(Items[I]).DBObject));
               end;
+
+              if (Success <> daSuccess) then
+                Session.Connection.CancelResultHandle(ResultHandle);
             end;
           end;
-
-          if (Success <> daSuccess) then
-            Session.Connection.CancelResultHandle(ResultHandle);
 
           if ((Success <> daAbort) and ((I = Items.Count - 1) or (TDBObjectItem(Items[I + 1]).DBObject.Database <> TDBObjectItem(Items[I]).DBObject.Database))) then
           begin

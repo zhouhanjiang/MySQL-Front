@@ -19,7 +19,6 @@ const
 const
   UM_ACTIVATETAB = WM_USER + 600;
   UM_MYSQLCLIENT_SYNCHRONIZE = WM_USER + 602;
-  UM_ONLINE_UPDATE_FOUND = WM_USER + 603;
 
 type
   TWWindow = class (TForm_Ext)
@@ -329,6 +328,7 @@ type
     ToolButton5: TToolButton;
     ToolButton7: TToolButton;
     ToolButton1: TToolButton;
+    Button1: TButton;
     procedure aDCreateParentExecute(Sender: TObject);
     procedure aEFindExecute(Sender: TObject);
     procedure aEReplaceExecute(Sender: TObject);
@@ -372,6 +372,7 @@ type
       Y: Integer);
     procedure aOExportExecute(Sender: TObject);
     procedure aOImportExecute(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
   const
     tiDeactivate = 1;
   type
@@ -423,7 +424,9 @@ type
     procedure WMTimer(var Message: TWMTimer); message WM_TIMER;
     property ActiveTab: TFSession read GetActiveTab write SetActiveTab;
   protected
+    {$IFNDEF EurekaLog}
     procedure ApplicationException(Sender: TObject; E: Exception);
+    {$ENDIF}
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy(); override;
@@ -643,6 +646,7 @@ begin
   SetTimer(Handle, tiDeactivate, 60000, nil);
 end;
 
+{$IFNDEF EurekaLog}
 procedure TWWindow.ApplicationException(Sender: TObject; E: Exception);
 begin
   if (E.Message <> SRecordChanged) then
@@ -665,6 +669,7 @@ begin
       Preferences.ObsoleteVersion := Preferences.Version;
   end;
 end;
+{$ENDIF}
 
 procedure TWWindow.ApplicationMessage(var Msg: TMsg; var Handled: Boolean);
 var
@@ -758,6 +763,11 @@ begin
   else
     FindText := '';
   MsgBox(Preferences.LoadStr(533, FindText), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
+end;
+
+procedure TWWindow.Button1Click(Sender: TObject);
+begin
+raise Exception.Create('Error Message');
 end;
 
 function TWWindow.CloseAll(): Boolean;
@@ -948,7 +958,9 @@ begin
   MySQLDB.MySQLConnectionOnSynchronize := MySQLConnectionSynchronize;
 
   Application.HelpFile := ExtractFilePath(Application.ExeName) + Copy(ExtractFileName(Application.ExeName), 1, Length(ExtractFileName(Application.ExeName)) - 4) + '.chm';
+  {$IFNDEF EurekaLog}
   Application.OnException := ApplicationException;
+  {$ENDIF}
   Application.OnMessage := ApplicationMessage;
   Application.OnModalBegin := ApplicationModalBegin;
   Application.OnModalEnd := ApplicationModalEnd;

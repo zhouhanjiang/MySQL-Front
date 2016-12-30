@@ -547,7 +547,7 @@ type
     procedure SetName(const AName: string); override;
   public
     procedure Assign(const Source: TSTable); reintroduce; virtual;
-    constructor Create(const ASDBObjects: TSDBObjects; const AName: string = ''); reintroduce; virtual;
+    constructor Create(const ASDBObjects: TSDBObjects; const AName: string = ''); reintroduce;
     destructor Destroy(); override;
     function FieldByName(const FieldName: string): TSTableField; virtual;
     procedure Invalidate(); override;
@@ -726,7 +726,7 @@ type
     property ValidFields: Boolean read GetValidFields;
   public
     procedure Assign(const Source: TSTable); override;
-    constructor Create(const ACDBObjects: TSDBObjects; const AName: string = ''); override;
+    constructor Create(const ACDBObjects: TSDBObjects; const AName: string = '');
     destructor Destroy(); override;
     function GetSourceEx(const DropBeforeCreate: Boolean = False; const FullQualifiedIdentifier: Boolean = False): string; overload; override;
     procedure Invalidate(); override;
@@ -738,7 +738,21 @@ type
     property Stmt: string read FStmt write FStmt;
   end;
 
-  TSSystemView = class(TSBaseTable)
+  TSSystemView = class(TSTable)
+  private
+    FFields: TSViewFields;
+    function GetValidFields(): Boolean; inline;
+    function GetViewFields(): TSViewFields; inline;
+  protected
+    procedure Build(const DataSet: TMySQLQuery); override;
+    function GetFields(): TSTableFields; override;
+    function SQLGetSource(): string; override;
+    property ValidFields: Boolean read GetValidFields;
+  public
+    constructor Create(const ASDBObjects: TSDBObjects; const AName: string = '');
+    destructor Destroy(); override;
+    function GetSourceEx(const DropBeforeCreate: Boolean = False; const FullQualifiedIdentifier: Boolean = False): string; override;
+    property Fields: TSViewFields read GetViewFields;
   end;
 
   TSTables = class(TSDBObjects)
@@ -748,11 +762,11 @@ type
   protected
     function Add(const AEntity: TSEntity; const SendEvent: Boolean = False): Integer; override;
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const ObjectSearch: TSObjectSearch = nil): Boolean; overload; override;
-    function BuildViewFields(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean): Boolean;
+    function BuildFields(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean): Boolean;
     procedure Delete(const AEntity: TSEntity); override;
     function SQLGetItems(const Name: string = ''): string; override;
     function SQLGetStatus(const List: TList = nil): string;
-    function SQLGetViewFields(): string;
+    function SQLGetFields(): string;
   public
     procedure AddTable(const NewTable: TSTable); virtual;
     procedure Invalidate(); override;
@@ -4932,10 +4946,7 @@ end;
 
 function TSBaseTable.SQLGetSource(): string;
 begin
-  if ((Session.Connection.MySQLVersion < 80000) or not (Self is TSSystemView)) then
-    Result := 'SHOW CREATE TABLE ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10
-  else
-    Result := '';
+  Result := 'SHOW CREATE TABLE ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10;
 end;
 
 function TSBaseTable.Update(const Status: Boolean): Boolean;
@@ -4947,8 +4958,6 @@ begin
   Result := Session.Update(List, True);
   List.Free();
 end;
-
-{ TSSystemView ****************************************************************}
 
 { TSViewField *****************************************************************}
 
@@ -5202,6 +5211,51 @@ begin
   Result := 'SHOW CREATE VIEW ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10
 end;
 
+{ TSSystemView ****************************************************************}
+
+procedure TSSystemView.Build(const DataSet: TMySQLQuery);
+begin
+end;
+
+constructor TSSystemView.Create(const ASDBObjects: TSDBObjects; const AName: string = '');
+begin
+  inherited;
+
+  FFields := TSViewFields.Create(Self);
+end;
+
+destructor TSSystemView.Destroy();
+begin
+  FFields.Free();
+
+  inherited;
+end;
+
+function TSSystemView.GetFields(): TSTableFields;
+begin
+  Result := FFields;
+end;
+
+function TSSystemView.GetSourceEx(const DropBeforeCreate: Boolean = False; const FullQualifiedIdentifier: Boolean = False): string;
+begin
+  Result := '';
+end;
+
+function TSSystemView.GetValidFields(): Boolean;
+begin
+  Result := Fields.Valid;
+end;
+
+function TSSystemView.GetViewFields(): TSViewFields;
+begin
+  Result := TSViewFields(GetFields());
+end;
+
+function TSSystemView.SQLGetSource(): string;
+begin
+  Result := '';
+end;
+
 { TSTables ********************************************************************}
 
 function TSTables.Add(const AEntity: TSEntity; const SendEvent: Boolean = False): Integer;
@@ -5260,11 +5314,11 @@ begin
         if (InsertIndex(Name, Index)) then
         begin
           if (Database = Session.PerformanceSchema) then
-            NewTable := TSSystemView.Create(Self, Name, True)
+            NewTable := TSSystemView.Create(Self, Name)
           else if ((Session.Connection.MySQLVersion < 50002) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'BASE TABLE') = 0) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'ERROR') = 0)) then
             NewTable := TSBaseTable.Create(Self, Name)
           else if ((StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'SYSTEM VIEW') = 0) or ((50000 <= Session.Connection.MySQLVersion) and (Session.Connection.MySQLVersion < 50012) and (Database = Session.InformationSchema)) or (Database = Session.PerformanceSchema)) then
-            NewTable := TSSystemView.Create(Self, Name, True)
+            NewTable := TSSystemView.Create(Self, Name)
           else if (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'VIEW') = 0) then
             NewTable := TSView.Create(Self, Name)
           else
@@ -5308,11 +5362,11 @@ begin
         if (InsertIndex(Name, Index)) then
         begin
           if (Database = Session.PerformanceSchema) then
-            NewTable := TSSystemView.Create(Self, Name, True)
+            NewTable := TSSystemView.Create(Self, Name)
           else if ((Session.Connection.MySQLVersion < 50002) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'BASE TABLE') = 0) or (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'ERROR') = 0)) then
             NewTable := TSBaseTable.Create(Self, Name)
           else if ((StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'SYSTEM VIEW') = 0) or ((50000 <= Session.Connection.MySQLVersion) and (Session.Connection.MySQLVersion < 50012) and (Database = Session.InformationSchema)) or (Database = Session.PerformanceSchema)) then
-            NewTable := TSSystemView.Create(Self, Name, True)
+            NewTable := TSSystemView.Create(Self, Name)
           else if (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'VIEW') = 0) then
             NewTable := TSView.Create(Self, Name)
           else
@@ -5335,10 +5389,7 @@ begin
             else
               TSBaseTable(Table[Index]).FEngine := Session.EngineByName(DataSet.FieldByName('Engine').AsString);
             TSBaseTable(Table[Index]).FRowType := StrToMySQLRowType(DataSet.FieldByName('Row_format').AsString);
-            if (TSBaseTable(Table[Index]) is TSSystemView) then
-              TSBaseTable(Table[Index]).FRecordCount := -1
-            else
-              if (not TryStrToInt64(DataSet.FieldByName('Rows').AsString, TSBaseTable(Table[Index]).FRecordCount)) then TSBaseTable(Table[Index]).FRecordCount := 0;
+            if (not TryStrToInt64(DataSet.FieldByName('Rows').AsString, TSBaseTable(Table[Index]).FRecordCount)) then TSBaseTable(Table[Index]).FRecordCount := 0;
             TSBaseTable(Table[Index]).FAvgRowLength := DataSet.FieldByName('Avg_row_length').AsLargeInt;
             if (not TryStrToInt64(DataSet.FieldByName('Data_length').AsString, TSBaseTable(Table[Index]).FDataSize)) then TSBaseTable(Table[Index]).FDataSize := 0;
             if (not TryStrToInt64(DataSet.FieldByName('Index_length').AsString, TSBaseTable(Table[Index]).FIndexSize)) then TSBaseTable(Table[Index]).FIndexSize := 0;
@@ -5354,10 +5405,7 @@ begin
           begin
             TSBaseTable(Table[Index]).FEngine := Session.EngineByName(DataSet.FieldByName('ENGINE').AsString);
             TSBaseTable(Table[Index]).RowType := StrToMySQLRowType(DataSet.FieldByName('ROW_FORMAT').AsString);
-            if (TSBaseTable(Table[Index]) is TSSystemView) then
-              TSBaseTable(Table[Index]).FRecordCount := -1
-            else
-              if (not TryStrToInt64(DataSet.FieldByName('TABLE_ROWS').AsString, TSBaseTable(Table[Index]).FRecordCount)) then TSBaseTable(Table[Index]).FRecordCount := 0;
+            if (not TryStrToInt64(DataSet.FieldByName('TABLE_ROWS').AsString, TSBaseTable(Table[Index]).FRecordCount)) then TSBaseTable(Table[Index]).FRecordCount := 0;
             TSBaseTable(Table[Index]).FAvgRowLength := DataSet.FieldByName('AVG_ROW_LENGTH').AsInteger;
             if (not TryStrToInt64(DataSet.FieldByName('DATA_LENGTH').AsString, TSBaseTable(Table[Index]).FDataSize)) then TSBaseTable(Table[Index]).FDataSize := 0;
             if (not TryStrToInt64(DataSet.FieldByName('MAX_DATA_LENGTH').AsString, TSBaseTable(Table[Index]).FMaxDataSize)) then TSBaseTable(Table[Index]).FMaxDataSize := 0;
@@ -5431,16 +5479,16 @@ begin
   Result := False;
 end;
 
-function TSTables.BuildViewFields(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean): Boolean;
+function TSTables.BuildFields(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean): Boolean;
 var
   I: Integer;
   Index: Integer;
   Name: string;
-  NewField: TSViewField;
+  NewField: TSTableField;
   Parse: TSQLParse;
-  View: TSView;
+  Table: TSTable;
 begin
-  View := nil; Index := 0;
+  Table := nil; Index := 0;
 
   if (DataSet.IsEmpty()) then
   begin
@@ -5463,8 +5511,11 @@ begin
         and SQLParseChar(Parse, '(')) then
         repeat
           Name := SQLParseValue(Parse);
-          View := Database.ViewByName(Name);
-          View.Fields.FValid := True;
+          Table := Database.TableByName(Name);
+          if (Table is TSView) then
+            TSView(Table).Fields.FValid := True
+          else if (Table is TSSystemView) then
+            TSSystemView(Table).Fields.FValid := True
         until (not SQLParseChar(Parse, ','));
         SQLParseChar(Parse, ')');
       end;
@@ -5472,46 +5523,48 @@ begin
   end
   else
     repeat
-      if ((Database.ViewByName(DataSet.FieldByName('TABLE_NAME').AsString) <> View) and Assigned(View)) then
+      if (Assigned(Table) and (Database.TableByName(DataSet.FieldByName('TABLE_NAME').AsString) <> Table)) then
       begin
-        while (Index < View.Fields.Count) do
+        while (Index < Table.Fields.Count) do
         begin
-          View.Fields[Index].Free();
-          View.Fields.Delete(Index);
+          Table.Fields[Index].Free();
+          Table.Fields.Delete(Index);
         end;
 
-        View.Fields.FValid := True;
-        Session.SendEvent(etItemValid, Database, Self, View);
-        Session.SendEvent(etItemsValid, View, View.Fields);
+        if (Table is TSView) then
+          TSView(Table).Fields.FValid := True
+        else if (Table is TSSystemView) then
+          TSSystemView(Table).Fields.FValid := True;
+        Session.SendEvent(etItemsValid, Table, Table.Fields);
 
         Index := 0;
       end;
 
-      View := Database.ViewByName(DataSet.FieldByName('TABLE_NAME').AsString);
+      Table := Database.TableByName(DataSet.FieldByName('TABLE_NAME').AsString);
 
-      if (Assigned(View)) then
+      if (Assigned(Table)) then
       begin
         Name := DataSet.FieldByName('COLUMN_NAME').AsString;
 
-        if (Index = View.Fields.Count) then
-          Index := View.Fields.Add(TSViewField.Create(View.Fields, Name))
-        else if (Index < View.Fields.IndexByName(Name)) then
+        if (Index = Table.Fields.Count) then
+          Index := Table.Fields.Add(TSViewField.Create(Table.Fields, Name))
+        else if (Index < Table.Fields.IndexByName(Name)) then
         begin
-          I := View.Fields.IndexByName(Name);
-          View.Fields[I].Free();
-          View.Fields.Delete(I);
-          View.Fields.Insert(Index, TSViewField.Create(View.Fields, Name));
+          I := Table.Fields.IndexByName(Name);
+          Table.Fields[I].Free();
+          Table.Fields.Delete(I);
+          Table.Fields.Insert(Index, TSViewField.Create(Table.Fields, Name));
         end
         else
         begin
-          TSViewField(View.Fields[Index]).Clear();
-          TSViewField(View.Fields[Index]).FName := Name;
+          Table.Fields[Index].Clear();
+          Table.Fields[Index].FName := Name;
         end;
 
-        NewField := TSViewField(View.Fields[Index]);
+        NewField := Table.Fields[Index];
 
         if (Index > 0) then
-          NewField.FieldBefore := View.Fields[Index - 1];
+          NewField.FieldBefore := Table.Fields[Index - 1];
 
         NewField.AutoIncrement := Pos('AUTO_INCREMENT', UpperCase(DataSet.FieldByName('EXTRA').AsString)) > 0;
         NewField.Collation := DataSet.FieldByName('COLLATION_NAME').AsString;
@@ -5537,17 +5590,17 @@ begin
       end;
     until (not DataSet.FindNext());
 
-  if (Assigned(View)) then
+  if (Assigned(Table)) then
   begin
-    while (Index < View.Fields.Count) do
+    while (Index < Table.Fields.Count) do
     begin
-      View.Fields[Index].Free();
-      View.Fields.Delete(Index);
+      Table.Fields[Index].Free();
+      Table.Fields.Delete(Index);
     end;
 
-    View.Fields.FValid := True;
-    Session.SendEvent(etItemValid, Database, Self, View);
-    Session.SendEvent(etItemsValid, View, View.Fields);
+    if (Table is TSView) then
+      TSView(Table).Fields.FValid := True;
+    Session.SendEvent(etItemsValid, Table, Table.Fields);
   end;
 
   Session.SendEvent(etItemsValid, Session, Session.Databases);
@@ -5650,14 +5703,15 @@ begin
   Tables.Free();
 end;
 
-function TSTables.SQLGetViewFields(): string;
+function TSTables.SQLGetFields(): string;
 var
   I: Integer;
   SQL: string;
 begin
   SQL := '';
   for I := 0 to Count - 1 do
-    if ((Table[I] is TSView) and not TSView(Table[I]).ValidFields) then
+    if (((Table[I] is TSView) and not TSView(Table[I]).ValidFields)
+      or ((Table[I] is TSSystemView) and not TSSystemView(Table[I]).ValidFields)) then
     begin
       if (SQL <> '') then SQL := SQL + ',';
       SQL := SQL + SQLEscape(Table[I].Name);
@@ -8499,7 +8553,7 @@ begin
     SQL := SQL + ';';
   SQL := SQL + #13#10;
 
-  SQL := SQL + Tables.SQLGetViewFields();
+  SQL := SQL + Tables.SQLGetFields();
   SQL := SQL + NewView.SQLGetSource();
 
   if (Assigned(View) and (View.Name <> NewView.Name)) then
@@ -12129,7 +12183,7 @@ begin
             Result := Collations.Build(DataSet, True, not SQLParseEnd(Parse))
           else if ((TableNameCmp(ObjectName, 'COLUMNS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (StrIComp(PChar(SQLParseValue(Parse)), 'TABLE_SCHEMA') = 0) and SQLParseChar(Parse, '=')) then
             if (not Distinct) then
-              Result := DatabaseByName(SQLParseValue(Parse)).Tables.BuildViewFields(DataSet, True)
+              Result := DatabaseByName(SQLParseValue(Parse)).Tables.BuildFields(DataSet, True)
             else
               Result := DatabaseByName(SQLParseValue(Parse)).Columns.Build(DataSet, True)
           else if (TableNameCmp(ObjectName, 'ENGINES') = 0) then
@@ -12518,7 +12572,7 @@ begin
           if (BaseTableInTables and Status and not Database.Tables.ValidStatus) then
             SQL := SQL + Database.Tables.SQLGetStatus(Tables);
           if (ViewInTables) then
-            SQL := SQL + Database.Tables.SQLGetViewFields();
+            SQL := SQL + Database.Tables.SQLGetFields();
           Tables.Clear();
           BaseTableInTables := False;
           ViewInTables := False;
@@ -12529,10 +12583,10 @@ begin
         SQL := SQL + TSDBObject(List[I]).SQLGetSource();
       if ((TSDBObject(List[I]) is TSBaseTable) and not TSBaseTable(List[I]).ValidStatus) then
         Tables.Add(List[I])
-      else if ((TSObject(List[I]) is TSView) and not TSView(List[I]).ValidFields) then
+      else if (((TSObject(List[I]) is TSView) or (TSObject(List[I]) is TSSystemView)) and not TSView(List[I]).ValidFields) then
         Tables.Add(List[I]);
       BaseTableInTables := BaseTableInTables or (TSObject(List[I]) is TSBaseTable);
-      ViewInTables := ViewInTables or (TSObject(List[I]) is TSView);
+      ViewInTables := ViewInTables or (TSObject(List[I]) is TSView) or (TSObject(List[I]) is TSSystemView);
     end
     else if ((TObject(List[I]) is TSUser) and not TSUser(List[I]).Valid) then
       SQL := SQL + TSUser(List[I]).SQLGetSource()
@@ -12543,7 +12597,7 @@ begin
     if (BaseTableInTables and Status and not Database.Tables.ValidStatus) then
       SQL := SQL + Database.Tables.SQLGetStatus(Tables);
     if (ViewInTables) then
-      SQL := SQL + Database.Tables.SQLGetViewFields();
+      SQL := SQL + Database.Tables.SQLGetFields();
     Tables.Clear();
   end;
 
