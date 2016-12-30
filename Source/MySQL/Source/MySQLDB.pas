@@ -2040,13 +2040,7 @@ begin
     if ((Connection.ServerTimeout < 5) or (Connection.LibraryType = ltHTTP)) then
       Timeout := INFINITE
     else
-try
       Timeout := (Connection.ServerTimeout - 5) * 1000;
-except
-  on E: Exception do
-    raise ERangeError.Create('ServerTimeout: ' + IntToStr(Connection.ServerTimeout) + #13#10
-      + E.Message);
-end;
     WaitResult := RunExecute.WaitFor(Timeout);
 
     // Debug 2016-12-12

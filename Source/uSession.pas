@@ -3302,8 +3302,11 @@ begin
     else
       Field[Index + 1].FieldBefore := Field[Index - 1];
 
-  Field[Index].Free();
   Delete(Index);
+
+  Session.SendEvent(etItemDropped, Table, Self, AField);
+
+  Field[Index].Free();
 end;
 
 function TSTableFields.FieldByName(const FieldName: string): TSTableField;
@@ -8939,7 +8942,7 @@ begin
       Session.Connection.IdentifierQuoted := Session.VariableByName('sql_quote_show_create').AsBoolean;
 
     if (Assigned(Session.VariableByName('wait_timeout')) and (Session.VariableByName('wait_timeout').AsInteger > 0)) then
-      Session.Connection.ServerTimeout := Max(Session.VariableByName('wait_timeout').AsInteger, 24 * 60 * 60);
+      Session.Connection.ServerTimeout := Min(Session.VariableByName('wait_timeout').AsInteger, 24 * 60 * 60);
 
     if (Session.Connection.MySQLVersion < 40102) then
     begin

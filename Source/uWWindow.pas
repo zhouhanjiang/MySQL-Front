@@ -328,7 +328,6 @@ type
     ToolButton5: TToolButton;
     ToolButton7: TToolButton;
     ToolButton1: TToolButton;
-    Button1: TButton;
     procedure aDCreateParentExecute(Sender: TObject);
     procedure aEFindExecute(Sender: TObject);
     procedure aEReplaceExecute(Sender: TObject);
@@ -372,7 +371,6 @@ type
       Y: Integer);
     procedure aOExportExecute(Sender: TObject);
     procedure aOImportExecute(Sender: TObject);
-    procedure Button1Click(Sender: TObject);
   const
     tiDeactivate = 1;
   type
@@ -763,11 +761,6 @@ begin
   else
     FindText := '';
   MsgBox(Preferences.LoadStr(533, FindText), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
-end;
-
-procedure TWWindow.Button1Click(Sender: TObject);
-begin
-raise Exception.Create('Error Message');
 end;
 
 function TWWindow.CloseAll(): Boolean;
