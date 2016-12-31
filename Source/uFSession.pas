@@ -821,6 +821,7 @@ type
     ActiveDBGrid: TMySQLDBGrid;
     ActiveIDEInputDataSet: TDataSet;
     ActiveListView: TListView;
+    ActiveSynMemo: TSynMemo;
     ActiveWorkbench: TWWorkbench;
     aDRunExecuteSelStart: Integer;
     BMPImage: TBitmap;
@@ -1018,7 +1019,6 @@ type
     procedure WMNotify(var Message: TWMNotify); message WM_NOTIFY;
     procedure WMParentNotify(var Message: TWMParentNotify); message WM_PARENTNOTIFY;
     procedure WMTimer(var Message: TWMTimer); message WM_TIMER;
-    property ActiveSynMemo: TSynMemo read GetActiveSynMemo;
     property EditorField: TField read GetEditorField;
     property FocusedSItem: TSItem read GetFocusedSItem;
     property MenuDatabase: TSDatabase read GetMenuDatabase;
@@ -1063,10 +1063,6 @@ uses
   uDUser, uDQuickFilter, uDSQLHelp, uDTransfer, uDSearch, uDServer,
   uURI, uDView, uDRoutine, uDTrigger, uDStatement, uDEvent, uDPaste, uDSegment,
   uDConnecting, uPDataBrowserDummy, uDExecutingSQL;
-
-// Debug 2016-12-26
-type TMyClipboard = class(TClipBoard)
-end;
 
 const
   nlHost = 0;
@@ -3015,50 +3011,34 @@ end;
 procedure TFSession.aECopyExecute(Sender: TObject);
 var
   ClipboardData: HGLOBAL;
-  Control: TWinControl;
   Data: string;
-  FileName: array [0..MAX_PATH] of Char; // Debug 2016-12-07
   I: Integer;
   ImageIndex: Integer;
-  Msg: string; // Debug 2016-12-07
-  Progress: string;
   S: string;
   StringList: TStringList;
-  Text: array[0..128] of Char; // Debug 2016-12-07
 begin
-  // Debug 2016-12-14
-  if (not OpenClipboard(Handle)) then
-    raise ERangeError.Create(SRangeError)
-  else
-    CloseClipboard();
-  // Debug 2016-12-26
-  if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-    raise ERangeError.Create('OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
+  // Debug 2016-12-29
+  if (OpenClipboard(Handle)) then
+    CloseClipboard()
+  else if (GetLastError() = ERROR_ACCESS_DENIED) then
+    if (OpenClipboard(Handle)) then
+    begin
+      CloseClipboard();
+      SendToDeveloper('Clipboard now opened');
+    end
+    else
+      SendToDeveloper('Clipboard still not openable: ' + SysErrorMessage(GetLastError()));
 
-  Progress := '1';
 
   Data := '';
 
   if (not Assigned(Window.ActiveControl)) then
   begin
-    Progress := Progress + '2';
     MessageBeep(MB_ICONERROR);
-    Progress := Progress + '3';
     Exit;
   end
   else if (Window.ActiveControl = FNavigator) then
   begin
-    Progress := Progress + '4';
-    if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
-      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
-    else
-      CloseClipboard();
-    // Debug 2016-12-26
-    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     if (not Assigned(FNavigatorMenuNode.Parent)) then
       ImageIndex := -1
     else
@@ -3083,31 +3063,9 @@ begin
       if (Data <> '') then
         Data := 'Address=' + NavigatorNodeToAddress(FNavigatorMenuNode.Parent) + #13#10 + Data;
     end;
-    // Debug 2016-12-26
-    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
-    if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
-      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
-    else
-      CloseClipboard();
-    Progress := Progress + '5';
   end
   else if (Window.ActiveControl = ActiveListView) then
   begin
-    Progress := Progress + '6';
-    if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
-      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
-    else
-      CloseClipboard();
-    // Debug 2016-12-26
-    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     ImageIndex := SelectedImageIndex;
     for I := 0 to ActiveListView.Items.Count - 1 do
       if (ActiveListView.Items[I].Selected) then
@@ -3122,8 +3080,7 @@ begin
             begin
               // Debug 2016-11-11
               if (not (TObject(ActiveListView.Items[I].Data) is TSKey)) then
-                raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + SPropertyOutOfRange + ' (' + TObject(ActiveListView.Items[I].Data).ClassName + ')');
+                raise ERangeError.Create(SPropertyOutOfRange + ' (' + TObject(ActiveListView.Items[I].Data).ClassName + ')');
               Data := Data + 'Key='        + TSKey(ActiveListView.Items[I].Data).Name + #13#10;
             end;
           iiField,
@@ -3135,106 +3092,21 @@ begin
         end;
     if (Data <> '') then
       Data := 'Address=' + NavigatorNodeToAddress(FNavigator.Selected) + #13#10 + Data;
-    // Debug 2016-12-26
-    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
-    if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
-      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
-    else
-      CloseClipboard();
-    Progress := Progress + '7';
   end
   else if (Window.ActiveControl = ActiveDBGrid) then
   begin
-    Progress := Progress + '8';
-    // Debug 2016-12-21
-    if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
-      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
-    else
-      CloseClipboard();
-    // Debug 2016-12-26
-    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     ImageIndex := 8;
     if (not Assigned(EditorField)) then
-    begin
-      ActiveDBGrid.CopyToClipboard();
-      // Debug 2016-12-26
-      if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-        raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
-      // Debug 2016-12-21
-      if (not OpenClipboard(Handle)) then
-        raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
-      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
-      else
-        CloseClipboard();
-    end
+      ActiveDBGrid.CopyToClipboard()
     else if (FText.Visible) then
-    begin
-      FText.CopyToClipboard();
-      // Debug 2016-12-26
-      if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-        raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
-      // Debug 2016-12-21
-      if (not OpenClipboard(Handle)) then
-        raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
-      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
-      else
-        CloseClipboard();
-    end
+      FText.CopyToClipboard()
     else if (FRTF.Visible) then
-    begin
-      FRTF.CopyToClipboard();
-      // Debug 2016-12-26
-      if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-        raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
-      // Debug 2016-12-21
-      if (not OpenClipboard(Handle)) then
-        raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
-      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
-      else
-        CloseClipboard();
-    end
+      FRTF.CopyToClipboard()
     else
       MessageBeep(MB_ICONERROR);
-    // Debug 2016-12-26
-    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
-    // Debug 2016-12-21
-    if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
-      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
-    else
-      CloseClipboard();
-    Progress := Progress + '9';
   end
   else if (Window.ActiveControl = ActiveWorkbench) then
   begin
-    Progress := Progress + 'A';
-    if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
-      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
-    else
-      CloseClipboard();
-    // Debug 2016-12-26
-    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     if ((ActiveWorkbench.Selected is TWSection) and OpenClipboard(Handle)) then
     begin
       try
@@ -3267,31 +3139,9 @@ begin
           Data := 'Address=' + NavigatorNodeToAddress(FNavigator.Selected) + #13#10 + Data;
       end;
     end;
-    // Debug 2016-12-26
-    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
-    if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
-      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
-    else
-      CloseClipboard();
-    Progress := Progress + 'B';
   end
   else if (Window.ActiveControl = FSQLHistory) then
   begin
-    Progress := Progress + 'C';
-    if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
-      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
-    else
-      CloseClipboard();
-    // Debug 2016-12-26
-    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     if (Assigned(FSQLHistory.Selected) and OpenClipboard(Handle)) then
     begin
       try
@@ -3306,144 +3156,39 @@ begin
         CloseClipboard();
       end;
     end;
-    // Debug 2016-12-26
-    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
-    if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
-      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
-    else
-      CloseClipboard();
-    Progress := Progress + 'D';
     exit;
   end
   else if (Window.ActiveControl = FHexEditor) then
   begin
-    if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
-      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
-    else
-      CloseClipboard();
-    // Debug 2016-12-26
-    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     FHexEditor.ExecuteAction(MainAction('aECopy'));
-    // Debug 2016-12-26
-    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
-    if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
-      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
-    else
-      CloseClipboard();
-    Progress := Progress + 'E';
     exit;
   end
   else if (Window.ActiveControl = ActiveSynMemo) then
   begin
-    Progress := Progress + 'F';
-    // Debug 2016-12-23
-    if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + SRangeError)
-    else
-      CloseClipboard();
-    // Debug 2016-12-26
-    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
-    try
-      ActiveSynMemo.CopyToClipboard();
-      // Debug 2016-12-26
-      if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-        raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
-    except
-      on E: EClipboardException do
-        begin
-          Msg := E.Message;
-          SetString(S, PChar(@FileName[0]), GetWindowModuleFileName(GetClipboardOwner(), PChar(@FileName[0]), Length(FileName)));
-          Msg := Msg + #10 + 'Filename: ' + S;
-          SetString(S, PChar(@Text[0]), GetWindowText(GetClipboardOwner(), PChar(@Text[0]), Length(Text)));
-          Msg := Msg + #10 + 'WindowText: ' + S;
-          Msg := Msg + #10 + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount);
-          try
-            Control := GetControlByHandle(Window, GetClipboardOwner());
-            if (Assigned(Control)) then
-              Msg := Msg + #10 + 'ClassType: ' + Control.ClassName
-                 + #10 + 'Name: ' + Control.Name;
-          except
-          end;
-          raise Exception.Create('Progress: ' + Progress + #13#10
-      + Msg);
-        end;
-    end;
-    // Debug 2016-12-26
-    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
-    if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
-      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
-    else
-      CloseClipboard();
-    Progress := Progress + 'G';
+    ActiveSynMemo.CopyToClipboard();
     exit;
   end
   else
   begin
-    Progress := Progress + 'H';
-    if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
-      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
-    else
-      CloseClipboard();
-    // Debug 2016-12-26
-    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
     SendMessage(Window.ActiveControl.Handle, WM_COPY, 0, 0);
-    // Debug 2016-12-26
-    if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
-    if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
-      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
-    else
-      CloseClipboard();
-    Progress := Progress + 'I';
     exit;
   end;
 
-  Progress := Progress + 'J';
+  // Debug 2016-12-29
+  if (OpenClipboard(Handle)) then
+    CloseClipboard()
+  else if (GetLastError() = ERROR_ACCESS_DENIED) then
+    if (OpenClipboard(Handle)) then
+    begin
+      CloseClipboard();
+      SendToDeveloper('Clipboard now opened');
+    end
+    else
+      SendToDeveloper('Clipboard still not openable: ' + SysErrorMessage(GetLastError()));
 
-  // Debug 2016-12-26
-  if ((ClipBoard is TMyClipboard) and (TMyClipboard(Clipboard).OpenRefCount > 0)) then
-    raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'OpenRefCount: ' + IntToStr(TMyClipboard(Clipboard).OpenRefCount));
-  // Debug 2016-12-23
-  if (not OpenClipboard(Handle)) then
-    raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
-      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
-  else
-    CloseClipboard();
-
-  Progress := Progress + 'K';
 
   if ((Data <> '') and OpenClipboard(Handle)) then
   begin
-    Progress := Progress + 'L';
     try
       EmptyClipboard();
 
@@ -3478,16 +3223,7 @@ begin
     finally
       CloseClipboard();
     end;
-    Progress := Progress + 'M';
   end;
-
-  // Debug 2016-12-14
-  if (not OpenClipboard(Handle)) then
-    raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'LastError: ' + SysErrorMessage(GetLastError()) + #13#10
-      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
-  else
-    CloseClipboard();
 end;
 
 procedure TFSession.aEFindExecute(Sender: TObject);
@@ -3969,13 +3705,6 @@ begin
     DImport.FNavigator := @FNavigator;
 
     DImport.Execute();
-
-    // Debug 2016-12-12
-    if (not Assigned(FNavigator)) then
-      raise ERangeError.Create('Imported: ' + BoolToStr(Imported, True) + #13#10
-        + 'CodePage: ' + IntToStr(ImportCodePage));
-      // Occurred on 2016-12-21 in aFImportExcelExecute with Imported = True, CodePage = 0
-      // Occurred on 2016-12-21 in aFImportSQLExecute with Imported = True, CodePage = 65001
 
     UpdateAfterAddressChanged();
   end;
@@ -5552,11 +5281,12 @@ end;
 
 procedure TFSession.DataSetAfterOpen(DataSet: TDataSet);
 begin
+  PContentChange(nil);
+
   // Debug 2016-12-29
   if (not Assigned(ActiveDBGrid)) then
     raise ERangeError.Create(SRangeError);
 
-  PContentChange(nil);
   ActiveDBGrid.DataSource.Enabled := False;
   ActiveDBGrid.DataSource.DataSet := DataSet;
   DBGridInitialize(ActiveDBGrid);
@@ -7173,7 +6903,9 @@ begin
   if (Assigned(Result)
     and not (Result.ImageIndex in [iiBaseTable, iiView, iiSystemView])
     and (URI.Param['view'] = 'browser')) then
-    raise ERangeError.Create(SRangeError);
+    raise ERangeError.Create('Address: ' + Address + #13#10
+      + 'ImageIndex: ' + IntToStr(Result.ImageIndex) + #13#10
+      + 'Text: ' + Result.Text);
 
   URI.Free();
 end;
@@ -12310,6 +12042,7 @@ begin
 
     if (View in [vObjects, vObjectSearch]) then ActiveListView := GetActiveListView() else ActiveListView := nil;
     if (View in [vIDE]) then ActiveIDEInputDataSet := GetActiveIDEInputDataSet() else ActiveIDEInputDataSet := nil;
+    if (View in [vBrowser, vIDE, vBuilder, vEditor, vEditor2, vEditor3]) then ActiveSynMemo := GetActiveSynMemo() else ActiveSynMemo := nil;
     if (View in [vBrowser, vIDE, vBuilder, vEditor, vEditor2, vEditor3]) then ActiveDBGrid := GetActiveDBGrid() else ActiveDBGrid := nil;
     if (View in [vDiagram]) then ActiveWorkbench := GetActiveWorkbench() else ActiveWorkbench := nil;
 
@@ -13215,7 +12948,8 @@ begin
 
     // Debug 2016-12-12
     if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
-      raise ERangeError.Create('NewAddress: ' + NewAddress + #13#10 + 'Address: ' + Address);
+      raise ERangeError.Create('NewAddress: ' + NewAddress + #13#10
+        + 'Address: ' + Address);
 
     if ((URI.Param['view'] = 'browser') and (Node.ImageIndex in [iiBaseTable, iiView, iiSystemView])) then
       NewView := vBrowser
@@ -13302,7 +13036,9 @@ begin
 
     // Debug 2016-12-27
     if ((URI.Param['view'] = 'browser') and not (FNavigator.Selected.ImageIndex in [iiBaseTable, iiView, iiSystemView])) then
-      raise ERangeError.Create(SRangeError);
+      raise ERangeError.Create('Address: ' + URI.Address + #13#10
+        + 'ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
+        + 'Text: ' + FNavigator.Selected.Text);
 
     URI.Free();
 
@@ -13440,24 +13176,18 @@ end;
 
 procedure TFSession.StatusBarRefresh(const Immediately: Boolean = False);
 var
-  Control: TControl; // Debug
   Count: Integer; // Debug 2016-12-21
   QueryBuilderWorkArea: TacQueryBuilderWorkArea;
   SelCount: Integer;
 begin
   if (Assigned(StatusBar) and (Immediately or (tsActive in FrameState)) and not (csDestroying in ComponentState) and Assigned(Window)) then
   begin
-    Control := Window.ActiveControl;
     if (not Assigned(Window.ActiveControl)) then
       StatusBar.Panels[sbNavigation].Text := ''
     else if (Window.ActiveControl = ActiveSynMemo) then
       StatusBar.Panels[sbNavigation].Text := IntToStr(ActiveSynMemo.CaretXY.Line) + ':' + IntToStr(ActiveSynMemo.CaretXY.Char)
     else if (Window.ActiveControl = ActiveListView) then
     begin
-      // Debug 2016-12-21
-      if (Control <> Window.ActiveControl) then
-        raise ERangeError.Create('ThreadId: ' + IntToStr(GetCurrentThreadId()));
-
       if (Assigned(ActiveListView.Selected) and (TObject(ActiveListView.Selected.Data) is TSKey)) then
         StatusBar.Panels[sbNavigation].Text := Preferences.LoadStr(377) + ': ' + IntToStr(TSKey(ActiveListView.Selected.Data).Index + 1)
       else if (Assigned(ActiveListView.Selected) and (TObject(ActiveListView.Selected.Data) is TSTableField)) then

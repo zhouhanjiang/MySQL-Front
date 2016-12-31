@@ -2841,9 +2841,11 @@ begin
       if (Table.Fields[I] is TSBaseTableField) then
         TSBaseTableField(Table.Fields[I]).AutoIncrement := False;
 
-  Key[IndexOf(AKey)].Free();
-
   Delete(IndexOf(AKey));
+
+  Session.SendEvent(etItemDropped, Table, Self, AKey);
+
+  AKey.Free();
 end;
 
 function TSKeys.GetKey(Index: Integer): TSKey;
@@ -3306,7 +3308,7 @@ begin
 
   Session.SendEvent(etItemDropped, Table, Self, AField);
 
-  Field[Index].Free();
+  AField.Free();
 end;
 
 function TSTableFields.FieldByName(const FieldName: string): TSTableField;
@@ -3564,13 +3566,12 @@ begin
 end;
 
 procedure TSForeignKeys.Delete(const AForeignKey: TSForeignKey);
-var
-  Index: Integer;
 begin
-  Index := IndexOf(AForeignKey);
+  Delete(IndexOf(AForeignKey));
 
-  ForeignKey[Index].Free();
-  Delete(Index);
+  Session.SendEvent(etItemDropped, Table, Self, AForeignKey);
+
+  AForeignKey.Free();
 end;
 
 function TSForeignKeys.GetForeignKey(Index: Integer): TSForeignKey;
@@ -4548,7 +4549,6 @@ begin
     while (DeleteList.Count > 0) do
     begin
       FFields.Delete(DeleteList.Items[0]);
-      Session.SendEvent(etItemDropped, Self, FFields, DeleteList.Items[0]);
       DeleteList.Delete(0);
     end;
 
@@ -4640,7 +4640,6 @@ begin
     while (DeleteList.Count > 0) do
     begin
       FKeys.Delete(DeleteList.Items[0]);
-      Session.SendEvent(etItemDropped, Self, FKeys, DeleteList.Items[0]);
       DeleteList.Delete(0);
     end;
 
@@ -4738,7 +4737,6 @@ begin
     while (DeleteList.Count > 0) do
     begin
       FForeignKeys.Delete(DeleteList.Items[0]);
-      Session.SendEvent(etItemDropped, Self, FForeignKeys, DeleteList.Items[0]);
       DeleteList.Delete(0);
     end;
     DeleteList.Free();
@@ -6535,7 +6533,9 @@ end;
 
 function TSTrigger.SQLDelete(): string;
 begin
-  Result := InputDataSet.SQLDelete();
+  Result := 'DELETE FROM '
+    + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(TableName)
+    + ' WHERE ' + InputDataSet.SQLWhereClause(True);
 end;
 
 function TSTrigger.SQLGetSource(): string;

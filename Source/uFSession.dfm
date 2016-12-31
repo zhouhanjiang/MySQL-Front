@@ -1182,9 +1182,7 @@ object FSession: TFSession
       AutoSize = True
       ButtonHeight = 20
       ButtonWidth = 68
-      Color = clBtnFace
       List = True
-      ParentColor = False
       PopupMenu = MToolBar
       ShowCaptions = True
       TabOrder = 1
@@ -1264,7 +1262,7 @@ object FSession: TFSession
       end
     end
     object FObjectSearch: TEdit
-      Left = 9469
+      Left = 28076
       Top = 0
       Width = 140
       Height = 22
@@ -1274,10 +1272,9 @@ object FSession: TFSession
       Visible = False
       OnChange = FObjectSearchChange
       OnKeyPress = FObjectSearchKeyPress
-      ExplicitLeft = 2027
     end
     object TBObjectSearch: TToolBar
-      Left = 10605
+      Left = 31312
       Top = 0
       Width = 23
       Height = 22
@@ -1288,7 +1285,6 @@ object FSession: TFSession
       TabOrder = 3
       Transparent = True
       Visible = False
-      ExplicitLeft = 2323
       object FObjectSearchStart: TToolButton
         Left = 0
         Top = 0

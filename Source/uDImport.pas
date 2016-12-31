@@ -198,6 +198,7 @@ implementation {***************************************************************}
 uses
   CommDlg, Dlgs, Math, StrUtils, SysConst,
   SQLUtils, CSVUtils,
+uDeveloper,
   uDLogin, uDODBC;
 
 const
@@ -532,10 +533,11 @@ procedure TDImport.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   // Debug 2016-12-22
   if (not Assigned(FNavigator^)) then
-    raise ERangeError.Create('Progress: ' + Progress);
-  // 2016-12-27 occurred this Progress: 05467123      ("A" was not implemented on this day)
+    raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'ImportType: ' + IntToStr(Ord(ImportType)));
   // 2016-12-28 occurred this Progress: 05467123A
   // 2016-12-29 occurred this Progress: 05467123A
+  // 2016-12-31 occurred this Progress: 05467123A
 
   Progress := Progress + '1';
 
@@ -602,13 +604,15 @@ procedure TDImport.FormHide(Sender: TObject);
 begin
   // Debug 2016-12-22
   if (not Assigned(FNavigator^)) then
-    raise ERangeError.Create('Progress: ' + Progress);
+    raise ERangeError.Create('Progress: ' + Progress + #13#10
+      + 'ImportType: ' + IntToStr(Ord(ImportType)));
   Progress := Progress + '3';
-  // 2016-12-27 occurred this Progress: 051b2
-  // 2016-12-27 occurred this Progress: 051b21b21b21b21b2467
-  // 2016-12-27 occurred this Progress: 051b21b21b21b21b2467
-  // 2016-12-27 occurred this Progress: 051b21b21b21b2
-  // 2016-12-27 occurred this Progress: 051b21b21b2
+  // 2016-12-   occurred this Progress: 051b21b21b21b21b2467
+  // 2016-12-   occurred this Progress: 051b21b21b21b21b2467
+  // 2016-12-   occurred this Progress: 051b21b21b21b2
+  // 2016-12-   occurred this Progress: 051b21b21b2
+  // 2016-12-31 occurred this Progress: 05
+  // 2016-12-31 occurred this Progress: 051b2
 
   Session.UnRegisterEventProc(FormSessionEvent);
 
@@ -1481,6 +1485,10 @@ var
   Infos: TTool.PProgressInfos;
 begin
   Infos := TTool.PProgressInfos(Message.LParam);
+
+  // Debug 2016-12-31
+  if (not Assigned(FNavigator^)) then
+    SendToDeveloper('Import Progress: ' + IntToStr(Infos^.Progress));
 
   if (Infos^.ObjectsSum < 0) then
     FEntieredObjects.Caption := '???'

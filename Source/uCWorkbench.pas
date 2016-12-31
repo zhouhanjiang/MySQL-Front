@@ -2811,16 +2811,7 @@ begin
 
 
   if (Workbench.Focused() and Focused) then
-  begin
-    Canvas.Pen.Color := clHighlight;
-    Canvas.Pen.Mode := pmNotCopy;
-    Canvas.Pen.Style := psDot;
-    Canvas.Brush.Color := clHighlight;
-    Canvas.Brush.Style := bsClear;
-    Canvas.Rectangle(Rect);
-
-    Canvas.Pen.Mode := pmCopy;
-  end;
+    DrawFocusRect(Canvas.Handle, Rect);
 
   Rect := ClientRect;
   OffsetRect(Rect, X, Y);
@@ -3049,6 +3040,7 @@ var
   Rect: TRect;
 begin
   Canvas.Pen.Style := psDot;
+  Canvas.Pen.Width := GetSystemMetrics(SM_CXFOCUSBORDER);
   Canvas.Brush.Style := bsClear;
 
   if (Selected and (ResizeMode = rmNone)) then
@@ -3178,6 +3170,7 @@ constructor TWLasso.Create(const AWorkbench: TWWorkbench; const APosition: TCoor
 begin
   inherited;
 
+  Canvas.Pen.Width := GetSystemMetrics(SM_CXFOCUSBORDER);
   Canvas.Brush.Style := bsClear;
 
   MoveTo(Self, [], APosition);

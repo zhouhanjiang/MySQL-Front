@@ -2879,8 +2879,9 @@ begin
     if (not RecordComplete and not EOF) then
       ReadContent()
     else if (RecordComplete) then
-      Inc(FRecNo)
-    else if ((not EOF or (FileContent.Index <= Length(FileContent.Str))) and (CSVValueCount > 0) and (CSVValueCount <> Length(CSVValues))) then
+      Inc(FRecNo);
+
+    if ((not EOF or (FileContent.Index < Length(FileContent.Str))) and (CSVValueCount > 0) and (CSVValueCount <> Length(CSVValues))) then
     begin
       Error.ErrorType := TE_File;
       Error.ErrorCode := 0;
