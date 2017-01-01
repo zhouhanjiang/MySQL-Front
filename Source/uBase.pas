@@ -183,13 +183,11 @@ procedure DrawCloseBitmap(const Bitmap: Graphics.TBitmap; const Rect: TRect);
 var
   LineWidth: Integer;
 begin
-  Bitmap.Canvas.Pen.Width := Rect.Width div 4;
-
   Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top);
-  Bitmap.Canvas.LineTo(Rect.Right - Bitmap.Canvas.Pen.Width div 2, Rect.Bottom - Bitmap.Canvas.Pen.Width div 2);
+  Bitmap.Canvas.LineTo(Rect.Right, Rect.Bottom);
 
-  Bitmap.Canvas.MoveTo(Rect.Left, Rect.Bottom - Bitmap.Canvas.Pen.Width div 2);
-  Bitmap.Canvas.LineTo(Rect.Right - Bitmap.Canvas.Pen.Width div 2, Rect.Top);
+  Bitmap.Canvas.MoveTo(Rect.Left, Rect.Bottom - 1);
+  Bitmap.Canvas.LineTo(Rect.Right, Rect.Top - 1);
 end;
 
 function EditWordBreakProc(lpch: LPTSTR; ichCurrent: Integer; cch: Integer;

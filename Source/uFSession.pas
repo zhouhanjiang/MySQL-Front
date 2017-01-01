@@ -4719,13 +4719,15 @@ begin
   CloseButtonHot.Bitmap.Height := R.Height;
   CloseButtonHot.Bitmap.Canvas.Brush.Color := clBtnFace;
   CloseButtonHot.Bitmap.Canvas.FillRect(R);
-  DrawEdge(CloseButtonHot.Bitmap.Canvas.Handle, R, BDR_RAISEDINNER, BF_RECT);
   CloseButtonPushed := TPicture.Create();
   CloseButtonPushed.Bitmap.Width := R.Width;
   CloseButtonPushed.Bitmap.Height := R.Height;
   CloseButtonPushed.Bitmap.Canvas.Brush.Color := clBtnFace;
   CloseButtonPushed.Bitmap.Canvas.FillRect(R);
-  DrawEdge(CloseButtonPushed.Bitmap.Canvas.Handle, R, BDR_SUNKENINNER, BF_RECT);
+
+
+  DrawEdge(CloseButtonHot.Bitmap.Canvas.Handle, R, BDR_RAISEDINNER, BF_RECT);
+  DrawEdge(CloseButtonPushed.Bitmap.Canvas.Handle, R, BDR_SUNKENOUTER, BF_RECT);
 
   R.Inflate(- GetSystemMetrics(SM_CXEDGE), - GetSystemMetrics(SM_CYEDGE));
   DrawCloseBitmap(CloseButtonNormal.Bitmap, R);
