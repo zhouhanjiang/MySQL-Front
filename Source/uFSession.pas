@@ -362,6 +362,7 @@ type
     tmEPaste: TMenuItem;
     tmESelectAll: TMenuItem;
     ToolBar: TToolBar;
+    ToolButton1: TToolButton;
     procedure aDCreateDatabaseExecute(Sender: TObject);
     procedure aDCreateEventExecute(Sender: TObject);
     procedure aDCreateExecute(Sender: TObject);
@@ -630,6 +631,7 @@ type
       Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure TreeViewMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
+    procedure ToolButton1Click(Sender: TObject);
   type
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
     TTabState = set of (tsLoading, tsActive);
@@ -13896,6 +13898,11 @@ begin
       Include(Preferences.ToolbarTabs, ttEditor3);
 
   PostMessage(Handle, UM_CHANGEPREFERENCES, 0, 0);
+end;
+
+procedure TFSession.ToolButton1Click(Sender: TObject);
+begin
+raise Exception.Create('Peterle''s Fehlersuche');
 end;
 
 procedure TFSession.ToolButtonStyleClick(Sender: TObject);

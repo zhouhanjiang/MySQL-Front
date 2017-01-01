@@ -54,17 +54,6 @@ uses
   RTLConsts, Variants, ShLwApi, Windows, Classes, StrUtils,
   MySQLConsts;
 
-//  Used parameters:
-//  Param['system']
-//  Param['view']
-//  Param['procedure']
-//  Param['function']
-//  Param['trigger']
-//  Param['event']
-//  Param['filter']
-//  Param['offset']
-//  Param['file']
-
 function PathToURI(const APath: TFileName): string;
 var
   Size: DWord;

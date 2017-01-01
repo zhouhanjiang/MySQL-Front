@@ -124,7 +124,7 @@ begin
     Result := False
   else
   begin
-    URL := 'mysql://' + HostName + ':' + IntToStr(Port);
+    URL := 'mysql://' + HostName + ':' + IntToStr(Port) + '/';
     Result := InternetCrackUrl(PChar(URL), Length(URL), 0, URLComponents);
   end;
 end;

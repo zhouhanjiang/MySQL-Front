@@ -551,7 +551,7 @@ type
       function IndexOf(const Data: TMySQLQuery.TRecordBufferData): Integer; overload;
       property Buffers[Index: Integer]: PInternRecordBuffer read Get write Put; default;
       property DataSet: TMySQLDataSet read FDataSet;
-      property Received: TEvent read FRecordReceived;
+      property RecordReceived: TEvent read FRecordReceived;
     end;
   private
     DeleteBookmarks: array of TBookmark;
@@ -2192,7 +2192,9 @@ begin
             begin
               Connection.SyncExecute(Self);
               Connection.RunExecute(Self);
-            end;
+            end
+            else
+              Connection.SyncAfterExecuteSQL(Self);
         end;
       ssDisconnecting:
         Connection.SyncDisconnected(Self);
@@ -6056,7 +6058,7 @@ begin
   inherited Clear();
   FilteredRecordCount := 0;
   Index := -1;
-  Received.ResetEvent();
+  RecordReceived.ResetEvent();
   CriticalSection.Leave();
 end;
 
@@ -6488,10 +6490,18 @@ begin
           if ((NewIndex + 1 = InternRecordBuffers.Count) and not Filtered
             and ((RecordsReceived.WaitFor(IGNORE) <> wrSignaled) or (Self is TMySQLTable) and TMySQLTable(Self).LimitedDataReceived and TMySQLTable(Self).AutomaticLoadNextRecords and TMySQLTable(Self).LoadNextRecords())
             and Assigned(SyncThread)) then
-            InternRecordBuffers.Received.WaitFor(NET_WAIT_TIMEOUT * 1000);
+            InternRecordBuffers.RecordReceived.WaitFor(NET_WAIT_TIMEOUT * 1000);
 
           if (NewIndex >= InternRecordBuffers.Count - 1) then
-            Result := grEOF
+          begin
+            {$MESSAGE 'Peter'}
+            Connection.SyncThread.AppendLog('GetRecord: EOF' + #13#10
+              + '  NewIndex: ' + IntToStr(NewIndex) + #13#10
+              + '  Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
+              + '  RecordsReceived: ' + BoolToStr(RecordsReceived.WaitFor(IGNORE) = wrSignaled, True) + #13#10
+              + '  InternRecordBuffers.RecordReceived: ' + BoolToStr(InternRecordBuffers.RecordReceived.WaitFor(IGNORE) = wrSignaled, True));
+            Result := grEOF;
+          end
           else
           begin
             Inc(NewIndex);
@@ -6501,7 +6511,7 @@ begin
         end;
 
         if (Result <> grEOF) then
-          InternRecordBuffers.Received.ResetEvent();
+          InternRecordBuffers.RecordReceived.ResetEvent();
       end;
     else // gmCurrent
       if (Filtered) then
@@ -6636,7 +6646,7 @@ begin
     RecordsReceived.SetEvent();
   end;
 
-  InternRecordBuffers.Received.SetEvent();
+  InternRecordBuffers.RecordReceived.SetEvent();
 end;
 
 procedure TMySQLDataSet.InternalAddRecord(Buffer: Pointer; Append: Boolean);
@@ -8512,7 +8522,7 @@ begin
   if (Result) then
   begin
     Connection.SyncBindDataSet(Self);
-    InternRecordBuffers.Received.WaitFor(INFINITE);
+    InternRecordBuffers.RecordReceived.WaitFor(INFINITE);
   end;
 end;
 

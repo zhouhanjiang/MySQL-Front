@@ -1176,12 +1176,11 @@ object FSession: TFSession
     object ToolBar: TToolBar
       Left = 124
       Top = 0
-      Width = 508
-      Height = 20
+      Width = 586
+      Height = 22
       Align = alNone
       AutoSize = True
-      ButtonHeight = 20
-      ButtonWidth = 68
+      ButtonWidth = 71
       List = True
       PopupMenu = MToolBar
       ShowCaptions = True
@@ -1208,7 +1207,7 @@ object FSession: TFSession
         Style = tbsCheck
       end
       object tbIDE: TToolButton
-        Left = 142
+        Left = 144
         Top = 0
         AutoSize = True
         Caption = 'tbIDE'
@@ -1217,7 +1216,7 @@ object FSession: TFSession
         Visible = False
       end
       object tbBuilder: TToolButton
-        Left = 184
+        Left = 185
         Top = 0
         AutoSize = True
         Caption = 'tbBuilder'
@@ -1226,7 +1225,7 @@ object FSession: TFSession
         Style = tbsCheck
       end
       object tbDiagram: TToolButton
-        Left = 248
+        Left = 251
         Top = 0
         AutoSize = True
         Caption = 'tbDiagram'
@@ -1234,7 +1233,7 @@ object FSession: TFSession
         Style = tbsCheck
       end
       object tbEditor: TToolButton
-        Left = 314
+        Left = 321
         Top = 0
         AutoSize = True
         Caption = 'tbEditor'
@@ -1243,7 +1242,7 @@ object FSession: TFSession
         Style = tbsCheck
       end
       object tbEditor2: TToolButton
-        Left = 374
+        Left = 381
         Top = 0
         AutoSize = True
         Caption = 'tbEditor2'
@@ -1252,13 +1251,20 @@ object FSession: TFSession
         Style = tbsCheck
       end
       object tbEditor3: TToolButton
-        Left = 441
+        Left = 448
         Top = 0
         AutoSize = True
         Caption = 'tbEditor3'
         ImageIndex = 5
         PopupMenu = MToolBar
         Style = tbsCheck
+      end
+      object ToolButton1: TToolButton
+        Left = 515
+        Top = 0
+        Caption = 'Peter'
+        ImageIndex = 6
+        OnClick = ToolButton1Click
       end
     end
     object FObjectSearch: TEdit
