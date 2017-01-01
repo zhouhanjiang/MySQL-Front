@@ -75,6 +75,7 @@ const
   IDYESALL = 14;
 
 procedure ConvertError(Sender: TObject; Text: string);
+procedure DrawCloseBitmap(const Bitmap: Graphics.TBitmap; const Rect: TRect);
 function EditWordBreakProc(lpch: LPTSTR; ichCurrent: Integer; cch: Integer;
   code: Integer): Integer; stdcall;
 function FilterDescription(const Ext: string): string;
@@ -176,6 +177,19 @@ begin
     MsgBox(Msg + ' ' + Preferences.LoadStr(657), Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
   else
     raise EConvertError.Create(Msg);
+end;
+
+procedure DrawCloseBitmap(const Bitmap: Graphics.TBitmap; const Rect: TRect);
+var
+  LineWidth: Integer;
+begin
+  Bitmap.Canvas.Pen.Width := Rect.Width div 4;
+
+  Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top);
+  Bitmap.Canvas.LineTo(Rect.Right - Bitmap.Canvas.Pen.Width div 2, Rect.Bottom - Bitmap.Canvas.Pen.Width div 2);
+
+  Bitmap.Canvas.MoveTo(Rect.Left, Rect.Bottom - Bitmap.Canvas.Pen.Width div 2);
+  Bitmap.Canvas.LineTo(Rect.Right - Bitmap.Canvas.Pen.Width div 2, Rect.Top);
 end;
 
 function EditWordBreakProc(lpch: LPTSTR; ichCurrent: Integer; cch: Integer;

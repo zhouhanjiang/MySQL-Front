@@ -204,6 +204,7 @@ type
     Data: Boolean;
     Engine: string;
     Error: Boolean;
+    FNavigator: Pointer; // Debug 2017-01-01
     RowType: TSTableField.TRowType;
     StmtType: TPPreferences.TStmtType;
     Structure: Boolean;
@@ -1890,14 +1891,30 @@ begin
     SetEurekaLogStateInThread(0, True);
   {$ENDIF}
 
+  // Debug 2017-01-01
+  if (not Assigned(FNavigator)) then
+    raise ERangeError.Create(SRangeError);
+
   BeforeExecute();
 
+  // Debug 2017-01-01
+  if (not Assigned(FNavigator)) then
+    raise ERangeError.Create(SRangeError);
+
   Open();
+
+  // Debug 2017-01-01
+  if (not Assigned(FNavigator)) then
+    raise ERangeError.Create(SRangeError);
 
   for I := 0 to Items.Count - 1 do
     if (Success <> daAbort) then
     begin
       Success := daSuccess;
+
+  // Debug 2017-01-01
+  if (not Assigned(FNavigator)) then
+    raise ERangeError.Create(SRangeError);
 
       if (Structure) then
       begin
@@ -1912,6 +1929,10 @@ begin
           ExecuteTableStructure(TTImport.TItem(Items[I]));
         end;
       end;
+
+  // Debug 2017-01-01
+  if (not Assigned(FNavigator)) then
+    raise ERangeError.Create(SRangeError);
 
       if ((Success = daSuccess) and Data) then
       begin
@@ -1928,7 +1949,15 @@ begin
       if (Success = daFail) then Success := daSuccess;
     end;
 
+  // Debug 2017-01-01
+  if (not Assigned(FNavigator)) then
+    raise ERangeError.Create(SRangeError);
+
   AfterExecute();
+
+  // Debug 2017-01-01
+  if (not Assigned(FNavigator)) then
+    raise ERangeError.Create(SRangeError);
 
   {$IFDEF EurekaLog}
   except

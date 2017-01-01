@@ -1055,6 +1055,7 @@ begin
     Import.OnTerminate := OnTerminate;
     Import.OnUpdate := OnUpdate;
     Imported := True;
+    Import.FNavigator := FNavigator;
     Import.Start();
   end;
 
@@ -1488,7 +1489,7 @@ begin
 
   // Debug 2016-12-31
   if (not Assigned(FNavigator^)) then
-    SendToDeveloper('Import Progress: ' + IntToStr(Infos^.Progress));
+    raise ERangeError.Create('Progress: ' + IntToStr(Infos^.Progress));
 
   if (Infos^.ObjectsSum < 0) then
     FEntieredObjects.Caption := '???'

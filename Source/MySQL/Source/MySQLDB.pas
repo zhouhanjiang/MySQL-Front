@@ -4956,16 +4956,18 @@ begin
         try
           Msg := Msg + Field.DataSet.Fields[I].FieldName + ': ';
           WhereClause := WhereClause + TMySQLQuery(Field.DataSet).Connection.EscapeIdentifier(Field.DataSet.Fields[I].FieldName);
+          Msg := Msg + '_1_';
         except
           Msg := Msg + '???: ';
-          WhereClause := '???';
+          WhereClause := WhereClause + '???';
+          Msg := Msg + '_2_';
         end;
         try
           Msg := Msg + Field.DataSet.Fields[I].AsString + #10;
-          WhereClause := WhereClause + TMySQLQuery(Field.DataSet).SQLFieldValue(Field);
+          WhereClause := WhereClause + '=' + TMySQLQuery(Field.DataSet).SQLFieldValue(Field);
         except
           Msg := Msg + '???' + #10;
-          WhereClause := '???';
+          WhereClause := WhereClause + '=???';
         end;
       end;
 
@@ -5893,10 +5895,10 @@ function TMySQLQuery.SetActiveEvent(const ErrorCode: Integer; const ErrorMessage
 begin
   Assert(not Assigned(SyncThread));
 
-  // Debug 2016-12-29
+  // Debug 2017-01-01
   if (DataHandle <> Connection.SyncThread) then
     raise ERangeError.Create('DataHandle ID: ' + IntToStr(DataHandle.ThreadID) + #13#10
-      + 'SyncThread ID: ' + IntToStr(SyncThread.ThreadID));
+      + 'Connection.SyncThread ID: ' + IntToStr(Connection.SyncThread.ThreadID));
 
   Assert(DataHandle = Connection.SyncThread);
 

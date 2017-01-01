@@ -1,9 +1,6 @@
 ﻿program MySQLFront;
 
 uses
-  {$IFDEF Debug}
-  FastMM4,
-  {$ENDIF}
   {$IFDEF EurekaLog}
   EMemLeaks,
   EResLeaks,
@@ -12,6 +9,10 @@ uses
   EMapWin32,
   EAppVCL,
   ExceptionLog7,
+  {$ELSE}
+  {$IFDEF Debug}
+  FastMM4,
+  {$ENDIF}
   {$ENDIF}
   Windows,
   ShellAPI,
@@ -108,19 +109,9 @@ begin
   begin
     Application.Initialize();
     Application.Title := LoadStr(1000);
-    {$IFDEF Debug}
-      if (Application.Title = '') then
-        Application.Title := Copy(ExtractFileName(Application.ExeName), 1, Length(ExtractFileName(Application.ExeName)) - Length(ExtractFileExt(Application.ExeName)));
-    {$ENDIF}
-    Application.Icon.Handle := LoadImage(hInstance, 'MAINICON', IMAGE_ICON, Application.Icon.Height, Application.Icon.Height, LR_DEFAULTCOLOR);
-    {$IFDEF Debug}
-      if (Application.Icon.Handle = 0) then
-        Application.Icon.Handle := LoadImage(hInstance, PChar('..\Images\MySQLFront.ico'), IMAGE_ICON, Application.Icon.Height, Application.Icon.Height, LR_DEFAULTCOLOR + LR_LOADFROMFILE);
-    {$ENDIF}
     Application.CreateForm(TWWindow, WWindow);
     Application.CreateForm(TPDataBrowserDummy, PDataBrowserDummy);
     Application.MainForm.Perform(UM_CHANGEPREFERENCES, 0, 0);
-    GetClassName(Application.MainForm.Handle, PChar(SetupProgram), 100);
     Application.Run();
     if (Application.Handle <> 0) then
       ShowOwnedPopups(Application.Handle, False);

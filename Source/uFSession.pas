@@ -632,6 +632,8 @@ type
     procedure TreeViewMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure ToolButton1Click(Sender: TObject);
+    procedure PHeaderMouseMove(Sender: TObject; Shift: TShiftState; X,
+      Y: Integer);
   type
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
     TTabState = set of (tsLoading, tsActive);
@@ -827,6 +829,9 @@ type
     ActiveWorkbench: TWWorkbench;
     aDRunExecuteSelStart: Integer;
     BMPImage: TBitmap;
+    CloseButtonHot: TPicture;
+    CloseButtonNormal: TPicture;
+    CloseButtonPushed: TPicture;
     FAddress: string;
     FFiles: TJamShellList;
     FFolders: TJamShellTree;
@@ -4415,6 +4420,7 @@ constructor TFSession.Create(const AOwner: TComponent; const AParent: TWinContro
 var
   Kind: TPAccount.TDesktop.TListViewKind;
   NonClientMetrics: TNonClientMetrics;
+  R: TRect;
 begin
   inherited Create(AOwner);
 
@@ -4698,6 +4704,34 @@ begin
 
   FilterMRU := TPPreferences.TMRUList.Create(100);
 
+
+  R.Left := 0;
+  R.Top := 0;
+  R.Width := GetSystemMetrics(SM_CXSMSIZE) div 2 + 4 * GetSystemMetrics(SM_CXEDGE);
+  R.Height := GetSystemMetrics(SM_CXSMSIZE) div 2 + 4 * GetSystemMetrics(SM_CYEDGE);
+  CloseButtonNormal := TPicture.Create();
+  CloseButtonNormal.Bitmap.Width := R.Width;
+  CloseButtonNormal.Bitmap.Height := R.Height;
+  CloseButtonNormal.Bitmap.Canvas.Brush.Color := clBtnFace;
+  CloseButtonNormal.Bitmap.Canvas.FillRect(R);
+  CloseButtonHot := TPicture.Create();
+  CloseButtonHot.Bitmap.Width := R.Width;
+  CloseButtonHot.Bitmap.Height := R.Height;
+  CloseButtonHot.Bitmap.Canvas.Brush.Color := clBtnFace;
+  CloseButtonHot.Bitmap.Canvas.FillRect(R);
+  DrawEdge(CloseButtonHot.Bitmap.Canvas.Handle, R, BDR_RAISEDINNER, BF_RECT);
+  CloseButtonPushed := TPicture.Create();
+  CloseButtonPushed.Bitmap.Width := R.Width;
+  CloseButtonPushed.Bitmap.Height := R.Height;
+  CloseButtonPushed.Bitmap.Canvas.Brush.Color := clBtnFace;
+  CloseButtonPushed.Bitmap.Canvas.FillRect(R);
+  DrawEdge(CloseButtonPushed.Bitmap.Canvas.Handle, R, BDR_SUNKENINNER, BF_RECT);
+
+  R.Inflate(- GetSystemMetrics(SM_CXEDGE), - GetSystemMetrics(SM_CYEDGE));
+  DrawCloseBitmap(CloseButtonNormal.Bitmap, R);
+  DrawCloseBitmap(CloseButtonHot.Bitmap, R);
+  R.Offset(GetSystemMetrics(SM_CXEDGE) div 2, GetSystemMetrics(SM_CYEDGE) div 2);
+  DrawCloseBitmap(CloseButtonPushed.Bitmap, R);
 
   FOffset.Constraints.MaxWidth := FOffset.Width;
 
@@ -5287,7 +5321,11 @@ begin
 
   // Debug 2016-12-29
   if (not Assigned(ActiveDBGrid)) then
-    raise ERangeError.Create(SRangeError);
+    raise ERangeError.Create('Address: ' + Address + #13#10
+      + 'View: ' + IntToStr(Ord(View)) + #13#10
+      + 'ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
+      + 'Text: ' + FNavigator.Selected.Text + #13#10
+      + 'ClassType: ' + TObject(FNavigator.Selected.Data).ClassName);
 
   ActiveDBGrid.DataSource.Enabled := False;
   ActiveDBGrid.DataSource.DataSet := DataSet;
@@ -6143,6 +6181,10 @@ begin
   end;
 
   FLog.Lines.Clear();
+
+  FreeAndNil(CloseButtonNormal);
+  FreeAndNil(CloseButtonHot);
+  FreeAndNil(CloseButtonPushed);
 
   FreeAndNil(FilterMRU);
   FreeAndNil(Wanted);
@@ -7514,6 +7556,10 @@ end;
 
 procedure TFSession.FormSessionEvent(const Event: TSSession.TEvent);
 begin
+  // Debug 2017-01-01
+  if (not Assigned(FNavigator)) then
+    raise ERangeError.Create(SRangeError);
+
   if (not (csDestroying in ComponentState)) then
     case (Event.EventType) of
       etItemsValid,
@@ -7531,6 +7577,10 @@ begin
       etError:
         Wanted.Clear();
     end;
+
+  // Debug 2017-01-01
+  if (not Assigned(FNavigator)) then
+    raise ERangeError.Create(SRangeError);
 end;
 
 procedure TFSession.FormResize(Sender: TObject);
@@ -11496,10 +11546,10 @@ end;
 procedure TFSession.PanelMouseDown(Sender: TObject;
   Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
-  if (Button = mbLeft) then
+  if ((Button = mbLeft) and (Sender is TPanel)) then
   begin
     PanelMouseDownPoint := Point(X, Y);
-    PanelMouseMove(Sender, Shift, X, Y);
+    TPanel(Sender).OnMouseMove(Sender, Shift, X, Y);
   end;
 end;
 
@@ -11518,30 +11568,26 @@ begin
     Rect.Right := Rect.Left + GetSystemMetrics(SM_CXSMSIZE) + 2;
     Rect.Bottom := Rect.Top + GetSystemMetrics(SM_CXSMSIZE) + 2;
 
-    if (StyleServices.Enabled) then
+    if (PtInRect(Rect, Point(X, Y))) then
     begin
-      if (PtInRect(Rect, Point(X, Y))) then
-        if (PanelMouseDownPoint.X < 0) then
+      SetCapture(Panel.Handle);
+
+      if (ssLeft in Shift) then
+        if (StyleServices.Enabled) then
+          StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonPushed), Rect)
+        else
+          TPanel_Ext(Sender).Canvas.Draw(Rect.Left, Rect.Top, CloseButtonPushed.Bitmap)
+      else
+        if (StyleServices.Enabled) then
           StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonHot), Rect)
         else
-          StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonPushed), Rect)
-      else if (ReleaseCapture()) then
-        StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonNormal), Rect);
+          TPanel_Ext(Sender).Canvas.Draw(Rect.Left, Rect.Top, CloseButtonHot.Bitmap)
     end
-    else
-    begin
-      if (PtInRect(Rect, Point(X, Y))) then
-      begin
-        SetCapture(Panel.Handle);
-
-        if (not PtInRect(Rect, PanelMouseDownPoint)) then
-          DrawFrameControl(TPanel_Ext(Sender).Canvas.Handle, Rect, DFC_CAPTION, DFCS_CAPTIONCLOSE or DFCS_HOT)
-        else
-          DrawFrameControl(TPanel_Ext(Sender).Canvas.Handle, Rect, DFC_CAPTION, DFCS_CAPTIONCLOSE or DFCS_PUSHED)
-      end
-      else if (ReleaseCapture()) then
-        DrawFrameControl(TPanel_Ext(Sender).Canvas.Handle, Rect, DFC_CAPTION, DFCS_CAPTIONCLOSE or DFCS_FLAT);
-    end
+    else if (ReleaseCapture()) then
+      if (StyleServices.Enabled) then
+        StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonNormal), Rect)
+      else
+        TPanel_Ext(Sender).Canvas.Draw(Rect.Left, Rect.Top, CloseButtonNormal.Bitmap);
   end;
 end;
 
@@ -11594,10 +11640,7 @@ begin
   Rect.Right := Rect.Left + GetSystemMetrics(SM_CXSMSIZE) + 2;
   Rect.Bottom := Rect.Top + GetSystemMetrics(SM_CXSMSIZE) + 2;
 
-  if (StyleServices.Enabled) then
-    StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonNormal), Rect)
-  else if (Sender is TPanel_Ext) then
-    DrawFrameControl(TPanel_Ext(Sender).Canvas.Handle, Rect, DFC_CAPTION, DFCS_CAPTIONCLOSE or DFCS_FLAT);
+  TPanel_Ext(Sender).Canvas.Draw(Rect.Left, Rect.Top, CloseButtonNormal.Bitmap)
 end;
 
 procedure TFSession.PanelResize(Sender: TObject);
@@ -12283,16 +12326,67 @@ begin
   {$ENDIF}
 end;
 
-procedure TFSession.PHeaderPaint(Sender: TObject);
+procedure TFSession.PHeaderMouseMove(Sender: TObject; Shift: TShiftState; X,
+  Y: Integer);
+var
+  Panel: TPanel_Ext;
+  Rect: TRect;
 begin
+  if (Sender is TPanel_Ext) then
+  begin
+    Panel := TPanel_Ext(Sender);
+
+    Rect.Left := Panel.Width - GetSystemMetrics(SM_CXSMSIZE) - GetSystemMetrics(SM_CXSIZEFRAME) - 1;
+    Rect.Top := GetSystemMetrics(SM_CYEDGE) - 1;
+    Rect.Right := Rect.Left + GetSystemMetrics(SM_CXSMSIZE) + GetSystemMetrics(SM_CXEDGE);
+    Rect.Bottom := Rect.Top + GetSystemMetrics(SM_CXSMSIZE) + GetSystemMetrics(SM_CXEDGE);
+
+    if (PtInRect(Rect, Point(X, Y))) then
+    begin
+      SetCapture(Panel.Handle);
+
+      if (ssLeft in Shift) then
+        if (StyleServices.Enabled) then
+          StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonPushed), Rect)
+        else
+          DrawFrameControl(TPanel_Ext(Sender).Canvas.Handle, Rect, DFC_CAPTION, DFCS_CAPTIONCLOSE or DFCS_PUSHED)
+      else
+        if (StyleServices.Enabled) then
+          StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonHot), Rect)
+        else
+          DrawFrameControl(TPanel_Ext(Sender).Canvas.Handle, Rect, DFC_CAPTION, DFCS_CAPTIONCLOSE or DFCS_HOT)
+    end
+    else if (ReleaseCapture()) then
+      if (StyleServices.Enabled) then
+        StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonNormal), Rect)
+      else
+        DrawFrameControl(TPanel_Ext(Sender).Canvas.Handle, Rect, DFC_CAPTION, DFCS_CAPTIONCLOSE);
+  end;
+end;
+
+procedure TFSession.PHeaderPaint(Sender: TObject);
+var
+  Panel: TPanel_Ext;
+  Rect: TRect;
+begin
+  Panel := TPanel_Ext(Sender);
+
+  Rect.Left := Panel.Width - GetSystemMetrics(SM_CXSMSIZE) - GetSystemMetrics(SM_CXSIZEFRAME) - 1;
+  Rect.Top := GetSystemMetrics(SM_CYEDGE) - 1;
+  Rect.Right := Rect.Left + GetSystemMetrics(SM_CXSMSIZE) + GetSystemMetrics(SM_CXEDGE);
+  Rect.Bottom := Rect.Top + GetSystemMetrics(SM_CXSMSIZE) + GetSystemMetrics(SM_CXEDGE);
+
+  if (StyleServices.Enabled) then
+    StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonNormal), Rect)
+  else if (Sender is TPanel_Ext) then
+    DrawFrameControl(TPanel_Ext(Sender).Canvas.Handle, Rect, DFC_CAPTION, DFCS_CAPTIONCLOSE);
+
   if (StyleServices.Enabled) then
   begin
     PHeader.Canvas.Pen.Color := SplitColor;
     PHeader.Canvas.MoveTo(0, PHeader.ClientHeight - 1);
     PHeader.Canvas.LineTo(PHeader.ClientWidth, PHeader.ClientHeight - 1);
   end;
-
-  PanelPaint(Sender);
 end;
 
 procedure TFSession.PHeaderResize(Sender: TObject);
@@ -13811,6 +13905,15 @@ begin
     Table.DataSet.AfterRefresh := Desktop(Table).DataSetAfterRefresh;
     if (Table is TSView) then
       Table.DataSet.BeforeOpen := Desktop(TSView(Table)).DataSetBeforeOpen;
+
+    // Debug 2017-01-01
+    if (not (TObject(Table) is TSTable)) then
+      try
+        raise ERangeError.Create('ClassType: ' + TObject(Table).ClassName);
+      except
+        raise ERangeError.Create(SRangeError);
+      end;
+
     Table.Open(FilterSQL, QuickSearch, SortDef, Offset, Limit);
   end
   else

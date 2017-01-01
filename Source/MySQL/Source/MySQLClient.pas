@@ -293,7 +293,8 @@ const
 implementation {***************************************************************}
 
 uses
-  ZLib, StrUtils, SysConst, AnsiStrings;
+  ZLib, StrUtils, SysConst, AnsiStrings,
+  SQLUtils; // Debug 2017-01-01
 
 const
   AF_INET6 = 23;
@@ -2694,8 +2695,13 @@ begin
   begin
     if (state_type = SESSION_TRACK_SYSTEM_VARIABLES) then
     begin
-      Inc(StateInfo.Index, ReadMem(PAnsiChar(@StateInfo.Data[StateInfo.Index]), System.Length(StateInfo.Data) - (StateInfo.Index - 1), Len));
-      data := PAnsiChar(@StateInfo.Data[StateInfo.Index]);
+      // Debug 2017-01-01
+      try
+        Inc(StateInfo.Index, ReadMem(PAnsiChar(@StateInfo.Data[StateInfo.Index]), System.Length(StateInfo.Data) - (StateInfo.Index - 1), Len));
+        data := PAnsiChar(@StateInfo.Data[StateInfo.Index]);
+      except
+        raise ERangeError.Create(SQLEscapeBin(PAnsiChar(StateInfo.Data), System.Length(StateInfo.Data), True));
+      end;
       length := Len;
       Inc(StateInfo.Index, Len);
       StateInfo.VariablenValue := False;
