@@ -6924,7 +6924,7 @@ type
     function ParseSavepointStmt(): TOffset;
     function ParseSchedule(): TOffset;
     function ParseSecretIdent(): TOffset;
-    function ParseSelectStmt(const SubSelect: Boolean): TOffset; overload;
+    function ParseSelectStmt(const SubSelect: Boolean; const UnionSelect: Boolean = False): TOffset; overload;
     function ParseSelectStmtColumn(): TOffset;
     function ParseSelectStmtGroup(): TOffset;
     function ParseSelectStmtOrderBy(): TOffset;
@@ -21893,7 +21893,7 @@ begin
   Result := TSecretIdent.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseSelectStmt(const SubSelect: Boolean): TOffset;
+function TSQLParser.ParseSelectStmt(const SubSelect: Boolean; const UnionSelect: Boolean = False): TOffset;
 
   function ParseInto(): TSelectStmt.TIntoNodes;
   var
@@ -22100,7 +22100,7 @@ begin
             Nodes.Having.Expr := ParseExpr();
         end;
 
-      if (not ErrorFound) then
+      if (not ErrorFound and not UnionSelect) then
         if (IsTag(kiORDER, kiBY, kiNULL)) then
           Nodes.OrderBy.Tag := ParseTag(kiORDER, kiBY, kiNULL)
         else if (IsTag(kiORDER, kiBY)) then
@@ -22176,17 +22176,18 @@ begin
 
     if (not ErrorFound and (Nodes.Union1.Tag > 0)) then
     begin
-      Nodes.Union1.SelectStmt := ParseSelectStmt(False);
+      Nodes.Union1.SelectStmt := ParseSelectStmt(False, True);
 
-      if (IsTag(kiORDER, kiBY, kiNULL)) then
-        Nodes.Union1.OrderBy.Tag := ParseTag(kiORDER, kiBY, kiNULL)
-      else if (IsTag(kiORDER, kiBY)) then
-      begin
-        Nodes.Union1.OrderBy.Tag := ParseTag(kiORDER, kiBY);
+      if (not UnionSelect) then
+        if (IsTag(kiORDER, kiBY, kiNULL)) then
+          Nodes.Union1.OrderBy.Tag := ParseTag(kiORDER, kiBY, kiNULL)
+        else if (IsTag(kiORDER, kiBY)) then
+        begin
+          Nodes.Union1.OrderBy.Tag := ParseTag(kiORDER, kiBY);
 
-        if (not ErrorFound) then
-          Nodes.Union1.OrderBy.List := ParseList(False, ParseSelectStmtOrderBy);
-      end;
+          if (not ErrorFound) then
+            Nodes.Union1.OrderBy.List := ParseList(False, ParseSelectStmtOrderBy);
+        end;
 
       if (not ErrorFound) then
         if (IsTag(kiLIMIT)) then
@@ -22233,16 +22234,19 @@ begin
 
       if (not ErrorFound and (Nodes.Union2.Tag > 0)) then
       begin
-        Nodes.Union2.SelectStmt := ParseSelectStmt(False);
+        Nodes.Union2.SelectStmt := ParseSelectStmt(False, True);
 
-        if (IsTag(kiORDER, kiBY, kiNULL)) then
-          Nodes.Union2.OrderBy.Tag := ParseTag(kiORDER, kiBY, kiNULL)
-        else if (IsTag(kiORDER, kiBY)) then
+        if (not UnionSelect) then
         begin
-          Nodes.Union2.OrderBy.Tag := ParseTag(kiORDER, kiBY);
+          if (IsTag(kiORDER, kiBY, kiNULL)) then
+            Nodes.Union2.OrderBy.Tag := ParseTag(kiORDER, kiBY, kiNULL)
+          else if (IsTag(kiORDER, kiBY)) then
+          begin
+            Nodes.Union2.OrderBy.Tag := ParseTag(kiORDER, kiBY);
 
-          if (not ErrorFound) then
-            Nodes.Union2.OrderBy.List := ParseList(False, ParseSelectStmtOrderBy);
+            if (not ErrorFound) then
+              Nodes.Union2.OrderBy.List := ParseList(False, ParseSelectStmtOrderBy);
+          end;
         end;
 
         if (not ErrorFound) then

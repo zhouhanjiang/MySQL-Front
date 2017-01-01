@@ -6468,6 +6468,9 @@ end;
 function TMySQLDataSet.GetRecord(Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult;
 var
   NewIndex: Integer;
+  OldNewIndex: Integer;
+  OldCount: Integer;
+  Waited: Boolean;
 begin
   NewIndex := InternRecordBuffers.Index;
   case (GetMode) of
@@ -6489,17 +6492,30 @@ begin
         Result := grError;
         while (Result = grError) do
         begin
+          OldNewIndex := NewIndex;
+          OldCount := InternRecordBuffers.Count;
+          InternRecordBuffers.RecordReceived.ResetEvent();
           if ((NewIndex + 1 = InternRecordBuffers.Count) and not Filtered
             and ((RecordsReceived.WaitFor(IGNORE) <> wrSignaled) or (Self is TMySQLTable) and TMySQLTable(Self).LimitedDataReceived and TMySQLTable(Self).AutomaticLoadNextRecords and TMySQLTable(Self).LoadNextRecords())
             and Assigned(SyncThread)) then
+          begin
+            Waited := True;
+            Connection.SyncThread.AppendLog('GetRecord: Wait for record');
             InternRecordBuffers.RecordReceived.WaitFor(NET_WAIT_TIMEOUT * 1000);
+          end
+          else
+            Waited := False;
 
           if (NewIndex >= InternRecordBuffers.Count - 1) then
           begin
             {$MESSAGE 'Peter'}
             Connection.SyncThread.AppendLog('GetRecord: EOF' + #13#10
+              + '  OldNewIndex: ' + IntToStr(OldNewIndex) + #13#10
+              + '  OldCount: ' + IntToStr(OldCount) + #13#10
+              + '  Waited: ' + BoolToStr(Waited, True) + #13#10
               + '  NewIndex: ' + IntToStr(NewIndex) + #13#10
               + '  Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
+              + '  Filtered: ' + BoolToStr(Filtered, True) + #13#10
               + '  RecordsReceived: ' + BoolToStr(RecordsReceived.WaitFor(IGNORE) = wrSignaled, True) + #13#10
               + '  InternRecordBuffers.RecordReceived: ' + BoolToStr(InternRecordBuffers.RecordReceived.WaitFor(IGNORE) = wrSignaled, True));
             Result := grEOF;
@@ -6645,9 +6661,11 @@ begin
       TMySQLTable(Self).FLimitedDataReceived :=
         Result and (Connection.Lib.mysql_num_rows(SyncThread.ResHandle) = TMySQLTable(Self).RequestedRecordCount);
 
+    SyncThread.AppendLog('InternAddRecord: All Records received');
     RecordsReceived.SetEvent();
   end;
 
+  SyncThread.AppendLog('InternAddRecord: Record received');
   InternRecordBuffers.RecordReceived.SetEvent();
 end;
 
@@ -7116,7 +7134,7 @@ begin
       end;
 
       // Debug 2016-12-27
-      if (InternRecordBuffers.Index >= InternRecordBuffers.Count) then
+      if ((InternRecordBuffers.Index < 0) or (InternRecordBuffers.Count <= InternRecordBuffers.Index)) then
         raise ERangeError.Create('Index: ' + IntToStr(InternRecordBuffers.Index) + #13#10
           + 'Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
           + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)));
@@ -7144,14 +7162,9 @@ begin
       DataSet.Open(DataHandle);
       if (DataSet.IsEmpty) then
       begin
+        // Inserted / updated record is not in external filtered rows -> remove it!
         InternalSetToRecord(ActiveBuffer());
-try
         FreeInternRecordBuffer(InternRecordBuffers[InternRecordBuffers.Index]);
-except
-  raise ERangeError.Create('Index: ' + IntToStr(InternRecordBuffers.Index) + #13#10
-    + 'Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
-    + 'ActiveBuffer Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index));
-end;
         InternRecordBuffers.Delete(InternRecordBuffers.Index);
         for I := ActiveRecord + 1 to BufferCount - 1 do
           Dec(PExternRecordBuffer(Buffers[I])^.Index);
@@ -7174,6 +7187,7 @@ end;
               RecordMatch := RecordMatch and (DataSet.Fields[I].Value = Fields[I].Value);
           if (not RecordMatch) then
           begin
+            // Inserted / updated record not in external filtered rows -> removed it
             InternalSetToRecord(ActiveBuffer());
             FreeInternRecordBuffer(InternRecordBuffers[InternRecordBuffers.Index]);
             InternRecordBuffers.Delete(InternRecordBuffers.Index);
@@ -7183,66 +7197,35 @@ end;
               Dec(InternRecordBuffers.FilteredRecordCount);
           end
           else
+          begin
+            // Inserted / updated record matched -> update data of the record
             for I := 0 to DataSet.FieldCount - 1 do
               if (not (pfInWhere in Fields[I].ProviderFlags)
                 and (DataSet.Fields[I].Value <> Fields[I].Value)) then
                 SetFieldData(Fields[I], DataSet.LibRow^[I], DataSet.LibLengths[I]);
+          end;
         end;
 
-        if (not RecordMatch or DataSet.FindNext()) then
+        if (RecordMatch) then
+          DataSet.FindNext();
+
+        if (not DataSet.Eof) then
         begin
           RecordBufferData.Identifier123456 := 123546;
           RecordBufferData.LibLengths := DataSet.LibLengths;
           RecordBufferData.LibRow := DataSet.LibRow;
 
           Index := InternRecordBuffers.IndexOf(RecordBufferData);
-
           if (Index < 0) then
-          begin
-            InternalSetToRecord(ActiveBuffer());
-try
-            FreeInternRecordBuffer(InternRecordBuffers[InternRecordBuffers.Index]);
-except
-  on E: Exception do
-    raise ERangeError.Create('ActiveBuffer.Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
-      + 'New Index: ' + IntToStr(Index) + #13#10
-      + 'Index: ' + IntToStr(InternRecordBuffers.Index) + #13#10
-      + 'Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
-      + E.Message);
-end;
-            InternRecordBuffers.Delete(InternRecordBuffers.Index);
-            for I := ActiveRecord + 1 to BufferCount - 1 do
-              Dec(PExternRecordBuffer(Buffers[I])^.Index);
-            if (Filtered) then
-              Dec(InternRecordBuffers.FilteredRecordCount);
-          end
-          else if (Index <> PExternRecordBuffer(ActiveBuffer())^.Index) then
-          begin
-            if (Index > PExternRecordBuffer(ActiveBuffer())^.Index) then
-              Dec(Index);
-try
-            InternRecordBuffers.Move(PExternRecordBuffer(ActiveBuffer())^.Index, Index);
-except
-  raise ERangeError.Create('ActiveBuffer Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
-    + 'New Index: ' + IntToStr(Index) + #13#10
-    + 'Count: ' + IntToStr(InternRecordBuffers.Count));
-end;
-            PExternRecordBuffer(ActiveBuffer())^.Index := Index;
-
-            ClearBuffers();
-
-            if (Index >= 0) then
-            begin
-              SetLength(Bookmark, BookmarkSize);
-              PPointer(@Bookmark[0])^ := InternRecordBuffers[Index];
-              InternalGotoBookmark(Bookmark);
-              SetLength(Bookmark, 0);
-            end;
-          end;
+            Index := InternRecordBuffers.Count - 1
+          else if (Index > PExternRecordBuffer(ActiveBuffer())^.Index) then
+            Dec(Index);
         end
-        else if (RecordMatch) then
-        begin
+        else
           Index := InternRecordBuffers.Count - 1;
+
+        if (Index <> PExternRecordBuffer(ActiveBuffer())^.Index) then
+        begin
           InternRecordBuffers.Move(PExternRecordBuffer(ActiveBuffer())^.Index, Index);
           PExternRecordBuffer(ActiveBuffer())^.Index := Index;
 
@@ -7551,8 +7534,8 @@ begin
       ftWideString,
       ftWideMemo:
         begin
-          SetLength(RBS, WideCharToAnsiChar(Connection.CodePage, PChar((@Buffer[0])), StrLen(PChar((@Buffer[0]))), nil, 0));
-          WideCharToAnsiChar(Connection.CodePage, PChar((@Buffer[0])), StrLen(PChar((@Buffer[0]))), PAnsiChar(RBS), Length(RBS));
+          SetLength(RBS, WideCharToAnsiChar(Connection.CodePage, PChar((@Buffer[0])), Length(Buffer) div SizeOf(Char), nil, 0));
+          WideCharToAnsiChar(Connection.CodePage, PChar((@Buffer[0])), Length(Buffer) div SizeOf(Char), PAnsiChar(RBS), Length(RBS));
         end;
       else raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%d)', [Field.Name, Integer(Field.DataType)]);
     end;

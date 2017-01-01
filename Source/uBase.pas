@@ -180,14 +180,68 @@ begin
 end;
 
 procedure DrawCloseBitmap(const Bitmap: Graphics.TBitmap; const Rect: TRect);
-var
-  LineWidth: Integer;
 begin
-  Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top);
-  Bitmap.Canvas.LineTo(Rect.Right, Rect.Bottom);
+  if (Rect.Width < 10) then
+  begin
+    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top); Bitmap.Canvas.LineTo(Rect.Right, Rect.Bottom);
+  end
+  else if (Rect.Width < 15) then
+  begin
+    Bitmap.Canvas.MoveTo(Rect.Left + 1, Rect.Top); Bitmap.Canvas.LineTo(Rect.Right, Rect.Bottom - 1);
+    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top); Bitmap.Canvas.LineTo(Rect.Right - 1, Rect.Bottom - 1);
+  end
+  else if (Rect.Width < 20) then
+  begin
+    Bitmap.Canvas.MoveTo(Rect.Left + 1, Rect.Top); Bitmap.Canvas.LineTo(Rect.Right, Rect.Bottom - 1);
+    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top); Bitmap.Canvas.LineTo(Rect.Right, Rect.Bottom);
+    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top + 1); Bitmap.Canvas.LineTo(Rect.Right - 1, Rect.Bottom);
+  end
+  else if (Rect.Width < 25) then
+  begin
+    Bitmap.Canvas.MoveTo(Rect.Left + 2, Rect.Top); Bitmap.Canvas.LineTo(Rect.Right, Rect.Bottom - 2);
+    Bitmap.Canvas.MoveTo(Rect.Left + 1, Rect.Top); Bitmap.Canvas.LineTo(Rect.Right, Rect.Bottom - 1);
+    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top); Bitmap.Canvas.LineTo(Rect.Right, Rect.Bottom);
+    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top + 1); Bitmap.Canvas.LineTo(Rect.Right - 2, Rect.Bottom - 1);
+  end
+  else
+  begin
+    Bitmap.Canvas.MoveTo(Rect.Left + 2, Rect.Top); Bitmap.Canvas.LineTo(Rect.Right, Rect.Bottom - 2);
+    Bitmap.Canvas.MoveTo(Rect.Left + 1, Rect.Top); Bitmap.Canvas.LineTo(Rect.Right, Rect.Bottom - 1);
+    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top); Bitmap.Canvas.LineTo(Rect.Right, Rect.Bottom);
+    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top + 1); Bitmap.Canvas.LineTo(Rect.Right - 1, Rect.Bottom);
+    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top + 2); Bitmap.Canvas.LineTo(Rect.Right - 2, Rect.Bottom);
+  end;
 
-  Bitmap.Canvas.MoveTo(Rect.Left, Rect.Bottom - 1);
-  Bitmap.Canvas.LineTo(Rect.Right, Rect.Top - 1);
+  if (Rect.Width < 10) then
+  begin
+    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Bottom - 1); Bitmap.Canvas.LineTo(Rect.Right, Rect.Top - 1);
+  end
+  else if (Rect.Width < 15) then
+  begin
+    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Bottom - 2); Bitmap.Canvas.LineTo(Rect.Right - 1, Rect.Top - 1);
+    Bitmap.Canvas.MoveTo(Rect.Left + 1, Rect.Bottom - 2); Bitmap.Canvas.LineTo(Rect.Right, Rect.Top - 1);
+  end
+  else if (Rect.Width < 20) then
+  begin
+    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Bottom - 2); Bitmap.Canvas.LineTo(Rect.Right - 1, Rect.Top - 1);
+    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Bottom - 1); Bitmap.Canvas.LineTo(Rect.Right, Rect.Top - 1);
+    Bitmap.Canvas.MoveTo(Rect.Left + 1, Rect.Bottom - 1); Bitmap.Canvas.LineTo(Rect.Right, Rect.Top);
+  end
+  else if (Rect.Width < 25) then
+  begin
+    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Bottom - 3); Bitmap.Canvas.LineTo(Rect.Right - 2, Rect.Top - 1);
+    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Bottom - 2); Bitmap.Canvas.LineTo(Rect.Right - 1, Rect.Top - 1);
+    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Bottom - 1); Bitmap.Canvas.LineTo(Rect.Right, Rect.Top - 1);
+    Bitmap.Canvas.MoveTo(Rect.Left + 1, Rect.Bottom - 2); Bitmap.Canvas.LineTo(Rect.Right, Rect.Top - 1);
+  end
+  else
+  begin
+    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Bottom - 3); Bitmap.Canvas.LineTo(Rect.Right - 2, Rect.Top - 1);
+    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Bottom - 2); Bitmap.Canvas.LineTo(Rect.Right - 1, Rect.Top - 1);
+    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Bottom - 1); Bitmap.Canvas.LineTo(Rect.Right, Rect.Top - 1);
+    Bitmap.Canvas.MoveTo(Rect.Left + 1, Rect.Bottom - 1); Bitmap.Canvas.LineTo(Rect.Right, Rect.Top);
+    Bitmap.Canvas.MoveTo(Rect.Left + 2, Rect.Bottom - 1); Bitmap.Canvas.LineTo(Rect.Right, Rect.Top + 1);
+  end;
 end;
 
 function EditWordBreakProc(lpch: LPTSTR; ichCurrent: Integer; cch: Integer;

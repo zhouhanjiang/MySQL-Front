@@ -112,9 +112,10 @@ type
     procedure Delete(const AEntity: TSEntity); overload; virtual;
     function GetValid(): Boolean; virtual;
     function SQLGetItems(const Name: string = ''): string; virtual; abstract;
+  protected
   public
     procedure Clear(); override;
-    constructor Create(const ASession: TSSession); reintroduce;
+    constructor Create(const ASession: TSSession);
     procedure Invalidate(); virtual;
     procedure PushBuildEvent(const Sender: TObject); virtual;
     function Update(): Boolean; virtual;
@@ -977,8 +978,9 @@ type
     property Event[Index: Integer]: TSEvent read GetEvent; default;
   end;
 
-  TSColumns = class(TSDBObjects)
+  TSColumns = class(TSObjects)
   private
+    FDatabase: TSDatabase;
     Names: array of array [0 .. NAME_CHAR_LEN] of Char;
     function GetColumn(Index: Integer): PChar;
   protected
@@ -986,7 +988,9 @@ type
       Filtered: Boolean = False; const ObjectSearch: TSObjectSearch = nil): Boolean; override;
     function GetCount(): Integer; override;
     function SQLGetItems(const Name: string = ''): string; override;
+    property Database: TSDatabase read FDatabase;
   public
+    constructor Create(const ASession: TSSession; const ADatabase: TSDatabase);
     procedure Invalidate(); override;
     property Count: Integer read GetCount;
     property Column[Index: Integer]: PChar read GetColumn; default;
@@ -1962,7 +1966,7 @@ end;
 
 constructor TSEntities.Create(const ASession: TSSession);
 begin
-  inherited;
+  inherited Create(ASession);
 
   FValid := False;
 end;
@@ -7011,6 +7015,13 @@ begin
   Result := inherited;
 end;
 
+constructor TSColumns.Create(const ASession: TSSession; const ADatabase: TSDatabase);
+begin
+  inherited Create(ASession);
+
+  FDatabase := ADatabase;
+end;
+
 function TSColumns.GetColumn(Index: Integer): PChar;
 begin
   Result := PChar(@Names[Index][0]);
@@ -7330,7 +7341,8 @@ begin
   FCollation := '';
   FCharset := '';
 
-  if ((Session.Connection.MySQLVersion < 50000)                              ) then FColumns := nil else FColumns := TSColumns.Create(Self);
+
+  if ((Session.Connection.MySQLVersion < 50000)                              ) then FColumns := nil else begin FColumns := TSColumns.Create(Session, Self); end;
   if ((Session.Connection.MySQLVersion < 50004) or (Self is TSSystemDatabase)) then FRoutines := nil else FRoutines := TSRoutines.Create(Self);
   FTables := TSTables.Create(Self);
   if ((Session.Connection.MySQLVersion < 50010) or (Self is TSSystemDatabase)) then FTriggers := nil else FTriggers := TSTriggers.Create(Self);
@@ -10612,7 +10624,8 @@ begin
         and SQLParseValue(Parse, INFORMATION_SCHEMA)
         and SQLParseChar(Parse, '.')) then
       begin
-        if (SQLParseValue(Parse, 'EVENTS')) then
+        if (SQLParseValue(Parse, 'COLUMNS')) then
+        else if (SQLParseValue(Parse, 'EVENTS')) then
           Session.BuildEvents(DataSet, True, Self)
         else if (SQLParseValue(Parse, 'ROUTINES')) then
           Session.BuildRoutines(DataSet, True, Self)
@@ -10640,30 +10653,67 @@ begin
   SQL := '';
   if (Location is TSDatabase) then
   begin
-    SQL := SQL + 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('TABLES') + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(TSDatabase(Location).Name) + ' AND ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%') + ';' + #13#10;
+    SQL := SQL + 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('TABLES')
+      + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(TSDatabase(Location).Name) + ' AND (' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%')
+        + ' OR ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ' IN (SELECT ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ' FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('COLUMNS') + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(TSDatabase(Location).Name) + ' AND ' + Session.Connection.EscapeIdentifier('COLUMN_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%') + '))'
+      + ' ORDER BY ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ',' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + ';' + #13#10;
     if (Assigned(TSDatabase(Location).Routines)) then
-      SQL := SQL + 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('ROUTINES') + ' WHERE ' + Session.Connection.EscapeIdentifier('ROUTINE_SCHEMA') + '=' + SQLEscape(TSDatabase(Location).Name) + ' AND ' + Session.Connection.EscapeIdentifier('ROUTINE_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%') + ';' + #13#10;
+      SQL := SQL + 'SELECT *'
+        + ' FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('ROUTINES')
+        + ' WHERE ' + Session.Connection.EscapeIdentifier('ROUTINE_SCHEMA') + '=' + SQLEscape(TSDatabase(Location).Name) + ' AND ' + Session.Connection.EscapeIdentifier('ROUTINE_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%')
+        + ' ORDER BY ' + Session.Connection.EscapeIdentifier('ROUTINE_NAME') + ';' + #13#10;
     if (Assigned(TSDatabase(Location).Triggers)) then
-      SQL := SQL + 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('TRIGGERS') + ' WHERE ' + Session.Connection.EscapeIdentifier('TRIGGER_SCHEMA') + '=' + SQLEscape(TSDatabase(Location).Name) + ' AND ' + Session.Connection.EscapeIdentifier('TRIGGER_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%') + ';' + #13#10;
+      SQL := SQL + 'SELECT *'
+        + ' FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('TRIGGERS')
+        + ' WHERE ' + Session.Connection.EscapeIdentifier('TRIGGER_SCHEMA') + '=' + SQLEscape(TSDatabase(Location).Name) + ' AND ' + Session.Connection.EscapeIdentifier('TRIGGER_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%')
+        + ' ORDER BY ' + Session.Connection.EscapeIdentifier('TRIGGER_NAME') + ';' + #13#10;
     if (Assigned(TSDatabase(Location).Events)) then
-      SQL := SQL + 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('EVENTS') + ' WHERE ' + Session.Connection.EscapeIdentifier('EVENT_SCHEMA') + '=' + SQLEscape(TSDatabase(Location).Name) + ' AND ' + Session.Connection.EscapeIdentifier('EVENT_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%') + ';' + #13#10;
-    SQL := SQL + 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('COLUMNS') + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(TSDatabase(Location).Name) + ' AND ' + Session.Connection.EscapeIdentifier('COLUMN_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%') + ';' + #13#10;
+      SQL := SQL + 'SELECT *'
+        + ' FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('EVENTS')
+        + ' WHERE ' + Session.Connection.EscapeIdentifier('EVENT_SCHEMA') + '=' + SQLEscape(TSDatabase(Location).Name) + ' AND ' + Session.Connection.EscapeIdentifier('EVENT_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%')
+        + ' ORDER BY ' + Session.Connection.EscapeIdentifier('EVENT_NAME') + ';' + #13#10;
+    SQL := SQL + 'SELECT *'
+      + ' FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('COLUMNS')
+      + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(TSDatabase(Location).Name) + ' AND ' + Session.Connection.EscapeIdentifier('COLUMN_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%')
+      + ' ORDER BY ' + Session.Connection.EscapeIdentifier('COLUMN_NAME') + ',' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ';' + #13#10;
   end
   else if (Location is TSTable) then
-    SQL := SQL + 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('COLUMNS') + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(TSDatabase(Location).Name) + ' AND ' + Session.Connection.EscapeIdentifier('COLUMN_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%') + ';' + #13#10
+    SQL := SQL + 'SELECT *'
+      + ' FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('COLUMNS')
+      + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(TSDatabase(Location).Name) + ' AND ' + Session.Connection.EscapeIdentifier('COLUMN_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%') + ';' + #13#10
+      + ' ORDER BY ' + Session.Connection.EscapeIdentifier('COLUMN_NAME') + ';' + #13#10
   else if (Location is TSUsers) then
     SQL := SQL + 'SELECT ' + Session.Connection.EscapeIdentifier('GRANTEE') + ' FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('USER_PRIVILEGES') + ' WHERE ' + Session.Connection.EscapeIdentifier('GRANTEE') + ' LIKE ' + SQLEscape('%' + ObjectName + '%') + ' GROUP BY ' + Session.Connection.EscapeIdentifier('GRANTEE') + ';' + #13#10
   else // whole session
   begin
-    SQL := SQL + 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('SCHEMATA') + ' WHERE ' + Session.Connection.EscapeIdentifier('SCHEMA_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%') + ';' + #13#10;
-    SQL := SQL + 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('TABLES') + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%') + ';' + #13#10;
+    SQL := SQL + 'SELECT *'
+      + ' FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('SCHEMATA')
+      + ' WHERE ' + Session.Connection.EscapeIdentifier('SCHEMA_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%')
+      + ' ORDER BY ' + Session.Connection.EscapeIdentifier('SCHEMA_NAME') + ';' + #13#10;
+    SQL := SQL + 'SELECT *'
+      + ' FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('TABLES')
+      + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%')
+        + ' OR (' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + ', ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ') IN (SELECT ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + ', ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ' FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('COLUMNS') + ' WHERE ' + Session.Connection.EscapeIdentifier('COLUMN_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%') + ')'
+      + ' ORDER BY ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ',' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + ';' + #13#10;
     if (Session.Connection.MySQLVersion >= 50004) then
-      SQL := SQL + 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('ROUTINES') + ' WHERE ' + Session.Connection.EscapeIdentifier('ROUTINE_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%') + ';' + #13#10;
+      SQL := SQL + 'SELECT *'
+        + ' FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('ROUTINES')
+        + ' WHERE ' + Session.Connection.EscapeIdentifier('ROUTINE_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%')
+        + ' ORDER BY ' + Session.Connection.EscapeIdentifier('ROUTINE_NAME') + ',' + Session.Connection.EscapeIdentifier('ROUTINE_SCHEMA') + ';' + #13#10;
     if (Session.Connection.MySQLVersion >= 50010) then
-      SQL := SQL + 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('TRIGGERS') + ' WHERE ' + Session.Connection.EscapeIdentifier('TRIGGER_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%') + ';' + #13#10;
+      SQL := SQL + 'SELECT *'
+        + ' FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('TRIGGERS')
+        + ' WHERE ' + Session.Connection.EscapeIdentifier('TRIGGER_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%')
+        + ' ORDER BY ' + Session.Connection.EscapeIdentifier('TRIGGER_NAME') + ',' + Session.Connection.EscapeIdentifier('TRIGGER_SCHEMA') + ';' + #13#10;
     if (Session.Connection.MySQLVersion >= 50106) then
-      SQL := SQL + 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('EVENTS') + ' WHERE ' + Session.Connection.EscapeIdentifier('EVENT_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%') + ';' + #13#10;
-    SQL := SQL + 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('COLUMNS') + ' WHERE ' + Session.Connection.EscapeIdentifier('COLUMN_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%') + ';' + #13#10;
+      SQL := SQL + 'SELECT *'
+        + ' FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('EVENTS')
+        + ' WHERE ' + Session.Connection.EscapeIdentifier('EVENT_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%')
+        + ' ORDER BY ' + Session.Connection.EscapeIdentifier('EVENT_NAME') + ',' + Session.Connection.EscapeIdentifier('EVENT_SCHEMA') + ';' + #13#10;
+    SQL := SQL + 'SELECT *'
+      + ' FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('COLUMNS')
+      + ' WHERE ' + Session.Connection.EscapeIdentifier('COLUMN_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%')
+      + ' ORDER BY ' + Session.Connection.EscapeIdentifier('COLUMN_NAME') + ',' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ',' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + ';' + #13#10;
   end;
 
   Session.SendSQL(SQL, SearchResult);

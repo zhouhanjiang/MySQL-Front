@@ -2867,6 +2867,10 @@ begin
   if (Assigned(XMLNode(XML, 'objects/variables/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/variables/widths/name').Text, ColumnWidths[lkVariables][0])) then ColumnWidths[lkVariables][0] := Round(ColumnWidths[lkVariables][0] * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'objects/variables/widths/value')) and TryStrToInt(XMLNode(XML, 'objects/variables/widths/value').Text, ColumnWidths[lkVariables][1])) then ColumnWidths[lkVariables][1] := Round(ColumnWidths[lkVariables][1] * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'objects/objectsearch/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/objectsearch/widths/name').Text, ColumnWidths[lkObjectSearch][0])) then ColumnWidths[lkObjectSearch][0] := Round(ColumnWidths[lkObjectSearch][0] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/objectsearch/widths/type')) and TryStrToInt(XMLNode(XML, 'objects/objectsearch/widths/type').Text, ColumnWidths[lkObjectSearch][1])) then ColumnWidths[lkObjectSearch][1] := Round(ColumnWidths[lkObjectSearch][1] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/objectsearch/widths/location')) and TryStrToInt(XMLNode(XML, 'objects/objectsearch/widths/location').Text, ColumnWidths[lkObjectSearch][2])) then ColumnWidths[lkObjectSearch][2] := Round(ColumnWidths[lkObjectSearch][2] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/objectsearch/widths/date')) and TryStrToInt(XMLNode(XML, 'objects/objectsearch/widths/date').Text, ColumnWidths[lkObjectSearch][3])) then ColumnWidths[lkObjectSearch][3] := Round(ColumnWidths[lkObjectSearch][3] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/objectsearch/widths/comment')) and TryStrToInt(XMLNode(XML, 'objects/objectsearch/widths/comment').Text, ColumnWidths[lkObjectSearch][4])) then ColumnWidths[lkObjectSearch][4] := Round(ColumnWidths[lkObjectSearch][4] * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'path'))) then FPath := XMLNode(XML, 'path').Text;
   if (Assigned(XMLNode(XML, 'sidebar/explorer/folders/height')) and TryStrToInt(XMLNode(XML, 'sidebar/explorer/folders/height').Text, FoldersHeight)) then FoldersHeight := Round(FoldersHeight * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'sidebar/explorer/files/filter'))) then FilesFilter := XMLNode(XML, 'sidebar/explorer/files/filter').Text;
@@ -2935,6 +2939,10 @@ begin
   XMLNode(XML, 'objects/variables/widths/name').Text := IntToStr(ColumnWidths[lkVariables][0]);
   XMLNode(XML, 'objects/variables/widths/value').Text := IntToStr(ColumnWidths[lkVariables][1]);
   XMLNode(XML, 'objects/objectsearch/widths/name').Text := IntToStr(ColumnWidths[lkObjectSearch][0]);
+  XMLNode(XML, 'objects/objectsearch/widths/type').Text := IntToStr(ColumnWidths[lkObjectSearch][1]);
+  XMLNode(XML, 'objects/objectsearch/widths/location').Text := IntToStr(ColumnWidths[lkObjectSearch][2]);
+  XMLNode(XML, 'objects/objectsearch/widths/date').Text := IntToStr(ColumnWidths[lkObjectSearch][3]);
+  XMLNode(XML, 'objects/objectsearch/widths/comment').Text := IntToStr(ColumnWidths[lkObjectSearch][4]);
   XMLNode(XML, 'path').Text := FPath;
   XMLNode(XML, 'sidebar/explorer/folders/height').Text := IntToStr(FoldersHeight);
   XMLNode(XML, 'sidebar/explorer/files/filter').Text := FilesFilter;
