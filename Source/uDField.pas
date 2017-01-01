@@ -733,6 +733,16 @@ begin
       NewTable.Assign(Table);
     end;
 
+    if (TableDebug <> Table) then
+      raise ERangeError.Create(SRangeError);
+    // Debug 2016-12-20
+    if (not (Table is TSBaseTable)) then
+      try
+        raise ERangeError.Create('ClassType: ' + Table.ClassName);
+      except
+        raise ERangeError.Create(SRangeError);
+      end;
+
     if (IsIntType() or (GetType() = mfTimestamp)) then
       for I := 1 to Length(FDefault.Text) do
         if (not CharInSet(FDefault.Text[I], ['0'..'9', FormatSettings.DecimalSeparator]) and (FDefault.Text[I] = '-') and FFlagUnsigned.Checked) then

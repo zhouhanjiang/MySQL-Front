@@ -6470,6 +6470,7 @@ var
   NewIndex: Integer;
   OldNewIndex: Integer;
   OldCount: Integer;
+  S: string;
   Waited: Boolean;
 begin
   NewIndex := InternRecordBuffers.Index;
@@ -6494,7 +6495,6 @@ begin
         begin
           OldNewIndex := NewIndex;
           OldCount := InternRecordBuffers.Count;
-          InternRecordBuffers.RecordReceived.ResetEvent();
           if ((NewIndex + 1 = InternRecordBuffers.Count) and not Filtered
             and ((RecordsReceived.WaitFor(IGNORE) <> wrSignaled) or (Self is TMySQLTable) and TMySQLTable(Self).LimitedDataReceived and TMySQLTable(Self).AutomaticLoadNextRecords and TMySQLTable(Self).LoadNextRecords())
             and Assigned(SyncThread)) then
@@ -6509,6 +6509,12 @@ begin
           if (NewIndex >= InternRecordBuffers.Count - 1) then
           begin
             {$MESSAGE 'Peter'}
+            if (not (Self is TMySQLTable)) then
+              S := ''
+            else
+              S := '  LimitedDataReceived: ' + BoolToStr(TMySQLTable(Self).LimitedDataReceived, True) + #13#10
+                + '  AutomaticLoadNextRecords: ' + BoolToStr(TMySQLTable(Self).AutomaticLoadNextRecords, True) + #13#10;
+
             Connection.SyncThread.AppendLog('GetRecord: EOF' + #13#10
               + '  OldNewIndex: ' + IntToStr(OldNewIndex) + #13#10
               + '  OldCount: ' + IntToStr(OldCount) + #13#10
@@ -6516,6 +6522,7 @@ begin
               + '  NewIndex: ' + IntToStr(NewIndex) + #13#10
               + '  Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
               + '  Filtered: ' + BoolToStr(Filtered, True) + #13#10
+              + S
               + '  RecordsReceived: ' + BoolToStr(RecordsReceived.WaitFor(IGNORE) = wrSignaled, True) + #13#10
               + '  InternRecordBuffers.RecordReceived: ' + BoolToStr(InternRecordBuffers.RecordReceived.WaitFor(IGNORE) = wrSignaled, True));
             Result := grEOF;
@@ -6661,11 +6668,10 @@ begin
       TMySQLTable(Self).FLimitedDataReceived :=
         Result and (Connection.Lib.mysql_num_rows(SyncThread.ResHandle) = TMySQLTable(Self).RequestedRecordCount);
 
-    SyncThread.AppendLog('InternAddRecord: All Records received');
+    SyncThread.AppendLog('InternAddRecord: All records received');
     RecordsReceived.SetEvent();
   end;
 
-  SyncThread.AppendLog('InternAddRecord: Record received');
   InternRecordBuffers.RecordReceived.SetEvent();
 end;
 

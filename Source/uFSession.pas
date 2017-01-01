@@ -8661,10 +8661,14 @@ end;
 
 function TFSession.GetWindow(): TForm_Ext;
 begin
-  if (not (Owner is TForm_Ext)) then
-    raise Exception.Create('Owner not set')
+  if (Owner is TForm_Ext) then
+    Result := TForm_Ext(Owner)
   else
-    Result := TForm_Ext(Owner);
+    try
+      raise ERangeError.Create(TObject(Owner).ClassName);
+    except
+      raise ERangeError.Create('Owner not set')
+    end;
 end;
 
 procedure TFSession.ghmCopyClick(Sender: TObject);

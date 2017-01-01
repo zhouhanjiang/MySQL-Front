@@ -1444,6 +1444,7 @@ type
   TSObjectSearch = class(TSItems)
   private
     FSession: TSSession;
+    procedure AddColumns(const DataSet: TMySQLQuery);
   public
     Location: TObject;
     ObjectName: string;
@@ -10585,6 +10586,21 @@ begin
   Result := inherited;
 end;
 
+{ TSObjectSearch **************************************************************}
+
+procedure TSObjectSearch.AddColumns(const DataSet: TMySQLQuery);
+var
+  Database: TSDatabase;
+  Table: TSTable;
+begin
+  if (not DataSet.IsEmpty) then
+    repeat
+      Database := Session.DatabaseByName(DataSet.FieldByName('TABLE_SCHEMA').AsString);
+      Table := Database.TableByName(DataSet.FieldByName('TABLE_NAME').AsString);
+      Add(Table.FieldByName(DataSet.FieldByName('COLUMN_NAME').AsString));
+    until (not DataSet.FindNext());
+end;
+
 procedure TSObjectSearch.Clear();
 begin
   while (Count > 0) do
@@ -10625,6 +10641,7 @@ begin
         and SQLParseChar(Parse, '.')) then
       begin
         if (SQLParseValue(Parse, 'COLUMNS')) then
+          AddColumns(DataSet)
         else if (SQLParseValue(Parse, 'EVENTS')) then
           Session.BuildEvents(DataSet, True, Self)
         else if (SQLParseValue(Parse, 'ROUTINES')) then
