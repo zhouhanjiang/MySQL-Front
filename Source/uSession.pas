@@ -10697,7 +10697,7 @@ begin
   else if (Location is TSTable) then
     SQL := SQL + 'SELECT *'
       + ' FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('COLUMNS')
-      + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(TSDatabase(Location).Name) + ' AND ' + Session.Connection.EscapeIdentifier('COLUMN_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%') + ';' + #13#10
+      + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(TSTable(Location).Database.Name) + ' AND ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + '=' + SQLEscape(TSTable(Location).Name) + ' AND ' + Session.Connection.EscapeIdentifier('COLUMN_NAME') + ' LIKE ' + SQLEscape('%' + ObjectName + '%')
       + ' ORDER BY ' + Session.Connection.EscapeIdentifier('COLUMN_NAME') + ';' + #13#10
   else if (Location is TSUsers) then
     SQL := SQL + 'SELECT ' + Session.Connection.EscapeIdentifier('GRANTEE') + ' FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('USER_PRIVILEGES') + ' WHERE ' + Session.Connection.EscapeIdentifier('GRANTEE') + ' LIKE ' + SQLEscape('%' + ObjectName + '%') + ' GROUP BY ' + Session.Connection.EscapeIdentifier('GRANTEE') + ';' + #13#10

@@ -8814,6 +8814,8 @@ begin
     Result := iiForeignKey
   else if (TObject(Data) is TSTrigger) then
     Result := iiTrigger
+  else if (TObject(Data) is TSUser) then
+    Result := iiUser
   else if (TObject(Data) is TSProcesses) then
     Result := iiProcesses
   else if (TObject(Data) is TSUsers) then
@@ -10238,9 +10240,9 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
         Item := ListView.Items.Add();
         if (Event.Items[I] is TSViewField) then
           Item.SubItems.Add(TSViewField(Event.Items[I]).DBTypeStr())
-        else if (TSBaseTableField(Event.Items[I]).FieldKind = mkVirtual) then
+        else if (TSBaseTableField(Event.Items[I]).FieldKind = mkReal) then
           Item.SubItems.Add(SQLUnescape(TSBaseTableField(Event.Items[I]).DBTypeStr()))
-        else if (TSBaseTableField(Event.Items[I]).FieldKind = mkVirtual) then
+        else // mkVirtual
           Item.SubItems.Add(TSBaseTableField(Data).Expression);
         Item.SubItems.Add(TSTableField(Event.Items[I]).Table.Database.Name + '.' + TSTableField(Event.Items[I]).Table.Name);
         Item.SubItems.Add('');
@@ -12401,7 +12403,7 @@ begin
   FObjectSearch.Visible := (Session.Connection.MySQLVersion >= 50002)
     and (View in [vObjects, vObjectSearch])
     and (FObjectSearch.Left > Toolbar.Left + Toolbar.Width + GetSystemMetrics(SM_CXFIXEDFRAME))
-    and Assigned(FNavigator.Selected) and (FNavigator.Selected.ImageIndex in [iiServer, iiDatabase, iiTable, iiView, iiUsers]);
+    and Assigned(FNavigator.Selected) and (FNavigator.Selected.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiUsers]);
   TBObjectSearch.Visible := FObjectSearch.Visible;
   {$ENDIF}
 end;
@@ -13063,8 +13065,6 @@ begin
   end
   else if (URI.Param['view'] = 'objectsearch') then
   begin
-    URI.Database := LastSelectedDatabase;
-    URI.Table := '';
     URI.Param['objecttype'] := Null;
     URI.Param['object'] := Null;
     URI.Param['system'] := Null;

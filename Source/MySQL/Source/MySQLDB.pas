@@ -6471,6 +6471,7 @@ var
   OldNewIndex: Integer;
   OldCount: Integer;
   S: string;
+  Wait: Boolean;
   Waited: Boolean;
 begin
   NewIndex := InternRecordBuffers.Index;
@@ -6495,9 +6496,12 @@ begin
         begin
           OldNewIndex := NewIndex;
           OldCount := InternRecordBuffers.Count;
-          if ((NewIndex + 1 = InternRecordBuffers.Count) and not Filtered
+          InternRecordBuffers.CriticalSection.Enter();
+          Wait := (NewIndex + 1 = InternRecordBuffers.Count) and not Filtered
             and ((RecordsReceived.WaitFor(IGNORE) <> wrSignaled) or (Self is TMySQLTable) and TMySQLTable(Self).LimitedDataReceived and TMySQLTable(Self).AutomaticLoadNextRecords and TMySQLTable(Self).LoadNextRecords())
-            and Assigned(SyncThread)) then
+            and Assigned(SyncThread);
+          InternRecordBuffers.CriticalSection.Leave();
+          if (Wait) then
           begin
             Waited := True;
             Connection.SyncThread.AppendLog('GetRecord: Wait for record');
