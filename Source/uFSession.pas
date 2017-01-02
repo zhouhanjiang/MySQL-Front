@@ -4745,8 +4745,8 @@ begin
 
   R.Left := 0;
   R.Top := 0;
-  R.Width := GetSystemMetrics(SM_CXSMSIZE);
-  R.Height := GetSystemMetrics(SM_CXSMSIZE);
+  R.Width := Min(GetSystemMetrics(SM_CXSMSIZE), GetSystemMetrics(SM_CYSMSIZE));
+  R.Height := R.Width;
   CloseButtonNormal := TPicture.Create();
   CloseButtonNormal.Bitmap.Width := R.Width;
   CloseButtonNormal.Bitmap.Height := R.Height;
@@ -4850,9 +4850,9 @@ begin
   SQueryBuilderSynMemo.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
   SResult.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
   SBlob.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
-  PResultHeader.Width := GetSystemMetrics(SM_CXSMSIZE) + 2 * GetSystemMetrics(SM_CXEDGE);
+  PResultHeader.Width := Min(GetSystemMetrics(SM_CXSMSIZE), GetSystemMetrics(SM_CYSMSIZE)) + 2 * GetSystemMetrics(SM_CXEDGE);
   SLog.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
-  PLogHeader.Width := GetSystemMetrics(SM_CXSMSIZE) + 2 * GetSystemMetrics(SM_CXEDGE);
+  PLogHeader.Width := Min(GetSystemMetrics(SM_CXSMSIZE), GetSystemMetrics(SM_CYSMSIZE)) + 2 * GetSystemMetrics(SM_CXEDGE);
 
   FormResize(nil);
 
@@ -10643,6 +10643,7 @@ begin
       end;
     end;
 
+    mlOpen.Default := mlOpen.Enabled;
     mlEProperties.Default := Assigned(Item) and not mlOpen.Default and mlEProperties.Enabled;
     mlEProperties.Caption := Preferences.LoadStr(97) + '...';
     mlEProperties.ShortCut := ShortCut(VK_RETURN, [ssAlt]);
@@ -11553,10 +11554,10 @@ begin
   begin
     Panel := TPanel_Ext(Sender);
 
-    Rect.Left := Panel.Width - GetSystemMetrics(SM_CXSMSIZE) - GetSystemMetrics(SM_CXEDGE) - 1;
+    Rect.Left := Panel.Width - Min(GetSystemMetrics(SM_CXSMSIZE), GetSystemMetrics(SM_CYSMSIZE)) - GetSystemMetrics(SM_CXEDGE) - 1;
     Rect.Top := GetSystemMetrics(SM_CYEDGE) - 1;
-    Rect.Right := Rect.Left + GetSystemMetrics(SM_CXSMSIZE) + 2;
-    Rect.Bottom := Rect.Top + GetSystemMetrics(SM_CXSMSIZE) + 2;
+    Rect.Right := Rect.Left + Min(GetSystemMetrics(SM_CXSMSIZE), GetSystemMetrics(SM_CYSMSIZE)) + 2;
+    Rect.Bottom := Rect.Top + Min(GetSystemMetrics(SM_CXSMSIZE), GetSystemMetrics(SM_CYSMSIZE)) + 2;
 
     if (PtInRect(Rect, Point(X, Y))) then
     begin
@@ -11591,10 +11592,10 @@ begin
   begin
     Panel := TPanel_Ext(Sender);
 
-    Rect.Left := Panel.Width - GetSystemMetrics(SM_CXSMSIZE) - GetSystemMetrics(SM_CXEDGE) - 1;
+    Rect.Left := Panel.Width - Min(GetSystemMetrics(SM_CXSMSIZE), GetSystemMetrics(SM_CYSMSIZE)) - GetSystemMetrics(SM_CXEDGE) - 1;
     Rect.Top := GetSystemMetrics(SM_CYEDGE) - 1;
-    Rect.Right := Rect.Left + GetSystemMetrics(SM_CXSMSIZE) + 2;
-    Rect.Bottom := Rect.Top + GetSystemMetrics(SM_CXSMSIZE) + 2;
+    Rect.Right := Rect.Left + Min(GetSystemMetrics(SM_CXSMSIZE), GetSystemMetrics(SM_CYSMSIZE)) + 2;
+    Rect.Bottom := Rect.Top + Min(GetSystemMetrics(SM_CXSMSIZE), GetSystemMetrics(SM_CYSMSIZE)) + 2;
 
     if (PtInRect(Rect, Point(X, Y)) and PtInRect(Rect, PanelMouseDownPoint)) then
       if (Sender = PHeader) then
@@ -11625,10 +11626,10 @@ var
 begin
   Panel := TPanel_Ext(Sender);
 
-  Rect.Left := Panel.Width - GetSystemMetrics(SM_CXSMSIZE) - GetSystemMetrics(SM_CXEDGE) - 1;
+  Rect.Left := Panel.Width - Min(GetSystemMetrics(SM_CXSMSIZE), GetSystemMetrics(SM_CYSMSIZE)) - GetSystemMetrics(SM_CXEDGE) - 1;
   Rect.Top := GetSystemMetrics(SM_CYEDGE) - 1;
-  Rect.Right := Rect.Left + GetSystemMetrics(SM_CXSMSIZE) + 2;
-  Rect.Bottom := Rect.Top + GetSystemMetrics(SM_CXSMSIZE) + 2;
+  Rect.Right := Rect.Left + Min(GetSystemMetrics(SM_CXSMSIZE), GetSystemMetrics(SM_CYSMSIZE)) + 2;
+  Rect.Bottom := Rect.Top + Min(GetSystemMetrics(SM_CXSMSIZE), GetSystemMetrics(SM_CYSMSIZE)) + 2;
 
   TPanel_Ext(Sender).Canvas.Draw(Rect.Left, Rect.Top, CloseButtonNormal.Bitmap)
 end;

@@ -2553,6 +2553,11 @@ begin
   {$ENDIF}
 
   SyncThread.Terminate();
+
+  {$IFDEF EurekaLog}
+    SetEurekaLogStateInThread(SyncThread.ThreadID, False);
+  {$ENDIF}
+
   TerminatedThreads.Add(SyncThread);
 
   WriteMonitor('--> Connection terminated', ttInfo);
