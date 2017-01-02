@@ -6476,7 +6476,7 @@ begin
           if (Wait) then
             InternRecordBuffers.RecordReceived.WaitFor(NET_WAIT_TIMEOUT * 1000);
 
-          if (NewIndex = InternRecordBuffers.Count) then
+          if (NewIndex = InternRecordBuffers.Count - 1) then
             Result := grEOF
           else
           begin

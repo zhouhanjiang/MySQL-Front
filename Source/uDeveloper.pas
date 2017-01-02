@@ -31,6 +31,7 @@ type
   end;
 
 function CheckOnlineVersion(const Stream: TStringStream; var VersionStr: string; var SetupProgramURI: string): Boolean;
+function CompileTime(): TDateTime;
 procedure SendToDeveloper(const Text: string);
 
 var
@@ -135,6 +136,11 @@ begin
   Result := (OnlineProgramVersion >= 0) and (SetupProgramURI <> '');
 end;
 
+function CompileTime(): TDateTime;
+begin
+  Result := PImageNtHeaders(HInstance + Cardinal(PImageDosHeader(HInstance)^._lfanew))^.FileHeader.TimeDateStamp / SecsPerDay + UnixDateDelta;
+end;
+
 procedure SendToDeveloper(const Text: string);
 var
   Flags: DWORD;
@@ -149,7 +155,7 @@ begin
   Stream.SetSize(Size);
   WideCharToMultiByte(CP_UTF8, Flags, PChar(Text), Length(Text), PAnsiChar(Stream.Memory), Stream.Size, nil, nil);
 
-  Thread := THTTPThread.Create(LoadStr(1010), Stream, nil);
+  Thread := THTTPThread.Create(LoadStr(1006), Stream, nil);
   SendThreads.Add(Thread);
   Thread.Start();
 end;

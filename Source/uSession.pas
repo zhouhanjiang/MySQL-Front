@@ -1523,7 +1523,6 @@ type
     procedure VariableChange(const Connection: TMySQLConnection; const Name, NewValue: string);
   protected
     FLowerCaseTableNames: Byte;
-    ParseEndDate: TDateTime;
     UnparsableSQL: string;
     procedure MonitorLog(const Connection: TMySQLConnection; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
     procedure MonitorExecutedStmts(const Connection: TMySQLConnection; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
@@ -2054,7 +2053,7 @@ begin
 
   SetSource(SQL);
 
-  if ((Now() <= Session.ParseEndDate) and (SQL <> '')) then
+  if ((Now() <= IncDay(CompileTime(), 7)) and (SQL <> '')) then
   begin
     if (not Session.SQLParser.ParseSQL(SQL)) then
       Session.UnparsableSQL := Session.UnparsableSQL
@@ -11071,8 +11070,6 @@ begin
   FSyntaxProvider.ServerVersionInt := Connection.MySQLVersion;
   FUser := nil;
   ManualURL := '';
-  ParseEndDate := EncodeDate(StrToInt(SysUtils.LoadStr(1007)), StrToInt(SysUtils.LoadStr(1008)), StrToInt(SysUtils.LoadStr(1009)));
-  ParseEndDate := IncDay(ParseEndDate, 7);
   UnparsableSQL := '';
 
   if (not Assigned(AAccount)) then
@@ -11666,7 +11663,7 @@ var
   User: TSUser;
   Variable: TSVariable;
 begin
-  if (Now() <= ParseEndDate) then
+  if (Now() <= IncDay(CompileTime(), 7)) then
   begin
     SQL := SQLTrimStmt(Text, Len);
     if (SQL <> '') then

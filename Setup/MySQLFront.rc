@@ -124,9 +124,5 @@ BEGIN
   1003 "{BuildRegistry}"
   1004 "{BuildInternetHomepage}"
   1005 "{BuildInternetPadFile}"
-  1006 "{BuildTaskschd}"
-  1007 "{BuildVerYear}"
-  1008 "{BuildVerMonth}"
-  1009 "{BuildVerDay}"
-  1010 "{BuildInternetBugReport}"
+  1006 "{BuildInternetBugReport}"
 END

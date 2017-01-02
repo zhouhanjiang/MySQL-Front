@@ -165,7 +165,6 @@ begin
       AwkFile.Add('  gsub("{BuildProgramFiles}", "' + StringReplace(Ini.ReadString('Global', 'ProgramFiles', ''), '\', '\\', [rfReplaceAll]) + '", $0)');
       AwkFile.Add('  gsub("{BuildAppData}", "' + StringReplace(Ini.ReadString('Global', 'AppData', ''), '\', '\\', [rfReplaceAll]) + '", $0)');
       AwkFile.Add('  gsub("{BuildRegistry}", "' + StringReplace(Ini.ReadString('Global', 'Registry', ''), '\', '\\', [rfReplaceAll]) + '", $0)');
-      AwkFile.Add('  gsub("{BuildTaskschd}", "' + StringReplace(Ini.ReadString('Global', 'Taskschd', ''), '\', '\\', [rfReplaceAll]) + '", $0)');
       AwkFile.Add('  gsub("{BuildVerMajor}", "' + IntToStr(MakeVerMajor) + '", $0)');
       AwkFile.Add('  gsub("{BuildVerMinor}", "' + IntToStr(MakeVerMinor) + '", $0)');
       AwkFile.Add('  gsub("{BuildVerPatch}", "' + IntToStr(MakeVerPatch) + '", $0)');
@@ -177,15 +176,9 @@ begin
       AwkFile.Add('  gsub("{BuildVerStr}", "' + MakeVerStr + '", $0)');
       AwkFile.Add('  gsub("{BuildVerStrFull}", "' + MakeVerStrFull + '", $0)');
       AwkFile.Add('  gsub("{BuildVerFileFlag}", "' + MakeVerFileFlag + '", $0)');
-      AwkFile.Add('  gsub("{BuildVerYear}", "' + ReplaceStr(Format('%4d', [MakeVerYear]), ' ', '0') + '", $0)');
-      AwkFile.Add('  gsub("{BuildVerMonth}", "' + ReplaceStr(Format('%2d', [MakeVerMonth]), ' ', '0') + '", $0)');
-      AwkFile.Add('  gsub("{BuildVerDay}", "' + ReplaceStr(Format('%2d', [MakeVerDay]), ' ', '0') + '", $0)');
       AwkFile.Add('  gsub("{BuildInternetHomepage}", "' + Ini.ReadString('Internet', 'Homepage', '') + '", $0)');
       AwkFile.Add('  gsub("{BuildInternetDownload}", "' + Ini.ReadString('Internet', 'Download', '') + '", $0)');
-      AwkFile.Add('  gsub("{BuildInternetDownloadPage}", "' + Ini.ReadString('Internet', 'DownloadPage', '') + '", $0)');
       AwkFile.Add('  gsub("{BuildInternetPadFile}", "' + Ini.ReadString('Internet', 'PadFile', '') + '", $0)');
-      AwkFile.Add('  gsub("{BuildInternetPadFileIcon}", "' + Ini.ReadString('Internet', 'PadFileIcon', '') + '", $0)');
-      AwkFile.Add('  gsub("{BuildInternetPadFileScreenshot}", "' + Ini.ReadString('Internet', 'PadFileScreenshot', '') + '", $0)');
       AwkFile.Add('  gsub("{BuildInternetBugReport}", "' + Ini.ReadString('Internet', 'BugReport', '') + '", $0)');
       AwkFile.Add('  gsub("{BuildImagesPath}", "' + StringReplace(GetEnvironmentVariable('BuildImagesPath'), '\', '\\', [rfReplaceAll]) + '", $0)');
       AwkFile.Add('  gsub("{BuildLanguagesPath}", "' + StringReplace(GetEnvironmentVariable('BuildLanguagesPath'), '\', '\\', [rfReplaceAll]) + '", $0)');
