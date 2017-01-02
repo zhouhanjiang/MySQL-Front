@@ -180,67 +180,46 @@ begin
 end;
 
 procedure DrawCloseBitmap(const Bitmap: Graphics.TBitmap; const Rect: TRect);
+var
+  I: Integer;
+  Size: Integer;
+  Width: Integer;
 begin
-  if (Rect.Width < 10) then
+  Size := Min(Rect.Width, Rect.Height);
+  Width := Size div 4;
+
+  if (Width mod 2 = 0) then
   begin
-    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top); Bitmap.Canvas.LineTo(Rect.Right, Rect.Bottom);
-  end
-  else if (Rect.Width < 15) then
-  begin
-    Bitmap.Canvas.MoveTo(Rect.Left + 1, Rect.Top); Bitmap.Canvas.LineTo(Rect.Right, Rect.Bottom - 1);
-    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top); Bitmap.Canvas.LineTo(Rect.Right - 1, Rect.Bottom - 1);
-  end
-  else if (Rect.Width < 20) then
-  begin
-    Bitmap.Canvas.MoveTo(Rect.Left + 1, Rect.Top); Bitmap.Canvas.LineTo(Rect.Right, Rect.Bottom - 1);
-    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top); Bitmap.Canvas.LineTo(Rect.Right, Rect.Bottom);
-    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top + 1); Bitmap.Canvas.LineTo(Rect.Right - 1, Rect.Bottom);
-  end
-  else if (Rect.Width < 25) then
-  begin
-    Bitmap.Canvas.MoveTo(Rect.Left + 2, Rect.Top); Bitmap.Canvas.LineTo(Rect.Right, Rect.Bottom - 2);
-    Bitmap.Canvas.MoveTo(Rect.Left + 1, Rect.Top); Bitmap.Canvas.LineTo(Rect.Right, Rect.Bottom - 1);
-    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top); Bitmap.Canvas.LineTo(Rect.Right, Rect.Bottom);
-    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top + 1); Bitmap.Canvas.LineTo(Rect.Right - 2, Rect.Bottom - 1);
+    for I := 1 to Width div 2 do
+      begin Bitmap.Canvas.MoveTo(Rect.Left + I, Rect.Top); Bitmap.Canvas.LineTo(Rect.Left + Size, Rect.Top + Size - I); end;
+    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top); Bitmap.Canvas.LineTo(Rect.Left + Size - 1, Rect.Top + Size - 1);
+    for I := 1 to (Width - 1) div 2 do
+      begin Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top + I); Bitmap.Canvas.LineTo(Rect.Left + Size - 1 - I, Rect.Top + Size - 1); end;
   end
   else
   begin
-    Bitmap.Canvas.MoveTo(Rect.Left + 2, Rect.Top); Bitmap.Canvas.LineTo(Rect.Right, Rect.Bottom - 2);
-    Bitmap.Canvas.MoveTo(Rect.Left + 1, Rect.Top); Bitmap.Canvas.LineTo(Rect.Right, Rect.Bottom - 1);
-    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top); Bitmap.Canvas.LineTo(Rect.Right, Rect.Bottom);
-    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top + 1); Bitmap.Canvas.LineTo(Rect.Right - 1, Rect.Bottom);
-    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top + 2); Bitmap.Canvas.LineTo(Rect.Right - 2, Rect.Bottom);
+    for I := 1 to Width div 2 do
+      begin Bitmap.Canvas.MoveTo(Rect.Left + I, Rect.Top); Bitmap.Canvas.LineTo(Rect.Left + Size, Rect.Top + Size - I); end;
+    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top); Bitmap.Canvas.LineTo(Rect.Left + Size, Rect.Top + Size);
+    for I := 1 to Width div 2 do
+      begin Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top + I); Bitmap.Canvas.LineTo(Rect.Left + Size - I, Rect.Top + Size); end;
   end;
 
-  if (Rect.Width < 10) then
+  if (Width mod 2 = 0) then
   begin
-    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Bottom - 1); Bitmap.Canvas.LineTo(Rect.Right, Rect.Top - 1);
-  end
-  else if (Rect.Width < 15) then
-  begin
-    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Bottom - 2); Bitmap.Canvas.LineTo(Rect.Right - 1, Rect.Top - 1);
-    Bitmap.Canvas.MoveTo(Rect.Left + 1, Rect.Bottom - 2); Bitmap.Canvas.LineTo(Rect.Right, Rect.Top - 1);
-  end
-  else if (Rect.Width < 20) then
-  begin
-    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Bottom - 2); Bitmap.Canvas.LineTo(Rect.Right - 1, Rect.Top - 1);
-    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Bottom - 1); Bitmap.Canvas.LineTo(Rect.Right, Rect.Top - 1);
-    Bitmap.Canvas.MoveTo(Rect.Left + 1, Rect.Bottom - 1); Bitmap.Canvas.LineTo(Rect.Right, Rect.Top);
-  end
-  else if (Rect.Width < 25) then
-  begin
-    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Bottom - 3); Bitmap.Canvas.LineTo(Rect.Right - 2, Rect.Top - 1);
-    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Bottom - 2); Bitmap.Canvas.LineTo(Rect.Right - 1, Rect.Top - 1);
-    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Bottom - 1); Bitmap.Canvas.LineTo(Rect.Right, Rect.Top - 1);
-    Bitmap.Canvas.MoveTo(Rect.Left + 1, Rect.Bottom - 2); Bitmap.Canvas.LineTo(Rect.Right, Rect.Top - 1);
+    for I := 1 to (Width - 1) div 2 do
+      begin Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top + Size - 2 - I); Bitmap.Canvas.LineTo(Rect.Left + Size - 1 - I, Rect.Top - 1); end;
+    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top + Size - 2); Bitmap.Canvas.LineTo(Rect.Left + Size - 1, Rect.Top - 1);
+    for I := 1 to Width div 2 do
+      begin Bitmap.Canvas.MoveTo(Rect.Left + I, Rect.Top + Size - 1 - I); Bitmap.Canvas.LineTo(Rect.Left + Size - 1 + I, Rect.Top - 1); end;
   end
   else
   begin
-    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Bottom - 3); Bitmap.Canvas.LineTo(Rect.Right - 2, Rect.Top - 1);
-    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Bottom - 2); Bitmap.Canvas.LineTo(Rect.Right - 1, Rect.Top - 1);
-    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Bottom - 1); Bitmap.Canvas.LineTo(Rect.Right, Rect.Top - 1);
-    Bitmap.Canvas.MoveTo(Rect.Left + 1, Rect.Bottom - 1); Bitmap.Canvas.LineTo(Rect.Right, Rect.Top);
-    Bitmap.Canvas.MoveTo(Rect.Left + 2, Rect.Bottom - 1); Bitmap.Canvas.LineTo(Rect.Right, Rect.Top + 1);
+    for I := 1 to Width div 2 do
+      begin Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top + Size - 1 - I); Bitmap.Canvas.LineTo(Rect.Left + Size - I, Rect.Top - 1); end;
+    Bitmap.Canvas.MoveTo(Rect.Left, Rect.Top + Size - 1); Bitmap.Canvas.LineTo(Rect.Left + Size, Rect.Top - 1);
+    for I := 1 to Width div 2 do
+      begin Bitmap.Canvas.MoveTo(Rect.Left + I, Rect.Top + Size - 1); Bitmap.Canvas.LineTo(Rect.Left + Size, Rect.Top + I - 1); end;
   end;
 end;
 

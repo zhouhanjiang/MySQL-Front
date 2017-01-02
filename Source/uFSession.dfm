@@ -1176,7 +1176,7 @@ object FSession: TFSession
     object ToolBar: TToolBar
       Left = 124
       Top = 0
-      Width = 576
+      Width = 508
       Height = 20
       Align = alNone
       AutoSize = True
@@ -1259,13 +1259,6 @@ object FSession: TFSession
         ImageIndex = 5
         PopupMenu = MToolBar
         Style = tbsCheck
-      end
-      object ToolButton1: TToolButton
-        Left = 508
-        Top = 0
-        Caption = 'Peter'
-        ImageIndex = 6
-        OnClick = ToolButton1Click
       end
     end
     object FObjectSearch: TEdit

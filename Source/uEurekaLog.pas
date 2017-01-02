@@ -413,7 +413,10 @@ begin
 
   Handle := Preferences.Version >= OnlineProgramVersion;
 
-  PostMessage(Application.MainFormHandle, UM_CRASH_RESCUE, 0, 0);
+  if (GetCurrentThreadId() = MainThreadId) then
+    SendMessage(Application.MainFormHandle, UM_CRASH_RESCUE, 0, 0)
+  else
+    PostMessage(Application.MainFormHandle, UM_CRASH_RESCUE, 0, 0);
 
   if (not Handle) then
   begin

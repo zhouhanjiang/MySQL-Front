@@ -4331,7 +4331,7 @@ begin
                     ExecuteTrigger(TSTrigger(TDBObjectItem(Items[I]).DBObject));
               end;
 
-              if (Success <> daSuccess) then
+              if (DataTable and (Success <> daSuccess)) then
                 Session.Connection.CancelResultHandle(ResultHandle);
             end;
           end;

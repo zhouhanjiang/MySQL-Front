@@ -362,7 +362,6 @@ type
     tmEPaste: TMenuItem;
     tmESelectAll: TMenuItem;
     ToolBar: TToolBar;
-    ToolButton1: TToolButton;
     procedure aDCreateDatabaseExecute(Sender: TObject);
     procedure aDCreateEventExecute(Sender: TObject);
     procedure aDCreateExecute(Sender: TObject);
@@ -473,7 +472,6 @@ type
     procedure FNavigatorKeyDown(Sender: TObject; var Key: Word;
       Shift: TShiftState);
     procedure FNavigatorKeyPress(Sender: TObject; var Key: Char);
-    procedure FNavigatorSetMenuItems(Sender: TObject; const Node: TTreeNode);
     procedure FObjectSearchChange(Sender: TObject);
     procedure FObjectSearchKeyPress(Sender: TObject; var Key: Char);
     procedure FObjectSearchStartClick(Sender: TObject);
@@ -631,7 +629,6 @@ type
       Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure TreeViewMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
-    procedure ToolButton1Click(Sender: TObject);
     procedure PHeaderMouseMove(Sender: TObject; Shift: TShiftState; X,
       Y: Integer);
   type
@@ -944,6 +941,7 @@ type
     procedure FNavigatorEmptyExecute(Sender: TObject);
     procedure FNavigatorInitialize(Sender: TObject);
     function FNavigatorNodeByAddress(const Address: string): TTreeNode;
+    procedure FNavigatorChanged(Sender: TObject; const Node: TTreeNode);
     procedure FNavigatorUpdate(const Event: TSSession.TEvent);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     function FQueryBuilderActiveSelectList(): TacQueryBuilderSelectListControl;
@@ -1283,6 +1281,7 @@ begin
     XML.AddChild('datetime').Text := FloatToStr(FSession.Session.Connection.ServerDateTime, FileFormatSettings);
     if (not Data and (FSession.Session.Connection.RowsAffected >= 0)) then
       XML.AddChild('rows_affected').Text := IntToStr(FSession.Session.Connection.RowsAffected);
+
     XML.AddChild('sql').Text := CommandText;
     if (FSession.Session.Connection.Info <> '') then
       XML.AddChild('info').Text := FSession.Session.Connection.Info;
@@ -2523,7 +2522,7 @@ begin
         FQueryBuilder.MetadataContainer.DefaultDatabaseNameStr := SelectedDatabase;
 
       if (Window.ActiveControl = FNavigator) then
-        FNavigatorSetMenuItems(FNavigator, FNavigator.Selected);
+        FNavigatorChanged(FNavigator, FNavigator.Selected);
 
       FNavigator.AutoExpand := not (FNavigator.Selected.ImageIndex in [iiBaseTable, iiView, iiSystemView]) and not CheckWin32Version(6);
 
@@ -3035,17 +3034,32 @@ var
   S: string;
   StringList: TStringList;
 begin
-  // Debug 2016-12-29
+  // Debug 2017-01-02
   if (OpenClipboard(Handle)) then
     CloseClipboard()
   else if (GetLastError() = ERROR_ACCESS_DENIED) then
+  begin
+    CloseClipboard();
     if (OpenClipboard(Handle)) then
     begin
       CloseClipboard();
       SendToDeveloper('Clipboard now opened');
     end
-    else
-      SendToDeveloper('Clipboard still not openable: ' + SysErrorMessage(GetLastError()));
+    else if (GetLastError() = ERROR_ACCESS_DENIED) then
+    begin
+      Sleep(500);
+      CloseClipboard();
+      Sleep(500);
+      if (OpenClipboard(Handle)) then
+      begin
+        SendToDeveloper('Clipboard openable after Sleep');
+        CloseClipboard();
+        Sleep(500);
+      end
+      else
+        SendToDeveloper('Clipboard still not openable (1): ' + SysErrorMessage(GetLastError()));
+    end;
+  end;
 
 
   Data := '';
@@ -3192,17 +3206,32 @@ begin
     exit;
   end;
 
-  // Debug 2016-12-29
+  // Debug 2017-01-02
   if (OpenClipboard(Handle)) then
     CloseClipboard()
   else if (GetLastError() = ERROR_ACCESS_DENIED) then
+  begin
+    CloseClipboard();
     if (OpenClipboard(Handle)) then
     begin
       CloseClipboard();
       SendToDeveloper('Clipboard now opened');
     end
-    else
-      SendToDeveloper('Clipboard still not openable: ' + SysErrorMessage(GetLastError()));
+    else if (GetLastError() = ERROR_ACCESS_DENIED) then
+    begin
+      Sleep(500);
+      CloseClipboard();
+      Sleep(500);
+      if (OpenClipboard(Handle)) then
+      begin
+        SendToDeveloper('Clipboard openable after Sleep');
+        CloseClipboard();
+        Sleep(500);
+      end
+      else
+        SendToDeveloper('Clipboard still not openable (2): ' + SysErrorMessage(GetLastError()));
+    end;
+  end;
 
 
   if ((Data <> '') and OpenClipboard(Handle)) then
@@ -4716,8 +4745,8 @@ begin
 
   R.Left := 0;
   R.Top := 0;
-  R.Width := GetSystemMetrics(SM_CXSMSIZE) div 2 + 4 * GetSystemMetrics(SM_CXEDGE);
-  R.Height := GetSystemMetrics(SM_CXSMSIZE) div 2 + 4 * GetSystemMetrics(SM_CYEDGE);
+  R.Width := GetSystemMetrics(SM_CXSMSIZE);
+  R.Height := GetSystemMetrics(SM_CXSMSIZE);
   CloseButtonNormal := TPicture.Create();
   CloseButtonNormal.Bitmap.Width := R.Width;
   CloseButtonNormal.Bitmap.Height := R.Height;
@@ -5949,8 +5978,14 @@ var
   Pos: Integer;
   SortDef: TIndexDef;
 begin
-  // 2016-11-21
+  // Debug 2016-11-21
   if (not Column.Grid.DataSource.Enabled) then
+    raise ERangeError.Create(SRangeError);
+
+  // Debug 2017-01-02
+  if (not Assigned(Column)) then
+    raise ERangeError.Create(SRangeError);
+  if (not Assigned(Column.Field)) then
     raise ERangeError.Create(SRangeError);
 
   if (not (Column.Field.DataType in [ftUnknown, ftWideMemo, ftBlob])) then
@@ -6713,7 +6748,7 @@ begin
 
   aDDelete.ShortCut := VK_DELETE;
 
-  FNavigatorSetMenuItems(Sender, FNavigator.Selected);
+  FNavigatorChanged(Sender, FNavigator.Selected);
   StatusBarRefresh();
 end;
 
@@ -7390,7 +7425,7 @@ begin
   end;
 end;
 
-procedure TFSession.FNavigatorSetMenuItems(Sender: TObject; const Node: TTreeNode);
+procedure TFSession.FNavigatorChanged(Sender: TObject; const Node: TTreeNode);
 begin
   aPExpand.Enabled := Assigned(Node) and (not Assigned(Node) or not Node.Expanded) and (Assigned(Node) and Node.HasChildren);
   aPCollapse.Enabled := Assigned(Node) and (not Assigned(Node) or Node.Expanded) and (Node.ImageIndex <> iiServer);
@@ -9296,6 +9331,8 @@ begin
       ListView.Groups.Add().GroupID := giRoutines;
       ListView.Groups.Add().GroupID := giEvents;
       ListView.Groups.Add().GroupID := giFields;
+      ListView.Groups.Add().GroupID := giTriggers;
+      ListView.Groups.Add().GroupID := giUsers;
     end;
   end;
 
@@ -10266,7 +10303,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
           teDelete: S := S + 'delete';
         end;
         Item.SubItems.Add(S);
-        Item.SubItems.Add(TSTrigger(Event.Items[I]).Database.Name);
+        Item.SubItems.Add(TSTrigger(Event.Items[I]).Table.Database.Name + '.' + TSTrigger(Event.Items[I]).Table.Name);
         Item.SubItems.Add(SysUtils.DateTimeToStr(TSTrigger(Event.Items[I]).Created, LocaleFormatSettings));
         Item.SubItems.Add('');
         Item.GroupID := giTriggers;
@@ -10293,48 +10330,30 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
     TriggerCount := 0;
     UserCount := 0;
     for I := 0 to ListView.Items.Count - 1 do
-      case (ListView.Items[I].ImageIndex) of
-        iiDatabase,
-        iiSystemDatabase:
-          Inc(DatabaseCount);
-        iiBaseTable,
-        iiView,
-        iiSystemView:
-          Inc(TableCount);
-        iiProcedure,
-        iiFunction:
-          Inc(RoutineCount);
-        iiEvent:
-          Inc(EventCount);
-        iiField,
-        iiViewField:
-          Inc(FieldCount);
-        iiTrigger:
-          Inc(TriggerCount);
-        iiUser:
-          Inc(UserCount);
+      case (ListView.Items[I].GroupID) of
+        giDatabases: Inc(DatabaseCount);
+        giTables: Inc(TableCount);
+        giRoutines: Inc(RoutineCount);
+        giEvents: Inc(EventCount);
+        giFields: Inc(FieldCount);
+        giTriggers: Inc(TriggerCount);
+        giUsers: Inc(UserCount);
       end;
 
-      if (DatabaseCount > 0) then
-        SetListViewGroupHeader(ListView, giDatabases, Preferences.LoadStr(265) + ' (' + IntToStr(DatabaseCount) + ')');
-      if (TableCount > 0) then
-        begin
-          Header := Preferences.LoadStr(234);
-          if (Session.Connection.MySQLVersion >= 50001) then
-            Header := Header + ' + ' + Preferences.LoadStr(873);
-          Header := Header + ' (' + IntToStr(TableCount) + ')';
-          SetListViewGroupHeader(ListView, giTables, Header);
-        end;
-      if (RoutineCount > 0) then
-        SetListViewGroupHeader(ListView, giRoutines, Preferences.LoadStr(874) + ' + ' + Preferences.LoadStr(875) + ' (' + IntToStr(RoutineCount) + ')');
-      if (EventCount > 0) then
-        SetListViewGroupHeader(ListView, giEvents, Preferences.LoadStr(876) + ' (' + IntToStr(EventCount) + ')');
-      if (FieldCount > 0) then
-        SetListViewGroupHeader(ListView, giFields, Preferences.LoadStr(253) + ' (' + IntToStr(FieldCount) + ')');
-      if (TriggerCount > 0) then
-        SetListViewGroupHeader(ListView, giTriggers, Preferences.LoadStr(797) + ' (' + IntToStr(TriggerCount) + ')');
-      if (UserCount > 0) then
-        SetListViewGroupHeader(ListView, giUsers, Preferences.LoadStr(561) + ' (' + IntToStr(UserCount) + ')');
+    if (DatabaseCount > 0) then
+      SetListViewGroupHeader(ListView, giDatabases, Preferences.LoadStr(265) + ' (' + IntToStr(DatabaseCount) + ')');
+    if (TableCount > 0) then
+      SetListViewGroupHeader(ListView, giTables, Preferences.LoadStr(234) + ' + ' + Preferences.LoadStr(873) + ' (' + IntToStr(TableCount) + ')');
+    if (RoutineCount > 0) then
+      SetListViewGroupHeader(ListView, giRoutines, Preferences.LoadStr(874) + ' + ' + Preferences.LoadStr(875) + ' (' + IntToStr(RoutineCount) + ')');
+    if (EventCount > 0) then
+      SetListViewGroupHeader(ListView, giEvents, Preferences.LoadStr(876) + ' (' + IntToStr(EventCount) + ')');
+    if (FieldCount > 0) then
+      SetListViewGroupHeader(ListView, giFields, Preferences.LoadStr(253) + ' (' + IntToStr(FieldCount) + ')');
+    if (TriggerCount > 0) then
+      SetListViewGroupHeader(ListView, giTriggers, Preferences.LoadStr(797) + ' (' + IntToStr(TriggerCount) + ')');
+    if (UserCount > 0) then
+      SetListViewGroupHeader(ListView, giUsers, Preferences.LoadStr(561) + ' (' + IntToStr(UserCount) + ')');
   end;
 
 var
@@ -10430,8 +10449,6 @@ end;
 procedure TFSession.ListViewSelectItem(Sender: TObject; Item: TListItem;
   Selected: Boolean);
 var
-  BaseTable: TSBaseTable;
-  Database: TSDatabase;
   I: Integer;
   ListView: TListView;
   Msg: TMsg;
@@ -10496,249 +10513,112 @@ begin
     aDDelete.Enabled := False;
     mlEProperties.Action := nil;
 
-    if (not Assigned(Item) or (Item is TListItem)) then
-      case (SelectedImageIndex) of
-        iiServer:
-          begin
-            MainAction('aFImportSQL').Enabled := (ListView.SelCount <= 1) and ((not Assigned(Session.UserRights) or Session.UserRights.RInsert) or Assigned(Item) and (Item.ImageIndex = iiDatabase));
-            MainAction('aFImportText').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
-            MainAction('aFImportExcel').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
-            MainAction('aFImportAccess').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
-            MainAction('aFImportODBC').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
-            MainAction('aFExportSQL').Enabled := (ListView.SelCount = 0) or Assigned(Item) and (Item.ImageIndex = iiDatabase);
-            MainAction('aFExportExcel').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
-            MainAction('aFExportAccess').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
-            MainAction('aFExportODBC').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
-            MainAction('aFExportXML').Enabled := (ListView.SelCount = 0) or Assigned(Item) and (Item.ImageIndex = iiDatabase);
-            MainAction('aFExportHTML').Enabled := (ListView.SelCount = 0) or Assigned(Item) and (Item.ImageIndex = iiDatabase);
-            MainAction('aFExportPDF').Enabled := (ListView.SelCount = 0) or Assigned(Item) and (Item.ImageIndex = iiDatabase);
-            MainAction('aECopy').Enabled := ListView.SelCount >= 1;
-            MainAction('aEPaste').Enabled := (not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLSERVER) or Assigned(Item) and (Item.ImageIndex = iiDatabase) and Clipboard.HasFormat(CF_MYSQLDATABASE));
-            MainAction('aDCreateDatabase').Enabled := (ListView.SelCount = 0) and (not Assigned(Session.UserRights) or Session.UserRights.RCreate);
-            MainAction('aDCreateTable').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
-            MainAction('aDCreateView').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and (Session.Connection.MySQLVersion >= 50001);
-            MainAction('aDCreateProcedure').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and Assigned(TSDatabase(Item.Data).Routines);
-            MainAction('aDCreateFunction').Enabled := MainAction('aDCreateProcedure').Enabled;
-            MainAction('aDCreateEvent').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and Assigned(TSDatabase(Item.Data).Events);
-            MainAction('aDCreateUser').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiUsers);
-            MainAction('aDDeleteDatabase').Enabled := (ListView.SelCount >= 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
-            MainAction('aDEditServer').Enabled := (ListView.SelCount = 0);
-            MainAction('aDEditDatabase').Enabled := (ListView.SelCount >= 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
-            MainAction('aDEmpty').Enabled := (ListView.SelCount >= 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
+    if (Assigned(Item)) then
+    begin
+      MainAction('aFImportSQL').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase]);
+      MainAction('aFImportText').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiBaseTable]);
+      MainAction('aFImportExcel').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiBaseTable]);
+      MainAction('aFImportAccess').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiBaseTable]);
+      MainAction('aFImportODBC').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiBaseTable]);
+      MainAction('aFExportSQL').Enabled := (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
+      MainAction('aFExportText').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiBaseTable, iiView]);
+      MainAction('aFExportExcel').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView]);
+      MainAction('aFExportAccess').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiBaseTable]);
+      MainAction('aFExportODBC').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiBaseTable]);
+      MainAction('aFExportXML').Enabled := (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView]);
+      MainAction('aFExportHTML').Enabled := (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
+      MainAction('aFExportPDF').Enabled := (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
+      MainAction('aECopy').Enabled := ListView.SelCount = 1;
+      MainAction('aEPaste').Enabled := (ListView.SelCount = 1) and ((Item.ImageIndex = iiDatabase) and Clipboard.HasFormat(CF_MYSQLDATABASE) or (Item.ImageIndex = iiBaseTable) and Clipboard.HasFormat(CF_MYSQLTABLE) or (Item.ImageIndex = iiView) and Clipboard.HasFormat(CF_MYSQLVIEW));
+      MainAction('aERename').Enabled := (ListView.SelCount = 1) and ((Item.ImageIndex in [iiBaseTable, iiView, iiEvent, iiField, iiVirtualField, iiTrigger]) or (Item.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013));
+      MainAction('aDCreateTable').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase]);
+      MainAction('aDCreateView').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase]) and (Session.Connection.MySQLVersion >= 50001);
+      MainAction('aDCreateProcedure').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase]) and Assigned(TSDatabase(Item.Data).Routines);
+      MainAction('aDCreateFunction').Enabled := MainAction('aDCreateProcedure').Enabled;
+      MainAction('aDCreateEvent').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase]) and Assigned(TSDatabase(Item.Data).Events);
+      MainAction('aDCreateTrigger').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiBaseTable) and Assigned(TSBaseTable(Item.Data).Database.Triggers);
+      MainAction('aDCreateKey').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiBaseTable);
+      MainAction('aDCreateField').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiBaseTable);
+      MainAction('aDCreateForeignKey').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiBaseTable);
+      MainAction('aDCreateUser').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiUsers]);
+      MainAction('aDDeleteDatabase').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex in [iiDatabase]);
+      MainAction('aDDeleteTable').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex = iiBaseTable);
+      MainAction('aDDeleteView').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex = iiView);
+      MainAction('aDDeleteRoutine').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex in [iiProcedure, iiFunction]);
+      MainAction('aDDeleteTrigger').Enabled := (ListView.SelCount >= 1) and Selected and (Item.ImageIndex = iiTrigger);
+      MainAction('aDDeleteEvent').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiEvent);
+      MainAction('aDDeleteKey').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex = iiKey);
+      MainAction('aDDeleteField').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex in [iiField, iiVirtualField]) and (TSBaseTableField(Item.Data).Table.Fields.Count > ListView.SelCount);
+      MainAction('aDDeleteForeignKey').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013);
+      MainAction('aDDeleteProcess').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex in [iiProcess]) and (TSProcess(Item.Data).ThreadId <> Session.Connection.ThreadId);
+      MainAction('aDDeleteUser').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex in [iiUser]);
+      MainAction('aDEditDatabase').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex in [iiDatabase]);
+      MainAction('aDEditTable').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex = iiBaseTable);
+      MainAction('aDEditView').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiView);
+      MainAction('aDEditRoutine').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiProcedure, iiFunction]);
+      MainAction('aDEditTrigger').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiTrigger);
+      MainAction('aDEditEvent').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiEvent);
+      MainAction('aDEditKey').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiKey);
+      MainAction('aDEditField').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiField, iiVirtualField]);
+      MainAction('aDEditForeignKey').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiForeignKey);
+      MainAction('aDEditProcess').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiProcess]);
+      MainAction('aDEditUser').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiUser]);
+      MainAction('aDEditVariable').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiVariable]);
+      MainAction('aDEmpty').Enabled := (ListView.SelCount >= 1) and ((Item.ImageIndex in [iiDatabase, iiBaseTable]) or (Item.ImageIndex in [iiField]) and TSBaseTableField(Item.Data).NullAllowed);
 
-            for I := 0 to ListView.Items.Count - 1 do
-              if (ListView.Items[I].Selected) then
-              begin
-                MainAction('aFExportSQL').Enabled := MainAction('aFExportSQL').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
-                MainAction('aFExportExcel').Enabled := MainAction('aFExportExcel').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
-                MainAction('aFExportAccess').Enabled := MainAction('aFExportAccess').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
-                MainAction('aFExportODBC').Enabled := MainAction('aFExportODBC').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
-                MainAction('aFExportXML').Enabled := MainAction('aFExportXML').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
-                MainAction('aFExportHTML').Enabled := MainAction('aFExportHTML').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
-                MainAction('aFExportPDF').Enabled := MainAction('aFExportPDF').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
-                MainAction('aECopy').Enabled := MainAction('aECopy').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
-                MainAction('aDDeleteDatabase').Enabled := MainAction('aDDeleteDatabase').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
-                MainAction('aDEditDatabase').Enabled := MainAction('aDEditDatabase').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
-                MainAction('aDEmpty').Enabled := MainAction('aDEmpty').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
-              end;
+      mlOpen.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
+      aDDelete.Enabled := (ListView.SelCount >= 1);
 
-            mlOpen.Enabled := ListView.SelCount = 1;
-            aDDelete.Enabled := MainAction('aDDeleteDatabase').Enabled;
-
-            if (not Assigned(Item)) then
-              mlEProperties.Action := MainAction('aDEditServer')
-            else
-              mlEProperties.Action := MainAction('aDEditDatabase');
-          end;
-        iiDatabase,
-        iiSystemDatabase:
-          begin
-            Database := TSDatabase(FNavigator.Selected.Data);
-
-            // Debug 2016-11-10
-            if (not Assigned(Database)) then
-              raise ERangeError.Create(SRangeError)
-            else if (Session.Databases.IndexOf(Database) < 0) then
-              raise ERangeError.Create(SRangeError);
-
-            MainAction('aFImportSQL').Enabled := (ListView.SelCount = 0) and (SelectedImageIndex = iiDatabase);
-            MainAction('aFImportText').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
-            MainAction('aFImportExcel').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
-            MainAction('aFImportAccess').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
-            MainAction('aFImportODBC').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
-            MainAction('aFExportSQL').Enabled := ((ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger])) and (SelectedImageIndex = iiDatabase);
-            MainAction('aFExportText').Enabled := ((ListView.SelCount = 0) and (SelectedImageIndex in [iiBaseTable]) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiView])) and (SelectedImageIndex = iiDatabase);
-            MainAction('aFExportExcel').Enabled := ((ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiView])) and (SelectedImageIndex = iiDatabase);
-            MainAction('aFExportAccess').Enabled := ((ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable])) and (SelectedImageIndex = iiDatabase);
-            MainAction('aFExportODBC').Enabled := ((ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable])) and (SelectedImageIndex = iiDatabase);
-            MainAction('aFExportXML').Enabled := ((ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiView])) and (SelectedImageIndex = iiDatabase);
-            MainAction('aFExportHTML').Enabled := SelectedImageIndex = iiDatabase;
-            MainAction('aFExportPDF').Enabled := SelectedImageIndex = iiDatabase;
-            MainAction('aECopy').Enabled := ListView.SelCount >= 1;
-            MainAction('aEPaste').Enabled := (not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLDATABASE) or Assigned(Item) and ((Item.ImageIndex = iiBaseTable) and Clipboard.HasFormat(CF_MYSQLTABLE) or (Item.ImageIndex = iiView) and Clipboard.HasFormat(CF_MYSQLVIEW)));
-            MainAction('aERename').Enabled := Assigned(Item) and (ListView.SelCount = 1) and (Item.ImageIndex in [iiBaseTable, iiView, iiEvent]);
-            MainAction('aDCreateTable').Enabled := (ListView.SelCount = 0) and (SelectedImageIndex = iiDatabase);
-            MainAction('aDCreateView').Enabled := (ListView.SelCount = 0) and (Session.Connection.MySQLVersion >= 50001) and (SelectedImageIndex = iiDatabase);
-            MainAction('aDCreateProcedure').Enabled := (ListView.SelCount = 0) and (SelectedImageIndex = iiDatabase) and Assigned(Database.Events);
-            MainAction('aDCreateFunction').Enabled := MainAction('aDCreateProcedure').Enabled;
-            MainAction('aDCreateEvent').Enabled := (ListView.SelCount = 0) and (SelectedImageIndex = iiDatabase) and Assigned(Database.Events);
-            MainAction('aDCreateKey').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable);
-            MainAction('aDCreateField').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable);
-            MainAction('aDCreateForeignKey').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable);
-            MainAction('aDCreateTrigger').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable) and Assigned(Database.Triggers);
-            MainAction('aDDeleteTable').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable);
-            MainAction('aDDeleteView').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiView);
-            MainAction('aDDeleteRoutine').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiProcedure, iiFunction]);
-            MainAction('aDDeleteEvent').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiEvent);
-            MainAction('aDEditDatabase').Enabled := (ListView.SelCount = 0) and (SelectedImageIndex = iiDatabase);
-            MainAction('aDEditTable').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable);
-            MainAction('aDEditView').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiView);
-            MainAction('aDEditRoutine').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiProcedure, iiFunction]);
-            MainAction('aDEditEvent').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiEvent);
-            MainAction('aDEmpty').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable);
-            aDDelete.Enabled := (ListView.SelCount >= 1);
-
-            for I := 0 to ListView.Items.Count - 1 do
-              if (ListView.Items[I].Selected) then
-              begin
-                MainAction('aFExportSQL').Enabled := MainAction('aFExportSQL').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-                MainAction('aFExportExcel').Enabled := MainAction('aFExportExcel').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView]);
-                MainAction('aFExportAccess').Enabled := MainAction('aFExportAccess').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
-                MainAction('aFExportODBC').Enabled := MainAction('aFExportODBC').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
-                MainAction('aFExportXML').Enabled := MainAction('aFExportXML').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView]);
-                MainAction('aFExportHTML').Enabled := MainAction('aFExportHTML').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-                MainAction('aFExportPDF').Enabled := MainAction('aFExportPDF').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-                MainAction('aECopy').Enabled := MainAction('aECopy').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent]);
-                MainAction('aDDeleteTable').Enabled := MainAction('aDDeleteTable').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
-                MainAction('aDDeleteView').Enabled := MainAction('aDDeleteView').Enabled and (ListView.Items[I].ImageIndex in [iiView]);
-                MainAction('aDDeleteRoutine').Enabled := MainAction('aDDeleteRoutine').Enabled and (ListView.Items[I].ImageIndex in [iiProcedure, iiFunction]);
-                MainAction('aDDeleteEvent').Enabled := MainAction('aDDeleteEvent').Enabled and (ListView.Items[I].ImageIndex in [iiEvent]);
-                MainAction('aDEditTable').Enabled := MainAction('aDEditTable').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
-                MainAction('aDEditView').Enabled := MainAction('aDEditView').Enabled and (ListView.Items[I].ImageIndex in [iiView]);
-                MainAction('aDEditRoutine').Enabled := MainAction('aDEditRoutine').Enabled and (ListView.Items[I].ImageIndex in [iiProcedure, iiFunction]);
-                MainAction('aDEditEvent').Enabled := MainAction('aDEditEvent').Enabled and (ListView.Items[I].ImageIndex in [iiEvent]);
-                MainAction('aDEmpty').Enabled := MainAction('aDEmpty').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
-                aDDelete.Enabled := aDDelete.Enabled and not (ListView.Items[I].ImageIndex in [iiSystemView]);
-              end;
-
-            mlOpen.Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent]);
-
-            if (SelectedImageIndex = iiSystemDatabase) then
-              mlEProperties.Action := nil
-            else if (not Assigned(Item)) then
-              mlEProperties.Action := MainAction('aDEditDatabase')
-            else
-              case (Item.ImageIndex) of
-                iiBaseTable: mlEProperties.Action := MainAction('aDEditTable');
-                iiView: mlEProperties.Action := MainAction('aDEditView');
-                iiProcedure,
-                iiFunction: mlEProperties.Action := MainAction('aDEditRoutine');
-                iiEvent: mlEProperties.Action := MainAction('aDEditEvent');
-              end;
-          end;
-        iiBaseTable:
-          begin
-            BaseTable := TSBaseTable(FNavigator.Selected.Data);
-
-            MainAction('aFImportText').Enabled := (ListView.SelCount = 0);
-            MainAction('aFImportExcel').Enabled := (ListView.SelCount = 0);
-            MainAction('aFImportAccess').Enabled := (ListView.SelCount = 0);
-            MainAction('aFImportODBC').Enabled := (ListView.SelCount = 0);
-            MainAction('aFExportSQL').Enabled := (ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiTrigger]);
-            MainAction('aFExportText').Enabled := (ListView.SelCount = 0);
-            MainAction('aFExportExcel').Enabled := (ListView.SelCount = 0);
-            MainAction('aFExportAccess').Enabled := (ListView.SelCount = 0);
-            MainAction('aFExportODBC').Enabled := (ListView.SelCount = 0);
-            MainAction('aFExportXML').Enabled := (ListView.SelCount = 0);
-            MainAction('aFExportHTML').Enabled := (ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiTrigger]);
-            MainAction('aFExportPDF').Enabled := (ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiTrigger]);
-            MainAction('aECopy').Enabled := (ListView.SelCount >= 1);
-            MainAction('aEPaste').Enabled := not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLTABLE);
-            MainAction('aERename').Enabled := Assigned(Item) and (ListView.SelCount = 1) and ((Item.ImageIndex in [iiField, iiVirtualField, iiTrigger]) or (Item.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013));
-            MainAction('aDCreateKey').Enabled := (ListView.SelCount = 0);
-            MainAction('aDCreateField').Enabled := (ListView.SelCount = 0);
-            MainAction('aDCreateForeignKey').Enabled := (ListView.SelCount = 0);
-            MainAction('aDCreateTrigger').Enabled := (ListView.SelCount = 0) and Assigned(BaseTable.Database.Triggers);
-            MainAction('aDDeleteKey').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiKey);
-            MainAction('aDDeleteField').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiField, iiVirtualField]) and (BaseTable.Fields.Count > ListView.SelCount);
-            MainAction('aDDeleteForeignKey').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013);
-            MainAction('aDDeleteTrigger').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiTrigger);
-            MainAction('aDEditTable').Enabled := (ListView.SelCount = 0);
-            MainAction('aDEditKey').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiKey);
-            MainAction('aDEditField').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiField, iiVirtualField]);
-            MainAction('aDEditForeignKey').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiForeignKey);
-            MainAction('aDEditTrigger').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiTrigger);
-            MainAction('aDEmpty').Enabled := (ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiField]) and TSBaseTableField(Item.Data).NullAllowed;
-            aDDelete.Enabled := (ListView.SelCount >= 1);
-
-            for I := 0 to ListView.Items.Count - 1 do
-              if (ListView.Items[I].Selected) then
-              begin
-                MainAction('aFExportSQL').Enabled := MainAction('aFExportSQL').Enabled and (ListView.Items[I].ImageIndex in [iiTrigger]);
-                MainAction('aFExportHTML').Enabled := MainAction('aFExportHTML').Enabled and (ListView.Items[I].ImageIndex in [iiTrigger]);
-                MainAction('aFExportPDF').Enabled := MainAction('aFExportPDF').Enabled and (ListView.Items[I].ImageIndex in [iiTrigger]);
-                MainAction('aDDeleteKey').Enabled := MainAction('aDDeleteKey').Enabled and (ListView.Items[I].ImageIndex in [iiKey]);
-                MainAction('aDDeleteField').Enabled := MainAction('aDDeleteField').Enabled and (ListView.Items[I].ImageIndex in [iiField, iiVirtualField]);
-                MainAction('aDDeleteForeignKey').Enabled := MainAction('aDDeleteForeignKey').Enabled and (ListView.Items[I].ImageIndex in [iiForeignKey]);
-                MainAction('aDEditKey').Enabled := MainAction('aDEditKey').Enabled and (ListView.Items[I].ImageIndex in [iiKey]);
-                MainAction('aDEditField').Enabled := MainAction('aDEditField').Enabled and (ListView.Items[I].ImageIndex in [iiField, iiVirtualField]);
-                MainAction('aDEditForeignKey').Enabled := MainAction('aDEditForeignKey').Enabled and (ListView.Items[I].ImageIndex in [iiForeignKey]);
-                MainAction('aDEditTrigger').Enabled := MainAction('aDEditTrigger').Enabled and (ListView.Items[I].ImageIndex in [iiTrigger]);
-                MainAction('aDEmpty').Enabled := MainAction('aDEmpty').Enabled and (ListView.Items[I].ImageIndex in [iiField]);
-              end;
-
-            mlOpen.Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiForeignKey, iiTrigger]);
-
-            if (not Assigned(Item)) then
-              mlEProperties.Action := MainAction('aDEditTable')
-            else
-              case (Item.ImageIndex) of
-                iiKey: mlEProperties.Action := MainAction('aDEditKey');
-                iiField,
-                iiVirtualField: mlEProperties.Action := MainAction('aDEditField');
-                iiForeignKey: mlEProperties.Action := MainAction('aDEditForeignKey');
-                iiTrigger: mlEProperties.Action := MainAction('aDEditTrigger');
-              end;
-          end;
-        iiView:
-          begin
-            MainAction('aFExportSQL').Enabled := (ListView.SelCount = 0);
-            MainAction('aFExportText').Enabled := (ListView.SelCount = 0);
-            MainAction('aFExportExcel').Enabled := (ListView.SelCount = 0);
-            MainAction('aFExportXML').Enabled := (ListView.SelCount = 0);
-            MainAction('aFExportHTML').Enabled := (ListView.SelCount = 0);
-            MainAction('aFExportPDF').Enabled := (ListView.SelCount = 0);
-            MainAction('aECopy').Enabled := (ListView.SelCount >= 1);
-            MainAction('aEPaste').Enabled := not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLVIEW);
-            MainAction('aDEditView').Enabled := (ListView.SelCount = 0);
-
-            mlEProperties.Action := MainAction('aDEditView');
-          end;
-        iiProcesses:
-          begin
-            MainAction('aDDeleteProcess').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (TObject(Item.Data) is TSProcess) and (TSProcess(Item.Data).ThreadId <> Session.Connection.ThreadId);
-            MainAction('aDEditProcess').Enabled := (ListView.SelCount = 1);
-            aDDelete.Enabled := MainAction('aDDeleteProcess').Enabled;
-
-            mlEProperties.Action := MainAction('aDEditProcess');
-          end;
-        iiUsers:
-          begin
-            MainAction('aEPaste').Enabled := not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLUSERS);
-            MainAction('aDCreateUser').Enabled := (ListView.SelCount = 0);
-            MainAction('aDDeleteUser').Enabled := (ListView.SelCount >= 1);
-            MainAction('aDEditUser').Enabled := (ListView.SelCount = 1);
-            aDDelete.Enabled := MainAction('aDDeleteUser').Enabled;
-
-            mlEProperties.Action := MainAction('aDEditUser');
-          end;
-        iiVariables:
-          begin
-            MainAction('aDEditVariable').Enabled := (ListView.SelCount = 1);
-
-            mlEProperties.Action := MainAction('aDEditVariable');
-          end;
+      case (Item.ImageIndex) of
+        iiDatabase: mlEProperties.Action := MainAction('aDEditDatabase');
+        iiBaseTable: mlEProperties.Action := MainAction('aDEditTable');
+        iiView: mlEProperties.Action := MainAction('aDEditView');
+        iiProcedure,
+        iiFunction: mlEProperties.Action := MainAction('aDEditRoutine');
+        iiTrigger: mlEProperties.Action := MainAction('aDEditTrigger');
+        iiEvent: mlEProperties.Action := MainAction('aDEditEvent');
+        iiKey: mlEProperties.Action := MainAction('aDEditKey');
+        iiField,
+        iiVirtualField: mlEProperties.Action := MainAction('aDEditField');
+        iiForeignKey: mlEProperties.Action := MainAction('aDEditForeignKey');
+        iiProcess: mlEProperties.Action := MainAction('aDEditProcess');
+        iiUser: mlEProperties.Action := MainAction('aDEditUser');
+        iiVariable: mlEProperties.Action := MainAction('aDEditVariable');
+        else mlEProperties.Action := nil;
       end;
+
+      for I := 0 to ListView.Items.Count - 1 do
+        if (ListView.Items[I].Selected) then
+        begin
+          MainAction('aFExportSQL').Enabled := MainAction('aFExportSQL').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
+          MainAction('aFExportExcel').Enabled := MainAction('aFExportExcel').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView]);
+          MainAction('aFExportAccess').Enabled := MainAction('aFExportAccess').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable]);
+          MainAction('aFExportODBC').Enabled := MainAction('aFExportODBC').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable]);
+          MainAction('aFExportXML').Enabled := MainAction('aFExportXML').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView]);
+          MainAction('aFExportHTML').Enabled := MainAction('aFExportHTML').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
+          MainAction('aFExportPDF').Enabled := MainAction('aFExportPDF').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
+          MainAction('aECopy').Enabled := MainAction('aECopy').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent]);
+          MainAction('aDDeleteDatabase').Enabled := MainAction('aDDeleteDatabase').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
+          MainAction('aDDeleteTable').Enabled := MainAction('aDDeleteTable').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
+          MainAction('aDDeleteView').Enabled := MainAction('aDDeleteView').Enabled and (ListView.Items[I].ImageIndex in [iiView]);
+          MainAction('aDDeleteRoutine').Enabled := MainAction('aDDeleteRoutine').Enabled and (ListView.Items[I].ImageIndex in [iiProcedure, iiFunction]);
+          MainAction('aDDeleteEvent').Enabled := MainAction('aDDeleteEvent').Enabled and (ListView.Items[I].ImageIndex in [iiEvent]);
+          MainAction('aDDeleteTrigger').Enabled := MainAction('aDDeleteTrigger').Enabled and (ListView.Items[I].ImageIndex in [iiTrigger]);
+          MainAction('aDDeleteKey').Enabled := MainAction('aDDeleteKey').Enabled and (ListView.Items[I].ImageIndex in [iiKey]);
+          MainAction('aDDeleteField').Enabled := MainAction('aDDeleteField').Enabled and (ListView.Items[I].ImageIndex in [iiField, iiVirtualField]);
+          MainAction('aDDeleteForeignKey').Enabled := MainAction('aDDeleteForeignKey').Enabled and (ListView.Items[I].ImageIndex in [iiForeignKey]);
+          MainAction('aDEditDatabase').Enabled := MainAction('aDEditDatabase').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
+          MainAction('aDEditTable').Enabled := MainAction('aDEditTable').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
+          MainAction('aDEditKey').Enabled := MainAction('aDEditKey').Enabled and (ListView.Items[I].ImageIndex in [iiKey]);
+          MainAction('aDEditField').Enabled := MainAction('aDEditField').Enabled and (ListView.Items[I].ImageIndex in [iiField, iiVirtualField]);
+          MainAction('aDEditForeignKey').Enabled := MainAction('aDEditForeignKey').Enabled and (ListView.Items[I].ImageIndex in [iiForeignKey]);
+          MainAction('aDEditTrigger').Enabled := MainAction('aDEditTrigger').Enabled and (ListView.Items[I].ImageIndex in [iiTrigger]);
+          MainAction('aDEmpty').Enabled := MainAction('aDEmpty').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiField]);
+          aDDelete.Enabled := aDDelete.Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiTrigger, iiEvent, iiKey, iiField, iiVirtualField, iiViewField, iiForeignKey]);
+        end;
+    end
+    else if ((View = vObjects) and Assigned(FNavigator.Selected)) then
+      FNavigatorChanged(FNavigator, FNavigator.Selected);
 
     mlOpen.Default := mlOpen.Enabled and not (Assigned(Item) and (Item.ImageIndex = iiForeignKey));
     mlEProperties.Default := Assigned(Item) and not mlOpen.Default and mlEProperties.Enabled;
@@ -11158,7 +11038,7 @@ begin
   else
     FNavigatorMenuNode := FNavigator.Selected;
 
-  FNavigatorSetMenuItems(Sender, FNavigatorMenuNode);
+  FNavigatorChanged(Sender, FNavigatorMenuNode);
 end;
 
 procedure TFSession.MSQLEditorPopup(Sender: TObject);
@@ -11496,6 +11376,12 @@ begin
       end;
     end;
   end;
+
+  // Debug 2017-01-02
+  if ((URI.Param['view'] = 'ide') and (URI.Database = '')) then
+    raise ERangeError.Create('Address: ' + URI.Address + #13#10
+      + 'ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
+      + 'Text: ' + FNavigator.Selected.Text);
 
   Result := URI.Address;
 
@@ -12418,10 +12304,10 @@ begin
   begin
     Panel := TPanel_Ext(Sender);
 
-    Rect.Left := Panel.Width - GetSystemMetrics(SM_CXSMSIZE) - GetSystemMetrics(SM_CXSIZEFRAME) - 1;
-    Rect.Top := GetSystemMetrics(SM_CYEDGE) - 1;
-    Rect.Right := Rect.Left + GetSystemMetrics(SM_CXSMSIZE) + GetSystemMetrics(SM_CXEDGE);
-    Rect.Bottom := Rect.Top + GetSystemMetrics(SM_CXSMSIZE) + GetSystemMetrics(SM_CXEDGE);
+    Rect.Left := Panel.ClientWidth - GetSystemMetrics(SM_CXEDGE) - (GetSystemMetrics(SM_CXSIZE) - 2 *GetSystemMetrics(SM_CXEDGE));
+    Rect.Top := GetSystemMetrics(SM_CYEDGE);
+    Rect.Width := GetSystemMetrics(SM_CXSIZE) - 2 *GetSystemMetrics(SM_CXEDGE);
+    Rect.Height := Rect.Width;
 
     if (PtInRect(Rect, Point(X, Y))) then
     begin
@@ -12453,10 +12339,10 @@ var
 begin
   Panel := TPanel_Ext(Sender);
 
-  Rect.Left := Panel.Width - GetSystemMetrics(SM_CXSMSIZE) - GetSystemMetrics(SM_CXSIZEFRAME) - 1;
-  Rect.Top := GetSystemMetrics(SM_CYEDGE) - 1;
-  Rect.Right := Rect.Left + GetSystemMetrics(SM_CXSMSIZE) + GetSystemMetrics(SM_CXEDGE);
-  Rect.Bottom := Rect.Top + GetSystemMetrics(SM_CXSMSIZE) + GetSystemMetrics(SM_CXEDGE);
+  Rect.Left := Panel.ClientWidth - GetSystemMetrics(SM_CXEDGE) - (GetSystemMetrics(SM_CXSIZE) - 2 *GetSystemMetrics(SM_CXEDGE));
+  Rect.Top := GetSystemMetrics(SM_CYEDGE);
+  Rect.Width := GetSystemMetrics(SM_CXSIZE) - 2 *GetSystemMetrics(SM_CXEDGE);
+  Rect.Height := Rect.Width;
 
   if (StyleServices.Enabled) then
     StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonNormal), Rect)
@@ -12473,7 +12359,7 @@ end;
 
 procedure TFSession.PHeaderResize(Sender: TObject);
 begin
-  TBObjectSearch.Left := PHeader.ClientWidth - GetSystemMetrics(SM_CYHSCROLL) - TBObjectSearch.Width;
+  TBObjectSearch.Left := PHeader.ClientWidth - GetSystemMetrics(SM_CXEDGE) - (GetSystemMetrics(SM_CXSIZE) - 2 *GetSystemMetrics(SM_CXEDGE)) - TBObjectSearch.Width;
   TBObjectSearch.Top := 0;
   TBObjectSearch.Height := Toolbar.Height;
   FObjectSearch.Left := TBObjectSearch.Left - FObjectSearch.Width;
@@ -12892,15 +12778,10 @@ begin
 
       if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemAltered, etItemDropped]) then
       begin
-        if (Event.Items is TSDatabases) then
-          ListViewUpdate(Event, FServerListView)
-        else if (Event.Items is TSProcesses) then
-          ListViewUpdate(Event, ProcessesListView)
-        else if (Event.Items is TSUsers) then
-          ListViewUpdate(Event, UsersListView)
-        else if (Event.Items is TSVariables) then
-          ListViewUpdate(Event, VariablesListView)
-        else if (Event.Sender is TSSession) then
+        if ((Event.Items is TSDatabases)
+          or (Event.Items is TSProcesses)
+          or (Event.Items is TSUsers)
+          or (Event.Items is TSVariables)) then
           ListViewUpdate(Event, FServerListView)
         else if ((Event.Sender is TSDatabase) and not (Event.Items is TSTriggers)) then
         begin
@@ -14087,11 +13968,6 @@ begin
   PostMessage(Handle, UM_CHANGEPREFERENCES, 0, 0);
 end;
 
-procedure TFSession.ToolButton1Click(Sender: TObject);
-begin
-raise Exception.Create('Peterle''s Fehlersuche');
-end;
-
 procedure TFSession.ToolButtonStyleClick(Sender: TObject);
 begin
   Wanted.Clear();
@@ -14831,7 +14707,7 @@ begin
       if ((TObject(FNavigator.Selected.Data) is TSView and not TSView(FNavigator.Selected.Data).Update())
         or (TObject(FNavigator.Selected.Data) is TSBaseTable and not TSBaseTable(FNavigator.Selected.Data).Update(True))) then
         Wanted.Update := UpdateAfterAddressChanged
-      else
+      else if (not TSTable(FNavigator.Selected.Data).DataSet.Active) then
         TableOpen(nil);
     vIDE:
       begin

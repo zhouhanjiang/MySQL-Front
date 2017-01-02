@@ -1668,21 +1668,24 @@ procedure TWWindow.UMCrashRescue(var Message: TMessage);
 var
   I: Integer;
 begin
-  for I := 0 to FSessions.Count - 1 do
-    try TFSession(FSessions[I]).CrashRescue(); except end;
+  if (not (csDestroying in ComponentState)) then
+  begin
+    for I := 0 to FSessions.Count - 1 do
+      try TFSession(FSessions[I]).CrashRescue(); except end;
 
-  try
-    Accounts.Save();
-  except
-    on E: Exception do
-      try SendToDeveloper('UMCrashRescue(2)' + #13#10#13#10 + E.Message); except end;
-  end;
+    try
+      Accounts.Save();
+    except
+      on E: Exception do
+        try SendToDeveloper('UMCrashRescue(2)' + #13#10#13#10 + E.Message); except end;
+    end;
 
-  try
-    Preferences.Save();
-  except
-    on E: Exception do
-      try SendToDeveloper('UMCrashRescue(3)' + #13#10#13#10 + E.Message); except end;
+    try
+      Preferences.Save();
+    except
+      on E: Exception do
+        try SendToDeveloper('UMCrashRescue(3)' + #13#10#13#10 + E.Message); except end;
+    end;
   end;
 end;
 

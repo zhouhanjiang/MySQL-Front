@@ -122,11 +122,12 @@ begin
     NodeIndex := Node.Parent.IndexOf(Node);
 
     Child := Node.Parent.getFirstChild();
-    repeat
+    while (Assigned(Child)) do
+    begin
       if ((Child.Parent.IndexOf(Child) in [Min(OldSelectedIndex, NodeIndex) .. Max(OldSelectedIndex, NodeIndex)]) and not Child.Selected) then
         Select(Child, [ssCtrl]);
       Child := Node.Parent.GetNextChild(Child);
-    until (not Assigned(Child));
+    end;
   end;
 end;
 
