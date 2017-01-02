@@ -2546,21 +2546,16 @@ begin
     SynchronizingThreads.Delete(Index);
   SynchronizingThreadsCS.Leave();
 
-//  Debug 2016-12-28 disabled, to find out, if terminated SyncThreads are still
-//  synchronizated
-//  MySQLSyncThreads.Delete(MySQLSyncThreads.IndexOf(SyncThread));
+  MySQLSyncThreads.Delete(MySQLSyncThreads.IndexOf(SyncThread));
 
-  // Debug 2016-12-29
   {$IFDEF Log}
   SyncThread.AppendLog('Terminate!');
   {$ENDIF}
+
   SyncThread.Terminate();
   TerminatedThreads.Add(SyncThread);
 
   WriteMonitor('--> Connection terminated', ttInfo);
-
-  // Debug 2016-12-29
-  DebugMonitor.Append('Debug - ID:' + IntToStr(SyncThread.ThreadID), ttInfo);
 
   FSyncThread := nil;
 end;
@@ -6481,7 +6476,7 @@ begin
           if (Wait) then
             InternRecordBuffers.RecordReceived.WaitFor(NET_WAIT_TIMEOUT * 1000);
 
-          if (NewIndex = InternRecordBuffers.Count - 1) then
+          if (NewIndex = InternRecordBuffers.Count) then
             Result := grEOF
           else
           begin

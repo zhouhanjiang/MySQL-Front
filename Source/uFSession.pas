@@ -10584,7 +10584,6 @@ begin
         iiProcess: mlEProperties.Action := MainAction('aDEditProcess');
         iiUser: mlEProperties.Action := MainAction('aDEditUser');
         iiVariable: mlEProperties.Action := MainAction('aDEditVariable');
-        else mlEProperties.Action := nil;
       end;
 
       for I := 0 to ListView.Items.Count - 1 do
@@ -10618,9 +10617,32 @@ begin
         end;
     end
     else if ((View = vObjects) and Assigned(FNavigator.Selected)) then
+    begin
       FNavigatorChanged(FNavigator, FNavigator.Selected);
 
-    mlOpen.Default := mlOpen.Enabled and not (Assigned(Item) and (Item.ImageIndex = iiForeignKey));
+      MainAction('aECopy').Enabled := False;
+      MainAction('aDEmpty').Enabled := False;
+      aDDelete.Enabled := False;
+
+      case (FNavigator.Selected.ImageIndex) of
+        iiDatabase: mlEProperties.Action := MainAction('aDEditDatabase');
+        iiBaseTable: mlEProperties.Action := MainAction('aDEditTable');
+        iiView: mlEProperties.Action := MainAction('aDEditView');
+        iiProcedure,
+        iiFunction: mlEProperties.Action := MainAction('aDEditRoutine');
+        iiTrigger: mlEProperties.Action := MainAction('aDEditTrigger');
+        iiEvent: mlEProperties.Action := MainAction('aDEditEvent');
+        iiKey: mlEProperties.Action := MainAction('aDEditKey');
+        iiField,
+        iiVirtualField: mlEProperties.Action := MainAction('aDEditField');
+        iiForeignKey: mlEProperties.Action := MainAction('aDEditForeignKey');
+        iiProcess: mlEProperties.Action := MainAction('aDEditProcess');
+        iiUser: mlEProperties.Action := MainAction('aDEditUser');
+        iiVariable: mlEProperties.Action := MainAction('aDEditVariable');
+        else mlEProperties.Action := nil;
+      end;
+    end;
+
     mlEProperties.Default := Assigned(Item) and not mlOpen.Default and mlEProperties.Enabled;
     mlEProperties.Caption := Preferences.LoadStr(97) + '...';
     mlEProperties.ShortCut := ShortCut(VK_RETURN, [ssAlt]);
