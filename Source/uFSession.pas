@@ -4745,7 +4745,7 @@ begin
 
   R.Left := 0;
   R.Top := 0;
-  R.Width := Min(GetSystemMetrics(SM_CXSMSIZE), GetSystemMetrics(SM_CYSMSIZE));
+  R.Width := GetSystemMetrics(SM_CXSMICON) * 3 div 4;
   R.Height := R.Width;
   CloseButtonNormal := TPicture.Create();
   CloseButtonNormal.Bitmap.Width := R.Width;
@@ -4850,9 +4850,9 @@ begin
   SQueryBuilderSynMemo.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
   SResult.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
   SBlob.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
-  PResultHeader.Width := Min(GetSystemMetrics(SM_CXSMSIZE), GetSystemMetrics(SM_CYSMSIZE)) + 2 * GetSystemMetrics(SM_CXEDGE);
+  PResultHeader.Width := CloseButtonNormal.Width + 2 * GetSystemMetrics(SM_CXEDGE);
   SLog.Height := GetSystemMetrics(SM_CYFIXEDFRAME);
-  PLogHeader.Width := Min(GetSystemMetrics(SM_CXSMSIZE), GetSystemMetrics(SM_CYSMSIZE)) + 2 * GetSystemMetrics(SM_CXEDGE);
+  PLogHeader.Width := CloseButtonNormal.Width + 2 * GetSystemMetrics(SM_CXEDGE);
 
   FormResize(nil);
 
@@ -11554,31 +11554,22 @@ begin
   begin
     Panel := TPanel_Ext(Sender);
 
-    Rect.Left := Panel.Width - Min(GetSystemMetrics(SM_CXSMSIZE), GetSystemMetrics(SM_CYSMSIZE)) - GetSystemMetrics(SM_CXEDGE) - 1;
-    Rect.Top := GetSystemMetrics(SM_CYEDGE) - 1;
-    Rect.Right := Rect.Left + Min(GetSystemMetrics(SM_CXSMSIZE), GetSystemMetrics(SM_CYSMSIZE)) + 2;
-    Rect.Bottom := Rect.Top + Min(GetSystemMetrics(SM_CXSMSIZE), GetSystemMetrics(SM_CYSMSIZE)) + 2;
+    Rect.Left := GetSystemMetrics(SM_CXEDGE);
+    Rect.Top := GetSystemMetrics(SM_CYEDGE);
+    Rect.Width := CloseButtonNormal.Width;
+    Rect.Height := CloseButtonNormal.Width;
 
     if (PtInRect(Rect, Point(X, Y))) then
     begin
       SetCapture(Panel.Handle);
 
       if (ssLeft in Shift) then
-        if (StyleServices.Enabled) then
-          StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonPushed), Rect)
-        else
-          TPanel_Ext(Sender).Canvas.Draw(Rect.Left, Rect.Top, CloseButtonPushed.Bitmap)
+        TPanel_Ext(Sender).Canvas.Draw(Rect.Left, Rect.Top, CloseButtonPushed.Bitmap)
       else
-        if (StyleServices.Enabled) then
-          StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonHot), Rect)
-        else
-          TPanel_Ext(Sender).Canvas.Draw(Rect.Left, Rect.Top, CloseButtonHot.Bitmap)
+        TPanel_Ext(Sender).Canvas.Draw(Rect.Left, Rect.Top, CloseButtonHot.Bitmap)
     end
     else if (ReleaseCapture()) then
-      if (StyleServices.Enabled) then
-        StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonNormal), Rect)
-      else
-        TPanel_Ext(Sender).Canvas.Draw(Rect.Left, Rect.Top, CloseButtonNormal.Bitmap);
+      TPanel_Ext(Sender).Canvas.Draw(Rect.Left, Rect.Top, CloseButtonNormal.Bitmap);
   end;
 end;
 
@@ -11592,10 +11583,20 @@ begin
   begin
     Panel := TPanel_Ext(Sender);
 
-    Rect.Left := Panel.Width - Min(GetSystemMetrics(SM_CXSMSIZE), GetSystemMetrics(SM_CYSMSIZE)) - GetSystemMetrics(SM_CXEDGE) - 1;
-    Rect.Top := GetSystemMetrics(SM_CYEDGE) - 1;
-    Rect.Right := Rect.Left + Min(GetSystemMetrics(SM_CXSMSIZE), GetSystemMetrics(SM_CYSMSIZE)) + 2;
-    Rect.Bottom := Rect.Top + Min(GetSystemMetrics(SM_CXSMSIZE), GetSystemMetrics(SM_CYSMSIZE)) + 2;
+    if (Sender = PHeader) then
+    begin
+      Rect.Left := Panel.ClientWidth - GetSystemMetrics(SM_CXEDGE) - (GetSystemMetrics(SM_CXSIZE) - 2 *GetSystemMetrics(SM_CXEDGE));
+      Rect.Top := GetSystemMetrics(SM_CYEDGE);
+      Rect.Width := GetSystemMetrics(SM_CXSIZE) - 2 * GetSystemMetrics(SM_CXEDGE);
+      Rect.Height := GetSystemMetrics(SM_CYSIZE) - 2 * GetSystemMetrics(SM_CYEDGE);
+    end
+    else
+    begin
+      Rect.Left := GetSystemMetrics(SM_CXEDGE);
+      Rect.Top := GetSystemMetrics(SM_CYEDGE);
+      Rect.Width := CloseButtonNormal.Width;
+      Rect.Height := CloseButtonNormal.Width;
+    end;
 
     if (PtInRect(Rect, Point(X, Y)) and PtInRect(Rect, PanelMouseDownPoint)) then
       if (Sender = PHeader) then
@@ -11621,15 +11622,12 @@ end;
 
 procedure TFSession.PanelPaint(Sender: TObject);
 var
-  Panel: TPanel_Ext;
   Rect: TRect;
 begin
-  Panel := TPanel_Ext(Sender);
-
-  Rect.Left := Panel.Width - Min(GetSystemMetrics(SM_CXSMSIZE), GetSystemMetrics(SM_CYSMSIZE)) - GetSystemMetrics(SM_CXEDGE) - 1;
-  Rect.Top := GetSystemMetrics(SM_CYEDGE) - 1;
-  Rect.Right := Rect.Left + Min(GetSystemMetrics(SM_CXSMSIZE), GetSystemMetrics(SM_CYSMSIZE)) + 2;
-  Rect.Bottom := Rect.Top + Min(GetSystemMetrics(SM_CXSMSIZE), GetSystemMetrics(SM_CYSMSIZE)) + 2;
+  Rect.Left := GetSystemMetrics(SM_CXEDGE);
+  Rect.Top := GetSystemMetrics(SM_CYEDGE);
+  Rect.Width := CloseButtonNormal.Width;
+  Rect.Height := CloseButtonNormal.Width;
 
   TPanel_Ext(Sender).Canvas.Draw(Rect.Left, Rect.Top, CloseButtonNormal.Bitmap)
 end;
@@ -12329,8 +12327,8 @@ begin
 
     Rect.Left := Panel.ClientWidth - GetSystemMetrics(SM_CXEDGE) - (GetSystemMetrics(SM_CXSIZE) - 2 *GetSystemMetrics(SM_CXEDGE));
     Rect.Top := GetSystemMetrics(SM_CYEDGE);
-    Rect.Width := GetSystemMetrics(SM_CXSIZE) - 2 *GetSystemMetrics(SM_CXEDGE);
-    Rect.Height := Rect.Width;
+    Rect.Width := GetSystemMetrics(SM_CXSIZE) - 2 * GetSystemMetrics(SM_CXEDGE);
+    Rect.Height := GetSystemMetrics(SM_CYSIZE) - 2 * GetSystemMetrics(SM_CXEDGE);
 
     if (PtInRect(Rect, Point(X, Y))) then
     begin
@@ -12364,8 +12362,8 @@ begin
 
   Rect.Left := Panel.ClientWidth - GetSystemMetrics(SM_CXEDGE) - (GetSystemMetrics(SM_CXSIZE) - 2 *GetSystemMetrics(SM_CXEDGE));
   Rect.Top := GetSystemMetrics(SM_CYEDGE);
-  Rect.Width := GetSystemMetrics(SM_CXSIZE) - 2 *GetSystemMetrics(SM_CXEDGE);
-  Rect.Height := Rect.Width;
+  Rect.Width := GetSystemMetrics(SM_CXSIZE) - 2 * GetSystemMetrics(SM_CXEDGE);
+  Rect.Height := GetSystemMetrics(SM_CYSIZE) - 2 * GetSystemMetrics(SM_CXEDGE);
 
   if (StyleServices.Enabled) then
     StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonNormal), Rect)

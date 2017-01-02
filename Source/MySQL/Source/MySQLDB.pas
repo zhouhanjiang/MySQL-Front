@@ -2784,7 +2784,7 @@ begin
       SyncThread.State := ssFirst;
       repeat
         SyncThread.Synchronize()
-      until (SyncThread.State in [ssClose, ssReady]);
+      until (SyncThread.State in [ssClose, ssResult, ssReady]);
       EndSynchron();
     end
     else
