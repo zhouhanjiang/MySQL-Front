@@ -5542,6 +5542,7 @@ begin
           TSView(Table).Fields.FValid := True
         else if (Table is TSSystemView) then
           TSSystemView(Table).Fields.FValid := True;
+        Session.SendEvent(etItemValid, Database, Self, Table);
         Session.SendEvent(etItemsValid, Table, Table.Fields);
 
         Index := 0;
@@ -5607,6 +5608,7 @@ begin
 
     if (Table is TSView) then
       TSView(Table).Fields.FValid := True;
+    Session.SendEvent(etItemValid, Database, Self, Table);
     Session.SendEvent(etItemsValid, Table, Table.Fields);
   end;
 

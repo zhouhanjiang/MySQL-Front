@@ -18498,12 +18498,13 @@ function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
       or (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent) and not (ADbIdentType in [ditCharset, ditCollation])
       or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and (AnsiQuotes or (ADbIdentType in [ditUser, ditHost, ditConstraint, ditColumnAlias, ditCharset, ditCollation]))
       or (TokenPtr(CurrentToken)^.TokenType = ttString) and (ADbIdentType in [ditUser, ditHost, ditConstraint, ditColumnAlias, ditCharset, ditCollation])
-      or (TokenPtr(CurrentToken)^.OperatorType = otMulti) and JokerAllowed and (ADbIdentType in [ditDatabase, ditTable, ditProcedure, ditFunction, ditField])) then
+      or (TokenPtr(CurrentToken)^.OperatorType = otMulti) and JokerAllowed and (ADbIdentType in [ditDatabase, ditTable, ditProcedure, ditFunction, ditField])
+      or (ADbIdentType = ditUnknown)) then
     begin
       TokenPtr(CurrentToken)^.FOperatorType := otNone;
       Result := ApplyCurrentToken(utDbIdent);
     end
-    else if ((aDbIdentType = ditKey) and (TokenPtr(CurrentToken)^.TokenType = ttIdent) and (TokenPtr(CurrentToken)^.KeywordIndex = kiPRIMARY)) then
+    else if ((ADbIdentType = ditKey) and (TokenPtr(CurrentToken)^.TokenType = ttIdent) and (TokenPtr(CurrentToken)^.KeywordIndex = kiPRIMARY)) then
       Result := ApplyCurrentToken(utKeyword)
     else
     begin
@@ -26067,7 +26068,7 @@ begin
     Nodes.At1Token := ParseSymbol(ttAt);
   end;
 
-  if (not ErrorFound and (Nodes.At1Token > 0)) then
+  if (not ErrorFound and ((Nodes.At1Token = 0) or (Nodes.At2Token > 0))) then
     if (IsTag(kiGLOBAL)
       or IsTag(kiSESSION)
       or IsTag(kiLOCAL)) then

@@ -527,7 +527,6 @@ type
     end;
     PExternRecordBuffer = ^TExternRecordBuffer;
     TExternRecordBuffer = record
-      Identifier654321: Integer; // Debug 2016-12-06
       InternRecordBuffer: PInternRecordBuffer;
       Index: Integer;
       BookmarkFlag: TBookmarkFlag;
@@ -4939,15 +4938,13 @@ begin
         try
           Msg := Msg + Field.DataSet.Fields[I].FieldName + ': ';
           WhereClause := WhereClause + TMySQLQuery(Field.DataSet).Connection.EscapeIdentifier(Field.DataSet.Fields[I].FieldName);
-          Msg := Msg + '_1_';
         except
           Msg := Msg + '???: ';
           WhereClause := WhereClause + '???';
-          Msg := Msg + '_2_';
         end;
         try
           Msg := Msg + Field.DataSet.Fields[I].AsString + #10;
-          WhereClause := WhereClause + '=' + TMySQLQuery(Field.DataSet).SQLFieldValue(Field);
+          WhereClause := WhereClause + '=' + TMySQLQuery(Field.DataSet).SQLFieldValue(Field.DataSet.Fields[I]);
         except
           Msg := Msg + '???' + #10;
           WhereClause := WhereClause + '=???';
@@ -4961,9 +4958,9 @@ begin
       begin
         SQL := 'SELECT Hex(' + TMySQLQuery(Field.DataSet).Connection.EscapeIdentifier(FieldInfo.OriginalFieldName)
           + ') FROM ' + TMySQLQuery(Field.DataSet).Connection.EscapeIdentifier(FieldInfo.TableName)
-          + ' WHERE ' + WhereClause;
+          + ' WHERE ' + WhereClause + ';' + #13#10;
         Msg := Msg + #10
-          + 'Query: ' + SQL + #10;
+          + 'Query: ' + SQL;
       end;
     except
       Msg := Msg + 'Error while createing query' + #10;
@@ -6176,7 +6173,6 @@ begin
   try
     GetMem(PExternRecordBuffer(Result), SizeOf(TExternRecordBuffer));
 
-    PExternRecordBuffer(Result)^.Identifier654321 := 654321;
     PExternRecordBuffer(Result)^.InternRecordBuffer := nil;
     PExternRecordBuffer(Result)^.Index := -1;
     PExternRecordBuffer(Result)^.BookmarkFlag := bfInserted;
@@ -6335,12 +6331,17 @@ end;
 
 procedure TMySQLDataSet.FreeInternRecordBuffer(const InternRecordBuffer: PInternRecordBuffer);
 begin
-  if (Assigned(InternRecordBuffer^.NewData) and (InternRecordBuffer^.NewData <> InternRecordBuffer^.OldData)) then
-    FreeMem(InternRecordBuffer^.NewData);
-  if (Assigned(InternRecordBuffer^.OldData)) then
-    FreeMem(InternRecordBuffer^.OldData);
+  // Debug 2017-01-03
+  // Do not bother the user, until we found the wrong Identifier problem...
+  if (InternRecordBuffer^.IdentifierABCDEF = $ABCDEF) then
+  begin
+    if (Assigned(InternRecordBuffer^.NewData) and (InternRecordBuffer^.NewData <> InternRecordBuffer^.OldData)) then
+      FreeMem(InternRecordBuffer^.NewData);
+    if (Assigned(InternRecordBuffer^.OldData)) then
+      FreeMem(InternRecordBuffer^.OldData);
 
-  FreeMem(InternRecordBuffer);
+    FreeMem(InternRecordBuffer);
+  end;
 end;
 
 procedure TMySQLDataSet.FreeRecordBuffer(var Buffer: TRecordBuffer);
@@ -6398,14 +6399,16 @@ begin
   // Counters resetted on 2016-12-26
   if (not Active) then
   else if (not Assigned(Pointer(ActiveBuffer()))) then
-  else if (PExternRecordBuffer(ActiveBuffer())^.Identifier654321 <> 654321) then
-    raise ERangeError.Create(SRangeError) // Occurred 0 times
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
   else if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.IdentifierABCDEF <> $ABCDEF) then
     raise ERangeError.Create('ActiveBuffer.Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
       + 'Index: ' + IntToStr(InternRecordBuffers.Index) + #13#10
       + 'Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
-      + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)))
+      + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)) + #13#10
+      + 'Identifier: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.IdentifierABCDEF))
+    // Occurred on 2017-01-03 with 0 / 1 / 0 / bfBOF, INSERT inside the log
+    // Occurred on 2017-01-03 with 1 / 2 / 1 / bfEOF, LAST_INSERT_ID() inside the log
+    // Occurred on 2017-01-03 with 5 / 5 / 5 / bfCurrent, UPDATE inside the log
   else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
   else if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^.Identifier123456 <> 123456) then // Crashed 0 times
     raise ERangeError.Create(SRangeError); // Occurred 0 times
@@ -6473,15 +6476,20 @@ begin
         Result := grError;
         while (Result = grError) do
         begin
-          InternRecordBuffers.CriticalSection.Enter();
-          Wait := (NewIndex = InternRecordBuffers.Count - 1) and not Filtered
-            and ((RecordsReceived.WaitFor(IGNORE) <> wrSignaled) or (Self is TMySQLTable) and TMySQLTable(Self).LimitedDataReceived and TMySQLTable(Self).AutomaticLoadNextRecords and TMySQLTable(Self).LoadNextRecords())
-            and Assigned(SyncThread);
-          InternRecordBuffers.CriticalSection.Leave();
-          if (Wait) then
-            InternRecordBuffers.RecordReceived.WaitFor(NET_WAIT_TIMEOUT * 1000);
+          if (NewIndex + 1 = InternRecordBuffers.Count) then
+          begin
+            InternRecordBuffers.CriticalSection.Enter();
+            Wait := (NewIndex + 1 = InternRecordBuffers.Count) and not Filtered
+              and ((RecordsReceived.WaitFor(IGNORE) <> wrSignaled) or (Self is TMySQLTable) and TMySQLTable(Self).LimitedDataReceived and TMySQLTable(Self).AutomaticLoadNextRecords and TMySQLTable(Self).LoadNextRecords())
+              and Assigned(SyncThread);
+            if (Wait) then
+              InternRecordBuffers.RecordReceived.ResetEvent();
+            InternRecordBuffers.CriticalSection.Leave();
+            if (Wait) then
+              InternRecordBuffers.RecordReceived.WaitFor(NET_WAIT_TIMEOUT * 1000);
+          end;
 
-          if (NewIndex = InternRecordBuffers.Count - 1) then
+          if (NewIndex + 1 >= InternRecordBuffers.Count) then
             Result := grEOF
           else
           begin
@@ -6490,9 +6498,6 @@ begin
               Result := grOk;
           end;
         end;
-
-        if (Result <> grEOF) then
-          InternRecordBuffers.RecordReceived.ResetEvent();
       end;
     else // gmCurrent
       if (Filtered) then
@@ -7448,69 +7453,72 @@ var
   TS: TTimeStamp;
   U: UInt64;
 begin
-  if (not Assigned(Buffer)) then
-    SetFieldData(Field, nil, 0)
-  else if (BitField(Field)) then
+  if ((Field.AutoGenerateValue <> arAutoInc) or (Length(Buffer) > 0)) then
   begin
-    ZeroMemory(@U, SizeOf(U));
-    MoveMemory(@U, @Buffer[0], Field.DataSize);
-    U := SwapUInt64(U);
-    Len := SizeOf(U);
-    while ((Len > 0) and (PAnsiChar(@U)[SizeOf(U) - Len] = #0)) do Dec(Len);
-    SetFieldData(Field, @PAnsiChar(@U)[SizeOf(U) - Len], Len)
-  end
-  else
-  begin
-    case (Field.DataType) of
-      ftString: SetString(RBS, PAnsiChar(@Buffer[0]), Field.DataSize);
-      ftShortInt: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, ShortInt((@Buffer[0])^), Connection.FormatSettings));
-      ftByte: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Byte((@Buffer[0])^), Connection.FormatSettings));
-      ftSmallInt: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, SmallInt((@Buffer[0])^), Connection.FormatSettings));
-      ftWord: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Word((@Buffer[0])^), Connection.FormatSettings));
-      ftInteger: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Integer((@Buffer[0])^), Connection.FormatSettings));
-      ftLongWord: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, LongWord((@Buffer[0])^), Connection.FormatSettings));
-      ftLargeint:
-        if (not (Field is TMySQLLargeWordField) or (UInt64((@Buffer[0])^) and $80000000 = 0)) then
-          RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Largeint((@Buffer[0])^), Connection.FormatSettings))
-        else
-          RBS := Connection.LibPack(UInt64ToStr(UInt64((@Buffer[0])^)));
-      ftSingle: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Single((@Buffer[0])^), Connection.FormatSettings));
-      ftFloat: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Double((@Buffer[0])^), Connection.FormatSettings));
-      ftExtended: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Extended((@Buffer[0])^), Connection.FormatSettings));
-      ftDate:
-        begin
-          TS.Date := TDateTimeRec((@Buffer[0])^).Date;
-          TS.Time := 0;
-          RBS := Connection.LibPack(MySQLDB.DateToStr(TimeStampToDateTime(TS), Connection.FormatSettings));
-        end;
-      ftDateTime: RBS := Connection.LibPack(MySQLDB.DateTimeToStr(TimeStampToDateTime(MSecsToTimeStamp(TDateTimeRec((@Buffer[0])^).DateTime)), Connection.FormatSettings));
-      ftTime:
-        begin
-          TS.Date := DateDelta;
-          TS.Time := TDateTimeRec((@Buffer[0])^).Time;
-          RBS := Connection.LibPack(TimeToStr(TimeStampToDateTime(TS), Connection.FormatSettings));
-        end;
-      ftTimeStamp: RBS := Connection.LibPack(MySQLTimeStampToStr(PSQLTimeStamp((@Buffer[0]))^, TMySQLTimeStampField(Field).DisplayFormat));
-      ftBlob: SetString(RBS, PAnsiChar(@Buffer[0]), Length(Buffer));
-      ftWideMemo:
-        begin
-          SetLength(RBS, WideCharToAnsiChar(Connection.CodePage, PChar((@Buffer[0])), Length(Buffer) div SizeOf(Char), nil, 0));
-          WideCharToAnsiChar(Connection.CodePage, PChar((@Buffer[0])), Length(Buffer) div SizeOf(Char), PAnsiChar(RBS), Length(RBS));
-        end;
-      ftWideString:
-        begin
-          SetLength(RBS, WideCharToAnsiChar(Connection.CodePage, PChar((@Buffer[0])), StrLen(PChar((@Buffer[0]))), nil, 0));
-          WideCharToAnsiChar(Connection.CodePage, PChar((@Buffer[0])), StrLen(PChar((@Buffer[0]))), PAnsiChar(RBS), Length(RBS));
-        end;
-      else raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%d)', [Field.Name, Integer(Field.DataType)]);
-    end;
-    if (RBS = '') then
-      SetFieldData(Field, Pointer(-1), 0)
+    if (not Assigned(Buffer)) then
+      SetFieldData(Field, nil, 0)
+    else if (BitField(Field)) then
+    begin
+      ZeroMemory(@U, SizeOf(U));
+      MoveMemory(@U, @Buffer[0], Field.DataSize);
+      U := SwapUInt64(U);
+      Len := SizeOf(U);
+      while ((Len > 0) and (PAnsiChar(@U)[SizeOf(U) - Len] = #0)) do Dec(Len);
+      SetFieldData(Field, @PAnsiChar(@U)[SizeOf(U) - Len], Len)
+    end
     else
-      SetFieldData(Field, PAnsiChar(RBS), Length(RBS));
-  end;
+    begin
+      case (Field.DataType) of
+        ftString: SetString(RBS, PAnsiChar(@Buffer[0]), Field.DataSize);
+        ftShortInt: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, ShortInt((@Buffer[0])^), Connection.FormatSettings));
+        ftByte: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Byte((@Buffer[0])^), Connection.FormatSettings));
+        ftSmallInt: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, SmallInt((@Buffer[0])^), Connection.FormatSettings));
+        ftWord: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Word((@Buffer[0])^), Connection.FormatSettings));
+        ftInteger: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Integer((@Buffer[0])^), Connection.FormatSettings));
+        ftLongWord: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, LongWord((@Buffer[0])^), Connection.FormatSettings));
+        ftLargeint:
+          if (not (Field is TMySQLLargeWordField) or (UInt64((@Buffer[0])^) and $80000000 = 0)) then
+            RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Largeint((@Buffer[0])^), Connection.FormatSettings))
+          else
+            RBS := Connection.LibPack(UInt64ToStr(UInt64((@Buffer[0])^)));
+        ftSingle: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Single((@Buffer[0])^), Connection.FormatSettings));
+        ftFloat: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Double((@Buffer[0])^), Connection.FormatSettings));
+        ftExtended: RBS := Connection.LibPack(FormatFloat(TNumericField(Field).DisplayFormat, Extended((@Buffer[0])^), Connection.FormatSettings));
+        ftDate:
+          begin
+            TS.Date := TDateTimeRec((@Buffer[0])^).Date;
+            TS.Time := 0;
+            RBS := Connection.LibPack(MySQLDB.DateToStr(TimeStampToDateTime(TS), Connection.FormatSettings));
+          end;
+        ftDateTime: RBS := Connection.LibPack(MySQLDB.DateTimeToStr(TimeStampToDateTime(MSecsToTimeStamp(TDateTimeRec((@Buffer[0])^).DateTime)), Connection.FormatSettings));
+        ftTime:
+          begin
+            TS.Date := DateDelta;
+            TS.Time := TDateTimeRec((@Buffer[0])^).Time;
+            RBS := Connection.LibPack(TimeToStr(TimeStampToDateTime(TS), Connection.FormatSettings));
+          end;
+        ftTimeStamp: RBS := Connection.LibPack(MySQLTimeStampToStr(PSQLTimeStamp((@Buffer[0]))^, TMySQLTimeStampField(Field).DisplayFormat));
+        ftBlob: SetString(RBS, PAnsiChar(@Buffer[0]), Length(Buffer));
+        ftWideMemo:
+          begin
+            SetLength(RBS, WideCharToAnsiChar(Connection.CodePage, PChar((@Buffer[0])), Length(Buffer) div SizeOf(Char), nil, 0));
+            WideCharToAnsiChar(Connection.CodePage, PChar((@Buffer[0])), Length(Buffer) div SizeOf(Char), PAnsiChar(RBS), Length(RBS));
+          end;
+        ftWideString:
+          begin
+            SetLength(RBS, WideCharToAnsiChar(Connection.CodePage, PChar((@Buffer[0])), StrLen(PChar((@Buffer[0]))), nil, 0));
+            WideCharToAnsiChar(Connection.CodePage, PChar((@Buffer[0])), StrLen(PChar((@Buffer[0]))), PAnsiChar(RBS), Length(RBS));
+          end;
+        else raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%d)', [Field.Name, Integer(Field.DataType)]);
+      end;
+      if (RBS = '') then
+        SetFieldData(Field, Pointer(-1), 0)
+      else
+        SetFieldData(Field, PAnsiChar(RBS), Length(RBS));
+    end;
 
-  DataEvent(deFieldChange, Longint(Field));
+    DataEvent(deFieldChange, Longint(Field));
+  end;
 end;
 
 procedure TMySQLDataSet.SetFieldData(const Field: TField; const Buffer: Pointer; const Size: Integer);
@@ -7521,9 +7529,6 @@ var
   NewData: TMySQLQuery.PRecordBufferData;
   OldData: TMySQLQuery.PRecordBufferData;
 begin
-  // Debug 2016-12-07
-  if (PExternRecordBuffer(ActiveBuffer())^.Identifier654321 <> 654321) then
-    raise ERangeError.Create(SRangeError);
   // Debug 2016-12-16
   if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
     raise ERangeError.Create(SRangeError);

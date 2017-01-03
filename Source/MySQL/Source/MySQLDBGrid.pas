@@ -120,7 +120,7 @@ type
 implementation {***************************************************************}
 
 uses
-  Forms, SysUtils, Clipbrd, Dialogs, Consts, CommCtrl, UITypes,
+  Forms, Themes, SysUtils, Clipbrd, Dialogs, Consts, CommCtrl, UITypes,
   DBActns, StrUtils, Math, Variants, SysConst,
   MySQLDB, CSVUtils;
 
@@ -733,10 +733,13 @@ begin
       NeededWidth := Canvas.TextWidth(Columns[LeftCol + Index].DisplayName) + FHeaderControl.Height;
       Canvas.Font := Font;
 
-      HDItem.Mask := HDI_FORMAT;
-      if (BOOL(SendMessage(FHeaderControl.Handle, HDM_GETITEM, Index, LParam(@HDItem)))
-        and (HDItem.fmt and (HDF_SORTUP or HDF_SORTUP) <> 0)) then
-        Inc(NeededWidth, 2 * DefaultRowHeight);
+      if (StyleServices.Enabled) then
+      begin
+        HDItem.Mask := HDI_FORMAT;
+        if (BOOL(SendMessage(FHeaderControl.Handle, HDM_GETITEM, Index, LParam(@HDItem)))
+          and (HDItem.fmt and (HDF_SORTUP or HDF_SORTUP) <> 0)) then
+          Inc(NeededWidth, 2 * DefaultRowHeight);
+      end;
 
       if ((FHeaderControl.Sections[Index].Width < NeededWidth)
         and (Y < DefaultRowHeight)) then

@@ -35,6 +35,7 @@ procedure Register();
 implementation {***************************************************************}
 
 uses
+SysConst,
   StdActns, StdCtrls, Math;
 
 procedure Register();
@@ -124,6 +125,12 @@ begin
     Child := Node.Parent.getFirstChild();
     while (Assigned(Child)) do
     begin
+      // Debug 2017-01-03
+      if (not Assigned(Child.Parent)) then
+        raise ERangeError.Create('ImageIndex: ' + IntToStr(Child.ImageIndex) + #13#10
+          + 'Text: ' + Child.Text + #13#10
+          + 'Name: ' + Name);
+
       if ((Child.Parent.IndexOf(Child) in [Min(OldSelectedIndex, NodeIndex) .. Max(OldSelectedIndex, NodeIndex)]) and not Child.Selected) then
         Select(Child, [ssCtrl]);
       Child := Node.Parent.GetNextChild(Child);

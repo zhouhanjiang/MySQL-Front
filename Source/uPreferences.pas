@@ -3630,9 +3630,14 @@ begin
   XMLDocument.Options := XMLDocument.Options - [doNodeAutoCreate];
 
 
-  if (XMLDocument.Modified) then
-    if (ForceDirectories(ExtractFilePath(Filename))) then
-      XMLDocument.SaveToFile(Filename);
+  try
+    if (XMLDocument.Modified) then
+      if (ForceDirectories(ExtractFilePath(Filename))) then
+        XMLDocument.SaveToFile(Filename);
+  except
+    on E: EOSError do
+      MessageBox(Application.MainFormHandle, PChar(E.Message), 'Error', MB_OK or MB_ICONERROR);
+  end;
 end;
 
 function TPAccounts.AccountByName(const AccountName: string): TPAccount;

@@ -414,7 +414,7 @@ type
     procedure BObjectIDEClick(Sender: TObject);
     procedure DataSetAfterCancel(DataSet: TDataSet);
     procedure DataSetAfterClose(DataSet: TDataSet);
-    procedure DataSetAfterOpen(DataSet: TDataSet);
+    procedure DataSetAfterOpen(const DBGrid: TMySQLDBGrid; const DataSet: TDataSet);
     procedure DataSetAfterPost(DataSet: TDataSet);
     procedure DataSetAfterScroll(DataSet: TDataSet);
     procedure DataSetBeforeCancel(DataSet: TDataSet);
@@ -657,6 +657,8 @@ type
       TCResult: TTabControl;
       function GetActiveDBGrid(): TMySQLDBGrid;
       procedure TCResultChange(Sender: TObject);
+    protected
+      procedure DataSetAfterOpen(DataSet: TDataSet);
     public
       Filename: TFileName;
       FileCodePage: Cardinal;
@@ -690,6 +692,7 @@ type
       function GetXML(): IXMLNode;
     protected
       FWorkbench: TWWorkbench;
+      procedure BuilderDataSetAfterOpen(DataSet: TDataSet);
     public
       function BuilderResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
         const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
@@ -764,6 +767,8 @@ type
       TCResult: TTabControl;
       function GetActiveDBGrid(): TMySQLDBGrid;
       procedure TCResultChange(Sender: TObject);
+    protected
+      procedure DataSetAfterOpen(DataSet: TDataSet);
     public
       procedure CloseIDEResult();
       constructor Create(const AFClient: TFSession; const ARoutine: TSRoutine);
@@ -1225,6 +1230,11 @@ begin
   TCResult := nil;
 end;
 
+procedure TFSession.TSQLEditor.DataSetAfterOpen(DataSet: TDataSet);
+begin
+  FSession.DataSetAfterOpen(ActiveDBGrid, DataSet);
+end;
+
 destructor TFSession.TSQLEditor.Destroy();
 begin
   CloseResult();
@@ -1340,7 +1350,7 @@ begin
 
       GetMem(Item, SizeOf(TResult));
       TResult(Item^).DataSet := TMySQLDataSet.Create(FSession.Owner);
-      TResult(Item^).DataSet.AfterOpen := FSession.DataSetAfterOpen;
+      TResult(Item^).DataSet.AfterOpen := DataSetAfterOpen;
       TResult(Item^).DataSource := TDataSource.Create(FSession.Owner);
       TResult(Item^).DataSource.Enabled := False;
       TResult(Item^).DBGrid := FSession.CreateDBGrid(PDBGrid, TResult(Item^).DataSource);
@@ -1387,13 +1397,18 @@ end;
 
 { TFSession.TDatabaseDesktop **************************************************}
 
+procedure TFSession.TDatabaseDesktop.BuilderDataSetAfterOpen(DataSet: TDataSet);
+begin
+  FSession.DataSetAfterOpen(BuilderDBGrid, DataSet);
+end;
+
 function TFSession.TDatabaseDesktop.BuilderResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
   const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
 begin
   if (Data) then
   begin
     DataSet := TMySQLDataSet.Create(FSession.Owner);
-    DataSet.AfterOpen := FSession.DataSetAfterOpen;
+    DataSet.AfterOpen := BuilderDataSetAfterOpen;
 
     if (not Assigned(PDBGrid)) then
       PDBGrid := FSession.CreatePDBGrid();
@@ -1584,9 +1599,7 @@ begin
   if (not Assigned(DBGrid)) then
     CreateDBGrid();
 
-  DBGrid.DataSource.DataSet := DataSet;
-
-  FSession.DataSetAfterOpen(DataSet);
+  FSession.DataSetAfterOpen(DBGrid, DataSet);
 
   DBGrid.ReadOnly := Table is TSSystemView;
 end;
@@ -1818,6 +1831,11 @@ begin
   Result := FSynMemo;
 end;
 
+procedure TFSession.TRoutineDesktop.DataSetAfterOpen(DataSet: TDataSet);
+begin
+  FSession.DataSetAfterOpen(ActiveDBGrid, DataSet);
+end;
+
 destructor TFSession.TRoutineDesktop.Destroy();
 begin
   CloseIDEResult();
@@ -1865,7 +1883,7 @@ begin
 
     GetMem(Item, SizeOf(TResult));
     TResult(Item^).DataSet := TMySQLDataSet.Create(FSession.Owner);
-    TResult(Item^).DataSet.AfterOpen := FSession.DataSetAfterOpen;
+    TResult(Item^).DataSet.AfterOpen := DataSetAfterOpen;
     TResult(Item^).DataSource := TDataSource.Create(FSession.Owner);
     TResult(Item^).DataSource.Enabled := False;
     TResult(Item^).DBGrid := FSession.CreateDBGrid(PDBGrid, TResult(Item^).DataSource);
@@ -2040,8 +2058,6 @@ begin
     if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
       raise ERangeError.Create('Address: ' + TempAddress);
     if ((URI.Param['view'] = 'ide') and (URI.Database = '')) then
-      raise ERangeError.Create('Address: ' + TempAddress);
-    if ((URI.Param['view'] = 'ide') and (URI.Param['object'] = Null)) then
       raise ERangeError.Create('Address: ' + TempAddress);
     URI.Free();
 
@@ -3043,7 +3059,7 @@ begin
     if (OpenClipboard(Handle)) then
     begin
       CloseClipboard();
-      SendToDeveloper('Clipboard now opened');
+      SendToDeveloper('Clipboard now opened (1)');
     end
     else if (GetLastError() = ERROR_ACCESS_DENIED) then
     begin
@@ -3052,7 +3068,7 @@ begin
       Sleep(500);
       if (OpenClipboard(Handle)) then
       begin
-        SendToDeveloper('Clipboard openable after Sleep');
+        SendToDeveloper('Clipboard openable after Sleep (1)');
         CloseClipboard();
         Sleep(500);
       end
@@ -3215,7 +3231,7 @@ begin
     if (OpenClipboard(Handle)) then
     begin
       CloseClipboard();
-      SendToDeveloper('Clipboard now opened');
+      SendToDeveloper('Clipboard now opened (2)');
     end
     else if (GetLastError() = ERROR_ACCESS_DENIED) then
     begin
@@ -3224,7 +3240,7 @@ begin
       Sleep(500);
       if (OpenClipboard(Handle)) then
       begin
-        SendToDeveloper('Clipboard openable after Sleep');
+        SendToDeveloper('Clipboard openable after Sleep (2)');
         CloseClipboard();
         Sleep(500);
       end
@@ -5354,21 +5370,13 @@ begin
   MainAction('aFExportPDF').Enabled := False;
 end;
 
-procedure TFSession.DataSetAfterOpen(DataSet: TDataSet);
+procedure TFSession.DataSetAfterOpen(const DBGrid: TMySQLDBGrid; const DataSet: TDataSet);
 begin
   PContentChange(nil);
 
-  // Debug 2016-12-29
-  if (not Assigned(ActiveDBGrid)) then
-    raise ERangeError.Create('Address: ' + Address + #13#10
-      + 'View: ' + IntToStr(Ord(View)) + #13#10
-      + 'ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
-      + 'Text: ' + FNavigator.Selected.Text + #13#10
-      + 'ClassType: ' + TObject(FNavigator.Selected.Data).ClassName);
-
-  ActiveDBGrid.DataSource.Enabled := False;
-  ActiveDBGrid.DataSource.DataSet := DataSet;
-  DBGridInitialize(ActiveDBGrid);
+  DBGrid.DataSource.Enabled := False;
+  DBGrid.DataSource.DataSet := DataSet;
+  DBGridInitialize(DBGrid);
 end;
 
 procedure TFSession.DataSetAfterPost(DataSet: TDataSet);
@@ -7102,10 +7110,6 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
     Text: string;
     VirtualChild: TTreeNode;
   begin
-    // Debug 2016-11-16
-    if (not Assigned(Data)) then
-      raise ERangeError.Create(SRangeError);
-
     Index := 0;
     Child := Node.getFirstChild();
     while (Assigned(Child) and (Child.Data <> Data)) do
@@ -7179,10 +7183,6 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
       Child.HasChildren := True;
     if (Assigned(Child)) then
       SetNodeBoldState(Child, (Child.ImageIndex = iiKey) and TSKey(Child.Data).PrimaryKey or (Child.ImageIndex in [iiField, iiVirtualField]) and TSTableField(Child.Data).InPrimaryKey);
-
-    // Debug 2016-11-23
-    if (not Assigned(Child.Data)) then
-      raise ERangeError.Create(SRangeError);
   end;
 
   procedure AddChild(const Node: TTreeNode; const Data: TObject);
@@ -7443,7 +7443,7 @@ begin
   MainAction('aFExportXML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView]);
   MainAction('aFExportHTML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
   MainAction('aFExportPDF').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-  MainAction('aECopy').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiField, iiVirtualField, iiSystemViewField, iiViewField]);
+  MainAction('aECopy').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiField, iiVirtualField, iiViewField, iiSystemViewField]);
   MainAction('aEPaste').Enabled := Assigned(Node) and ((Node.ImageIndex = iiServer) and Clipboard.HasFormat(CF_MYSQLSERVER) or (Node.ImageIndex = iiDatabase) and Clipboard.HasFormat(CF_MYSQLDATABASE) or (Node.ImageIndex = iiBaseTable) and Clipboard.HasFormat(CF_MYSQLTABLE) or (Node.ImageIndex = iiUsers) and Clipboard.HasFormat(CF_MYSQLUSERS));
   MainAction('aERename').Enabled := Assigned(Node) and ((Node.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013) or (Node.ImageIndex in [iiBaseTable, iiView, iiEvent, iiTrigger, iiField, iiVirtualField]));
   MainAction('aDCreateDatabase').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer]) and (not Assigned(Session.UserRights) or Session.UserRights.RCreate);
@@ -9882,10 +9882,14 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
     else if (Data is TSTableField) then
     begin
       Item.GroupID := giFields;
-      if (Data is TSViewField) then
+      if (TSTableField(Data).Table is TSSystemView) then
+        Item.ImageIndex := iiSystemViewField
+      else if (Data is TSViewField) then
         Item.ImageIndex := iiViewField
+      else if (TSTableField(Data).FieldKind = mkVirtual) then
+        Item.ImageIndex := iiVirtualField
       else
-        Item.ImageIndex := iiSystemViewField;
+        Item.ImageIndex := iiField;
       Item.Caption := TSTableField(Data).Caption;
       if (TSTableField(Data).FieldType <> mfUnknown) then
       begin
@@ -10596,7 +10600,7 @@ begin
           MainAction('aFExportXML').Enabled := MainAction('aFExportXML').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView]);
           MainAction('aFExportHTML').Enabled := MainAction('aFExportHTML').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
           MainAction('aFExportPDF').Enabled := MainAction('aFExportPDF').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-          MainAction('aECopy').Enabled := MainAction('aECopy').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent]);
+          MainAction('aECopy').Enabled := MainAction('aECopy').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiKey, iiField, iiVirtualField, iiViewField, iiSystemViewField, iiForeignKey]);
           MainAction('aDDeleteDatabase').Enabled := MainAction('aDDeleteDatabase').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
           MainAction('aDDeleteTable').Enabled := MainAction('aDDeleteTable').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
           MainAction('aDDeleteView').Enabled := MainAction('aDDeleteView').Enabled and (ListView.Items[I].ImageIndex in [iiView]);
@@ -10613,7 +10617,7 @@ begin
           MainAction('aDEditForeignKey').Enabled := MainAction('aDEditForeignKey').Enabled and (ListView.Items[I].ImageIndex in [iiForeignKey]);
           MainAction('aDEditTrigger').Enabled := MainAction('aDEditTrigger').Enabled and (ListView.Items[I].ImageIndex in [iiTrigger]);
           MainAction('aDEmpty').Enabled := MainAction('aDEmpty').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiField]);
-          aDDelete.Enabled := aDDelete.Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiTrigger, iiEvent, iiKey, iiField, iiVirtualField, iiViewField, iiForeignKey]);
+          aDDelete.Enabled := aDDelete.Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiTrigger, iiEvent, iiKey, iiField, iiVirtualField, iiForeignKey]);
         end;
     end
     else if ((View = vObjects) and Assigned(FNavigator.Selected)) then
@@ -10621,6 +10625,7 @@ begin
       FNavigatorChanged(FNavigator, FNavigator.Selected);
 
       MainAction('aECopy').Enabled := False;
+      MainAction('aERename').Enabled := False;
       MainAction('aDEmpty').Enabled := False;
       aDDelete.Enabled := False;
 
@@ -12799,11 +12804,27 @@ begin
 
       if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemAltered, etItemDropped]) then
       begin
-        if ((Event.Items is TSDatabases)
-          or (Event.Items is TSProcesses)
-          or (Event.Items is TSUsers)
-          or (Event.Items is TSVariables)) then
-          ListViewUpdate(Event, FServerListView)
+        if (Event.Items is TSDatabases) then
+        begin
+          ListViewUpdate(Event, FServerListView);
+          if (Event.Sender is TSDatabase) then
+            ListViewUpdate(Event, Desktop(TSDatabase(Event.Sender)).ListView);
+        end
+        else if (Event.Items is TSProcesses) then
+        begin
+          ListViewUpdate(Event, FServerListView);
+          ListViewUpdate(Event, ProcessesListView);
+        end
+        else if (Event.Items is TSUsers) then
+        begin
+          ListViewUpdate(Event, FServerListView);
+          ListViewUpdate(Event, UsersListView);
+        end
+        else if (Event.Items is TSVariables) then
+        begin
+          ListViewUpdate(Event, FServerListView);
+          ListViewUpdate(Event, VariablesListView);
+        end
         else if ((Event.Sender is TSDatabase) and not (Event.Items is TSTriggers)) then
         begin
           ListViewUpdate(Event, FServerListView);
@@ -12852,7 +12873,7 @@ begin
         if ((View = vBrowser)
           and Assigned(FNavigator.Selected) and (Event.Item = FNavigator.Selected.Data)) then
           Wanted.Update := UpdateAfterAddressChanged;
-        if ((View = vIDE) and (Event.Item is TSFunction)) then
+        if ((View = vIDE) and ((Event.Item is TSView) or (Event.Item is TSFunction))) then
           PContentChange(nil);
       end;
     end;

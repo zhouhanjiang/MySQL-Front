@@ -539,6 +539,7 @@ begin
   // 2016-12-29 occurred this Progress: 05467123A
   // 2016-12-31 occurred this Progress: 05467123A
   // 2017-01-02 occurred this Progress: 05467123A
+  // 2017-01-03 occurred this Progress: 05467123A, ImportType: 1
 
   Progress := Progress + '1';
 
@@ -614,6 +615,7 @@ begin
   // 2016-12-   occurred this Progress: 051b21b21b2
   // 2016-12-31 occurred this Progress: 05
   // 2016-12-31 occurred this Progress: 051b2
+  // 2017-01-02 occurred this Progress: 051b21b21b2
 
   Session.UnRegisterEventProc(FormSessionEvent);
 
