@@ -360,10 +360,21 @@ begin
     if (not GetDataSource()) then
       ModalResult := mrCancel;
 
+  Progress := 'a';
+  // Debug 2017-01-03
+  if (not Assigned(FNavigator^)) then
+    raise ERangeError.Create('Progress: ' + Progress);
+  Progress := Progress + 'b';
+
   if (ModalResult = mrCancel) then
     Result := False
   else
     Result := ShowModal() = mrOk;
+
+  // Debug 2017-01-03
+  if (not Assigned(FNavigator^)) then
+    raise ERangeError.Create('Progress: ' + Progress);
+  Progress := Progress + 'c';
 end;
 
 procedure TDImport.FBBackClick(Sender: TObject);
@@ -376,6 +387,11 @@ begin
       PageControl.ActivePageIndex := PageIndex;
       exit;
     end;
+
+  // Debug 2017-01-03
+  if (not Assigned(FNavigator^)) then
+    raise ERangeError.Create('Progress: ' + Progress);
+  Progress := Progress + 'd';
 end;
 
 procedure TDImport.FBForwardClick(Sender: TObject);
@@ -471,6 +487,11 @@ begin
 
     CheckActivePageChange(TSCSVOptions);
   end;
+
+  // Debug 2017-01-03
+  if (not Assigned(FNavigator^)) then
+    raise ERangeError.Create('Progress: ' + Progress);
+  Progress := Progress + 'e';
 end;
 
 procedure TDImport.FCharsetChange(Sender: TObject);
@@ -535,20 +556,14 @@ begin
   if (not Assigned(FNavigator^)) then
     raise ERangeError.Create('Progress: ' + Progress + #13#10
       + 'ImportType: ' + IntToStr(Ord(ImportType)));
-  // 2016-12-28 occurred this Progress: 05467123A
-  // 2016-12-29 occurred this Progress: 05467123A
-  // 2016-12-31 occurred this Progress: 05467123A
-  // 2017-01-02 occurred this Progress: 05467123A
-  // 2017-01-03 occurred this Progress: 05467123A, ImportType: 1
-
-  Progress := Progress + '1';
+  Progress := Progress + 'f';
 
   if (Assigned(Import) and Import.Suspended) then
   begin
   // Debug 2016-12-22
   if (not Assigned(FNavigator^)) then
     raise ERangeError.Create('Progress: ' + Progress);
-  Progress := Progress + 'a';
+  Progress := Progress + 'g';
     Import.Free();
     Import := nil;
   end;
@@ -558,7 +573,7 @@ begin
   // Debug 2016-12-22
   if (not Assigned(FNavigator^)) then
     raise ERangeError.Create('Progress: ' + Progress);
-  Progress := Progress + 'b';
+  Progress := Progress + 'h';
     Import.Terminate();
     CanClose := False;
   end
@@ -570,7 +585,7 @@ begin
   // Debug 2016-12-22
   if (not Assigned(FNavigator^)) then
     raise ERangeError.Create('Progress: ' + Progress);
-  Progress := Progress + '2';
+  Progress := Progress + 'i';
 end;
 
 procedure TDImport.FormCreate(Sender: TObject);
@@ -608,14 +623,7 @@ begin
   if (not Assigned(FNavigator^)) then
     raise ERangeError.Create('Progress: ' + Progress + #13#10
       + 'ImportType: ' + IntToStr(Ord(ImportType)));
-  Progress := Progress + '3';
-  // 2016-12-   occurred this Progress: 051b21b21b21b21b2467
-  // 2016-12-   occurred this Progress: 051b21b21b21b21b2467
-  // 2016-12-   occurred this Progress: 051b21b21b21b2
-  // 2016-12-   occurred this Progress: 051b21b21b2
-  // 2016-12-31 occurred this Progress: 05
-  // 2016-12-31 occurred this Progress: 051b2
-  // 2017-01-02 occurred this Progress: 051b21b21b2
+  Progress := Progress + 'j';
 
   Session.UnRegisterEventProc(FormSessionEvent);
 
@@ -683,11 +691,16 @@ begin
   // Debug 2016-12-22
   if (not Assigned(FNavigator^)) then
     raise ERangeError.Create('Progress: ' + Progress);
-  Progress := Progress + 'A';
+  Progress := Progress + 'k';
 end;
 
 procedure TDImport.FormSessionEvent(const Event: TSSession.TEvent);
 begin
+  // Debug 2017-01-03
+  if (not Assigned(FNavigator^)) then
+    raise ERangeError.Create('Progress: ' + Progress);
+  Progress := Progress + 'l';
+
   if (Event.EventType = etError) then
   begin
     SetControlCursor(GFields, crDefault);
@@ -697,6 +710,11 @@ begin
   end
   else if (Event.EventType = etAfterExecuteSQL) then
     PostMessage(Handle, UM_POST_AFTEREXECUTESQL, 0, 0);
+
+  // Debug 2017-01-03
+  if (not Assigned(FNavigator^)) then
+    raise ERangeError.Create('Progress: ' + Progress);
+  Progress := Progress + 'm';
 end;
 
 procedure TDImport.FormShow(Sender: TObject);
@@ -760,7 +778,7 @@ begin
   // Debug 2016-12-22
   if (not Assigned(FNavigator^)) then
     raise ERangeError.Create('Hui!');
-  Progress := '0';
+  Progress := Progress + 'n';
 end;
 
 procedure TDImport.FQuoteClick(Sender: TObject);
@@ -875,6 +893,11 @@ end;
 
 function TDImport.OnError(const Details: TTool.TErrorDetails): TDataAction;
 begin
+  // Debug 2017-01-03
+  if (not Assigned(FNavigator^)) then
+    raise ERangeError.Create('Progress: ' + Progress);
+  Progress := Progress + 'o';
+
   Result := TDataAction(SendMessage(Handle, UM_TOOL_ERROR, 0, LPARAM(@Details)));
 end;
 
@@ -883,14 +906,24 @@ begin
   // Debug 2016-12-22
   if (not Assigned(FNavigator^)) then
     raise ERangeError.Create('Progress: ' + Progress);
-  Progress := Progress + '4';
+  Progress := Progress + 'p';
 
   PostMessage(Handle, UM_TERMINATE, WPARAM(not Import.Terminated), 0);
 end;
 
 procedure TDImport.OnUpdate(const AProgressInfos: TTool.TProgressInfos);
 begin
+  // Debug 2017-01-03
+  if (not Assigned(FNavigator^)) then
+    raise ERangeError.Create('Progress: ' + Progress);
+  Progress := Progress + 'q';
+
   MoveMemory(@ProgressInfos, @AProgressInfos, SizeOf(AProgressInfos));
+
+  // Debug 2017-01-03
+  if (not Assigned(FNavigator^)) then
+    raise ERangeError.Create('Progress: ' + Progress);
+  Progress := Progress + 'r';
 
   PostMessage(Handle, UM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos))
 end;
@@ -1069,7 +1102,7 @@ begin
   // Debug 2016-12-22
   if (not Assigned(FNavigator^)) then
     raise ERangeError.Create('Progress: ' + Progress);
-  Progress := Progress + '5';
+  Progress := Progress + 's';
 end;
 
 procedure TDImport.TSFieldsShow(Sender: TObject);
@@ -1394,7 +1427,7 @@ begin
   // Debug 2016-12-22
   if (not Assigned(FNavigator^)) then
     raise ERangeError.Create('Progress: ' + Progress);
-  Progress := Progress + '6';
+  Progress := Progress + 't';
 
   Success := Boolean(Message.WParam);
 
@@ -1418,7 +1451,7 @@ begin
   // Debug 2016-12-22
   if (not Assigned(FNavigator^)) then
     raise ERangeError.Create('Progress: ' + Progress);
-  Progress := Progress + '7';
+  Progress := Progress + 'u';
 end;
 
 procedure TDImport.UMToolError(var Message: TMessage);
@@ -1428,6 +1461,11 @@ var
   Flags: Integer;
   Msg: string;
 begin
+  // Debug 2017-01-03
+  if (not Assigned(FNavigator^)) then
+    raise ERangeError.Create('Progress: ' + Progress);
+  Progress := Progress + 'v';
+
   Details := Pointer(Message.LParam);
 
   ErrorMsg := '';
@@ -1482,6 +1520,11 @@ begin
     FErrors.Caption := IntToStr(Details^.Tool.ErrorCount);
     FErrorMessages.Text := FErrorMessages.Text + Trim(ErrorMsg);
   end;
+
+  // Debug 2017-01-03
+  if (not Assigned(FNavigator^)) then
+    raise ERangeError.Create('Progress: ' + Progress);
+  Progress := Progress + 'w';
 end;
 
 procedure TDImport.UMUpdateProgressInfo(var Message: TMessage);
@@ -1493,6 +1536,7 @@ begin
   // Debug 2016-12-31
   if (not Assigned(FNavigator^)) then
     raise ERangeError.Create('Progress: ' + IntToStr(Infos^.Progress));
+  Progress := Progress + 'x';
 
   if (Infos^.ObjectsSum < 0) then
     FEntieredObjects.Caption := '???'
@@ -1515,6 +1559,11 @@ begin
   FDoneTime.Caption := TimeToStr(Infos^.TimeDone, DurationFormatSettings);
 
   FProgressBar.Position := Infos^.Progress;
+
+  // Debug 2017-01-03
+  if (not Assigned(FNavigator^)) then
+    raise ERangeError.Create('Progress: ' + IntToStr(Infos^.Progress));
+  Progress := Progress + 'y';
 end;
 
 procedure TDImport.WhatClick(Sender: TObject);

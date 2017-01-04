@@ -18,11 +18,9 @@ object WWindow: TWWindow
   OldCreateOrder = False
   Position = poDefault
   ShowHint = True
-  OnActivate = FormActivate
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
   OnDestroy = FormDestroy
-  OnDeactivate = FormDeactivate
   OnHide = FormHide
   OnResize = FormResize
   OnShow = FormShow

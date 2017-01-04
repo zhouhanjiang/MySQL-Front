@@ -440,13 +440,6 @@ begin
     end;
 
     try
-      Report := Report + LoadStr(1000) + ' ' + Preferences.VersionStr + #13#10#13#10;
-    except
-      on E: Exception do
-        try SendToDeveloper('EurekaLogExceptionNotify(2)' + #13#10#13#10 + E.Message); except end;
-    end;
-
-    try
       // In EurekaLog 7.5.0.0 is ExceptionInfo.ExceptionObject not always the exception.
       // Is this a bug of 7.5.0.0?
       if (not (TObject(ExceptionInfo.ExceptionObject) is Exception)) then

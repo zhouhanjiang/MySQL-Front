@@ -341,11 +341,12 @@ type
     procedure aHUpdateExecute(Sender: TObject);
     procedure aOGlobalsExecute(Sender: TObject);
     procedure aOAccountsExecute(Sender: TObject);
+    procedure aOExportExecute(Sender: TObject);
+    procedure aOImportExecute(Sender: TObject);
     procedure aSSearchFindNotFound(Sender: TObject);
-    procedure FormActivate(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormCreate(Sender: TObject);
-    procedure FormDeactivate(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
     procedure FormHide(Sender: TObject);
     procedure FormResize(Sender: TObject);
     procedure FormShow(Sender: TObject);
@@ -360,17 +361,14 @@ type
     procedure TabControlEndDrag(Sender, Target: TObject; X, Y: Integer);
     procedure TabControlGetImageIndex(Sender: TObject; TabIndex: Integer;
       var ImageIndex: Integer);
-    procedure TabControlResize(Sender: TObject);
-    procedure TabControlStartDrag(Sender: TObject;
-      var DragObject: TDragObject);
-    procedure tbPropertiesClick(Sender: TObject);
-    procedure FormDestroy(Sender: TObject);
     procedure TabControlMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure TabControlMouseMove(Sender: TObject; Shift: TShiftState; X,
       Y: Integer);
-    procedure aOExportExecute(Sender: TObject);
-    procedure aOImportExecute(Sender: TObject);
+    procedure TabControlResize(Sender: TObject);
+    procedure TabControlStartDrag(Sender: TObject;
+      var DragObject: TDragObject);
+    procedure tbPropertiesClick(Sender: TObject);
   const
     tiDeactivate = 1;
   type
@@ -417,6 +415,7 @@ type
     procedure UMOnlineUpdateFound(var Message: TMessage); message UM_ONLINE_UPDATE_FOUND;
     procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMUpdateToolbar(var Message: TMessage); message UM_UPDATETOOLBAR;
+    procedure WMActivate(var Message: TMessage); message WM_ACTIVATE;
     procedure WMDrawItem(var Message: TWMDrawItem); message WM_DRAWITEM;
     procedure WMHelp(var Message: TWMHelp); message WM_HELP;
     procedure WMTimer(var Message: TWMTimer); message WM_TIMER;
@@ -927,12 +926,6 @@ begin
   end;
 end;
 
-procedure TWWindow.FormActivate(Sender: TObject);
-begin
-  if (Assigned(ActiveTab)) then
-    ActiveTab.Perform(UM_ACTIVATEFRAME, 0, 0);
-end;
-
 procedure TWWindow.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   CanClose := CloseAll();
@@ -1004,12 +997,6 @@ begin
     StatusBar.Panels[I].Text := '';
 end;
 
-procedure TWWindow.FormDeactivate(Sender: TObject);
-begin
-  if (Assigned(ActiveTab)) then
-    ActiveTab.Perform(UM_DEACTIVATEFRAME, 0, 0);
-end;
-
 procedure TWWindow.FormDestroy(Sender: TObject);
 begin
   while (TabControlRepaint.Count > 0) do
@@ -1025,8 +1012,6 @@ begin
   Application.OnMessage := nil;
   Application.OnModalBegin := nil;
   Application.OnModalEnd := nil;
-  Application.OnActivate := nil;
-  Application.OnDeactivate := nil;
 
   if (Assigned(CheckOnlineVersionThread)) then
     TerminateThread(CheckOnlineVersionThread.Handle, 0);
@@ -1876,6 +1861,12 @@ begin
     end;
     miFReopen.Delete(0);
   end;
+end;
+
+procedure TWWindow.WMActivate(var Message: TMessage);
+begin
+  if ((0 <= TabControl.TabIndex) and (TabControl.TabIndex < FSessions.Count)) then
+    TFSession(FSessions[TabControl.TabIndex]).Perform(WM_ACTIVATE, Message.WParam, Message.LParam);
 end;
 
 procedure TWWindow.WMDrawItem(var Message: TWMDrawItem);

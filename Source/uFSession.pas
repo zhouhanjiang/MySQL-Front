@@ -5,7 +5,7 @@ interface {********************************************************************}
 uses
   Forms, Windows, Messages, SysUtils, Classes, Graphics, Controls,
   Dialogs, ActnList, ComCtrls, ExtCtrls, Menus, StdCtrls, DB, DBGrids, Grids,
-  DBCtrls, DBActns, StdActns, ImgList, XMLIntf,
+  DBCtrls, DBActns, StdActns, ImgList, XMLIntf, Actions,
   ShDocVw, CommCtrl, PNGImage, GIFImg, Jpeg, ToolWin,
   MPHexEditor, MPHexEditorEx,
   SynEdit, SynEditHighlighter, SynHighlighterSQL, SynMemo, SynEditMiscClasses,
@@ -15,17 +15,18 @@ uses
   ComCtrls_Ext, StdCtrls_Ext, Dialogs_Ext, Forms_Ext, ExtCtrls_Ext,
   MySQLDB, MySQLDBGrid, SQLParser,
   uSession, uPreferences, uTools,
-  uBase, uDExport, uDImport, uCWorkbench, System.Actions;
+  uBase, uDExport, uDImport, uCWorkbench, uFObjectSearch;
 
 const
   UM_ACTIVATE_DBGRID = WM_USER + 500;
   UM_ACTIVATEFRAME = WM_USER + 501;
   UM_ACTIVATEFTEXT = WM_USER + 502;
   UM_CLOSE_FRAME = WM_USER + 503;
-  UM_POST_BUILDER_QUERY_CHANGE = WM_USER + 504;
-  UM_SYNCOMPLETION_TIMER = WM_USER + 505;
-  UM_WANTED_SYNCHRONIZE = WM_USER + 506;
-  UM_STATUS_BAR_REFRESH = WM_USER + 507;
+  UM_OBJECT_SEARCH_EXIT = WM_USER + 504;
+  UM_POST_BUILDER_QUERY_CHANGE = WM_USER + 505;
+  UM_SYNCOMPLETION_TIMER = WM_USER + 506;
+  UM_WANTED_SYNCHRONIZE = WM_USER + 507;
+  UM_STATUS_BAR_REFRESH = WM_USER + 508;
 
 const
   sbMessage = 0;
@@ -473,6 +474,7 @@ type
       Shift: TShiftState);
     procedure FNavigatorKeyPress(Sender: TObject; var Key: Char);
     procedure FObjectSearchChange(Sender: TObject);
+    procedure FObjectSearchEnter(Sender: TObject);
     procedure FObjectSearchKeyPress(Sender: TObject; var Key: Char);
     procedure FObjectSearchStartClick(Sender: TObject);
     procedure FOffsetChange(Sender: TObject);
@@ -588,6 +590,8 @@ type
     procedure PContentResize(Sender: TObject);
     procedure PGridResize(Sender: TObject);
     procedure PHeaderCheckElements(Sender: TObject);
+    procedure PHeaderMouseMove(Sender: TObject; Shift: TShiftState; X,
+      Y: Integer);
     procedure PHeaderPaint(Sender: TObject);
     procedure PHeaderResize(Sender: TObject);
     procedure PLogResize(Sender: TObject);
@@ -629,8 +633,7 @@ type
       Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure TreeViewMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
-    procedure PHeaderMouseMove(Sender: TObject; Shift: TShiftState; X,
-      Y: Integer);
+    procedure FObjectSearchExit(Sender: TObject);
   type
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
     TTabState = set of (tsLoading, tsActive);
@@ -869,6 +872,7 @@ type
     Param: string;
     PasteMode: Boolean;
     PNGImage: TPNGImage;
+    PObjectSearch: TPObjectSearch;
     PResultHeight: Integer;
     ProcessesListView: TListView;
     ShellLink: TJamShellLink;
@@ -982,6 +986,7 @@ type
     procedure ListViewInitialize(const ListView: TListView);
     procedure ListViewUpdate(const Event: TSSession.TEvent; const ListView: TListView; const Data: TCustomData = nil);
     function NavigatorNodeToAddress(const Node: TTreeNode): string;
+    function ObjectSearchStep2(): Boolean;
     procedure OnConvertError(Sender: TObject; Text: string);
     function ParamToView(const AParam: Variant): TView;
     procedure PasteExecute(const Node: TTreeNode; const Objects: string);
@@ -1007,6 +1012,7 @@ type
     procedure UMCloseTabQuery(var Message: TMessage); message UM_CLOSE_TAB_QUERY;
     procedure UMFrameActivate(var Message: TMessage); message UM_ACTIVATEFRAME;
     procedure UMFrameDeactivate(var Message: TMessage); message UM_DEACTIVATEFRAME;
+    procedure UMObjectSearchExit(var Message: TMessage); message UM_OBJECT_SEARCH_EXIT;
     procedure UMPostBuilderQueryChange(var Message: TMessage); message UM_POST_BUILDER_QUERY_CHANGE;
     procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
     procedure UMStausBarRefresh(var Message: TMessage); message UM_STATUS_BAR_REFRESH;
@@ -1026,6 +1032,7 @@ type
     procedure WorkbenchExit(Sender: TObject);
     procedure WorkbenchPasteExecute(Sender: TObject);
     function WorkbenchValidateControl(Sender: TObject; Control: TWControl): Boolean;
+    procedure WMActivate(var Message: TWMActivate); message WM_ACTIVATE;
     procedure WMNotify(var Message: TWMNotify); message WM_NOTIFY;
     procedure WMParentNotify(var Message: TWMParentNotify); message WM_PARENTNOTIFY;
     procedure WMTimer(var Message: TWMTimer); message WM_TIMER;
@@ -2575,7 +2582,7 @@ begin
     MainAction('aVDiagram').Enabled := (LastSelectedDatabase <> '');
     MainAction('aDRun').Enabled :=
       ((View in [vEditor, vEditor2, vEditor3])
-      or ((View  = vBuilder) and FQueryBuilder.Visible)
+      or ((View = vBuilder) and FQueryBuilder.Visible)
       or ((View = vIDE) and SQLSingleStmt(SQL) and (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent]))) and not Empty;
     MainAction('aDRunSelection').Enabled := (((View in [vEditor, vEditor2, vEditor3]) and not Empty) or Assigned(ActiveSynMemo) and (Trim(ActiveSynMemo.SelText) <> ''));
     MainAction('aDPostObject').Enabled := (View = vIDE) and Assigned(ActiveSynMemo) and ActiveSynMemo.Modified and SQLSingleStmt(SQL)
@@ -2589,7 +2596,8 @@ begin
 
     FNavigatorMenuNode := FNavigator.Selected;
 
-    Wanted.Update := UpdateAfterAddressChanged;
+    if (View <> vObjectSearch) then
+      Wanted.Update := UpdateAfterAddressChanged;
 
     if (tsLoading in FrameState) then
     begin
@@ -3045,6 +3053,7 @@ procedure TFSession.aECopyExecute(Sender: TObject);
 var
   ClipboardData: HGLOBAL;
   Data: string;
+  Filename: array [0 .. MAX_PATH] of Char;
   I: Integer;
   ImageIndex: Integer;
   S: string;
@@ -3073,7 +3082,11 @@ begin
         Sleep(500);
       end
       else
-        SendToDeveloper('Clipboard still not openable (1): ' + SysErrorMessage(GetLastError()));
+      begin
+        SetString(S, PChar(@Filename[0]), GetWindowModuleFileName(GetClipboardOwner(), PChar(@Filename[0]), Length(Filename)));
+        SendToDeveloper('Clipboard still not openable (1): ' + SysErrorMessage(GetLastError()) + #13#10
+          + S);
+      end;
     end;
   end;
 
@@ -3231,7 +3244,7 @@ begin
     if (OpenClipboard(Handle)) then
     begin
       CloseClipboard();
-      SendToDeveloper('Clipboard now opened (2)');
+      SendToDeveloper('Clipboard now opened (2)' + ' - ' + Window.ActiveControl.ClassName);
     end
     else if (GetLastError() = ERROR_ACCESS_DENIED) then
     begin
@@ -3245,7 +3258,11 @@ begin
         Sleep(500);
       end
       else
-        SendToDeveloper('Clipboard still not openable (2): ' + SysErrorMessage(GetLastError()));
+      begin
+        SetString(S, PChar(@Filename[0]), GetWindowModuleFileName(GetClipboardOwner(), PChar(@Filename[0]), Length(Filename)));
+        SendToDeveloper('Clipboard still not openable (2): ' + SysErrorMessage(GetLastError()) + #13#10
+          + S);
+      end;
     end;
   end;
 
@@ -4281,7 +4298,8 @@ begin
       vObjectSearch:
         begin
           ObjectSearchListView.Free();
-          ObjectSearch.Start();
+          ObjectSearch.Step1();
+          Wanted.Update := ObjectSearchStep2;
         end;
     end;
   end;
@@ -6546,7 +6564,7 @@ procedure TFSession.FNavigatorChange(Sender: TObject; Node: TTreeNode);
 begin
   FNavigatorMenuNode := Node;
 
-  if (not (tsLoading in FrameState)) then
+  if (not (tsLoading in FrameState) and Assigned(Node)) then
   begin
     KillTimer(Handle, tiNavigator);
     if (NavigatorElapse = 0) then
@@ -7530,6 +7548,47 @@ begin
   FObjectSearchStart.Enabled := Trim(FObjectSearch.Text) <> '';
 end;
 
+procedure TFSession.FObjectSearchEnter(Sender: TObject);
+var
+  Animation: BOOL;
+begin
+  if (not SystemParametersInfo(SPI_GETCLIENTAREAANIMATION, 0, @Animation, 0)) then
+    Animation := False;
+
+  if (not Assigned(PObjectSearch)) then
+  begin
+    PObjectSearch := TPObjectSearch.Create(Self);
+    PHeaderResize(nil);
+    PObjectSearch.Visible := False;
+    PObjectSearch.OnExit := FObjectSearch.OnExit;
+    PObjectSearch.Parent := Self;
+    PObjectSearch.Perform(CM_SYSFONTCHANGED, 0, 0);
+    PObjectSearch.Perform(UM_CHANGEPREFERENCES, 0, 0);
+
+    if (Animation) then
+    begin
+      // Draw the content before calling AnimateWindow
+      LockWindowUpdate(PObjectSearch.Handle);
+      PObjectSearch.Show();
+      PObjectSearch.Hide();
+      LockWindowUpdate(0);
+    end;
+
+    PObjectSearch.Session := Session;
+  end;
+
+  PObjectSearch.Location := TObject(FNavigator.Selected.Data);
+
+  if (Animation) then
+    AnimateWindow(PObjectSearch.Handle, 200, AW_VER_POSITIVE or AW_SLIDE or AW_ACTIVATE);
+  PObjectSearch.Show();
+end;
+
+procedure TFSession.FObjectSearchExit(Sender: TObject);
+begin
+  PostMessage(Handle, UM_OBJECT_SEARCH_EXIT, 0, 0);
+end;
+
 procedure TFSession.FObjectSearchKeyPress(Sender: TObject; var Key: Char);
 begin
   if (Key = #13) then
@@ -7551,12 +7610,29 @@ begin
   if (Assigned(ObjectSearch)) then
     ObjectSearch.Free();
 
+  if (Assigned(PObjectSearch)) then
+    PObjectSearch.Hide();
+
   ObjectSearch := TSObjectSearch.Create(Session);
-  if (FNavigator.Selected.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiUsers]) then
-    ObjectSearch.Location := TObject(FNavigator.Selected.Data);
-  ObjectSearch.ObjectName := Trim(FObjectSearch.Text);
-  ObjectSearch.Start();
+  ObjectSearch.Comment := PObjectSearch.Comment;
+  ObjectSearch.Databases := PObjectSearch.Databases;
+  ObjectSearch.Events := PObjectSearch.Events;
+  ObjectSearch.Fields := PObjectSearch.Fields;
+  ObjectSearch.Location := PObjectSearch.Location;
+  ObjectSearch.MatchCase := PObjectSearch.MatchCase;
+  ObjectSearch.Name := PObjectSearch.Name;
+  ObjectSearch.RegExpr := PObjectSearch.RegExpr;
+  ObjectSearch.Routines := PObjectSearch.Routines;
+  ObjectSearch.Tables := PObjectSearch.Tables;
+  ObjectSearch.Triggers := PObjectSearch.Triggers;
+  ObjectSearch.WholeValue := PObjectSearch.WholeValue;
+  ObjectSearch.Value := Trim(FObjectSearch.Text);
+  ObjectSearch.Step1();
+  Wanted.Update := ObjectSearchStep2;
+
   View := vObjectSearch;
+  FNavigator.Selected := nil;
+  Window.ActiveControl := ObjectSearchListView;
 end;
 
 procedure TFSession.FOffsetChange(Sender: TObject);
@@ -7948,11 +8024,10 @@ begin
   PBlob.Visible := False;
   FText.OnChange := FTextChange;
 
-  if (ActiveDBGrid = DBGrid) then
+  if (DBGrid = ActiveDBGrid) then
     ActiveDBGrid := nil;
 
-  if (Assigned(DBGrid)) then // Debug 13.10.15 ... is this needed?
-    DBGrid.Free();
+  DBGrid.Free();
 end;
 
 procedure TFSession.FreeListView(const ListView: TListView);
@@ -8574,35 +8649,31 @@ begin
 end;
 
 function TFSession.GetEditorField(): TField;
-var
-  DBGrid: TDBGrid;
 begin
-  DBGrid := ActiveDBGrid;
-
   // Debug 2016-12-24
-  if (Assigned(DBGrid)) then
+  if (Assigned(ActiveDBGrid)) then
   begin
-    if (not (TObject(DBGrid) is TDBGrid)) then
+    if (not (TObject(ActiveDBGrid) is TDBGrid)) then
       try
-        raise ERangeERror.Create('ClassType: ' + TObject(DBGrid).ClassName);
+        raise ERangeERror.Create('ClassType: ' + TObject(ActiveDBGrid).ClassName);
       except
         raise ERangeError.Create(SRangeError);
       end;
-    if (Assigned(DBGrid.SelectedField)) then
-      if (not (DBGrid.SelectedField is TField)) then
+    if (Assigned(ActiveDBGrid.SelectedField)) then
+      if (not (ActiveDBGrid.SelectedField is TField)) then
         try
-          raise ERangeError.Create(SRangeError + ' ClassType: ' + DBGrid.SelectedField.ClassName);
+          raise ERangeError.Create(SRangeError + ' ClassType: ' + ActiveDBGrid.SelectedField.ClassName);
         finally
           raise ERangeError.Create(SRangeError);
         end;
   end;
 
-  if (not Assigned(DBGrid)
-    or not Assigned(DBGrid.SelectedField)
-    or not (DBGrid.SelectedField.DataType in [ftString, ftWideMemo, ftBlob])) then
+  if (not Assigned(ActiveDBGrid)
+    or not Assigned(ActiveDBGrid.SelectedField)
+    or not (ActiveDBGrid.SelectedField.DataType in [ftString, ftWideMemo, ftBlob])) then
     Result := nil
   else
-    Result := DBGrid.SelectedField;
+    Result := ActiveDBGrid.SelectedField;
 end;
 
 function TFSession.GetFocusedSItem(): TSItem;
@@ -10308,7 +10379,10 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
         end;
         Item.SubItems.Add(S);
         Item.SubItems.Add(TSTrigger(Event.Items[I]).Table.Database.Name + '.' + TSTrigger(Event.Items[I]).Table.Name);
-        Item.SubItems.Add(SysUtils.DateTimeToStr(TSTrigger(Event.Items[I]).Created, LocaleFormatSettings));
+        if (TSTrigger(Event.Items[I]).Created = 0) then
+          Item.SubItems.Add('')
+        else
+          Item.SubItems.Add(SysUtils.DateTimeToStr(TSTrigger(Event.Items[I]).Created, LocaleFormatSettings));
         Item.SubItems.Add('');
         Item.GroupID := giTriggers;
       end
@@ -11416,6 +11490,14 @@ begin
   URI.Free();
 end;
 
+function TFSession.ObjectSearchStep2(): Boolean;
+begin
+  if (Assigned(ObjectSearch)) then
+    ObjectSearch.Step2();
+
+  Result := True; // For compiler warning only...
+end;
+
 procedure TFSession.OnConvertError(Sender: TObject; Text: string);
 begin
   uBase.ConvertError(Sender, Text);
@@ -12012,7 +12094,14 @@ procedure TFSession.PContentChange(Sender: TObject);
       raise ERangeError.Create(SRangeError);
 
     if (Control.Top < 0) then Control.Top := 0;
+try
     SendMessage(Control.Handle, WM_MOVE, 0, MAKELPARAM(Control.Left, Control.Top));
+except
+  on E: Exception do
+    raise ERangeError.Create('Left: ' + IntToStr(Control.Left) + #13#10
+      + 'Top: ' + IntToStr(Control.Top) + #13#10
+      + E.Message);
+end;
     Control.DisableAlign();
     for I := 0 to Control.ControlCount - 1 do
       if (Control.Controls[I] is TWinControl) then
@@ -12068,8 +12157,9 @@ begin
     if (not Assigned(SBlob)) then
       raise ERangeError.Create('Destroying: ' + BoolToStr(csDestroying in ComponentState, True) + #13#10
         + 'Assigned(SBlobDebug): ' + BoolToStr(Assigned(SBlobDebug), True) + #13#10
-        + 'SBlob = SBlobDebug): ' + BoolToStr(SBlob = SBlobDebug, True) + #13#10
+        + 'SBlob = SBlobDebug: ' + BoolToStr(SBlob = SBlobDebug, True) + #13#10
         + 'Assigned(PBlob): ' + BoolToStr(Assigned(PBlob), True));
+      // Occurred on 2017-01-04: SBlob <> SBlobDebug ... DROP TABLE was the last stmt
 
     SBlob.Align := alNone;
     PBlob.Align := alNone;
@@ -12315,7 +12405,7 @@ begin
   FObjectSearch.Visible := (Session.Connection.MySQLVersion >= 50002)
     and (View in [vObjects, vObjectSearch])
     and (FObjectSearch.Left > Toolbar.Left + Toolbar.Width + GetSystemMetrics(SM_CXFIXEDFRAME))
-    and Assigned(FNavigator.Selected) and (FNavigator.Selected.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiUsers]);
+    and Assigned(FNavigator.Selected) and (FNavigator.Selected.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView]);
   TBObjectSearch.Visible := FObjectSearch.Visible;
   {$ENDIF}
 end;
@@ -12391,6 +12481,11 @@ begin
   FObjectSearch.Left := TBObjectSearch.Left - FObjectSearch.Width;
   FObjectSearch.Top := 2 * Toolbar.BorderWidth;
   FObjectSearch.Height := Toolbar.Height - 2 * 2 * Toolbar.BorderWidth;
+  if (Assigned(PObjectSearch)) then
+  begin
+    PObjectSearch.Left := ScreenToClient(FObjectSearch.ClientToScreen(Point(FObjectSearch.Width - PObjectSearch.Width, 0))).X;
+    PObjectSearch.Top := ScreenToClient(FObjectSearch.ClientToScreen(Point(0, FObjectSearch.Height))).Y;
+  end;
 
   PHeaderCheckElements(Sender);
 end;
@@ -13856,7 +13951,7 @@ begin
       MainAction('aEPasteFromFile').Enabled := (View in [vEditor, vEditor2, vEditor3]);
       MainAction('aDRun').Enabled :=
         ((View in [vEditor, vEditor2, vEditor3])
-        or ((View  = vBuilder) and FQueryBuilder.Visible)
+        or ((View = vBuilder) and FQueryBuilder.Visible)
         or ((View = vIDE) and SQLSingleStmt(SQL) and (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent]))) and not Empty;
       MainAction('aDRunSelection').Enabled := (((View in [vEditor, vEditor2, vEditor3]) and not Empty) or Assigned(ActiveSynMemo) and (Trim(ActiveSynMemo.SelText) <> ''));
       MainAction('aDPostObject').Enabled := (View = vIDE) and ActiveSynMemo.Modified and SQLSingleStmt(SQL)
@@ -14590,6 +14685,22 @@ begin
   Include(FrameState, tsActive);
 end;
 
+procedure TFSession.UMObjectSearchExit(var Message: TMessage);
+var
+  Control: TWinControl;
+begin
+  Control := Window.ActiveControl;
+
+  if (Assigned(Control)) then
+  begin
+    while ((Control <> Window) and (Control <> FObjectSearch) and (Control <> PObjectSearch)) do
+      Control := Control.Parent;
+
+    if ((Control <> FObjectSearch) and (Control <> PObjectSearch)) then
+      PObjectSearch.Hide();
+  end;
+end;
+
 procedure TFSession.UMPostBuilderQueryChange(var Message: TMessage);
 begin
   FQueryBuilderEditorPageControlCheckStyle();
@@ -14836,6 +14947,16 @@ begin
     vEditor3: Result := 'editor3';
     else Result := Null;
   end;
+end;
+
+procedure TFSession.WMActivate(var Message: TWMActivate);
+begin
+  if (Message.Active = WA_INACTIVE) then
+    if (Assigned(PObjectSearch) and PObjectSearch.Visible) then
+    begin
+      PObjectSearch.Hide();
+      Window.ActiveControl := nil;
+    end;
 end;
 
 procedure TFSession.WMNotify(var Message: TWMNotify);

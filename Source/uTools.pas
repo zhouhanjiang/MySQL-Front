@@ -4251,6 +4251,16 @@ begin
     ExecuteHeader();
   end;
 
+  for I := 0 to Items.Count - 1 do
+    if ((Success <> daAbort) and (Items[I] is TDBGridItem)) then
+    begin
+      Success := daSuccess;
+
+      ExecuteDataDBGrid(TDBGridItem(Items[I]));
+
+      TItem(Items[I]).Done := True;
+    end;
+
   if (Success <> daAbort) then
   begin
     SQL := '';
@@ -4303,9 +4313,7 @@ begin
           begin
             Success := daSuccess;
 
-            if (Items[I] is TDBGridItem) then
-              ExecuteDataDBGrid(TDBGridItem(Items[I]))
-            else if (Items[I] is TDBObjectItem) then
+            if (Items[I] is TDBObjectItem) then
             begin
               DataTable := DataTables.IndexOf(TDBObjectItem(Items[I]).DBObject) >= 0;
 

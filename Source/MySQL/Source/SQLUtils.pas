@@ -3178,7 +3178,14 @@ begin
     Result := ''
   else
   begin
-    Len := SQLUnescape(PChar(Value), Length(Value), nil, 0);
+    try
+      Len := SQLUnescape(PChar(Value), Length(Value), nil, 0);
+    except
+      // Debug 2017-01-04
+      on E: Exception do
+        raise ERangeError.Create('Value: ' + Value + #13#10
+          + E.Message);
+    end;
     SetLength(Result, Len);
     SQLUnescape(PChar(Value), Length(Value), PChar(Result), Length(Result));
   end;

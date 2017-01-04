@@ -537,6 +537,7 @@ begin
   begin
     FHeaderControl.Parent := nil;
     FHeaderControl.Free();
+    FHeaderControl := nil;
   end;
 
   inherited;
@@ -1126,27 +1127,16 @@ end;
 
 procedure TMySQLDBGrid.SelectAll();
 var
-  OldActive: Boolean;
-  OldCursor: TCursor;
   OldRecNo: Integer;
-  OldVisible: Boolean;
 begin
   DataLink.DataSet.CheckBrowseMode();
 
-  OldCursor := Screen.Cursor;
-  Screen.Cursor := crHourGlass;
-  OldVisible := Visible;
-  OldActive := Focused();
-  Visible := False;
+  LockWindowUpdate(Handle);
   OldRecNo := DataLink.DataSet.RecNo;
-
   DataLink.DataSet.DisableControls();
 
   if ((DataLink.DataSet is TMySQLTable) and TMySQLTable(DataLink.DataSet).LimitedDataReceived) then
-  begin
-    TMySQLTable(DataLink.DataSet).Limit := 0;
-    TMySQLTable(DataLink.DataSet).Refresh();
-  end;
+    TMySQLTable(DataLink.DataSet).LoadNextRecords(True);
 
   SelectedRows.Clear();
   if (DataLink.DataSet.FindFirst()) then
@@ -1156,11 +1146,7 @@ begin
 
   DataLink.DataSet.RecNo := OldRecNo;
   DataLink.DataSet.EnableControls();
-
-  Screen.Cursor := OldCursor;
-  Visible := OldVisible;
-  if (Visible and OldActive) then
-    SetFocus();
+  LockWindowUpdate(0);
 end;
 
 procedure TMySQLDBGrid.SetHeaderColumnArrows();

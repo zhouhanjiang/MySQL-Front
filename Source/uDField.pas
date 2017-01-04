@@ -262,6 +262,11 @@ begin
     FKindReal.Checked := Field.FieldKind <> mkVirtual;
     FKindVirtual.Checked := Field.FieldKind = mkVirtual;
 
+    // Debug 2017-01-03
+    if (not Assigned(Table.Session.FieldTypeByMySQLFieldType(Field.FieldType))) then
+      raise ERangeError.Create('FieldType: ' + IntToStr(Ord(Field.FieldType)) + #13#10
+        + 'Known FieldTypes: ' + IntToStr(Table.Session.FieldTypes.Count));
+
     FFieldType.ItemIndex := FFieldType.Items.IndexOf(Table.Session.FieldTypeByMySQLFieldType(Field.FieldType).Caption); FFieldTypeChange(nil); FFieldTypeExit(nil);
     if (Field.Size >= 0) then FUDFormatSize.Position := Field.Size; FFormatSizeChange(nil);
     if (Field.Decimals >= 0) then FUDFormatDecimals.Position := Field.Decimals; FFormatDecimalsChange(nil);

@@ -18498,14 +18498,15 @@ function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
       or (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent) and not (ADbIdentType in [ditCharset, ditCollation])
       or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and (AnsiQuotes or (ADbIdentType in [ditUser, ditHost, ditConstraint, ditColumnAlias, ditCharset, ditCollation]))
       or (TokenPtr(CurrentToken)^.TokenType = ttString) and (ADbIdentType in [ditUser, ditHost, ditConstraint, ditColumnAlias, ditCharset, ditCollation])
-      or (TokenPtr(CurrentToken)^.OperatorType = otMulti) and JokerAllowed and (ADbIdentType in [ditDatabase, ditTable, ditProcedure, ditFunction, ditField])
-      or (ADbIdentType = ditUnknown)) then
+      or (TokenPtr(CurrentToken)^.OperatorType = otMulti) and JokerAllowed and (ADbIdentType in [ditDatabase, ditTable, ditProcedure, ditFunction, ditField])) then
     begin
       TokenPtr(CurrentToken)^.FOperatorType := otNone;
       Result := ApplyCurrentToken(utDbIdent);
     end
     else if ((ADbIdentType = ditKey) and (TokenPtr(CurrentToken)^.TokenType = ttIdent) and (TokenPtr(CurrentToken)^.KeywordIndex = kiPRIMARY)) then
       Result := ApplyCurrentToken(utKeyword)
+    else if ((ADbIdentType = ditUnknown) and (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0)) then
+      Result := ApplyCurrentToken(utDbIdent)
     else
     begin
       SetError(PE_UnexpectedToken);
@@ -22112,7 +22113,7 @@ begin
             Nodes.OrderBy.List := ParseList(False, ParseSelectStmtOrderBy);
         end;
 
-      if (not ErrorFound) then
+      if (not ErrorFound and not UnionSelect) then
         if (IsTag(kiLIMIT)) then
         begin
           Nodes.Limit.Tag := ParseTag(kiLIMIT);
@@ -22190,7 +22191,7 @@ begin
             Nodes.Union1.OrderBy.List := ParseList(False, ParseSelectStmtOrderBy);
         end;
 
-      if (not ErrorFound) then
+      if (not ErrorFound and not UnionSelect) then
         if (IsTag(kiLIMIT)) then
         begin
           Nodes.Union1.Limit.Tag := ParseTag(kiLIMIT);

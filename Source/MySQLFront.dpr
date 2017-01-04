@@ -79,6 +79,7 @@ uses
   uDVariable in 'uDVariable.pas' {DVariable},
   uDView in 'uDView.pas' {DView},
   uCWorkbench in 'uCWorkbench.pas',
+  uFObjectSearch in 'uFObjectSearch.pas', {PObjectSearch}
   uFSession in 'uFSession.pas' {FSession},
   uPDataBrowserDummy in 'uPDataBrowserDummy.pas' {PDataBrowserDummy},
   uWWindow in 'uWWindow.pas' {WWindow};
