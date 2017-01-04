@@ -1,19 +1,18 @@
 object FSession: TFSession
   Left = 0
   Top = 0
-  Width = 916
-  Height = 315
+  Width = 591
+  Height = 326
   Align = alClient
   Constraints.MinHeight = 300
   Constraints.MinWidth = 200
   TabOrder = 0
   Visible = False
   OnResize = FormResize
-  ExplicitWidth = 591
   object SLog: TSplitter_Ext
     Left = 0
-    Top = 267
-    Width = 916
+    Top = 278
+    Width = 591
     Height = 4
     Cursor = crVSplit
     Align = alBottom
@@ -32,7 +31,7 @@ object FSession: TFSession
     Left = 120
     Top = 22
     Width = 4
-    Height = 245
+    Height = 256
     AutoSnap = False
     ResizeStyle = rsUpdate
     OnCanResize = SSideBarCanResize
@@ -46,7 +45,7 @@ object FSession: TFSession
     Left = 0
     Top = 22
     Width = 120
-    Height = 245
+    Height = 256
     Align = alLeft
     BevelOuter = bvNone
     Color = clWindow
@@ -57,7 +56,7 @@ object FSession: TFSession
       Left = 0
       Top = 0
       Width = 120
-      Height = 245
+      Height = 256
       Align = alClient
       BevelInner = bvRaised
       BevelOuter = bvLowered
@@ -84,7 +83,7 @@ object FSession: TFSession
         Left = 2
         Top = 106
         Width = 116
-        Height = 137
+        Height = 148
         Align = alClient
         BevelOuter = bvNone
         Color = clWindow
@@ -109,7 +108,7 @@ object FSession: TFSession
       Left = 0
       Top = 0
       Width = 120
-      Height = 245
+      Height = 256
       Align = alClient
       BevelInner = bvRaised
       BevelOuter = bvLowered
@@ -120,7 +119,7 @@ object FSession: TFSession
         Left = 2
         Top = 2
         Width = 116
-        Height = 241
+        Height = 252
         HelpContext = 1112
         Align = alClient
         BorderStyle = bsNone
@@ -154,7 +153,7 @@ object FSession: TFSession
       Left = 0
       Top = 0
       Width = 120
-      Height = 245
+      Height = 256
       Align = alClient
       BevelInner = bvRaised
       BevelOuter = bvLowered
@@ -165,7 +164,7 @@ object FSession: TFSession
         Left = 2
         Top = 2
         Width = 116
-        Height = 241
+        Height = 252
         HelpContext = 1038
         Align = alClient
         BorderStyle = bsNone
@@ -201,8 +200,8 @@ object FSession: TFSession
   end
   object PLog: TPanel_Ext
     Left = 0
-    Top = 271
-    Width = 916
+    Top = 282
+    Width = 591
     Height = 44
     Align = alBottom
     BevelInner = bvRaised
@@ -210,11 +209,10 @@ object FSession: TFSession
     ParentBackground = False
     TabOrder = 2
     OnResize = PLogResize
-    ExplicitWidth = 591
     object FLog: TRichEdit
       Left = 19
       Top = 2
-      Width = 895
+      Width = 570
       Height = 40
       HelpContext = 1039
       TabStop = False
@@ -236,7 +234,6 @@ object FSession: TFSession
       WordWrap = False
       OnEnter = FLogEnter
       OnExit = FLogExit
-      ExplicitWidth = 570
     end
     object PLogHeader: TPanel_Ext
       Left = 2
@@ -257,8 +254,8 @@ object FSession: TFSession
   object PContent: TPanel_Ext
     Left = 124
     Top = 22
-    Width = 792
-    Height = 245
+    Width = 467
+    Height = 256
     Align = alClient
     BevelOuter = bvNone
     Color = clWindow
@@ -267,11 +264,10 @@ object FSession: TFSession
     ParentBackground = False
     TabOrder = 1
     OnResize = PContentResize
-    ExplicitWidth = 467
     object SResult: TSplitter_Ext
       Left = 0
-      Top = 48
-      Width = 792
+      Top = 59
+      Width = 467
       Height = 4
       Cursor = crVSplit
       Align = alBottom
@@ -289,8 +285,8 @@ object FSession: TFSession
     end
     object SBlob: TSplitter_Ext
       Left = 0
-      Top = 182
-      Width = 792
+      Top = 193
+      Width = 467
       Height = 4
       Cursor = crVSplit
       Align = alBottom
@@ -309,7 +305,7 @@ object FSession: TFSession
     object PListView: TPanel_Ext
       Left = 0
       Top = 0
-      Width = 792
+      Width = 467
       Height = 56
       HelpContext = 1035
       Align = alTop
@@ -320,11 +316,10 @@ object FSession: TFSession
       ParentBackground = False
       TabOrder = 3
       Visible = False
-      ExplicitWidth = 467
       object FServerListView: TListView_Ext
         Left = 2
         Top = 2
-        Width = 788
+        Width = 463
         Height = 52
         HelpContext = 1035
         Align = alClient
@@ -348,13 +343,12 @@ object FSession: TFSession
         OnDragOver = ListViewDragOver
         OnKeyDown = ListViewKeyDown
         OnSelectItem = ListViewSelectItem
-        ExplicitWidth = 463
       end
     end
     object PSynMemo: TPanel_Ext
       Left = 0
       Top = 310
-      Width = 792
+      Width = 467
       Height = 50
       Align = alTop
       BevelInner = bvRaised
@@ -364,11 +358,10 @@ object FSession: TFSession
       ParentBackground = False
       TabOrder = 2
       Visible = False
-      ExplicitWidth = 467
       object FSQLEditorSynMemo: TSynMemo
         Left = 2
         Top = 2
-        Width = 788
+        Width = 463
         Height = 46
         HelpContext = 1037
         OnSearchNotFound = SearchNotFound
@@ -404,7 +397,6 @@ object FSession: TFSession
         WantTabs = True
         OnStatusChange = SynMemoStatusChange
         FontSmoothing = fsmNone
-        ExplicitWidth = 463
         RemovedKeystrokes = <
           item
             Command = ecContextHelp
@@ -419,8 +411,8 @@ object FSession: TFSession
     end
     object PResult: TPanel_Ext
       Left = 0
-      Top = 52
-      Width = 792
+      Top = 63
+      Width = 467
       Height = 130
       Align = alBottom
       BevelOuter = bvNone
@@ -428,7 +420,6 @@ object FSession: TFSession
       ParentBackground = False
       TabOrder = 5
       Visible = False
-      ExplicitWidth = 467
       object PResultHeader: TPanel_Ext
         Left = 0
         Top = 0
@@ -446,7 +437,7 @@ object FSession: TFSession
       object PSQLEditorDBGrid: TPanel_Ext
         Left = 17
         Top = 0
-        Width = 775
+        Width = 450
         Height = 130
         Align = alClient
         BevelInner = bvRaised
@@ -455,13 +446,12 @@ object FSession: TFSession
         ParentBackground = False
         TabOrder = 1
         OnResize = PGridResize
-        ExplicitWidth = 450
       end
     end
     object PQueryBuilder: TPanel_Ext
       Left = 0
       Top = 160
-      Width = 792
+      Width = 467
       Height = 150
       HelpContext = 1120
       Align = alTop
@@ -470,11 +460,10 @@ object FSession: TFSession
       ParentBackground = False
       TabOrder = 1
       Visible = False
-      ExplicitWidth = 467
       object SQueryBuilderSynMemo: TSplitter_Ext
         Left = 0
         Top = 96
-        Width = 792
+        Width = 467
         Height = 4
         Cursor = crVSplit
         Align = alBottom
@@ -487,7 +476,7 @@ object FSession: TFSession
       object PQueryBuilderSynMemo: TPanel_Ext
         Left = 0
         Top = 100
-        Width = 792
+        Width = 467
         Height = 50
         Align = alBottom
         BevelInner = bvRaised
@@ -496,11 +485,10 @@ object FSession: TFSession
         Constraints.MinHeight = 50
         ParentBackground = False
         TabOrder = 0
-        ExplicitWidth = 467
         object FQueryBuilderSynMemo: TSynMemo
           Left = 2
           Top = 2
-          Width = 788
+          Width = 463
           Height = 46
           HelpContext = 1120
           OnSearchNotFound = SearchNotFound
@@ -534,13 +522,12 @@ object FSession: TFSession
           OnChange = FQueryBuilderSynMemoChange
           OnStatusChange = SynMemoStatusChange
           FontSmoothing = fsmNone
-          ExplicitWidth = 463
         end
       end
       object FQueryBuilder: TacQueryBuilder
         Left = 0
         Top = 0
-        Width = 792
+        Width = 467
         Height = 96
         HelpContext = 1120
         MetadataFilter = <>
@@ -684,13 +671,12 @@ object FSession: TFSession
         OnEnter = FQueryBuilderEnter
         OnExit = FQueryBuilderExit
         OnResize = FQueryBuilderResize
-        ExplicitWidth = 467
       end
     end
     object PDataBrowser: TPanel_Ext
       Left = 0
       Top = 56
-      Width = 792
+      Width = 467
       Height = 25
       HelpContext = 1036
       Align = alTop
@@ -700,7 +686,6 @@ object FSession: TFSession
       TabOrder = 0
       Visible = False
       OnResize = PDataBrowserResize
-      ExplicitWidth = 467
       object FOffset: TEdit
         Left = 0
         Top = 0
@@ -751,6 +736,7 @@ object FSession: TFSession
         Height = 23
         Align = alNone
         Caption = 'TBLimitEnabled'
+        GradientEndColor = 11319229
         TabOrder = 4
         Transparent = False
         object FLimitEnabled: TToolButton
@@ -780,6 +766,7 @@ object FSession: TFSession
         Height = 23
         Align = alNone
         Caption = 'TBFilterEnabled'
+        GradientEndColor = 11319229
         TabOrder = 6
         Transparent = False
         object FFilterEnabled: TToolButton
@@ -807,6 +794,7 @@ object FSession: TFSession
         Height = 22
         Align = alNone
         AutoSize = True
+        GradientEndColor = 11319229
         TabOrder = 8
         Transparent = False
         object FQuickSearchEnabled: TToolButton
@@ -821,19 +809,18 @@ object FSession: TFSession
       object PDataBrowserSpacer: TPanel_Ext
         Left = 0
         Top = 22
-        Width = 792
+        Width = 467
         Height = 3
         Align = alBottom
         BevelOuter = bvNone
         ParentBackground = False
         TabOrder = 9
-        ExplicitWidth = 467
       end
     end
     object PObjectIDE: TPanel_Ext
       Left = 0
       Top = 81
-      Width = 792
+      Width = 467
       Height = 79
       Align = alTop
       BevelOuter = bvNone
@@ -841,22 +828,20 @@ object FSession: TFSession
       TabOrder = 4
       Visible = False
       OnResize = PObjectIDEResize
-      ExplicitWidth = 467
       object PObjectIDESpacer: TPanel_Ext
         Left = 0
         Top = 35
-        Width = 792
+        Width = 467
         Height = 3
         Align = alBottom
         BevelOuter = bvNone
         ParentBackground = False
         TabOrder = 0
-        ExplicitWidth = 467
       end
       object FObjectIDEGrid: TMySQLDBGrid
         Left = 0
         Top = 0
-        Width = 792
+        Width = 467
         Height = 35
         HelpContext = 1122
         Align = alClient
@@ -881,14 +866,13 @@ object FSession: TFSession
       object PObjectIDETrigger: TPanel_Ext
         Left = 0
         Top = 38
-        Width = 792
+        Width = 467
         Height = 41
         Align = alBottom
         BevelOuter = bvNone
         ParentBackground = False
         TabOrder = 2
         Visible = False
-        ExplicitWidth = 467
         object BINSERT: TButton
           Left = 6
           Top = 10
@@ -929,8 +913,8 @@ object FSession: TFSession
     end
     object PBlob: TPanel_Ext
       Left = 0
-      Top = 186
-      Width = 792
+      Top = 197
+      Width = 467
       Height = 59
       Align = alBottom
       BevelInner = bvRaised
@@ -939,11 +923,10 @@ object FSession: TFSession
       ParentBackground = False
       TabOrder = 6
       Visible = False
-      ExplicitWidth = 467
       object FImage: TImage
         Left = 2
         Top = 25
-        Width = 788
+        Width = 463
         Height = 32
         Align = alClient
         Center = True
@@ -956,7 +939,7 @@ object FSession: TFSession
       object PToolBarBlob: TPanel_Ext
         Left = 2
         Top = 2
-        Width = 788
+        Width = 463
         Height = 23
         Align = alTop
         AutoSize = True
@@ -966,22 +949,21 @@ object FSession: TFSession
         ParentDoubleBuffered = False
         TabOrder = 3
         OnResize = PToolBarBlobResize
-        ExplicitWidth = 463
         object TBBlob: TToolBar
           Left = 0
           Top = 0
-          Width = 788
+          Width = 463
           Height = 23
           ButtonWidth = 97
           Color = clBtnFace
           DoubleBuffered = False
+          GradientEndColor = 11319229
           ParentColor = False
           ParentDoubleBuffered = False
           ShowCaptions = True
           TabOrder = 0
           Transparent = False
           Wrapable = False
-          ExplicitWidth = 463
           object tbBlobText: TToolButton
             Left = 0
             Top = 0
@@ -1027,7 +1009,7 @@ object FSession: TFSession
       object FText: TRichEdit
         Left = 2
         Top = 25
-        Width = 788
+        Width = 463
         Height = 32
         Align = alClient
         BorderStyle = bsNone
@@ -1048,12 +1030,11 @@ object FSession: TFSession
         OnKeyPress = FTextKeyPress
         OnKeyUp = FTextKeyUp
         OnMouseUp = FTextMouseUp
-        ExplicitWidth = 463
       end
       object FRTF: TRichEdit
         Left = 2
         Top = 25
-        Width = 788
+        Width = 463
         Height = 32
         Align = alClient
         BorderStyle = bsNone
@@ -1072,12 +1053,11 @@ object FSession: TFSession
         OnChange = FRTFChange
         OnEnter = FRTFEnter
         OnExit = FRTFExit
-        ExplicitWidth = 463
       end
       object FHexEditor: TMPHexEditorEx
         Left = 2
         Top = 25
-        Width = 788
+        Width = 463
         Height = 32
         Cursor = crIBeam
         BackupExtension = '.bak'
@@ -1127,13 +1107,12 @@ object FSession: TFSession
         OnChange = FHexEditorChange
         BytesPerBlock = 8
         SeparateBlocksInCharField = False
-        ExplicitWidth = 463
       end
     end
     object PWorkbench: TPanel_Ext
       Left = 0
       Top = 360
-      Width = 792
+      Width = 467
       Height = 50
       HelpContext = 1125
       Align = alTop
@@ -1144,13 +1123,12 @@ object FSession: TFSession
       ParentBackground = False
       TabOrder = 7
       Visible = False
-      ExplicitWidth = 467
     end
   end
   object PHeader: TPanel_Ext
     Left = 0
     Top = 0
-    Width = 916
+    Width = 591
     Height = 22
     Align = alTop
     BevelOuter = bvNone
@@ -1163,9 +1141,8 @@ object FSession: TFSession
     OnMouseUp = PanelMouseUp
     OnResize = PHeaderResize
     OnPaint = PHeaderPaint
-    ExplicitWidth = 591
     DesignSize = (
-      916
+      591
       22)
     object TBSideBar: TToolBar
       Left = 2
@@ -1174,6 +1151,7 @@ object FSession: TFSession
       Height = 22
       Align = alNone
       AutoSize = True
+      GradientEndColor = 11319229
       TabOrder = 0
       Transparent = True
       Wrapable = False
@@ -1209,6 +1187,7 @@ object FSession: TFSession
       AutoSize = True
       ButtonHeight = 20
       ButtonWidth = 68
+      GradientEndColor = 11319229
       List = True
       PopupMenu = MToolBar
       ShowCaptions = True
@@ -1289,7 +1268,7 @@ object FSession: TFSession
       end
     end
     object FObjectSearch: TEdit
-      Left = 700
+      Left = 1097
       Top = 0
       Width = 140
       Height = 22
@@ -1303,14 +1282,13 @@ object FSession: TFSession
       OnKeyPress = FObjectSearchKeyPress
     end
     object TBObjectSearch: TToolBar
-      Left = 840
+      Left = 1280
       Top = 0
       Width = 23
       Height = 22
       Align = alNone
       Anchors = []
-      Color = clBtnFace
-      ParentColor = False
+      GradientEndColor = 11319229
       TabOrder = 3
       Transparent = True
       Visible = False

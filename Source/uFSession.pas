@@ -12455,7 +12455,7 @@ var
 begin
   Panel := TPanel_Ext(Sender);
 
-  Rect.Left := Panel.ClientWidth - GetSystemMetrics(SM_CXEDGE) - (GetSystemMetrics(SM_CXSIZE) - 2 *GetSystemMetrics(SM_CXEDGE));
+  Rect.Left := Panel.ClientWidth - GetSystemMetrics(SM_CXEDGE) - (GetSystemMetrics(SM_CXSIZE) - 2 * GetSystemMetrics(SM_CXEDGE));
   Rect.Top := GetSystemMetrics(SM_CYEDGE);
   Rect.Width := GetSystemMetrics(SM_CXSIZE) - 2 * GetSystemMetrics(SM_CXEDGE);
   Rect.Height := GetSystemMetrics(SM_CYSIZE) - 2 * GetSystemMetrics(SM_CXEDGE);
@@ -12475,7 +12475,7 @@ end;
 
 procedure TFSession.PHeaderResize(Sender: TObject);
 begin
-  TBObjectSearch.Left := PHeader.ClientWidth - GetSystemMetrics(SM_CXEDGE) - (GetSystemMetrics(SM_CXSIZE) - 2 *GetSystemMetrics(SM_CXEDGE)) - TBObjectSearch.Width;
+  TBObjectSearch.Left := PHeader.ClientWidth - GetSystemMetrics(SM_CXEDGE) - (GetSystemMetrics(SM_CXSIZE) - 2 * GetSystemMetrics(SM_CXEDGE)) - GetSystemMetrics(SM_CXEDGE) - TBObjectSearch.Width;
   TBObjectSearch.Top := 0;
   TBObjectSearch.Height := Toolbar.Height;
   FObjectSearch.Left := TBObjectSearch.Left - FObjectSearch.Width;
