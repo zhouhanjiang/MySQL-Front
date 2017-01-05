@@ -4294,7 +4294,7 @@ begin
       SQL := SQL + ';' + #13#10;
     end;
 
-    if (Session.Connection.CreateResultHandle(ResultHandle, SQL)) then
+    if ((SQL = '') or Session.Connection.CreateResultHandle(ResultHandle, SQL)) then
     begin
       for I := 0 to Items.Count - 1 do
         if (Success <> daAbort) then
@@ -4315,7 +4315,7 @@ begin
 
             if (Items[I] is TDBObjectItem) then
             begin
-              DataTable := DataTables.IndexOf(TDBObjectItem(Items[I]).DBObject) >= 0;
+              DataTable := Data and (DataTables.IndexOf(TDBObjectItem(Items[I]).DBObject) >= 0);
 
               if (DataTable) then
                 while ((Success = daSuccess) and not Session.Connection.ExecuteResult(ResultHandle)) do

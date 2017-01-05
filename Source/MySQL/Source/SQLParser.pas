@@ -3872,7 +3872,7 @@ type
         Heritage: TRange;
       private
         FDelimiterType: TTokenType;
-        FElementCount: Word;
+        FElementCount: Integer;
         Nodes: TNodes;
         class function Create(const AParser: TSQLParser;
           const ANodes: TNodes; const ADelimiterType: TTokenType;
@@ -3882,7 +3882,7 @@ type
         function GetDelimiter(const Child: PChild): PToken;
         function GetNextElement(const Child: PChild): PChild;
         property DelimiterType: TTokenType read FDelimiterType;
-        property ElementCount: Word read FElementCount;
+        property ElementCount: Integer read FElementCount;
         property FirstElement: PChild read GetFirstElement;
         property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
@@ -24213,7 +24213,7 @@ begin
   else if (IsTag(kiXA)) then
     Result := ParseXAStmt()
   else if (IsSymbol(ttOpenBracket) and IsNextTag(1, kiSELECT)) then
-    Result := ParseSelectStmt(True)
+    Result := ParseSelectStmt(False)
   else if (EndOfStmt(CurrentToken)) then
     Result := 0
   else

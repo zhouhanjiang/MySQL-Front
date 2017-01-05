@@ -415,7 +415,6 @@ type
     procedure UMOnlineUpdateFound(var Message: TMessage); message UM_ONLINE_UPDATE_FOUND;
     procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMUpdateToolbar(var Message: TMessage); message UM_UPDATETOOLBAR;
-    procedure WMActivate(var Message: TMessage); message WM_ACTIVATE;
     procedure WMDrawItem(var Message: TWMDrawItem); message WM_DRAWITEM;
     procedure WMHelp(var Message: TWMHelp); message WM_HELP;
     procedure WMTimer(var Message: TWMTimer); message WM_TIMER;
@@ -1861,12 +1860,6 @@ begin
     end;
     miFReopen.Delete(0);
   end;
-end;
-
-procedure TWWindow.WMActivate(var Message: TMessage);
-begin
-  if ((0 <= TabControl.TabIndex) and (TabControl.TabIndex < FSessions.Count)) then
-    TFSession(FSessions[TabControl.TabIndex]).Perform(WM_ACTIVATE, Message.WParam, Message.LParam);
 end;
 
 procedure TWWindow.WMDrawItem(var Message: TWMDrawItem);

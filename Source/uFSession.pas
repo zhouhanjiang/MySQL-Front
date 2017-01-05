@@ -2393,10 +2393,6 @@ var
 begin
   Wanted.Clear();
 
-  // How can it be, that ActiveDBGrid is not assiged, but this code is executed???
-  if (not Assigned(ActiveDBGrid)) then
-    raise ERangeError.Create(SRangeError + 'Address: ' + Address);
-
   if (MsgBox(Preferences.LoadStr(176), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = ID_YES) then
   begin
     if (ActiveDBGrid.SelectedRows.Count = 0) then
@@ -3066,7 +3062,8 @@ begin
     if (OpenClipboard(Handle)) then
     begin
       CloseClipboard();
-      SendToDeveloper('Clipboard now opened (1)');
+      SendToDeveloper('Clipboard now opened (1)' + #13#10
+        + TOSVersion.Name);
     end
     else if (GetLastError() = ERROR_ACCESS_DENIED) then
     begin
@@ -3075,7 +3072,8 @@ begin
       Sleep(500);
       if (OpenClipboard(Handle)) then
       begin
-        SendToDeveloper('Clipboard openable after Sleep (1)');
+        SendToDeveloper('Clipboard openable after Sleep (1)' + #13#10
+          + TOSVersion.Name);
         CloseClipboard();
         Sleep(500);
       end
@@ -3083,7 +3081,8 @@ begin
       begin
         SetString(S, PChar(@Filename[0]), GetWindowModuleFileName(GetClipboardOwner(), PChar(@Filename[0]), Length(Filename)));
         SendToDeveloper('Clipboard still not openable (1): ' + SysErrorMessage(GetLastError()) + #13#10
-          + S);
+          + S + #13#10
+          + TOSVersion.Name);
       end;
     end;
   end;
@@ -3242,7 +3241,8 @@ begin
     if (OpenClipboard(Handle)) then
     begin
       CloseClipboard();
-      SendToDeveloper('Clipboard now opened (2)' + ' - ' + Window.ActiveControl.ClassName);
+      SendToDeveloper('Clipboard now opened (2)' + ' - ' + Window.ActiveControl.ClassName + #13#10
+        + TOSVersion.Name);
     end
     else if (GetLastError() = ERROR_ACCESS_DENIED) then
     begin
@@ -3251,7 +3251,8 @@ begin
       Sleep(500);
       if (OpenClipboard(Handle)) then
       begin
-        SendToDeveloper('Clipboard openable after Sleep (2)');
+        SendToDeveloper('Clipboard openable after Sleep (2)' + #13#10
+          + TOSVersion.Name);
         CloseClipboard();
         Sleep(500);
       end
@@ -3259,7 +3260,8 @@ begin
       begin
         SetString(S, PChar(@Filename[0]), GetWindowModuleFileName(GetClipboardOwner(), PChar(@Filename[0]), Length(Filename)));
         SendToDeveloper('Clipboard still not openable (2): ' + SysErrorMessage(GetLastError()) + #13#10
-          + S);
+          + S + #13#10
+          + TOSVersion.Name);
       end;
     end;
   end;
@@ -3577,6 +3579,10 @@ end;
 
 procedure TFSession.aESelectAllExecute(Sender: TObject);
 begin
+  if (not Assigned(ActiveListView)) then
+    raise ERangeError.Create('Address: ' + Address + #13#10
+      + 'Assigned: ' + BoolToStr(Assigned(GetActiveListView())));
+
   ActiveListView.SelectAll();
 end;
 
@@ -4257,25 +4263,31 @@ begin
       vEditor,
       vEditor2,
       vEditor3:
-        if (((View = vBrowser) or PResult.Visible)
-          and (ActiveDBGrid.DataSource.DataSet is TMySQLDataSet)) then
         begin
-          AllowRefresh := ActiveDBGrid.DataSource.DataSet.Active;
-
-          if (AllowRefresh) then
+          if (((View = vBrowser) or PResult.Visible)
+            and not Assigned(ActiveDBGrid)) then
+            raise ERangeError.Create('Assigned(GetActiveDBGrid()): ' + BoolToStr(Assigned(GetActiveDBGrid()), True) + #13#10
+              + 'Address: ' + Address);
+          if (((View = vBrowser) or PResult.Visible)
+            and (ActiveDBGrid.DataSource.DataSet is TMySQLDataSet)) then
           begin
-            ActiveDBGrid.EditorMode := False;
-            try
-              ActiveDBGrid.DataSource.DataSet.CheckBrowseMode();
-            except
-              AllowRefresh := False;
-            end;
-          end;
+            AllowRefresh := ActiveDBGrid.DataSource.DataSet.Active;
 
-          if (AllowRefresh) then
-            ActiveDBGrid.DataSource.DataSet.Refresh()
-          else
-            ActiveDBGrid.DataSource.DataSet.Open();
+            if (AllowRefresh) then
+            begin
+              ActiveDBGrid.EditorMode := False;
+              try
+                ActiveDBGrid.DataSource.DataSet.CheckBrowseMode();
+              except
+                AllowRefresh := False;
+              end;
+            end;
+
+            if (AllowRefresh) then
+              ActiveDBGrid.DataSource.DataSet.Refresh()
+            else
+              ActiveDBGrid.DataSource.DataSet.Open();
+          end;
         end;
       vDiagram:
         begin
@@ -5726,23 +5738,28 @@ begin
 end;
 
 procedure TFSession.DBGridDblClick(Sender: TObject);
+var
+  DBGrid: TMySQLDBGrid;
 begin
+  if (not (Sender is TMySQLDBGrid)) then
+    raise ERangeError.Create(SRangeError)
+  else
+    DBGrid := TMySQLDBGrid(Sender);
+
   Wanted.Clear();
 
-  // Debug 2016-12-11
-  if (not Assigned(ActiveDBGrid)) then
+  // Debug 2017-01-05
+  if (not Assigned(DBGrid.DataSource)) then
     raise ERangeError.Create(SRangeError);
-  if (not Assigned(ActiveDBGrid.DataSource)) then
-    raise ERangeError.Create(SRangeError);
-  if (not ActiveDBGrid.DataSource.Enabled) then
-    raise ERangeERror.Create('ClassType: ' + ActiveDBGrid.ClassName + #13#10
-      + 'Name: ' + ActiveDBGrid.Name);
-  if (not Assigned(ActiveDBGrid.DataSource.DataSet)) then
+  if (not DBGrid.DataSource.Enabled) then
+    raise ERangeERror.Create('ClassType: ' + DBGrid.ClassName + #13#10
+      + 'Name: ' + DBGrid.Name);
+  if (not Assigned(DBGrid.DataSource.DataSet)) then
     raise ERangeError.Create(SRangeError);
 
-  if (ActiveDBGrid.DataSource.DataSet.CanModify) then
-    if (not Assigned(ActiveDBGrid.SelectedField) or not (ActiveDBGrid.SelectedField.DataType in [ftWideMemo, ftBlob])) then
-      ActiveDBGrid.EditorMode := True
+  if (DBGrid.DataSource.DataSet.CanModify) then
+    if (not Assigned(DBGrid.SelectedField) or not (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob])) then
+      DBGrid.EditorMode := True
     else if (aVBlobText.Visible) then
     begin
       aVBlobText.Checked := True;
@@ -5893,17 +5910,24 @@ end;
 
 procedure TFSession.DBGridKeyDown(Sender: TObject; var Key: Word;
   Shift: TShiftState);
+var
+  DBGrid: TMySQLDBGrid;
 begin
+  if (not (Sender is TMySQLDBGrid)) then
+    raise ERangeError.Create(SRangeError)
+  else
+    DBGrid := TMySQLDBGrid(Sender);
+
   if (Key = VK_APPS) then
-    ActiveDBGrid.PopupMenu := MGrid
-  else if ((Key = VK_INSERT) and (Shift = []) and not ActiveDBGrid.EditorMode) then
+    DBGrid.PopupMenu := MGrid
+  else if ((Key = VK_INSERT) and (Shift = []) and not DBGrid.EditorMode) then
     MainAction('aDInsertRecord').Execute()
-  else if ((Key = VK_DELETE) and (Shift = [ssCtrl]) and not ActiveDBGrid.EditorMode) then
+  else if ((Key = VK_DELETE) and (Shift = [ssCtrl]) and not DBGrid.EditorMode) then
   begin
     MainAction('aDDeleteRecord').Execute();
     Key := 0;
   end
-  else if (Assigned(ActiveDBGrid.SelectedField) and (ActiveDBGrid.SelectedField.DataType in [ftWideMemo, ftBlob])) then
+  else if (Assigned(DBGrid.SelectedField) and (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob])) then
     if ((Key = VK_RETURN) and not aVBlobText.Visible and not aVBlobImage.Visible) then
     begin
       aVBlobHexEditor.Checked := True;
@@ -6057,6 +6081,7 @@ begin
         SortDef.DescFields := ActiveDBGrid.Fields[Column.Index].FieldName;
     end;
 
+    ActiveDBGrid.SelectedRows.Clear();
     TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).Sort(SortDef);
     ActiveDBGrid.UpdateHeader();
 
@@ -8660,7 +8685,9 @@ end;
 
 function TFSession.GetFocusedSItem(): TSItem;
 begin
-  if ((Window.ActiveControl = ActiveListView) and Assigned(ActiveListView.Selected)) then
+  if (not Assigned(Window.ActiveControl)) then
+    Result := nil
+  else if ((Window.ActiveControl = ActiveListView) and Assigned(ActiveListView.Selected)) then
     if ((ActiveListView.SelCount > 1) or not (TSObject(ActiveListView.Selected.Data) is TSItem)) then
       Result := nil
     else
@@ -11058,6 +11085,7 @@ begin
   // Debug 2016-11-17
   if (not Assigned(ActiveListView)) then
     raise ERangeError.Create(SRangeError);
+    // Occurred on 2017-01-05
 
   ListViewSelectItem(ActiveListView, ActiveListView.Selected, Assigned(ActiveListView.Selected));
 
@@ -11129,6 +11157,11 @@ procedure TFSession.MSQLEditorPopup(Sender: TObject);
 var
   I: Integer;
 begin
+  // Debug 2017-01-05
+  if (not Assigned(ActiveSynMemo)) then
+    raise ERangeError.Create('Address: ' + Address + #13#10
+      + 'Assigned: ' + BoolToStr(Assigned(GetActiveSynMemo()), True));
+
   SynMemoStatusChange(Sender, []);
   ShowEnabledItems(MSQLEditor.Items);
 
@@ -13031,6 +13064,10 @@ begin
       URI.Database := LastSelectedDatabase;
       URI.Table := LastSelectedTable;
     end;
+
+    // Debug 2017-01-05
+    if (URI.Table = '') then
+      raise ERangeError.Create(SRangeError);
   end
   else if ((URI.Param['view'] = 'ide') and not (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent, iiTrigger])) then
     URI.Address := LastObjectIDEAddress
@@ -13074,6 +13111,13 @@ begin
     URI.Param['file'] := Null;
     URI.Param['cp'] := Null;
   end;
+
+  if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
+    raise ERangeError.Create('View: ' + IntToStr(Ord(AView)) + #13#10
+      + 'LastSelectedTable: ' + LastSelectedTable + #13#10
+      + 'Address: ' + Address + #13#10
+      + 'ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
+      + 'Text: ' + FNavigator.Selected.Text);
 
   LockWindowUpdate(FNavigator.Handle);
   ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);
@@ -13983,10 +14027,45 @@ begin
 
   if (not Table.DataSet.Active) then
   begin
+    // Debug 2017-01-05
+    if (not (TObject(Table) is TSTable)) then
+      try
+        raise ERangeError.Create('ClassType: ' + TObject(Table).ClassName);
+      except
+        raise ERangeError.Create(SRangeError);
+      end;
+
     if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).PrimaryKey)) then
       TSBaseTable(Table).PrimaryKey.GetSortDef(SortDef);
+
+    // Debug 2017-01-05
+    if (not (TObject(Table) is TSTable)) then
+      try
+        raise ERangeError.Create('ClassType: ' + TObject(Table).ClassName);
+      except
+        raise ERangeError.Create(SRangeError);
+      end;
+
     Table.DataSet.AfterOpen := Desktop(Table).DataSetAfterOpen;
+
+    // Debug 2017-01-05
+    if (not (TObject(Table) is TSTable)) then
+      try
+        raise ERangeError.Create('ClassType: ' + TObject(Table).ClassName);
+      except
+        raise ERangeError.Create(SRangeError);
+      end;
+
     Table.DataSet.AfterRefresh := Desktop(Table).DataSetAfterRefresh;
+
+    // Debug 2017-01-05
+    if (not (TObject(Table) is TSTable)) then
+      try
+        raise ERangeError.Create('ClassType: ' + TObject(Table).ClassName);
+      except
+        raise ERangeError.Create(SRangeError);
+      end;
+
     if (Table is TSView) then
       Table.DataSet.BeforeOpen := Desktop(TSView(Table)).DataSetBeforeOpen;
 

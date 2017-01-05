@@ -556,6 +556,9 @@ begin
   if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
     raise ERangeError.Create('Progress: ' + Progress + #13#10
       + 'ImportType: ' + IntToStr(Ord(ImportType)));
+  // occurred on 2017-01-05: abnsqrxylm .. lmlmqrxyptufijkc
+  // occurred on 2017-01-05: abenqrsxylmlmlmlmlmlmlmlmqrxylmlmlmlmlmlmlmqrxyptufijkc, ImportType: 2
+
   Progress := Progress + 'f';
 
   if (Assigned(Import) and Import.Suspended) then
@@ -623,6 +626,8 @@ begin
   if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
     raise ERangeError.Create('Progress: ' + Progress + #13#10
       + 'ImportType: ' + IntToStr(Ord(ImportType)));
+  // Occurred 2017-01-05 Progress: abenqrsxyfhifhifhifhifhifhi
+
   Progress := Progress + 'j';
 
   Session.UnRegisterEventProc(FormSessionEvent);

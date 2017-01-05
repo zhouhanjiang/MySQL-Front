@@ -3610,6 +3610,12 @@ begin
 
   FTable := ATable;
 
+  // Debug 2017-01-05
+  if (not Assigned(Table)) then
+    raise ERangeError.Create(SRangeError);
+  if (not Assigned(Table.Session)) then
+    raise ERangeError.Create(SRangeError);
+
   Connection := Table.Session.Connection;
   FFilterSQL := '';
 end;
@@ -3751,6 +3757,7 @@ end;
 function TSTable.GetDataSet(): TDataSet;
 begin
   Assert(Assigned(Database));
+  Assert(Name <> ''); // Debug 2017-01-05
 
   if (not Assigned(FDataSet)) then
   begin
@@ -12382,6 +12389,7 @@ begin
 
   DataSet := TMySQLQuery.Create(nil);
 
+
   if (SQLCreateParse(Parse, PChar(CommandText), Length(CommandText), Connection.MySQLVersion)) then
     if (SQLParseKeyword(Parse, 'SELECT')) then
     begin
@@ -12597,8 +12605,7 @@ begin
           DatabaseName := Connection.DatabaseName
         else
           DatabaseName := SQLParseValue(Parse);
-        if (Assigned(DatabaseByName(DatabaseName))) then
-          Result := DatabaseByName(DatabaseName).Tables.Build(DataSet, False, not SQLParseEnd(Parse));
+        Result := DatabaseByName(DatabaseName).Tables.Build(DataSet, False, not SQLParseEnd(Parse));
       end
       else if (SQLParseKeyword(Parse, 'TABLE STATUS')) then
       begin
@@ -13199,7 +13206,7 @@ begin
   if (SQL <> '') then
     SQL := SQL
       + 'FLUSH PRIVILEGES;' + #13#10
-      + User.SQLGetSource();
+      + NewUser.SQLGetSource();
 
   Result := (SQL = '') or SendSQL(SQL);
 end;

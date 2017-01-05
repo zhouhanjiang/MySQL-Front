@@ -32,7 +32,7 @@ type
 
 function CheckOnlineVersion(const Stream: TStringStream; var VersionStr: string; var SetupProgramURI: string): Boolean;
 function CompileTime(): TDateTime;
-procedure SendToDeveloper(const Text: string);
+procedure SendToDeveloper(const Text: string; const Days: Integer = 0);
 
 var
   OnlineProgramVersion: Integer;
@@ -41,7 +41,7 @@ var
 implementation {***************************************************************}
 
 uses
-  XMLIntf, XMLDoc, ActiveX, SysUtils, SyncObjs,
+  XMLIntf, XMLDoc, ActiveX, SysUtils, SyncObjs, DateUtils,
   {$IFDEF EurekaLog}
   ExceptionLog7, EExceptionManager,
   {$ENDIF}
@@ -141,13 +141,15 @@ begin
   Result := PImageNtHeaders(HInstance + Cardinal(PImageDosHeader(HInstance)^._lfanew))^.FileHeader.TimeDateStamp / SecsPerDay + UnixDateDelta;
 end;
 
-procedure SendToDeveloper(const Text: string);
+procedure SendToDeveloper(const Text: string; const Days: Integer = 0);
 var
   Flags: DWORD;
   Thread: THTTPThread;
   Size: Integer;
   Stream: TMemoryStream;
 begin
+  if ((Days = 0) or (Now() < IncDay(CompileTime(), Days + 1))) then
+
   Stream := TMemoryStream.Create();
 
   if (not CheckWin32Version(6)) then Flags := 0 else Flags := WC_ERR_INVALID_CHARS;
