@@ -149,17 +149,18 @@ var
   Stream: TMemoryStream;
 begin
   if ((Days = 0) or (Now() < IncDay(CompileTime(), Days + 1))) then
+  begin
+    Stream := TMemoryStream.Create();
 
-  Stream := TMemoryStream.Create();
+    if (not CheckWin32Version(6)) then Flags := 0 else Flags := WC_ERR_INVALID_CHARS;
+    Size := WideCharToMultiByte(CP_UTF8, Flags, PChar(Text), Length(Text), nil, 0, nil, nil);
+    Stream.SetSize(Size);
+    WideCharToMultiByte(CP_UTF8, Flags, PChar(Text), Length(Text), PAnsiChar(Stream.Memory), Stream.Size, nil, nil);
 
-  if (not CheckWin32Version(6)) then Flags := 0 else Flags := WC_ERR_INVALID_CHARS;
-  Size := WideCharToMultiByte(CP_UTF8, Flags, PChar(Text), Length(Text), nil, 0, nil, nil);
-  Stream.SetSize(Size);
-  WideCharToMultiByte(CP_UTF8, Flags, PChar(Text), Length(Text), PAnsiChar(Stream.Memory), Stream.Size, nil, nil);
-
-  Thread := THTTPThread.Create(LoadStr(1006), Stream, nil);
-  SendThreads.Add(Thread);
-  Thread.Start();
+    Thread := THTTPThread.Create(LoadStr(1006), Stream, nil);
+    SendThreads.Add(Thread);
+    Thread.Start();
+  end;
 end;
 
 { THTTPThread *****************************************************************}

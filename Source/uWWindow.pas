@@ -369,6 +369,7 @@ type
     procedure TabControlStartDrag(Sender: TObject;
       var DragObject: TDragObject);
     procedure tbPropertiesClick(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
   const
     tiDeactivate = 1;
   type
@@ -415,6 +416,7 @@ type
     procedure UMOnlineUpdateFound(var Message: TMessage); message UM_ONLINE_UPDATE_FOUND;
     procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMUpdateToolbar(var Message: TMessage); message UM_UPDATETOOLBAR;
+    procedure WMActivate(var Message: TMessage); message WM_ACTIVATE;
     procedure WMDrawItem(var Message: TWMDrawItem); message WM_DRAWITEM;
     procedure WMHelp(var Message: TWMHelp); message WM_HELP;
     procedure WMTimer(var Message: TWMTimer); message WM_TIMER;
@@ -759,6 +761,11 @@ begin
   else
     FindText := '';
   MsgBox(Preferences.LoadStr(533, FindText), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
+end;
+
+procedure TWWindow.Button1Click(Sender: TObject);
+begin
+raise Exception.Create('Error Message');
 end;
 
 function TWWindow.CloseAll(): Boolean;
@@ -1860,6 +1867,14 @@ begin
     end;
     miFReopen.Delete(0);
   end;
+end;
+
+procedure TWWindow.WMActivate(var Message: TMessage);
+begin
+  inherited;
+
+  if ((0 <= TabControl.TabIndex) and (TabControl.TabIndex < FSessions.Count)) then
+    TFSession(FSessions[TabControl.TabIndex]).Perform(WM_ACTIVATE, Message.WParam, Message.LParam);
 end;
 
 procedure TWWindow.WMDrawItem(var Message: TWMDrawItem);

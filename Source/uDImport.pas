@@ -558,6 +558,8 @@ begin
       + 'ImportType: ' + IntToStr(Ord(ImportType)));
   // occurred on 2017-01-05: abnsqrxylm .. lmlmqrxyptufijkc
   // occurred on 2017-01-05: abenqrsxylmlmlmlmlmlmlmlmqrxylmlmlmlmlmlmlmqrxyptufijkc, ImportType: 2
+  // occurred on 2017-01-05: abnsqrxylmlm .. lmqrxyqrxyptufijkc, ImportType: 1
+
 
   Progress := Progress + 'f';
 

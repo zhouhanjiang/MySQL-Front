@@ -112,7 +112,6 @@ object WWindow: TWWindow
       Width = 691
       Height = 52
       AutoSize = True
-      GradientEndColor = 14079702
       TabOrder = 0
       Transparent = True
       object tbVRefresh: TToolButton
@@ -412,7 +411,6 @@ object WWindow: TWWindow
     Width = 561
     Height = 22
     Align = alNone
-    GradientEndColor = 14079702
     TabOrder = 0
     Transparent = False
     Visible = False

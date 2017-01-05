@@ -666,7 +666,7 @@ type
       Filename: TFileName;
       FileCodePage: Cardinal;
       procedure CloseResult();
-      constructor Create(const AFClient: TFSession; const ASynMemo: TSynMemo; const APDBGrid: TPanel_Ext);
+      constructor Create(const AFSession: TFSession; const ASynMemo: TSynMemo; const APDBGrid: TPanel_Ext);
       destructor Destroy(); override;
       function ResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
         const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
@@ -680,7 +680,7 @@ type
     protected
       property FSession: TFSession read FFSession;
     public
-      constructor Create(const AFClient: TFSession; const ASObject: TSObject);
+      constructor Create(const AFSession: TFSession; const ASObject: TSObject);
     end;
 
     TDatabaseDesktop = class(TSObjectDesktop)
@@ -701,7 +701,7 @@ type
         const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
       procedure CloseBuilderResult();
       procedure CloseQuery(Sender: TObject; var CanClose: Boolean);
-      constructor Create(const AFClient: TFSession; const ADatabase: TSDatabase);
+      constructor Create(const AFSession: TFSession; const ADatabase: TSDatabase);
       function CreateListView(): TListView; virtual;
       function CreateWorkbench(): TWWorkbench; virtual;
       destructor Destroy(); override;
@@ -729,7 +729,7 @@ type
       procedure SetLimited(const ALimited: Boolean);
     public
       procedure AddFilter(const AFilter: string);
-      constructor Create(const AFClient: TFSession; const ATable: TSTable);
+      constructor Create(const AFSession: TFSession; const ATable: TSTable);
       function CreateDBGrid(): TMySQLDBGrid;
       function CreateListView(): TListView;
       procedure DataSetAfterOpen(DataSet: TDataSet);
@@ -749,7 +749,7 @@ type
     private
       FSynMemo: TSynMemo;
     public
-      constructor Create(const AFClient: TFSession; const AView: TSView);
+      constructor Create(const AFSession: TFSession; const AView: TSView);
       function CreateSynMemo(): TSynMemo;
       destructor Destroy(); override;
       procedure DataSetBeforeOpen(DataSet: TDataSet);
@@ -774,7 +774,7 @@ type
       procedure DataSetAfterOpen(DataSet: TDataSet);
     public
       procedure CloseIDEResult();
-      constructor Create(const AFClient: TFSession; const ARoutine: TSRoutine);
+      constructor Create(const AFSession: TFSession; const ARoutine: TSRoutine);
       function CreateSynMemo(): TSynMemo; virtual;
       destructor Destroy(); override;
       function IDEResultEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
@@ -787,7 +787,7 @@ type
     private
       FSynMemo: TSynMemo;
     public
-      constructor Create(const AFClient: TFSession; const ATrigger: TSTrigger);
+      constructor Create(const AFSession: TFSession; const ATrigger: TSTrigger);
       function CreateSynMemo(): TSynMemo;
       destructor Destroy(); override;
       property SynMemo: TSynMemo read FSynMemo;
@@ -797,7 +797,7 @@ type
     private
       FSynMemo: TSynMemo;
     public
-      constructor Create(const AFClient: TFSession; const AEvent: TSEvent);
+      constructor Create(const AFSession: TFSession; const AEvent: TSEvent);
       function CreateSynMemo(): TSynMemo;
       destructor Destroy(); override;
       property SynMemo: TSynMemo read FSynMemo;
@@ -817,7 +817,7 @@ type
     protected
       procedure Synchronize();
     public
-      constructor Create(const AFClient: TFSession);
+      constructor Create(const AFSession: TFSession);
       procedure Execute();
       property Action: TAction read FAction write SetAction;
       property Address: string read FAddress write SetAddress;
@@ -1221,11 +1221,11 @@ begin
   end;
 end;
 
-constructor TFSession.TSQLEditor.Create(const AFClient: TFSession; const ASynMemo: TSynMemo; const APDBGrid: TPanel_Ext);
+constructor TFSession.TSQLEditor.Create(const AFSession: TFSession; const ASynMemo: TSynMemo; const APDBGrid: TPanel_Ext);
 begin
   inherited Create();
 
-  FSession := AFClient;
+  FSession := AFSession;
 
   Filename := '';
   FileCodePage := GetACP();
@@ -1393,9 +1393,9 @@ end;
 
 { TFSession.TCObjectDesktop ***************************************************}
 
-constructor TFSession.TSObjectDesktop.Create(const AFClient: TFSession; const ASObject: TSObject);
+constructor TFSession.TSObjectDesktop.Create(const AFSession: TFSession; const ASObject: TSObject);
 begin
-  FFSession := AFClient;
+  FFSession := AFSession;
 
   inherited Create(ASObject);
 end;
@@ -1454,9 +1454,9 @@ begin
       DeleteFile(FSession.Session.Account.DataPath + Database.Name + PathDelim + 'Diagram.xml');
 end;
 
-constructor TFSession.TDatabaseDesktop.Create(const AFClient: TFSession; const ADatabase: TSDatabase);
+constructor TFSession.TDatabaseDesktop.Create(const AFSession: TFSession; const ADatabase: TSDatabase);
 begin
-  inherited Create(AFClient, ADatabase);
+  inherited Create(AFSession, ADatabase);
 
   DataSet := nil;
   DataSource := nil;
@@ -1562,9 +1562,9 @@ begin
     FiltersXML.ChildNodes.Delete(0);
 end;
 
-constructor TFSession.TTableDesktop.Create(const AFClient: TFSession; const ATable: TSTable);
+constructor TFSession.TTableDesktop.Create(const AFSession: TFSession; const ATable: TSTable);
 begin
-  inherited Create(AFClient, ATable);
+  inherited Create(AFSession, ATable);
 
   PDBGrid := nil;
   FXML := nil;
@@ -1751,9 +1751,9 @@ end;
 
 { TFSession.TViewDesktop ******************************************************}
 
-constructor TFSession.TViewDesktop.Create(const AFClient: TFSession; const AView: TSView);
+constructor TFSession.TViewDesktop.Create(const AFSession: TFSession; const AView: TSView);
 begin
-  inherited Create(AFClient, AView);
+  inherited Create(AFSession, AView);
 
   FSynMemo := nil;
 end;
@@ -1817,9 +1817,9 @@ begin
   end;
 end;
 
-constructor TFSession.TRoutineDesktop.Create(const AFClient: TFSession; const ARoutine: TSRoutine);
+constructor TFSession.TRoutineDesktop.Create(const AFSession: TFSession; const ARoutine: TSRoutine);
 begin
-  inherited Create(AFClient, ARoutine);
+  inherited Create(AFSession, ARoutine);
 
   FSynMemo := nil;
   Results := nil;
@@ -1921,9 +1921,9 @@ end;
 
 { TFSession.TTriggerDesktop ***************************************************}
 
-constructor TFSession.TTriggerDesktop.Create(const AFClient: TFSession; const ATrigger: TSTrigger);
+constructor TFSession.TTriggerDesktop.Create(const AFSession: TFSession; const ATrigger: TSTrigger);
 begin
-  inherited Create(AFClient, ATrigger);
+  inherited Create(AFSession, ATrigger);
 
   FSynMemo := nil;
 end;
@@ -1949,9 +1949,9 @@ end;
 
 { TFSession.TEventDesktop *****************************************************}
 
-constructor TFSession.TEventDesktop.Create(const AFClient: TFSession; const AEvent: TSEvent);
+constructor TFSession.TEventDesktop.Create(const AFSession: TFSession; const AEvent: TSEvent);
 begin
-  inherited Create(AFClient, AEvent);
+  inherited Create(AFSession, AEvent);
 
   FSynMemo := nil;
 end;
@@ -1984,9 +1984,9 @@ begin
   FUpdate := nil;
 end;
 
-constructor TFSession.TWanted.Create(const AFClient: TFSession);
+constructor TFSession.TWanted.Create(const AFSession: TFSession);
 begin
-  FSession := AFClient;
+  FSession := AFSession;
 
   Clear();
 end;
@@ -3639,7 +3639,9 @@ begin
   DExport.DBObjects.Clear();
   DExport.Window := Window;
 
-  if (Window.ActiveControl = ActiveDBGrid) then
+  if (not Assigned(Window.ActiveControl)) then
+    MessageBeep(MB_ICONERROR)
+  else if (Window.ActiveControl = ActiveDBGrid) then
     DExport.DBGrid := ActiveDBGrid
   else if (Window.ActiveControl = ActiveWorkbench) then
   begin
@@ -4486,7 +4488,6 @@ constructor TFSession.Create(const AOwner: TComponent; const AParent: TWinContro
 var
   Kind: TPAccount.TDesktop.TListViewKind;
   NonClientMetrics: TNonClientMetrics;
-  R: TRect;
 begin
   inherited Create(AOwner);
 
@@ -4515,6 +4516,9 @@ begin
   ActiveIDEInputDataSet := nil;
   ActiveListView := FServerListView;
   ActiveWorkbench := nil;
+  CloseButtonNormal := nil;
+  CloseButtonPushed := nil;
+  CloseButtonHot := nil;
   ObjectSearch := nil;
   ObjectSearchListView := nil;
   ProcessesListView := nil;
@@ -4770,36 +4774,6 @@ begin
 
   FilterMRU := TPPreferences.TMRUList.Create(100);
 
-
-  R.Left := 0;
-  R.Top := 0;
-  R.Width := GetSystemMetrics(SM_CXSMICON) * 3 div 4;
-  R.Height := R.Width;
-  CloseButtonNormal := TPicture.Create();
-  CloseButtonNormal.Bitmap.Width := R.Width;
-  CloseButtonNormal.Bitmap.Height := R.Height;
-  CloseButtonNormal.Bitmap.Canvas.Brush.Color := clBtnFace;
-  CloseButtonNormal.Bitmap.Canvas.FillRect(R);
-  CloseButtonHot := TPicture.Create();
-  CloseButtonHot.Bitmap.Width := R.Width;
-  CloseButtonHot.Bitmap.Height := R.Height;
-  CloseButtonHot.Bitmap.Canvas.Brush.Color := clBtnFace;
-  CloseButtonHot.Bitmap.Canvas.FillRect(R);
-  CloseButtonPushed := TPicture.Create();
-  CloseButtonPushed.Bitmap.Width := R.Width;
-  CloseButtonPushed.Bitmap.Height := R.Height;
-  CloseButtonPushed.Bitmap.Canvas.Brush.Color := clBtnFace;
-  CloseButtonPushed.Bitmap.Canvas.FillRect(R);
-
-  DrawEdge(CloseButtonHot.Bitmap.Canvas.Handle, R, BDR_RAISEDINNER, BF_RECT);
-  DrawEdge(CloseButtonPushed.Bitmap.Canvas.Handle, R, BDR_SUNKENOUTER, BF_RECT);
-
-  R.Inflate(- GetSystemMetrics(SM_CXEDGE), - GetSystemMetrics(SM_CYEDGE));
-  DrawCloseBitmap(CloseButtonNormal.Bitmap, R);
-  DrawCloseBitmap(CloseButtonHot.Bitmap, R);
-  R.Offset(GetSystemMetrics(SM_CXEDGE) div 2, GetSystemMetrics(SM_CYEDGE) div 2);
-  DrawCloseBitmap(CloseButtonPushed.Bitmap, R);
-
   FOffset.Constraints.MaxWidth := FOffset.Width;
 
   Perform(UM_CHANGEPREFERENCES, 0, 0);
@@ -4830,6 +4804,7 @@ var
   Color: TColor;
   LogFont: TLogFont;
   NonClientMetrics: TNonClientMetrics;
+  R: TRect;
 begin
   inherited;
 
@@ -4847,6 +4822,54 @@ begin
   TBObjectSearch.ButtonHeight := Toolbar.ButtonHeight;
   TBObjectSearch.ButtonWidth := TBObjectSearch.Images.Width + 2 * GetSystemMetrics(SM_CXFIXEDFRAME) + 1;
   TBObjectSearch.Width := TBObjectSearch.ButtonCount * TBObjectSearch.ButtonWidth + 2 * 2 * TBObjectSearch.BorderWidth;
+
+  if (Assigned(CloseButtonNormal)) then CloseButtonNormal.Free();
+  if (Assigned(CloseButtonHot)) then CloseButtonHot.Free();
+  if (Assigned(CloseButtonPushed)) then CloseButtonPushed.Free();
+
+  R.Left := 0;
+  R.Top := 0;
+  R.Width := GetSystemMetrics(SM_CXSMICON) * 3 div 4;
+  R.Height := R.Width;
+  CloseButtonNormal := TPicture.Create();
+  CloseButtonNormal.Bitmap.Width := R.Width;
+  CloseButtonNormal.Bitmap.Height := R.Height;
+  CloseButtonHot := TPicture.Create();
+  CloseButtonHot.Bitmap.Width := R.Width;
+  CloseButtonHot.Bitmap.Height := R.Height;
+  CloseButtonPushed := TPicture.Create();
+  CloseButtonPushed.Bitmap.Width := R.Width;
+  CloseButtonPushed.Bitmap.Height := R.Height;
+
+  if (StyleServices.Enabled) then
+  begin
+    StyleServices.DrawElement(CloseButtonNormal.Bitmap.Canvas.Handle, StyleServices.GetElementDetails(tbPushButtonNormal), R);
+    StyleServices.DrawElement(CloseButtonHot.Bitmap.Canvas.Handle, StyleServices.GetElementDetails(tbPushButtonHot), R);
+    StyleServices.DrawElement(CloseButtonPushed.Bitmap.Canvas.Handle, StyleServices.GetElementDetails(tbPushButtonPressed), R);
+
+    R.Inflate(- 2 * GetSystemMetrics(SM_CXEDGE), - 2 * GetSystemMetrics(SM_CYEDGE));
+    DrawCloseBitmap(CloseButtonNormal.Bitmap, R);
+    DrawCloseBitmap(CloseButtonHot.Bitmap, R);
+    R.Offset(GetSystemMetrics(SM_CXEDGE) div 2, GetSystemMetrics(SM_CYEDGE) div 2);
+    DrawCloseBitmap(CloseButtonPushed.Bitmap, R);
+  end
+  else
+  begin
+    CloseButtonNormal.Bitmap.Canvas.Brush.Color := clBtnFace;
+    CloseButtonNormal.Bitmap.Canvas.FillRect(R);
+    CloseButtonHot.Bitmap.Canvas.Brush.Color := clBtnFace;
+    CloseButtonHot.Bitmap.Canvas.FillRect(R);
+    CloseButtonPushed.Bitmap.Canvas.Brush.Color := clBtnFace;
+    CloseButtonPushed.Bitmap.Canvas.FillRect(R);
+
+    DrawEdge(CloseButtonHot.Bitmap.Canvas.Handle, R, BDR_RAISEDINNER, BF_RECT);
+    DrawEdge(CloseButtonPushed.Bitmap.Canvas.Handle, R, BDR_SUNKENOUTER, BF_RECT);
+    R.Inflate(- GetSystemMetrics(SM_CXEDGE), - GetSystemMetrics(SM_CYEDGE));
+    DrawCloseBitmap(CloseButtonNormal.Bitmap, R);
+    DrawCloseBitmap(CloseButtonHot.Bitmap, R);
+    R.Offset(GetSystemMetrics(SM_CXEDGE) div 2, GetSystemMetrics(SM_CYEDGE) div 2);
+    DrawCloseBitmap(CloseButtonPushed.Bitmap, R);
+  end;
 
   PHeader.ClientHeight := ToolBar.Height + PHeader.Canvas.Pen.Width;
   if (not StyleServices.Enabled or not StyleServices.GetElementColor(StyleServices.GetElementDetails(ttTopTabItemSelected), ecGlowColor, Color)) then
@@ -5794,7 +5817,7 @@ begin
       raise ERangeError.Create('Sender ClassType: ' + Sender.ClassName + #13#10
         + 'Address: ' + Address);
 
-  DBGridDblClick(Sender);
+  DBGridDblClick(ActiveDBGrid);
 end;
 
 procedure TFSession.DBGridEmptyExecute(Sender: TObject);
@@ -11652,7 +11675,7 @@ var
   Panel: TPanel_Ext;
   Rect: TRect;
 begin
-  if (Sender is TPanel_Ext) then
+  if ((Sender is TPanel_Ext) and Assigned(CloseButtonNormal)) then
   begin
     Panel := TPanel_Ext(Sender);
 
@@ -11681,7 +11704,7 @@ var
   Panel: TPanel_Ext;
   Rect: TRect;
 begin
-  if (Button = mbLeft) and (Sender is TPanel_Ext) then
+  if ((Button = mbLeft) and (Sender is TPanel_Ext) and Assigned(CloseButtonNormal)) then
   begin
     Panel := TPanel_Ext(Sender);
 
@@ -11726,12 +11749,15 @@ procedure TFSession.PanelPaint(Sender: TObject);
 var
   Rect: TRect;
 begin
-  Rect.Left := GetSystemMetrics(SM_CXEDGE);
-  Rect.Top := GetSystemMetrics(SM_CYEDGE);
-  Rect.Width := CloseButtonNormal.Width;
-  Rect.Height := CloseButtonNormal.Width;
+  if (Assigned(CloseButtonNormal)) then
+  begin
+    Rect.Left := GetSystemMetrics(SM_CXEDGE);
+    Rect.Top := GetSystemMetrics(SM_CYEDGE);
+    Rect.Width := CloseButtonNormal.Width;
+    Rect.Height := CloseButtonNormal.Width;
 
-  TPanel_Ext(Sender).Canvas.Draw(Rect.Left, Rect.Top, CloseButtonNormal.Bitmap)
+    TPanel_Ext(Sender).Canvas.Draw(Rect.Left, Rect.Top, CloseButtonNormal.Bitmap)
+  end;
 end;
 
 procedure TFSession.PanelResize(Sender: TObject);
