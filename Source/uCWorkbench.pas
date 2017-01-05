@@ -306,6 +306,7 @@ type
     FHideSelection: Boolean;
     FFilePixelsPerInch: Integer;
     FFilename: string;
+    FLinkPoints: TList; // Debug 2017-01-05
     FLinks: TWLinks;
     FMultiSelect: Boolean;
     FOnChange: TChangeEvent;
@@ -348,6 +349,7 @@ type
     function TableAt(const Position: TCoord): TWTable;
     procedure UpdateControl(const Control: TWControl); virtual;
     property FilePixelsPerInch: Integer read FFilePixelsPerInch;
+    property LinkPoints: TList read FLinkPoints;
   public
     procedure AddExistingTable(const X, Y: Integer; const ABaseTable: TSBaseTable); virtual;
     procedure BeginUpdate(); virtual;
@@ -1166,6 +1168,8 @@ begin
   ControlB := nil;
   MoveState := msNormal;
 
+  Workbench.LinkPoints.Add(Self);
+
   if (Assigned(APreviousPoint)) then
     LineA := TWLinkLine.Create(Workbench, APreviousPoint, Self);
 
@@ -1178,12 +1182,31 @@ begin
 end;
 
 destructor TWLinkPoint.Destroy();
+var
+  I: Integer;
+  J: Integer;
+  TempLink: TWLink; // Debug 2017-01-05
 begin
+  TempLink := Link;
+
   if (Assigned(LineB)) then
     LineB.Free();
 
   TableA := nil;
   TableB := nil;
+
+  // Debug 2017-01-05
+  if (Workbench.LinkPoints.IndexOf(Self) < 0) then
+    raise ERangeError.Create(SRangeError)
+  else
+    Workbench.LinkPoints.Delete(Workbench.LinkPoints.IndexOf(Self));
+
+  // Debug 2017-01-05
+  for I := 0 to Workbench.Links.Count - 1 do
+    if (Workbench.Links[I] <> TempLink) then
+      for J := 0 to Workbench.Links[I].PointCount - 1 do
+        if (Workbench.LinkPoints.IndexOf(Workbench.Links[I].Points[J]) < 0) then
+          raise ERangeError.Create(SRangeError);
 
   inherited;
 end;
@@ -1228,11 +1251,17 @@ var
 begin
   Point := Self;
   while (Assigned(Point.LineA)) do
+  begin
     Point := Point.LineA.PointA;
 
-  if (not Assigned(Point)) then
-    raise Exception.Create('Point is not assigned')
-  else if (not (Point is TWLink)) then
+    // Debug 2017-01-05
+    if (not Assigned(Point)) then
+      raise Exception.Create('Point is not assigned')
+    else if (Workbench.LinkPoints.IndexOf(Point) < 0) then
+      raise ERangeError.Create(SRangeError);
+  end;
+
+  if (not (Point is TWLink)) then
     raise Exception.CreateFmt('Point is not TWLink  (%s)', [Point.ClassName])
   else
     Result := TWLink(Point);
@@ -2207,6 +2236,7 @@ begin
 
   inherited;
 
+  // Debug 2016-12-28
   for I := 0 to Workbench.Tables.Count - 1 do
     for J := 0 to Workbench.Tables[I].LinkPointCount - 1 do
       if (LinkPoints.IndexOf(Workbench.Tables[I].LinkPoints[J]) >= 0) then
@@ -3360,6 +3390,7 @@ begin
   FOnChange := nil;
   FOnCursorMove := nil;
   FOnValidateControl := nil;
+  FLinkPoints := TList.Create();
   FLinks := TWLinks.Create(Self);
   FHideSelection := False;
   FModified := False;
@@ -3448,6 +3479,7 @@ begin
 
   Clear();
 
+  FLinkPoints.Free();
   FLinks.Free();
   FTables.Free();
   FSections.Free();

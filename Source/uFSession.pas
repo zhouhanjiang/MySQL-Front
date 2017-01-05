@@ -909,7 +909,6 @@ type
     procedure aFOpenExecute(Sender: TObject);
     procedure aFSaveAsExecute(Sender: TObject);
     procedure aFSaveExecute(Sender: TObject);
-    procedure AfterConnect(Sender: TObject);
     procedure AfterExecuteSQL(Sender: TObject);
     procedure aHManualExecute(Sender: TObject);
     procedure aHSQLExecute(Sender: TObject);
@@ -918,7 +917,6 @@ type
     procedure aVRefreshExecute(Sender: TObject);
     procedure aVSideBarExecute(Sender: TObject);
     procedure aVSQLLogExecute(Sender: TObject);
-    procedure BeforeConnect(Sender: TObject);
     procedure BeforeExecuteSQL(Sender: TObject);
     procedure BeginEditLabel(Sender: TObject);
     procedure SessionUpdate(const Event: TSSession.TEvent);
@@ -3429,8 +3427,8 @@ begin
     FFilter.PasteFromClipboard()
   else if (Window.ActiveControl = FQuickSearch) then
     FQuickSearch.PasteFromClipboard()
-  else if (Window.ActiveControl = FText) then
-    FText.PasteFromClipboard
+  else if (Window.ActiveControl is TCustomEdit) then
+    TCustomEdit(Window.ActiveControl).PasteFromClipboard()
   else
     MessageBeep(MB_ICONERROR);
 
@@ -3837,14 +3835,6 @@ begin
     SaveDiagram(Sender)
   else
     SaveSQLFile(Sender);
-end;
-
-procedure TFSession.AfterConnect(Sender: TObject);
-begin
-  MainAction('aDCancel').Enabled := Session.Connection.InUse();
-
-  StatusBar.Panels[sbMessage].Text := Preferences.LoadStr(382);
-  SetTimer(Handle, tiStatusBar, 5000, nil);
 end;
 
 procedure TFSession.AfterExecuteSQL(Sender: TObject);
@@ -4395,14 +4385,6 @@ begin
     FLog.Lines.Clear();
 
   FormResize(Sender);
-end;
-
-procedure TFSession.BeforeConnect(Sender: TObject);
-begin
-  StatusBar.Panels[sbMessage].Text := Preferences.LoadStr(195) + '...';
-  KillTimer(Handle, tiStatusBar);
-
-  MainAction('aDCancel').Enabled := True;
 end;
 
 procedure TFSession.BeforeExecuteSQL(Sender: TObject);
@@ -7580,7 +7562,7 @@ begin
   PObjectSearch.Location := TObject(FNavigator.Selected.Data);
 
   if (Animation) then
-    AnimateWindow(PObjectSearch.Handle, 200, AW_VER_POSITIVE or AW_SLIDE or AW_ACTIVATE);
+    AnimateWindow(PObjectSearch.Handle, 150, AW_VER_POSITIVE or AW_SLIDE or AW_ACTIVATE);
   PObjectSearch.Show();
 end;
 
@@ -14510,8 +14492,6 @@ begin
   FormatSettings.DateSeparator := Session.Connection.FormatSettings.DateSeparator;
   FormatSettings.TimeSeparator := Session.Connection.FormatSettings.TimeSeparator;
 
-  Session.Connection.BeforeConnect := BeforeConnect;
-  Session.Connection.AfterConnect := AfterConnect;
   Session.Connection.OnConvertError := OnConvertError;
 
   if (Window.ActiveControl is TWinControl) then

@@ -1022,10 +1022,6 @@ var
 
 {******************************************************************************}
 
-var
-  SynchronizingThreadsCS: TCriticalSection;
-  SynchronizingThreads: TList;
-
 function BitField(const Field: TField): Boolean;
 begin
   Result := Assigned(Field) and (Field.Tag and ftBitField <> 0);
@@ -1146,36 +1142,22 @@ end;
 
 procedure MySQLConnectionSynchronize(const Data: Pointer);
 var
-  Index: Integer;
   SyncThread: TMySQLConnection.TSyncThread;
 begin
   SyncThread := TMySQLConnection.TSyncThread(Data);
 
-  SynchronizingThreadsCS.Enter();
-  Index := SynchronizingThreads.IndexOf(SyncThread);
-  if (Index < 0) then
-    SyncThread := nil
-  else
-    SynchronizingThreads.Delete(Index);
-  SynchronizingThreadsCS.Leave();
-
-  if (Assigned(SyncThread)) then
+  if (MySQLSyncThreads.IndexOf(SyncThread) >= 0) then
     SyncThread.Synchronize();
 end;
 
 procedure MySQLConnectionSynchronizeRequest(const SyncThread: TMySQLConnection.TSyncThread);
 begin
-  if (not Assigned(MySQLConnectionOnSynchronize)) then
-    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['MySQLConnectionOnSynchronize'])
-  else if ((GetCurrentThreadId() = MainThreadId) or (SyncThread.Connection.SynchronCount > 0)) then
+  Assert(Assigned(MySQLConnectionOnSynchronize));
+
+  if ((GetCurrentThreadId() = MainThreadId) or (SyncThread.Connection.SynchronCount > 0)) then
     SyncThread.Connection.SyncThreadExecuted.SetEvent()
   else
-  begin
-    SynchronizingThreadsCS.Enter();
-    SynchronizingThreads.Add(SyncThread);
     MySQLConnectionOnSynchronize(SyncThread);
-    SynchronizingThreadsCS.Leave();
-  end;
 end;
 
 function MySQLTimeStampToStr(const SQLTimeStamp: TSQLTimeStamp; const DisplayFormat: string): string;
@@ -2491,7 +2473,7 @@ begin
     SyncThread.State := ssDisconnect;
     repeat
       SyncThread.Synchronize();
-    until ((SynchronCount = 0) or (SyncThread.State in [ssClose]));
+    until (SyncThread.State = ssClose);
     EndSynchron();
   end;
 end;
@@ -2524,20 +2506,12 @@ begin
 end;
 
 procedure TMySQLConnection.DoTerminate();
-var
-  Index: Integer;
 begin
   KillThreadId := SyncThread.ThreadId;
 
   {$IFDEF Debug}
     MessageBox(0, 'Terminate!', 'Warning', MB_OK + MB_ICONWARNING);
   {$ENDIF}
-
-  SynchronizingThreadsCS.Enter();
-  Index := SynchronizingThreads.IndexOf(SyncThread);
-  if (Index >= 0) then
-    SynchronizingThreads.Delete(Index);
-  SynchronizingThreadsCS.Leave();
 
   MySQLSyncThreads.Delete(MySQLSyncThreads.IndexOf(SyncThread));
 
@@ -2773,21 +2747,12 @@ begin
   end
   else if (SynchronCount > 0) then
   begin
-    if (GetCurrentThreadId() = MainThreadId) then
-    begin
-      BeginSynchron();
-      SyncThread.State := ssFirst;
-      repeat
-        SyncThread.Synchronize()
-      until (SyncThread.State in [ssClose, ssResult, ssReady]);
-      EndSynchron();
-    end
-    else
-    begin
-      DataSetEvent.ResetEvent();
-      MySQLConnectionSynchronizeRequest(SyncThread);
-      DataSetEvent.WaitFor(INFINITE);
-    end;
+    BeginSynchron();
+    SyncThread.State := ssFirst;
+    repeat
+      SyncThread.Synchronize()
+    until (SyncThread.State in [ssClose, ssResult, ssReady]);
+    EndSynchron();
     Result := SyncThread.ErrorCode = 0;
   end
   else
@@ -8663,8 +8628,6 @@ initialization
 //  SetLength(SQL, Len);
 
   MySQLConnectionOnSynchronize := nil;
-  SynchronizingThreads := TList.Create();
-  SynchronizingThreadsCS := TCriticalSection.Create();
 
   LocaleFormatSettings := TFormatSettings.Create(LOCALE_USER_DEFAULT);
   SetLength(MySQLLibraries, 0);
@@ -8672,9 +8635,6 @@ initialization
   MySQLSyncThreads := TMySQLSyncThreads.Create();
 finalization
   MySQLSyncThreads.Free();
-
-  SynchronizingThreadsCS.Free();
-  SynchronizingThreads.Free();
 
   FreeMySQLLibraries();
 end.
