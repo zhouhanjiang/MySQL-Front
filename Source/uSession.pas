@@ -11966,20 +11966,26 @@ begin
                     end;
                   end;
                 dtDrop:
-                  if (SQLParseKeyword(Parse, 'DROP')
-                    and (SQLParseKeyword(Parse, 'TABLE') or SQLParseKeyword(Parse, 'VIEW'))) then
+                  if (not SQLParseKeyword(Parse, 'DROP')
+                    or not SQLParseKeyword(Parse, 'TABLE') and not SQLParseKeyword(Parse, 'VIEW')) then
+                    raise ERangeError.Create('SQL: ' + SQL)
+                  else
                   begin
                     SQLParseKeyword(Parse, 'IF EXISTS');
                     First := True; Database := nil;
                     repeat
                       DatabaseName := Connection.DatabaseName;
-                      if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
+                      if (not SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
+                        raise ERangeError.Create('SQL: ' + SQL)
+                      else
                       begin
                         if (Assigned(Database) and (Database <> DatabaseByName(DatabaseName))) then
                           SendEvent(etItemsValid, Database, Database.Tables);
                         Database := DatabaseByName(DatabaseName);
                         Table := Database.TableByName(ObjectName);
-                        if (Assigned(Table)) then
+                        if (not Assigned(Table)) then
+                          raise ERangeError.Create(SRangeError)
+                        else
                         begin
                           NextSQL := Connection.NextCommandText;
                           if (First

@@ -24,8 +24,9 @@ package VCL_Ext_18;
 {$DESCRIPTION 'VCL Extensions'}
 
 requires
-  vcl,
-  rtl;
+  VCL,
+  RTL,
+  DesignIDE;
 
 contains
   ExtCtrls_Ext in '..\Source\ExtCtrls_Ext.pas',

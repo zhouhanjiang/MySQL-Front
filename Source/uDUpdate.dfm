@@ -14,8 +14,8 @@ object DUpdate: TDUpdate
   Font.Style = []
   OldCreateOrder = False
   Position = poMainFormCenter
+  OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
-  OnDestroy = FormDestroy
   OnHide = FormHide
   OnShow = FormShow
   PixelsPerInch = 106
@@ -29,7 +29,6 @@ object DUpdate: TDUpdate
     Caption = 'FBCancel'
     ModalResult = 2
     TabOrder = 0
-    OnClick = FBCancelClick
   end
   object GroupBox: TGroupBox_Ext
     Left = 8

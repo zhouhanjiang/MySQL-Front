@@ -22,7 +22,6 @@ const
   UM_ACTIVATEFRAME = WM_USER + 501;
   UM_ACTIVATEFTEXT = WM_USER + 502;
   UM_CLOSE_FRAME = WM_USER + 503;
-  UM_OBJECT_SEARCH_EXIT = WM_USER + 504;
   UM_POST_BUILDER_QUERY_CHANGE = WM_USER + 505;
   UM_SYNCOMPLETION_TIMER = WM_USER + 506;
   UM_WANTED_SYNCHRONIZE = WM_USER + 507;
@@ -1010,7 +1009,6 @@ type
     procedure UMCloseTabQuery(var Message: TMessage); message UM_CLOSE_TAB_QUERY;
     procedure UMFrameActivate(var Message: TMessage); message UM_ACTIVATEFRAME;
     procedure UMFrameDeactivate(var Message: TMessage); message UM_DEACTIVATEFRAME;
-    procedure UMObjectSearchExit(var Message: TMessage); message UM_OBJECT_SEARCH_EXIT;
     procedure UMPostBuilderQueryChange(var Message: TMessage); message UM_POST_BUILDER_QUERY_CHANGE;
     procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
     procedure UMStausBarRefresh(var Message: TMessage); message UM_STATUS_BAR_REFRESH;
@@ -4272,29 +4270,30 @@ begin
       vEditor2,
       vEditor3:
         begin
-          if (((View = vBrowser) or PResult.Visible)
-            and not Assigned(ActiveDBGrid)) then
-            raise ERangeError.Create('Assigned(GetActiveDBGrid()): ' + BoolToStr(Assigned(GetActiveDBGrid()), True) + #13#10
-              + 'Address: ' + Address);
-          if (((View = vBrowser) or PResult.Visible)
-            and (ActiveDBGrid.DataSource.DataSet is TMySQLDataSet)) then
+          if ((View = vBrowser) or PResult.Visible) then
           begin
-            AllowRefresh := ActiveDBGrid.DataSource.DataSet.Active;
-
-            if (AllowRefresh) then
+            if (not Assigned(ActiveDBGrid)) then
+              // Why is this needed??? 2017-01-07
+              ActiveDBGrid := GetActiveDBGrid();
+            if (ActiveDBGrid.DataSource.DataSet is TMySQLDataSet) then
             begin
-              ActiveDBGrid.EditorMode := False;
-              try
-                ActiveDBGrid.DataSource.DataSet.CheckBrowseMode();
-              except
-                AllowRefresh := False;
-              end;
-            end;
+              AllowRefresh := ActiveDBGrid.DataSource.DataSet.Active;
 
-            if (AllowRefresh) then
-              ActiveDBGrid.DataSource.DataSet.Refresh()
-            else
-              ActiveDBGrid.DataSource.DataSet.Open();
+              if (AllowRefresh) then
+              begin
+                ActiveDBGrid.EditorMode := False;
+                try
+                  ActiveDBGrid.DataSource.DataSet.CheckBrowseMode();
+                except
+                  AllowRefresh := False;
+                end;
+              end;
+
+              if (AllowRefresh) then
+                ActiveDBGrid.DataSource.DataSet.Refresh()
+              else
+                ActiveDBGrid.DataSource.DataSet.Open();
+            end;
           end;
         end;
       vDiagram:
@@ -5778,13 +5777,9 @@ begin
   Wanted.Clear();
 
   // Debug 2017-01-05
-  if (not Assigned(DBGrid.DataSource)) then
-    raise ERangeError.Create(SRangeError);
   if (not DBGrid.DataSource.Enabled) then
     raise ERangeERror.Create('ClassType: ' + DBGrid.ClassName + #13#10
       + 'Name: ' + DBGrid.Name);
-  if (not Assigned(DBGrid.DataSource.DataSet)) then
-    raise ERangeError.Create(SRangeError);
 
   if (DBGrid.DataSource.DataSet.CanModify) then
     if (not Assigned(DBGrid.SelectedField) or not (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob])) then
@@ -6186,6 +6181,9 @@ begin
   Session.CreateDesktop := nil;
 
   FNavigatorChanging(nil, nil, TempB);
+
+  if (Assigned(PObjectSearch)) then
+    PObjectSearch.Free();
 
   Window.ActiveControl := nil;
   OnResize := nil;
@@ -7585,44 +7583,28 @@ begin
 end;
 
 procedure TFSession.FObjectSearchEnter(Sender: TObject);
-var
-  Animation: BOOL;
 begin
-  if (not SystemParametersInfo(SPI_GETCLIENTAREAANIMATION, 0, @Animation, 0)) then
-    Animation := False;
-
   if (not Assigned(PObjectSearch)) then
   begin
-    PObjectSearch := TPObjectSearch.Create(Self);
+    PObjectSearch := TPObjectSearch.Create(nil);
     PHeaderResize(nil);
-    PObjectSearch.Visible := False;
-    PObjectSearch.OnExit := FObjectSearch.OnExit;
-    PObjectSearch.Parent := Self;
+    PObjectSearch.Color := FObjectSearch.Color;
+    PObjectSearch.PopupParent := Window;
     PObjectSearch.Perform(CM_SYSFONTCHANGED, 0, 0);
     PObjectSearch.Perform(UM_CHANGEPREFERENCES, 0, 0);
-
-    if (Animation) then
-    begin
-      // Draw the content before calling AnimateWindow
-      LockWindowUpdate(PObjectSearch.Handle);
-      PObjectSearch.Show();
-      PObjectSearch.Hide();
-      LockWindowUpdate(0);
-    end;
 
     PObjectSearch.Session := Session;
   end;
 
   PObjectSearch.Location := TObject(FNavigator.Selected.Data);
-
-  if (Animation) then
-    AnimateWindow(PObjectSearch.Handle, 150, AW_VER_POSITIVE or AW_SLIDE or AW_ACTIVATE);
-  PObjectSearch.Show();
+  PObjectSearch.Visible := True;
+//  SetActiveWindow(PObjectSearch.Handle);
 end;
 
 procedure TFSession.FObjectSearchExit(Sender: TObject);
 begin
-  PostMessage(Handle, UM_OBJECT_SEARCH_EXIT, 0, 0);
+  if (Assigned(PObjectSearch)) then
+    PObjectSearch.Hide();
 end;
 
 procedure TFSession.FObjectSearchKeyPress(Sender: TObject; var Key: Char);
@@ -7646,8 +7628,7 @@ begin
   if (Assigned(ObjectSearch)) then
     ObjectSearch.Free();
 
-  if (Assigned(PObjectSearch)) then
-    PObjectSearch.Hide();
+  PObjectSearch.Hide();
 
   ObjectSearch := TSObjectSearch.Create(Session);
   ObjectSearch.Comment := PObjectSearch.Comment;
@@ -12465,6 +12446,8 @@ begin
     and (FObjectSearch.Left > Toolbar.Left + Toolbar.Width + GetSystemMetrics(SM_CXFIXEDFRAME))
     and Assigned(FNavigator.Selected) and (FNavigator.Selected.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView]);
   TBObjectSearch.Visible := FObjectSearch.Visible;
+  if (not FObjectSearch.Visible and Assigned(PObjectSearch)) then
+    PObjectSearch.Hide();
   {$ENDIF}
 end;
 
@@ -12541,8 +12524,8 @@ begin
   FObjectSearch.Height := Toolbar.Height - 2 * 2 * Toolbar.BorderWidth;
   if (Assigned(PObjectSearch)) then
   begin
-    PObjectSearch.Left := ScreenToClient(FObjectSearch.ClientToScreen(Point(FObjectSearch.Width - PObjectSearch.Width, 0))).X;
-    PObjectSearch.Top := ScreenToClient(FObjectSearch.ClientToScreen(Point(0, FObjectSearch.Height))).Y;
+    PObjectSearch.Left := ClientToScreen(Point(FObjectSearch.Left + FObjectSearch.Width - PObjectSearch.Width, 0)).X;
+    PObjectSearch.Top := ClientToScreen(Point(0, FObjectSearch.Top + FObjectSearch.Height)).Y;
   end;
 
   PHeaderCheckElements(Sender);
@@ -14787,22 +14770,6 @@ begin
   Include(FrameState, tsActive);
 end;
 
-procedure TFSession.UMObjectSearchExit(var Message: TMessage);
-var
-  Control: TWinControl;
-begin
-  Control := Window.ActiveControl;
-
-  if (Assigned(Control)) then
-  begin
-    while ((Control <> Window) and (Control <> FObjectSearch) and (Control <> PObjectSearch)) do
-      Control := Control.Parent;
-
-    if ((Control <> FObjectSearch) and (Control <> PObjectSearch)) then
-      PObjectSearch.Hide();
-  end;
-end;
-
 procedure TFSession.UMPostBuilderQueryChange(var Message: TMessage);
 begin
   FQueryBuilderEditorPageControlCheckStyle();
@@ -15054,7 +15021,7 @@ end;
 procedure TFSession.WMActivate(var Message: TWMActivate);
 begin
   if (Message.Active = WA_INACTIVE) then
-    if (Assigned(PObjectSearch) and PObjectSearch.Visible) then
+    if (Assigned(PObjectSearch)) then
     begin
       PObjectSearch.Hide();
       Window.ActiveControl := nil;

@@ -24,10 +24,8 @@ type
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure Paint(); override;
   public
-    procedure Activate(); override;
     procedure ApplyWinAPIUpdates(const Control: TWinControl; const StatusFont: TLogFont); virtual;
     constructor Create(AOwner: TComponent); override;
-    procedure Deactivate(); override;
   published
     property ShowGripper: Boolean read FShowGripper write FShowGripper default True;
   end;
@@ -58,11 +56,6 @@ begin
 end;
 
 { TForm_Ext *******************************************************************}
-
-procedure TForm_Ext.Activate();
-begin
-  inherited;
-end;
 
 procedure TForm_Ext.ApplyWinAPIUpdates(const Control: TWinControl; const StatusFont: TLogFont);
 var
@@ -157,11 +150,6 @@ begin
   inherited;
 
   PostMessage(Handle, CM_SYSFONTCHANGED, 0, 0);
-end;
-
-procedure TForm_Ext.Deactivate();
-begin
-  inherited;
 end;
 
 procedure TForm_Ext.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);

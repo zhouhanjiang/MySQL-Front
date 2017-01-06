@@ -548,12 +548,12 @@ type
       CriticalSection: TCriticalSection;
       FilteredRecordCount: Integer;
       Index: Integer;
+      function Add(Item: Pointer): Integer;
       procedure Clear(); override;
       constructor Create(const ADataSet: TMySQLDataSet);
       procedure Delete(Index: Integer);
       destructor Destroy(); override;
       function IndexOf(const Bookmark: TBookmark): Integer; overload;
-      function IndexOf(const Buffer: TRecBuf): Integer; overload;
       function IndexOf(const Data: TMySQLQuery.TRecordBufferData): Integer; overload;
       procedure Insert(Index: Integer; Item: Pointer);
       property Buffers[Index: Integer]: PInternRecordBuffer read Get write Put; default;
@@ -612,7 +612,6 @@ type
     function IsCursorOpen(): Boolean; override;
     function MoveRecordBufferData(var DestData: TMySQLQuery.PRecordBufferData; const SourceData: TMySQLQuery.PRecordBufferData): Boolean;
     procedure SetBookmarkData(Buffer: TRecBuf; Data: TBookmark); override;
-    procedure SetBookmarkData(Buffer: TRecordBuffer; Data: Pointer); override;
     procedure SetBookmarkFlag(Buffer: TRecordBuffer; Value: TBookmarkFlag); override;
     procedure SetFieldData(Field: TField; Buffer: TValueBuffer); override;
     procedure SetFieldData(const Field: TField; const Buffer: Pointer; const Size: Integer); overload; virtual;
@@ -931,7 +930,6 @@ uses
   {$IFDEF EurekaLog}
   ExceptionLog7, EExceptionManager,
   {$ENDIF}
-uDeveloper,
   MySQLClient,
   SQLUtils, CSVUtils, HTTPTunnel;
 
@@ -2264,10 +2262,8 @@ end;
 
 procedure TMySQLConnection.CloseResultHandle(var ResultHandle: TResultHandle);
 begin
-//  Assert(not Assigned(ResultHandle.SyncThread) or (ResultHandle.SyncThread.State = ssReady));
-  // Debug 2017-01-02
   if (Assigned(ResultHandle.SyncThread) and (ResultHandle.SyncThread.State <> ssReady)) then
-    raise ERangeError.Create('SyncThread: ' + IntToStr(ResultHandle.SyncThread.ThreadID));
+    CancelResultHandle(ResultHandle);
 
   if (Assigned(ResultHandle.SyncThread)) then
     SyncAfterExecuteSQL(ResultHandle.SyncThread)
@@ -6028,6 +6024,11 @@ end;
 
 { TMySQLDataSet.TInternRecordBuffers ******************************************}
 
+function TMySQLDataSet.TInternRecordBuffers.Add(Item: Pointer): Integer;
+begin
+  Result := inherited;
+end;
+
 procedure TMySQLDataSet.TInternRecordBuffers.Clear();
 var
   I: Integer;
@@ -6066,6 +6067,9 @@ begin
   for I := 0 to DataSet.BufferCount - 1 do
     if (TMySQLDataSet.PExternRecordBuffer(DataSet.Buffers[I])^.Index > Index) then
       Dec(TMySQLDataSet.PExternRecordBuffer(DataSet.Buffers[I])^.Index);
+
+  if (Index = Count) then
+    Dec(Self.Index);
 end;
 
 destructor TMySQLDataSet.TInternRecordBuffers.Destroy();
@@ -6082,22 +6086,6 @@ begin
     raise ERangeError.Create('Length: ' + IntToStr(Length(Bookmark)));
 
   Result := IndexOf(PInternRecordBuffer(PPointer(@Bookmark[0])^));
-end;
-
-function TMySQLDataSet.TInternRecordBuffers.IndexOf(const Buffer: TRecBuf): Integer;
-var
-  MaxIndex: Integer;
-  Index: Integer;
-begin
-  Result := -1;
-
-  Index := Max(Self.Index - DataSet.BufferCount, 0);
-  MaxIndex := Min(Self.Index + DataSet.BufferCount, DataSet.RecordCount);
-  while ((Result < 0) and (Index < MaxIndex)) do
-    if (PExternRecordBuffer(Buffer)^.InternRecordBuffer = Items[Index]) then
-      Result := Index
-    else
-      Inc(Index);
 end;
 
 function TMySQLDataSet.TInternRecordBuffers.IndexOf(const Data: TMySQLQuery.TRecordBufferData): Integer;
@@ -6665,15 +6653,22 @@ end;
 procedure TMySQLDataSet.InternalCancel();
 var
   Index: Integer;
+  InternRecordBuffer: PInternRecordBuffer;
 begin
-  if (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag <> bfCurrent) then
+  if (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag in [bfBOF, bfEOF]) then
   begin
-    PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := nil;
-    Index := PExternRecordBuffer(ActiveBuffer())^.Index;
-    FreeInternRecordBuffer(InternRecordBuffers[Index]);
-    InternRecordBuffers.Delete(Index);
+    InternRecordBuffer := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer;
+    InternalInitRecord(ActiveBuffer());
+    FreeInternRecordBuffer(InternRecordBuffer);
+  end
+  else if (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag <> bfCurrent) then
+  begin
     if (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag = bfEOF) then
       Dec(InternRecordBuffers.Index);
+    Index := PExternRecordBuffer(ActiveBuffer())^.Index;
+    InternalInitRecord(ActiveBuffer());
+    FreeInternRecordBuffer(InternRecordBuffers[Index]);
+    InternRecordBuffers.Delete(Index);
   end
   else if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData) then
   begin
@@ -6729,7 +6724,7 @@ begin
     end
     else
     begin
-      for I := 0 to Max(1, Length(DeleteBookmarks)) - 1 do
+      for I := 0 to Length(DeleteBookmarks) - 1 do
       begin
         Index := InternRecordBuffers.IndexOf(DeleteBookmarks[I]);
         for J := 0 to BufferCount - 1 do
@@ -6740,7 +6735,7 @@ begin
         if (Filtered) then
           Dec(InternRecordBuffers.FilteredRecordCount);
       end;
-      ClearBuffers();
+      Resync([]);
     end;
     InternRecordBuffers.CriticalSection.Leave();
 
@@ -6757,7 +6752,7 @@ procedure TMySQLDataSet.InternalGotoBookmark(Bookmark: TBookmark);
 var
   Index: Integer;
 begin
-  Index := InternRecordBuffers.IndexOf(PPointer(@TBookmark(Bookmark)[0])^);
+  Index := InternRecordBuffers.IndexOf(Bookmark);
 
   if (Index >= 0) then
     InternRecordBuffers.Index := Index;
@@ -6802,15 +6797,15 @@ var
   Index: Integer;
   RBS: RawByteString;
 begin
-  Index := PExternRecordBuffer(ActiveBuffer())^.Index;
-
-  if (Index < 0) then
-    Index := InternRecordBuffers.Add(AllocInternRecordBuffer())
-  else
+  if (not (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag in [bfBOF, bfEOF])) then
+  begin
+    Index := InternRecordBuffers.IndexOf(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
     InternRecordBuffers.Insert(Index, AllocInternRecordBuffer());
-
-  PExternRecordBuffer(ActiveBuffer())^.Index := Index;
-  PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := InternRecordBuffers[Index];
+    PExternRecordBuffer(ActiveBuffer())^.Index := Index;
+    PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := InternRecordBuffers[Index];
+  end
+  else
+    PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := AllocInternRecordBuffer();
 
   if (Filtered) then
     Inc(InternRecordBuffers.FilteredRecordCount);
@@ -6886,8 +6881,11 @@ begin
   end
   else
   begin
-    // Debug 2017-01-07
+    // Debug 2017-01-06
     if (not Assigned(PExternRecordBuffer(ActiveBuffer()))) then
+      raise ERangeError.Create(SRangeError);
+    // Debug 2017-01-06
+    if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
       raise ERangeError.Create(SRangeError);
     // Debug 2017-01-04
     if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.IdentifierABCDEF <> $ABCDEF) then
@@ -7438,11 +7436,6 @@ begin
   PExternRecordBuffer(Buffer)^.InternRecordBuffer := PPointer(@Data[0])^;
 end;
 
-procedure TMySQLDataSet.SetBookmarkData(Buffer: TRecordBuffer; Data: Pointer);
-begin
-  PExternRecordBuffer(Buffer)^.InternRecordBuffer := PPointer(Data)^;
-end;
-
 procedure TMySQLDataSet.SetBookmarkFlag(Buffer: TRecordBuffer; Value: TBookmarkFlag);
 begin
   PExternRecordBuffer(Buffer)^.BookmarkFlag := Value;
@@ -7457,7 +7450,7 @@ var
 begin
   if ((Field.AutoGenerateValue <> arAutoInc) or (Length(Buffer) > 0)) then
   begin
-    if (not Assigned(Buffer)) then
+    if (Length(Buffer) = 0) then
       SetFieldData(Field, nil, 0)
     else if (BitField(Field)) then
     begin
@@ -7503,13 +7496,13 @@ begin
         ftBlob: SetString(RBS, PAnsiChar(@Buffer[0]), Length(Buffer));
         ftWideMemo:
           begin
-            SetLength(RBS, WideCharToAnsiChar(Connection.CodePage, PChar((@Buffer[0])), Length(Buffer) div SizeOf(Char), nil, 0));
-            WideCharToAnsiChar(Connection.CodePage, PChar((@Buffer[0])), Length(Buffer) div SizeOf(Char), PAnsiChar(RBS), Length(RBS));
+            SetLength(RBS, WideCharToAnsiChar(Connection.CodePage, PChar(@Buffer[0]), Length(Buffer) div SizeOf(Char), nil, 0));
+            WideCharToAnsiChar(Connection.CodePage, PChar(@Buffer[0]), Length(Buffer) div SizeOf(Char), PAnsiChar(RBS), Length(RBS));
           end;
         ftWideString:
           begin
-            SetLength(RBS, WideCharToAnsiChar(Connection.CodePage, PChar((@Buffer[0])), StrLen(PChar((@Buffer[0]))), nil, 0));
-            WideCharToAnsiChar(Connection.CodePage, PChar((@Buffer[0])), StrLen(PChar((@Buffer[0]))), PAnsiChar(RBS), Length(RBS));
+            SetLength(RBS, WideCharToAnsiChar(Connection.CodePage, PChar(@Buffer[0]), StrLen(PChar(@Buffer[0])), nil, 0));
+            WideCharToAnsiChar(Connection.CodePage, PChar(@Buffer[0]), StrLen(PChar(@Buffer[0])), PAnsiChar(RBS), Length(RBS));
           end;
         else raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%d)', [Field.Name, Integer(Field.DataType)]);
       end;
@@ -7752,7 +7745,6 @@ end;
 
 function TMySQLDataSet.SQLDelete(): string;
 var
-  Bookmark: TBookmark; // Debug 2017-01-03
   I: Integer;
   Index: Integer; // Debug 2017-01-03
   InternRecordBuffer: PInternRecordBuffer;
@@ -7783,8 +7775,7 @@ begin
       for I := 0 to Length(DeleteBookmarks) - 1 do
       begin
         // Debug 2017-01-03
-        Bookmark := TBookmark(DeleteBookmarks[I]);
-        Index := InternRecordBuffers.IndexOf(Bookmark);
+        Index := InternRecordBuffers.IndexOf(DeleteBookmarks[I]);
         if ((Index < 0) or (InternRecordBuffers.Count <= Index)) then
           raise ERangeError.Create('Index: ' + IntToStr(Index) + #13#10
             + 'InternRecordBuffers.Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10

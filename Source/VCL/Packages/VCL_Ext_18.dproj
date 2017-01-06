@@ -53,8 +53,9 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
-        <DCCReference Include="vcl.dcp"/>
-        <DCCReference Include="rtl.dcp"/>
+        <DCCReference Include="VCL.dcp"/>
+        <DCCReference Include="RTL.dcp"/>
+        <DCCReference Include="DesignIDE.dcp"/>
         <DCCReference Include="..\Source\ExtCtrls_Ext.pas"/>
         <DCCReference Include="..\Source\StdCtrls_Ext.pas"/>
         <DCCReference Include="..\Source\Dialogs_Ext.pas"/>

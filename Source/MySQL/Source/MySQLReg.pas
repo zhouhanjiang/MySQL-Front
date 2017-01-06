@@ -2,15 +2,12 @@ unit MySQLReg;
 
 interface {********************************************************************}
 
-uses
-  DBReg;
-
 procedure Register();
 
 implementation {***************************************************************}
 
 uses
-  Classes, SysUtils, DesignIntf, DSDesign, DesignEditors,
+  Classes, DesignIntf, DesignEditors,
   MySQLDB, MySQLDBGrid;
 
 procedure Register();

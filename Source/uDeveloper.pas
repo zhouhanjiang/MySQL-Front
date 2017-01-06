@@ -19,6 +19,7 @@ type
   public
     constructor Create(const AURI: string; const ASendStream, AReceiveStream: TStream);
     property OnProgress: TProgressEvent read FOnProgress write FOnProgress default nil;
+    property Terminated;
   end;
 
   TCheckOnlineVersionThread = class(THTTPThread)

@@ -24,6 +24,7 @@ package MySQL_18;
 {$DESCRIPTION 'MySQL'}
 
 requires
+  DesignIDE,
   dcldb,
   bdertl,
   VCL_Ext_18;

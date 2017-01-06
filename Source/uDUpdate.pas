@@ -22,12 +22,11 @@ type
     FProgressBar: TProgressBar;
     FVersionInfo: TLabel;
     GroupBox: TGroupBox_Ext;
-    procedure FBCancelClick(Sender: TObject);
     procedure FBForwardClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormHide(Sender: TObject);
     procedure FormShow(Sender: TObject);
-    procedure FormDestroy(Sender: TObject);
+    procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
   private
     SetupProgramStream: TFileStream;
     SetupProgramURI: string;
@@ -36,9 +35,11 @@ type
     PADFileStream: TStringStream;
     SetupPrgFilename: TFileName;
     procedure Progress(Sender: TObject; const Done, Size: Int64);
+    procedure OnTerminate(Sender: TObject);
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMPADFileReceived(var Message: TMessage); message UM_PAD_FILE_RECEIVED;
     procedure UMSetupFileReceived(var Message: TMessage); message UM_SETUP_FILE_RECEIVED;
+    procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMUpdateProgressBar(var Message: TMessage); message UM_UPDATE_PROGRESSBAR;
   public
     function Execute(): Boolean;
@@ -75,12 +76,6 @@ begin
   Result := ShowModal() = mrOk;
 end;
 
-procedure TDUpdate.FBCancelClick(Sender: TObject);
-begin
-  if (Assigned(HTTPThread)) then
-    HTTPThread.Terminate();
-end;
-
 procedure TDUpdate.FBForwardClick(Sender: TObject);
 var
   Ext: string;
@@ -112,6 +107,7 @@ begin
 
     HTTPThread := THTTPThread.Create(SetupProgramURI, nil, SetupProgramStream);
     HTTPThread.OnProgress := Progress;
+    HTTPThread.OnTerminate := OnTerminate;
 
     SendMessage(Handle, UM_UPDATE_PROGRESSBAR, 2, 100);
 
@@ -119,16 +115,23 @@ begin
   end;
 end;
 
+procedure TDUpdate.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+begin
+  if (Assigned(HTTPThread)) then
+  begin
+    HTTPThread.Terminate();
+    CanClose := False;
+  end
+  else
+    CanClose := True;
+
+  FBCancel.Enabled := CanClose;
+end;
+
 procedure TDUpdate.FormCreate(Sender: TObject);
 begin
   FullHeight := Height;
   HTTPThread := nil;
-end;
-
-procedure TDUpdate.FormDestroy(Sender: TObject);
-begin
-  if (Assigned(HTTPThread)) then
-    TerminateThread(HTTPThread.Handle, 0);
 end;
 
 procedure TDUpdate.FormHide(Sender: TObject);
@@ -157,23 +160,25 @@ begin
     TerminateThread(HTTPThread.Handle, 0);
   HTTPThread := THTTPThread.Create(SysUtils.LoadStr(1005), nil, PADFileStream);
   HTTPThread.OnProgress := Progress;
+  HTTPThread.OnTerminate := OnTerminate;
 
   SendMessage(Handle, UM_UPDATE_PROGRESSBAR, 10, 100);
 
   HTTPThread.Start();
 
   FBForward.Enabled := False;
+  FBCancel.Enabled := True;
+  FBCancel.Caption := Preferences.LoadStr(30);
+end;
+
+procedure TDUpdate.OnTerminate(Sender: TObject);
+begin
+  PostMessage(Handle, UM_TERMINATE, WPARAM(not HTTPThread.Terminated), 0);
 end;
 
 procedure TDUpdate.Progress(Sender: TObject; const Done, Size: Int64);
 begin
   PostMessage(Handle, UM_UPDATE_PROGRESSBAR, Done, Size);
-
-  if (Done = Size) then
-    if (Assigned(PADFileStream)) then
-      PostMessage(Handle, UM_PAD_FILE_RECEIVED, 0, 0)
-    else if (Assigned(SetupProgramStream)) then
-      PostMessage(Handle, UM_SETUP_FILE_RECEIVED, 0, 0)
 end;
 
 procedure TDUpdate.UMChangePreferences(var Message: TMessage);
@@ -183,16 +188,12 @@ begin
   GroupBox.Caption := ReplaceStr(Preferences.LoadStr(224), '&', '');
 
   FBForward.Caption := Preferences.LoadStr(230);
-  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 procedure TDUpdate.UMPADFileReceived(var Message: TMessage);
 var
   VersionStr: string;
 begin
-  HTTPThread.WaitFor();
-  FreeAndNil(HTTPThread);
-
   Preferences.UpdateChecked := Now();
 
   if (not CheckOnlineVersion(PADFileStream, VersionStr, SetupProgramURI)) then
@@ -223,9 +224,6 @@ end;
 
 procedure TDUpdate.UMSetupFileReceived(var Message: TMessage);
 begin
-  HTTPThread.WaitFor();
-  FreeAndNil(HTTPThread);
-
   FProgram.Caption := Preferences.LoadStr(665) + ': ' + Preferences.LoadStr(138);
 
   FreeAndNil(SetupProgramStream);
@@ -234,6 +232,25 @@ begin
   Preferences.SetupProgramInstalled := False;
 
   ModalResult := mrOk;
+end;
+
+procedure TDUpdate.UMTerminate(var Message: TMessage);
+begin
+  if (not HTTPThread.Terminated) then
+    if (Assigned(PADFileStream)) then
+      Perform(UM_PAD_FILE_RECEIVED, 0, 0)
+    else if (Assigned(SetupProgramStream)) then
+      Perform(UM_SETUP_FILE_RECEIVED, 0, 0);
+
+  HTTPThread.WaitFor();
+  HTTPThread.Free();
+  HTTPThread := nil;
+
+  FBCancel.Enabled := True;
+  if (Preferences.SetupProgramInstalled) then
+    FBCancel.ModalResult := mrOk
+  else if (not FBForward.Enabled) then
+    FBCancel.Caption := Preferences.LoadStr(231);
 end;
 
 procedure TDUpdate.UMUpdateProgressBar(var Message: TMessage);

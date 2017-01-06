@@ -283,6 +283,10 @@ begin
     CanClose := True;
 
   FBCancel.Enabled := CanClose;
+  if (FBCancel.Enabled) then
+    SetClassLong(Handle, GCL_STYLE, GetClassLong(Handle, GCL_STYLE) and not CS_NOCLOSE)
+  else
+    SetClassLong(Handle, GCL_STYLE, GetClassLong(Handle, GCL_STYLE) or CS_NOCLOSE);
 end;
 
 procedure TDSearch.FormCreate(Sender: TObject);
@@ -456,6 +460,7 @@ begin
   CheckActivePageChange(PageControl.ActivePage);
 
   FBCancel.Enabled := True;
+  SetClassLong(Handle, GCL_STYLE, GetClassLong(Handle, GCL_STYLE) and not CS_NOCLOSE);
   if (FBForward.Visible and FBForward.Enabled) then
     ActiveControl := FBForward
   else
@@ -1014,6 +1019,7 @@ begin
 
   FBBack.Enabled := True;
   FBCancel.Enabled := True;
+  SetClassLong(Handle, GCL_STYLE, GetClassLong(Handle, GCL_STYLE) and not CS_NOCLOSE);
   FBCancel.Caption := Preferences.LoadStr(231);
   if (Success) then
     FBCancel.ModalResult := mrOk

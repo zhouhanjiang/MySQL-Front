@@ -1873,8 +1873,9 @@ procedure TWWindow.WMActivate(var Message: TMessage);
 begin
   inherited;
 
-  if ((0 <= TabControl.TabIndex) and (TabControl.TabIndex < FSessions.Count)) then
-    TFSession(FSessions[TabControl.TabIndex]).Perform(WM_ACTIVATE, Message.WParam, Message.LParam);
+  if (not (csDestroying in ComponentState)) then
+    if ((0 <= TabControl.TabIndex) and (TabControl.TabIndex < FSessions.Count)) then
+      TFSession(FSessions[TabControl.TabIndex]).Perform(WM_ACTIVATE, Message.WParam, Message.LParam);
 end;
 
 procedure TWWindow.WMDrawItem(var Message: TWMDrawItem);
