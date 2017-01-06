@@ -3063,7 +3063,7 @@ begin
     begin
       CloseClipboard();
       SendToDeveloper('Clipboard now opened (1)' + #13#10
-        + TOSVersion.Name);
+        + TOSVersion.ToString);
     end
     else if (GetLastError() = ERROR_ACCESS_DENIED) then
     begin
@@ -3073,7 +3073,7 @@ begin
       if (OpenClipboard(Handle)) then
       begin
         SendToDeveloper('Clipboard openable after Sleep (1)' + #13#10
-          + TOSVersion.Name);
+          + TOSVersion.ToString);
         CloseClipboard();
         Sleep(500);
       end
@@ -3082,7 +3082,7 @@ begin
         SetString(S, PChar(@Filename[0]), GetWindowModuleFileName(GetClipboardOwner(), PChar(@Filename[0]), Length(Filename)));
         SendToDeveloper('Clipboard still not openable (1): ' + SysErrorMessage(GetLastError()) + #13#10
           + S + #13#10
-          + TOSVersion.Name);
+          + TOSVersion.ToString);
       end;
     end;
   end;
@@ -3242,7 +3242,7 @@ begin
     begin
       CloseClipboard();
       SendToDeveloper('Clipboard now opened (2)' + ' - ' + Window.ActiveControl.ClassName + #13#10
-        + TOSVersion.Name);
+        + TOSVersion.ToString);
     end
     else if (GetLastError() = ERROR_ACCESS_DENIED) then
     begin
@@ -3252,7 +3252,7 @@ begin
       if (OpenClipboard(Handle)) then
       begin
         SendToDeveloper('Clipboard openable after Sleep (2)' + #13#10
-          + TOSVersion.Name);
+          + TOSVersion.ToString);
         CloseClipboard();
         Sleep(500);
       end
@@ -3261,7 +3261,7 @@ begin
         SetString(S, PChar(@Filename[0]), GetWindowModuleFileName(GetClipboardOwner(), PChar(@Filename[0]), Length(Filename)));
         SendToDeveloper('Clipboard still not openable (2): ' + SysErrorMessage(GetLastError()) + #13#10
           + S + #13#10
-          + TOSVersion.Name);
+          + TOSVersion.ToString);
       end;
     end;
   end;
@@ -3788,7 +3788,13 @@ begin
     // Debug 2016-12-22
     DImport.FNavigator := @FNavigator;
 
+    DImport.Progress := '2';
     DImport.Execute();
+    DImport.Progress := DImport.Progress + '_';
+
+    // Debug 2017-01-06
+    if (not Assigned(FNavigator)) then
+      raise ERangeError.Create(SRangeError);
 
     UpdateAfterAddressChanged();
   end;
@@ -11611,10 +11617,21 @@ begin
       DImport.CodePage := EncodingToCodePage(OpenDialog.Encodings[OpenDialog.EncodingIndex]);
       DImport.ImportType := itSQLFile;
 
+      // Debug 2017-01-06
+      if (not Assigned(FNavigator)) then
+        raise ERangeError.Create(SRangeError);
+
       // Debug 2016-12-22
       DImport.FNavigator := @FNavigator;
 
+      DImport.Progress := '1';
       DImport.Execute();
+      DImport.Progress := DImport.Progress + '_';
+
+      // Debug 2017-01-06
+      if (not Assigned(FNavigator)) then
+        raise ERangeError.Create(SRangeError);
+
       Wanted.Update := Session.Update;
     end
     else if (Answer = ID_NO) then

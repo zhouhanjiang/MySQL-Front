@@ -1491,7 +1491,9 @@ type
   private
     ConnectionEvent: SyncObjs.TEvent;
     EventProcs: array of TEventProc;
+    Identifier123456: Integer; // Debug 2017-01-06
     FAccount: TPAccount;
+    Identifier654321: Integer; // Debug 2017-01-06
     FCharsets: TSCharsets;
     FSessions: TSSessions;
     FCollations: TSCollations;
@@ -1528,6 +1530,7 @@ type
     procedure ConnectChange(Sender: TObject; Connecting: Boolean);
     procedure DatabaseChange(const Connection: TMySQLConnection; const NewName: string);
     procedure DoSendEvent(const AEvent: TSSession.TEvent);
+    function GetAccount(): TPAccount; // Debug 2017-01-06
     function GetCaption(): string;
     function GetCharset(): string;
     function GetCollation(): string;
@@ -1587,7 +1590,7 @@ type
     function UserByCaption(const Caption: string): TSUser;
     function UserByName(const UserName: string): TSUser;
     function VariableByName(const VariableName: string): TSVariable;
-    property Account: TPAccount read FAccount;
+    property Account: TPAccount read GetAccount;
     property Caption: string read GetCaption;
     property Charset: string read GetCharset;
     property Charsets: TSCharsets read FCharsets;
@@ -11204,6 +11207,10 @@ begin
   FSessions := ASessions;
   FAccount := AAccount;
 
+  // Debug 2017-01-06
+  Identifier123456 := 123456;
+  Identifier654321 := 654321;
+
   FConnection := TSConnection.Create(Self);
   Sessions.Add(Self);
 
@@ -11681,6 +11688,15 @@ begin
   for I := 0 to FieldTypes.Count - 1 do
     if (FieldTypes[I].MySQLFieldType = MySQLFieldType) then
       Result := FieldTypes[I];
+end;
+
+function TSSession.GetAccount(): TPAccount;
+begin
+  if ((Identifier123456 <> 123456) or (Identifier654321 <> 654321)) then
+    raise ERangeError.Create('Identifier123456: ' + IntToStr(Identifier123456) + #13#10
+      + 'Identifier654321: ' + IntToStr(Identifier654321));
+
+  Result := FAccount;
 end;
 
 function TSSession.GetCaption(): string;
@@ -12318,6 +12334,11 @@ var
   I: Integer;
   Index: Integer;
 begin
+  // Debug 2017-01-06
+  if ((Identifier123456 <> 123456) or (Identifier654321 <> 654321)) then
+    raise ERangeError.Create('Identifier123456: ' + IntToStr(Identifier123456) + #13#10
+      + 'Identifier654321: ' + IntToStr(Identifier654321));
+
   Index := -1;
   for I := 0 to Length(EventProcs) - 1 do
     if (CompareMem(@TMethod(EventProcs[I]), @TMethod(AEventProc), SizeOf(TEventProc))) then
@@ -12328,6 +12349,11 @@ begin
     SetLength(EventProcs, Length(EventProcs) + 1);
     EventProcs[Length(EventProcs) - 1] := AEventProc;
   end;
+
+  // Debug 2017-01-06
+  if ((Identifier123456 <> 123456) or (Identifier654321 <> 654321)) then
+    raise ERangeError.Create('Identifier123456: ' + IntToStr(Identifier123456) + #13#10
+      + 'Identifier654321: ' + IntToStr(Identifier654321));
 end;
 
 procedure TSSession.SendEvent(const EventType: TSSession.TEvent.TEventType; const Sender: TObject; const Items: TSItems = nil; const Item: TSItem = nil);
@@ -12725,6 +12751,11 @@ var
   I: Integer;
   Index: Integer;
 begin
+  // Debug 2017-01-06
+  if ((Identifier123456 <> 123456) or (Identifier654321 <> 654321)) then
+    raise ERangeError.Create('Identifier123456: ' + IntToStr(Identifier123456) + #13#10
+      + 'Identifier654321: ' + IntToStr(Identifier654321));
+
   Index := -1;
   for I := 0 to Length(EventProcs) - 1 do
     if (CompareMem(@TMethod(EventProcs[I]), @TMethod(AEventProc), SizeOf(TEventProc))) then
@@ -12736,6 +12767,11 @@ begin
       MoveMemory(@TMethod(EventProcs[Index]), @TMethod(EventProcs[Index + 1]), (Length(EventProcs) - Index - 1) * SizeOf(TEventProc));
     SetLength(EventProcs, Length(EventProcs) - 1);
   end;
+
+  // Debug 2017-01-06
+  if ((Identifier123456 <> 123456) or (Identifier654321 <> 654321)) then
+    raise ERangeError.Create('Identifier123456: ' + IntToStr(Identifier123456) + #13#10
+      + 'Identifier654321: ' + IntToStr(Identifier654321));
 end;
 
 function TSSession.Update(): Boolean;

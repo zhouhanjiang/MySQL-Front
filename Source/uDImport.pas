@@ -127,6 +127,7 @@ type
     procedure TSWhatShow(Sender: TObject);
     procedure WhatClick(Sender: TObject);
     procedure WhatKeyPress(Sender: TObject; var Key: Char);
+    procedure FBCancelClick(Sender: TObject);
   type
     TTableName = class
     private
@@ -360,7 +361,7 @@ begin
     if (not GetDataSource()) then
       ModalResult := mrCancel;
 
-  Progress := 'a';
+  Progress := Progress + 'a';
   // Debug 2017-01-03
   if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
     raise ERangeError.Create('Progress: ' + Progress);
@@ -392,6 +393,11 @@ begin
   if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
     raise ERangeError.Create('Progress: ' + Progress);
   Progress := Progress + 'd';
+end;
+
+procedure TDImport.FBCancelClick(Sender: TObject);
+begin
+  Progress := Progress + 'A';
 end;
 
 procedure TDImport.FBForwardClick(Sender: TObject);

@@ -2849,7 +2849,7 @@ begin
     Len := lstrlenA(Data)
   else
     Len := Length;
-  if (Len = 0) then
+  if (not Assigned(Data) or (Len = 0)) then
     Result := ''
   else
   begin
@@ -2866,9 +2866,9 @@ begin
         MOV ESI,Data                     // Copy characters from Data
         MOV EAX,Result                   //   to Result
         MOV EDI,[EAX]
+        MOV ECX,Len                      // Length of Data
 
         MOV AH,0                         // Clear AH, since AL will be load but AX stored
-        MOV ECX,Len
       StringL:
         LODSB                            // Load AnsiChar from Data
         STOSW                            // Store WideChar into S
@@ -6363,7 +6363,8 @@ begin
   if (InternRecordBuffer^.IdentifierABCDEF = $ABCDEF) then
   begin
     for I := 0 to BufferCount - 1 do
-      if (PExternRecordBuffer(Buffers[I])^.InternRecordBuffer = InternRecordBuffer) then
+      if (Assigned(PExternRecordBuffer(Buffers[I]))
+        and (PExternRecordBuffer(Buffers[I])^.InternRecordBuffer = InternRecordBuffer)) then
         raise ERangeError.Create(SRangeError);
 
     if (Assigned(InternRecordBuffer^.NewData) and (InternRecordBuffer^.NewData <> InternRecordBuffer^.OldData)) then

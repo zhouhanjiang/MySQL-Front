@@ -19426,7 +19426,7 @@ begin
       else if (IsSymbol(ttOpenBracket)) then
         if (IsNextTag(1, kiSELECT)) then
           Nodes.Add(ParseSubSelectStmt())
-        else
+        else if (eoOperators in Options) then
           Nodes.Add(ParseList(True, ParseExpr, ttComma, False))
       else if (TokenPtr(CurrentToken)^.KeywordIndex = kiBINARY) then
         // BINARY is operator and function, so we have to handle it separately
@@ -22235,50 +22235,48 @@ begin
         Nodes.Union2.Tag := ParseTag(kiUNION);
 
       if (not ErrorFound and (Nodes.Union2.Tag > 0)) then
-      begin
         Nodes.Union2.SelectStmt := ParseSelectStmt(False, True);
 
-        if (not UnionSelect) then
+      if (not UnionSelect) then
+      begin
+        if (IsTag(kiORDER, kiBY, kiNULL)) then
+          Nodes.Union2.OrderBy.Tag := ParseTag(kiORDER, kiBY, kiNULL)
+        else if (IsTag(kiORDER, kiBY)) then
         begin
-          if (IsTag(kiORDER, kiBY, kiNULL)) then
-            Nodes.Union2.OrderBy.Tag := ParseTag(kiORDER, kiBY, kiNULL)
-          else if (IsTag(kiORDER, kiBY)) then
-          begin
-            Nodes.Union2.OrderBy.Tag := ParseTag(kiORDER, kiBY);
+          Nodes.Union2.OrderBy.Tag := ParseTag(kiORDER, kiBY);
 
-            if (not ErrorFound) then
-              Nodes.Union2.OrderBy.List := ParseList(False, ParseSelectStmtOrderBy);
-          end;
+          if (not ErrorFound) then
+            Nodes.Union2.OrderBy.List := ParseList(False, ParseSelectStmtOrderBy);
         end;
-
-        if (not ErrorFound) then
-          if (IsTag(kiLIMIT)) then
-          begin
-            Nodes.Union2.Limit.Tag := ParseTag(kiLIMIT);
-
-            if (not ErrorFound) then
-              Nodes.Union2.Limit.RowCountToken := ParseExpr();
-
-            if (not ErrorFound) then
-              if (IsSymbol(ttComma)) then
-              begin
-                Nodes.Union2.Limit.CommaToken := ParseSymbol(ttComma);
-
-                if (not ErrorFound) then
-                begin
-                  Nodes.Union2.Limit.OffsetToken := Nodes.Limit.RowCountToken;
-                  Nodes.Union2.Limit.RowCountToken := ParseExpr();
-                end;
-              end
-              else if (IsTag(kiOFFSET)) then
-              begin
-                Nodes.Union2.Limit.OffsetTag := ParseTag(kiOFFSET);
-
-                if (not ErrorFound) then
-                  Nodes.Union2.Limit.OffsetToken := ParseExpr();
-              end;
-          end;
       end;
+
+      if (not ErrorFound) then
+        if (IsTag(kiLIMIT)) then
+        begin
+          Nodes.Union2.Limit.Tag := ParseTag(kiLIMIT);
+
+          if (not ErrorFound) then
+            Nodes.Union2.Limit.RowCountToken := ParseExpr();
+
+          if (not ErrorFound) then
+            if (IsSymbol(ttComma)) then
+            begin
+              Nodes.Union2.Limit.CommaToken := ParseSymbol(ttComma);
+
+              if (not ErrorFound) then
+              begin
+                Nodes.Union2.Limit.OffsetToken := Nodes.Limit.RowCountToken;
+                Nodes.Union2.Limit.RowCountToken := ParseExpr();
+              end;
+            end
+            else if (IsTag(kiOFFSET)) then
+            begin
+              Nodes.Union2.Limit.OffsetTag := ParseTag(kiOFFSET);
+
+              if (not ErrorFound) then
+                Nodes.Union2.Limit.OffsetToken := ParseExpr();
+            end;
+        end;
     end;
   end;
 

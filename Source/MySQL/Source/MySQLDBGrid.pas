@@ -425,11 +425,6 @@ begin
     finally
       CloseClipboard();
     end;
-    // Debug 2016-12-21
-    if (not OpenClipboard(Handle)) then
-      raise ERangeError.Create(SRangeError)
-    else
-      CloseClipboard();
   end;
 end;
 
@@ -963,12 +958,6 @@ var
   Value: Integer;
   Values: TCSVValues;
 begin
-  // Debug 2016-12-17
-  if (not OpenClipboard(Handle)) then
-    raise ERangeError.Create(SRangeError)
-  else
-    CloseClipboard();
-
   Result := not ReadOnly;
 
   if (Result) then
@@ -1088,12 +1077,6 @@ begin
     end
     else
       Result := False;
-
-  // Debug 2016-12-17
-  if (not OpenClipboard(Handle)) then
-    raise ERangeError.Create(SRangeError)
-  else
-    CloseClipboard();
 end;
 
 procedure TMySQLDBGrid.Resize();
