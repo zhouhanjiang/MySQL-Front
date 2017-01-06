@@ -11805,6 +11805,7 @@ var
   Parse: TSQLParse;
   Process: TSProcess;
   Routine: TSRoutine;
+S: string; // Debug 2017-01-06
   SQL: string;
   Table: TSTable;
   Trigger: TSTrigger;
@@ -11818,9 +11819,13 @@ begin
     begin
       if ((Connection.ErrorCode = ER_PARSE_ERROR) and SQLParser.ParseSQL(SQL)) then
       begin
+        SetString(S, Text, Len);
         UnparsableSQL := UnparsableSQL
           + '# MonitorExecutedStmts() - ER_PARSE_ERROR' + #13#10
           + '# ErrorMessage: ' + Connection.ErrorMessage + #13#10
+          + '# Hex: ' + SQLEscapeBin(S, True) + #13#10
+          + '# Whole: ' + SQLEscapeBin(Connection.SyncThread.SQL, True) + #13#10
+          + '# MultiStatements: ' + BoolToStr(Connection.MultiStatements, True) + #13#10
           + Trim(SQL) + #13#10 + #13#10 + #13#10;
       end
       else if ((Connection.ErrorCode = 0) and not SQLParser.ParseSQL(SQL)) then
