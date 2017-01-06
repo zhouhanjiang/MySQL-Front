@@ -19426,7 +19426,9 @@ begin
       else if (IsSymbol(ttOpenBracket)) then
         if (IsNextTag(1, kiSELECT)) then
           Nodes.Add(ParseSubSelectStmt())
-        else if (eoOperators in Options) then
+        else if (not (eoOperators in Options)) then
+          SetError(PE_UnexpectedToken)
+        else
           Nodes.Add(ParseList(True, ParseExpr, ttComma, False))
       else if (TokenPtr(CurrentToken)^.KeywordIndex = kiBINARY) then
         // BINARY is operator and function, so we have to handle it separately
