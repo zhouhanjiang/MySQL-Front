@@ -6886,6 +6886,9 @@ begin
   end
   else
   begin
+    // Debug 2017-01-07
+    if (not Assigned(PExternRecordBuffer(ActiveBuffer()))) then
+      raise ERangeError.Create(SRangeError);
     // Debug 2017-01-04
     if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.IdentifierABCDEF <> $ABCDEF) then
       raise ERangeError.Create('Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
