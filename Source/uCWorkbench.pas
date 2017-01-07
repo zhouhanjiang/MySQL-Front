@@ -558,10 +558,16 @@ begin
   try
     Workbench.SetFocus();
   except
-    raise ERangeError.Create('ClassType: ' + Control.ClassName + #13#10
-      + 'Name: ' + Control.Name + #13#10
-      + 'Enabled: ' + BoolToStr(Control.Enabled, True) + #13#10
-      + 'Visible: ' + BoolToStr(Control.Visible, True));
+    on E: Exception do
+      raise ERangeError.Create('ClassType: ' + ClassName + #13#10
+        + 'Name: ' + Name + #13#10
+        + 'Enabled: ' + BoolToStr(Enabled, True) + #13#10
+        + 'Visible: ' + BoolToStr(Visible, True) + #13#10
+        + 'Control.ClassType: ' + Control.ClassName + #13#10
+        + 'Control.Name: ' + Control.Name + #13#10
+        + 'Control.Enabled: ' + BoolToStr(Control.Enabled, True) + #13#10
+        + 'Control.Visible: ' + BoolToStr(Control.Visible, True) + #13#10
+        + E.Message);
   end;
 
   if ((Button in [mbLeft, mbRight]) and (not (ssCtrl in Shift) and (not Selected or (Workbench.SelCount <= 1)) or (not Workbench.MultiSelect or (not (ssCtrl in Shift) and (Workbench.SelCount <= 1))))) then
@@ -2255,6 +2261,10 @@ begin
   if (Point is TWLink) then
     raise ERangeError.Create('Point is TWLink');
 
+  // Debug 2017-01-07
+  if (not Assigned(Point.Link)) then
+    raise ERangeError.Create('Point is not a part of a Link');
+
   if (Line = Point.LineA) then
   begin
     if (Assigned(Point.ControlB)) then
@@ -2277,6 +2287,10 @@ begin
 
   Line.Free();
   Point.Free();
+
+  // Debug 2017-01-07
+  if (not Assigned(TempPoint.Link)) then
+    raise ERangeError.Create('TempPoint is not a part of a Link');
 end;
 
 function TWLink.GetCaption(): TCaption;

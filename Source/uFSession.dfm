@@ -1262,7 +1262,7 @@ object FSession: TFSession
       end
     end
     object FObjectSearch: TEdit
-      Left = 19380
+      Left = 24079
       Top = 0
       Width = 140
       Height = 22
@@ -1275,10 +1275,9 @@ object FSession: TFSession
       OnEnter = FObjectSearchEnter
       OnExit = FObjectSearchExit
       OnKeyPress = FObjectSearchKeyPress
-      ExplicitLeft = 10092
     end
     object TBObjectSearch: TToolBar
-      Left = 21500
+      Left = 26697
       Top = 0
       Width = 23
       Height = 22
@@ -1287,7 +1286,6 @@ object FSession: TFSession
       TabOrder = 3
       Transparent = True
       Visible = False
-      ExplicitLeft = 11228
       object FObjectSearchStart: TToolButton
         Left = 0
         Top = 0
@@ -2186,7 +2184,7 @@ object FSession: TFSession
     Top = 72
   end
   object SynCompletion: TSynCompletionProposal
-    Options = [scoLimitToMatchedText, scoUseInsertList, scoEndCharCompletion, scoConsiderWordBreakChars]
+    Options = [scoLimitToMatchedText, scoUseInsertList, scoEndCharCompletion, scoConsiderWordBreakChars, scoCompleteWithEnter]
     EndOfTokenChr = '()[]. '
     TriggerChars = 
       '._$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012345678' +

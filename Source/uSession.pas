@@ -11976,7 +11976,8 @@ begin
                     repeat
                       DatabaseName := Connection.DatabaseName;
                       if (not SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
-                        raise ERangeError.Create('SQL: ' + SQL)
+                        raise ERangeError.Create('DatabaseName: ' + DatabaseName + #13#10
+                          + 'SQL: ' + SQL)
                       else
                       begin
                         if (Assigned(Database) and (Database <> DatabaseByName(DatabaseName))) then
@@ -11984,7 +11985,8 @@ begin
                         Database := DatabaseByName(DatabaseName);
                         Table := Database.TableByName(ObjectName);
                         if (not Assigned(Table)) then
-                          raise ERangeError.Create(SRangeError)
+                          raise ERangeError.Create('ObjectName: ' + ObjectName + #13#10
+                            + 'SQL: ' + SQL)
                         else
                         begin
                           NextSQL := Connection.NextCommandText;

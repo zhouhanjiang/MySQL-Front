@@ -1898,7 +1898,15 @@ begin
     end;
 
     if (Cache.UsedLen > 0) then
+    begin
+      if (not Assigned(Cache.Mem) or (Cache.First >= Cache.MemLen)) then
+        raise ERangeError.Create('Assigned(Mem): ' + BoolToStr(Assigned(Cache.Mem), True) + #13#10
+          + 'First: ' + IntToStr(Cache.First) + #13#10
+          + 'UsedLen: ' + IntToStr(Cache.UsedLen) + #13#10
+          + 'MemLen: ' + IntToStr(Cache.MemLen) + #13#10
+          + 'NewSize: ' + IntToStr(NewSize));
       MoveMemory(@Cache.Mem[0], @Cache.Mem[Cache.First], Cache.UsedLen * SizeOf(Cache.Mem[0]));
+    end;
     Cache.First := 0;
 
     Cache.MemLen := NewSize div SizeOf(Cache.Mem[0]);
@@ -2605,6 +2613,9 @@ end;
 
 function TMySQLConnection.GetErrorMessage(const AHandle: MySQLConsts.MYSQL): string;
 var
+  B: Byte;
+  Index: Integer;
+  Len: Integer;
   RBS: RawByteString;
 begin
   RBS := Lib.mysql_error(AHandle);
@@ -2613,6 +2624,18 @@ begin
   except
     Result := string(RBS);
   end;
+
+  repeat
+    Index := Pos('\x', Result);
+    if (Index > 0) then
+    begin
+      Len := HexToBin(PChar(@Result[Index + 2]), B, 1);
+      if (Len = 0) then
+        Index := 0
+      else
+        Result := LeftStr(Result, Index - 1) + Chr(B) + RightStr(Result, Length(Result) - Index - 3);
+    end;
+  until (Index = 0);
 end;
 
 function TMySQLConnection.GetHandle(): MySQLConsts.MYSQL;
@@ -3901,7 +3924,7 @@ begin
           SyncThread.ErrorCode := DS_OUT_OF_MEMORY;
           SyncThread.ErrorMessage := StrPas(DATASET_ERRORS[DS_OUT_OF_MEMORY - DS_MIN_ERROR]);
         end
-        else if (DataSet.DataSize >= OldDataSize + 1024) then
+        else if (DataSet.DataSize >= OldDataSize + 10 * 1024) then
         begin
           DataSet.InternRecordBuffers.RecordReceived.SetEvent();
           OldDataSize := DataSet.DataSize;
@@ -6343,18 +6366,11 @@ begin
 end;
 
 procedure TMySQLDataSet.FreeInternRecordBuffer(const InternRecordBuffer: PInternRecordBuffer);
-var
-  I: Integer; // Debug 2017-01-06
 begin
   // Debug 2017-01-03
   // Do not bother the user, until I found the wrong Identifier problem...
   if (InternRecordBuffer^.IdentifierABCDEF = $ABCDEF) then
   begin
-    for I := 0 to BufferCount - 1 do
-      if (Assigned(PExternRecordBuffer(Buffers[I]))
-        and (PExternRecordBuffer(Buffers[I])^.InternRecordBuffer = InternRecordBuffer)) then
-        raise ERangeError.Create(SRangeError);
-
     if (Assigned(InternRecordBuffer^.NewData) and (InternRecordBuffer^.NewData <> InternRecordBuffer^.OldData)) then
       FreeMem(InternRecordBuffer^.NewData);
     if (Assigned(InternRecordBuffer^.OldData)) then
@@ -6670,6 +6686,10 @@ begin
     FreeInternRecordBuffer(InternRecordBuffers[Index]);
     InternRecordBuffers.Delete(Index);
   end
+  else if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
+    // Debug 2017-01-07
+    raise ERangeError.Create('Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
+      + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)))
   else if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData) then
   begin
     FreeMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData);
@@ -6735,7 +6755,6 @@ begin
         if (Filtered) then
           Dec(InternRecordBuffers.FilteredRecordCount);
       end;
-      Resync([]);
     end;
     InternRecordBuffers.CriticalSection.Leave();
 
@@ -6886,7 +6905,8 @@ begin
       raise ERangeError.Create(SRangeError);
     // Debug 2017-01-06
     if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
-      raise ERangeError.Create(SRangeError);
+      raise ERangeError.Create('Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
+        + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)));
     // Debug 2017-01-04
     if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.IdentifierABCDEF <> $ABCDEF) then
       raise ERangeError.Create('Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
@@ -7134,6 +7154,12 @@ begin
       if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData) then
         FreeMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData);
       PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
+
+      if (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag in [bfBOF, bfEOF]) then
+      begin
+        Index := InternRecordBuffers.Add(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
+        PExternRecordBuffer(ActiveBuffer())^.Index := Index;
+      end;
     end
     else if (SQLParseKeyword(Parse, 'SELECT')) then
     begin
@@ -7450,6 +7476,15 @@ var
 begin
   if ((Field.AutoGenerateValue <> arAutoInc) or (Length(Buffer) > 0)) then
   begin
+    // Debug 2017-01-07
+    try
+      Length(Buffer);
+    except
+      on E: Exception do
+        raise ERangeError.Create('ClassType : ' + Field.ClassName + #13#10
+          + E.Message);
+    end;
+
     if (Length(Buffer) = 0) then
       SetFieldData(Field, nil, 0)
     else if (BitField(Field)) then

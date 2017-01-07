@@ -560,8 +560,15 @@ procedure TDImport.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   // Debug 2016-12-22
   if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-    raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'ImportType: ' + IntToStr(Ord(ImportType)));
+    if (not Assigned(SObject)) then
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+        + 'ImportType: ' + IntToStr(Ord(ImportType)) + #13#10
+        + 'CodePage: ' + IntToStr(CodePage))
+    else
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+        + 'ImportType: ' + IntToStr(Ord(ImportType)) + #13#10
+        + 'CodePage: ' + IntToStr(CodePage) + #13#10
+        + 'SObject: ' + SObject.ClassName);
   // occurred on 2017-01-05: abnsqrxylm .. lmlmqrxyptufijkc
   // occurred on 2017-01-05: abenqrsxylmlmlmlmlmlmlmlmqrxylmlmlmlmlmlmlmqrxyptufijkc, ImportType: 2
   // occurred on 2017-01-05: abnsqrxylmlm .. lmqrxyqrxyptufijkc, ImportType: 1
@@ -636,9 +643,20 @@ procedure TDImport.FormHide(Sender: TObject);
 begin
   // Debug 2016-12-22
   if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-    raise ERangeError.Create('Progress: ' + Progress + #13#10
-      + 'ImportType: ' + IntToStr(Ord(ImportType)));
+    if (not Assigned(SObject)) then
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+        + 'ImportType: ' + IntToStr(Ord(ImportType))
+        + 'CodePage: ' + IntToStr(CodePage) + #13#10)
+    else
+      raise ERangeError.Create('Progress: ' + Progress + #13#10
+        + 'ImportType: ' + IntToStr(Ord(ImportType)) + #13#10
+        + 'CodePage: ' + IntToStr(CodePage) + #13#10
+        + 'SObject: ' + SObject.ClassName);
   // Occurred 2017-01-05 Progress: abenqrsxyfhifhifhifhifhifhi
+  // Occurred 2017-01-05 Progress: 2abnsqrxylmlmAfhi, ImportType: 1
+  // Occurred 2017-01-07 Progress: 2abnsqrxylmlmlmlmlmlmlmlm .. lmlmlmlmAfhi, ImportType: 1
+  // Occurred 2017-01-07 Progress: 2abnsqrxylmlmlmlmlmlmAfhi, ImportType: 1
+  // Occurred 2017-01-07 Progress: 2abnsqrxylmlmAfhi, ImportType: 1
 
   Progress := Progress + 'j';
 

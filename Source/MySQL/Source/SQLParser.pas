@@ -22328,10 +22328,7 @@ begin
   Nodes.Expr := ParseExpr([eoIn, eoAllFields, eoOperators]);
 
   if ((Nodes.Expr > 0)
-    and ((NodePtr(Nodes.Expr)^.NodeType <> ntToken)
-      or (TokenPtr(Nodes.Expr)^.TokenType <> ttOperator))
     and ((NodePtr(Nodes.Expr)^.NodeType <> ntDbIdent)
-      or (PDbIdent(NodePtr(Nodes.Expr))^.DbIdentType <> ditField)
       or not Assigned(PDbIdent(NodePtr(Nodes.Expr))^.Ident)
       or (PDbIdent(NodePtr(Nodes.Expr))^.Ident^.TokenType <> ttOperator))) then
   begin

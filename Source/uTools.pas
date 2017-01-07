@@ -1769,11 +1769,17 @@ begin
           DoError(DatabaseError(Session), nil, True, SQL);
       end;
 
+      try // Debug 2017-01-07
       if (DataSet.Active) then
       begin
         OLD_UNIQUE_CHECKS := DataSet.Fields[0].AsString;
         OLD_FOREIGN_KEY_CHECKS := DataSet.Fields[1].AsString;
         DataSet.Close();
+      end;
+      except
+        on E: Exception do
+          raise ERangeError.Create('CommandText: ' + DataSet.CommandText + #13#10
+            + E.Message);
       end;
 
       DataSet.Free();

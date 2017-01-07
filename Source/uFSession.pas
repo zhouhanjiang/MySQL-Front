@@ -323,7 +323,6 @@ type
     PHeader: TPanel_Ext;
     PWorkbench: TPanel_Ext;
     SaveDialog: TSaveDialog_Ext;
-    SBlob: TSplitter_Ext;
     SQueryBuilderSynMemo: TSplitter_Ext;
     SExplorer: TSplitter_Ext;
     SLog: TSplitter_Ext;
@@ -362,6 +361,7 @@ type
     tmEPaste: TMenuItem;
     tmESelectAll: TMenuItem;
     ToolBar: TToolBar;
+    SBlob: TSplitter_Ext; // 2017-01-07 For debugging moved out of alphabetical order
     procedure aDCreateDatabaseExecute(Sender: TObject);
     procedure aDCreateEventExecute(Sender: TObject);
     procedure aDCreateExecute(Sender: TObject);
@@ -4273,7 +4273,7 @@ begin
           if ((View = vBrowser) or PResult.Visible) then
           begin
             if (not Assigned(ActiveDBGrid)) then
-              // Why is this needed??? 2017-01-07
+              // Why is this needed??? 2017-01-06
               ActiveDBGrid := GetActiveDBGrid();
             if (ActiveDBGrid.DataSource.DataSet is TMySQLDataSet) then
             begin
@@ -13043,6 +13043,14 @@ var
 begin
   URI := TUURI.Create(Address);
 
+  if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
+    raise ERangeError.Create('View: ' + IntToStr(Ord(AView)) + #13#10
+      + 'LastSelectedTable: ' + LastSelectedTable + #13#10
+      + 'Address: ' + Address + #13#10
+      + 'ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
+      + 'Text: ' + FNavigator.Selected.Text + #13#10
+      + 'URI.Address: ' + URI.Address);
+
   case (AView) of
     vObjects: URI.Param['view'] := Null;
     vBrowser: URI.Param['view'] := 'browser';
@@ -13143,7 +13151,8 @@ begin
       + 'LastSelectedTable: ' + LastSelectedTable + #13#10
       + 'Address: ' + Address + #13#10
       + 'ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
-      + 'Text: ' + FNavigator.Selected.Text);
+      + 'Text: ' + FNavigator.Selected.Text + #13#10
+      + 'URI.Address: ' + URI.Address);
 
   LockWindowUpdate(FNavigator.Handle);
   ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);
