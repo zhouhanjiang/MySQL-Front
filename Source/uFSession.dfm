@@ -1262,13 +1262,12 @@ object FSession: TFSession
       end
     end
     object FObjectSearch: TEdit
-      Left = 24079
+      Left = 886
       Top = 0
       Width = 140
       Height = 22
       TabStop = False
       Anchors = []
-      AutoSize = False
       TabOrder = 2
       Visible = False
       OnChange = FObjectSearchChange
@@ -1277,7 +1276,7 @@ object FSession: TFSession
       OnKeyPress = FObjectSearchKeyPress
     end
     object TBObjectSearch: TToolBar
-      Left = 26697
+      Left = 1046
       Top = 0
       Width = 23
       Height = 22

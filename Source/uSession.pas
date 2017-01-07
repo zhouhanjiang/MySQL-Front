@@ -11975,19 +11975,13 @@ begin
                     First := True; Database := nil;
                     repeat
                       DatabaseName := Connection.DatabaseName;
-                      if (not SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
-                        raise ERangeError.Create('DatabaseName: ' + DatabaseName + #13#10
-                          + 'SQL: ' + SQL)
-                      else
+                      if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
                       begin
                         if (Assigned(Database) and (Database <> DatabaseByName(DatabaseName))) then
                           SendEvent(etItemsValid, Database, Database.Tables);
                         Database := DatabaseByName(DatabaseName);
                         Table := Database.TableByName(ObjectName);
-                        if (not Assigned(Table)) then
-                          raise ERangeError.Create('ObjectName: ' + ObjectName + #13#10
-                            + 'SQL: ' + SQL)
-                        else
+                        if (Assigned(Table)) then
                         begin
                           NextSQL := Connection.NextCommandText;
                           if (First

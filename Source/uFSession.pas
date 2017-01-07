@@ -474,6 +474,7 @@ type
     procedure FNavigatorKeyPress(Sender: TObject; var Key: Char);
     procedure FObjectSearchChange(Sender: TObject);
     procedure FObjectSearchEnter(Sender: TObject);
+    procedure FObjectSearchExit(Sender: TObject);
     procedure FObjectSearchKeyPress(Sender: TObject; var Key: Char);
     procedure FObjectSearchStartClick(Sender: TObject);
     procedure FOffsetChange(Sender: TObject);
@@ -632,7 +633,6 @@ type
       Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure TreeViewMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
-    procedure FObjectSearchExit(Sender: TObject);
   type
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
     TTabState = set of (tsLoading, tsActive);
@@ -7587,18 +7587,19 @@ begin
   if (not Assigned(PObjectSearch)) then
   begin
     PObjectSearch := TPObjectSearch.Create(nil);
-    PHeaderResize(nil);
+    PObjectSearch.Left := FObjectSearch.Left + FObjectSearch.Width - PObjectSearch.Width;;
+    PObjectSearch.Top := FObjectSearch.Top + FObjectSearch.Height;
+    PObjectSearch.ParentColor := False;
     PObjectSearch.Color := FObjectSearch.Color;
-    PObjectSearch.PopupParent := Window;
     PObjectSearch.Perform(CM_SYSFONTCHANGED, 0, 0);
     PObjectSearch.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    PObjectSearch.Parent := Self;
 
     PObjectSearch.Session := Session;
   end;
 
   PObjectSearch.Location := TObject(FNavigator.Selected.Data);
-  PObjectSearch.Visible := True;
-//  SetActiveWindow(PObjectSearch.Handle);
+  PObjectSearch.Show();
 end;
 
 procedure TFSession.FObjectSearchExit(Sender: TObject);
@@ -12523,10 +12524,7 @@ begin
   FObjectSearch.Top := 2 * Toolbar.BorderWidth;
   FObjectSearch.Height := Toolbar.Height - 2 * 2 * Toolbar.BorderWidth;
   if (Assigned(PObjectSearch)) then
-  begin
-    PObjectSearch.Left := ClientToScreen(Point(FObjectSearch.Left + FObjectSearch.Width - PObjectSearch.Width, 0)).X;
-    PObjectSearch.Top := ClientToScreen(Point(0, FObjectSearch.Top + FObjectSearch.Height)).Y;
-  end;
+    PObjectSearch.Hide();
 
   PHeaderCheckElements(Sender);
 end;
