@@ -1188,13 +1188,7 @@ begin
 end;
 
 destructor TWLinkPoint.Destroy();
-var
-  I: Integer;
-  J: Integer;
-  TempLink: TWLink; // Debug 2017-01-05
 begin
-  TempLink := Link;
-
   if (Assigned(LineB)) then
     LineB.Free();
 
@@ -1206,13 +1200,6 @@ begin
     raise ERangeError.Create(SRangeError)
   else
     Workbench.LinkPoints.Delete(Workbench.LinkPoints.IndexOf(Self));
-
-  // Debug 2017-01-05
-  for I := 0 to Workbench.Links.Count - 1 do
-    if (Workbench.Links[I] <> TempLink) then
-      for J := 0 to Workbench.Links[I].PointCount - 1 do
-        if (Workbench.LinkPoints.IndexOf(Workbench.Links[I].Points[J]) < 0) then
-          raise ERangeError.Create(SRangeError);
 
   inherited;
 end;

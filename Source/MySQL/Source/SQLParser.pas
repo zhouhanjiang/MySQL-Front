@@ -621,6 +621,7 @@ type
         ditConstraint,
         ditColumnAlias,
         ditTableAlias,
+        ditConstant,
         ditTriggerRec,
         ditEngine,
         ditCharset,
@@ -1127,6 +1128,7 @@ type
         'ditConstraint',
         'ditColumnAlias',
         'ditTableAlias',
+        'ditConstant',
         'ditTriggerRec',
         'ditEngine',
         'ditCharset',
@@ -1540,13 +1542,14 @@ type
         function GetItem(Index: Integer): PItem; {$IFNDEF Debug} inline; {$ENDIF}
         procedure SetActive(AActive: Boolean);
       protected
+        procedure AddConst(const Text: string); inline;
+        procedure AddList(DbIdentType: TDbIdentType;
+          const DatabaseName: string = ''; TableName: string = '');
         procedure AddTag(const KeywordIndex1: TWordList.TIndex;
           const KeywordIndex2: TWordList.TIndex = -1; const KeywordIndex3: TWordList.TIndex = -1;
           const KeywordIndex4: TWordList.TIndex = -1; const KeywordIndex5: TWordList.TIndex = -1;
           const KeywordIndex6: TWordList.TIndex = -1; const KeywordIndex7: TWordList.TIndex = -1);
-        procedure AddList(DbIdentType: TDbIdentType;
-          const DatabaseName: string = ''; TableName: string = '');
-        procedure AddText(const Text: string = '');
+        procedure AddText(const Text: string);
         procedure Clear();
       public
         procedure Cleanup();
@@ -5111,6 +5114,7 @@ type
       private type
         TNodes = packed record
           StmtTag: TOffset;
+          Ident: TOffset;
         end;
       private
         Heritage: TStmt;
@@ -5238,6 +5242,7 @@ type
       private type
         TNodes = packed record
           StmtTag: TOffset;
+          Ident: TOffset;
         end;
       private
         Heritage: TStmt;
@@ -6311,8 +6316,6 @@ type
     kiLIST,
     kiLOAD,
     kiLOCAL,
-    kiLOCALTIME,
-    kiLOCALTIMESTAMP,
     kiLOCK,
     kiLOGS,
     kiLOOP,
@@ -6604,6 +6607,7 @@ type
     Error: TError;
     FAnsiQuotes: Boolean;
     FCompletionList: TCompletionList;
+    FConstantList: TWordList;
     FFunctionList: TWordList;
     FInCompound: Integer;
     FInPL_SQL: Integer;
@@ -6796,6 +6800,7 @@ type
     function ParseColumnAliasIdent(): TOffset;
     function ParseCommitStmt(): TOffset;
     function ParseCompoundStmt(const BeginLabel: TOffset): TOffset;
+    function ParseConstIdent(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseConvertFunc(): TOffset;
     function ParseCountFunc(): TOffset;
     function ParseCreateDatabaseStmt(const CreateTag, OrReplaceTag: TOffset): TOffset;
@@ -7074,6 +7079,7 @@ type
     property AnsiQuotes: Boolean read FAnsiQuotes write FAnsiQuotes;
     property Charsets: string read GetCharsets write SetCharsets;
     property CompletionList: TCompletionList read FCompletionList;
+    property ConstantList: TWordList read FConstantList;
     property Datatypes: string read GetDatatypes write SetDatatypes;
     property ErrorCode: Byte read FirstError.Code;
     property ErrorLine: Integer read FirstError.Line;
@@ -7138,6 +7144,11 @@ const
 		'cp866,cp932,dec8,eucjpms,euckr,gb18030,gb2312,gbk,geostd8,greek,hebrew,' +
 		'hp8,keybcs2,koi8r,koi8u,latin1,latin2,latin5,latin7,macce,macroman,sjis,' +
 		'swe7,tis620,ucs2,ujis,utf16,utf16le,utf32,utf8,utf8mb4';
+
+  MySQLConstants =
+    'CURRENT_DATE,CURRENT_TIME,CURRENT_TIMESTAMP,CURRENT_USER,DEFAULT,FALSE,' +
+    'LOCALTIME,LOCALTIMESTAMP,NULL,OFF,ON,TRUE,UNKNOWN,UTC_DATE,UTC_TIME,' +
+    'UTC_TIMESTAMP';
 
   MySQLDatatypes =
     'BIGINT,BINARY,BIT,BLOB,BOOL,BOOLEAN,BYTE,CHAR,CHARACTER,DEC,DECIMAL,' +
@@ -7258,7 +7269,7 @@ const
     'INDEXES,INFILE,INITIAL_SIZE,INNER,INNODB,INOUT,INPLACE,INSTANCE,INSERT,' +
     'INSERT_METHOD,INTERVAL,INTO,INVOKER,IO,IPC,IS,ISOLATION,ITERATE,JOIN,' +
     'JSON,KEY,KEY_BLOCK_SIZE,KEYS,KILL,LANGUAGE,LAST,LEADING,LEAVE,LEFT,LESS,' +
-    'LEVEL,LIKE,LIMIT,LINEAR,LINES,LIST,LOAD,LOCAL,LOCALTIME,LOCALTIMESTAMP,' +
+    'LEVEL,LIKE,LIMIT,LINEAR,LINES,LIST,LOAD,LOCAL,' +
     'LOCK,LOGS,LOOP,LOW_PRIORITY,MASTER,MASTER_AUTO_POSITION,MASTER_BIND,' +
     'MASTER_CONNECT_RETRY,MASTER_DELAY,MASTER_HEARTBEAT_PERIOD,MASTER_HOST,' +
     'MASTER_LOG_FILE,MASTER_LOG_POS,MASTER_PASSWORD,MASTER_PORT,' +
@@ -7929,6 +7940,11 @@ begin
 end;
 
 { TSQLParser.TCompletionList **************************************************}
+
+procedure TSQLParser.TCompletionList.AddConst(const Text: string);
+begin
+  AddText(Text);
+end;
 
 procedure TSQLParser.TCompletionList.AddList(DbIdentType: TDbIdentType;
   const DatabaseName: string = ''; TableName: string = '');
@@ -11844,6 +11860,7 @@ begin
   CharsetList := TWordList.Create(Self);
   Commands := nil;
   FCompletionList := TCompletionList.Create(Self);
+  FConstantList := TWordList.Create(Self);
   DatatypeList := TWordList.Create(Self);
   FFunctionList := TWordList.Create(Self);
   KeywordList := TWordList.Create(Self);
@@ -11856,6 +11873,7 @@ begin
   TokenBuffer.Count := 0;
 
   Charsets := MySQLCharsets;
+  ConstantList.Text := MySQLConstants;
   Datatypes := MySQLDatatypes;
   FunctionList.Text := MySQLFunctions;
   Keywords := MySQLKeywords;
@@ -11946,6 +11964,7 @@ begin
 
   CharsetList.Free();
   FCompletionList.Free();
+  FConstantList.Free();
   DatatypeList.Free();
   FFunctionList.Free();
   KeywordList.Free();
@@ -14163,17 +14182,7 @@ var
 begin
   if ((Token.UsageType in [utKeyword, utOperator])
     or (Token.UsageType = utDbIdent)
-      and ((Token.KeywordIndex = kiCURRENT_DATE)
-        or (Token.KeywordIndex = kiCURRENT_TIME)
-        or (Token.KeywordIndex = kiCURRENT_TIMESTAMP)
-        or (Token.KeywordIndex = kiCURRENT_USER)
-        or (Token.KeywordIndex = kiDEFAULT)
-        or (Token.KeywordIndex = kiFALSE)
-        or (Token.KeywordIndex = kiNULL)
-        or (Token.FLength = 3) and (StrLIComp(Token.FText, 'OFF', 3) = 0)
-        or (Token.FLength = 2) and (StrLIComp(Token.FText, 'ON', 2) = 0)
-        or (Token.KeywordIndex = kiTRUE)
-        or (Token.KeywordIndex = kiUNKNOWN)
+      and ((Token.DbIdentType = ditConstant)
         or (Token.DbIdentType = ditFunction) and (FunctionList.IndexOf(Token.FText, Token.FLength) >= 0)
         or (Token.DbIdentType = ditTriggerRec))) then
   begin
@@ -16563,6 +16572,11 @@ begin
   end;
 end;
 
+function TSQLParser.ParseConstIdent(): TOffset;
+begin
+  Result := ParseDbIdent(ditConstant, False);
+end;
+
 function TSQLParser.ParseConvertFunc(): TOffset;
 var
   Nodes: TConvertFunc.TNodes;
@@ -18494,7 +18508,7 @@ function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
         and (QualifiedIdentifier
           or (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0)
           or (ADbIdentType = ditCharset) and (StrLIComp(TokenPtr(CurrentToken)^.FText, 'binary', 6) = 0)
-          or (ADbIdentType in [ditVariable]))
+          or (ADbIdentType in [ditVariable,ditConstant]))
       or (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent) and not (ADbIdentType in [ditCharset, ditCollation])
       or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and (AnsiQuotes or (ADbIdentType in [ditUser, ditHost, ditConstraint, ditColumnAlias, ditCharset, ditCollation]))
       or (TokenPtr(CurrentToken)^.TokenType = ttString) and (ADbIdentType in [ditUser, ditHost, ditConstraint, ditColumnAlias, ditCharset, ditCollation])
@@ -19385,6 +19399,8 @@ var
     end
     else if ((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1])) then
     begin
+      for I := 0 to ConstantList.Count - 1 do
+        CompletionList.AddConst(ConstantList[I]);
       for I := 0 to FunctionList.Count - 1 do
         CompletionList.AddText(FunctionList[I]);
       CompletionList.AddList(ditDatabase);
@@ -19392,13 +19408,6 @@ var
       CompletionList.AddList(ditTable);
       CompletionList.AddList(ditField);
     end;
-    CompletionList.AddTag(kiCURRENT_DATE);
-    CompletionList.AddTag(kiCURRENT_TIME);
-    CompletionList.AddTag(kiCURRENT_TIMESTAMP);
-    CompletionList.AddTag(kiCURRENT_USER);
-    CompletionList.AddTag(kiFALSE);
-    CompletionList.AddTag(kiNULL);
-    CompletionList.AddTag(kiTRUE);
   end;
 
 var
@@ -19532,18 +19541,8 @@ begin
           else
             Nodes.Add(ParseDefaultFunc()); // Func()
         end
-        else if ((TokenPtr(CurrentToken)^.KeywordIndex = kiCURRENT_DATE)
-            or (TokenPtr(CurrentToken)^.KeywordIndex = kiCURRENT_TIME)
-            or (TokenPtr(CurrentToken)^.KeywordIndex = kiCURRENT_TIMESTAMP)
-            or (TokenPtr(CurrentToken)^.KeywordIndex = kiCURRENT_USER)
-            or (TokenPtr(CurrentToken)^.KeywordIndex = kiDEFAULT)
-            or (TokenPtr(CurrentToken)^.KeywordIndex = kiFALSE)
-            or (TokenPtr(CurrentToken)^.KeywordIndex = kiLOCALTIME)
-            or (TokenPtr(CurrentToken)^.KeywordIndex = kiLOCALTIMESTAMP)
-            or (TokenPtr(CurrentToken)^.KeywordIndex = kiNULL)
-            or (TokenPtr(CurrentToken)^.KeywordIndex = kiTRUE)
-            or (TokenPtr(CurrentToken)^.KeywordIndex = kiUNKNOWN)) then
-          Nodes.Add(ApplyCurrentToken(utDbIdent))
+        else if (ConstantList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) >= 0) then
+          Nodes.Add(ParseConstIdent())
         else if (IsNextSymbol(1, ttDot)) then
           if (not EndOfStmt(NextToken[2]) and (TokenPtr(NextToken[2])^.TokenType in ttIdents)
             and not EndOfStmt(NextToken[3]) and (TokenPtr(NextToken[3])^.TokenType = ttOpenBracket)) then
@@ -19688,10 +19687,10 @@ begin
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if (NodeIndex + 1 = Nodes.Count) then
               begin
-                CompletionList.AddTag(kiFALSE);
-                CompletionList.AddTag(kiNULL);
-                CompletionList.AddTag(kiTRUE);
-                CompletionList.AddTag(kiUNKNOWN);
+                CompletionList.AddConst('FALSE');
+                CompletionList.AddConst('NULL');
+                CompletionList.AddConst('TRUE');
+                CompletionList.AddConst('UNKNOWN');
                 SetError(PE_IncompleteStmt);
               end
               else if (IsToken(Nodes[NodeIndex + 1])
@@ -19708,10 +19707,10 @@ begin
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex + 1])
               else if (NodeIndex + 2 = Nodes.Count) then
               begin
-                CompletionList.AddTag(kiFALSE);
-                CompletionList.AddTag(kiNULL);
-                CompletionList.AddTag(kiTRUE);
-                CompletionList.AddTag(kiUNKNOWN);
+                CompletionList.AddConst('FALSE');
+                CompletionList.AddConst('NULL');
+                CompletionList.AddConst('TRUE');
+                CompletionList.AddConst('UNKNOWN');
                 SetError(PE_IncompleteStmt);
               end
               else if (IsToken(Nodes[NodeIndex + 2])
@@ -23277,6 +23276,9 @@ begin
 
   Nodes.StmtTag := ParseTag(kiSHOW, kiFUNCTION, kiCODE);
 
+  if (not ErrorFound) then
+    Nodes.Ident := ParseProcedureIdent();
+
   Result := TShowFunctionCodeStmt.Create(Self, Nodes);
 end;
 
@@ -23401,6 +23403,9 @@ begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
   Nodes.StmtTag := ParseTag(kiSHOW, kiPROCEDURE, kiCODE);
+
+  if (not ErrorFound) then
+    Nodes.Ident := ParseProcedureIdent();
 
   Result := TShowProcedureCodeStmt.Create(Self, Nodes);
 end;
@@ -27142,8 +27147,6 @@ begin
     kiLOGS                          := IndexOf('LOGS');
     kiLOAD                          := IndexOf('LOAD');
     kiLOCAL                         := IndexOf('LOCAL');
-    kiLOCALTIME                     := IndexOf('LOCALTIME');
-    kiLOCALTIMESTAMP                := IndexOf('LOCALTIMESTAMP');
     kiLOCK                          := IndexOf('LOCK');
     kiLOOP                          := IndexOf('LOOP');
     kiLOW_PRIORITY                  := IndexOf('LOW_PRIORITY');

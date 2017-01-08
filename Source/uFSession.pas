@@ -473,7 +473,6 @@ type
       Shift: TShiftState);
     procedure FNavigatorKeyPress(Sender: TObject; var Key: Char);
     procedure FObjectSearchChange(Sender: TObject);
-    procedure FObjectSearchEnter(Sender: TObject);
     procedure FObjectSearchExit(Sender: TObject);
     procedure FObjectSearchKeyPress(Sender: TObject; var Key: Char);
     procedure FObjectSearchStartClick(Sender: TObject);
@@ -633,6 +632,7 @@ type
       Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure TreeViewMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
+    procedure FObjectSearchEnter(Sender: TObject);
   type
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
     TTabState = set of (tsLoading, tsActive);
@@ -2627,7 +2627,7 @@ var
   Database: TSDatabase;
   DBObject: TSDBObject;
   Host: string; // Debug 2016-12-05
-  Host2: string; // Debug 2016-15-05
+  Host2: string; // Debug 2016-12-05
   NotFound: Boolean;
   S: string;
   URI: TUURI;
@@ -7598,8 +7598,11 @@ begin
     PObjectSearch.Session := Session;
   end;
 
-  PObjectSearch.Location := TObject(FNavigator.Selected.Data);
-  PObjectSearch.Show();
+  if (not PObjectSearch.Visible) then
+  begin
+    PObjectSearch.Location := TObject(FNavigator.Selected.Data);
+    PObjectSearch.Show();
+  end;
 end;
 
 procedure TFSession.FObjectSearchExit(Sender: TObject);
@@ -8417,17 +8420,7 @@ var
 begin
   case (View) of
     vBrowser:
-      begin
-        // Debug 2016-12-23
-        if (not Assigned(FNavigator)) then
-          raise ERangeError.Create(SRangeError);
-        if (not Assigned(FNavigator.Selected)) then
-          raise ERangeError.Create(SRangeError);
-        if (not (FNavigator.Selected.ImageIndex in [iiBaseTable, iiView, iiSystemView])) then
-          raise ERangeError.Create('ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
-            + 'Address: ' + Address);
-        Result := Desktop(TSTable(FNavigator.Selected.Data)).CreateDBGrid();
-      end;
+      Result := Desktop(TSTable(FNavigator.Selected.Data)).CreateDBGrid();
     vIDE:
       case (FNavigator.Selected.ImageIndex) of
         iiProcedure,
@@ -13747,14 +13740,12 @@ begin
                             Database.Routines[J].Name,
                             Session.Connection.EscapeIdentifier(Database.Routines[J].Name));
                   ditFunction:
-                    begin
-                      if (Assigned(Database) and Assigned(Database.Routines)) then
-                        for J := 0 to Database.Routines.Count - 1 do
-                          if (Database.Routines[J] is TSFunction) then
-                            SynCompletionListAdd(
-                              Database.Routines[J].Name,
-                              Session.Connection.EscapeIdentifier(Database.Routines[J].Name));
-                    end;
+                    if (Assigned(Database) and Assigned(Database.Routines)) then
+                      for J := 0 to Database.Routines.Count - 1 do
+                        if (Database.Routines[J] is TSFunction) then
+                          SynCompletionListAdd(
+                            Database.Routines[J].Name,
+                            Session.Connection.EscapeIdentifier(Database.Routines[J].Name));
                   ditTrigger:
                     if (Assigned(Database) and Assigned(Database.Triggers)) then
                       for J := 0 to Database.Triggers.Count - 1 do
@@ -13798,6 +13789,7 @@ begin
                       SynCompletionListAdd(
                         Session.Users[J].Name,
                         Session.EscapeUser(Session.Users[J].Name));
+//                  ditConst:
                   ditEngine:
                     for J := 0 to Session.Engines.Count - 1 do
                       SynCompletionListAdd(

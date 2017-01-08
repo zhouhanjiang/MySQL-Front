@@ -1515,6 +1515,9 @@ begin
   Export.Free();
   Export := nil;
 
+  if (not Application.Active) then
+    FlashWindow(Application.Handle, True);
+
   FBBack.Enabled := True;
   FBCancel.Enabled := True;
   SetClassLong(Handle, GCL_STYLE, GetClassLong(Handle, GCL_STYLE) and not CS_NOCLOSE);

@@ -940,6 +940,9 @@ begin
   Transfer.Free();
   Transfer := nil;
 
+  if (not Application.Active) then
+    FlashWindow(Application.MainFormHandle, True);
+
   FBBack.Enabled := True;
   FBCancel.Enabled := True;
   SetClassLong(Handle, GCL_STYLE, GetClassLong(Handle, GCL_STYLE) and not CS_NOCLOSE);

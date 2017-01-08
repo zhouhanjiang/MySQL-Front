@@ -208,6 +208,7 @@ const
 
 var
   FDImport: TDImport;
+  SObjectDebug: TSObject; // Debug 2017-01-08
 
 function DImport(): TDImport;
 begin
@@ -350,6 +351,8 @@ end;
 
 function TDImport.Execute(): Boolean;
 begin
+  SObjectDebug := SObject;
+
   Imported := False;
 
   ModalResult := mrNone;
@@ -375,6 +378,7 @@ begin
   // Debug 2017-01-03
   if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
     raise ERangeError.Create('Progress: ' + Progress);
+  // Occurred 2017-01-08 Progress: 2abnqrlmsxylmlmAfhi
   Progress := Progress + 'c';
 end;
 
@@ -568,12 +572,13 @@ begin
       raise ERangeError.Create('Progress: ' + Progress + #13#10
         + 'ImportType: ' + IntToStr(Ord(ImportType)) + #13#10
         + 'CodePage: ' + IntToStr(CodePage) + #13#10
+        + 'SObject = SObjectDebug: ' + BoolToStr(SObject = SObjectDebug, True) + #13#10
         + 'SObject: ' + SObject.ClassName);
   // occurred on 2017-01-05: abnsqrxylm .. lmlmqrxyptufijkc
   // occurred on 2017-01-05: abenqrsxylmlmlmlmlmlmlmlmqrxylmlmlmlmlmlmlmqrxyptufijkc, ImportType: 2
   // occurred on 2017-01-05: abnsqrxylmlm .. lmqrxyqrxyptufijkc, ImportType: 1
   // occurred on 2017-01-06: 2abeneeeeeqrsxylmlmlmlmlmlmlmlmlmlmqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyovwqrxylmlmlmlmqrxyptuAfijkc_, ImportType: 2
-
+  // occurred on 2017-01-07: 2abnsqrxylmlmlmlmlmlmlml .. lmlmqrxyptuAfijkc_, ImportType: 1
 
   Progress := Progress + 'f';
 
@@ -652,12 +657,14 @@ begin
       raise ERangeError.Create('Progress: ' + Progress + #13#10
         + 'ImportType: ' + IntToStr(Ord(ImportType)) + #13#10
         + 'CodePage: ' + IntToStr(CodePage) + #13#10
+        + 'SObject = SObjectDebug: ' + BoolToStr(SObject = SObjectDebug, True) + #13#10
         + 'SObject: ' + SObject.ClassName);
   // Occurred 2017-01-05 Progress: abenqrsxyfhifhifhifhifhifhi
   // Occurred 2017-01-05 Progress: 2abnsqrxylmlmAfhi, ImportType: 1
   // Occurred 2017-01-07 Progress: 2abnsqrxylmlmlmlmlmlmlmlm .. lmlmlmlmAfhi, ImportType: 1
   // Occurred 2017-01-07 Progress: 2abnsqrxylmlmlmlmlmlmAfhi, ImportType: 1
   // Occurred 2017-01-07 Progress: 2abnsqrxylmlmAfhi, ImportType: 1
+  // Occurred 2017-01-08 Progress: 2abnqrlmsxylmlmAfhi, ImportType: 4
 
   Progress := Progress + 'j';
 
@@ -735,7 +742,6 @@ begin
   // Debug 2017-01-03
   if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
     raise ERangeError.Create('Progress: ' + Progress);
-  Progress := Progress + 'l';
 
   if (Event.EventType = etError) then
   begin
@@ -750,7 +756,6 @@ begin
   // Debug 2017-01-03
   if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
     raise ERangeError.Create('Progress: ' + Progress);
-  Progress := Progress + 'm';
 end;
 
 procedure TDImport.FormShow(Sender: TObject);
@@ -1132,7 +1137,7 @@ begin
     Import.Start();
   end;
 
-  CheckActivePageChange(TSTables);
+  CheckActivePageChange(TSExecute);
   FBBack.Enabled := False;
   ActiveControl := FBCancel;
 
@@ -1476,6 +1481,9 @@ begin
 
   Import.Free();
   Import := nil;
+
+  if (not Application.Active) then
+    FlashWindow(Application.MainFormHandle, True);
 
   FBBack.Enabled := True;
   FBCancel.Enabled := True;

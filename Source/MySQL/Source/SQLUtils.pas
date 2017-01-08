@@ -1187,6 +1187,7 @@ begin
 
       // -------------------
 
+        MOV EAX,0                        // Clear high word
       BinL:
         LODSW                            // Read byte
         AND AX,$00FF                     // Interpret value as binary
