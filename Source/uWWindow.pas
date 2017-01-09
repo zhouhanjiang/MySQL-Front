@@ -369,9 +369,9 @@ type
     procedure TabControlStartDrag(Sender: TObject;
       var DragObject: TDragObject);
     procedure tbPropertiesClick(Sender: TObject);
-    procedure Button1Click(Sender: TObject);
   const
-    tiDeactivate = 1;
+    tiEmptyWorkingMem = 1;
+    tiHidePopupChildren = 2;
   type
     PTabControlRepaint = ^TTabControlRepaint;
     TTabControlRepaint = record
@@ -416,10 +416,11 @@ type
     procedure UMOnlineUpdateFound(var Message: TMessage); message UM_ONLINE_UPDATE_FOUND;
     procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMUpdateToolbar(var Message: TMessage); message UM_UPDATETOOLBAR;
-    procedure WMActivate(var Message: TMessage); message WM_ACTIVATE;
+    procedure WMActivate(var Message: TWMActivate); message WM_ACTIVATE;
     procedure WMDrawItem(var Message: TWMDrawItem); message WM_DRAWITEM;
     procedure WMHelp(var Message: TWMHelp); message WM_HELP;
     procedure WMTimer(var Message: TWMTimer); message WM_TIMER;
+    procedure WMWindowPosChanging(var Message: TWMWindowPosChanging); message WM_WINDOWPOSCHANGING;
     property ActiveTab: TFSession read GetActiveTab write SetActiveTab;
   protected
     {$IFNDEF EurekaLog}
@@ -636,12 +637,12 @@ end;
 
 procedure TWWindow.ApplicationActivate(Sender: TObject);
 begin
-  KillTimer(Handle, tiDeactivate);
+  KillTimer(Handle, tiEmptyWorkingMem);
 end;
 
 procedure TWWindow.ApplicationDeactivate(Sender: TObject);
 begin
-  SetTimer(Handle, tiDeactivate, 60000, nil);
+  SetTimer(Handle, tiEmptyWorkingMem, 60000, nil);
 end;
 
 {$IFNDEF EurekaLog}
@@ -737,15 +738,7 @@ begin
       end;
 
       if (Assigned(ActiveTab)) then
-      begin
-        // Debug 2016-12-22
-        // This is a helper for UMUpdateToolbar
-        if (not Assigned(ActiveTab.Session.Account.Desktop)) then
-          raise ERangeError.Create('TabControl.Tabs.Count: ' + IntToStr(TabControl.Tabs.Count) + #13#10
-            + 'Sessions.Count: ' + IntToStr(Sessions.Count));
-
         PostMessage(ActiveTab.Handle, UM_ACTIVATEFRAME, 0, 0);
-      end;
     end;
   end;
 end;
@@ -761,11 +754,6 @@ begin
   else
     FindText := '';
   MsgBox(Preferences.LoadStr(533, FindText), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
-end;
-
-procedure TWWindow.Button1Click(Sender: TObject);
-begin
-raise Exception.Create('Error Message');
 end;
 
 function TWWindow.CloseAll(): Boolean;
@@ -1869,13 +1857,12 @@ begin
   end;
 end;
 
-procedure TWWindow.WMActivate(var Message: TMessage);
+procedure TWWindow.WMActivate(var Message: TWMActivate);
 begin
   inherited;
 
-  if (not (csDestroying in ComponentState)) then
-    if ((0 <= TabControl.TabIndex) and (TabControl.TabIndex < FSessions.Count)) then
-      TFSession(FSessions[TabControl.TabIndex]).Perform(WM_ACTIVATE, Message.WParam, Message.LParam);
+  if (Message.Active <> WA_INACTIVE) then
+    SetTimer(Handle, tiHidePopupChildren, 100, nil);
 end;
 
 procedure TWWindow.WMDrawItem(var Message: TWMDrawItem);
@@ -1899,11 +1886,29 @@ begin
 end;
 
 procedure TWWindow.WMTimer(var Message: TWMTimer);
+var
+  I: Integer;
 begin
   case (Message.TimerID) of
-    tiDeactivate:
+    tiEmptyWorkingMem:
       EmptyWorkingMem();
+    tiHidePopupChildren:
+      if (not Application.Active) then
+        for I := 0 to PopupChildren.Count - 1 do
+          TCustomForm(PopupChildren[I]).Hide();
   end;
+end;
+
+procedure TWWindow.WMWindowPosChanging(var Message: TWMWindowPosChanging);
+var
+  I: Integer;
+begin
+  if ((Message.WindowPos^.flags and SWP_HIDEWINDOW = 0)
+    or (Message.WindowPos^.flags and SWP_NOMOVE = 0)) then
+    for I := 0 to PopupChildren.Count - 1 do
+      TCustomForm(PopupChildren[I]).Hide();
+
+  inherited;
 end;
 
 end.

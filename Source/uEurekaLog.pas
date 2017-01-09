@@ -484,15 +484,11 @@ begin
         for I := 0 to Sessions.Count - 1 do
         begin
           Report := Report + #13#10;
-          Report := Report + 'MySQL:' + #13#10;
-          Report := Report + StringOfChar('-', Length('Version: ' + Sessions[I].Connection.ServerVersionStr)) + #13#10;
-          Report := Report + 'Version: ' + Sessions[I].Connection.ServerVersionStr;
+          Report := Report + 'MySQL: ' + Sessions[I].Connection.ServerVersionStr;
           if (Sessions[I].Connection.LibraryType <> MySQLDB.ltBuiltIn) then
             Report := Report + ' (LibraryType: ' + IntToStr(Ord(Sessions[I].Connection.LibraryType)) + ')';
-          Report := Report + #13#10#13#10;
-
-          Report := Report + 'SQL Log:' + #13#10;
-          Report := Report + StringOfChar('-', 72) + #13#10;
+          Report := Report + #13#10;
+          Report := Report + StringOfChar('-', Length('Version: ' + Sessions[I].Connection.ServerVersionStr)) + #13#10;
           Report := Report + Sessions[I].Connection.DebugMonitor.CacheText + #13#10;
         end;
       end;

@@ -628,7 +628,7 @@ asm
         DEC EDX                          // One character filled to text buffer
       StringLE2:
         DEC ECX
-        JNC StringL                      // Loop for every character in SQL
+        JNZ StringL                      // Loop for every character in SQL
       StringE:
         CMP ECX,0                        // All characters handled?
         JE Finish                        // Yes!

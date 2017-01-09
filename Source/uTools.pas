@@ -4264,35 +4264,37 @@ begin
   if (Success <> daAbort) then
   begin
     SQL := '';
-    for I := 0 to DataTables.Count - 1 do
-    begin
-      Table := TSBaseTable(DataTables[I]);
 
-      if (Length(TableFields) = 0) then
-        FieldNames := '*'
-      else
+    if (not (Self is TTTransfer) or (Session <> TTTransfer(Self).DestinationSession)) then
+      for I := 0 to DataTables.Count - 1 do
       begin
-        FieldNames := '';
-        for K := 0 to Length(TableFields) - 1 do
-        begin
-          if (FieldNames <> '') then FieldNames := FieldNames + ',';
-          FieldNames := FieldNames + Session.Connection.EscapeIdentifier(TableFields[K].Name);
-        end;
-      end;
+        Table := TSBaseTable(DataTables[I]);
 
-      SQL := SQL + 'SELECT ' + FieldNames + ' FROM ' + Session.Connection.EscapeIdentifier(Table.Database.Name) + '.' + Session.Connection.EscapeIdentifier(Table.Name);
-
-      if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).PrimaryKey)) then
-      begin
-        SQL := SQL + ' ORDER BY ';
-        for K := 0 to TSBaseTable(Table).PrimaryKey.Columns.Count - 1 do
+        if (Length(TableFields) = 0) then
+          FieldNames := '*'
+        else
         begin
-          if (K > 0) then SQL := SQL + ',';
-          SQL := SQL + Session.Connection.EscapeIdentifier(TSBaseTable(Table).PrimaryKey.Columns[K].Field.Name);
+          FieldNames := '';
+          for K := 0 to Length(TableFields) - 1 do
+          begin
+            if (FieldNames <> '') then FieldNames := FieldNames + ',';
+            FieldNames := FieldNames + Session.Connection.EscapeIdentifier(TableFields[K].Name);
+          end;
         end;
+
+        SQL := SQL + 'SELECT ' + FieldNames + ' FROM ' + Session.Connection.EscapeIdentifier(Table.Database.Name) + '.' + Session.Connection.EscapeIdentifier(Table.Name);
+
+        if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).PrimaryKey)) then
+        begin
+          SQL := SQL + ' ORDER BY ';
+          for K := 0 to TSBaseTable(Table).PrimaryKey.Columns.Count - 1 do
+          begin
+            if (K > 0) then SQL := SQL + ',';
+            SQL := SQL + Session.Connection.EscapeIdentifier(TSBaseTable(Table).PrimaryKey.Columns[K].Field.Name);
+          end;
+        end;
+        SQL := SQL + ';' + #13#10;
       end;
-      SQL := SQL + ';' + #13#10;
-    end;
 
     if ((SQL = '') or Session.Connection.CreateResultHandle(ResultHandle, SQL)) then
     begin

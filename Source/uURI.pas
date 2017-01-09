@@ -34,7 +34,7 @@ type
     property Address: string read GetAddress write SetAddress;
     property Database: string read FDatabase write SetDatabase;
     property Host: string read GetHost write FHost;
-    property ExtraInfos: string read FExtraInfos;
+    property ExtraInfos: string read FExtraInfos write FExtraInfos;
     property Param[Name: string]: Variant read GetParam write SetParam;
     property ParamCount: Integer read GetParamCount;
     property Path: TFileName read FPath write SetPath;

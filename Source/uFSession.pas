@@ -15,7 +15,7 @@ uses
   ComCtrls_Ext, StdCtrls_Ext, Dialogs_Ext, Forms_Ext, ExtCtrls_Ext,
   MySQLDB, MySQLDBGrid, SQLParser,
   uSession, uPreferences, uTools,
-  uBase, uDExport, uDImport, uCWorkbench, uFObjectSearch;
+  uBase, uDExport, uDImport, uCWorkbench, uPObjectSearch;
 
 const
   UM_ACTIVATE_DBGRID = WM_USER + 500;
@@ -136,7 +136,6 @@ type
     miHOpen: TMenuItem;
     miHProperties: TMenuItem;
     miHRun: TMenuItem;
-    miHSaveAs: TMenuItem;
     miHStatementIntoSQLEditor: TMenuItem;
     miNCollapse: TMenuItem;
     miNCopy: TMenuItem;
@@ -412,13 +411,6 @@ type
     procedure aVSortAscExecute(Sender: TObject);
     procedure aVSortDescExecute(Sender: TObject);
     procedure BObjectIDEClick(Sender: TObject);
-    procedure DataSetAfterCancel(DataSet: TDataSet);
-    procedure DataSetAfterClose(DataSet: TDataSet);
-    procedure DataSetAfterOpen(const DBGrid: TMySQLDBGrid; const DataSet: TDataSet);
-    procedure DataSetAfterPost(DataSet: TDataSet);
-    procedure DataSetAfterScroll(DataSet: TDataSet);
-    procedure DataSetBeforeCancel(DataSet: TDataSet);
-    procedure DataSetBeforePost(DataSet: TDataSet);
     procedure DBGridCellEnter(Column: TColumn);
     procedure DBGridColEnter(Sender: TObject);
     procedure DBGridColExit(Sender: TObject);
@@ -562,7 +554,6 @@ type
     procedure MGridPopup(Sender: TObject);
     procedure miHOpenClick(Sender: TObject);
     procedure miHPropertiesClick(Sender: TObject);
-    procedure miHSaveAsClick(Sender: TObject);
     procedure miHStatementIntoSQLEditorClick(Sender: TObject);
     procedure MListPopup(Sender: TObject);
     procedure mlOpenClick(Sender: TObject);
@@ -929,6 +920,13 @@ type
     function CreateSynMemo(SObject: TSObject): TSynMemo;
     function CreateTCResult(const PDBGrid: TPanel_Ext): TTabControl;
     function CreateWorkbench(const ADatabase: TSDatabase): TWWorkbench;
+    procedure DataSetAfterCancel(DataSet: TDataSet);
+    procedure DataSetAfterClose(DataSet: TDataSet);
+    procedure DataSetAfterOpen(const DBGrid: TMySQLDBGrid; const DataSet: TDataSet);
+    procedure DataSetAfterPost(DataSet: TDataSet);
+    procedure DataSetAfterScroll(DataSet: TDataSet);
+    procedure DataSetBeforeCancel(DataSet: TDataSet);
+    procedure DataSetBeforePost(DataSet: TDataSet);
     procedure DBGridInitialize(const DBGrid: TMySQLDBGrid);
     function Desktop(const Database: TSDatabase): TDatabaseDesktop; overload; inline;
     function Desktop(const Event: TSEvent): TEventDesktop; overload; inline;
@@ -983,6 +981,7 @@ type
     procedure ListViewInitialize(const ListView: TListView);
     procedure ListViewUpdate(const Event: TSSession.TEvent; const ListView: TListView; const Data: TCustomData = nil);
     function NavigatorNodeToAddress(const Node: TTreeNode): string;
+    function ObjectSearchFinish(): Boolean;
     function ObjectSearchStep2(): Boolean;
     procedure OnConvertError(Sender: TObject; Text: string);
     function ParamToView(const AParam: Variant): TView;
@@ -1028,7 +1027,6 @@ type
     procedure WorkbenchExit(Sender: TObject);
     procedure WorkbenchPasteExecute(Sender: TObject);
     function WorkbenchValidateControl(Sender: TObject; Control: TWControl): Boolean;
-    procedure WMActivate(var Message: TWMActivate); message WM_ACTIVATE;
     procedure WMNotify(var Message: TWMNotify); message WM_NOTIFY;
     procedure WMParentNotify(var Message: TWMParentNotify); message WM_PARENTNOTIFY;
     procedure WMTimer(var Message: TWMTimer); message WM_TIMER;
@@ -1084,9 +1082,9 @@ const
 
 const
   tiNavigator = 1;
-  tiStatusBar = 2;
+  tiHideSynCompletion = 2;
   tiShowSynCompletion = 3;
-  tiHideSynCompletion = 4;
+  tiStatusBar = 4;
 
 const
   giDatabases = 1;
@@ -1977,6 +1975,10 @@ end;
 
 procedure TFSession.TWanted.Clear();
 begin
+  // Debug 2017-01-09
+  if (not Assigned(Self)) then
+    raise ERangeError.Create('Destroying: ' + BoolToStr(csDestroying in FSession.ComponentState, True));
+
   FAction := nil;
   FAddress := '';
   FUpdate := nil;
@@ -3050,6 +3052,7 @@ var
   ImageIndex: Integer;
   S: string;
   StringList: TStringList;
+  Text: string;
 begin
   // Debug 2017-01-02
   if (OpenClipboard(Handle)) then
@@ -3086,7 +3089,7 @@ begin
   end;
 
 
-  Data := '';
+  Data := ''; Text := '';
 
   if (not Assigned(Window.ActiveControl)) then
   begin
@@ -3118,6 +3121,7 @@ begin
       end;
       if (Data <> '') then
         Data := 'Address=' + NavigatorNodeToAddress(FNavigatorMenuNode.Parent) + #13#10 + Data;
+      Text := FNavigator.Selected.Text;
     end;
   end
   else if (Window.ActiveControl = ActiveListView) then
@@ -3148,6 +3152,7 @@ begin
         end;
     if (Data <> '') then
       Data := 'Address=' + NavigatorNodeToAddress(FNavigator.Selected) + #13#10 + Data;
+    Text := ActiveListView.Selected.Caption;
   end
   else if (Window.ActiveControl = ActiveDBGrid) then
   begin
@@ -3265,39 +3270,50 @@ begin
   end;
 
 
-  if ((Data <> '') and OpenClipboard(Handle)) then
+  if (((Data <> '') or (Text <> '')) and OpenClipboard(Handle)) then
   begin
     try
       EmptyClipboard();
 
-      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(Char) * (Length(Data) + 1));
-      StrPCopy(GlobalLock(ClipboardData), Data);
-      case (ImageIndex) of
-        iiServer: SetClipboardData(CF_MYSQLSERVER, ClipboardData);
-        iiDatabase,
-        iiSystemDatabase: SetClipboardData(CF_MYSQLDATABASE, ClipboardData);
-        iiTable,
-        iiBaseTable,
-        iiSystemView: SetClipboardData(CF_MYSQLTABLE, ClipboardData);
-        iiView: SetClipboardData(CF_MYSQLVIEW, ClipboardData);
-        iiUsers: SetClipboardData(CF_MYSQLUSERS, ClipboardData);
-      end;
-      GlobalUnlock(ClipboardData);
-
-      StringList := TStringList.Create();
-      StringList.Text := Trim(Data);
-      for I := 1 to StringList.Count - 1 do
-        if (StringList.ValueFromIndex[I] <> '') then
-        begin
-          if (S <> '') then S := S + ',';
-          S := S + StringList.ValueFromIndex[I];
+      if (Data <> '') then
+      begin
+        ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Length(Data) + 1) * SizeOf(Char));
+        StrPCopy(GlobalLock(ClipboardData), Data);
+        case (ImageIndex) of
+          iiServer: SetClipboardData(CF_MYSQLSERVER, ClipboardData);
+          iiDatabase,
+          iiSystemDatabase: SetClipboardData(CF_MYSQLDATABASE, ClipboardData);
+          iiTable,
+          iiBaseTable,
+          iiSystemView: SetClipboardData(CF_MYSQLTABLE, ClipboardData);
+          iiView: SetClipboardData(CF_MYSQLVIEW, ClipboardData);
+          iiUsers: SetClipboardData(CF_MYSQLUSERS, ClipboardData);
         end;
-      StringList.Free();
+        GlobalUnlock(ClipboardData);
 
-      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(S[1]) * (Length(S) + 1));
-      StrPCopy(GlobalLock(ClipboardData), S);
-      SetClipboardData(CF_UNICODETEXT, ClipboardData);
-      GlobalUnlock(ClipboardData);
+        StringList := TStringList.Create();
+        StringList.Text := Trim(Data);
+        for I := 1 to StringList.Count - 1 do
+          if (StringList.ValueFromIndex[I] <> '') then
+          begin
+            if (S <> '') then S := S + ',';
+            S := S + StringList.ValueFromIndex[I];
+          end;
+        StringList.Free();
+
+        ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(S[1]) * (Length(S) + 1));
+        StrPCopy(GlobalLock(ClipboardData), S);
+        SetClipboardData(CF_UNICODETEXT, ClipboardData);
+        GlobalUnlock(ClipboardData);
+      end;
+
+      if (Text <> '') then
+      begin
+        ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Length(Text) + 1) * SizeOf(Char));
+        StrPCopy(GlobalLock(ClipboardData), PChar(Text));
+        SetClipboardData(CF_UNICODETEXT, ClipboardData);
+        GlobalUnlock(ClipboardData);
+      end;
     finally
       CloseClipboard();
     end;
@@ -3786,7 +3802,13 @@ begin
     // Debug 2016-12-22
     DImport.FNavigator := @FNavigator;
 
-    DImport.Progress := '2';
+    if (not Assigned(DImport.SObject)) then
+      DImport.Progress := '2'
+    else
+      DImport.Progress := 'ClassType: ' + DImport.SObject.ClassName + #13#10
+        + 'Name: ' + DImport.SObject.Name + #13#10
+        + '2';
+
     DImport.Execute();
     DImport.Progress := DImport.Progress + '_';
 
@@ -4108,7 +4130,6 @@ procedure TFSession.aViewExecute(Sender: TObject);
 var
   AllowChange: Boolean;
   Control: TWinControl; // Debug 2016-12-12
-  I: Integer;
   NewView: TView;
 begin
   if (Sender = MainAction('aVObjects')) then
@@ -4181,17 +4202,7 @@ begin
       vDiagram: if (PWorkbench.Visible) then Window.ActiveControl := ActiveWorkbench;
       vEditor,
       vEditor2,
-      vEditor3: if (PSynMemo.Visible) then
-        begin
-          // Debug 2016-11-30
-          if (not ActiveSynMemo.Visible) then
-            raise ERangeError.Create(SRangeError);
-          for I := 0 to PSynMemo.ControlCount - 1 do
-            if ((PSynMemo.Controls[I] <> ActiveSynMemo)
-              and PSynMemo.Controls[I].Visible) then
-              raise ERangeError.Create(SRangeError + '(' + PSynMemo.Controls[I].ClassName + ')');
-          Window.ActiveControl := ActiveSynMemo;
-        end;
+      vEditor3: if (PSynMemo.Visible) then Window.ActiveControl := ActiveSynMemo;
       vObjectSearch: if (PListView.Visible) then Window.ActiveControl := ObjectSearchListView;
     end;
   end;
@@ -4307,8 +4318,10 @@ begin
       vObjectSearch:
         begin
           ObjectSearchListView.Free();
-          ObjectSearch.Step1();
-          Wanted.Update := ObjectSearchStep2;
+          if (ObjectSearch.Step1()) then
+            ObjectSearchStep2()
+          else
+            Wanted.Update := ObjectSearchStep2;
         end;
     end;
   end;
@@ -6963,7 +6976,9 @@ begin
 
   Result := nil;
 
-  if (URI.Param['system'] <> Null) then
+  if (URI.Param['view'] = 'objectsearch') then
+    Result := nil
+  else if (URI.Param['system'] <> Null) then
   begin
     Child := FNavigator.Items.getFirstNode().getFirstChild();
     while (Assigned(Child) and not Assigned(Result)) do
@@ -7495,7 +7510,7 @@ begin
   MainAction('aFExportXML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView]);
   MainAction('aFExportHTML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
   MainAction('aFExportPDF').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-  MainAction('aECopy').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiField, iiVirtualField, iiViewField, iiSystemViewField]);
+  MainAction('aECopy').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiField, iiSystemViewField, iiVirtualField, iiViewField, iiSystemViewField]);
   MainAction('aEPaste').Enabled := Assigned(Node) and ((Node.ImageIndex = iiServer) and Clipboard.HasFormat(CF_MYSQLSERVER) or (Node.ImageIndex = iiDatabase) and Clipboard.HasFormat(CF_MYSQLDATABASE) or (Node.ImageIndex = iiBaseTable) and Clipboard.HasFormat(CF_MYSQLTABLE) or (Node.ImageIndex = iiUsers) and Clipboard.HasFormat(CF_MYSQLUSERS));
   MainAction('aERename').Enabled := Assigned(Node) and ((Node.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013) or (Node.ImageIndex in [iiBaseTable, iiView, iiEvent, iiTrigger, iiField, iiVirtualField]));
   MainAction('aDCreateDatabase').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer]) and (not Assigned(Session.UserRights) or Session.UserRights.RCreate);
@@ -7583,25 +7598,32 @@ begin
 end;
 
 procedure TFSession.FObjectSearchEnter(Sender: TObject);
+var
+  Node: TTreeNode;
 begin
   if (not Assigned(PObjectSearch)) then
   begin
     PObjectSearch := TPObjectSearch.Create(nil);
-    PObjectSearch.Left := FObjectSearch.Left + FObjectSearch.Width - PObjectSearch.Width;;
-    PObjectSearch.Top := FObjectSearch.Top + FObjectSearch.Height;
-    PObjectSearch.ParentColor := False;
     PObjectSearch.Color := FObjectSearch.Color;
     PObjectSearch.Perform(CM_SYSFONTCHANGED, 0, 0);
     PObjectSearch.Perform(UM_CHANGEPREFERENCES, 0, 0);
-    PObjectSearch.Parent := Self;
+    PObjectSearch.PopupParent := Window;
 
     PObjectSearch.Session := Session;
   end;
 
   if (not PObjectSearch.Visible) then
   begin
-    PObjectSearch.Location := TObject(FNavigator.Selected.Data);
-    PObjectSearch.Show();
+    Node := FNavigator.Selected;
+    while (Assigned(Node) and not (Node.ImageIndex in [iiServer, iiDatabase, iiSystemDatabase])) do
+      Node := Node.Parent;
+    if (not Assigned(Node)) then
+      PObjectSearch.Location := Session
+    else
+      PObjectSearch.Location := Node.Data;
+    PObjectSearch.Left := ClientToScreen(Point(FObjectSearch.Left + FObjectSearch.Width - PObjectSearch.Width, 0)).X;
+    PObjectSearch.Top := ClientToScreen(Point(0, FObjectSearch.Top + FObjectSearch.Height)).Y;
+    PObjectSearch.Visible := True;
   end;
 end;
 
@@ -7630,30 +7652,47 @@ begin
     ObjectSearchListView := nil;
   end;
   if (Assigned(ObjectSearch)) then
+  begin
     ObjectSearch.Free();
+    ObjectSearch := nil;
+  end;
 
-  PObjectSearch.Hide();
+  if (not (((PObjectSearch.Location is TSSession) and PObjectSearch.Databases
+      or PObjectSearch.Tables
+      or PObjectSearch.Routines
+      or PObjectSearch.Events
+      or PObjectSearch.Fields
+      or PObjectSearch.Triggers
+    and (PObjectSearch.Name
+      or PObjectSearch.Comment)))) then
+    MessageBeep(MB_ICONERROR)
+  else
+  begin
+    PObjectSearch.Hide();
 
-  ObjectSearch := TSObjectSearch.Create(Session);
-  ObjectSearch.Comment := PObjectSearch.Comment;
-  ObjectSearch.Databases := PObjectSearch.Databases;
-  ObjectSearch.Events := PObjectSearch.Events;
-  ObjectSearch.Fields := PObjectSearch.Fields;
-  ObjectSearch.Location := PObjectSearch.Location;
-  ObjectSearch.MatchCase := PObjectSearch.MatchCase;
-  ObjectSearch.Name := PObjectSearch.Name;
-  ObjectSearch.RegExpr := PObjectSearch.RegExpr;
-  ObjectSearch.Routines := PObjectSearch.Routines;
-  ObjectSearch.Tables := PObjectSearch.Tables;
-  ObjectSearch.Triggers := PObjectSearch.Triggers;
-  ObjectSearch.WholeValue := PObjectSearch.WholeValue;
-  ObjectSearch.Value := Trim(FObjectSearch.Text);
-  ObjectSearch.Step1();
-  Wanted.Update := ObjectSearchStep2;
+    ObjectSearch := TSObjectSearch.Create(Session);
+    ObjectSearch.Comment := PObjectSearch.Comment;
+    ObjectSearch.Databases := PObjectSearch.Databases;
+    ObjectSearch.Events := PObjectSearch.Events;
+    ObjectSearch.Fields := PObjectSearch.Fields;
+    ObjectSearch.Location := PObjectSearch.Location;
+    ObjectSearch.Name := PObjectSearch.Name;
+    ObjectSearch.Routines := PObjectSearch.Routines;
+    ObjectSearch.Tables := PObjectSearch.Tables;
+    ObjectSearch.Triggers := PObjectSearch.Triggers;
+    ObjectSearch.Text := Trim(FObjectSearch.Text);
+    if (ObjectSearch.Step1()) then
+      ObjectSearchStep2()
+    else
+      Wanted.Update := ObjectSearchStep2;
 
-  View := vObjectSearch;
-  FNavigator.Selected := nil;
-  Window.ActiveControl := ObjectSearchListView;
+    View := vObjectSearch;
+
+    PContentChange(nil);
+
+    if (Assigned(ObjectSearchListView)) then
+      Window.ActiveControl := ObjectSearchListView;
+  end;
 end;
 
 procedure TFSession.FOffsetChange(Sender: TObject);
@@ -8523,14 +8562,14 @@ function TFSession.GetActiveListView(): TListView;
 var
   I: Integer;
 begin
-  if (not Assigned(FNavigator.Selected)) then
-    Result := FServerListView
-  else if (View = vObjectSearch) then
+  if (View = vObjectSearch) then
   begin
     if (not Assigned(ObjectSearchListView)) then
       ObjectSearchListView := CreateListView(ObjectSearch);
     Result := ObjectSearchListView;
   end
+  else if (not Assigned(FNavigator.Selected)) then
+    Result := FServerListView
   else
     case (FNavigator.Selected.ImageIndex) of
       iiServer: Result := FServerListView;
@@ -10619,7 +10658,7 @@ begin
       MainAction('aFExportXML').Enabled := (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView]);
       MainAction('aFExportHTML').Enabled := (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
       MainAction('aFExportPDF').Enabled := (Item.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-      MainAction('aECopy').Enabled := ListView.SelCount = 1;
+      MainAction('aECopy').Enabled := ListView.SelCount >= 1;
       MainAction('aEPaste').Enabled := (ListView.SelCount = 1) and ((Item.ImageIndex = iiDatabase) and Clipboard.HasFormat(CF_MYSQLDATABASE) or (Item.ImageIndex = iiBaseTable) and Clipboard.HasFormat(CF_MYSQLTABLE) or (Item.ImageIndex = iiView) and Clipboard.HasFormat(CF_MYSQLVIEW));
       MainAction('aERename').Enabled := (ListView.SelCount = 1) and ((Item.ImageIndex in [iiBaseTable, iiView, iiEvent, iiField, iiVirtualField, iiTrigger]) or (Item.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013));
       MainAction('aDCreateTable').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase]);
@@ -10687,7 +10726,6 @@ begin
           MainAction('aFExportXML').Enabled := MainAction('aFExportXML').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView]);
           MainAction('aFExportHTML').Enabled := MainAction('aFExportHTML').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
           MainAction('aFExportPDF').Enabled := MainAction('aFExportPDF').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-          MainAction('aECopy').Enabled := MainAction('aECopy').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiKey, iiField, iiVirtualField, iiViewField, iiSystemViewField, iiForeignKey]);
           MainAction('aDDeleteDatabase').Enabled := MainAction('aDDeleteDatabase').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
           MainAction('aDDeleteTable').Enabled := MainAction('aDDeleteTable').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
           MainAction('aDDeleteView').Enabled := MainAction('aDDeleteView').Enabled and (ListView.Items[I].ImageIndex in [iiView]);
@@ -11049,13 +11087,6 @@ begin
   DStatement.Execute();
 end;
 
-procedure TFSession.miHSaveAsClick(Sender: TObject);
-begin
-  Wanted.Clear();
-
-  SaveSQLFile(Sender);
-end;
-
 procedure TFSession.miHStatementIntoSQLEditorClick(Sender: TObject);
 var
   SelLength: Integer;
@@ -11193,7 +11224,6 @@ begin
   aPExpand.Enabled := Assigned(FSQLHistoryMenuNode) and not FSQLHistoryMenuNode.Expanded and FSQLHistoryMenuNode.HasChildren;
   aPCollapse.Enabled := Assigned(FSQLHistoryMenuNode) and FSQLHistoryMenuNode.Expanded;
   miHOpen.Enabled := Assigned(FSQLHistoryMenuNode) and (View in [vEditor, vEditor2, vEditor3]) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery, iiClock]);
-  miHSaveAs.Enabled := Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery, iiClock]);
   miHRun.Enabled := Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery, iiClock]);
   miHProperties.Enabled := Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery, iiClock]) and not FSQLHistoryMenuNode.HasChildren;
 
@@ -11509,10 +11539,23 @@ begin
   URI.Free();
 end;
 
+function TFSession.ObjectSearchFinish(): Boolean;
+begin
+  if (Assigned(ObjectSearch) and (ObjectSearch.Count = 0)) then
+    MsgBox(Preferences.LoadStr(533, ObjectSearch.Text), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
+
+  Result := True; // For compiler warning only...
+end;
+
 function TFSession.ObjectSearchStep2(): Boolean;
 begin
   if (Assigned(ObjectSearch)) then
-    ObjectSearch.Step2();
+  begin
+    if (ObjectSearch.Step2()) then
+      ObjectSearchFinish()
+    else
+      Wanted.Update := ObjectSearchFinish;
+  end;
 
   Result := True; // For compiler warning only...
 end;
@@ -12133,6 +12176,8 @@ except
   on E: Exception do
     raise ERangeError.Create('Left: ' + IntToStr(Control.Left) + #13#10
       + 'Top: ' + IntToStr(Control.Top) + #13#10
+      + 'Name: ' + Control.Name + #13#10
+      + 'ClassType: ' + Control.ClassName + #13#10
       + E.Message);
 end;
     Control.DisableAlign();
@@ -12436,9 +12481,7 @@ procedure TFSession.PHeaderCheckElements(Sender: TObject);
 begin
   {$IFDEF Debug}
   FObjectSearch.Visible := (Session.Connection.MySQLVersion >= 50002)
-    and (View in [vObjects, vObjectSearch])
-    and (FObjectSearch.Left > Toolbar.Left + Toolbar.Width + GetSystemMetrics(SM_CXFIXEDFRAME))
-    and Assigned(FNavigator.Selected) and (FNavigator.Selected.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView]);
+    and (FObjectSearch.Left > Toolbar.Left + Toolbar.Width + GetSystemMetrics(SM_CXFIXEDFRAME));
   TBObjectSearch.Visible := FObjectSearch.Visible;
   if (not FObjectSearch.Visible and Assigned(PObjectSearch)) then
     PObjectSearch.Hide();
@@ -12517,7 +12560,11 @@ begin
   FObjectSearch.Top := 2 * Toolbar.BorderWidth;
   FObjectSearch.Height := Toolbar.Height - 2 * 2 * Toolbar.BorderWidth;
   if (Assigned(PObjectSearch)) then
+  begin
     PObjectSearch.Hide();
+    if (Window.ActiveControl = FObjectSearch) then
+      Window.ActiveControl := nil;
+  end;
 
   PHeaderCheckElements(Sender);
 end;
@@ -12795,11 +12842,6 @@ begin
       Text := FLog.SelText;
       if (Text = '') then Text := FLog.Text;
     end;
-  end
-  else if (Sender = miHSaveAs) then
-  begin
-    SaveDialog.FileName := '';
-    Text := XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'sql').Text;
   end
   else
     Exit;
@@ -13177,6 +13219,12 @@ begin
   begin
     Node := FNavigatorNodeByAddress(NewAddress);
     AllowChange := Assigned(Node);
+    if (not AllowChange) then
+    begin
+      URI := TUURI.Create(NewAddress);
+      AllowChange := URI.Param['view'] = 'objectsearch';
+      URI.Free();
+    end;
     if (not AllowChange) then
       Wanted.Address := Session.Account.ExpandAddress('/');
   end;
@@ -14356,7 +14404,6 @@ begin
   miNDelete.Caption := Preferences.LoadStr(28);
 
   miHOpen.Caption := Preferences.LoadStr(581);
-  miHSaveAs.Caption := MainAction('aFSaveAs').Caption;
   miHStatementIntoSQLEditor.Caption := Preferences.LoadStr(198) + ' -> ' + Preferences.LoadStr(20);
   miHRun.Caption := MainAction('aDRun').Caption;
   miHProperties.Caption := Preferences.LoadStr(684) + '...';
@@ -14505,6 +14552,8 @@ var
   View: TView;
 begin
   // Debug 2016-12-26
+  if (Session.Identifier123456 <> 123456) then
+    raise ERangeError.Create(SRangeError);
   if (not Assigned(Session.Account)) then
     raise ERangeError.Create(SRangeError);
   if (not (TObject(Session.Account) is TPAccount)) then
@@ -14582,11 +14631,6 @@ end;
 
 procedure TFSession.UMFrameActivate(var Message: TMessage);
 begin
-  // Debug 2016-12-21
-  // This is a helper for TWWindow.UMUpdateToolbar
-  if (not Assigned(Session.Account.Desktop)) then
-    raise ERangeError.Create(SRangeError);
-
   Include(FrameState, tsActive);
 
   FormatSettings.ThousandSeparator := Session.Connection.FormatSettings.ThousandSeparator;
@@ -14931,21 +14975,7 @@ begin
       else if (not TSTable(FNavigator.Selected.Data).DataSet.Active) then
         TableOpen(nil);
     vIDE:
-      begin
-        // Debug 2016-12-26
-        if (not (TObject(FNavigator.Selected.Data) is TSDBObject)) then
-          try
-            raise ERangeError.Create('ClassType: ' + TObject(FNavigator.Selected.Data).ClassName + #13#10
-              + 'ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
-              + 'Text: ' + FNavigator.Selected.Text + #13#10
-              + 'Address: ' + Address);
-          except
-            raise ERangeError.Create('ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
-              + 'Text: ' + FNavigator.Selected.Text + #13#10
-              + 'Address: ' + Address);
-          end;
-        TSDBObject(FNavigator.Selected.Data).Update();
-      end;
+      TSDBObject(FNavigator.Selected.Data).Update();
     vDiagram:
       if (not Assigned(ActiveWorkbench) and Assigned(FNavigator.Selected)) then
       begin
@@ -15017,16 +15047,6 @@ begin
   end;
 end;
 
-procedure TFSession.WMActivate(var Message: TWMActivate);
-begin
-  if (Message.Active = WA_INACTIVE) then
-    if (Assigned(PObjectSearch)) then
-    begin
-      PObjectSearch.Hide();
-      Window.ActiveControl := nil;
-    end;
-end;
-
 procedure TFSession.WMNotify(var Message: TWMNotify);
 begin
   case (Message.NMHdr^.code) of
@@ -15073,6 +15093,11 @@ end;
 procedure TFSession.WMTimer(var Message: TWMTimer);
 begin
   case (Message.TimerID) of
+    tiHideSynCompletion:
+      begin
+        KillTimer(Handle, Message.TimerID);
+        SynCompletion.CancelCompletion();
+      end;
     tiNavigator:
       begin
         KillTimer(Handle, Message.TimerID);
@@ -15080,12 +15105,6 @@ begin
           FNavigatorChange2(FNavigator, FNavigator.Selected)
         else
           FNavigatorNodeAfterActivate := FNavigator.Selected;
-      end;
-    tiStatusBar:
-      begin
-        KillTimer(Handle, Message.TimerID);
-        StatusBar.Panels[sbMessage].Text := '';
-        StatusBarRefresh();
       end;
     tiShowSynCompletion:
       begin
@@ -15097,10 +15116,11 @@ begin
           PostMessage(Handle, UM_SYNCOMPLETION_TIMER, tiHideSynCompletion, 5000);
         end;
       end;
-    tiHideSynCompletion:
+    tiStatusBar:
       begin
         KillTimer(Handle, Message.TimerID);
-        SynCompletion.CancelCompletion();
+        StatusBar.Panels[sbMessage].Text := '';
+        StatusBarRefresh();
       end;
   end;
 end;

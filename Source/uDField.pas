@@ -1140,9 +1140,6 @@ function TDField.GetType(): TSField.TFieldType;
 begin
   if (FFieldType.ItemIndex < 0) then
     Result := mfUnknown
-  else if (not Assigned(FFieldType)) then
-    // Debug 2016-11-16
-    raise ERangeError.Create(SRangeError)
   else if (not Assigned(Table)) then
     // Debug 2016-11-16
     raise ERangeError.Create(SRangeError)

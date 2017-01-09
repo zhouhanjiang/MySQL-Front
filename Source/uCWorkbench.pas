@@ -541,8 +541,6 @@ begin
 end;
 
 procedure TWControl.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
-var
-  Control: TWinControl;
 begin
   if (Self is TWLinkLine) then
     MouseDownPosition := TWLinkLine(Self).PointA.Position
@@ -551,23 +549,10 @@ begin
 
   inherited;
 
-  // Debug 2016-12-16
-  Control := Workbench;
-  while (Assigned(Control) and Control.Visible and Control.Enabled and Assigned(Control.Parent)) do
-    Control := Control.Parent;
   try
     Workbench.SetFocus();
   except
-    on E: Exception do
-      raise ERangeError.Create('ClassType: ' + ClassName + #13#10
-        + 'Name: ' + Name + #13#10
-        + 'Enabled: ' + BoolToStr(Enabled, True) + #13#10
-        + 'Visible: ' + BoolToStr(Visible, True) + #13#10
-        + 'Control.ClassType: ' + Control.ClassName + #13#10
-        + 'Control.Name: ' + Control.Name + #13#10
-        + 'Control.Enabled: ' + BoolToStr(Control.Enabled, True) + #13#10
-        + 'Control.Visible: ' + BoolToStr(Control.Visible, True) + #13#10
-        + E.Message);
+    // Maybe the a Workbench parent is not visible...
   end;
 
   if ((Button in [mbLeft, mbRight]) and (not (ssCtrl in Shift) and (not Selected or (Workbench.SelCount <= 1)) or (not Workbench.MultiSelect or (not (ssCtrl in Shift) and (Workbench.SelCount <= 1))))) then
@@ -2224,8 +2209,6 @@ begin
     Point := Point.LineA.PointA;
     Point.LineB.Free();
   end;
-
-  if (Self is TWLinkPoint) then
 
   inherited;
 

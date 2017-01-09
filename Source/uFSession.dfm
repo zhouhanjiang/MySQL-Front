@@ -1262,7 +1262,7 @@ object FSession: TFSession
       end
     end
     object FObjectSearch: TEdit
-      Left = 1404
+      Left = 32752
       Top = 0
       Width = 140
       Height = 22
@@ -1274,10 +1274,9 @@ object FSession: TFSession
       OnEnter = FObjectSearchEnter
       OnExit = FObjectSearchExit
       OnKeyPress = FObjectSearchKeyPress
-      ExplicitLeft = 886
     end
     object TBObjectSearch: TToolBar
-      Left = 1618
+      Left = 32752
       Top = 0
       Width = 23
       Height = 22
@@ -1286,7 +1285,6 @@ object FSession: TFSession
       TabOrder = 3
       Transparent = True
       Visible = False
-      ExplicitLeft = 1046
       object FObjectSearchStart: TToolButton
         Left = 0
         Top = 0
@@ -1978,10 +1976,6 @@ object FSession: TFSession
     object miHOpen: TMenuItem
       Caption = 'miHOpen'
       OnClick = miHOpenClick
-    end
-    object miHSaveAs: TMenuItem
-      Caption = 'miHSaveAs'
-      OnClick = miHSaveAsClick
     end
     object N23: TMenuItem
       Caption = '-'

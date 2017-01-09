@@ -211,7 +211,9 @@ begin
       end;
 
       Session.Connection.BeginSilent();
+      Session.Connection.BeginSynchron();
       Session.Connection.Connect(LibraryType, LibraryName, FHost.Text, FUser.Text, FPassword.Text, '', FUDPort.Position, True);
+      Session.Connection.EndSynchron();
       if (Session.Connection.ErrorCode <> 0) then
         Session.Connection.OnSQLError(Session.Connection, Session.Connection.ErrorCode, Session.Connection.ErrorMessage)
       else if (Session.Connection.Connected) then

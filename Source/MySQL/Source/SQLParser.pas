@@ -247,6 +247,7 @@ type
         ntInsertStmt,
         ntInsertStmtSetItem,
         ntIntervalOp,
+        ntInstallPluginStmt,
         ntIsOp,
         ntIterateStmt,
         ntKillStmt,
@@ -312,7 +313,6 @@ type
         ntShowEnginesStmt,
         ntShowErrorsStmt,
         ntShowEventsStmt,
-        ntShowFunctionCodeStmt,
         ntShowFunctionStatusStmt,
         ntShowGrantsStmt,
         ntShowIndexStmt,
@@ -320,12 +320,12 @@ type
         ntShowOpenTablesStmt,
         ntShowPluginsStmt,
         ntShowPrivilegesStmt,
-        ntShowProcedureCodeStmt,
         ntShowProcedureStatusStmt,
         ntShowProcessListStmt,
         ntShowProfileStmt,
         ntShowProfilesStmt,
         ntShowRelaylogEventsStmt,
+        ntShowRoutineCodeStmt,
         ntShowSlaveHostsStmt,
         ntShowSlaveStatusStmt,
         ntShowStatusStmt,
@@ -352,6 +352,7 @@ type
         ntTrimFunc,
         ntTruncateStmt,
         ntUnaryOp,
+        ntUninstallPluginStmt,
         ntUnknownStmt,
         ntUnlockTablesStmt,
         ntUpdateStmt,
@@ -420,6 +421,7 @@ type
         stHelp,
         stIf,
         stInsert,
+        stInstallPlugin,
         stIterate,
         stKill,
         stLeave,
@@ -464,7 +466,6 @@ type
         stShowEngines,
         stShowErrors,
         stShowEvents,
-        stShowFunctionCode,
         stShowFunctionStatus,
         stShowGrants,
         stShowIndex,
@@ -472,12 +473,12 @@ type
         stShowOpenTables,
         stShowPlugins,
         stShowPrivileges,
-        stShowProcedureCode,
         stShowProcedureStatus,
         stShowProcessList,
         stShowProfile,
         stShowProfiles,
         stShowRelaylogEvents,
+        stShowRoutineCode,
         stShowSlaveHosts,
         stShowSlaveStatus,
         stShowStatus,
@@ -492,6 +493,7 @@ type
         stStartTransaction,
         stStopSlave,
         stTruncate,
+        stUninstallPlugin,
         stUnknown,
         stUnlockTables,
         stUpdate,
@@ -623,6 +625,7 @@ type
         ditTableAlias,
         ditConstant,
         ditTriggerRec,
+        ditPlugin,
         ditEngine,
         ditCharset,
         ditCollation,
@@ -753,6 +756,7 @@ type
         'ntInOp',
         'ntInsertStmt',
         'ntInsertStmtSetItem',
+        'ntInstallPluginStmt',
         'ntIntervalOp',
         'ntIsOp',
         'ntIterateStmt',
@@ -819,7 +823,6 @@ type
         'ntShowEnginesStmt',
         'ntShowErrorsStmt',
         'ntShowEventsStmt',
-        'ntShowFunctionCodeStmt',
         'ntShowFunctionStatusStmt',
         'ntShowGrantsStmt',
         'ntShowIndexStmt',
@@ -827,12 +830,12 @@ type
         'ntShowOpenTablesStmt',
         'ntShowPluginsStmt',
         'ntShowPrivilegesStmt',
-        'ntShowProcedureCodeStmt',
         'ntShowProcedureStatusStmt',
         'ntShowProcessListStmt',
         'ntShowProfileStmt',
         'ntShowProfilesStmt',
         'ntShowRelaylogEventsStmt',
+        'ntShowRoutineCodeStmt',
         'ntShowSlaveHostsStmt',
         'ntShowSlaveStatusStmt',
         'ntShowStatusStmt',
@@ -859,6 +862,7 @@ type
         'ntTrimFunc',
         'ntTruncateStmt',
         'ntUnaryOp',
+        'ntUninstallPluginStmt',
         'ntUnknownStmt',
         'ntUnlockTablesStmt',
         'ntUpdateStmt',
@@ -927,6 +931,7 @@ type
         'stHelp',
         'stIf',
         'stInsert',
+        'stInstallPlugin',
         'stIterate',
         'stKill',
         'stLeave',
@@ -971,7 +976,6 @@ type
         'stShowEngines',
         'stShowErrors',
         'stShowEvents',
-        'stShowFunctionCode',
         'stShowFunctionStatus',
         'stShowGrants',
         'stShowIndex',
@@ -979,12 +983,12 @@ type
         'stShowOpenTables',
         'stShowPlugins',
         'stShowPrivileges',
-        'stShowProcedureCode',
         'stShowProcedureStatus',
         'stShowProcessList',
         'stShowProfile',
         'stShowProfiles',
         'stShowRelaylogEvents',
+        'stShowRoutineCode',
         'stShowSlaveHosts',
         'stShowSlaveStatus',
         'stShowStatus',
@@ -999,6 +1003,7 @@ type
         'stStartTransaction',
         'stStopSlave',
         'stTruncate',
+        'stUninstallPlugin',
         'stUnknown',
         'stUnlockTables',
         'stUpdate',
@@ -1130,6 +1135,7 @@ type
         'ditTableAlias',
         'ditConstant',
         'ditTriggerRec',
+        'ditPlugin',
         'ditEngine',
         'ditCharset',
         'ditCollation',
@@ -1213,6 +1219,7 @@ type
         ntHelpStmt,
         ntIfStmt,
         ntInsertStmt,
+        ntInstallPluginStmt,
         ntIterateStmt,
         ntKillStmt,
         ntLeaveStmt,
@@ -1257,7 +1264,6 @@ type
         ntShowEnginesStmt,
         ntShowErrorsStmt,
         ntShowEventsStmt,
-        ntShowFunctionCodeStmt,
         ntShowFunctionStatusStmt,
         ntShowGrantsStmt,
         ntShowIndexStmt,
@@ -1265,12 +1271,12 @@ type
         ntShowOpenTablesStmt,
         ntShowPluginsStmt,
         ntShowPrivilegesStmt,
-        ntShowProcedureCodeStmt,
         ntShowProcedureStatusStmt,
         ntShowProcessListStmt,
         ntShowProfileStmt,
         ntShowProfilesStmt,
         ntShowRelaylogEventsStmt,
+        ntShowRoutineCodeStmt,
         ntShowSlaveHostsStmt,
         ntShowSlaveStatusStmt,
         ntShowStatusStmt,
@@ -1285,6 +1291,7 @@ type
         ntStartTransactionStmt,
         ntStopSlaveStmt,
         ntTruncateStmt,
+        ntUninstallPluginStmt,
         ntUnknownStmt,
         ntUnlockTablesStmt,
         ntUpdateStmt,
@@ -1433,6 +1440,7 @@ type
         ntHelpStmt,
         ntIfStmt,
         ntInsertStmt,
+        ntInstallPluginStmt,
         ntIterateStmt,
         ntKillStmt,
         ntLeaveStmt,
@@ -1477,7 +1485,6 @@ type
         ntShowEnginesStmt,
         ntShowErrorsStmt,
         ntShowEventsStmt,
-        ntShowFunctionCodeStmt,
         ntShowFunctionStatusStmt,
         ntShowGrantsStmt,
         ntShowIndexStmt,
@@ -1485,12 +1492,12 @@ type
         ntShowOpenTablesStmt,
         ntShowPluginsStmt,
         ntShowPrivilegesStmt,
-        ntShowProcedureCodeStmt,
         ntShowProcedureStatusStmt,
         ntShowProcessListStmt,
         ntShowProfileStmt,
         ntShowProfilesStmt,
         ntShowRelaylogEventsStmt,
+        ntShowRoutineCodeStmt,
         ntShowSlaveHostsStmt,
         ntShowSlaveStatusStmt,
         ntShowStatusStmt,
@@ -1505,6 +1512,7 @@ type
         ntStartTransactionStmt,
         ntStopSlaveStmt,
         ntTruncateStmt,
+        ntUninstallPluginStmt,
         ntUnknownStmt,
         ntUnlockTablesStmt,
         ntUpdateStmt,
@@ -3762,6 +3770,24 @@ type
         property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
+      PInstallPluginStmt = ^TInstallPluginStmt;
+      TInstallPluginStmt = packed record
+      private type
+        TNodes = packed record
+          StmtTag: TOffset;
+          Ident: TOffset;
+          SonameTag: TOffset;
+          NameString: TOffset;
+        end;
+      private
+        Heritage: TStmt;
+      private
+        Nodes: TNodes;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
+      public
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+      end;
+
       PIntervalOp = ^TIntervalOp;
       TIntervalOp = packed record
       private type
@@ -5109,22 +5135,6 @@ type
         property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
-      PShowFunctionCodeStmt = ^TShowFunctionCodeStmt;
-      TShowFunctionCodeStmt = packed record
-      private type
-        TNodes = packed record
-          StmtTag: TOffset;
-          Ident: TOffset;
-        end;
-      private
-        Heritage: TStmt;
-      private
-        Nodes: TNodes;
-        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
-      public
-        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
-      end;
-
       PShowFunctionStatusStmt = ^TShowFunctionStatusStmt;
       TShowFunctionStatusStmt = packed record
       private type
@@ -5237,22 +5247,6 @@ type
         property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
-      PShowProcedureCodeStmt = ^TShowProcedureCodeStmt;
-      TShowProcedureCodeStmt = packed record
-      private type
-        TNodes = packed record
-          StmtTag: TOffset;
-          Ident: TOffset;
-        end;
-      private
-        Heritage: TStmt;
-      private
-        Nodes: TNodes;
-        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
-      public
-        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
-      end;
-
       PShowProcedureStatusStmt = ^TShowProcedureStatusStmt;
       TShowProcedureStatusStmt = packed record
       private type
@@ -5336,6 +5330,22 @@ type
             CommaToken: TOffset;
             RowCountToken: TOffset;
           end;
+        end;
+      private
+        Heritage: TStmt;
+      private
+        Nodes: TNodes;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
+      public
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+      end;
+
+      PShowRoutineCodeStmt = ^TShowRoutineCodeStmt;
+      TShowRoutineCodeStmt = packed record
+      private type
+        TNodes = packed record
+          StmtTag: TOffset;
+          Ident: TOffset;
         end;
       private
         Heritage: TStmt;
@@ -5825,6 +5835,22 @@ type
         property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
+      PUninstallPluginStmt = ^TUninstallPluginStmt;
+      TUninstallPluginStmt = packed record
+      private type
+        TNodes = packed record
+          StmtTag: TOffset;
+          Ident: TOffset;
+        end;
+      private
+        Heritage: TStmt;
+      private
+        Nodes: TNodes;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
+      public
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+      end;
+
       PUnknownStmt = ^TUnknownStmt;
       TUnknownStmt = packed record
       private
@@ -6288,6 +6314,7 @@ type
     kiINSTANCE,
     kiINSERT,
     kiINSERT_METHOD,
+    kiINSTALL,
     kiINTERVAL,
     kiINTO,
     kiINVOKER,
@@ -6410,6 +6437,7 @@ type
     kiPASSWORD,
     kiPERSISTENT,
     kiPHASE,
+    kiPLUGIN,
     kiPLUGINS,
     kiPORT,
     kiPRECEDES,
@@ -6560,6 +6588,7 @@ type
     kiUNDEFINED,
     kiUNDO,
     kiUNICODE,
+    kiUNINSTALL,
     kiUNION,
     kiUNIQUE,
     kiUNKNOWN,
@@ -6887,6 +6916,7 @@ type
     function ParseInsertStmt(const Replace: Boolean = False): TOffset;
     function ParseInsertStmtSetItemsList(): TOffset;
     function ParseInsertStmtValuesList(): TOffset;
+    function ParseInstallPluginStmt(): TOffset;
     function ParseInteger(): TOffset;
     function ParseInterval(): TOffset;
     function ParseIntervalUnitTag(): TOffset;
@@ -6964,7 +6994,6 @@ type
     function ParseShowEnginesStmt(): TOffset;
     function ParseShowErrorsStmt(): TOffset;
     function ParseShowEventsStmt(): TOffset;
-    function ParseShowFunctionCodeStmt(): TOffset;
     function ParseShowFunctionStatusStmt(): TOffset;
     function ParseShowGrantsStmt(): TOffset;
     function ParseShowIndexStmt(): TOffset;
@@ -6972,13 +7001,13 @@ type
     function ParseShowOpenTablesStmt(): TOffset;
     function ParseShowPluginsStmt(): TOffset;
     function ParseShowPrivilegesStmt(): TOffset;
-    function ParseShowProcedureCodeStmt(): TOffset;
     function ParseShowProcedureStatusStmt(): TOffset;
     function ParseShowProcessListStmt(): TOffset;
     function ParseShowProfileStmt(): TOffset;
     function ParseShowProfileStmtType(): TOffset;
     function ParseShowProfilesStmt(): TOffset;
     function ParseShowRelaylogEventsStmt(): TOffset;
+    function ParseShowRoutineCodeStmt(): TOffset;
     function ParseShowSlaveHostsStmt(): TOffset;
     function ParseShowSlaveStatusStmt(): TOffset;
     function ParseShowStatusStmt(): TOffset;
@@ -7014,6 +7043,7 @@ type
     function ParseTriggerIdent(): TOffset;
     function ParseTrimFunc(): TOffset;
     function ParseTruncateTableStmt(): TOffset;
+    function ParseUninstallPluginStmt(): TOffset;
     function ParseUnknownStmt(const FirstToken: TOffset): TOffset;
     function ParseUnlockTablesStmt(): TOffset;
     function ParseUpdateStmt(): TOffset;
@@ -7242,7 +7272,7 @@ const
     'ANY,SOME,STATS_SAMPLE_PAGES,DUAL,TABLE_CHECKSUM,NEW,OLD,ONLINE,ERROR,' +
     'SLOW,RELAY,GENERAL,SQL_TSI_MICROSECOND,SQL_TSI_SECOND,SQL_TSI_MINUTE,' +
     'SQL_TSI_HOUR,SQL_TSI_DAY,SQL_TSI_WEEK,SQL_TSI_MONTH,SQL_TSI_QUARTER,' +
-    'SQL_TSI_YEAR,' +
+    'SQL_TSI_YEAR,INSTALL,UNINSTALL,PLUGIN,' +
 
     'ACCOUNT,ACTION,ADD,AFTER,AGAINST,ALGORITHM,ALL,ALTER,ALWAYS,ANALYZE,AND,' +
     'AS,ASC,ASCII,AT,AUTO_INCREMENT,AVG_ROW_LENGTH,BEFORE,BEGIN,' +
@@ -9962,7 +9992,7 @@ begin
   end;
 end;
 
-{ TSQLParser.TInsertStmt ******************************************************}
+{ TSQLParser.TInsertStmtSetItem ***********************************************}
 
 class function TSQLParser.TInsertStmt.TSetItem.Create(const AParser: TSQLParser; const ANodes: TSetItem.TNodes): TOffset;
 begin
@@ -9973,6 +10003,20 @@ begin
     Nodes := ANodes;
 
     Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
+  end;
+end;
+
+{ TSQLParser.TInstallPluginStmt ******************************************************}
+
+class function TSQLParser.TInstallPluginStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
+begin
+  Result := TStmt.Create(AParser, stInstallPlugin);
+
+  with PInstallPluginStmt(AParser.NodePtr(Result))^ do
+  begin
+    Nodes := ANodes;
+
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -11049,20 +11093,6 @@ begin
   end;
 end;
 
-{ TSQLParser.TShowFunctionCodeStmt ********************************************}
-
-class function TSQLParser.TShowFunctionCodeStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
-begin
-  Result := TStmt.Create(AParser, stShowFunctionCode);
-
-  with PShowFunctionCodeStmt(AParser.NodePtr(Result))^ do
-  begin
-    Nodes := ANodes;
-
-    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
-  end;
-end;
-
 { TSQLParser.TShowFunctionStatusStmt ******************************************}
 
 class function TSQLParser.TShowFunctionStatusStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
@@ -11161,20 +11191,6 @@ begin
   end;
 end;
 
-{ TSQLParser.TShowProcedureCodeStmt *******************************************}
-
-class function TSQLParser.TShowProcedureCodeStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
-begin
-  Result := TStmt.Create(AParser, stShowProcedureCode);
-
-  with PShowProcedureCodeStmt(AParser.NodePtr(Result))^ do
-  begin
-    Nodes := ANodes;
-
-    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
-  end;
-end;
-
 { TSQLParser.TShowProcedureStatusStmt *****************************************}
 
 class function TSQLParser.TShowProcedureStatusStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
@@ -11238,6 +11254,20 @@ begin
   Result := TStmt.Create(AParser, stShowRelaylogEvents);
 
   with PShowRelaylogEventsStmt(AParser.NodePtr(Result))^ do
+  begin
+    Nodes := ANodes;
+
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
+  end;
+end;
+
+{ TSQLParser.TShowRoutineCodeStmt *********************************************}
+
+class function TSQLParser.TShowRoutineCodeStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
+begin
+  Result := TStmt.Create(AParser, stShowRoutineCode);
+
+  with PShowRoutineCodeStmt(AParser.NodePtr(Result))^ do
   begin
     Nodes := ANodes;
 
@@ -11620,6 +11650,20 @@ begin
     Nodes.Operand := AOperand;
 
     Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
+  end;
+end;
+
+{ TSQLParser.TUninstallPluginStmt *********************************************}
+
+class function TSQLParser.TUninstallPluginStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
+begin
+  Result := TStmt.Create(AParser, stUninstallPlugin);
+
+  with PUninstallPluginStmt(AParser.NodePtr(Result))^ do
+  begin
+    Nodes := ANodes;
+
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
   end;
 end;
 
@@ -13431,6 +13475,7 @@ begin
       ntInOp: DefaultFormatNode(@PInOp(Node)^.Nodes, SizeOf(TInOp.TNodes));
       ntInsertStmt: FormatInsertStmt(PInsertStmt(Node)^.Nodes);
       ntInsertStmtSetItem: DefaultFormatNode(@TInsertStmt.PSetItem(Node)^.Nodes, SizeOf(TInsertStmt.TSetItem.TNodes));
+      ntInstallPluginStmt: DefaultFormatNode(@PInstallPluginStmt(Node)^.Nodes, SizeOf(TInstallPluginStmt.TNodes));
       ntIntervalOp: DefaultFormatNode(@PIntervalOp(Node)^.Nodes, SizeOf(TIntervalOp.TNodes));
       ntIsOp: DefaultFormatNode(@PIsOp(Node)^.Nodes, SizeOf(TIsOp.TNodes));
       ntIterateStmt: DefaultFormatNode(@PIterateStmt(Node)^.Nodes, SizeOf(TIterateStmt.TNodes));
@@ -13496,7 +13541,6 @@ begin
       ntShowEnginesStmt: DefaultFormatNode(@PShowEnginesStmt(Node)^.Nodes, SizeOf(TShowEnginesStmt.TNodes));
       ntShowErrorsStmt: FormatShowErrorsStmt(PShowErrorsStmt(Node)^.Nodes);
       ntShowEventsStmt: DefaultFormatNode(@PShowEventsStmt(Node)^.Nodes, SizeOf(TShowEventsStmt.TNodes));
-      ntShowFunctionCodeStmt: DefaultFormatNode(@PShowFunctionCodeStmt(Node)^.Nodes, SizeOf(TShowFunctionCodeStmt.TNodes));
       ntShowFunctionStatusStmt: DefaultFormatNode(@PShowFunctionStatusStmt(Node)^.Nodes, SizeOf(TShowFunctionStatusStmt.TNodes));
       ntShowGrantsStmt: DefaultFormatNode(@PShowGrantsStmt(Node)^.Nodes, SizeOf(TShowGrantsStmt.TNodes));
       ntShowIndexStmt: DefaultFormatNode(@PShowIndexStmt(Node)^.Nodes, SizeOf(TShowIndexStmt.TNodes));
@@ -13504,12 +13548,12 @@ begin
       ntShowOpenTablesStmt: DefaultFormatNode(@PShowOpenTablesStmt(Node)^.Nodes, SizeOf(TShowOpenTablesStmt.TNodes));
       ntShowPluginsStmt: DefaultFormatNode(@PShowPluginsStmt(Node)^.Nodes, SizeOf(TShowPluginsStmt.TNodes));
       ntShowPrivilegesStmt: DefaultFormatNode(@PShowPrivilegesStmt(Node)^.Nodes, SizeOf(TShowPrivilegesStmt.TNodes));
-      ntShowProcedureCodeStmt: DefaultFormatNode(@PShowProcedureCodeStmt(Node)^.Nodes, SizeOf(TShowProcedureCodeStmt.TNodes));
       ntShowProcedureStatusStmt: DefaultFormatNode(@PShowProcedureStatusStmt(Node)^.Nodes, SizeOf(TShowProcedureStatusStmt.TNodes));
       ntShowProcessListStmt: DefaultFormatNode(@PShowProcessListStmt(Node)^.Nodes, SizeOf(TShowProcessListStmt.TNodes));
       ntShowProfileStmt: DefaultFormatNode(@PShowProfileStmt(Node)^.Nodes, SizeOf(TShowProfileStmt.TNodes));
       ntShowProfilesStmt: DefaultFormatNode(@PShowProfilesStmt(Node)^.Nodes, SizeOf(TShowProfilesStmt.TNodes));
       ntShowRelaylogEventsStmt: FormatShowRelaylogEventsStmt(PShowBinlogEventsStmt(Node)^.Nodes);
+      ntShowRoutineCodeStmt: DefaultFormatNode(@PShowRoutineCodeStmt(Node)^.Nodes, SizeOf(TShowRoutineCodeStmt.TNodes));
       ntShowSlaveHostsStmt: DefaultFormatNode(@PShowSlaveHostsStmt(Node)^.Nodes, SizeOf(TShowSlaveHostsStmt.TNodes));
       ntShowSlaveStatusStmt: DefaultFormatNode(@PShowSlaveStatusStmt(Node)^.Nodes, SizeOf(TShowSlaveStatusStmt.TNodes));
       ntShowStatusStmt: DefaultFormatNode(@PShowStatusStmt(Node)^.Nodes, SizeOf(TShowStatusStmt.TNodes));
@@ -13536,6 +13580,7 @@ begin
       ntTrimFunc: FormatTrimFunc(PTrimFunc(Node)^.Nodes);
       ntTruncateStmt: FormatTruncateStmt(PTruncateStmt(Node)^.Nodes);
       ntUnaryOp: FormatUnaryOp(PUnaryOp(Node)^.Nodes);
+      ntUninstallPluginStmt: DefaultFormatNode(@PUninstallPluginStmt(Node)^.Nodes, SizeOf(TUninstallPluginStmt.TNodes));
       ntUnlockTablesStmt: DefaultFormatNode(@PUnlockTablesStmt(Node)^.Nodes, SizeOf(TUnlockTablesStmt.TNodes));
       ntUpdateStmt: FormatUpdateStmt(PUpdateStmt(Node)^.Nodes);
       ntUnknownStmt: FormatUnknownStmt(PUnknownStmt(Node));
@@ -14274,7 +14319,7 @@ begin
         Commands.Write(Token.AsString)
       else
         Commands.Write(Token.DefinerToken^.AsString)
-    else if (Token.DbIdentType in [ditDatabase, ditTable, ditProcedure, ditTrigger, ditEvent, ditKey, ditField, ditForeignKey, ditPartition, ditConstraint, ditTableAlias, ditVariable, ditRoutineParam, ditCompoundVariable, ditCursor, ditCondition]) then
+    else if (Token.DbIdentType in [ditDatabase, ditTable, ditProcedure, ditTrigger, ditEvent, ditKey, ditField, ditForeignKey, ditPartition, ditConstraint, ditTableAlias, ditPlugin, ditVariable, ditRoutineParam, ditCompoundVariable, ditCursor, ditCondition]) then
       if (AnsiQuotes) then
         Commands.Write(SQLEscape(Token.AsString, '"'))
       else
@@ -14956,9 +15001,10 @@ begin
     ntHelpStmt: Result := SizeOf(THelpStmt);
     ntIfStmt: Result := SizeOf(TIfStmt);
     ntIfStmtBranch: Result := SizeOf(TIfStmt.TBranch);
-    ntInsertStmtSetItem: Result := SizeOf(TInsertStmt.TSetItem);
     ntInOp: Result := SizeOf(TInOp);
     ntInsertStmt: Result := SizeOf(TInsertStmt);
+    ntInsertStmtSetItem: Result := SizeOf(TInsertStmt.TSetItem);
+    ntInstallPluginStmt: Result := SizeOf(TInstallPluginStmt);
     ntIntervalOp: Result := SizeOf(TIntervalOp);
     ntIsOp: Result := SizeOf(TIsOp);
     ntIterateStmt: Result := SizeOf(TIterateStmt);
@@ -15025,7 +15071,6 @@ begin
     ntShowEnginesStmt: Result := SizeOf(TShowEnginesStmt);
     ntShowErrorsStmt: Result := SizeOf(TShowErrorsStmt);
     ntShowEventsStmt: Result := SizeOf(TShowEventsStmt);
-    ntShowFunctionCodeStmt: Result := SizeOf(TShowFunctionCodeStmt);
     ntShowFunctionStatusStmt: Result := SizeOf(TShowFunctionStatusStmt);
     ntShowGrantsStmt: Result := SizeOf(TShowGrantsStmt);
     ntShowIndexStmt: Result := SizeOf(TShowIndexStmt);
@@ -15033,12 +15078,12 @@ begin
     ntShowOpenTablesStmt: Result := SizeOf(TShowOpenTablesStmt);
     ntShowPluginsStmt: Result := SizeOf(TShowPluginsStmt);
     ntShowPrivilegesStmt: Result := SizeOf(TShowPrivilegesStmt);
-    ntShowProcedureCodeStmt: Result := SizeOf(TShowProcedureCodeStmt);
     ntShowProcedureStatusStmt: Result := SizeOf(TShowProcedureStatusStmt);
     ntShowProcessListStmt: Result := SizeOf(TShowProcessListStmt);
     ntShowProfileStmt: Result := SizeOf(TShowProfileStmt);
     ntShowProfilesStmt: Result := SizeOf(TShowProfilesStmt);
     ntShowRelaylogEventsStmt: Result := SizeOf(TShowRelaylogEventsStmt);
+    ntShowRoutineCodeStmt: Result := SizeOf(TShowRoutineCodeStmt);
     ntShowSlaveHostsStmt: Result := SizeOf(TShowSlaveHostsStmt);
     ntShowSlaveStatusStmt: Result := SizeOf(TShowSlaveStatusStmt);
     ntShowStatusStmt: Result := SizeOf(TShowStatusStmt);
@@ -15065,6 +15110,7 @@ begin
     ntTrimFunc: Result := SizeOf(TTrimFunc);
     ntTruncateStmt: Result := SizeOf(TTruncateStmt);
     ntUnaryOp: Result := SizeOf(TUnaryOp);
+    ntUninstallPluginStmt: Result := SizeOf(TUninstallPluginStmt);
     ntUnknownStmt: Result := SizeOf(TUnknownStmt);
     ntUnlockTablesStmt: Result := SizeOf(TUnlockTablesStmt);
     ntUpdateStmt: Result := SizeOf(TUpdateStmt);
@@ -16631,8 +16677,8 @@ begin
     begin
       Nodes.DistinctTag := ParseTag(kiDISTINCT);
 
-      if (not ErrorFound and not IsSymbol(ttCloseBracket)) then
-        Nodes.ExprNode := ParseList(False, ParseExpr);
+      if (not ErrorFound) then
+        Nodes.ExprNode := ParseList(False, ParseExpr, ttComma, False);
     end
     else
       Nodes.ExprNode := ParseExpr([eoIn, eoAllFields, eoOperators]);
@@ -19282,7 +19328,7 @@ end;
 
 function TSQLParser.ParseEngineIdent(): TOffset;
 begin
-  Result := ParseDbIdent(ditEngine);
+  Result := ParseDbIdent(ditEngine, False);
 end;
 
 function TSQLParser.ParseExecuteStmt(): TOffset;
@@ -19693,18 +19739,18 @@ begin
                 CompletionList.AddConst('UNKNOWN');
                 SetError(PE_IncompleteStmt);
               end
-              else if (IsToken(Nodes[NodeIndex + 1])
-                and ((TokenPtr(Nodes[NodeIndex + 1])^.KeywordIndex = kiFALSE)
-                  or (TokenPtr(Nodes[NodeIndex + 1])^.KeywordIndex = kiNULL)
-                  or (TokenPtr(Nodes[NodeIndex + 1])^.KeywordIndex = kiTRUE)
-                  or (TokenPtr(Nodes[NodeIndex + 1])^.KeywordIndex = kiUNKNOWN))) then
+              else if ((NodePtr(Nodes[NodeIndex + 1])^.NodeType = ntDbIdent)
+                and ((StrLIComp(PDbIdent(NodePtr(Nodes[NodeIndex + 1]))^.Ident^.FText, 'FALSE', 5) = 0)
+                  or (StrLIComp(PDbIdent(NodePtr(Nodes[NodeIndex + 1]))^.Ident^.FText, 'NULL', 4) = 0)
+                  or (StrLIComp(PDbIdent(NodePtr(Nodes[NodeIndex + 1]))^.Ident^.FText, 'TRUE', 4) = 0)
+                  or (StrLIComp(PDbIdent(NodePtr(Nodes[NodeIndex + 1]))^.Ident^.FText, 'UNKNOWN', 7) = 0))) then
               begin // ... IS ...
                 Nodes[NodeIndex - 1] := TIsOp.Create(Self, Nodes[NodeIndex - 1], Nodes[NodeIndex], 0, Nodes[NodeIndex + 1]);
                 Nodes.Delete(NodeIndex, 2);
                 Dec(NodeIndex);
               end
               else if (not IsToken(Nodes[NodeIndex + 1]) or (TokenPtr(Nodes[NodeIndex + 1])^.KeywordIndex <> kiNOT)) then
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex + 1])
+                SetError(PE_UnexpectedToken, NodePtr(Nodes[NodeIndex + 1])^.FirstToken^.Offset)
               else if (NodeIndex + 2 = Nodes.Count) then
               begin
                 CompletionList.AddConst('FALSE');
@@ -19714,17 +19760,17 @@ begin
                 SetError(PE_IncompleteStmt);
               end
               else if (IsToken(Nodes[NodeIndex + 2])
-                and ((TokenPtr(Nodes[NodeIndex + 2])^.KeywordIndex = kiFALSE)
-                  or (TokenPtr(Nodes[NodeIndex + 2])^.KeywordIndex = kiNULL)
-                  or (TokenPtr(Nodes[NodeIndex + 2])^.KeywordIndex = kiTRUE)
-                  or (TokenPtr(Nodes[NodeIndex + 2])^.KeywordIndex = kiUNKNOWN))) then
+                and ((StrLIComp(PDbIdent(NodePtr(Nodes[NodeIndex + 2]))^.Ident^.FText, 'FALSE', 5) = 0)
+                  or (StrLIComp(PDbIdent(NodePtr(Nodes[NodeIndex + 2]))^.Ident^.FText, 'NULL', 4) = 0)
+                  or (StrLIComp(PDbIdent(NodePtr(Nodes[NodeIndex + 2]))^.Ident^.FText, 'TRUE', 4) = 0)
+                  or (StrLIComp(PDbIdent(NodePtr(Nodes[NodeIndex + 2]))^.Ident^.FText, 'UNKNOWN', 7) = 0))) then
               begin // ... IS NOT ...
                 Nodes[NodeIndex - 1] := TIsOp.Create(Self, Nodes[NodeIndex - 1], Nodes[NodeIndex], Nodes[NodeIndex + 1], Nodes[NodeIndex + 2]);
                 Nodes.Delete(NodeIndex, 3);
                 Dec(NodeIndex);
               end
               else
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex + 2]);
+                SetError(PE_UnexpectedToken, NodePtr(Nodes[NodeIndex + 2])^.FirstToken^.Offset);
             otBetween:
               if (NodeIndex = 0) then
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
@@ -19740,7 +19786,7 @@ begin
                 SetError(PE_IncompleteStmt);
               end
               else if (not IsToken(Nodes[NodeIndex + 2]) or (TokenPtr(Nodes[NodeIndex + 2])^.OperatorType <> otAnd)) then
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex + 2])
+                SetError(PE_UnexpectedToken, NodePtr(Nodes[NodeIndex + 2])^.FirstToken^.Offset)
               else if (NodeIndex + 3 = Nodes.Count) then
               begin
                 AddOperandsToCompletionList();
@@ -19770,7 +19816,7 @@ begin
                 SetError(PE_IncompleteStmt)
               else if ((NodePtr(Nodes[NodeIndex + 1])^.NodeType <> ntSelectStmt)
                 and (NodePtr(Nodes[NodeIndex + 1])^.NodeType <> ntList)) then
-                SetError(PE_UnexpectedToken, Nodes[NodeIndex + 1])
+                SetError(PE_UnexpectedToken, NodePtr(Nodes[NodeIndex + 1])^.FirstToken^.Offset)
               else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)) then
               begin // ... NOT IN (...)
                 Nodes[NodeIndex - 2] := TInOp.Create(Self, Nodes[NodeIndex - 2], Nodes[NodeIndex - 1], Nodes[NodeIndex], Nodes[NodeIndex + 1]);
@@ -20747,6 +20793,26 @@ end;
 function TSQLParser.ParseInsertStmtValuesList(): TOffset;
 begin
   Result := ParseList(True, ParseExpr);
+end;
+
+function TSQLParser.ParseInstallPluginStmt(): TOffset;
+var
+  Nodes: TInstallPluginStmt.TNodes;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
+  Nodes.StmtTag := ParseTag(kiINSTALL, kiPLUGIN);
+
+  if (not ErrorFound) then
+    Nodes.Ident := ParseDbIdent(ditPlugin, False);
+
+  if (not ErrorFound) then
+    Nodes.SonameTag := ParseTag(kiSONAME);
+
+  if (not ErrorFound) then
+    Nodes.NameString := ParseString();
+
+  Result := TInstallPluginStmt.Create(Self, Nodes);
 end;
 
 function TSQLParser.ParseInteger(): TOffset;
@@ -23268,20 +23334,6 @@ begin
   Result := TShowEventsStmt.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseShowFunctionCodeStmt(): TOffset;
-var
-  Nodes: TShowFunctionCodeStmt.TNodes;
-begin
-  FillChar(Nodes, SizeOf(Nodes), 0);
-
-  Nodes.StmtTag := ParseTag(kiSHOW, kiFUNCTION, kiCODE);
-
-  if (not ErrorFound) then
-    Nodes.Ident := ParseProcedureIdent();
-
-  Result := TShowFunctionCodeStmt.Create(Self, Nodes);
-end;
-
 function TSQLParser.ParseShowFunctionStatusStmt(): TOffset;
 var
   Nodes: TShowFunctionStatusStmt.TNodes;
@@ -23394,20 +23446,6 @@ begin
   Nodes.StmtTag := ParseTag(kiSHOW, kiPRIVILEGES);
 
   Result := TShowPrivilegesStmt.Create(Self, Nodes);
-end;
-
-function TSQLParser.ParseShowProcedureCodeStmt(): TOffset;
-var
-  Nodes: TShowProcedureCodeStmt.TNodes;
-begin
-  FillChar(Nodes, SizeOf(Nodes), 0);
-
-  Nodes.StmtTag := ParseTag(kiSHOW, kiPROCEDURE, kiCODE);
-
-  if (not ErrorFound) then
-    Nodes.Ident := ParseProcedureIdent();
-
-  Result := TShowProcedureCodeStmt.Create(Self, Nodes);
 end;
 
 function TSQLParser.ParseShowProcedureStatusStmt(): TOffset;
@@ -23560,6 +23598,30 @@ begin
     end;
 
   Result := TShowRelaylogEventsStmt.Create(Self, Nodes);
+end;
+
+function TSQLParser.ParseShowRoutineCodeStmt(): TOffset;
+var
+  Nodes: TShowRoutineCodeStmt.TNodes;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
+  if (IsTag(kiSHOW, kiFUNCTION, kiCODE)) then
+  begin
+    Nodes.StmtTag := ParseTag(kiSHOW, kiFUNCTION, kiCODE);
+
+    if (not ErrorFound) then
+      Nodes.Ident := ParseFunctionIdent();
+  end
+  else
+  begin
+    Nodes.StmtTag := ParseTag(kiSHOW, kiPROCEDURE, kiCODE);
+
+    if (not ErrorFound) then
+      Nodes.Ident := ParseProcedureIdent();
+  end;
+
+  Result := TShowRoutineCodeStmt.Create(Self, Nodes);
 end;
 
 function TSQLParser.ParseShowSlaveHostsStmt(): TOffset;
@@ -24026,6 +24088,8 @@ begin
     Result := ParseIfStmt()
   else if (IsTag(kiINSERT)) then
     Result := ParseInsertStmt()
+  else if (IsTag(kiINSTALL, kiPLUGIN)) then
+    Result := ParseInstallPluginStmt()
   else if (InPL_SQL and IsTag(kiITERATE)) then
     Result := ParseIterateStmt()
   else if (IsTag(kiKILL)) then
@@ -24141,7 +24205,7 @@ begin
   else if (IsTag(kiSHOW, kiFULL, kiPROCESSLIST)) then
     Result := ParseShowProcessListStmt()
   else if (IsTag(kiSHOW, kiFUNCTION, kiCODE)) then
-    Result := ParseShowFunctionCodeStmt()
+    Result := ParseShowRoutineCodeStmt()
   else if (IsTag(kiSHOW, kiFUNCTION, kiSTATUS)) then
     Result := ParseShowFunctionStatusStmt()
   else if (IsTag(kiSHOW, kiGRANTS)) then
@@ -24161,7 +24225,7 @@ begin
   else if (IsTag(kiSHOW, kiPRIVILEGES)) then
     Result := ParseShowPrivilegesStmt()
   else if (IsTag(kiSHOW, kiPROCEDURE, kiCODE)) then
-    Result := ParseShowProcedureCodeStmt()
+    Result := ParseShowRoutineCodeStmt()
   else if (IsTag(kiSHOW, kiPROCEDURE, kiSTATUS)) then
     Result := ParseShowProcedureStatusStmt()
   else if (IsTag(kiSHOW, kiPROCESSLIST)) then
@@ -24206,6 +24270,8 @@ begin
     Result := ParseStopSlaveStmt()
   else if (IsTag(kiTRUNCATE)) then
     Result := ParseTruncateTableStmt()
+  else if (IsTag(kiUNINSTALL, kiPLUGIN)) then
+    Result := ParseUninstallPluginStmt()
   else if (IsTag(kiUNLOCK, kiTABLES)) then
     Result := ParseUnlockTablesStmt()
   else if (IsTag(kiUPDATE)) then
@@ -25235,7 +25301,7 @@ begin
       IdentLE:
         ADD ESI,2                        // Next character in SQL
         DEC ECX                          // One character handled
-        JNC IdentL                       // Next character, if available!
+        JNZ IdentL                       // Next character, if available!
         JMP Finish
 
       IdentCharset:
@@ -25814,6 +25880,20 @@ begin
     Nodes.TableIdent := ParseTableIdent();
 
   Result := TTruncateStmt.Create(Self, Nodes);
+end;
+
+function TSQLParser.ParseUninstallPluginStmt(): TOffset;
+var
+  Nodes: TUninstallPluginStmt.TNodes;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
+  Nodes.StmtTag := ParseTag(kiUNINSTALL, kiPLUGIN);
+
+  if (not ErrorFound) then
+    Nodes.Ident := ParseDbIdent(ditPlugin, False);
+
+  Result := TUninstallPluginStmt.Create(Self, Nodes);
 end;
 
 function TSQLParser.ParseUnknownStmt(const FirstToken: TOffset): TOffset;
@@ -27118,6 +27198,7 @@ begin
     kiINSTANCE                      := IndexOf('INSTANCE');
     kiINSERT                        := IndexOf('INSERT');
     kiINSERT_METHOD                 := IndexOf('INSERT_METHOD');
+    kiINSTALL                       := IndexOf('INSTALL');
     kiINTERVAL                      := IndexOf('INTERVAL');
     kiINTO                          := IndexOf('INTO');
     kiINVOKER                       := IndexOf('INVOKER');
@@ -27240,9 +27321,11 @@ begin
     kiPASSWORD                      := IndexOf('PASSWORD');
     kiPERSISTENT                    := IndexOf('PERSISTENT');
     kiPHASE                         := IndexOf('PHASE');
+    kiPLUGIN                        := IndexOf('PLUGIN');
     kiQUERY                         := IndexOf('QUERY');
     kiRECOVER                       := IndexOf('RECOVER');
     kiREDUNDANT                     := IndexOf('REDUNDANT');
+    kiPLUGIN                        := IndexOf('PLUGIN');
     kiPLUGINS                       := IndexOf('PLUGINS');
     kiPORT                          := IndexOf('PORT');
     kiPRECEDES                      := IndexOf('PRECEDES');
@@ -27390,6 +27473,7 @@ begin
     kiUNDEFINED                     := IndexOf('UNDEFINED');
     kiUNDO                          := IndexOf('UNDO');
     kiUNICODE                       := IndexOf('UNICODE');
+    kiUNINSTALL                     := IndexOf('UNINSTALL');
     kiUNION                         := IndexOf('UNION');
     kiUNIQUE                        := IndexOf('UNIQUE');
     kiUNKNOWN                       := IndexOf('UNKNOWN');

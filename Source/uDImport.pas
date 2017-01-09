@@ -579,6 +579,10 @@ begin
   // occurred on 2017-01-05: abnsqrxylmlm .. lmqrxyqrxyptufijkc, ImportType: 1
   // occurred on 2017-01-06: 2abeneeeeeqrsxylmlmlmlmlmlmlmlmlmlmqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyovwqrxylmlmlmlmqrxyptuAfijkc_, ImportType: 2
   // occurred on 2017-01-07: 2abnsqrxylmlmlmlmlmlmlml .. lmlmqrxyptuAfijkc_, ImportType: 1
+  // occurred on 2017-01-09: 2abnsqrxy .. qrxyptuAfijkc_, ImportType: 1
+  // occurred on 2017-01-09: 2abc_, ImportType: 1
+  // occurred on 2017-01-09: 2abnqrsxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyptuAfijkc_, ImportType: 4
+  // occurred on 2017-01-09: 2abc_, ImportType: 1
 
   Progress := Progress + 'f';
 
@@ -958,14 +962,12 @@ begin
   // Debug 2017-01-03
   if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
     raise ERangeError.Create('Progress: ' + Progress);
-  Progress := Progress + 'q';
 
   MoveMemory(@ProgressInfos, @AProgressInfos, SizeOf(AProgressInfos));
 
   // Debug 2017-01-03
   if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
     raise ERangeError.Create('Progress: ' + Progress);
-  Progress := Progress + 'r';
 
   PostMessage(Handle, UM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos))
 end;
@@ -1582,7 +1584,6 @@ begin
   // Debug 2016-12-31
   if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
     raise ERangeError.Create('Progress: ' + IntToStr(Infos^.Progress));
-  Progress := Progress + 'x';
 
   if (Infos^.ObjectsSum < 0) then
     FEntieredObjects.Caption := '???'
@@ -1609,7 +1610,6 @@ begin
   // Debug 2017-01-03
   if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
     raise ERangeError.Create('Progress: ' + IntToStr(Infos^.Progress));
-  Progress := Progress + 'y';
 end;
 
 procedure TDImport.WhatClick(Sender: TObject);

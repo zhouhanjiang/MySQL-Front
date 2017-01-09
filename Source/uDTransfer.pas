@@ -766,10 +766,7 @@ begin
     SetControlCursor(GProgress, crDefault);
 
   CheckActivePageChange(TSExecute);
-  if (not Assigned(Wanted.Page) and not Assigned(Transfer)) then
-    FBCancel.Caption := Preferences.LoadStr(231)
-  else
-    FBBack.Enabled := False;
+  FBBack.Enabled := False;
   ActiveControl := FBCancel;
 end;
 
