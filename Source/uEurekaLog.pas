@@ -488,7 +488,7 @@ begin
           if (Sessions[I].Connection.LibraryType <> MySQLDB.ltBuiltIn) then
             Report := Report + ' (LibraryType: ' + IntToStr(Ord(Sessions[I].Connection.LibraryType)) + ')';
           Report := Report + #13#10;
-          Report := Report + StringOfChar('-', Length('Version: ' + Sessions[I].Connection.ServerVersionStr)) + #13#10;
+          Report := Report + StringOfChar('-', 72) + #13#10;
           Report := Report + Sessions[I].Connection.DebugMonitor.CacheText + #13#10;
         end;
       end;

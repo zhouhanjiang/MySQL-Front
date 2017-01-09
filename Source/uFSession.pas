@@ -13076,6 +13076,12 @@ var
 begin
   URI := TUURI.Create(Address);
 
+  if (URI.Address <> Address) then
+    SendToDeveloper('fFSession.TFSession.SetView:' + #13#10
+      + 'Address: ' + Address + #13#10
+      + 'URI.Address: ' + URI.Address + #13#10
+      + 'URI.ExtraInfos: ' + URI.ExtraInfos);
+
   if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
     raise ERangeError.Create('View: ' + IntToStr(Ord(AView)) + #13#10
       + 'LastSelectedTable: ' + LastSelectedTable + #13#10
@@ -13178,14 +13184,6 @@ begin
     URI.Param['file'] := Null;
     URI.Param['cp'] := Null;
   end;
-
-  if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
-    raise ERangeError.Create('View: ' + IntToStr(Ord(AView)) + #13#10
-      + 'LastSelectedTable: ' + LastSelectedTable + #13#10
-      + 'Address: ' + Address + #13#10
-      + 'ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
-      + 'Text: ' + FNavigator.Selected.Text + #13#10
-      + 'URI.Address: ' + URI.Address);
 
   LockWindowUpdate(FNavigator.Handle);
   ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);

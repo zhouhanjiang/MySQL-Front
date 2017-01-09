@@ -554,7 +554,9 @@ type
     DesktopXMLDocument: IXMLDocument;
     FAccounts: TPAccounts;
     FConnection: TConnection;
+    Identifier123123: Integer;
     FDesktop: TDesktop;
+    Identifier321321: Integer;
     FHistoryXMLDocument: IXMLDocument;
     FLastLogin: TDateTime;
     FName: string;
@@ -563,6 +565,7 @@ type
     Modified: Boolean;
     function GetDataPath(): TFileName;
     function GetTabCount(): Integer;
+    function GetDesktop(): TDesktop;
     function GetDesktopFilename(): TFileName;
     function GetDesktopXML(): IXMLNode;
     function GetHistoryFilename(): TFileName;
@@ -595,7 +598,7 @@ type
     property Accounts: TPAccounts read FAccounts;
     property Connection: TConnection read FConnection;
     property DataPath: TFileName read GetDataPath;
-    property Desktop: TDesktop read FDesktop;
+    property Desktop: TDesktop read GetDesktop;
     property DesktopCount: Integer read GetTabCount;
     property DesktopXML: IXMLNode read GetDesktopXML;
     property HistoryXML: IXMLNode read GetHistoryXML;
@@ -3089,6 +3092,8 @@ begin
   ManualURL := '';
   ManualURLVersion := '';
   Modified := False;
+  Identifier123123 := 123123;
+  Identifier321321 := 321321;
 
   FConnection := TConnection.Create();
 
@@ -3257,12 +3262,13 @@ begin
   end;
 end;
 
-function TPAccount.GetDesktopXML(): IXMLNode;
+function TPAccount.GetDesktop(): TDesktop;
 begin
-  if (not Assigned(DesktopXMLDocument)) then
-    Result := nil
-  else
-    Result := DesktopXMLDocument.DocumentElement;
+  if ((Identifier123123 <> 123123) or (Identifier321321 <> 321321)) then
+    raise ERangeError.Create('Identifier123123: ' + IntToStr(Identifier123123) + #13#10
+      + 'Identifier321321: ' + IntToStr(Identifier321321));
+
+  Result := FDesktop;
 end;
 
 function TPAccount.GetDesktopFilename(): TFileName;
@@ -3271,6 +3277,14 @@ begin
     Result := ''
   else
     Result := DataPath + 'Desktop.xml';
+end;
+
+function TPAccount.GetDesktopXML(): IXMLNode;
+begin
+  if (not Assigned(DesktopXMLDocument)) then
+    Result := nil
+  else
+    Result := DesktopXMLDocument.DocumentElement;
 end;
 
 function TPAccount.GetHistoryFilename(): TFileName;

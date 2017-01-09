@@ -5024,6 +5024,10 @@ function TMySQLQuery.GetLibRow(): MYSQL_ROW;
 begin
   Assert(Active);
 
+  // Debug 2017-01-09
+  if (not Assigned(Self)) then
+    raise ERangeError.Create(SRangeError);
+
   if (not Assigned(Pointer(ActiveBuffer()))) then
     Result := nil
   else
@@ -5831,9 +5835,16 @@ end;
 
 function TMySQLDataSet.TInternRecordBuffers.IndexOf(const Bookmark: TBookmark): Integer;
 begin
+  {$IFDEF Debug}
   Assert(Length(Bookmark) = SizeOf(PInternRecordBuffer));
+  {$ENDIF}
 
-  Result := IndexOf(PInternRecordBuffer(PPointer(@Bookmark[0])^));
+  if (Length(Bookmark) = 0) then
+    Result := -1
+  else if (Length(Bookmark) = SizeOf(PInternRecordBuffer)) then
+    Result := IndexOf(PInternRecordBuffer(PPointer(@Bookmark[0])^))
+  else
+    raise ERangeError.Create(SRangeError);
 end;
 
 function TMySQLDataSet.TInternRecordBuffers.IndexOf(const Data: TMySQLQuery.TRecordBufferData): Integer;
