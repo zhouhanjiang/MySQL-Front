@@ -229,7 +229,6 @@ begin
   FreeAndNil(SetupProgramStream);
 
   Preferences.SetupProgram := SetupPrgFilename;
-  Preferences.SetupProgramInstalled := False;
 
   ModalResult := mrOk;
 end;
@@ -247,9 +246,7 @@ begin
   HTTPThread := nil;
 
   FBCancel.Enabled := True;
-  if (Preferences.SetupProgramInstalled) then
-    FBCancel.ModalResult := mrOk
-  else if (not FBForward.Enabled) then
+  if (not FBForward.Enabled) then
     FBCancel.Caption := Preferences.LoadStr(231);
 end;
 

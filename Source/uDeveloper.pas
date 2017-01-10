@@ -44,7 +44,8 @@ implementation {***************************************************************}
 uses
   XMLIntf, XMLDoc, ActiveX, SysUtils, SyncObjs, DateUtils,
   {$IFDEF EurekaLog}
-  ExceptionLog7, EExceptionManager,
+  ExceptionLog7, EExceptionManager, ECallStack, EStackTracing, EClasses,
+  ETypes,
   {$ENDIF}
   uPreferences;
 
@@ -144,6 +145,15 @@ end;
 
 procedure SendToDeveloper(const Text: string; const Days: Integer = 0);
 var
+  {$IFDEF EurekaLog}
+  Buffer: TEurekaDebugInfo;
+  CallStack: TEurekaBaseStackList;
+  Index: Integer;
+  Item: PEurekaDebugInfo;
+  StackItem: Integer;
+  Source: string;
+  {$ENDIF}
+  Body: String;
   Flags: DWORD;
   Thread: THTTPThread;
   Size: Integer;
@@ -151,12 +161,39 @@ var
 begin
   if ((Days = 0) or (Now() < IncDay(CompileTime(), Days + 1))) then
   begin
+    Body := Text;
+
+    {$IFDEF EurekaLog}
+    CallStack := GetCurrentCallStack();
+    Index := 0; StackItem := 0; Item := nil;
+    while ((Index < CallStack.Count) and (StackItem < 2)) do
+    begin
+      Item := CallStack.GetItem(1, Buffer);
+      if (Item^.Location.DebugDetail = ddSourceCode) then
+        Inc(StackItem);
+    end;
+    if (Assigned(Item) and (StackItem = 2)) then
+    begin
+      if ((Item^.Location.ClassName <> '') and (Item^.Location.ProcedureName <> '')) then
+        Source := '|' + Item^.Location.ClassName + '.' + Item^.Location.ProcedureName
+      else if (Item^.Location.ClassName <> '') then
+        Source := '|' + Item^.Location.ClassName
+      else if (Item^.Location.ProcedureName <> '') then
+        Source := '|' + Item^.Location.ProcedureName
+      else
+        Source := '';
+      Source := ExtractFileName(Item^.Location.ModuleName) + '|' + Item^.Location.SourceName + Source + '|' + IntToStr(Item^.Location.LineNumber) + '[' + IntToStr(Item^.Location.ProcOffsetLine) + ']' + #13#10#13#10;
+
+      Body := Source + Body;
+    end;
+    {$ENDIF}
+
     Stream := TMemoryStream.Create();
 
     if (not CheckWin32Version(6)) then Flags := 0 else Flags := WC_ERR_INVALID_CHARS;
-    Size := WideCharToMultiByte(CP_UTF8, Flags, PChar(Text), Length(Text), nil, 0, nil, nil);
+    Size := WideCharToMultiByte(CP_UTF8, Flags, PChar(Body), Length(Body), nil, 0, nil, nil);
     Stream.SetSize(Size);
-    WideCharToMultiByte(CP_UTF8, Flags, PChar(Text), Length(Text), PAnsiChar(Stream.Memory), Stream.Size, nil, nil);
+    WideCharToMultiByte(CP_UTF8, Flags, PChar(Body), Length(Body), PAnsiChar(Stream.Memory), Stream.Size, nil, nil);
 
     Thread := THTTPThread.Create(LoadStr(1006), Stream, nil);
     SendThreads.Add(Thread);

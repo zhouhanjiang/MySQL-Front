@@ -11924,6 +11924,8 @@ begin
       // Do nothing - but do not parse the Text further more
     else if (SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Connection.MySQLVersion)) then
     begin
+      Connection.DebugMonitor.Append('MonitorExecutedStmts: DDLStmt, ' + IntToStr(Ord(DDLStmt.ObjectType)) + ', ' + IntToStr(Ord(DDLStmt.ObjectType)) + ', ' + DDLStmt.DatabaseName + ', ' + DDLStmt.ObjectName, ttDebug);
+
       DDLStmt.DatabaseName := TableName(DDLStmt.DatabaseName);
       if (DDLStmt.ObjectType = otTable) then
         DDLStmt.ObjectName := TableName(DDLStmt.ObjectName);
@@ -11951,7 +11953,10 @@ begin
             begin
               Database := DatabaseByName(DDLStmt.ObjectName);
               if (Assigned(Database)) then
+              begin
+                Connection.DebugMonitor.Append('MonitorExecutedStmts: Database deleted - ' + Database.Name, ttDebug);
                 Databases.Delete(Database);
+              end;
             end;
         end
       else
@@ -12056,7 +12061,10 @@ begin
                             and (NextDDLStmt.ObjectName = DDLStmt.ObjectName)) then
                             // will be handled in the next Stmt
                           else
+                          begin
+                            Connection.DebugMonitor.Append('MonitorExecutedStmts: Table deleted - ' + Table.Name, ttDebug);
                             Database.Tables.Delete(Table);
+                          end;
                         end;
                       end;
                       First := False;

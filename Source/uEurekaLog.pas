@@ -498,6 +498,7 @@ begin
     end;
 
     try
+      {$IFDEF Log}
       MySQLSyncThreads.Lock();
       for I := 0 to MySQLSyncThreads.Count - 1 do
       begin
@@ -507,6 +508,7 @@ begin
         Report := Report + MySQLSyncThreads[I].Log + #13#10;
       end;
       MySQLSyncThreads.Release();
+      {$ENDIF}
     except
       on E: Exception do
         try SendToDeveloper('EurekaLogExceptionNotify(6)' + #13#10#13#10 + E.Message); except end;

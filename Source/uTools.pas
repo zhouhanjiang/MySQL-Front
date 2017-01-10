@@ -2904,13 +2904,16 @@ var
   RecordComplete: Boolean;
 begin
   repeat
-    RecordComplete := CSVSplitValues(FileContent.Str, FileContent.Index, Delimiter, Quoter, CSVValues, EOF);
-    if (not RecordComplete and not EOF) then
-      ReadContent()
-    else if (RecordComplete) then
-      Inc(FRecNo);
+    while ((Length(FileContent.Str) >= FileContent.Index) and CharInSet(FileContent.Str[FileContent.Index], [#10, #13])) do
+      Inc(FileContent.Index);
 
-    if ((not EOF or (FileContent.Index < Length(FileContent.Str))) and (CSVValueCount > 0) and (CSVValueCount <> Length(CSVValues))) then
+    RecordComplete := CSVSplitValues(FileContent.Str, FileContent.Index, Delimiter, Quoter, CSVValues, EOF);
+    if (RecordComplete) then
+      Inc(FRecNo)
+    else if (not EOF) then
+      ReadContent();
+
+    if ((RecordComplete or EOF) and (CSVValueCount > 0) and (CSVValueCount <> Length(CSVValues))) then
     begin
       Error.ErrorType := TE_File;
       Error.ErrorCode := 0;

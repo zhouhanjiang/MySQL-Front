@@ -3589,7 +3589,10 @@ type
           ObjectIdent: TOffset;
           ToTag: TOffset;
           UserSpecifications: TOffset;
-          RequireTag: TOffset;
+          Require: packed record
+            Tag: TOffset;
+            Options: TOffset;
+          end;
           WithTag: TOffset;
           GrantOptionTag: TOffset;
           MaxQueriesPerHourTag: TOffset;
@@ -19759,7 +19762,7 @@ begin
                 CompletionList.AddConst('UNKNOWN');
                 SetError(PE_IncompleteStmt);
               end
-              else if (IsToken(Nodes[NodeIndex + 2])
+              else if ((NodePtr(Nodes[NodeIndex + 2])^.NodeType = ntDbIdent)
                 and ((StrLIComp(PDbIdent(NodePtr(Nodes[NodeIndex + 2]))^.Ident^.FText, 'FALSE', 5) = 0)
                   or (StrLIComp(PDbIdent(NodePtr(Nodes[NodeIndex + 2]))^.Ident^.FText, 'NULL', 4) = 0)
                   or (StrLIComp(PDbIdent(NodePtr(Nodes[NodeIndex + 2]))^.Ident^.FText, 'TRUE', 4) = 0)
@@ -20320,6 +20323,15 @@ begin
 
       if (not ErrorFound) then
         Nodes.UserSpecifications := ParseList(False, ParseGrantStmtUserSpecification);
+
+      if (not ErrorFound) then
+        if (IsTag(kiREQUIRE)) then
+        begin
+          Nodes.Require.Tag := ParseTag(kiREQUIRE);
+
+          if (not ErrorFound) then
+            Nodes.Require.Options := ParseTag(kiNONE);
+        end;
 
       if (not ErrorFound) then
         if (IsTag(kiWITH)) then
@@ -22186,7 +22198,7 @@ begin
           Nodes.Limit.Tag := ParseTag(kiLIMIT);
 
           if (not ErrorFound) then
-            Nodes.Limit.RowCountToken := ParseExpr();
+            Nodes.Limit.RowCountToken := ParseExpr([]);
 
           if (not ErrorFound) then
             if (IsSymbol(ttComma)) then
@@ -22196,7 +22208,7 @@ begin
               if (not ErrorFound) then
               begin
                 Nodes.Limit.OffsetToken := Nodes.Limit.RowCountToken;
-                Nodes.Limit.RowCountToken := ParseExpr();
+                Nodes.Limit.RowCountToken := ParseExpr([]);
               end;
             end
             else if (IsTag(kiOFFSET)) then
@@ -22204,7 +22216,7 @@ begin
               Nodes.Limit.OffsetTag := ParseTag(kiOFFSET);
 
               if (not ErrorFound) then
-                Nodes.Limit.OffsetToken := ParseExpr();
+                Nodes.Limit.OffsetToken := ParseExpr([]);
             end;
         end;
 
@@ -22264,7 +22276,7 @@ begin
           Nodes.Union1.Limit.Tag := ParseTag(kiLIMIT);
 
           if (not ErrorFound) then
-            Nodes.Union1.Limit.RowCountToken := ParseExpr();
+            Nodes.Union1.Limit.RowCountToken := ParseExpr([]);
 
           if (not ErrorFound) then
             if (IsSymbol(ttComma)) then
@@ -22274,7 +22286,7 @@ begin
               if (not ErrorFound) then
               begin
                 Nodes.Union1.Limit.OffsetToken := Nodes.Limit.RowCountToken;
-                Nodes.Union1.Limit.RowCountToken := ParseExpr();
+                Nodes.Union1.Limit.RowCountToken := ParseExpr([]);
               end;
             end
             else if (IsTag(kiOFFSET)) then
@@ -22282,7 +22294,7 @@ begin
               Nodes.Union1.Limit.OffsetTag := ParseTag(kiOFFSET);
 
               if (not ErrorFound) then
-                Nodes.Union1.Limit.OffsetToken := ParseExpr();
+                Nodes.Union1.Limit.OffsetToken := ParseExpr([]);
             end;
         end;
     end;
@@ -22323,7 +22335,7 @@ begin
           Nodes.Union2.Limit.Tag := ParseTag(kiLIMIT);
 
           if (not ErrorFound) then
-            Nodes.Union2.Limit.RowCountToken := ParseExpr();
+            Nodes.Union2.Limit.RowCountToken := ParseExpr([]);
 
           if (not ErrorFound) then
             if (IsSymbol(ttComma)) then
@@ -22333,7 +22345,7 @@ begin
               if (not ErrorFound) then
               begin
                 Nodes.Union2.Limit.OffsetToken := Nodes.Limit.RowCountToken;
-                Nodes.Union2.Limit.RowCountToken := ParseExpr();
+                Nodes.Union2.Limit.RowCountToken := ParseExpr([]);
               end;
             end
             else if (IsTag(kiOFFSET)) then
@@ -22341,7 +22353,7 @@ begin
               Nodes.Union2.Limit.OffsetTag := ParseTag(kiOFFSET);
 
               if (not ErrorFound) then
-                Nodes.Union2.Limit.OffsetToken := ParseExpr();
+                Nodes.Union2.Limit.OffsetToken := ParseExpr([]);
             end;
         end;
     end;
@@ -22988,7 +23000,7 @@ begin
 
       if (not ErrorFound) then
       begin
-        Nodes.Limit.RowCountToken := ParseExpr();
+        Nodes.Limit.RowCountToken := ParseExpr([]);
 
         if (not ErrorFound) then
           if (IsSymbol(ttComma)) then
@@ -22998,7 +23010,7 @@ begin
             if (not ErrorFound) then
             begin
               Nodes.Limit.OffsetToken := Nodes.Limit.RowCountToken;
-              Nodes.Limit.RowCountToken := ParseExpr();
+              Nodes.Limit.RowCountToken := ParseExpr([]);
             end;
           end;
       end;
@@ -23292,7 +23304,7 @@ begin
 
       if (not ErrorFound) then
       begin
-        Nodes.Limit.RowCountToken := ParseExpr();
+        Nodes.Limit.RowCountToken := ParseExpr([]);
 
         if (not ErrorFound) then
           if (IsSymbol(ttComma)) then
@@ -23302,7 +23314,7 @@ begin
             if (not ErrorFound) then
             begin
               Nodes.Limit.OffsetToken := Nodes.Limit.RowCountToken;
-              Nodes.Limit.RowCountToken := ParseExpr();
+              Nodes.Limit.RowCountToken := ParseExpr([]);
             end;
           end;
       end;
@@ -23500,7 +23512,7 @@ begin
       Nodes.Limit.Tag := ParseTag(kiLIMIT);
 
       if (not ErrorFound) then
-        Nodes.Limit.Token := ParseExpr();
+        Nodes.Limit.Token := ParseExpr([]);
 
       if (not ErrorFound) then
         if (IsTag(kiOFFSET)) then
@@ -23508,7 +23520,7 @@ begin
           Nodes.Limit.OffsetTag := ParseTag(kiOFFSET);
 
           if (not ErrorFound) then
-            Nodes.Limit.OffsetToken := ParseExpr();
+            Nodes.Limit.OffsetToken := ParseExpr([]);
         end;
     end;
 
@@ -23581,7 +23593,7 @@ begin
 
       if (not ErrorFound) then
       begin
-        Nodes.Limit.RowCountToken := ParseExpr();
+        Nodes.Limit.RowCountToken := ParseExpr([]);
 
         if (not ErrorFound) then
           if (IsSymbol(ttComma)) then
@@ -23591,7 +23603,7 @@ begin
             if (not ErrorFound) then
             begin
               Nodes.Limit.OffsetToken := Nodes.Limit.RowCountToken;
-              Nodes.Limit.RowCountToken := ParseExpr();
+              Nodes.Limit.RowCountToken := ParseExpr([]);
             end;
           end;
       end;
@@ -23789,7 +23801,7 @@ begin
 
       if (not ErrorFound) then
       begin
-        Nodes.Limit.RowCountToken := ParseExpr();
+        Nodes.Limit.RowCountToken := ParseExpr([]);
 
         if (not ErrorFound) then
           if (IsSymbol(ttComma)) then
@@ -23799,7 +23811,7 @@ begin
             if (not ErrorFound) then
             begin
               Nodes.Limit.OffsetToken := Nodes.Limit.RowCountToken;
-              Nodes.Limit.RowCountToken := ParseExpr();
+              Nodes.Limit.RowCountToken := ParseExpr([]);
             end;
           end;
       end;
@@ -25987,7 +25999,7 @@ begin
         Nodes.Limit.Tag := ParseTag(kiLIMIT);
 
         if (not ErrorFound) then
-          Nodes.Limit.Token := ParseExpr();
+          Nodes.Limit.Token := ParseExpr([]);
       end;
   end;
 

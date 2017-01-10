@@ -541,9 +541,7 @@ begin
   begin
     Preferences.SetupProgramExecute := DUpdate.Execute();
     if (Preferences.SetupProgramExecute) then
-      Close()
-    else if (Preferences.ObsoleteVersion < Preferences.Version) then
-      Preferences.ObsoleteVersion := Preferences.Version;
+      Close();
   end;
 end;
 
@@ -1918,8 +1916,7 @@ end;
 
 procedure TWWindow.WMWindowPosChanging(var Message: TWMWindowPosChanging);
 begin
-  if ((Message.WindowPos^.flags and SWP_HIDEWINDOW = 0)
-    or (Message.WindowPos^.flags and SWP_NOMOVE = 0)) then
+  if (Message.WindowPos^.flags and SWP_NOMOVE = 0) then
     HidePopupChildren();
 
   inherited;

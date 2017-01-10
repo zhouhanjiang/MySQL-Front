@@ -63,7 +63,6 @@ type
   public
     procedure Clear(); override;
     constructor Create(const AWorkbench: TWWorkbench); virtual;
-    procedure Delete(Index: Integer); virtual;
     destructor Destroy(); override;
     property Workbench: TWWorkbench read FWorkbench;
   end;
@@ -269,6 +268,7 @@ type
     procedure SetZOrder(TopMost: Boolean); override;
   public
     constructor Create(const AWorkbench: TWWorkbench; const APosition: TCoord); reintroduce; virtual;
+    destructor Destroy(); override;
     property Caption: TCaption read GetCaption write SetCaption;
     property Color: TColor read FColor write FColor;
   end;
@@ -882,7 +882,7 @@ begin
   Workbench.BeginUpdate();
 
   while (Count > 0) do
-    Delete(Count - 1);
+    TWControl(Items[0]).Free();
 
   inherited;
 
@@ -896,13 +896,6 @@ begin
   inherited Create();
 
   FWorkbench := AWorkbench;
-end;
-
-procedure TWControls.Delete(Index: Integer);
-begin
-  TWControl(Items[Index]).Free();
-
-  inherited;
 end;
 
 destructor TWControls.Destroy();
@@ -2210,6 +2203,8 @@ begin
     Point.LineB.Free();
   end;
 
+  Workbench.Links.Delete(Workbench.Links.IndexOf(Self));
+
   inherited;
 
   // Debug 2016-12-28
@@ -2666,13 +2661,18 @@ end;
 destructor TWTable.Destroy();
 begin
   while (Length(FLinkPoints) > 0) do
-    Workbench.Links.Delete(Workbench.Links.IndexOf(FLinkPoints[0].Link));
+    FLinkPoints[0].Free();
+
+  Workbench.Tables.Delete(Workbench.Tables.IndexOf(Self));
 
   inherited;
 end;
 
 function TWTable.GetCaption(): TCaption;
 begin
+  // Debug 2017-01-10
+  if (not Assigned(Self)) then
+    raise ERangeError.Create(SRangeError);
   // Debug 2016-12-26
   if (not Assigned(BaseTable)) then
     raise ERangeError.Create(SRangeError);
@@ -2959,6 +2959,13 @@ begin
   Canvas.Font.Style := [];
 
   MoveTo(Self, [], APosition);
+end;
+
+destructor TWSection.Destroy();
+begin
+  Workbench.Sections.Delete(Workbench.Sections.IndexOf(Self));
+
+  inherited;
 end;
 
 function TWSection.GetCaption(): TCaption;
@@ -3510,11 +3517,11 @@ begin
   begin
     Result := Assigned(Selected);
     if (Result and (Selected is TWTable)) then
-      Tables.Delete(Tables.IndexOf(Selected))
+      Selected.Free()
     else if (Result and (Selected is TWLink)) then
-      Links.Delete(Links.IndexOf(Selected))
+      Selected.Free()
     else if (Result and (Selected is TWSection)) then
-      Sections.Delete(Sections.IndexOf(Selected));
+      Selected.Free();
   end
   else
     Result := inherited ExecuteAction(Action);
@@ -3554,7 +3561,7 @@ begin
   else if ((Key = Chr(VK_ESCAPE)) and Assigned(Selected) and Assigned(CreatedLink)) then
     FreeAndNil(CreatedLink)
   else if ((Key = Chr(VK_ESCAPE)) and (Selected is TWSection) and (TWSection(Selected).ResizeMode = rmCreate)) then
-    Sections.Delete(Sections.IndexOf(Selected))
+    Selected.Free()
   else
     inherited;
 end;
@@ -3746,7 +3753,7 @@ begin
   begin
     for I := Tables.Count - 1 downto 0 do
       if (Database.Tables.IndexOf(Tables[I].BaseTable) < 0) then
-        Tables.Delete(I);
+        Tables[I].Free();
   end
   else if ((Event.EventType = etItemValid) and (Event.Item is TSBaseTable)) then
   begin
@@ -3756,7 +3763,7 @@ begin
       if ((Links[I] is TWForeignKey)
         and Assigned(Links[I].ChildTable) and (Links[I].ChildTable.BaseTable = BaseTable)
         and (Links[I].ChildTable.BaseTable.ForeignKeys.IndexOf(TWForeignKey(Links[I]).BaseForeignKey) < 0)) then
-          Links.Delete(I);
+          Links[I].Free;
 
     if (Assigned(CreatedTable)) then
     begin
@@ -3865,7 +3872,7 @@ begin
   begin
     for I := Tables.Count - 1 downto 0 do
       if (Tables[I].BaseTable = Event.Item) then
-        Tables.Delete(I);
+        Tables[I].Free();
   end;
 end;
 
