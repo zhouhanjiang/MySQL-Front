@@ -635,7 +635,6 @@ type
     function GetMaxTextWidth(const Field: TField; const TextWidth: TTextWidth): Integer; virtual;
     function Locate(const KeyFields: string; const KeyValues: Variant;
       Options: TLocateOptions): Boolean; override;
-    procedure Resync(Mode: TResyncMode); override;
     procedure Sort(const ASortDef: TIndexDef); virtual;
     function SQLDelete(): string; virtual;
     function SQLInsert(): string; virtual;
@@ -5460,7 +5459,7 @@ begin
   if (OpenFromSyncThread) then
   begin
     Connection.SyncBindDataSet(Self);
-    if (Connection.SynchronCount > 0) then
+    if ((SyncThread.Mode = smDataSet) and (Connection.SynchronCount > 0)) then
       Connection.SyncThread.Synchronize();
   end;
 end;
@@ -6300,6 +6299,12 @@ begin
 
   if (Result = grOk) then
   begin
+    // Debug 2017-01-10
+    if ((NewIndex < 0) or (InternRecordBuffers.Count <= NewIndex)) then
+      raise ERangeError.Create('NewIndex: ' + IntToStr(NewIndex) + #13#10
+        + 'Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
+        + 'GetMode: ' + IntToStr(Ord(GetMode)));
+
     InternRecordBuffers.CriticalSection.Enter();
     InternRecordBuffers.Index := NewIndex;
 
@@ -6405,7 +6410,6 @@ end;
 procedure TMySQLDataSet.InternalCancel();
 var
   Index: Integer;
-  InternRecordBuffer: PInternRecordBuffer;
 begin
   case (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag) of
     bfCurrent:
@@ -6414,19 +6418,11 @@ begin
         FreeMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData);
         PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData;
       end;
-    bfBOF:
-      begin
-        InternRecordBuffer := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer;
-        InternalInitRecord(ActiveBuffer());
-        FreeInternRecordBuffer(InternRecordBuffer);
-      end;
+    bfBOF,
     bfInserted,
     bfEOF:
       begin
-        if (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag = bfEOF) then
-          Dec(InternRecordBuffers.Index);
         Index := PExternRecordBuffer(ActiveBuffer())^.Index;
-        InternalInitRecord(ActiveBuffer());
         FreeInternRecordBuffer(InternRecordBuffers[Index]);
         InternRecordBuffers.Delete(Index);
       end;
@@ -6503,7 +6499,7 @@ end;
 
 procedure TMySQLDataSet.InternalFirst();
 begin
-  InternRecordBuffers.Index := -1;
+  InternRecordBuffers.Index := 0;
 end;
 
 procedure TMySQLDataSet.InternalGotoBookmark(Bookmark: TBookmark);
@@ -6557,26 +6553,19 @@ var
 begin
   case (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag) of
     bfBOF:
-      begin
-        PExternRecordBuffer(ActiveBuffer())^.Index := -1;
-        PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := AllocInternRecordBuffer();
-      end;
+      Index := InternRecordBuffers.Add(AllocInternRecordBuffer());
     bfInserted:
       begin
         Index := InternRecordBuffers.IndexOf(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
         InternRecordBuffers.Insert(Index, AllocInternRecordBuffer());
-        PExternRecordBuffer(ActiveBuffer())^.Index := Index;
-        PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := InternRecordBuffers[Index];
       end;
     bfEOF:
-      begin
-        Index := InternRecordBuffers.Add(AllocInternRecordBuffer());
-        PExternRecordBuffer(ActiveBuffer())^.Index := Index;
-        PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := InternRecordBuffers[Index];
-      end;
+      Index := InternRecordBuffers.Add(AllocInternRecordBuffer());
     else
       raise ERangeError.Create(SRangeError);
   end;
+  PExternRecordBuffer(ActiveBuffer())^.Index := Index;
+  PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := InternRecordBuffers[Index];
 
   if (Filtered) then
     Inc(InternRecordBuffers.FilteredRecordCount);
@@ -6593,7 +6582,7 @@ end;
 
 procedure TMySQLDataSet.InternalLast();
 begin
-  InternRecordBuffers.Index := InternRecordBuffers.Count;
+  InternRecordBuffers.Index := InternRecordBuffers.Count - 1;
 end;
 
 procedure TMySQLDataSet.InternalOpen();
@@ -6901,13 +6890,6 @@ begin
       if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData) then
         FreeMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData);
       PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
-
-      if (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag = bfBOF) then
-      begin
-        Index := InternRecordBuffers.Add(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
-        InternRecordBuffers.Index := Index;
-        PExternRecordBuffer(ActiveBuffer())^.Index := Index;
-      end;
     end
     else if (SQLParseKeyword(Parse, 'SELECT')) then
     begin
@@ -6917,11 +6899,10 @@ begin
       DataSet.Open(DataHandle);
       if (DataSet.IsEmpty) then
       begin
-        // Inserted / updated record is not in external filtered rows -> remove it!
-        InternalSetToRecord(ActiveBuffer());
-        InternalInitRecord(ActiveBuffer());
-        FreeInternRecordBuffer(InternRecordBuffers[InternRecordBuffers.Index]);
-        InternRecordBuffers.Delete(InternRecordBuffers.Index);
+        // Inserted / updated record is not in external filtered rows -> remove it
+        Index := PExternRecordBuffer(ActiveBuffer())^.Index;
+        FreeInternRecordBuffer(InternRecordBuffers[Index]);
+        InternRecordBuffers.Delete(Index);
         if (Filtered) then
           Dec(InternRecordBuffers.FilteredRecordCount);
       end
@@ -6942,10 +6923,9 @@ begin
           if (not RecordMatch) then
           begin
             // Inserted / updated record not in external filtered rows -> removed it
-            InternalSetToRecord(ActiveBuffer());
-            InternalInitRecord(ActiveBuffer());
-            FreeInternRecordBuffer(InternRecordBuffers[InternRecordBuffers.Index]);
-            InternRecordBuffers.Delete(InternRecordBuffers.Index);
+            Index := PExternRecordBuffer(ActiveBuffer())^.Index;
+            FreeInternRecordBuffer(InternRecordBuffers[Index]);
+            InternRecordBuffers.Delete(Index);
             if (Filtered) then
               Dec(InternRecordBuffers.FilteredRecordCount);
           end
@@ -6953,8 +6933,7 @@ begin
           begin
             // Inserted / updated record matched -> update data of the record
             for I := 0 to DataSet.FieldCount - 1 do
-              if (not (pfInWhere in Fields[I].ProviderFlags)
-                and (DataSet.Fields[I].Value <> Fields[I].Value)) then
+              if (not (pfInWhere in Fields[I].ProviderFlags)) then
                 SetFieldData(Fields[I], DataSet.LibRow^[I], DataSet.LibLengths[I]);
           end;
         end;
@@ -6965,6 +6944,7 @@ begin
 
           if (not DataSet.Eof) then
           begin
+            // 2nd record found in SELECT -> Find position in InternRecordBuffers
             RecordBufferData.Identifier123456 := 123546;
             RecordBufferData.LibLengths := DataSet.LibLengths;
             RecordBufferData.LibRow := DataSet.LibRow;
@@ -6976,13 +6956,16 @@ begin
               Dec(Index);
           end
           else
+          begin
+            // 2nd record not found -> End of InternRecordBuffers
             Index := InternRecordBuffers.Count - 1;
+          end;
 
           if (Index <> PExternRecordBuffer(ActiveBuffer())^.Index) then
           begin
+            // Position in InternRecordBuffers change -> move it
             InternRecordBuffers.Move(PExternRecordBuffer(ActiveBuffer())^.Index, Index);
             InternRecordBuffers.Index := Index;
-            ClearBuffers();
           end;
         end;
       end;
@@ -7181,17 +7164,6 @@ begin
         Inc(Index, DestData^.LibLengths^[I]);
       end;
   end;
-end;
-
-procedure TMySQLDataSet.Resync(Mode: TResyncMode);
-begin
-  // Why is this needed in Delphi XE4? Without this, Buffers are not reinitialized well.
-  if ((InternRecordBuffers.Index >= 0) and (PExternRecordBuffer(ActiveBuffer())^.Index >= 0)
-    and Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
-    and (Mode = [])) then
-      InternRecordBuffers.Index := PExternRecordBuffer(ActiveBuffer())^.Index;
-
-  inherited;
 end;
 
 procedure TMySQLDataSet.SetBookmarkData(Buffer: TRecBuf; Data: TBookmark);
@@ -8406,27 +8378,15 @@ end;
 
 {******************************************************************************}
 
-//function HexToStr(const Hex: string): RawByteString;
-//const
-//  Digits: string = '0123456789ABCDEF';
 //var
-//  Index: Integer;
-//begin
-//  Index := 0;
-//  Result := '';
-//  while (Index < Length(Hex) div 2) do
-//  begin
-//    Result := Result + AnsiChar(Chr((Pos(Hex[2 * Index + 1], Digits) - 1) * $10 + Pos(Hex[2 * Index + 2], Digits) - 1));
-//    Inc(Index);
-//  end;
-//end;
-//
-//var
+//  Hex: string;
 //  Len: Integer;
 //  RBS: RawByteString;
 //  SQL: string;
 initialization
-//  RBS := HexToStr('457374652072656C6174F372696F206C6973746120746F646F73206C616EE7616D656E746F7320646520646573706573612071756520C9BA');
+//  Hex := '';
+//  SetLength(RBS, Length(Hex) div 2);
+//  HexToBin(PChar(Hex), PAnsiChar(RBS), Length(RBS));
 //  SetLength(SQL, Length(RBS));
 //  Len := AnsiCharToWideChar(65001, PAnsiChar(RBS), Length(RBS), PChar(SQL), Length(SQL));
 //  SetLength(SQL, Len);

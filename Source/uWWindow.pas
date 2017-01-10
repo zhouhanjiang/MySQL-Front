@@ -369,9 +369,10 @@ type
     procedure TabControlStartDrag(Sender: TObject;
       var DragObject: TDragObject);
     procedure tbPropertiesClick(Sender: TObject);
+    procedure FormDeactivate(Sender: TObject);
   const
     tiEmptyWorkingMem = 1;
-    tiHidePopupChildren = 2;
+    tiFormDeactivated = 2;
   type
     PTabControlRepaint = ^TTabControlRepaint;
     TTabControlRepaint = record
@@ -400,6 +401,7 @@ type
     procedure EmptyWorkingMem();
     function GetActiveTab(): TFSession;
     function GetNewTabIndex(Sender: TObject; X, Y: Integer): Integer;
+    procedure HidePopupChildren();
     procedure InformOnlineUpdateFound();
     procedure miFReopenClick(Sender: TObject);
     procedure mtTabsClick(Sender: TObject);
@@ -416,7 +418,6 @@ type
     procedure UMOnlineUpdateFound(var Message: TMessage); message UM_ONLINE_UPDATE_FOUND;
     procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMUpdateToolbar(var Message: TMessage); message UM_UPDATETOOLBAR;
-    procedure WMActivate(var Message: TWMActivate); message WM_ACTIVATE;
     procedure WMDrawItem(var Message: TWMDrawItem); message WM_DRAWITEM;
     procedure WMHelp(var Message: TWMHelp); message WM_HELP;
     procedure WMTimer(var Message: TWMTimer); message WM_TIMER;
@@ -991,6 +992,11 @@ begin
     StatusBar.Panels[I].Text := '';
 end;
 
+procedure TWWindow.FormDeactivate(Sender: TObject);
+begin
+  SetTimer(Handle, tiFormDeactivated, 100, nil);
+end;
+
 procedure TWWindow.FormDestroy(Sender: TObject);
 begin
   while (TabControlRepaint.Count > 0) do
@@ -1071,6 +1077,18 @@ begin
   for I := TabControlDragStartTabIndex + 1 to TabControl.Tabs.Count - 1 do
     if (X > TabControl.TabRect(I).Left + ((TabControl.TabRect(I).Right - TabControl.TabRect(I).Left) div 4)) then
       Result := I;
+end;
+
+procedure TWWindow.HidePopupChildren();
+var
+  I: Integer;
+begin
+  for I := 0 to PopupChildren.Count - 1 do
+    if (TCustomForm(PopupChildren[I]).Visible) then
+    begin
+      ActiveControl := nil;
+      TCustomForm(PopupChildren[I]).Hide();
+    end;
 end;
 
 procedure TWWindow.InformOnlineUpdateFound();
@@ -1857,14 +1875,6 @@ begin
   end;
 end;
 
-procedure TWWindow.WMActivate(var Message: TWMActivate);
-begin
-  inherited;
-
-  if (Message.Active <> WA_INACTIVE) then
-    SetTimer(Handle, tiHidePopupChildren, 100, nil);
-end;
-
 procedure TWWindow.WMDrawItem(var Message: TWMDrawItem);
 var
   Control: TControl;
@@ -1887,26 +1897,30 @@ end;
 
 procedure TWWindow.WMTimer(var Message: TWMTimer);
 var
+  HideChildren: Boolean;
   I: Integer;
+  Wnd: HWND;
 begin
   case (Message.TimerID) of
     tiEmptyWorkingMem:
       EmptyWorkingMem();
-    tiHidePopupChildren:
-      if (not Application.Active) then
+    tiFormDeactivated:
+      begin
+        Wnd := GetActiveWindow();
+        HideChildren := Wnd <> Handle;
         for I := 0 to PopupChildren.Count - 1 do
-          TCustomForm(PopupChildren[I]).Hide();
+          HideChildren := HideChildren and (Wnd <> TCustomForm(PopupChildren[I]).Handle);
+        if (HideChildren) then
+          HidePopupChildren();
+      end;
   end;
 end;
 
 procedure TWWindow.WMWindowPosChanging(var Message: TWMWindowPosChanging);
-var
-  I: Integer;
 begin
   if ((Message.WindowPos^.flags and SWP_HIDEWINDOW = 0)
     or (Message.WindowPos^.flags and SWP_NOMOVE = 0)) then
-    for I := 0 to PopupChildren.Count - 1 do
-      TCustomForm(PopupChildren[I]).Hide();
+    HidePopupChildren();
 
   inherited;
 end;

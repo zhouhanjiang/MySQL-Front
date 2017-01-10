@@ -1589,12 +1589,15 @@ function TMySQL_Packet.ReceivePacket(): Boolean;
                 begin
                   if (Assigned(DecompressedBuffer.Mem)) then
                     FreeBuffer(DecompressedBuffer);
-// Debug 2016-12-08
-//                  try
+                  try
                     ZDecompress(CompressedBuffer.Mem, CompressedBuffer.Size, Pointer(DecompressedBuffer.Mem), DecompressedSize);
-//                  except
+                  except
 //                    Result := Seterror(CR_UNKNOWN_ERROR) = 0;
-//                  end;
+                    on E: Exception do
+                      raise ERangeError.Create('CompressedBuffer.Size: ' + IntToStr(CompressedBuffer.Size) + #13#10
+                        + 'Version: ' + string(MYSQL(Self).fserver_info) + #13#10
+                        + E.Message);
+                  end;
                 end;
 
                 if (Result) then

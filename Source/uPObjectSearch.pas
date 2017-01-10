@@ -70,11 +70,11 @@ begin
       Application.HandleException(Self);
     end;
     if (not Showing) then
-      ShowWindow(Handle, SW_HIDE)
+      SetWindowPos(Handle, 0, 0, 0, 0, 0, SWP_HIDEWINDOW or SWP_NOSIZE or SWP_NOMOVE or SWP_NOZORDER or SWP_NOACTIVATE)
     else if (SystemParametersInfo(SPI_GETCLIENTAREAANIMATION, 0, @Animation, 0) and Animation) then
       AnimateWindow(Handle, 150, AW_VER_POSITIVE or AW_SLIDE)
     else
-      ShowWindow(Handle, SW_SHOW);
+      SetWindowPos(Handle, 0, 0, 0, 0, 0, SWP_SHOWWINDOW or SWP_NOSIZE or SWP_NOMOVE or SWP_NOZORDER or SWP_NOACTIVATE);
   finally
     Exclude(FFormState, fsShowing);
   end;
@@ -85,6 +85,7 @@ begin
   inherited;
 
   Params.Style := WS_POPUP or WS_BORDER;
+  Params.ExStyle := Params.ExStyle or WS_EX_NOACTIVATE;
   Params.WindowClass.Style := Params.WindowClass.Style or CS_DROPSHADOW;
 
   if (Assigned(PopupParent)) then

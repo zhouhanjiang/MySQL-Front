@@ -11898,7 +11898,7 @@ begin
   if (Now() <= IncDay(CompileTime(), 7)) then
   begin
     SQL := SQLTrimStmt(Text, Len);
-    if (SQL <> '') then
+    if ((Length(SQL) > 0) and (SQL[1] <> ';')) then
     begin
       if ((Connection.ErrorCode = ER_PARSE_ERROR) and SQLParser.ParseSQL(SQL)) then
       begin
@@ -11906,9 +11906,6 @@ begin
         UnparsableSQL := UnparsableSQL
           + '# MonitorExecutedStmts() - ER_PARSE_ERROR' + #13#10
           + '# ErrorMessage: ' + Connection.ErrorMessage + #13#10
-          + '# Hex: ' + SQLEscapeBin(S, True) + #13#10
-          + '# Whole: ' + SQLEscapeBin(Connection.SyncThread.SQL, True) + #13#10
-          + '# MultiStatements: ' + BoolToStr(Connection.MultiStatements, True) + #13#10
           + Trim(SQL) + #13#10 + #13#10 + #13#10;
       end
       else if ((Connection.ErrorCode = 0) and not SQLParser.ParseSQL(SQL)) then
