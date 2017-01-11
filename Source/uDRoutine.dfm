@@ -72,17 +72,13 @@ object DRoutine: TDRoutine
     Top = 8
     Width = 321
     Height = 325
-    ActivePage = TSDependency
+    ActivePage = TSDependencies
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -166,10 +162,6 @@ object DRoutine: TDRoutine
     end
     object TSInformation: TTabSheet
       Caption = 'TSInformation'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -274,18 +266,14 @@ object DRoutine: TDRoutine
         end
       end
     end
-    object TSDependency: TTabSheet
-      Caption = 'TSDependency'
+    object TSDependencies: TTabSheet
+      Caption = 'TSDependencies'
       ImageIndex = 3
-      OnShow = TSDependencyShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+      OnShow = TSDependenciesShow
       DesignSize = (
         313
         297)
-      object FDependency: TListView
+      object FDependencies: TListView
         Left = 8
         Top = 8
         Width = 297
@@ -309,10 +297,6 @@ object DRoutine: TDRoutine
     end
     object TSSource: TTabSheet
       Caption = 'TSSource'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)

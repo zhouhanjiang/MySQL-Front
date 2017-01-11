@@ -2858,7 +2858,7 @@ begin
   for I := 0 to Length(FieldMappings) - 1 do
   begin
     if (I > 0) then Values.WriteChar(',');
-    if ((I >= Length(CSVValues)) or (CSVValues[CSVColumns[I]].Length = 0) and (FieldMappings[I].DestinationField.FieldType in NotQuotedFieldTypes)) then
+    if ((CSVColumns[I] >= Length(CSVValues)) or (CSVValues[CSVColumns[I]].Length = 0) and (FieldMappings[I].DestinationField.FieldType in NotQuotedFieldTypes)) then
       Values.Write(PAnsiChar('NULL'), 4)
     else
     begin
@@ -2877,7 +2877,8 @@ except
   on E: Exception do
     begin
       SetString(S, CSVValues[CSVColumns[I]].Text, CSVValues[CSVColumns[I]].Length);
-      raise Exception.Create(E.ClassName + ': ' + E.Message + ' CSV: ' + S);
+      raise Exception.Create('CSV: ' + S + #13#10
+        + E.Message);
     end;
 end;
       end;

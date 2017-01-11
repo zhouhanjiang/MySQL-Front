@@ -36,11 +36,11 @@ type
     SetupPrgFilename: TFileName;
     procedure Progress(Sender: TObject; const Done, Size: Int64);
     procedure OnTerminate(Sender: TObject);
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
-    procedure UMPADFileReceived(var Message: TMessage); message UM_PAD_FILE_RECEIVED;
-    procedure UMSetupFileReceived(var Message: TMessage); message UM_SETUP_FILE_RECEIVED;
-    procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
-    procedure UMUpdateProgressBar(var Message: TMessage); message UM_UPDATE_PROGRESSBAR;
+    procedure UMChangePreferences(var Msg: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPADFileReceived(var Msg: TMessage); message UM_PAD_FILE_RECEIVED;
+    procedure UMSetupFileReceived(var Msg: TMessage); message UM_SETUP_FILE_RECEIVED;
+    procedure UMTerminate(var Msg: TMessage); message UM_TERMINATE;
+    procedure UMUpdateProgressBar(var Msg: TMessage); message UM_UPDATE_PROGRESSBAR;
   public
     function Execute(): Boolean;
   end;
@@ -52,7 +52,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  StrUtils,
+  StrUtils, WinInet, SysConst,
   uPreferences;
 
 var
@@ -173,7 +173,7 @@ end;
 
 procedure TDUpdate.OnTerminate(Sender: TObject);
 begin
-  PostMessage(Handle, UM_TERMINATE, WPARAM(not HTTPThread.Terminated), 0);
+  PostMessage(Handle, UM_TERMINATE, 0, 0);
 end;
 
 procedure TDUpdate.Progress(Sender: TObject; const Done, Size: Int64);
@@ -181,7 +181,7 @@ begin
   PostMessage(Handle, UM_UPDATE_PROGRESSBAR, Done, Size);
 end;
 
-procedure TDUpdate.UMChangePreferences(var Message: TMessage);
+procedure TDUpdate.UMChangePreferences(var Msg: TMessage);
 begin
   Caption := ReplaceStr(Preferences.LoadStr(666), '&', '');
 
@@ -190,7 +190,7 @@ begin
   FBForward.Caption := Preferences.LoadStr(230);
 end;
 
-procedure TDUpdate.UMPADFileReceived(var Message: TMessage);
+procedure TDUpdate.UMPADFileReceived(var Msg: TMessage);
 var
   VersionStr: string;
 begin
@@ -222,7 +222,7 @@ begin
   FreeAndNil(PADFileStream);
 end;
 
-procedure TDUpdate.UMSetupFileReceived(var Message: TMessage);
+procedure TDUpdate.UMSetupFileReceived(var Msg: TMessage);
 begin
   FProgram.Caption := Preferences.LoadStr(665) + ': ' + Preferences.LoadStr(138);
 
@@ -233,13 +233,18 @@ begin
   ModalResult := mrOk;
 end;
 
-procedure TDUpdate.UMTerminate(var Message: TMessage);
+procedure TDUpdate.UMTerminate(var Msg: TMessage);
 begin
-  if (not HTTPThread.Terminated) then
-    if (Assigned(PADFileStream)) then
-      Perform(UM_PAD_FILE_RECEIVED, 0, 0)
-    else if (Assigned(SetupProgramStream)) then
-      Perform(UM_SETUP_FILE_RECEIVED, 0, 0);
+  if (HTTPThread.ErrorCode <> 0) then
+    MsgBox(HTTPThread.ErrorMessage, Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
+  else if (HTTPThread.HTTPStatus <> HTTP_STATUS_OK) then
+    MsgBox(HTTPThread.HTTPMessage, Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
+  else if (Assigned(PADFileStream)) then
+    Perform(UM_PAD_FILE_RECEIVED, 0, 0)
+  else if (Assigned(SetupProgramStream)) then
+    Perform(UM_SETUP_FILE_RECEIVED, 0, 0)
+  else
+    raise ERangeError.Create(SRangeError);
 
   HTTPThread.WaitFor();
   HTTPThread.Free();
@@ -250,16 +255,16 @@ begin
     FBCancel.Caption := Preferences.LoadStr(231);
 end;
 
-procedure TDUpdate.UMUpdateProgressBar(var Message: TMessage);
+procedure TDUpdate.UMUpdateProgressBar(var Msg: TMessage);
 begin
-  if (Message.LParam <= 0) then
+  if (Msg.LParam <= 0) then
   begin
     FProgressBar.Position := 0;
     FProgressBar.Max := 0;
   end
   else
   begin
-    FProgressBar.Position := Integer(Message.WParam * 100) div Integer(Message.LParam);
+    FProgressBar.Position := Integer(Msg.WParam * 100) div Integer(Msg.LParam);
     FProgressBar.Max := 100;
   end;
 end;

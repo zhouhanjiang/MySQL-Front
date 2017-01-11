@@ -557,7 +557,7 @@ type
 
         otUnaryMinus,             // "-"
         otUnaryPlus,              // "+"
-        otInvertBits,             // "~"
+        otBitInversion,           // "~"
 
         otJSONExtract,            // "->"
 
@@ -1319,7 +1319,7 @@ type
         ntWeightStringFunc
       ];
 
-      otUnaryOperators = [otUnaryNot, otUnaryMinus, otUnaryPlus, otInvertBits, otNot];
+      otUnaryOperators = [otUnaryNot, otUnaryMinus, otUnaryPlus, otBitInversion, otNot];
 
       OperatorPrecedenceByOperatorType: array [TOperatorType] of Integer = (
         0,   // otUnknown
@@ -1335,7 +1335,7 @@ type
 
         5,   // otUnaryMinus
         5,   // otUnaryPlus
-        5,   // otInvertBits
+        5,   // otBitInversion
 
         6,   // otJSONExtract
 
@@ -19526,8 +19526,8 @@ begin
           Nodes.Add(ParseInterval())
         else if (TokenPtr(CurrentToken)^.OperatorType = otCase) then
           Nodes.Add(ParseCaseOp())
-        else if ((Nodes.Count = 0)
-          or IsOperator(Nodes[Nodes.Count - 1]) and ((TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType <> otNot) or not (TokenPtr(CurrentToken)^.OperatorType in [otBetween, otIn, otLike, otRegexp]))) then
+        else if (((Nodes.Count = 0) or IsOperator(Nodes[Nodes.Count - 1]) and ((TokenPtr(Nodes[Nodes.Count - 1])^.OperatorType <> otNot) or not (TokenPtr(CurrentToken)^.OperatorType in [otBetween, otIn, otLike, otRegexp])))
+          and not (TokenPtr(CurrentToken)^.OperatorType in otUnaryOperators)) then
           SetError(PE_UnexpectedToken)
         else
           Nodes.Add(ApplyCurrentToken(utOperator))
@@ -19637,13 +19637,13 @@ begin
                 Nodes[NodeIndex] := TUnaryOp.Create(Self, Nodes[NodeIndex], Nodes[NodeIndex + 1]);
                 Nodes.Delete(NodeIndex + 1);
               end;
-            otInvertBits,
+            otBitInversion,
             otUnaryMinus,
             otUnaryNot,
             otUnaryPlus:
               begin
                 while ((NodeIndex + 1 < Nodes.Count)
-                  and IsToken(Nodes[NodeIndex + 1]) and (TokenPtr(Nodes[NodeIndex + 1])^.OperatorType in [otInvertBits, otUnaryMinus, otUnaryNot, otUnaryPlus])) do
+                  and IsToken(Nodes[NodeIndex + 1]) and (TokenPtr(Nodes[NodeIndex + 1])^.OperatorType in [otBitInversion, otUnaryMinus, otUnaryNot, otUnaryPlus])) do
                   Inc(NodeIndex);
                 if (NodeIndex + 1 = Nodes.Count) then
                 begin
@@ -19656,7 +19656,7 @@ begin
                   repeat
                     Nodes[NodeIndex] := TUnaryOp.Create(Self, Nodes[NodeIndex], Nodes[NodeIndex + 1]);
                     Nodes.Delete(NodeIndex + 1);
-                    if ((NodeIndex = 0) or not IsToken(Nodes[NodeIndex - 1]) or not (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType in [otInvertBits, otUnaryMinus, otUnaryNot, otUnaryPlus])) then
+                    if ((NodeIndex = 0) or not IsToken(Nodes[NodeIndex - 1]) or not (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType in [otBitInversion, otUnaryMinus, otUnaryNot, otUnaryPlus])) then
                       break
                     else
                       Dec(NodeIndex);
@@ -25212,7 +25212,7 @@ begin
       SelTilde:
         CMP AX,'~'                       // "~" ?
         JNE SelE                         // No!
-        MOV OperatorType,otInvertBits
+        MOV OperatorType,otBitInversion
         JMP SingleChar
       SelE:
         CMP AX,127                       // #127 ?

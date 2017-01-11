@@ -572,8 +572,10 @@ begin
       raise ERangeError.Create('Progress: ' + Progress + #13#10
         + 'ImportType: ' + IntToStr(Ord(ImportType)) + #13#10
         + 'CodePage: ' + IntToStr(CodePage) + #13#10
-        + 'SObject = SObjectDebug: ' + BoolToStr(SObject = SObjectDebug, True) + #13#10
-        + 'SObject: ' + SObject.ClassName);
+        + 'SObject = SObjectDebug: ' + BoolToStr(SObject = SObjectDebug, True));
+      // SObject.Class names shows cryptical data - but always nearly the same...
+
+
   // occurred on 2017-01-05: abnsqrxylm .. lmlmqrxyptufijkc
   // occurred on 2017-01-05: abenqrsxylmlmlmlmlmlmlmlmqrxylmlmlmlmlmlmlmqrxyptufijkc, ImportType: 2
   // occurred on 2017-01-05: abnsqrxylmlm .. lmqrxyqrxyptufijkc, ImportType: 1

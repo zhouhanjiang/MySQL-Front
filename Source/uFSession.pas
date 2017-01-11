@@ -361,6 +361,7 @@ type
     tmEPaste: TMenuItem;
     tmESelectAll: TMenuItem;
     ToolBar: TToolBar;
+    mtObjectSearch: TMenuItem;
     procedure aDCreateDatabaseExecute(Sender: TObject);
     procedure aDCreateEventExecute(Sender: TObject);
     procedure aDCreateExecute(Sender: TObject);
@@ -975,6 +976,7 @@ type
     function GetWindow(): TForm_Ext;
     procedure gmFilterClearClick(Sender: TObject);
     procedure gmFilterIntoFilterClick(Sender: TObject);
+    function GroupIDByImageIndex(const ImageIndex: Integer): Integer;
     function ImageIndexByData(const Data: TObject): Integer;
     function ImportError(const Details: TTool.TErrorDetails): TDataAction;
     procedure ListViewEmpty(Sender: TObject);
@@ -3121,7 +3123,7 @@ begin
       end;
       if (Data <> '') then
         Data := 'Address=' + NavigatorNodeToAddress(FNavigatorMenuNode.Parent) + #13#10 + Data;
-      Text := FNavigator.Selected.Text;
+      Text := FNavigatorMenuNode.Text;
     end;
   end
   else if (Window.ActiveControl = ActiveListView) then
@@ -3343,12 +3345,40 @@ var
   S: string;
   Text: array [0..128] of Char; // Debug 2016-12-07
 begin
-  // Debug 2016-12-14
-  if (not OpenClipboard(Handle)) then
-    raise ERangeError.Create('LastError: ' + SysErrorMessage(GetLastError()) + #13#10
-      + 'ActiveControl: ' + Window.ActiveControl.ClassName)
-  else
+  // Debug 2017-01-11
+  if (OpenClipboard(Handle)) then
+    CloseClipboard()
+  else if (GetLastError() = ERROR_ACCESS_DENIED) then
+  begin
     CloseClipboard();
+    if (OpenClipboard(Handle)) then
+    begin
+      CloseClipboard();
+      SendToDeveloper('Clipboard now opened (3)' + #13#10
+        + TOSVersion.ToString);
+    end
+    else if (GetLastError() = ERROR_ACCESS_DENIED) then
+    begin
+      Sleep(500);
+      CloseClipboard();
+      Sleep(500);
+      if (OpenClipboard(Handle)) then
+      begin
+        SendToDeveloper('Clipboard openable after Sleep (3)' + #13#10
+          + TOSVersion.ToString);
+        CloseClipboard();
+        Sleep(500);
+      end
+      else
+      begin
+        SetString(S, PChar(@Filename[0]), GetWindowModuleFileName(GetClipboardOwner(), PChar(@Filename[0]), Length(Filename)));
+        SendToDeveloper('Clipboard still not openable (3): ' + SysErrorMessage(GetLastError()) + #13#10
+          + S + #13#10
+          + TOSVersion.ToString);
+      end;
+    end;
+  end;
+
 
   if (Session.Connection.InUse()) then
     MessageBeep(MB_ICONERROR)
@@ -7085,64 +7115,10 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
     end;
   end;
 
-  function GroupIDByImageIndex(const ImageIndex: Integer): Integer;
-  begin
-    case (ImageIndex) of
-      iiDatabase,
-      iiSystemDatabase:
-        Result := giDatabases;
-      iiTable,
-      iiBaseTable,
-      iiView,
-      iiSystemView:
-        Result := giTables;
-      iiProcedure,
-      iiFunction:
-        Result := giRoutines;
-      iiEvent:
-        Result := giEvents;
-      iiKey:
-        Result := giKeys;
-      iiField,
-      iiVirtualField,
-      iiSystemViewField,
-      iiViewField:
-        Result := giFields;
-      iiForeignKey:
-        Result := giForeignKeys;
-      iiTrigger:
-        Result := giTriggers;
-      iiProcesses,
-      iiUsers,
-      iiVariables:
-        Result := giSystemTools;
-      iiProcess:
-        Result := giProcesses;
-      iiUser:
-        Result := giUsers;
-      iiVariable:
-        Result := giVariables;
-      else
-        Result := 0;
-    end;
-  end;
-
   function Compare(const Item1, Item2: TTreeNode): Integer;
   const
     ImageIndexSort = Chr(iiProcesses) + Chr(iiUsers) + Chr(iiVariables);
   begin
-    // Debug 2016-11-17
-    if (Item1.Data = Item2.Data) then
-      raise ERangeError.Create(SRangeError);
-    // Debug 2016-11-21
-    if (TObject(Item1.Data) is TSItem) then ; // On 2016-12-09 here occured an AV. Why???
-    if (TObject(Item2.Data) is TSItem) then ;
-    // Debug 2016-11-23
-    if (not Assigned(Item1.Data)) then
-      raise ERangeError.Create(SRangeError);
-    if (not Assigned(Item2.Data)) then
-      raise ERangeError.Create(SRangeError);
-
     if (GroupIDByImageIndex(Item1.ImageIndex) <> GroupIDByImageIndex(Item2.ImageIndex)) then
       Result := Sign(GroupIDByImageIndex(Item1.ImageIndex) - GroupIDByImageIndex(Item2.ImageIndex))
     else if (GroupIDByImageIndex(Item1.ImageIndex) = giSystemTools) then
@@ -7346,6 +7322,8 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
         end;
       etItemDropped:
         begin
+          Session.Connection.DebugMonitor.Append('TFSession.FNavigatorUpdate.UpdateGroup: "' + Event.Items.ClassName + '"."' + Event.Item.Name + '"', ttDebug);
+
           Child := Node.getFirstChild();
           while (Assigned(Child)) do
             if (Child.Data <> Event.Item) then
@@ -8925,6 +8903,48 @@ begin
     end;
 end;
 
+function TFSession.GroupIDByImageIndex(const ImageIndex: Integer): Integer;
+begin
+  case (ImageIndex) of
+    iiDatabase,
+    iiSystemDatabase:
+      Result := giDatabases;
+    iiTable,
+    iiBaseTable,
+    iiView,
+    iiSystemView:
+      Result := giTables;
+    iiProcedure,
+    iiFunction:
+      Result := giRoutines;
+    iiEvent:
+      Result := giEvents;
+    iiKey:
+      Result := giKeys;
+    iiField,
+    iiVirtualField,
+    iiSystemViewField,
+    iiViewField:
+      Result := giFields;
+    iiForeignKey:
+      Result := giForeignKeys;
+    iiTrigger:
+      Result := giTriggers;
+    iiProcesses,
+    iiUsers,
+    iiVariables:
+      Result := giSystemTools;
+    iiProcess:
+      Result := giProcesses;
+    iiUser:
+      Result := giUsers;
+    iiVariable:
+      Result := giVariables;
+    else
+      Result := 0;
+  end;
+end;
+
 function TFSession.ImageIndexByData(const Data: TObject): Integer;
 begin
   if (not Assigned(Data)) then
@@ -9733,349 +9753,385 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
     ListViewCompare(nil, Item1, Item2, LPARAM(@ListViewSortData[Kind]), Result);
   end;
 
-  procedure UpdateItem(const Item: TListItem; const Data: TObject);
+  procedure UpdateItem(const Item: TListItem; const GroupID: Integer; const Data: TObject);
   var
     I: Integer;
     S: string;
     S2: string;
   begin
-    // Debug 2016-11-17
-    if (not Assigned(Data)) then
-      raise ERangeError.Create(SRangeError);
-    if (not Assigned(Item.Data)) then
-      raise ERangeError.Create(SRangeError);
-    // Debug 2016-11-23
-    if (Item.Data <> Data) then
-      raise ERangeError.Create(SRangeError);
-
     Assert(Item.Data = Data);
 
     Item.SubItems.BeginUpdate();
     Item.SubItems.Clear();
 
-    if (Data is TSDatabase) then
-    begin
-      Item.GroupID := giDatabases;
-      if (Data is TSSystemDatabase) then
-        Item.ImageIndex := iiSystemDatabase
-      else if (Data is TSDatabase) then
-        Item.ImageIndex := iiDatabase
-      else // Debug 2016-11-23
-        raise ERangeError.Create(SRangeError);
-      Item.Caption := TSDatabase(Data).Caption;
+    Item.GroupID := GroupID;
+    Item.ImageIndex := ImageIndexByData(Data);
 
-      Item.SubItems.Clear();
-      if (TSDatabase(Data).Count < 0) then
-        Item.SubItems.Add('')
-      else
-        Item.SubItems.Add(FormatFloat('#,##0', TSDatabase(Data).Count, LocaleFormatSettings));
-      if ((TSDatabase(Data) is TSSystemDatabase) or (TSDatabase(Data).DataSize <= 0)) then
-        Item.SubItems.Add('')
-      else
-        Item.SubItems.Add(SizeToStr(TSDatabase(Data).DataSize));
-      if (TSDatabase(Data).Created <= 0) then
-        Item.SubItems.Add('')
-      else
-        Item.SubItems.Add(SysUtils.DateToStr(TSDatabase(Data).Created, LocaleFormatSettings));
-      if ((TSDatabase(Data).Charset <> '') and (TSDatabase(Data).Charset <> Session.Charset)) then
-        S := TSDatabase(Data).Charset
-      else
-        S := '';
-      if ((TSDatabase(Data).Collation <> '') and (TSDatabase(Data).Collation <> Session.Collation)) then
-      begin
-        if (S <> '') then S := S + ', ';
-        S := S + TSDatabase(Data).Collation;
-      end;
-      if (TSDatabase(Data) is TSSystemDatabase) then
-        Item.SubItems.Add('')
-      else
-        Item.SubItems.Add(S);
-    end
-    else if (Data is TSTable) then
+    if (ListView <> ObjectSearchListView) then
     begin
-      Item.GroupID := giTables;
-      if (Data is TSBaseTable) then
-        Item.ImageIndex := iiBaseTable
-      else if (Data is TSView) then
-        Item.ImageIndex := iiView
-      else if (Data is TSSystemView) then
-        Item.ImageIndex := iiSystemView;
-      Item.Caption := TSTable(Data).Caption;
-      if ((TSTable(Data) is TSBaseTable) and Assigned(TSBaseTable(Data).Engine)) then
-        Item.SubItems.Add(TSBaseTable(Data).Engine.Name)
-      else if ((TSTable(Data) is TSView)) then
-        Item.SubItems.Add(Preferences.LoadStr(738))
-      else
-        Item.SubItems.Add('');
-      if (TSTable(Data) is TSBaseTable) then
-        if (not TSBaseTable(Data).ValidStatus or (TSBaseTable(Data).RecordCount < 0) or not Assigned(TSBaseTable(Data).Engine)) then
+      if (Data is TSDatabase) then
+      begin
+        Item.Caption := TSDatabase(Data).Caption;
+        Item.SubItems.Clear();
+        if (TSDatabase(Data).Count < 0) then
           Item.SubItems.Add('')
-        else if (TSBaseTable(Data).Engine.IsInnoDB) then
-          Item.SubItems.Add(FormatFloat('~#,##0', TSBaseTable(Data).RecordCount, LocaleFormatSettings))
         else
-          Item.SubItems.Add(FormatFloat('#,##0', TSBaseTable(Data).RecordCount, LocaleFormatSettings))
-      else
-        Item.SubItems.Add('');
-      if ((TSTable(Data) is TSView) and (TSView(Data).Stmt <> '')) then
-        Item.SubItems.Add(SizeToStr(Length(TSView(Data).Stmt)))
-      else if ((TSTable(Data) is TSBaseTable) and TSBaseTable(Data).ValidStatus) then
-        Item.SubItems.Add(SizeToStr(TSBaseTable(Data).DataSize))
-      else
-        Item.SubItems.Add('');
-      if (not (TSTable(Data) is TSBaseTable) or not TSBaseTable(Data).ValidStatus or (TSBaseTable(Data).Updated <= 0)) then
-        Item.SubItems.Add('')
-      else
-        Item.SubItems.Add(SysUtils.DateTimeToStr(TSBaseTable(Data).Updated, LocaleFormatSettings));
-      S := '';
-      if ((TSTable(Data) is TSBaseTable) and (TSBaseTable(Data).Charset <> '') and (TSBaseTable(Data).Charset <> TSBaseTable(Data).Database.Charset)) then
-        S := S + TSBaseTable(Data).Charset;
-      if ((TSTable(Data) is TSBaseTable) and (TSBaseTable(Data).Collation <> '') and (TSBaseTable(Data).Collation <> TSBaseTable(Data).Database.Collation)) then
-      begin
-        if (S <> '') then S := S + ', ';
-        S := S + TSBaseTable(Data).Collation;
-      end;
-      Item.SubItems.Add(S);
-      if (Data is TSBaseTable) then
-        Item.SubItems.Add(TSBaseTable(Data).Comment);
-    end
-    else if (Data is TSRoutine) then
-    begin
-      Item.GroupID := giRoutines;
-      if (Data is TSProcedure) then
-        Item.ImageIndex := iiProcedure
-      else
-        Item.ImageIndex := iiFunction;
-      Item.Caption := TSRoutine(Data).Caption;
-      case (TSRoutine(Data).RoutineType) of
-        TSRoutine.TRoutineType.rtProcedure: Item.SubItems.Add(Preferences.LoadStr(768));
-        TSRoutine.TRoutineType.rtFunction: Item.SubItems.Add(Preferences.LoadStr(769));
-      end;
-      Item.SubItems.Add('');
-      if (TSRoutine(Data).Stmt = '') then
-        Item.SubItems.Add('')
-      else
-        Item.SubItems.Add(SizeToStr(Length(TSRoutine(Data).Stmt)));
-      if (TSRoutine(Data).Modified = 0) then
-        Item.SubItems.Add('')
-      else
-        Item.SubItems.Add(SysUtils.DateTimeToStr(TSRoutine(Data).Modified, LocaleFormatSettings));
-      if (not Assigned(TSRoutine(Data).FunctionResult) or (TSRoutine(Data).FunctionResult.Charset = '') or (TSRoutine(Data).FunctionResult.Charset = TSRoutine(Data).Database.Charset)) then
-        Item.SubItems.Add('')
-      else
-        Item.SubItems.Add(TSRoutine(Data).FunctionResult.Charset);
-      Item.SubItems.Add(TSRoutine(Data).Comment);
-    end
-    else if (Data is TSEvent) then
-    begin
-      Item.GroupID := giEvents;
-      Item.ImageIndex := iiEvent;
-      Item.Caption := TSEvent(Data).Caption;
-      Item.SubItems.Add(Preferences.LoadStr(812));
-      Item.SubItems.Add('');
-      if (TSEvent(Data).Stmt = '') then
-        Item.SubItems.Add('')
-      else
-        Item.SubItems.Add(SizeToStr(Length(TSEvent(Data).Stmt)));
-      if (TSEvent(Data).Updated = 0) then
-        Item.SubItems.Add('')
-      else
-        Item.SubItems.Add(SysUtils.DateTimeToStr(TSEvent(Data).Updated, LocaleFormatSettings));
-      Item.SubItems.Add('');
-      Item.SubItems.Add(TSEvent(Data).Comment);
-    end
-    else if (Data is TSKey) then
-    begin
-      Item.GroupID := giKeys;
-      Item.ImageIndex := iiKey;
-      Item.Caption := TSKey(Data).Caption;
-      S := '';
-      for I := 0 to TSKey(Data).Columns.Count - 1 do
-      begin
-        if (S <> '') then S := S + ',';
-        S := S + TSKey(Data).Columns[I].Field.Name;
-        if (TSKey(Data).Columns.Column[I].Length > 0) then
-          S := S + '(' + IntToStr(TSKey(Data).Columns[I].Length) + ')';
-      end;
-      Item.SubItems.Add(S);
-      Item.SubItems.Add('');
-      Item.SubItems.Add('');
-      if (TSKey(Data).Unique) then
-        Item.SubItems.Add('unique')
-      else if (TSKey(Data).Fulltext) then
-        Item.SubItems.Add('fulltext')
-      else
-        Item.SubItems.Add('');
-      if (Session.Connection.MySQLVersion >= 50503) then
-        Item.SubItems.Add(TSKey(Data).Comment);
-    end
-    else if (Data is TSBaseTableField) then
-    begin
-      Item.GroupID := giFields;
-      Item.Caption := TSBaseTableField(Data).Caption;
-      Item.SubItems.Add(SQLUnescape(TSBaseTableField(Data).DBTypeStr()));
-      if (TSBaseTableField(Data).NullAllowed) then
-        Item.SubItems.Add(Preferences.LoadStr(74))
-      else
-        Item.SubItems.Add(Preferences.LoadStr(75));
-      if (TSBaseTableField(Data).FieldKind = mkReal) then
-      begin
-        if (TSBaseTableField(Data).AutoIncrement) then
-          Item.SubItems.Add('<auto_increment>')
-        else if (TSBaseTableField(Data).Default = 'NULL') then
-          Item.SubItems.Add('<' + Preferences.LoadStr(71) + '>')
-        else if (TSBaseTableField(Data).Default = 'CURRENT_TIMESTAMP') then
-          Item.SubItems.Add('<INSERT-TimeStamp>')
+          Item.SubItems.Add(FormatFloat('#,##0', TSDatabase(Data).Count, LocaleFormatSettings));
+        if ((TSDatabase(Data) is TSSystemDatabase) or (TSDatabase(Data).DataSize <= 0)) then
+          Item.SubItems.Add('')
         else
-          Item.SubItems.Add(TSBaseTableField(Data).UnescapeValue(TSBaseTableField(Data).Default));
-        S := '';
-        if (TSBaseTableField(Data).FieldType in TextFieldTypes) then
+          Item.SubItems.Add(SizeToStr(TSDatabase(Data).DataSize));
+        if (TSDatabase(Data).Created <= 0) then
+          Item.SubItems.Add('')
+        else
+          Item.SubItems.Add(SysUtils.DateToStr(TSDatabase(Data).Created, LocaleFormatSettings));
+        if ((TSDatabase(Data).Charset <> '') and (TSDatabase(Data).Charset <> Session.Charset)) then
+          S := TSDatabase(Data).Charset
+        else
+          S := '';
+        if ((TSDatabase(Data).Collation <> '') and (TSDatabase(Data).Collation <> Session.Collation)) then
         begin
-          if ((TSBaseTableField(Data).Charset <> '') and (TSBaseTableField(Data).Charset <> TSBaseTableField(Data).Table.Charset)) then
-            S := S + TSBaseTableField(Data).Charset;
-          if ((TSBaseTableField(Data).Collation <> '') and (TSBaseTableField(Data).Collation <> TSBaseTableField(Data).Table.Collation)) then
-          begin
-            if (S <> '') then S := S + ', ';
-            S := S + TSBaseTableField(Data).Collation;
-          end;
+          if (S <> '') then S := S + ', ';
+          S := S + TSDatabase(Data).Collation;
+        end;
+        if (TSDatabase(Data) is TSSystemDatabase) then
+          Item.SubItems.Add('')
+        else
+          Item.SubItems.Add(S);
+      end
+      else if (Data is TSTable) then
+      begin
+        Item.Caption := TSTable(Data).Caption;
+        if ((TSTable(Data) is TSBaseTable) and Assigned(TSBaseTable(Data).Engine)) then
+          Item.SubItems.Add(TSBaseTable(Data).Engine.Name)
+        else if ((TSTable(Data) is TSView)) then
+          Item.SubItems.Add(Preferences.LoadStr(738))
+        else
+          Item.SubItems.Add('');
+        if (TSTable(Data) is TSBaseTable) then
+          if (not TSBaseTable(Data).ValidStatus or (TSBaseTable(Data).RecordCount < 0) or not Assigned(TSBaseTable(Data).Engine)) then
+            Item.SubItems.Add('')
+          else if (TSBaseTable(Data).Engine.IsInnoDB) then
+            Item.SubItems.Add(FormatFloat('~#,##0', TSBaseTable(Data).RecordCount, LocaleFormatSettings))
+          else
+            Item.SubItems.Add(FormatFloat('#,##0', TSBaseTable(Data).RecordCount, LocaleFormatSettings))
+        else
+          Item.SubItems.Add('');
+        if ((TSTable(Data) is TSView) and (TSView(Data).Stmt <> '')) then
+          Item.SubItems.Add(SizeToStr(Length(TSView(Data).Stmt)))
+        else if ((TSTable(Data) is TSBaseTable) and TSBaseTable(Data).ValidStatus) then
+          Item.SubItems.Add(SizeToStr(TSBaseTable(Data).DataSize))
+        else
+          Item.SubItems.Add('');
+        if (not (TSTable(Data) is TSBaseTable) or not TSBaseTable(Data).ValidStatus or (TSBaseTable(Data).Updated <= 0)) then
+          Item.SubItems.Add('')
+        else
+          Item.SubItems.Add(SysUtils.DateTimeToStr(TSBaseTable(Data).Updated, LocaleFormatSettings));
+        S := '';
+        if ((TSTable(Data) is TSBaseTable) and (TSBaseTable(Data).Charset <> '') and (TSBaseTable(Data).Charset <> TSBaseTable(Data).Database.Charset)) then
+          S := S + TSBaseTable(Data).Charset;
+        if ((TSTable(Data) is TSBaseTable) and (TSBaseTable(Data).Collation <> '') and (TSBaseTable(Data).Collation <> TSBaseTable(Data).Database.Collation)) then
+        begin
+          if (S <> '') then S := S + ', ';
+          S := S + TSBaseTable(Data).Collation;
         end;
         Item.SubItems.Add(S);
-        if (Session.Connection.MySQLVersion >= 40100) then
-          Item.SubItems.Add(TSBaseTableField(Data).Comment);
-        Item.ImageIndex := iiField;
+        if (Data is TSBaseTable) then
+          Item.SubItems.Add(TSBaseTable(Data).Comment);
       end
-      else if (TSBaseTableField(Data).FieldKind = mkVirtual) then
+      else if (Data is TSRoutine) then
       begin
-        Item.SubItems.Add(TSBaseTableField(Data).Expression);
+        Item.Caption := TSRoutine(Data).Caption;
+        case (TSRoutine(Data).RoutineType) of
+          TSRoutine.TRoutineType.rtProcedure: Item.SubItems.Add(Preferences.LoadStr(768));
+          TSRoutine.TRoutineType.rtFunction: Item.SubItems.Add(Preferences.LoadStr(769));
+        end;
         Item.SubItems.Add('');
-        Item.SubItems.Add(TSBaseTableField(Data).Comment);
-        Item.ImageIndex := iiVirtualField;
-      end;
-    end
-    else if (Data is TSForeignKey) then
-    begin
-      Item.GroupID := giForeignKeys;
-      Item.ImageIndex := iiForeignKey;
-      Item.Caption := TSForeignKey(Data).Caption;
-      Item.SubItems.Add(TSForeignKey(Data).DBTypeStr());
-      Item.SubItems.Add('');
-      Item.SubItems.Add('');
-      S := '';
-      if (TSForeignKey(Data).OnDelete = dtCascade) then S := 'cascade on delete';
-      if (TSForeignKey(Data).OnDelete = dtSetNull) then S := 'set NULL on delete';
-      if (TSForeignKey(Data).OnDelete = dtSetDefault) then S := 'set default on delete';
-      if (TSForeignKey(Data).OnDelete = dtNoAction) then S := 'no action on delete';
-      S2 := '';
-      if (TSForeignKey(Data).OnUpdate = utCascade) then S2 := 'cascade on update';
-      if (TSForeignKey(Data).OnUpdate = utSetNull) then S2 := 'set NULL on update';
-      if (TSForeignKey(Data).OnUpdate = utSetDefault) then S2 := 'set default on update';
-      if (TSForeignKey(Data).OnUpdate = utNoAction) then S2 := 'no action on update';
-      if (S <> '') and (S2 <> '') then S := S + ', ';
-      S := S + S2;
-      Item.SubItems.Add(S);
-    end
-    else if (Data is TSTrigger) then
-    begin
-      Item.GroupID := giTriggers;
-      Item.ImageIndex := iiTrigger;
-      Item.Caption := TSTrigger(Data).Caption;
-      S := '';
-      case (TSTrigger(Data).Timing) of
-        ttBefore: S := S + 'before ';
-        ttAfter: S := S + 'after ';
-      end;
-      case (TSTrigger(Data).Event) of
-        teInsert: S := S + 'insert';
-        teUpdate: S := S + 'update';
-        teDelete: S := S + 'delete';
-      end;
-      Item.SubItems.Add(S);
-    end
-    else if (Data is TSTableField) then
-    begin
-      Item.GroupID := giFields;
-      if (TSTableField(Data).Table is TSSystemView) then
-        Item.ImageIndex := iiSystemViewField
-      else if (Data is TSViewField) then
-        Item.ImageIndex := iiViewField
-      else if (TSTableField(Data).FieldKind = mkVirtual) then
-        Item.ImageIndex := iiVirtualField
-      else
-        Item.ImageIndex := iiField;
-      Item.Caption := TSTableField(Data).Caption;
-      if (TSTableField(Data).FieldType <> mfUnknown) then
+        if (TSRoutine(Data).Stmt = '') then
+          Item.SubItems.Add('')
+        else
+          Item.SubItems.Add(SizeToStr(Length(TSRoutine(Data).Stmt)));
+        if (TSRoutine(Data).Modified = 0) then
+          Item.SubItems.Add('')
+        else
+          Item.SubItems.Add(SysUtils.DateTimeToStr(TSRoutine(Data).Modified, LocaleFormatSettings));
+        if (not Assigned(TSRoutine(Data).FunctionResult) or (TSRoutine(Data).FunctionResult.Charset = '') or (TSRoutine(Data).FunctionResult.Charset = TSRoutine(Data).Database.Charset)) then
+          Item.SubItems.Add('')
+        else
+          Item.SubItems.Add(TSRoutine(Data).FunctionResult.Charset);
+        Item.SubItems.Add(TSRoutine(Data).Comment);
+      end
+      else if (Data is TSEvent) then
       begin
-        Item.SubItems.Add(TSTableField(Data).DBTypeStr());
-        if (TSTableField(Data).NullAllowed) then
+        Item.Caption := TSEvent(Data).Caption;
+        Item.SubItems.Add(Preferences.LoadStr(812));
+        Item.SubItems.Add('');
+        if (TSEvent(Data).Stmt = '') then
+          Item.SubItems.Add('')
+        else
+          Item.SubItems.Add(SizeToStr(Length(TSEvent(Data).Stmt)));
+        if (TSEvent(Data).Updated = 0) then
+          Item.SubItems.Add('')
+        else
+          Item.SubItems.Add(SysUtils.DateTimeToStr(TSEvent(Data).Updated, LocaleFormatSettings));
+        Item.SubItems.Add('');
+        Item.SubItems.Add(TSEvent(Data).Comment);
+      end
+      else if (Data is TSKey) then
+      begin
+        Item.Caption := TSKey(Data).Caption;
+        S := '';
+        for I := 0 to TSKey(Data).Columns.Count - 1 do
+        begin
+          if (S <> '') then S := S + ',';
+          S := S + TSKey(Data).Columns[I].Field.Name;
+          if (TSKey(Data).Columns.Column[I].Length > 0) then
+            S := S + '(' + IntToStr(TSKey(Data).Columns[I].Length) + ')';
+        end;
+        Item.SubItems.Add(S);
+        Item.SubItems.Add('');
+        Item.SubItems.Add('');
+        if (TSKey(Data).Unique) then
+          Item.SubItems.Add('unique')
+        else if (TSKey(Data).Fulltext) then
+          Item.SubItems.Add('fulltext')
+        else
+          Item.SubItems.Add('');
+        if (Session.Connection.MySQLVersion >= 50503) then
+          Item.SubItems.Add(TSKey(Data).Comment);
+      end
+      else if (Data is TSBaseTableField) then
+      begin
+        Item.Caption := TSBaseTableField(Data).Caption;
+        Item.SubItems.Add(SQLUnescape(TSBaseTableField(Data).DBTypeStr()));
+        if (TSBaseTableField(Data).NullAllowed) then
           Item.SubItems.Add(Preferences.LoadStr(74))
         else
           Item.SubItems.Add(Preferences.LoadStr(75));
-        if (TSTableField(Data).AutoIncrement) then
-          Item.SubItems.Add('<auto_increment>')
+        if (TSBaseTableField(Data).FieldKind = mkReal) then
+        begin
+          if (TSBaseTableField(Data).AutoIncrement) then
+            Item.SubItems.Add('<auto_increment>')
+          else if (TSBaseTableField(Data).Default = 'NULL') then
+            Item.SubItems.Add('<' + Preferences.LoadStr(71) + '>')
+          else if (TSBaseTableField(Data).Default = 'CURRENT_TIMESTAMP') then
+            Item.SubItems.Add('<INSERT-TimeStamp>')
+          else
+            Item.SubItems.Add(TSBaseTableField(Data).UnescapeValue(TSBaseTableField(Data).Default));
+          S := '';
+          if (TSBaseTableField(Data).FieldType in TextFieldTypes) then
+          begin
+            if ((TSBaseTableField(Data).Charset <> '') and (TSBaseTableField(Data).Charset <> TSBaseTableField(Data).Table.Charset)) then
+              S := S + TSBaseTableField(Data).Charset;
+            if ((TSBaseTableField(Data).Collation <> '') and (TSBaseTableField(Data).Collation <> TSBaseTableField(Data).Table.Collation)) then
+            begin
+              if (S <> '') then S := S + ', ';
+              S := S + TSBaseTableField(Data).Collation;
+            end;
+          end;
+          Item.SubItems.Add(S);
+          if (Session.Connection.MySQLVersion >= 40100) then
+            Item.SubItems.Add(TSBaseTableField(Data).Comment);
+        end
+        else if (TSBaseTableField(Data).FieldKind = mkVirtual) then
+        begin
+          Item.SubItems.Add(TSBaseTableField(Data).Expression);
+          Item.SubItems.Add('');
+          Item.SubItems.Add(TSBaseTableField(Data).Comment);
+        end;
+      end
+      else if (Data is TSForeignKey) then
+      begin
+        Item.Caption := TSForeignKey(Data).Caption;
+        Item.SubItems.Add(TSForeignKey(Data).DBTypeStr());
+        Item.SubItems.Add('');
+        Item.SubItems.Add('');
+        S := '';
+        if (TSForeignKey(Data).OnDelete = dtCascade) then S := 'cascade on delete';
+        if (TSForeignKey(Data).OnDelete = dtSetNull) then S := 'set NULL on delete';
+        if (TSForeignKey(Data).OnDelete = dtSetDefault) then S := 'set default on delete';
+        if (TSForeignKey(Data).OnDelete = dtNoAction) then S := 'no action on delete';
+        S2 := '';
+        if (TSForeignKey(Data).OnUpdate = utCascade) then S2 := 'cascade on update';
+        if (TSForeignKey(Data).OnUpdate = utSetNull) then S2 := 'set NULL on update';
+        if (TSForeignKey(Data).OnUpdate = utSetDefault) then S2 := 'set default on update';
+        if (TSForeignKey(Data).OnUpdate = utNoAction) then S2 := 'no action on update';
+        if (S <> '') and (S2 <> '') then S := S + ', ';
+        S := S + S2;
+        Item.SubItems.Add(S);
+      end
+      else if (Data is TSTrigger) then
+      begin
+        Item.Caption := TSTrigger(Data).Caption;
+        S := '';
+        case (TSTrigger(Data).Timing) of
+          ttBefore: S := S + 'before ';
+          ttAfter: S := S + 'after ';
+        end;
+        case (TSTrigger(Data).Event) of
+          teInsert: S := S + 'insert';
+          teUpdate: S := S + 'update';
+          teDelete: S := S + 'delete';
+        end;
+        Item.SubItems.Add(S);
+      end
+      else if (Data is TSTableField) then
+      begin
+        Item.Caption := TSTableField(Data).Caption;
+        if (TSTableField(Data).FieldType <> mfUnknown) then
+        begin
+          Item.SubItems.Add(TSTableField(Data).DBTypeStr());
+          if (TSTableField(Data).NullAllowed) then
+            Item.SubItems.Add(Preferences.LoadStr(74))
+          else
+            Item.SubItems.Add(Preferences.LoadStr(75));
+          if (TSTableField(Data).AutoIncrement) then
+            Item.SubItems.Add('<auto_increment>')
+          else
+            Item.SubItems.Add(TSTableField(Data).Default);
+          if (TSTableField(Data).Charset <> TSTableField(Data).Table.Database.Charset) then
+            Item.SubItems.Add(TSTableField(Data).Charset);
+        end;
+      end
+      else if (Data is TSProcesses) then
+      begin
+        if (TSProcesses(Data).Count > 0) then
+          Item.SubItems.Add(FormatFloat('#,##0', TSProcesses(Data).Count, LocaleFormatSettings));
+      end
+      else if (Data is TSProcess) then
+      begin
+        Item.Caption := IntToStr(TSProcess(Data).ThreadId);
+        Item.SubItems.Add(TSProcess(Data).UserName);
+        Item.SubItems.Add(TSProcess(Data).Host);
+        Item.SubItems.Add(TSProcess(Data).DatabaseName);
+        Item.SubItems.Add(TSProcess(Data).Command);
+        Item.SubItems.Add(SQLStmtToCaption(TSProcess(Data).SQL, 30));
+        if (TSProcess(Data).Time = 0) then
+          Item.SubItems.Add('')
         else
-          Item.SubItems.Add(TSTableField(Data).Default);
-        if (TSTableField(Data).Charset <> TSTableField(Data).Table.Database.Charset) then
-          Item.SubItems.Add(TSTableField(Data).Charset);
+          Item.SubItems.Add(ExecutionTimeToStr(TSProcess(Data).Time));
+        Item.SubItems.Add(TSProcess(Data).State);
+      end
+      else if (Data is TSUsers) then
+      begin
+        if (Session.Users.Count >= 0) then
+          Item.SubItems.Add(FormatFloat('#,##0', Session.Users.Count, LocaleFormatSettings))
+        else
+          Item.SubItems.Add('???');
+      end
+      else if (Data is TSUser) then
+      begin
+        Item.Caption := TSUser(Data).Caption;
+      end
+      else if (Data is TSVariables) then
+      begin
+        Item.SubItems.Add(FormatFloat('#,##0', Session.Variables.Count, LocaleFormatSettings));
+      end
+      else if (Data is TSVariable) then
+      begin
+        Item.Caption := TSVariable(Data).Caption;
+        Item.SubItems.Add(TSVariable(Data).Value);
       end;
     end
-    else if (Data is TSProcesses) then
+    else
     begin
-      Item.GroupID := giSystemTools;
-      Item.ImageIndex := iiProcesses;
-      if (TSProcesses(Data).Count > 0) then
-        Item.SubItems.Add(FormatFloat('#,##0', TSProcesses(Data).Count, LocaleFormatSettings));
-    end
-    else if (Data is TSProcess) then
-    begin
-      Item.GroupID := giProcesses;
-      Item.ImageIndex := iiProcess;
-      Item.Caption := IntToStr(TSProcess(Data).ThreadId);
-      Item.SubItems.Add(TSProcess(Data).UserName);
-      Item.SubItems.Add(TSProcess(Data).Host);
-      Item.SubItems.Add(TSProcess(Data).DatabaseName);
-      Item.SubItems.Add(TSProcess(Data).Command);
-      Item.SubItems.Add(SQLStmtToCaption(TSProcess(Data).SQL, 30));
-      if (TSProcess(Data).Time = 0) then
-        Item.SubItems.Add('')
-      else
-        Item.SubItems.Add(ExecutionTimeToStr(TSProcess(Data).Time));
-      Item.SubItems.Add(TSProcess(Data).State);
-    end
-    else if (Data is TSUsers) then
-    begin
-      Item.GroupID := giSystemTools;
-      Item.ImageIndex := iiUsers;
-      if (Session.Users.Count >= 0) then
-        Item.SubItems.Add(FormatFloat('#,##0', Session.Users.Count, LocaleFormatSettings))
-      else
-        Item.SubItems.Add('???');
-    end
-    else if (Data is TSUser) then
-    begin
-      Item.GroupID := giUsers;
-      Item.ImageIndex := iiUser;
-      Item.Caption := TSUser(Data).Caption;
-    end
-    else if (Data is TSVariables) then
-    begin
-      Item.GroupID := giSystemTools;
-      Item.ImageIndex := iiVariables;
-      Item.SubItems.Add(FormatFloat('#,##0', Session.Variables.Count, LocaleFormatSettings));
-    end
-    else if (Data is TSVariable) then
-    begin
-      Item.GroupID := giVariables;
-      Item.ImageIndex := iiVariable;
-      Item.Caption := TSVariable(Data).Caption;
-      Item.SubItems.Add(TSVariable(Data).Value);
+      if (Data is TSDatabase) then
+      begin
+        Item.Caption := TSDatabase(Data).Name;
+        Item.SubItems.Add(Preferences.LoadStr(38));
+        Item.SubItems.Add('');
+        if (TSDatabase(Data).Updated = 0) then
+          Item.SubItems.Add('')
+        else
+          Item.SubItems.Add(SysUtils.DateTimeToStr(TSDatabase(Data).Updated, LocaleFormatSettings));
+        Item.SubItems.Add('');
+      end
+      else if (Data is TSBaseTable) then
+      begin
+        Item.Caption := TSTable(Data).Caption;
+        if (not Assigned(TSBaseTable(Data).Engine)) then
+          Item.SubItems.Add('')
+        else
+          Item.SubItems.Add(TSBaseTable(Data).Engine.Name);
+        Item.SubItems.Add(TSBaseTable(Data).Database.Name);
+        if (TSBaseTable(Data).Updated = 0) then
+          Item.SubItems.Add('')
+        else
+          Item.SubItems.Add(SysUtils.DateTimeToStr(TSBaseTable(Data).Updated, LocaleFormatSettings));
+        Item.SubItems.Add(TSBaseTable(Data).Comment);
+      end
+      else if (Data is TSView) then
+      begin
+        Item.Caption := TSView(Data).Caption;
+        Item.SubItems.Add(Preferences.LoadStr(738));
+        Item.SubItems.Add(TSView(Data).Database.Name);
+        Item.SubItems.Add('');
+        Item.SubItems.Add('');
+      end
+      else if (Data is TSRoutine) then
+      begin
+        Item.Caption := TSRoutine(Data).Caption;
+        if (TSRoutine(Data).RoutineType = rtProcedure) then
+          Item.SubItems.Add(Preferences.LoadStr(768))
+        else
+          Item.SubItems.Add(Preferences.LoadStr(769));
+        Item.SubItems.Add(TSRoutine(Data).Database.Name);
+        Item.SubItems.Add(SysUtils.DateTimeToStr(TSRoutine(Data).Created, LocaleFormatSettings));
+        Item.SubItems.Add(TSRoutine(Data).Comment);
+      end
+      else if (Data is TSEvent) then
+      begin
+        Item.Caption := TSEvent(Data).Caption;
+        Item.SubItems.Add(Preferences.LoadStr(793));
+        Item.SubItems.Add(TSEvent(Data).Database.Name);
+        Item.SubItems.Add(SysUtils.DateTimeToStr(TSEvent(Data).Updated, LocaleFormatSettings));
+        Item.SubItems.Add(TSEvent(Data).Comment);
+      end
+      else if (Data is TSTableField) then
+      begin
+        Item.Caption := TSTableField(Data).Caption;
+        if (Data is TSViewField) then
+          Item.SubItems.Add(TSViewField(Data).DBTypeStr())
+        else if (TSBaseTableField(Data).FieldKind = mkReal) then
+          Item.SubItems.Add(SQLUnescape(TSBaseTableField(Data).DBTypeStr()))
+        else // mkVirtual
+          Item.SubItems.Add(TSBaseTableField(Data).Expression);
+        Item.SubItems.Add(TSTableField(Data).Table.Database.Name + '.' + TSTableField(Data).Table.Name);
+        Item.SubItems.Add('');
+        if (not (Data is TSBaseTableField)) then
+          Item.SubItems.Add('')
+        else
+          Item.SubItems.Add(TSBaseTableField(Data).Comment);
+      end
+      else if (Data is TSTrigger) then
+      begin
+        Item.Caption := TSTrigger(Data).Caption;
+        S := '';
+        case (TSTrigger(Data).Timing) of
+          ttBefore: S := S + 'before ';
+          ttAfter: S := S + 'after ';
+        end;
+        case (TSTrigger(Data).Event) of
+          teInsert: S := S + 'insert';
+          teUpdate: S := S + 'update';
+          teDelete: S := S + 'delete';
+        end;
+        Item.SubItems.Add(S);
+        Item.SubItems.Add(TSTrigger(Data).Table.Database.Name + '.' + TSTrigger(Data).Table.Name);
+        if (TSTrigger(Data).Created = 0) then
+          Item.SubItems.Add('')
+        else
+          Item.SubItems.Add(SysUtils.DateTimeToStr(TSTrigger(Data).Created, LocaleFormatSettings));
+        Item.SubItems.Add('');
+      end;
     end;
 
     Item.SubItems.EndUpdate();
   end;
 
-  function InsertOrUpdateItem(const Kind: TPAccount.TDesktop.TListViewKind; const Data: TObject): TListItem;
+  function InsertOrUpdateItem(const Kind: TPAccount.TDesktop.TListViewKind; const GroupID: Integer; const Data: TObject): TListItem;
   var
     {$IFNDEF Debug}
-    GroupID: Integer;
     I: Integer;
     {$ENDIF}
     Item: TListItem;
@@ -10093,7 +10149,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
     begin
       Item := TListItem.Create(ListView.Items);
       Item.Data := Data;
-      UpdateItem(Item, Data);
+      UpdateItem(Item, GroupID, Data);
 
       Left := 0;
       Right := ListView.Items.Count - 1;
@@ -10127,29 +10183,14 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
       Result := ListView.Items[Index];
       ReorderGroup := not (Data is TSItem) or (TSItem(Data).Caption <> Result.Caption);
     end;
-    UpdateItem(Result, Data);
-
-    if (ReorderGroup and ListView.GroupView) then
-    begin
-      {$IFDEF Debug}
-      // Is this code needed in Delphi XE4?
-      {$ELSE}
-      GroupID := Result.GroupID;
-      for I := Result.Index + 1 to ListView.Items.Count - 1 do
-        if (ListView.Items[I].GroupID = GroupID) then
-        begin
-          ListView.Items[I].GroupID := -1;
-          ListView.Items[I].GroupID := GroupID; // Why is this needed (in Delphi XE2)???
-        end;
-      {$ENDIF}
-    end;
+    UpdateItem(Result, GroupID, Data);
   end;
 
-  function AddItem(const Kind: TPAccount.TDesktop.TListViewKind; const Data: TSItem): TListItem;
+  function AddItem(const GroupID: Integer; const Data: TSItem): TListItem;
   begin
     Result := ListView.Items.Add();
     Result.Data := Data;
-    UpdateItem(Result, Data);
+    UpdateItem(Result, GroupID, Data);
   end;
 
   procedure UpdateGroup(const Kind: TPAccount.TDesktop.TListViewKind; const GroupID: Integer; const SItems: TSItems);
@@ -10167,15 +10208,10 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
     J: Integer;
     NewIndex: Integer;
     S: string;
-    Table: TSBaseTable; // Debug 2016-12-26
   begin
     case (Event.EventType) of
       etItemsValid:
         begin
-          ListView.Columns.BeginUpdate();
-          ListView.Items.BeginUpdate();
-          ListView.DisableAlign();
-
           for I := 0 to ListView.Columns.Count - 1 do
           begin
             ColumnWidths[I] := ListView.Columns[I].Width;
@@ -10190,19 +10226,15 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
           for I := 0 to SItems.Count - 1 do
             if (not (SItems is TSTriggers) or (TSTriggers(SItems)[I].Table = TObject(ListView.Tag))) then
               if (not Add) then
-                InsertOrUpdateItem(Kind, SItems[I])
+                InsertOrUpdateItem(Kind, GroupID, SItems[I])
               else
-                AddItem(Kind, SItems[I]);
+                AddItem(GroupID, SItems[I]);
 
           for I := 0 to ListView.Columns.Count - 1 do
             if ((Kind = lkProcesses) and (I = 5)) then
               ListView.Columns[I].Width := Preferences.GridMaxColumnWidth
             else
               ListView.Columns[I].Width := ColumnWidths[I];
-
-          ListView.EnableAlign();
-          ListView.Items.EndUpdate();
-          ListView.Columns.EndUpdate();
         end;
       etItemValid:
         begin
@@ -10212,20 +10244,20 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
             for I := 0 to ListView.Items.Count - 1 do
               if (ListView.Items[I].Data = Event.Item) then
               begin
-                UpdateItem(ListView.Items[I], Event.Item);
+                UpdateItem(ListView.Items[I], GroupID, Event.Item);
                 Add := False;
               end;
             if (Add) then
-              InsertOrUpdateItem(Kind, Event.Item);
+              InsertOrUpdateItem(Kind, GroupID, Event.Item);
           end
           else
             for I := 0 to ListView.Items.Count - 1 do
               if (ListView.Items[I].Data = Event.Item) then
-                UpdateItem(ListView.Items[I], Event.Item);
+                UpdateItem(ListView.Items[I], GroupID, Event.Item);
         end;
       etItemCreated:
         begin
-          Item := InsertOrUpdateItem(Kind, Event.Item);
+          Item := InsertOrUpdateItem(Kind, GroupID, Event.Item);
           if (not Assigned(ListView.Selected)) then
           begin
             Item.Selected := True;
@@ -10238,21 +10270,23 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
           while ((Index < ListView.Items.Count) and (ListView.Items[Index].Data <> Event.Item)) do
             Inc(Index);
           if (Index = ListView.Items.Count) then
-            InsertOrUpdateItem(Kind, Event.Item)
+            InsertOrUpdateItem(Kind, GroupID, Event.Item)
           else if (ListView.Items[Index].Caption = Event.Item.Caption) then
-            UpdateItem(ListView.Items[Index], Event.Item)
+            UpdateItem(ListView.Items[Index], GroupID, Event.Item)
           else
           begin
             ItemSelected := ListView.Items[Index].Selected;
             ItemFocused := ListView.Items[Index].Focused;
             ListView.Items.Delete(Index);
-            Item := InsertOrUpdateItem(Kind, Event.Item);
+            Item := InsertOrUpdateItem(Kind, GroupID, Event.Item);
             Item.Selected := ItemSelected;
             Item.Focused := ItemFocused;
           end;
         end;
       etItemDropped:
         begin
+          Session.Connection.DebugMonitor.Append('TFSession.ListViewUpdate.UpdateGroup: "' + Event.Items.ClassName + '"."' + Event.Item.Name + '"', ttDebug);
+
           for I := ListView.Items.Count - 1 downto 0 do
             if (ListView.Items[I].Data = Event.Item) then
               ListView.Items.Delete(I);
@@ -10299,7 +10333,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
             for I := 0 to TSTriggers(SItems).Count - 1 do
               if (TSTriggers(SItems)[I].Table = TObject(ListView.Tag)) then
               begin
-                InsertOrUpdateItem(Kind, TSTriggers(SItems)[I]);
+                InsertOrUpdateItem(Kind, GroupID, TSTriggers(SItems)[I]);
                 Inc(Count);
               end;
             SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(797) + ' (' + IntToStr(Count) + ')');
@@ -10318,127 +10352,15 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
     DatabaseCount: Integer;
     EventCount: Integer;
     FieldCount: Integer;
-    Header: string;
     I: Integer;
-    Item: TListItem;
-    S: string;
     TableCount: Integer;
     TriggerCount: Integer;
     RoutineCount: Integer;
     UserCount: Integer;
   begin
-    for I := ListView.Items.Count to Event.Items.Count - 1 do
-    begin
-      Item := nil;
-      if (Event.Items[I] is TSDatabase) then
-      begin
-        Item := ListView.Items.Add();
-        Item.SubItems.Add(Preferences.LoadStr(38));
-        Item.SubItems.Add('');
-        if (TSDatabase(Event.Items[I]).Updated = 0) then
-          Item.SubItems.Add('')
-        else
-          Item.SubItems.Add(SysUtils.DateTimeToStr(TSDatabase(Event.Items[I]).Updated, LocaleFormatSettings));
-        Item.SubItems.Add('');
-        Item.GroupID := giDatabases;
-      end
-      else if (Event.Items[I] is TSBaseTable) then
-      begin
-        Item := ListView.Items.Add();
-        if (not Assigned(TSBaseTable(Event.Items[I]).Engine)) then
-          Item.SubItems.Add('')
-        else
-          Item.SubItems.Add(TSBaseTable(Event.Items[I]).Engine.Name);
-        Item.SubItems.Add(TSBaseTable(Event.Items[I]).Database.Name);
-        if (TSBaseTable(Event.Items[I]).Updated = 0) then
-          Item.SubItems.Add('')
-        else
-          Item.SubItems.Add(SysUtils.DateTimeToStr(TSBaseTable(Event.Items[I]).Updated, LocaleFormatSettings));
-        Item.SubItems.Add(TSBaseTable(Event.Items[I]).Comment);
-        Item.GroupID := giTables;
-      end
-      else if (Event.Items[I] is TSView) then
-      begin
-        Item := ListView.Items.Add();
-        Item.SubItems.Add(Preferences.LoadStr(738));
-        Item.SubItems.Add(TSView(Event.Items[I]).Database.Name);
-        Item.SubItems.Add('');
-        Item.SubItems.Add('');
-        Item.GroupID := giTables;
-      end
-      else if (Event.Items[I] is TSRoutine) then
-      begin
-        Item := ListView.Items.Add();
-        if (TSRoutine(Event.Items[I]).RoutineType = rtProcedure) then
-          Item.SubItems.Add(Preferences.LoadStr(768))
-        else
-          Item.SubItems.Add(Preferences.LoadStr(769));
-        Item.SubItems.Add(TSRoutine(Event.Items[I]).Database.Name);
-        Item.SubItems.Add(SysUtils.DateTimeToStr(TSRoutine(Event.Items[I]).Created, LocaleFormatSettings));
-        Item.SubItems.Add(TSRoutine(Event.Items[I]).Comment);
-        Item.GroupID := giRoutines;
-      end
-      else if (Event.Items[I] is TSEvent) then
-      begin
-        Item := ListView.Items.Add();
-        Item.SubItems.Add(Preferences.LoadStr(793));
-        Item.SubItems.Add(TSEvent(Event.Items[I]).Database.Name);
-        Item.SubItems.Add(SysUtils.DateTimeToStr(TSEvent(Event.Items[I]).Updated, LocaleFormatSettings));
-        Item.SubItems.Add(TSEvent(Event.Items[I]).Comment);
-        Item.GroupID := giEvents;
-      end
-      else if (Event.Items[I] is TSTableField) then
-      begin
-        Item := ListView.Items.Add();
-        if (Event.Items[I] is TSViewField) then
-          Item.SubItems.Add(TSViewField(Event.Items[I]).DBTypeStr())
-        else if (TSBaseTableField(Event.Items[I]).FieldKind = mkReal) then
-          Item.SubItems.Add(SQLUnescape(TSBaseTableField(Event.Items[I]).DBTypeStr()))
-        else // mkVirtual
-          Item.SubItems.Add(TSBaseTableField(Data).Expression);
-        Item.SubItems.Add(TSTableField(Event.Items[I]).Table.Database.Name + '.' + TSTableField(Event.Items[I]).Table.Name);
-        Item.SubItems.Add('');
-        if (not (Event.Items[I] is TSBaseTableField)) then
-          Item.SubItems.Add('')
-        else
-          Item.SubItems.Add(TSBaseTableField(Event.Items[I]).Comment);
-        Item.GroupID := giFields;
-      end
-      else if (Event.Items[I] is TSTrigger) then
-      begin
-        Item := ListView.Items.Add();
-        S := '';
-        case (TSTrigger(Event.Items[I]).Timing) of
-          ttBefore: S := S + 'before ';
-          ttAfter: S := S + 'after ';
-        end;
-        case (TSTrigger(Event.Items[I]).Event) of
-          teInsert: S := S + 'insert';
-          teUpdate: S := S + 'update';
-          teDelete: S := S + 'delete';
-        end;
-        Item.SubItems.Add(S);
-        Item.SubItems.Add(TSTrigger(Event.Items[I]).Table.Database.Name + '.' + TSTrigger(Event.Items[I]).Table.Name);
-        if (TSTrigger(Event.Items[I]).Created = 0) then
-          Item.SubItems.Add('')
-        else
-          Item.SubItems.Add(SysUtils.DateTimeToStr(TSTrigger(Event.Items[I]).Created, LocaleFormatSettings));
-        Item.SubItems.Add('');
-        Item.GroupID := giTriggers;
-      end
-      else if (Event.Items[I] is TSUser) then
-      begin
-        Item := ListView.Items.Add();
-        Item.SubItems.Add(Preferences.LoadStr(561));
-        Item.GroupID := giUsers;
-      end;
-      if (Assigned(Item)) then
-      begin
-        Item.Caption := Event.Items[I].Name;
-        Item.ImageIndex := ImageIndexByData(Event.Items[I]);
-        Item.Data := Event.Items[I];
-      end;
-    end;
+    if (Event.Items is TSObjectSearch) then
+      for I := ListView.Items.Count to Event.Items.Count - 1 do
+        AddItem(GroupIDByImageIndex(ImageIndexByData(Event.Items[I])), Event.Items[I]);
 
     DatabaseCount := 0;
     TableCount := 0;
@@ -10486,8 +10408,11 @@ begin
   begin
     ChangingEvent := ListView.OnChanging;
     ListView.OnChanging := nil;
+    ListView.Columns.BeginUpdate();
+    ListView.Items.BeginUpdate();
+    ListView.DisableAlign();
 
-    if (Event.Sender is TSObjectSearch) then
+    if (ListView = ObjectSearchListView) then
       UpdateObjectSearch()
     else
     begin
@@ -10499,32 +10424,30 @@ begin
             if (ListView.Items.Count = 0) then
             begin
               if (Assigned(Session.Processes)) then
-                InsertOrUpdateItem(Kind, Session.Processes);
+                InsertOrUpdateItem(Kind, giSystemTools, Session.Processes);
               if (Assigned(Session.Users)) then
-                InsertOrUpdateItem(Kind, Session.Users);
+                InsertOrUpdateItem(Kind, giSystemTools, Session.Users);
               if (Assigned(Session.Variables)) then
-                InsertOrUpdateItem(Kind, Session.Variables);
+                InsertOrUpdateItem(Kind, giSystemTools, Session.Variables);
               ListViewInitialize(ListView);
             end;
 
             if (Event.Items is TSDatabases) then
               UpdateGroup(Kind, giDatabases, Event.Items)
-            else if ((Event.Items is TSProcesses) or (Event.Items is TSUsers) or (Event.Items is TSVariables)) then
-            begin
+            else if ((Event.Items is TSProcesses)
+              or (Event.Items is TSUsers)
+              or (Event.Items is TSVariables)) then
               for I := 0 to ListView.Items.Count - 1 do
                 if (ListView.Items[I].Data = Event.Items) then
-                  UpdateItem(ListView.Items[I], Event.Items);
-            end;
+                  UpdateItem(ListView.Items[I], giSystemTools, Event.Items);
           end;
         lkDatabase:
-          begin
-            if (Event.Items is TSTables) then
-              UpdateGroup(Kind, giTables, Event.Items)
-            else if (Event.Items is TSRoutines) then
-              UpdateGroup(Kind, giRoutines, Event.Items)
-            else if (Event.Items is TSEvents) then
-              UpdateGroup(Kind, giEvents, Event.Items);
-          end;
+          if (Event.Items is TSTables) then
+            UpdateGroup(Kind, giTables, Event.Items)
+          else if (Event.Items is TSRoutines) then
+            UpdateGroup(Kind, giRoutines, Event.Items)
+          else if (Event.Items is TSEvents) then
+            UpdateGroup(Kind, giEvents, Event.Items);
         lkTable:
           begin
             if ((Event.Sender is TSTable) or (Event.Item is TSTrigger) and (TSTrigger(Event.Item).Table = Pointer(ListView.Tag))) then
@@ -10533,8 +10456,6 @@ begin
                 Table := TSTrigger(Event.Item).Table
               else
                 Table := TSTable(Event.Sender);
-              ListView.Items.BeginUpdate();
-              ListView.DisableAlign();
               if (Table is TSBaseTable) then
                 UpdateGroup(Kind, giKeys, TSBaseTable(Table).Keys);
               UpdateGroup(Kind, giFields, Table.Fields);
@@ -10542,8 +10463,6 @@ begin
                 UpdateGroup(Kind, giForeignKeys, TSBaseTable(Table).ForeignKeys);
               if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).Database.Triggers)) then
                 UpdateGroup(Kind, giTriggers, TSBaseTable(Table).Database.Triggers);
-              ListView.EnableAlign();
-              ListView.Items.EndUpdate();
             end
             else if ((Event.Sender is TSDatabase) and (Event.Items is TSTriggers)) then
               UpdateGroup(Kind, giTriggers, Event.Items);
@@ -10560,6 +10479,9 @@ begin
     if ((Window.ActiveControl = ListView) and Assigned(ListView.OnSelectItem)) then
       ListView.OnSelectItem(nil, ListView.Selected, Assigned(ListView.Selected));
 
+    ListView.EnableAlign();
+    ListView.Items.EndUpdate();
+    ListView.Columns.EndUpdate();
     ListView.OnChanging := ChangingEvent;
   end;
 end;
@@ -11246,6 +11168,7 @@ begin
   mtEditor.Checked := ttEditor in Preferences.ToolbarTabs;
   mtEditor2.Checked := ttEditor2 in Preferences.ToolbarTabs;
   mtEditor3.Checked := ttEditor3 in Preferences.ToolbarTabs;
+  mtObjectSearch.Checked := ttObjectSearch in Preferences.ToolbarTabs;
 
   mtObjects.Enabled := View <> vObjects;
   mtBrowser.Enabled := View <> vBrowser;
@@ -11926,11 +11849,16 @@ begin
                             MessageBeep(MB_ICONERROR)
                           else
                           begin
-                            Name := Session.TableName(CopyName(SourceTable.Name, Database.Tables));
+                            DExecutingSQL.Session := SourceSession;
+                            DExecutingSQL.Update := SourceTable.Update;
+                            if (SourceTable.Valid or DExecutingSQL.Execute()) then
+                            begin
+                              Name := Session.TableName(CopyName(SourceTable.Name, Database.Tables));
 
-                            Session.Connection.BeginSynchron();
-                            Success := Database.CloneTable(SourceTable, Name, DPaste.Data);
-                            Session.Connection.EndSynchron();
+                              Session.Connection.BeginSynchron();
+                              Success := Database.CloneTable(SourceTable, Name, DPaste.Data);
+                              Session.Connection.EndSynchron();
+                            end;
                           end;
                         end;
                   for I := 1 to StringList.Count - 1 do
@@ -11943,13 +11871,18 @@ begin
                           MessageBeep(MB_ICONERROR)
                         else
                         begin
-                          Name := CopyName(SourceView.Name, Database.Tables);
-                          if (Session.LowerCaseTableNames = 1) then
-                            Name := LowerCase(Name);
+                          DExecutingSQL.Session := SourceSession;
+                          DExecutingSQL.Update := SourceView.Update;
+                          if (SourceView.Valid or DExecutingSQL.Execute()) then
+                          begin
+                            Name := CopyName(SourceView.Name, Database.Tables);
+                            if (Session.LowerCaseTableNames = 1) then
+                              Name := LowerCase(Name);
 
-                          Session.Connection.BeginSynchron();
-                          Success := Database.CloneTable(SourceView, Name, False);
-                          Session.Connection.EndSynchron();
+                            Session.Connection.BeginSynchron();
+                            Success := Database.CloneTable(SourceView, Name, False);
+                            Session.Connection.EndSynchron();
+                          end;
                         end;
                       end;
                   for I := 1 to StringList.Count - 1 do
@@ -11962,21 +11895,26 @@ begin
                           MessageBeep(MB_ICONERROR)
                         else
                         begin
-                          Name := SourceRoutine.Name;
-                          J := 1;
-                          while (Assigned(Database.ProcedureByName(Name))) do
+                          DExecutingSQL.Session := SourceSession;
+                          DExecutingSQL.Update := SourceRoutine.Update;
+                          if (SourceRoutine.Valid or DExecutingSQL.Execute()) then
                           begin
-                            if (J = 1) then
-                              Name := Preferences.LoadStr(680, SourceRoutine.Name)
-                            else
-                              Name := Preferences.LoadStr(681, SourceRoutine.Name, IntToStr(J));
-                            Name := ReplaceStr(Name, ' ', '_');
-                            Inc(J);
-                          end;
+                            Name := SourceRoutine.Name;
+                            J := 1;
+                            while (Assigned(Database.ProcedureByName(Name))) do
+                            begin
+                              if (J = 1) then
+                                Name := Preferences.LoadStr(680, SourceRoutine.Name)
+                              else
+                                Name := Preferences.LoadStr(681, SourceRoutine.Name, IntToStr(J));
+                              Name := ReplaceStr(Name, ' ', '_');
+                              Inc(J);
+                            end;
 
-                          Session.Connection.BeginSynchron();
-                          Success := Database.CloneRoutine(SourceRoutine, Name);
-                          Session.Connection.EndSynchron();
+                            Session.Connection.BeginSynchron();
+                            Success := Database.CloneRoutine(SourceRoutine, Name);
+                            Session.Connection.EndSynchron();
+                          end;
                         end;
                       end
                       else if (StringList.Names[I] = 'Function') then
@@ -11987,21 +11925,26 @@ begin
                           MessageBeep(MB_ICONERROR)
                         else
                         begin
-                          Name := SourceRoutine.Name;
-                          J := 1;
-                          while (Assigned(Database.FunctionByName(Name))) do
+                          DExecutingSQL.Session := SourceSession;
+                          DExecutingSQL.Update := SourceRoutine.Update;
+                          if (SourceRoutine.Valid or DExecutingSQL.Execute()) then
                           begin
-                            if (J = 1) then
-                              Name := Preferences.LoadStr(680, SourceRoutine.Name)
-                            else
-                              Name := Preferences.LoadStr(681, SourceRoutine.Name, IntToStr(J));
-                            Name := ReplaceStr(Name, ' ', '_');
-                            Inc(J);
-                          end;
+                            Name := SourceRoutine.Name;
+                            J := 1;
+                            while (Assigned(Database.FunctionByName(Name))) do
+                            begin
+                              if (J = 1) then
+                                Name := Preferences.LoadStr(680, SourceRoutine.Name)
+                              else
+                                Name := Preferences.LoadStr(681, SourceRoutine.Name, IntToStr(J));
+                              Name := ReplaceStr(Name, ' ', '_');
+                              Inc(J);
+                            end;
 
-                          Session.Connection.BeginSynchron();
-                          Success := Database.CloneRoutine(SourceRoutine, Name);
-                          Session.Connection.EndSynchron();
+                            Session.Connection.BeginSynchron();
+                            Success := Database.CloneRoutine(SourceRoutine, Name);
+                            Session.Connection.EndSynchron();
+                          end;
                         end;
                       end;
                 end;
@@ -12155,7 +12098,17 @@ procedure TFSession.PContentChange(Sender: TObject);
     Top: Integer;
   begin
     if (Control.Top >= 0) then Top := Control.Top else Top := 0;
+
+try
     SendMessage(Control.Handle, WM_MOVE, 0, MAKELPARAM(Control.Left, Top));
+except
+  on E: Exception do
+    raise ERangeError.Create('Left: ' + IntToStr(Control.Left) + #13#10
+      + 'Top: ' + IntToStr(Top) + #13#10
+      + 'Name: ' + Control.Name + #13#10
+      + 'ClassType: ' + Control.ClassName + #13#10
+      + E.Message);
+end;
 
     Control.DisableAlign();
     for I := 0 to Control.ControlCount - 1 do
@@ -12216,7 +12169,8 @@ begin
         + 'Assigned(PBlob): ' + BoolToStr(Assigned(PBlob), True));
       // 2017-01-04: SBlob <> SBlobDebug ... DROP TABLE was the last stmt
       // 2017-01-10: SBlob <> SBlobDebug ... even, SBlob was moved in the TFSession declaration, DROP TABLE (generated by MF) was the last stmt
-      // 2017-01-10: SBlob <> SBlobDebug ... even, DROP TABLE (generated by MF) was the last stmt
+      // 2017-01-10: SBlob <> SBlobDebug ... DROP TABLE (generated by MF) was the last stmt
+      // 2017-01-11: SBlob <> SBlobDebug ... DROP TABLE (generated by MF) was the last stmt
 
     SBlob.Align := alNone;
     PBlob.Align := alNone;
@@ -12459,7 +12413,8 @@ end;
 procedure TFSession.PHeaderCheckElements(Sender: TObject);
 begin
   {$IFDEF Debug}
-  FObjectSearch.Visible := (Session.Connection.MySQLVersion >= 50002)
+  FObjectSearch.Visible := (ttObjectSearch in Preferences.ToolbarTabs)
+    and (Session.Connection.MySQLVersion >= 50002)
     and (FObjectSearch.Left > Toolbar.Left + Toolbar.Width + GetSystemMetrics(SM_CXFIXEDFRAME));
   TBObjectSearch.Visible := FObjectSearch.Visible;
   if (not FObjectSearch.Visible and Assigned(PObjectSearch)) then
@@ -13056,10 +13011,11 @@ begin
   URI := TUURI.Create(Address);
 
   if (URI.Address <> Address) then
-    SendToDeveloper('fFSession.TFSession.SetView:' + #13#10
-      + 'Address: ' + Address + #13#10
+    SendToDeveloper('Address: ' + Address + #13#10
       + 'URI.Address: ' + URI.Address + #13#10
-      + 'URI.ExtraInfos: ' + URI.ExtraInfos);
+      + 'URI.ExtraInfos: ' + URI.ExtraInfos + #13#10
+      + 'csLoading: ' + BoolToStr(csLoading in ComponentState, True) + #13#10
+      + 'csDestroying: ' + BoolToStr(csDestroying in ComponentState, True));
 
   if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
     raise ERangeError.Create('View: ' + IntToStr(Ord(AView)) + #13#10
@@ -14226,8 +14182,15 @@ begin
       Exclude(Preferences.ToolbarTabs, ttEditor3)
     else
       Include(Preferences.ToolbarTabs, ttEditor3);
+  if (Sender = mtObjectSearch) then
+    if (mtObjectSearch.Checked) then
+      Exclude(Preferences.ToolbarTabs, ttObjectSearch)
+    else
+      Include(Preferences.ToolbarTabs, ttObjectSearch);
 
   PostMessage(Handle, UM_CHANGEPREFERENCES, 0, 0);
+
+  PHeaderCheckElements(nil);
 end;
 
 procedure TFSession.ToolButtonStyleClick(Sender: TObject);
@@ -14426,15 +14389,16 @@ begin
   mtEditor.Caption := tbEditor.Caption;
   mtEditor2.Caption := tbEditor2.Caption;
   mtEditor3.Caption := tbEditor3.Caption;
+  mtObjectSearch.Caption := Preferences.LoadStr(934);
 
   tbObjects.Visible := ttObjects in Preferences.ToolbarTabs;
   tbBrowser.Visible := ttBrowser in Preferences.ToolbarTabs;
   tbIDE.Visible := ttIDE in Preferences.ToolbarTabs;
   tbBuilder.Visible := ttBuilder in Preferences.ToolbarTabs;
+  tbDiagram.Visible := ttDiagram in Preferences.ToolbarTabs;
   tbEditor.Visible := ttEditor in Preferences.ToolbarTabs;
   tbEditor2.Visible := ttEditor2 in Preferences.ToolbarTabs;
   tbEditor3.Visible := ttEditor3 in Preferences.ToolbarTabs;
-  tbDiagram.Visible := ttDiagram in Preferences.ToolbarTabs;
   PHeaderResize(nil);
 
 

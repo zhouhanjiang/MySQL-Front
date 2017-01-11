@@ -22,7 +22,7 @@ type
   private
     FLocation: TObject;
     FSession: TSSession;
-    procedure CMShowingChanged(var Message: TMessage); message CM_SHOWINGCHANGED;
+    procedure CMShowingChanged(var Msg: TMessage); message CM_SHOWINGCHANGED;
     function GetComment(): Boolean;
     function GetDatabases(): Boolean;
     function GetEvents(): Boolean;
@@ -32,8 +32,9 @@ type
     function GetTables(): Boolean;
     function GetTriggers(): Boolean;
     procedure SetLocation(ALocation: TObject);
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
-    procedure WMActivate(var Message: TWMActivate); message WM_ACTIVATE;
+    procedure UMChangePreferences(var Msg: TMessage); message UM_CHANGEPREFERENCES;
+    procedure WMActivate(var Msg: TWMActivate); message WM_ACTIVATE;
+//    procedure WMNCActivate(var Msg:TWMNCActivate); message WM_NCActivate;
   protected
     procedure CreateParams(var Params: TCreateParams); override;
   public
@@ -58,7 +59,7 @@ uses
 
 { TPObjectSearch **************************************************************}
 
-procedure TPObjectSearch.CMShowingChanged(var Message: TMessage);
+procedure TPObjectSearch.CMShowingChanged(var Msg: TMessage);
 var
   Animation: BOOL;
 begin
@@ -144,7 +145,7 @@ begin
   FTriggers.Visible := ((Location is TSSession) or (Location is TSDatabase) or (Location is TSTable)) and (Session.Connection.MySQLVersion >= 50010);
 end;
 
-procedure TPObjectSearch.UMChangePreferences(var Message: TMessage);
+procedure TPObjectSearch.UMChangePreferences(var Msg: TMessage);
 begin
   FLWhat.Caption := Preferences.LoadStr(227) + ':';
   FDatabases.Caption := Preferences.LoadStr(265);
@@ -159,13 +160,18 @@ begin
   FComment.Caption := Preferences.LoadStr(111);
 end;
 
-procedure TPObjectSearch.WMActivate(var Message: TWMActivate);
+procedure TPObjectSearch.WMActivate(var Msg: TWMActivate);
 begin
-  if (Message.Active <> WA_INACTIVE) then
+  if (Msg.Active <> WA_INACTIVE) then
     SendMessage(PopupParent.Handle, WM_NCACTIVATE, WPARAM(TRUE), 0);
 
   inherited;
 end;
+
+//procedure TPObjectSearch.WMNCActivate(var Msg: TWMNCActivate);
+//begin
+//  Msg.Result := LRESULT(FALSE);
+//end;
 
 end.
 

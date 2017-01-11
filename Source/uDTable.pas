@@ -101,8 +101,8 @@ type
     tbPropertiesForeignKey: TToolButton;
     TSTriggers: TTabSheet;
     FTriggers: TListView;
-    TSDependency: TTabSheet;
-    FDependency: TListView;
+    TSDependencies: TTabSheet;
+    FDependencies: TListView;
     TSPartitions: TTabSheet;
     GPartitions: TGroupBox_Ext;
     FLPartitionType: TLabel;
@@ -185,7 +185,7 @@ type
     procedure TSKeysShow(Sender: TObject);
     procedure TSInformationShow(Sender: TObject);
     procedure TSPartitionsShow(Sender: TObject);
-    procedure TSDependencyShow(Sender: TObject);
+    procedure TSDependenciesShow(Sender: TObject);
     procedure TSSourceShow(Sender: TObject);
     procedure TSTriggersShow(Sender: TObject);
     procedure FCollationChange(Sender: TObject);
@@ -199,7 +199,7 @@ type
     procedure FIndicesRefresh(Sender: TObject);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure FPartitionsRefresh(Sender: TObject);
-    procedure FDependencyBuild();
+    procedure FDependenciesBuild();
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Charset: string;
@@ -976,7 +976,7 @@ begin
   FKeys.SmallImages := Preferences.Images;
   FForeignKeys.SmallImages := Preferences.Images;
   FTriggers.SmallImages := Preferences.Images;
-  FDependency.SmallImages := Preferences.Images;
+  FDependencies.SmallImages := Preferences.Images;
 
   TBFields.Images := Preferences.Images;
   TBIndices.Images := Preferences.Images;
@@ -994,7 +994,7 @@ begin
   FFields.RowSelect := CheckWin32Version(6);
   FKeys.RowSelect := CheckWin32Version(6);
   FForeignKeys.RowSelect := CheckWin32Version(6);
-  FDependency.RowSelect := CheckWin32Version(6);
+  FDependencies.RowSelect := CheckWin32Version(6);
   FPartitions.RowSelect := CheckWin32Version(6);
 
   PageControl.ActivePage := TSBasics;
@@ -1027,9 +1027,9 @@ begin
   FTriggers.Items.BeginUpdate();
   FTriggers.Items.Clear();
   FTriggers.Items.EndUpdate();
-  FDependency.Items.BeginUpdate();
-  FDependency.Items.Clear();
-  FDependency.Items.EndUpdate();
+  FDependencies.Items.BeginUpdate();
+  FDependencies.Items.Clear();
+  FDependencies.Items.EndUpdate();
 
   FSource.Lines.Clear();
 
@@ -1050,10 +1050,10 @@ begin
     ModalResult := mrCancel
   else if (Event.EventType = etAfterExecuteSQL) then
   begin
-    if (FDependency.Cursor = crSQLWait) then
+    if (FDependencies.Cursor = crSQLWait) then
     begin
-      FDependencyBuild();
-      FDependency.Cursor := crDefault;
+      FDependenciesBuild();
+      FDependencies.Cursor := crDefault;
     end;
 
     if (not PageControl.Visible and (ModalResult = mrNone)) then
@@ -1196,14 +1196,14 @@ begin
   FCollation.Visible := Database.Session.Connection.MySQLVersion >= 40101; FLCollation.Visible := FCollation.Visible;
   GRecords.Visible := Assigned(Table);
 
-  FDependency.Cursor := crDefault;
+  FDependencies.Cursor := crDefault;
 
   TSInformation.TabVisible := Assigned(Table);
   TSKeys.TabVisible := True;
   TSFields.TabVisible := True;
   TSForeignKeys.TabVisible := Assigned(Table);
   TSTriggers.TabVisible := Assigned(Table) and Assigned(Database.Triggers);
-  TSDependency.TabVisible := Assigned(Table);
+  TSDependencies.TabVisible := Assigned(Table);
   TSPartitions.TabVisible := Assigned(Table) and Assigned(NewTable.Partitions);
   TSExtras.TabVisible := Assigned(Table);
   TSSource.TabVisible := Assigned(Table);
@@ -1317,7 +1317,7 @@ begin
   FBOkCheckEnabled(Sender);
 end;
 
-procedure TDTable.FDependencyBuild();
+procedure TDTable.FDependenciesBuild();
 
   procedure AddDBObject(const DBObject: TSDBObject);
   var
@@ -1327,7 +1327,7 @@ procedure TDTable.FDependencyBuild();
     for I := 0 to DBObject.References.Count - 1 do
       if (DBObject.References[I].DBObject = Table) then
       begin
-        Item := FDependency.Items.Add();
+        Item := FDependencies.Items.Add();
 
         if (DBObject is TSBaseTable) then
         begin
@@ -1374,8 +1374,8 @@ procedure TDTable.FDependencyBuild();
 var
   I: Integer;
 begin
-  FDependency.Items.BeginUpdate();
-  FDependency.Items.Clear();
+  FDependencies.Items.BeginUpdate();
+  FDependencies.Items.Clear();
 
   for I := 0 to Database.Tables.Count - 1 do
     if (Database.Tables[I] <> Table) then
@@ -1394,7 +1394,7 @@ begin
     for I := 0 to Database.Events.Count - 1 do
       AddDBObject(Database.Events[I]);
 
-  FDependency.Items.EndUpdate();
+  FDependencies.Items.EndUpdate();
 end;
 
 procedure TDTable.FTriggersChange(Sender: TObject; Item: TListItem;
@@ -1636,18 +1636,18 @@ begin
   FListSelectItem(FPartitions, FPartitions.Selected, Assigned(FPartitions.Selected));
 end;
 
-procedure TDTable.TSDependencyShow(Sender: TObject);
+procedure TDTable.TSDependenciesShow(Sender: TObject);
 var
   List: TList;
 begin
-  if (FDependency.Items.Count = 0) then
+  if (FDependencies.Items.Count = 0) then
   begin
     List := TList.Create();
-    List.Add(Table.DependencySearch);
+    List.Add(Table.DependenciesSearch);
     if (not Database.Session.Update(List)) then
-      FDependency.Cursor := crSQLWait
+      FDependencies.Cursor := crSQLWait
     else
-      FDependencyBuild();
+      FDependenciesBuild();
     List.Free();
   end;
 end;
@@ -1767,9 +1767,9 @@ begin
   FTriggers.Column[0].Caption := Preferences.LoadStr(35);
   FTriggers.Column[1].Caption := Preferences.LoadStr(69);
 
-  TSDependency.Caption := Preferences.LoadStr(782);
-  FDependency.Column[0].Caption := Preferences.LoadStr(35);
-  FDependency.Column[1].Caption := Preferences.LoadStr(69);
+  TSDependencies.Caption := Preferences.LoadStr(782);
+  FDependencies.Column[0].Caption := Preferences.LoadStr(35);
+  FDependencies.Column[1].Caption := Preferences.LoadStr(69);
 
   TSPartitions.Caption := Preferences.LoadStr(830);
   GPartitions.Caption := Preferences.LoadStr(85);

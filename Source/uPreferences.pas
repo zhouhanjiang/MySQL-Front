@@ -342,7 +342,7 @@ type
       destructor Destroy(); override;
     end;
 
-    TToolbarTab = (ttObjects, ttBrowser, ttIDE, ttBuilder, ttDiagram, ttEditor, ttEditor2, ttEditor3);
+    TToolbarTab = (ttObjects, ttBrowser, ttIDE, ttBuilder, ttDiagram, ttEditor, ttEditor2, ttEditor3, ttObjectSearch);
     TToolbarTabs = set of TToolbarTab;
     TUpdateCheckType = (utNever, utDaily);
   private
@@ -662,6 +662,7 @@ uses
   Variants, Math, SysConst, ActiveX, RTLConsts, GDIPAPI, GDIPObj,
   MySQLConsts,
   CSVUtils,
+uDeveloper, // Debug 2017-01-11
   uURI;
 
 const
@@ -1949,7 +1950,7 @@ begin
   LogSize := 100 * 1024;
   LanguageFilename := 'English.ini';
   TabsVisible := False;
-  ToolbarTabs := [ttObjects, ttBrowser, ttEditor];
+  ToolbarTabs := [ttObjects, ttBrowser, ttEditor, ttObjectSearch];
   UpdateCheck := utNever;
   UpdateChecked := 0;
 
@@ -2343,6 +2344,8 @@ begin
     if (Visible) then ToolbarTabs := ToolbarTabs + [ttEditor2] else ToolbarTabs := ToolbarTabs - [ttEditor2];
   if (Assigned(XMLNode(XML, 'toolbar/editor3')) and TryStrToBool(XMLNode(XML, 'toolbar/editor3').Attributes['visible'], Visible)) then
     if (Visible) then ToolbarTabs := ToolbarTabs + [ttEditor3] else ToolbarTabs := ToolbarTabs - [ttEditor3];
+  if (Assigned(XMLNode(XML, 'toolbar/objectsearch')) and TryStrToBool(XMLNode(XML, 'toolbar/objectsearch').Attributes['visible'], Visible)) then
+    if (Visible) then ToolbarTabs := ToolbarTabs + [ttObjectSearch] else ToolbarTabs := ToolbarTabs - [ttObjectSearch];
   if (Assigned(XMLNode(XML, 'sql/font/charset'))) then TryStrToInt(XMLNode(XML, 'sql/font/charset').Text, SQLFontCharset);
   if (Assigned(XMLNode(XML, 'sql/font/color'))) then SQLFontColor := StringToColor(XMLNode(XML, 'sql/font/color').Text);
   if (Assigned(XMLNode(XML, 'sql/font/name'))) then SQLFontName := XMLNode(XML, 'sql/font/name').Text;
@@ -2549,6 +2552,7 @@ begin
   XMLNode(XML, 'toolbar/editor').Attributes['visible'] := ttEditor in ToolbarTabs;
   XMLNode(XML, 'toolbar/editor2').Attributes['visible'] := ttEditor2 in ToolbarTabs;
   XMLNode(XML, 'toolbar/editor3').Attributes['visible'] := ttEditor3 in ToolbarTabs;
+  XMLNode(XML, 'toolbar/objectsearch').Attributes['visible'] := ttObjectSearch in ToolbarTabs;
   XMLNode(XML, 'sql/font/charset').Text := IntToStr(SQLFontCharset);
   XMLNode(XML, 'sql/font/color').Text := ColorToString(SQLFontColor);
   XMLNode(XML, 'sql/font/name').Text := SQLFontName;
@@ -3194,6 +3198,10 @@ begin
   if (Connection.Port <> MYSQL_PORT) then
     URLComponents.nPort := Connection.Port;
   URLComponents.lpszUrlPath := PChar(APath);
+
+  // Debug 2017-01-11
+  if (Pos(':', Connection.Host) > 0) then
+    SendToDeveloper('Host: ' + Connection.Host);
 
   Len := Length(URL) - 1;
   if (not InternetCreateUrl(URLComponents, 0, @URL, Len)) then

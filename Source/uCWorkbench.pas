@@ -1309,10 +1309,7 @@ begin
     if (not Workbench.OnValidateControl(Workbench, Workbench.CreatedLink)) then
       FreeAndNil(Workbench.CreatedLink)
     else if ((Workbench.CreatedLink is TWLink) and not (Workbench.CreatedLink is TWForeignKey)) then
-    begin
-      Workbench.Links.Add(Workbench.CreatedLink);
       Workbench.CreatedLink := nil;
-    end;
   end;
 end;
 
@@ -2143,6 +2140,8 @@ begin
   inherited;
 
   FCaption := '';
+
+  Workbench.Links.Add(Self);
 end;
 
 function TWLink.CreateSegment(const Sender: TWControl; const APosition: TCoord; const Point: TWLinkPoint; const CreateBefore: Boolean = True): TWLinkPoint;
@@ -2654,6 +2653,8 @@ begin
   Canvas.Font := Font;
   Canvas.Font.Color := Font.Color;
 
+  Workbench.Tables.Add(Self);
+
   if (Assigned(BaseTable)) then
     Hint := BaseTable.Comment;
 end;
@@ -2958,6 +2959,8 @@ begin
   Canvas.Font.Name := Workbench.Font.Name;
   Canvas.Font.Style := [];
 
+  Workbench.Sections.Add(Self);
+
   MoveTo(Self, [], APosition);
 end;
 
@@ -3168,7 +3171,6 @@ begin
     begin
       Section := TWSection.Create(Workbench, Coord(-1, -1));
       Section.LoadFromXML(XML.ChildNodes[I]);
-      Add(Section);
     end;
   Workbench.State := wsNormal;
 end;
@@ -3297,7 +3299,6 @@ var
   Table: TWTable;
 begin
   Table := TWTable.Create(Tables, Position(X, Y), ABaseTable);
-  Tables.Add(Table);
   if (Assigned(OnValidateControl) and OnValidateControl(Self, Table)
     and Assigned(Table.BaseTable.ForeignKeys)) then
     for I := 0 to Table.BaseTable.ForeignKeys.Count - 1 do
@@ -3313,7 +3314,6 @@ begin
             TWForeignKey(Link).BaseForeignKey := Table.BaseTable.ForeignKeys[I];
             Link.ChildTable := Table;
             Link.ParentTable := ParentTable;
-            Links.Add(Link);
           end;
         end;
       end;
@@ -3443,7 +3443,6 @@ begin
   if ((X >= 0) or (Y >= 0)) then
   begin
     Section := TWSection.Create(Self, Position(X, Y));
-    Sections.Add(Section);
     Section.MouseDown(mbLeft, [], 0, 0);
   end
   else
@@ -3629,7 +3628,6 @@ begin
   if (State = wsCreateSection) then
   begin
     Section := TWSection.Create(Self, Position(X, Y));
-    Sections.Add(Section);
     Section.MouseDown(mbLeft, [], 0, 0);
 
     State := wsNormal;
@@ -3768,7 +3766,6 @@ begin
     if (Assigned(CreatedTable)) then
     begin
       CreatedTable.FBaseTable := TSBaseTable(Event.Item);
-      Tables.Add(CreatedTable);
       Selected := CreatedTable;
 
       CreatedTable := nil;
@@ -3783,7 +3780,6 @@ begin
         FreeAndNil(CreatedLink)
       else
       begin
-        Links.Add(CreatedLink);
         Selected := CreatedLink;
 
         CreatedLink := nil;
@@ -3809,7 +3805,6 @@ begin
         begin
           Table := TWTable.Create(Tables, Coord(-1, -1), BaseTable);
           Table.LoadFromXML(XML.ChildNodes[I]);
-          Tables.Add(Table);
 
           for J := 0 to XML.ChildNodes.Count - 1 do
             if ((XML.ChildNodes[J].NodeName = 'foreignkey')
@@ -3834,10 +3829,7 @@ begin
                 else
                   Link := nil;
                 if (Assigned(Link)) then
-                begin
                   Link.LoadFromXML(XML.ChildNodes[J]);
-                  Links.Add(Link);
-                end;
               end;
             end;
         end;
@@ -3853,7 +3845,6 @@ begin
           TWForeignKey(Link).BaseForeignKey := BaseTable.ForeignKeys[J];
           Link.ChildTable := TableByBaseTable(BaseTable);
           Link.ParentTable := TableByCaption(BaseTable.ForeignKeys[J].Parent.TableName);
-          Links.Add(Link);
         end;
 
     for I := 0 to Tables.Count - 1 do
@@ -3865,7 +3856,6 @@ begin
           TWForeignKey(Link).BaseForeignKey := Tables[I].BaseTable.ForeignKeys[J];
           Link.ChildTable := Tables[I];
           Link.ParentTable := TableByBaseTable(BaseTable);
-          Links.Add(Link);
         end;
   end
   else if ((Event.EventType = etItemDropped) and (Event.Item is TSBaseTable)) then
