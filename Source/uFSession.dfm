@@ -193,6 +193,7 @@ object FSession: TFSession
         OnGetSelectedIndex = TreeViewGetSelectedIndex
         OnKeyDown = FNavigatorKeyDown
         OnKeyPress = FNavigatorKeyPress
+        OnKeyUp = FNavigatorKeyUp
         OnMouseDown = TreeViewMouseDown
         OnMouseUp = TreeViewMouseUp
       end

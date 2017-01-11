@@ -2914,7 +2914,7 @@ begin
     else if (not EOF) then
       ReadContent();
 
-    if ((RecordComplete or EOF) and (CSVValueCount > 0) and (CSVValueCount <> Length(CSVValues))) then
+    if ((RecordComplete or EOF) and (CSVValueCount > 0) and (Length(CSVValues) > 0) and (CSVValueCount <> Length(CSVValues))) then
     begin
       Error.ErrorType := TE_File;
       Error.ErrorCode := 0;

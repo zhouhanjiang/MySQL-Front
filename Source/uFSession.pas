@@ -625,6 +625,8 @@ type
     procedure TreeViewMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure FObjectSearchEnter(Sender: TObject);
+    procedure FNavigatorKeyUp(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
   type
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
     TTabState = set of (tsLoading, tsActive);
@@ -833,6 +835,7 @@ type
     FFolders: TJamShellTree;
     FHTML: TWebBrowser;
     FilterMRU: TPPreferences.TMRUList;
+    FNavigatorIgnoreChange: Boolean;
     FNavigatorMenuNode: TTreeNode;
     FNavigatorNodeAfterActivate: TTreeNode;
     FNavigatorNodeToExpand: TTreeNode;
@@ -4581,6 +4584,7 @@ begin
     else
       ListViewSortData[Kind].Order := 1;
   end;
+  FNavigatorIgnoreChange := False;
   FNavigatorNodeAfterActivate := nil;
   FNavigatorNodeToExpand := nil;
   PanelMouseDownPoint := Point(-1, -1);
@@ -6641,12 +6645,12 @@ procedure TFSession.FNavigatorChange(Sender: TObject; Node: TTreeNode);
 begin
   FNavigatorMenuNode := Node;
 
-  if (not (tsLoading in FrameState) and Assigned(Node)) then
+  if (not (tsLoading in FrameState) and Assigned(Node) and not FNavigatorIgnoreChange) then
   begin
     KillTimer(Handle, tiNavigator);
     if (NavigatorElapse = 0) then
       FNavigatorChange2(Sender, Node)
-    else
+    else if (NavigatorElapse > 0) then
     begin
       SetTimer(Self.Handle, tiNavigator, NavigatorElapse, nil);
       NavigatorElapse := 0;
@@ -6980,17 +6984,33 @@ procedure TFSession.FNavigatorKeyDown(Sender: TObject; var Key: Word;
   Shift: TShiftState);
 begin
   if (not TTreeView(Sender).IsEditing()) then
+  begin
     if ((Key = Ord('C')) and (Shift = [ssCtrl]) or (Key = VK_INSERT) and (Shift = [ssCtrl])) then
       begin aECopyExecute(Sender); Key := 0; end
     else if ((Key = Ord('V')) and (Shift = [ssCtrl]) or (Key = VK_INSERT) and (Shift = [ssShift])) then
       begin aEPasteExecute(Sender); Key := 0; end
+    else if ((Key = VK_RETURN) and CheckWin32Version(6, 1)) then
+      FNavigatorChange2(Sender, FNavigator.Selected)
     else if (not (Key in [VK_SHIFT, VK_CONTROL])) then
-      NavigatorElapse := 500;
+      if (not CheckWin32Version(6, 1)) then
+        NavigatorElapse := 500
+      else
+        FNavigatorIgnoreChange := True;
+  end;
 end;
 
 procedure TFSession.FNavigatorKeyPress(Sender: TObject; var Key: Char);
 begin
-  if (Key = #3) then Key := #0; // Why is threre a Beep on <Ctrl+C> without this?
+  if (Key = #3) then
+    Key := #0 // Why is threre a Beep on <Ctrl+C> without this?
+  else if ((Key = #13) and CheckWin32Version(6, 1)) then
+    Key := #0;
+end;
+
+procedure TFSession.FNavigatorKeyUp(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  FNavigatorIgnoreChange := True;
 end;
 
 function TFSession.FNavigatorNodeByAddress(const Address: string): TTreeNode;
@@ -10131,14 +10151,10 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
 
   function InsertOrUpdateItem(const Kind: TPAccount.TDesktop.TListViewKind; const GroupID: Integer; const Data: TObject): TListItem;
   var
-    {$IFNDEF Debug}
-    I: Integer;
-    {$ENDIF}
     Item: TListItem;
     Index: Integer;
     Left: Integer;
     Mid: Integer;
-    ReorderGroup: Boolean;
     Right: Integer;
   begin
     Index := 0;
@@ -10170,19 +10186,14 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
     begin
       Result := ListView.Items.Add();
       Result.Data := Data;
-      ReorderGroup := False;
     end
     else if (ListView.Items[Index].Data <> Data) then
     begin
       Result := ListView.Items.Insert(Index);
       Result.Data := Data;
-      ReorderGroup := True;
     end
     else
-    begin
       Result := ListView.Items[Index];
-      ReorderGroup := not (Data is TSItem) or (TSItem(Data).Caption <> Result.Caption);
-    end;
     UpdateItem(Result, GroupID, Data);
   end;
 
