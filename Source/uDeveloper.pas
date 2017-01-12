@@ -1,4 +1,4 @@
-unit uDeveloper;
+﻿unit uDeveloper;
 
 interface {********************************************************************}
 
@@ -198,27 +198,30 @@ begin
     Body := Text;
 
     {$IFDEF EurekaLog}
-    CallStack := GetCurrentCallStack();
-    Index := 0; StackItem := 0; Item := nil;
-    while ((Index < CallStack.Count) and (StackItem < 2)) do
+    if (not DisableSource) then
     begin
-      Item := CallStack.GetItem(1, Buffer); GetModuleFileName(GetModuleHandle(nil), @Filename, Length(Filename));
-      if ((Item^.Location.DebugDetail = ddSourceCode) and (lstrcmpI(PChar(Item^.Location.ModuleName), PChar(@Filename)) = 0)) then
-        Inc(StackItem);
-    end;
-    if (Assigned(Item) and (StackItem = 2)) then
-    begin
-      if ((Item^.Location.ClassName <> '') and (Item^.Location.ProcedureName <> '')) then
-        Source := '|' + Item^.Location.ClassName + '.' + Item^.Location.ProcedureName
-      else if (Item^.Location.ClassName <> '') then
-        Source := '|' + Item^.Location.ClassName
-      else if (Item^.Location.ProcedureName <> '') then
-        Source := '|' + Item^.Location.ProcedureName
-      else
-        Source := '';
-      Source := ExtractFileName(Item^.Location.ModuleName) + '|' + Item^.Location.SourceName + Source + '|' + IntToStr(Item^.Location.LineNumber) + '[' + IntToStr(Item^.Location.ProcOffsetLine) + ']' + #13#10#13#10;
+      CallStack := GetCurrentCallStack();
+      Index := 0; StackItem := 0; Item := nil;
+      while ((Index < CallStack.Count) and (StackItem < 2)) do
+      begin
+        Item := CallStack.GetItem(1, Buffer); GetModuleFileName(GetModuleHandle(nil), @Filename, Length(Filename));
+        if ((Item^.Location.DebugDetail = ddSourceCode) and (lstrcmpI(PChar(Item^.Location.ModuleName), PChar(@Filename)) = 0)) then
+          Inc(StackItem);
+      end;
+      if (Assigned(Item) and (StackItem = 2)) then
+      begin
+        if ((Item^.Location.ClassName <> '') and (Item^.Location.ProcedureName <> '')) then
+          Source := Item^.Location.ClassName + '.' + Item^.Location.ProcedureName
+        else if (Item^.Location.ClassName <> '') then
+          Source := Item^.Location.ClassName
+        else if (Item^.Location.ProcedureName <> '') then
+          Source := Item^.Location.ProcedureName
+        else
+          Source := '';
+        Source := ExtractFileName(Item^.Location.ModuleName) + '|' + Item^.Location.UnitName + '|' + Source + '|' + IntToStr(Item^.Location.LineNumber) + '[' + IntToStr(Item^.Location.ProcOffsetLine) + ']' + #13#10#13#10;
 
-      Body := Source + Body;
+        Body := Source + Body;
+      end;
     end;
     {$ENDIF}
 

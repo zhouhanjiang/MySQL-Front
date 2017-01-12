@@ -120,7 +120,7 @@ begin
   URLComponents.lpszUrlPath := @URLComponentsPath;
   URLComponents.lpszExtraInfo := @URLComponentsExtraInfo;
 
-  if ((HostName = '') or (Port = 0)) then
+  if ((HostName = '') or (Pos('://', HostName) > 0) or (Port = 0)) then
     Result := False
   else
   begin

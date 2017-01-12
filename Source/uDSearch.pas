@@ -333,8 +333,6 @@ begin
   SendMessage(FErrorMessages.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
 
   PageControl.ActivePage := nil;
-
-  PostMessage(Handle, UM_POST_CREATE, 0, 0);
 end;
 
 procedure TDSearch.FormHide(Sender: TObject);

@@ -3051,47 +3051,34 @@ end;
 procedure TFSession.aECopyExecute(Sender: TObject);
 var
   ClipboardData: HGLOBAL;
+  ClipboardOwner: array [0..MAX_PATH] of Char;
   Data: string;
-  Filename: array [0 .. MAX_PATH] of Char;
   I: Integer;
   ImageIndex: Integer;
+  Opened: Boolean;
+  Retry: Integer;
   S: string;
   StringList: TStringList;
   Text: string;
 begin
-  // Debug 2017-01-02
-  if (OpenClipboard(Handle)) then
-    CloseClipboard()
-  else if (GetLastError() = ERROR_ACCESS_DENIED) then
-  begin
-    CloseClipboard();
-    if (OpenClipboard(Handle)) then
+  Retry := 0;
+  SetString(S, PChar(@ClipboardOwner), GetWindowModuleFileName(GetClipboardOwner(), PChar(@ClipboardOwner), Length(ClipboardOwner)));
+  repeat
+    Opened := OpenClipboard(Handle);
+    if (Opened) then
+      CloseClipboard()
+    else
     begin
-      CloseClipboard();
-      SendToDeveloper('Clipboard now opened (1)' + #13#10
-        + TOSVersion.ToString);
-    end
-    else if (GetLastError() = ERROR_ACCESS_DENIED) then
-    begin
-      Sleep(500);
-      CloseClipboard();
-      Sleep(500);
-      if (OpenClipboard(Handle)) then
-      begin
-        SendToDeveloper('Clipboard openable after Sleep (1)' + #13#10
-          + TOSVersion.ToString);
-        CloseClipboard();
-        Sleep(500);
-      end
-      else
-      begin
-        SetString(S, PChar(@Filename[0]), GetWindowModuleFileName(GetClipboardOwner(), PChar(@Filename[0]), Length(Filename)));
-        SendToDeveloper('Clipboard still not openable (1): ' + SysErrorMessage(GetLastError()) + #13#10
-          + S + #13#10
-          + TOSVersion.ToString);
-      end;
+      Sleep(50);
+      Inc(Retry);
     end;
-  end;
+  until (Opened or (Retry = 10));
+
+  // Debug 2017-01-11
+  if (Retry > 0) then
+    SendToDeveloper('Opened: ' + BoolToStr(Opened) + #13#10
+      + 'Retry: ' + IntToStr(Retry) + #13#10
+      + 'ClipboardOwner: ' + S);
 
 
   Data := ''; Text := '';
@@ -3240,40 +3227,27 @@ begin
     exit;
   end;
 
-  // Debug 2017-01-02
-  if (OpenClipboard(Handle)) then
-    CloseClipboard()
-  else if (GetLastError() = ERROR_ACCESS_DENIED) then
+  if ((Data <> '') or (Text <> '')) then
   begin
-    CloseClipboard();
-    if (OpenClipboard(Handle)) then
-    begin
-      CloseClipboard();
-      SendToDeveloper('Clipboard now opened (2)' + ' - ' + Window.ActiveControl.ClassName + #13#10
-        + TOSVersion.ToString);
-    end
-    else if (GetLastError() = ERROR_ACCESS_DENIED) then
-    begin
-      Sleep(500);
-      CloseClipboard();
-      Sleep(500);
-      if (OpenClipboard(Handle)) then
-      begin
-        SendToDeveloper('Clipboard openable after Sleep (2)' + #13#10
-          + TOSVersion.ToString);
-        CloseClipboard();
-        Sleep(500);
-      end
+    Retry := 0;
+    SetString(S, PChar(@ClipboardOwner), GetWindowModuleFileName(GetClipboardOwner(), PChar(@ClipboardOwner), Length(ClipboardOwner)));
+    repeat
+      Opened := OpenClipboard(Handle);
+      if (Opened) then
+        CloseClipboard()
       else
       begin
-        SetString(S, PChar(@Filename[0]), GetWindowModuleFileName(GetClipboardOwner(), PChar(@Filename[0]), Length(Filename)));
-        SendToDeveloper('Clipboard still not openable (2): ' + SysErrorMessage(GetLastError()) + #13#10
-          + S + #13#10
-          + TOSVersion.ToString);
+        Sleep(50);
+        Inc(Retry);
       end;
-    end;
-  end;
+    until (Opened or (Retry = 10));
 
+    // Debug 2017-01-11
+    if (Retry > 0) then
+      SendToDeveloper('Opened: ' + BoolToStr(Opened) + #13#10
+        + 'Retry: ' + IntToStr(Retry) + #13#10
+      + 'ClipboardOwner: ' + S);
+  end;
 
   if (((Data <> '') or (Text <> '')) and OpenClipboard(Handle)) then
   begin
@@ -3340,47 +3314,31 @@ procedure TFSession.aEPasteExecute(Sender: TObject);
 var
   B: Boolean;
   ClipboardData: HGLOBAL;
-  Control: TWinControl;
-  FileName: array [0..MAX_PATH] of Char; // Debug 2012-12
+  ClipboardOwner: array [0..MAX_PATH] of Char;
   I: Integer;
-  Msg: string; // Debug 2016-12-07
   Node: TTreeNode;
+  Opened: Boolean;
+  Retry: Integer;
   S: string;
-  Text: array [0..128] of Char; // Debug 2016-12-07
 begin
-  // Debug 2017-01-11
-  if (OpenClipboard(Handle)) then
-    CloseClipboard()
-  else if (GetLastError() = ERROR_ACCESS_DENIED) then
-  begin
-    CloseClipboard();
-    if (OpenClipboard(Handle)) then
+  Retry := 0;
+  SetString(S, PChar(@ClipboardOwner), GetWindowModuleFileName(GetClipboardOwner(), PChar(@ClipboardOwner), Length(ClipboardOwner)));
+  repeat
+    Opened := OpenClipboard(Handle);
+    if (Opened) then
+      CloseClipboard()
+    else
     begin
-      CloseClipboard();
-      SendToDeveloper('Clipboard now opened (3)' + #13#10
-        + TOSVersion.ToString);
-    end
-    else if (GetLastError() = ERROR_ACCESS_DENIED) then
-    begin
-      Sleep(500);
-      CloseClipboard();
-      Sleep(500);
-      if (OpenClipboard(Handle)) then
-      begin
-        SendToDeveloper('Clipboard openable after Sleep (3)' + #13#10
-          + TOSVersion.ToString);
-        CloseClipboard();
-        Sleep(500);
-      end
-      else
-      begin
-        SetString(S, PChar(@Filename[0]), GetWindowModuleFileName(GetClipboardOwner(), PChar(@Filename[0]), Length(Filename)));
-        SendToDeveloper('Clipboard still not openable (3): ' + SysErrorMessage(GetLastError()) + #13#10
-          + S + #13#10
-          + TOSVersion.ToString);
-      end;
+      Sleep(50);
+      Inc(Retry);
     end;
-  end;
+  until (Opened or (Retry = 10));
+
+  // Debug 2017-01-11
+  if (Retry > 0) then
+    SendToDeveloper('Opened: ' + BoolToStr(Opened) + #13#10
+      + 'Retry: ' + IntToStr(Retry) + #13#10
+      + 'ClipboardOwner: ' + S);
 
 
   if (Session.Connection.InUse()) then
@@ -3450,26 +3408,7 @@ begin
     end;
   end
   else if (Window.ActiveControl = ActiveSynMemo) then
-    try
-      ActiveSynMemo.PasteFromClipboard();
-    except
-      on E: EClipboardException do
-        begin
-          Msg := E.Message;
-          SetString(S, PChar(@FileName[0]), GetWindowModuleFileName(GetClipboardOwner(), PChar(@FileName[0]), Length(FileName)));
-          Msg := Msg + #10 + 'Filename: ' + S;
-          SetString(S, PChar(@Text[0]), GetWindowText(GetClipboardOwner(), PChar(@Text[0]), Length(Text)));
-          Msg := Msg + #10 + 'WindowText: ' + S;
-          try
-            Control := GetControlByHandle(Window, GetClipboardOwner());
-            if (Assigned(Control)) then
-              Msg := Msg + #10 + 'ClassType: ' + Control.ClassName
-                 + #10 + 'Name: ' + Control.Name;
-          except
-          end;
-          raise Exception.Create(E.Message + #10 + 'Clipboard Owner: ' + Msg);
-        end;
-    end
+    ActiveSynMemo.PasteFromClipboard()
   else if (Assigned(ActiveWorkbench) and (Window.ActiveControl = ActiveWorkbench)) then
     WorkbenchPasteExecute(Sender)
   else if (Window.ActiveControl = FFilter) then
@@ -3480,12 +3419,6 @@ begin
     TCustomEdit(Window.ActiveControl).PasteFromClipboard()
   else
     MessageBeep(MB_ICONERROR);
-
-  // Debug 2016-12-14
-  if (not OpenClipboard(Handle)) then
-    raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName)
-  else
-    CloseClipboard();
 end;
 
 procedure TFSession.aEPasteFromExecute(Sender: TObject);
@@ -10502,14 +10435,13 @@ procedure TFSession.ListViewSelectItem(Sender: TObject; Item: TListItem;
 var
   I: Integer;
   ListView: TListView;
-  Msg: TMsg;
 begin
   if (not (Sender is TListView)) then
     ListView := nil
   else
     ListView := TListView(Sender);
 
-  if (Assigned(ListView) and (not (PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (Msg.wParam = MK_LBUTTON)) or (ListView.SelCount <= 1))) then
+  if (Assigned(ListView)) then
   begin
     MainAction('aFImportSQL').Enabled := False;
     MainAction('aFImportText').Enabled := False;
@@ -12379,40 +12311,36 @@ end;
 procedure TFSession.PDataBrowserResize(Sender: TObject);
 var
   I: Integer;
-  Msg: TMsg;
 begin
   // With higher DPI system, the width of the following components are not
   // applyed in a "frame" (Delphi XE4). So there is the PDataBrowserDummy as
   // a "form" to get the correct values...
 
-  if (not (PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (Msg.wParam = MK_LBUTTON))) then
-  begin
-    for I := 0 to PDataBrowser.ControlCount - 1 do
-      if (PDataBrowser.Controls[I] <> PDataBrowserSpacer) then
-        PDataBrowser.Controls[I].Height := PDataBrowser.ClientHeight - PDataBrowserSpacer.Height;
+  for I := 0 to PDataBrowser.ControlCount - 1 do
+    if (PDataBrowser.Controls[I] <> PDataBrowserSpacer) then
+      PDataBrowser.Controls[I].Height := PDataBrowser.ClientHeight - PDataBrowserSpacer.Height;
 
-    FOffset.Left := PDataBrowserDummy.FOffset.Left;
-    FOffset.Width := PDataBrowserDummy.FOffset.Width;
-    FUDOffset.Left := FOffset.Left + FOffset.Width;
-    FUDOffset.Width := PDataBrowserDummy.FUDOffset.Width;
-    FLimit.Left := FUDOffset.Left + FUDOffset.Width;
-    FLimit.Width := PDataBrowserDummy.FLimit.Width;
-    FUDLimit.Left := FLimit.Left + FLimit.Width;
-    FUDLimit.Width := PDataBrowserDummy.FUDLimit.Width;
-    TBLimitEnabled.Left := FUDLimit.Left + FUDLimit.Width;
-    TBLimitEnabled.Width := TBLimitEnabled.Height;
+  FOffset.Left := PDataBrowserDummy.FOffset.Left;
+  FOffset.Width := PDataBrowserDummy.FOffset.Width;
+  FUDOffset.Left := FOffset.Left + FOffset.Width;
+  FUDOffset.Width := PDataBrowserDummy.FUDOffset.Width;
+  FLimit.Left := FUDOffset.Left + FUDOffset.Width;
+  FLimit.Width := PDataBrowserDummy.FLimit.Width;
+  FUDLimit.Left := FLimit.Left + FLimit.Width;
+  FUDLimit.Width := PDataBrowserDummy.FUDLimit.Width;
+  TBLimitEnabled.Left := FUDLimit.Left + FUDLimit.Width;
+  TBLimitEnabled.Width := TBLimitEnabled.Height;
 
-    TBQuickSearchEnabled.Left := PDataBrowser.ClientWidth - PDataBrowserDummy.TBQuickSearchEnabled.Width - GetSystemMetrics(SM_CXVSCROLL);
-    TBQuickSearchEnabled.Width := PDataBrowserDummy.TBQuickSearchEnabled.Width;
-    TBFilterEnabled.Width := TBFilterEnabled.Height;
-    FQuickSearch.Left := TBQuickSearchEnabled.Left - PDataBrowserDummy.FQuickSearch.Width;
-    FQuickSearch.Width := PDataBrowserDummy.FQuickSearch.Width;
+  TBQuickSearchEnabled.Left := PDataBrowser.ClientWidth - PDataBrowserDummy.TBQuickSearchEnabled.Width - GetSystemMetrics(SM_CXVSCROLL);
+  TBQuickSearchEnabled.Width := PDataBrowserDummy.TBQuickSearchEnabled.Width;
+  TBFilterEnabled.Width := TBFilterEnabled.Height;
+  FQuickSearch.Left := TBQuickSearchEnabled.Left - PDataBrowserDummy.FQuickSearch.Width;
+  FQuickSearch.Width := PDataBrowserDummy.FQuickSearch.Width;
 
-    TBFilterEnabled.Left := FQuickSearch.Left - PDataBrowserDummy.TBFilterEnabled.Width;
-    TBFilterEnabled.Width := PDataBrowserDummy.TBFilterEnabled.Width;
-    FFilter.Left := PDataBrowserDummy.FFilter.Left;
-    FFilter.Width := TBFilterEnabled.Left - FFilter.Left;
-  end;
+  TBFilterEnabled.Left := FQuickSearch.Left - PDataBrowserDummy.TBFilterEnabled.Width;
+  TBFilterEnabled.Width := PDataBrowserDummy.TBFilterEnabled.Width;
+  FFilter.Left := PDataBrowserDummy.FFilter.Left;
+  FFilter.Width := TBFilterEnabled.Left - FFilter.Left;
 end;
 
 procedure TFSession.PGridResize(Sender: TObject);
@@ -13162,6 +13090,8 @@ var
   Table: TSTable;
   URI: TUURI;
 begin
+  Assert(AAddress <> '');
+
   // Debug 2017-01-10
   URI := TUURI.Create(AAddress);
   if ((URI.Param['view'] = 'browser')
@@ -14786,6 +14716,7 @@ end;
 
 procedure TFSession.UMPostShow(var Message: TMessage);
 var
+  AllowChange: Boolean;
   Node: TTreeNode;
   URI: TUURI;
 begin
@@ -14850,13 +14781,7 @@ begin
   FNavigatorInitialize(nil);
 
 
-  if (Copy(Param, 1, 8) = 'mysql://') then
-    try
-      Address := Param;
-    except
-      Address := Session.Account.Desktop.Address;
-    end
-  else if (Param <> '') then
+  if (Param <> '') then
   begin
     URI := TUURI.Create(Session.Account.Desktop.Address);
     URI.Param['view'] := 'editor';
@@ -14874,7 +14799,12 @@ begin
     URI.Free();
   end
   else
-    Address := Session.Account.Desktop.Address;
+  begin
+    AllowChange := True;
+    AddressChanging(nil, Session.Account.Desktop.Address, AllowChange);
+    Wanted.Address := Session.Account.Desktop.Address;
+  end;
+
   PHeaderCheckElements(nil);
 end;
 

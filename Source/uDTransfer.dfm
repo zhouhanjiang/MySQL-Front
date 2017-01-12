@@ -66,18 +66,20 @@ object DTransfer: TDTransfer
       object GSource: TGroupBox_Ext
         Left = 4
         Top = 0
-        Width = 209
+        Width = 210
         Height = 265
         Anchors = [akLeft, akTop, akBottom]
         Caption = 'GSource'
+        DoubleBuffered = True
+        ParentDoubleBuffered = False
         TabOrder = 0
         DesignSize = (
-          209
+          210
           265)
         object PSource: TPanel_Ext
           Left = 8
           Top = 16
-          Width = 193
+          Width = 194
           Height = 241
           Anchors = [akLeft, akTop, akRight, akBottom]
           BevelInner = bvRaised
@@ -85,17 +87,20 @@ object DTransfer: TDTransfer
           Caption = 'PSource'
           ParentBackground = False
           TabOrder = 0
+          ExplicitWidth = 193
           object FSource: TTreeView_Ext
             Left = 2
             Top = 2
-            Width = 189
+            Width = 190
             Height = 237
             Align = alClient
             BorderStyle = bsNone
+            DoubleBuffered = True
             HideSelection = False
             Indent = 19
             MultiSelect = True
             MultiSelectStyle = [msControlSelect, msShiftSelect, msSiblingOnly]
+            ParentDoubleBuffered = False
             ReadOnly = True
             ShowLines = False
             TabOrder = 0
@@ -103,45 +108,52 @@ object DTransfer: TDTransfer
             OnChanging = FSourceChanging
             OnExpanding = TreeViewExpanding
             OnGetSelectedIndex = TreeViewGetSelectedIndex
+            ExplicitWidth = 189
           end
         end
       end
       object GDestination: TGroupBox_Ext
-        Left = 224
+        Left = 222
         Top = 0
-        Width = 209
+        Width = 210
         Height = 265
         Anchors = [akTop, akBottom]
         Caption = 'GDestination'
+        DoubleBuffered = True
+        ParentDoubleBuffered = False
         TabOrder = 1
         DesignSize = (
-          209
+          210
           265)
         object PDestination: TPanel_Ext
           Left = 8
           Top = 16
-          Width = 193
+          Width = 194
           Height = 241
           Anchors = [akLeft, akTop, akRight, akBottom]
           BevelInner = bvRaised
           BevelOuter = bvLowered
           ParentBackground = False
           TabOrder = 0
+          ExplicitWidth = 193
           object FDestination: TTreeView_Ext
             Left = 2
             Top = 2
-            Width = 189
+            Width = 190
             Height = 237
             Align = alClient
             BorderStyle = bsNone
+            DoubleBuffered = True
             HideSelection = False
             Indent = 19
+            ParentDoubleBuffered = False
             ReadOnly = True
             ShowLines = False
             TabOrder = 0
             OnChange = TreeViewChange
             OnExpanding = TreeViewExpanding
             OnGetSelectedIndex = TreeViewGetSelectedIndex
+            ExplicitWidth = 189
           end
         end
       end

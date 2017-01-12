@@ -34,7 +34,7 @@ type
     HTTPThread: THTTPThread;
     PADFileStream: TStringStream;
     SetupPrgFilename: TFileName;
-    procedure Progress(Sender: TObject; const Done, Size: Int64);
+    procedure OnProgress(Sender: TObject; const Done, Size: Int64);
     procedure OnTerminate(Sender: TObject);
     procedure UMChangePreferences(var Msg: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMPADFileReceived(var Msg: TMessage); message UM_PAD_FILE_RECEIVED;
@@ -106,7 +106,7 @@ begin
     SetupProgramStream := TFileStream.Create(SetupPrgFilename, fmCreate);
 
     HTTPThread := THTTPThread.Create(SetupProgramURI, nil, SetupProgramStream);
-    HTTPThread.OnProgress := Progress;
+    HTTPThread.OnProgress := OnProgress;
     HTTPThread.OnTerminate := OnTerminate;
 
     SendMessage(Handle, UM_UPDATE_PROGRESSBAR, 2, 100);
@@ -159,7 +159,7 @@ begin
   if (Assigned(HTTPThread)) then
     TerminateThread(HTTPThread.Handle, 0);
   HTTPThread := THTTPThread.Create(SysUtils.LoadStr(1005), nil, PADFileStream);
-  HTTPThread.OnProgress := Progress;
+  HTTPThread.OnProgress := OnProgress;
   HTTPThread.OnTerminate := OnTerminate;
 
   SendMessage(Handle, UM_UPDATE_PROGRESSBAR, 10, 100);
@@ -171,14 +171,14 @@ begin
   FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
+procedure TDUpdate.OnProgress(Sender: TObject; const Done, Size: Int64);
+begin
+  PostMessage(Handle, UM_UPDATE_PROGRESSBAR, Done, Size);
+end;
+
 procedure TDUpdate.OnTerminate(Sender: TObject);
 begin
   PostMessage(Handle, UM_TERMINATE, 0, 0);
-end;
-
-procedure TDUpdate.Progress(Sender: TObject; const Done, Size: Int64);
-begin
-  PostMessage(Handle, UM_UPDATE_PROGRESSBAR, Done, Size);
 end;
 
 procedure TDUpdate.UMChangePreferences(var Msg: TMessage);

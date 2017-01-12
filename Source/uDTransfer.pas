@@ -75,7 +75,6 @@ type
       Created: Boolean;
       Session: TSSession;
     end;
-    Space: Integer;
     Transfer: TTTransfer;
     Wanted: record
       Page: TTabSheet;
@@ -87,12 +86,11 @@ type
     function OnError(const Details: TTool.TErrorDetails): TDataAction;
     procedure OnTerminate(Sender: TObject);
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
-    procedure UMPostAfterExecuteSQL(var Message: TMessage); message UM_POST_AFTEREXECUTESQL;
-    procedure UMPostCreate(var Message: TMessage); message UM_POST_CREATE;
-    procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
-    procedure UMToolError(var Message: TMessage); message UM_TOOL_ERROR;
-    procedure UMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
+    procedure UMChangePreferences(var Msg: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPostAfterExecuteSQL(var Msg: TMessage); message UM_POST_AFTEREXECUTESQL;
+    procedure UMTerminate(var Msg: TMessage); message UM_TERMINATE;
+    procedure UMToolError(var Msg: TMessage); message UM_TOOL_ERROR;
+    procedure UMUpdateProgressInfo(var Msg: TMessage); message UM_UPDATEPROGRESSINFO;
   public
     SourceSession: TSSession;
     SourceDatabase: TSDatabase;
@@ -250,12 +248,16 @@ end;
 
 procedure TDTransfer.FormCreate(Sender: TObject);
 begin
-  Space := (FLEntiered.Left + FLEntiered.Width) - (FLDone.Left + FLDone.Width);
-
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
 
   BorderStyle := bsSizeable;
+
+  if ((Preferences.Transfer.Width >= Width) and (Preferences.Transfer.Height >= Height)) then
+  begin
+    Width := Preferences.Transfer.Width;
+    Height := Preferences.Transfer.Height;
+  end;
 
   Transfer := nil;
 
@@ -269,8 +271,6 @@ begin
   FData.Checked := Preferences.Transfer.Data;
 
   PageControl.ActivePage := nil;
-
-  PostMessage(Handle, UM_POST_CREATE, 0, 0);
 end;
 
 procedure TDTransfer.FormHide(Sender: TObject);
@@ -771,15 +771,10 @@ begin
 end;
 
 procedure TDTransfer.TSSelectResize(Sender: TObject);
-var
-  Msg: TMsg;
 begin
-  if (not (PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (Msg.wParam = MK_LBUTTON))) then
-  begin
-    GSource.Width := TSSelect.Width div 2 - 3 * GSource.Left;
-    GDestination.Width := GSource.Width;
-    GDestination.Left := TSSelect.Width - GDestination.Width - 3 * GSource.Left;
-  end;
+  GSource.Width := (TSSelect.ClientWidth - 2 * TSSelect.Left - 3 * GSource.Left) div 2;
+  GDestination.Width := GSource.Width;
+  GDestination.Left := TSSelect.ClientWidth - GSource.Left - GDestination.Width;
 end;
 
 procedure TDTransfer.TSSelectShow(Sender: TObject);
@@ -871,7 +866,7 @@ begin
   CheckActivePageChange(TSWhat);
 end;
 
-procedure TDTransfer.UMChangePreferences(var Message: TMessage);
+procedure TDTransfer.UMChangePreferences(var Msg: TMessage);
 begin
   Preferences.Images.GetIcon(iiTransfer, Icon);
 
@@ -899,7 +894,7 @@ begin
   FBBack.Caption := '< ' + Preferences.LoadStr(228);
 end;
 
-procedure TDTransfer.UMPostAfterExecuteSQL(var Message: TMessage);
+procedure TDTransfer.UMPostAfterExecuteSQL(var Msg: TMessage);
 var
   Node: TTreeNode;
 begin
@@ -913,20 +908,11 @@ begin
     Wanted.Page.OnShow(nil);
 end;
 
-procedure TDTransfer.UMPostCreate(var Message: TMessage);
-begin
-  if ((Preferences.Transfer.Width >= Width) and (Preferences.Transfer.Height >= Height)) then
-  begin
-    Width := Preferences.Transfer.Width;
-    Height := Preferences.Transfer.Height;
-  end;
-end;
-
-procedure TDTransfer.UMTerminate(var Message: TMessage);
+procedure TDTransfer.UMTerminate(var Msg: TMessage);
 var
   Success: Boolean;
 begin
-  Success := Boolean(Message.WParam);
+  Success := Boolean(Msg.WParam);
 
   Transfer.WaitFor();
 
@@ -950,66 +936,66 @@ begin
     FBCancel.ModalResult := mrCancel;
 end;
 
-procedure TDTransfer.UMToolError(var Message: TMessage);
+procedure TDTransfer.UMToolError(var Msg: TMessage);
 var
   Details: ^TTool.TErrorDetails;
   ErrorMsg: string;
   Flags: Integer;
-  Msg: string;
+  Text: string;
 begin
-  Details := Pointer(Message.LParam);
+  Details := Pointer(Msg.LParam);
 
   ErrorMsg := '';
   case (Details^.Error.ErrorType) of
     TE_Database:
       begin
-        Msg := Preferences.LoadStr(165, IntToStr(Details^.Error.Session.Connection.ErrorCode), Details^.Error.Session.Connection.ErrorMessage);
+        Text := Preferences.LoadStr(165, IntToStr(Details^.Error.Session.Connection.ErrorCode), Details^.Error.Session.Connection.ErrorMessage);
         ErrorMsg := Details^.Error.ErrorMessage
           + ' (#' + IntToStr(Details^.Error.ErrorCode) + ') - ' + Trim(Details^.Error.Session.Connection.ErrorCommandText);
       end;
     TE_File:
       begin
-        Msg := Details^.Error.ErrorMessage + ' (#' + IntToStr(Details^.Error.ErrorCode) + ')';
-        ErrorMsg := Msg;
+        Text := Details^.Error.ErrorMessage + ' (#' + IntToStr(Details^.Error.ErrorCode) + ')';
+        ErrorMsg := Text;
       end;
     TE_NoPrimaryIndex:
       if ((Details^.Tool is TTTransfer) and (Details^.Error.Session = TTTransfer(Details^.Tool).Session)) then
-        Msg := Preferences.LoadStr(722, TTTransfer.TItem(Details^.Item).DBObject.Name)
+        Text := Preferences.LoadStr(722, TTTransfer.TItem(Details^.Item).DBObject.Name)
       else if ((Details^.Tool is TTTransfer) and (Details^.Error.Session = TTTransfer(Details^.Tool).DestinationSession)) then
-        Msg := Preferences.LoadStr(722, TTTransfer.TItem(Details^.Item).DBObject.Name)
+        Text := Preferences.LoadStr(722, TTTransfer.TItem(Details^.Item).DBObject.Name)
       else
         raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Sender | Details^.Error.Session']);
     else
-      Msg := Details^.Error.ErrorMessage;
+      Text := Details^.Error.ErrorMessage;
   end;
 
   if (not Details^.ShowRetry) then
     Flags := MB_OK + MB_ICONERROR
   else
     Flags := MB_CANCELTRYCONTINUE + MB_ICONERROR;
-  case (MsgBox(Msg, Preferences.LoadStr(45), Flags)) of
+  case (MsgBox(Text, Preferences.LoadStr(45), Flags)) of
     IDOK,
     IDCANCEL,
-    IDABORT: Message.Result := LRESULT(daAbort);
+    IDABORT: Msg.Result := LRESULT(daAbort);
     IDRETRY,
-    IDTRYAGAIN: Message.Result := LRESULT(daRetry);
+    IDTRYAGAIN: Msg.Result := LRESULT(daRetry);
     IDCONTINUE,
-    IDIGNORE: Message.Result := LRESULT(daFail);
+    IDIGNORE: Msg.Result := LRESULT(daFail);
     else raise ERangeError.Create(SRangeError);
   end;
 
-  if ((TDataAction(Message.Result) in [daAbort, daFail]) and (ErrorMsg <> '')) then
+  if ((TDataAction(Msg.Result) in [daAbort, daFail]) and (ErrorMsg <> '')) then
   begin
     FErrors.Caption := IntToStr(Details^.Tool.ErrorCount);
     FErrorMessages.Text := FErrorMessages.Text + Trim(ErrorMsg);
   end;
 end;
 
-procedure TDTransfer.UMUpdateProgressInfo(var Message: TMessage);
+procedure TDTransfer.UMUpdateProgressInfo(var Msg: TMessage);
 var
   Infos: TTool.PProgressInfos;
 begin
-  Infos := TTool.PProgressInfos(Message.LParam);
+  Infos := TTool.PProgressInfos(Msg.LParam);
 
   if (Infos^.ObjectsSum < 0) then
     FEntieredObjects.Caption := '???'
