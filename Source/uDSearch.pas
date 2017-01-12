@@ -17,10 +17,10 @@ type
     FBHelp: TButton;
     FDBObjects: TListView_Ext;
     FDoneRecords: TLabel;
-    FDoneTables: TLabel;
+    FDoneObjects: TLabel;
     FDoneTime: TLabel;
     FEntieredRecords: TLabel;
-    FEntieredTables: TLabel;
+    FEntieredObjects: TLabel;
     FEntieredTime: TLabel;
     FErrorMessages: TRichEdit;
     FErrors: TLabel;
@@ -34,7 +34,7 @@ type
     FLFFindText: TLabel;
     FLFSearchOptions: TLabel;
     FLProgressRecords: TLabel;
-    FLProgressTables: TLabel;
+    FLProgressObjects: TLabel;
     FLProgressTime: TLabel;
     FLReplaceText: TLabel;
     FLRFindText: TLabel;
@@ -710,15 +710,15 @@ end;
 
 procedure TDSearch.TSExecuteResize(Sender: TObject);
 begin
-  FLEntiered.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FLEntiered.Width;
-  FLDone.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FLDone.Width;
-  FEntieredTables.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FEntieredTables.Width;
-  FDoneTables.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FDoneTables.Width;
-  FEntieredRecords.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FEntieredRecords.Width;
-  FDoneRecords.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FDoneRecords.Width;
-  FEntieredTime.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FEntieredTime.Width;
-  FDoneTime.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - Space - FDoneTime.Width;
-  FErrors.Left := GProgress.ClientWidth - 2 * FProgressBar.Left - FErrors.Width;
+  FLEntiered.Left := GProgress.ClientWidth - FLProgressObjects.Left - FLEntiered.Width;
+  FLDone.Left := GProgress.ClientWidth - FLProgressObjects.Left - Space - FLDone.Width;
+  FEntieredObjects.Left := GProgress.ClientWidth - FLProgressObjects.Left - FEntieredObjects.Width;
+  FLDone.Left := GProgress.ClientWidth - FLProgressObjects.Left - Space - FDoneObjects.Width;
+  FEntieredRecords.Left := GProgress.ClientWidth - FLProgressObjects.Left - FEntieredRecords.Width;
+  FDoneRecords.Left := GProgress.ClientWidth - FLProgressObjects.Left - Space - FDoneRecords.Width;
+  FEntieredTime.Left := GProgress.ClientWidth - FLProgressObjects.Left - FEntieredTime.Width;
+  FDoneTime.Left := GProgress.ClientWidth - FLProgressObjects.Left - Space - FDoneTime.Width;
+  FErrors.Left := GProgress.ClientWidth - FLProgressObjects.Left - FErrors.Width;
 end;
 
 procedure TDSearch.TSExecuteShow(Sender: TObject);
@@ -756,8 +756,8 @@ var
   Node: TTreeNode;
   Table: TSTable;
 begin
-  FEntieredTables.Caption := '';
-  FDoneTables.Caption := '';
+  FEntieredObjects.Caption := '';
+  FDoneObjects.Caption := '';
   FEntieredRecords.Caption := '';
   FDoneRecords.Caption := '';
   FEntieredTime.Caption := '';
@@ -973,7 +973,7 @@ begin
   GProgress.Caption := Preferences.LoadStr(224);
   FLEntiered.Caption := Preferences.LoadStr(211);
   FLDone.Caption := Preferences.LoadStr(232);
-  FLProgressTables.Caption := Preferences.LoadStr(234) + ':';
+  FLProgressObjects.Caption := Preferences.LoadStr(234) + ':';
   FLProgressRecords.Caption := Preferences.LoadStr(235) + ':';
   FLProgressTime.Caption := Preferences.LoadStr(661) + ':';
   FLErrors.Caption := Preferences.LoadStr(391) + ':';
@@ -1088,13 +1088,13 @@ begin
   Infos := TTool.PProgressInfos(Message.LParam);
 
   if (Infos.ObjectsSum < 0) then
-    FEntieredTables.Caption := '???'
+    FEntieredObjects.Caption := '???'
   else
-    FEntieredTables.Caption := FormatFloat('#,##0', Infos.ObjectsSum, LocaleFormatSettings);
+    FEntieredObjects.Caption := FormatFloat('#,##0', Infos.ObjectsSum, LocaleFormatSettings);
   if (Infos.ObjectsDone < 0) then
-    FDoneTables.Caption := '???'
+    FDoneObjects.Caption := '???'
   else
-    FDoneTables.Caption := FormatFloat('#,##0', Infos.ObjectsDone, LocaleFormatSettings);
+    FDoneObjects.Caption := FormatFloat('#,##0', Infos.ObjectsDone, LocaleFormatSettings);
 
   if (Infos.RecordsSum < 0) then
     FEntieredRecords.Caption := '???'

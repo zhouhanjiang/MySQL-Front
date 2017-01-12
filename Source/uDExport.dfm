@@ -42,7 +42,7 @@ object DExport: TDExport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSXMLOptions
+    ActivePage = TSExecute
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     Style = tsFlatButtons
@@ -302,10 +302,6 @@ object DExport: TDExport
       Caption = 'TSXMLOptions'
       TabVisible = False
       OnShow = TSXMLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -808,11 +804,8 @@ object DExport: TDExport
     object TSExecute: TTabSheet
       Caption = 'TSExecute'
       TabVisible = False
+      OnResize = TSExecuteResize
       OnShow = TSExecuteShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)

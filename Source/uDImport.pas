@@ -128,6 +128,7 @@ type
     procedure WhatClick(Sender: TObject);
     procedure WhatKeyPress(Sender: TObject; var Key: Char);
     procedure FBCancelClick(Sender: TObject);
+    procedure TSExecuteResize(Sender: TObject);
   type
     TTableName = class
     private
@@ -1007,6 +1008,19 @@ begin
     FLDestinationFields.Left := FDestinationFields[0].Left + 6;
 end;
 
+procedure TDImport.TSExecuteResize(Sender: TObject);
+begin
+  FLEntiered.Left := GProgress.ClientWidth - FLProgressObjects.Left - FLEntiered.Width;
+  FLDone.Left := GProgress.ClientWidth - FLProgressObjects.Left - Space - FLDone.Width;
+  FEntieredObjects.Left := GProgress.ClientWidth - FLProgressObjects.Left - FEntieredObjects.Width;
+  FLDone.Left := GProgress.ClientWidth - FLProgressObjects.Left - Space - FDoneObjects.Width;
+  FEntieredRecords.Left := GProgress.ClientWidth - FLProgressObjects.Left - FEntieredRecords.Width;
+  FDoneRecords.Left := GProgress.ClientWidth - FLProgressObjects.Left - Space - FDoneRecords.Width;
+  FEntieredTime.Left := GProgress.ClientWidth - FLProgressObjects.Left - FEntieredTime.Width;
+  FDoneTime.Left := GProgress.ClientWidth - FLProgressObjects.Left - Space - FDoneTime.Width;
+  FErrors.Left := GProgress.ClientWidth - FLProgressObjects.Left - FErrors.Width;
+end;
+
 procedure TDImport.TSExecuteShow(Sender: TObject);
 var
   Answer: Integer;
@@ -1136,7 +1150,6 @@ begin
     Import.OnTerminate := OnTerminate;
     Import.OnUpdate := OnUpdate;
     Imported := True;
-    Import.FNavigator := FNavigator;
     Import.Start();
   end;
 

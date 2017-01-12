@@ -87,7 +87,6 @@ object DTransfer: TDTransfer
           Caption = 'PSource'
           ParentBackground = False
           TabOrder = 0
-          ExplicitWidth = 193
           object FSource: TTreeView_Ext
             Left = 2
             Top = 2
@@ -108,7 +107,6 @@ object DTransfer: TDTransfer
             OnChanging = FSourceChanging
             OnExpanding = TreeViewExpanding
             OnGetSelectedIndex = TreeViewGetSelectedIndex
-            ExplicitWidth = 189
           end
         end
       end
@@ -135,7 +133,6 @@ object DTransfer: TDTransfer
           BevelOuter = bvLowered
           ParentBackground = False
           TabOrder = 0
-          ExplicitWidth = 193
           object FDestination: TTreeView_Ext
             Left = 2
             Top = 2
@@ -153,7 +150,6 @@ object DTransfer: TDTransfer
             OnChange = TreeViewChange
             OnExpanding = TreeViewExpanding
             OnGetSelectedIndex = TreeViewGetSelectedIndex
-            ExplicitWidth = 189
           end
         end
       end
@@ -205,6 +201,7 @@ object DTransfer: TDTransfer
     object TSExecute: TTabSheet
       Caption = 'TSExecute'
       TabVisible = False
+      OnResize = TSExecuteResize
       OnShow = TSExecuteShow
       DesignSize = (
         436

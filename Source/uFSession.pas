@@ -35,7 +35,7 @@ const
 type
   TSynMemoBeforeDrag = record SelStart: Integer; SelLength: Integer; end;
   TListViewSortRec = record Kind: TPAccount.TDesktop.TListViewKind; Index: Integer; Order: Integer; end;
-  TListViewSortData = array [lkServer .. lkVariables] of TListViewSortRec;
+  TListViewSortData = array [Low(TPAccount.TDesktop.TListViewKind) .. High(TPAccount.TDesktop.TListViewKind)] of TListViewSortRec;
 
 type
   TFSession = class (TFrame)
@@ -858,7 +858,7 @@ type
     MovingToAddress: Boolean;
     NewLineFormat: TNewLineFormat;
     NMListView: PNMListView;
-    ObjectSearch: TSObjectSearch;
+    ObjectSearch: TSItemSearch;
     ObjectSearchListView: TListView;
     OldAddress: string;
     OldFListOrderIndex: Integer;
@@ -3059,7 +3059,6 @@ var
   Retry: Integer;
   S: string;
   StringList: TStringList;
-  Text: string;
 begin
   Retry := 0;
   SetString(S, PChar(@ClipboardOwner), GetWindowModuleFileName(GetClipboardOwner(), PChar(@ClipboardOwner), Length(ClipboardOwner)));
@@ -3081,7 +3080,7 @@ begin
       + 'ClipboardOwner: ' + S);
 
 
-  Data := ''; Text := '';
+  Data := '';
 
   if (not Assigned(Window.ActiveControl)) then
   begin
@@ -3113,7 +3112,6 @@ begin
       end;
       if (Data <> '') then
         Data := 'Address=' + NavigatorNodeToAddress(FNavigatorMenuNode.Parent) + #13#10 + Data;
-      Text := FNavigatorMenuNode.Text;
     end;
   end
   else if (Window.ActiveControl = ActiveListView) then
@@ -3144,7 +3142,6 @@ begin
         end;
     if (Data <> '') then
       Data := 'Address=' + NavigatorNodeToAddress(FNavigator.Selected) + #13#10 + Data;
-    Text := ActiveListView.Selected.Caption;
   end
   else if (Window.ActiveControl = ActiveDBGrid) then
   begin
@@ -3227,7 +3224,7 @@ begin
     exit;
   end;
 
-  if ((Data <> '') or (Text <> '')) then
+  if (Data <> '') then
   begin
     Retry := 0;
     SetString(S, PChar(@ClipboardOwner), GetWindowModuleFileName(GetClipboardOwner(), PChar(@ClipboardOwner), Length(ClipboardOwner)));
@@ -3249,50 +3246,39 @@ begin
       + 'ClipboardOwner: ' + S);
   end;
 
-  if (((Data <> '') or (Text <> '')) and OpenClipboard(Handle)) then
+  if ((Data <> '') and OpenClipboard(Handle)) then
   begin
     try
       EmptyClipboard();
 
-      if (Data <> '') then
-      begin
-        ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Length(Data) + 1) * SizeOf(Char));
-        StrPCopy(GlobalLock(ClipboardData), Data);
-        case (ImageIndex) of
-          iiServer: SetClipboardData(CF_MYSQLSERVER, ClipboardData);
-          iiDatabase,
-          iiSystemDatabase: SetClipboardData(CF_MYSQLDATABASE, ClipboardData);
-          iiTable,
-          iiBaseTable,
-          iiSystemView: SetClipboardData(CF_MYSQLTABLE, ClipboardData);
-          iiView: SetClipboardData(CF_MYSQLVIEW, ClipboardData);
-          iiUsers: SetClipboardData(CF_MYSQLUSERS, ClipboardData);
+      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(Char) * (Length(Data) + 1));
+      StrPCopy(GlobalLock(ClipboardData), Data);
+      case (ImageIndex) of
+        iiServer: SetClipboardData(CF_MYSQLSERVER, ClipboardData);
+        iiDatabase,
+        iiSystemDatabase: SetClipboardData(CF_MYSQLDATABASE, ClipboardData);
+        iiTable,
+        iiBaseTable,
+        iiSystemView: SetClipboardData(CF_MYSQLTABLE, ClipboardData);
+        iiView: SetClipboardData(CF_MYSQLVIEW, ClipboardData);
+        iiUsers: SetClipboardData(CF_MYSQLUSERS, ClipboardData);
+      end;
+      GlobalUnlock(ClipboardData);
+
+      StringList := TStringList.Create();
+      StringList.Text := Trim(Data);
+      for I := 1 to StringList.Count - 1 do
+        if (StringList.ValueFromIndex[I] <> '') then
+        begin
+          if (S <> '') then S := S + #13#10;
+          S := S + StringList.ValueFromIndex[I];
         end;
-        GlobalUnlock(ClipboardData);
+      StringList.Free();
 
-        StringList := TStringList.Create();
-        StringList.Text := Trim(Data);
-        for I := 1 to StringList.Count - 1 do
-          if (StringList.ValueFromIndex[I] <> '') then
-          begin
-            if (S <> '') then S := S + ',';
-            S := S + StringList.ValueFromIndex[I];
-          end;
-        StringList.Free();
-
-        ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(S[1]) * (Length(S) + 1));
-        StrPCopy(GlobalLock(ClipboardData), S);
-        SetClipboardData(CF_UNICODETEXT, ClipboardData);
-        GlobalUnlock(ClipboardData);
-      end;
-
-      if (Text <> '') then
-      begin
-        ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Length(Text) + 1) * SizeOf(Char));
-        StrPCopy(GlobalLock(ClipboardData), PChar(Text));
-        SetClipboardData(CF_UNICODETEXT, ClipboardData);
-        GlobalUnlock(ClipboardData);
-      end;
+      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(S[1]) * (Length(S) + 1));
+      StrPCopy(GlobalLock(ClipboardData), S);
+      SetClipboardData(CF_UNICODETEXT, ClipboardData);
+      GlobalUnlock(ClipboardData);
     finally
       CloseClipboard();
     end;
@@ -4445,7 +4431,7 @@ begin
     Result := lkUsers
   else if (TObject(ListView.Tag) is TSVariables) then
     Result := lkVariables
-  else if (TOBJECT(ListView.Tag) is TSObjectSearch) then
+  else if (TOBJECT(ListView.Tag) is TSItemSearch) then
     Result := lkObjectSearch
   else
     raise ERangeError.Create(SRangeError);
@@ -4508,7 +4494,7 @@ begin
   ProcessesListView := nil;
   UsersListView := nil;
   VariablesListView := nil;
-  for Kind := lkServer to lkVariables do
+  for Kind := Low(ListViewSortData) to High(ListViewSortData) do
   begin
     ListViewSortData[Kind].Kind := Kind;
     ListViewSortData[Kind].Index := 0;
@@ -6943,7 +6929,7 @@ end;
 procedure TFSession.FNavigatorKeyUp(Sender: TObject; var Key: Word;
   Shift: TShiftState);
 begin
-  FNavigatorIgnoreChange := True;
+  FNavigatorIgnoreChange := False;
 end;
 
 function TFSession.FNavigatorNodeByAddress(const Address: string): TTreeNode;
@@ -7597,7 +7583,7 @@ begin
   begin
     PObjectSearch.Hide();
 
-    ObjectSearch := TSObjectSearch.Create(Session);
+    ObjectSearch := TSItemSearch.Create(Session);
     ObjectSearch.Comment := PObjectSearch.Comment;
     ObjectSearch.Databases := PObjectSearch.Databases;
     ObjectSearch.Events := PObjectSearch.Events;
@@ -8933,8 +8919,12 @@ begin
     Result := iiForeignKey
   else if (TObject(Data) is TSTrigger) then
     Result := iiTrigger
+  else if (TObject(Data) is TSProcess) then
+    Result := iiProcess
   else if (TObject(Data) is TSUser) then
     Result := iiUser
+  else if (TObject(Data) is TSVariable) then
+    Result := iiVariable
   else if (TObject(Data) is TSProcesses) then
     Result := iiProcesses
   else if (TObject(Data) is TSUsers) then
@@ -9400,7 +9390,7 @@ begin
 
       ListView.Groups.Add().GroupID := giVariables;
     end
-    else if (TObject(ListView.Tag) is TSObjectSearch) then
+    else if (TObject(ListView.Tag) is TSItemSearch) then
     begin
       ListView.Columns.Add();
       ListView.Columns.Add();
@@ -9492,7 +9482,7 @@ begin
     ListView.Columns[0].Caption := Preferences.LoadStr(267);
     ListView.Columns[1].Caption := Preferences.LoadStr(268);
   end
-  else if (TObject(ListView.Tag) is TSObjectSearch) then
+  else if (TObject(ListView.Tag) is TSItemSearch) then
   begin
     ListView.Columns[0].Caption := Preferences.LoadStr(35);
     ListView.Columns[1].Caption := Preferences.LoadStr(69);
@@ -10107,7 +10097,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
         Mid := (Right - Left) div 2 + Left;
         case (Compare(Kind, ListView.Items[Mid], Item)) of
           -1: begin Left := Mid + 1; Index := Mid + 1; end;
-          0: raise ERangeError.CreateFmt(SRangeError + ': %s / %s', [TSItem(Data).Name, TSItem(Data).ClassName]);
+          0: raise ERangeError.CreateFmt('%s  %s - %d / %d /%d / %d', [TSItem(Data).ClassName, TSItem(Data).Name, Left, Mid, Right, ListView.Items.Count]);
           1: begin Right := Mid - 1; Index := Mid; end;
         end;
       end;
@@ -10201,6 +10191,8 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
         end;
       etItemCreated:
         begin
+          Session.Connection.DebugMonitor.Append('TFSession.ListViewUpdate.UpdateGroup - etItemCreated - ' + Event.Items.ClassName + ': "' + Event.Item.Name + '"', ttDebug);
+
           Item := InsertOrUpdateItem(Kind, GroupID, Event.Item);
           if (not Assigned(ListView.Selected)) then
           begin
@@ -10210,6 +10202,8 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
         end;
       etItemAltered:
         begin
+          Session.Connection.DebugMonitor.Append('TFSession.ListViewUpdate.UpdateGroup - etItemAltered - ' + Event.Items.ClassName + ': "' + Event.Item.Name + '"', ttDebug);
+
           Index := 0;
           while ((Index < ListView.Items.Count) and (ListView.Items[Index].Data <> Event.Item)) do
             Inc(Index);
@@ -10229,7 +10223,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
         end;
       etItemDropped:
         begin
-          Session.Connection.DebugMonitor.Append('TFSession.ListViewUpdate.UpdateGroup: "' + Event.Items.ClassName + '"."' + Event.Item.Name + '"', ttDebug);
+          Session.Connection.DebugMonitor.Append('TFSession.ListViewUpdate.UpdateGroup - etItemDropped - ' + Event.Items.ClassName + ': "' + Event.Item.Name + '"', ttDebug);
 
           for I := ListView.Items.Count - 1 downto 0 do
             if (ListView.Items[I].Data = Event.Item) then
@@ -10302,9 +10296,13 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
     RoutineCount: Integer;
     UserCount: Integer;
   begin
-    if (Event.Items is TSObjectSearch) then
-      for I := ListView.Items.Count to Event.Items.Count - 1 do
-        AddItem(GroupIDByImageIndex(ImageIndexByData(Event.Items[I])), Event.Items[I]);
+    if (Event.Items is TSItemSearch) then
+      for I := 0 to Event.Items.Count - 1 do
+        AddItem(GroupIDByImageIndex(ImageIndexByData(Event.Items[I])), Event.Items[I])
+    else
+      for I := 0 to ObjectSearch.Count - 1 do
+        InsertOrUpdateItem(lkObjectSearch, GroupIDByImageIndex(ImageIndexByData(ObjectSearch[I])), ObjectSearch[I]);
+
 
     DatabaseCount := 0;
     TableCount := 0;
@@ -10348,7 +10346,7 @@ var
 begin
   if (Assigned(ListView) and (Assigned(Event.Items)
     or (Event.Sender is TSTable)
-    or (Event.Sender is TSObjectSearch))) then
+    or (Event.Sender is TSItemSearch))) then
   begin
     ChangingEvent := ListView.OnChanging;
     ListView.OnChanging := nil;
@@ -12837,7 +12835,7 @@ begin
   TempActiveControl := Window.ActiveControl;
 
   if (Assigned(Event)) then
-    if (Event.Sender is TSObjectSearch) then
+    if (Event.Sender is TSItemSearch) then
       ListViewUpdate(Event, ObjectSearchListView)
     else
     begin
@@ -13062,7 +13060,10 @@ begin
   // Debug 2017-01-10
   if ((URI.Param['view'] = 'browser')
     and (URI.Table = '')) then
-    raise ERangeError.Create('AAddress: ' + URI.Address + #13#10
+    raise ERangeError.Create('Address: ' + Address + #13#10
+      + 'URI.Address: ' + URI.Address + #13#10
+      + 'LastSelectedDatabase: ' + LastSelectedDatabase + #13#10
+      + 'LastSelectedTable: ' + LastSelectedTable + #13#10
       + 'AView: ' + IntToStr(Ord(AView)));
 
   LockWindowUpdate(FNavigator.Handle);

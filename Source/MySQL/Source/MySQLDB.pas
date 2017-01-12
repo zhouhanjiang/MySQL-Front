@@ -535,7 +535,7 @@ type
       constructor Create(const ADataSet: TMySQLDataSet);
       procedure Delete(Index: Integer);
       destructor Destroy(); override;
-      function IndexOf(const Bookmark: TBookmark): Integer; overload;
+      function IndexOf(const Bookmark: TBookmark): Integer; overload; inline;
       function IndexOf(const Data: TMySQLQuery.TRecordBufferData): Integer; overload;
       procedure Insert(Index: Integer; Item: Pointer);
       property Buffers[Index: Integer]: PInternRecordBuffer read Get write Put; default;
@@ -5618,14 +5618,8 @@ begin
 end;
 
 procedure TMySQLDataSet.TInternRecordBuffers.Delete(Index: Integer);
-var
-  I: Integer;
 begin
   inherited;
-
-  for I := 0 to DataSet.BufferCount - 1 do
-    if (TMySQLDataSet.PExternRecordBuffer(DataSet.Buffers[I])^.Index > Index) then
-      Dec(TMySQLDataSet.PExternRecordBuffer(DataSet.Buffers[I])^.Index);
 
   if (Index = Count) then
     Dec(Self.Index);
@@ -5641,16 +5635,9 @@ end;
 
 function TMySQLDataSet.TInternRecordBuffers.IndexOf(const Bookmark: TBookmark): Integer;
 begin
-  {$IFDEF Debug}
   Assert(Length(Bookmark) = SizeOf(PInternRecordBuffer));
-  {$ENDIF}
 
-  if (Length(Bookmark) = 0) then
-    Result := -1
-  else if (Length(Bookmark) = SizeOf(PInternRecordBuffer)) then
-    Result := IndexOf(PInternRecordBuffer(PPointer(@Bookmark[0])^))
-  else
-    raise ERangeError.Create(SRangeError);
+  Result := IndexOf(PInternRecordBuffer(PPointer(@Bookmark[0])^))
 end;
 
 function TMySQLDataSet.TInternRecordBuffers.IndexOf(const Data: TMySQLQuery.TRecordBufferData): Integer;
@@ -6200,6 +6187,12 @@ begin
     bfBOF,
     bfInserted,
     bfEOF:
+      if (InternRecordBuffers.Count = 0) then
+      begin
+        FreeInternRecordBuffer(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
+        InternalInitRecord(ActiveBuffer());
+      end
+      else
       begin
         Index := PExternRecordBuffer(ActiveBuffer())^.Index;
         FreeInternRecordBuffer(InternRecordBuffers[Index]);
@@ -6233,7 +6226,6 @@ procedure TMySQLDataSet.InternalDelete();
 var
   I: Integer;
   Index: Integer;
-  J: Integer;
   SQL: string;
   Success: Boolean;
 begin
@@ -6259,15 +6251,14 @@ begin
       for I := 0 to Length(DeleteBookmarks) - 1 do
       begin
         Index := InternRecordBuffers.IndexOf(DeleteBookmarks[I]);
-        for J := 0 to BufferCount - 1 do
-          if (PExternRecordBuffer(Buffers[J])^.Index = Index) then
-            InternalInitRecord(Buffers[J]);
         FreeInternRecordBuffer(InternRecordBuffers[Index]);
         InternRecordBuffers.Delete(Index);
         if (Filtered) then
           Dec(InternRecordBuffers.FilteredRecordCount);
       end;
-      Resync([]);
+      InternalInitRecord(ActiveBuffer());
+      for I := 0 to BufferCount - 1 do
+        InternalInitRecord(Buffers[I]);
     end;
     InternRecordBuffers.CriticalSection.Leave();
 
@@ -6331,19 +6322,32 @@ var
 begin
   case (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag) of
     bfBOF:
-      Index := InternRecordBuffers.Add(AllocInternRecordBuffer());
+      begin
+        PExternRecordBuffer(ActiveBuffer())^.Index := -1;
+        PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := AllocInternRecordBuffer();
+      end;
     bfInserted:
       begin
         Index := InternRecordBuffers.IndexOf(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
         InternRecordBuffers.Insert(Index, AllocInternRecordBuffer());
+        PExternRecordBuffer(ActiveBuffer())^.Index := Index;
+        PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := InternRecordBuffers[Index];
       end;
     bfEOF:
-      Index := InternRecordBuffers.Add(AllocInternRecordBuffer());
+      if (InternRecordBuffers.Count = 0) then
+      begin
+        PExternRecordBuffer(ActiveBuffer())^.Index := -1;
+        PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := AllocInternRecordBuffer();
+      end
+      else
+      begin
+        Index := InternRecordBuffers.Add(AllocInternRecordBuffer());
+        PExternRecordBuffer(ActiveBuffer())^.Index := Index;
+        PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := InternRecordBuffers[Index];
+      end
     else
       raise ERangeError.Create(SRangeError);
   end;
-  PExternRecordBuffer(ActiveBuffer())^.Index := Index;
-  PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := InternRecordBuffers[Index];
 
   if (Filtered) then
     Inc(InternRecordBuffers.FilteredRecordCount);
@@ -6676,6 +6680,12 @@ begin
           for I := 0 to Fields.Count - 1 do
             if ((Fields[I].AutoGenerateValue = arAutoInc) and (Fields[I].IsNull or (Fields[I].AsLargeInt = 0)) and (Connection.InsertId > 0)) then
               Fields[I].AsLargeInt := Connection.InsertId;
+
+        if (InternRecordBuffers.Count = 0) then
+        begin
+          InternRecordBuffers.Add(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
+          PExternRecordBuffer(ActiveBuffer())^.Index := 0;
+        end;
 
         if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData) then
           FreeMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData);

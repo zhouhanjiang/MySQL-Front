@@ -69,12 +69,14 @@ type
     procedure TSSelectResize(Sender: TObject);
     procedure TSSelectShow(Sender: TObject);
     procedure TSWhatShow(Sender: TObject);
+    procedure TSExecuteResize(Sender: TObject);
   private
     ProgressInfos: TTool.TProgressInfos;
     Sessions: array of record
       Created: Boolean;
       Session: TSSession;
     end;
+    Space: Integer;
     Transfer: TTTransfer;
     Wanted: record
       Page: TTabSheet;
@@ -248,6 +250,8 @@ end;
 
 procedure TDTransfer.FormCreate(Sender: TObject);
 begin
+  Space := FLEntiered.Left + FLEntiered.Width - (FLDone.Left + FLDone.Width);
+
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
 
@@ -529,6 +533,19 @@ end;
 procedure TDTransfer.TreeViewGetSelectedIndex(Sender: TObject; Node: TTreeNode);
 begin
   Node.SelectedIndex := Node.ImageIndex;
+end;
+
+procedure TDTransfer.TSExecuteResize(Sender: TObject);
+begin
+  FLEntiered.Left := GProgress.ClientWidth - FLProgressObjects.Left - FLEntiered.Width;
+  FLDone.Left := GProgress.ClientWidth - FLProgressObjects.Left - Space - FLDone.Width;
+  FEntieredObjects.Left := GProgress.ClientWidth - FLProgressObjects.Left - FEntieredObjects.Width;
+  FLDone.Left := GProgress.ClientWidth - FLProgressObjects.Left - Space - FDoneObjects.Width;
+  FEntieredRecords.Left := GProgress.ClientWidth - FLProgressObjects.Left - FEntieredRecords.Width;
+  FDoneRecords.Left := GProgress.ClientWidth - FLProgressObjects.Left - Space - FDoneRecords.Width;
+  FEntieredTime.Left := GProgress.ClientWidth - FLProgressObjects.Left - FEntieredTime.Width;
+  FDoneTime.Left := GProgress.ClientWidth - FLProgressObjects.Left - Space - FDoneTime.Width;
+  FErrors.Left := GProgress.ClientWidth - FLProgressObjects.Left - FErrors.Width;
 end;
 
 procedure TDTransfer.TSExecuteShow(Sender: TObject);

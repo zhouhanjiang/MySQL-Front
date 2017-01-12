@@ -781,7 +781,7 @@ begin
   begin
     if (SelectedRows.Count = 0) then
       SelectedRows.CurrentRowSelected := True;
-    if DataLink.DataSet.RecNo < DataLink.DataSet.RecordCount - 1 then
+    if (DataLink.DataSet.RecNo < DataLink.DataSet.RecordCount - 1) then
       DataLink.DataSet.MoveBy(+1);
     FIgnoreKeyPress := True;
   end
@@ -807,6 +807,8 @@ begin
     EditDeleteExecute()
   else if ((Key = VK_DOWN) and (Shift = [ssAlt]) and (Columns[SelectedIndex].ButtonStyle = cbsEllipsis)) then
     EditButtonClick()
+  else if ((Key = VK_DOWN) and (ssShift in Shift) and (DataLink.DataSet.RecNo = DataLink.DataSet.RecordCount - 1)) then
+    // Do nothing - without this, an append will be executed
   else
     inherited;
 end;

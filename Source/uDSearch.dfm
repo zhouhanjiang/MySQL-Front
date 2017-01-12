@@ -60,7 +60,7 @@ object DSearch: TDSearch
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSROptions
+    ActivePage = TSExecute
     Anchors = [akLeft, akTop, akRight, akBottom]
     Style = tsButtons
     TabOrder = 0
@@ -69,10 +69,6 @@ object DSearch: TDSearch
       Caption = 'TSSelect'
       TabVisible = False
       OnShow = TSSelectShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -123,10 +119,6 @@ object DSearch: TDSearch
       Caption = 'TSFOptions'
       TabVisible = False
       OnShow = TSFOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -213,10 +205,6 @@ object DSearch: TDSearch
       Caption = 'TSROptions'
       TabVisible = False
       OnShow = TSROptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -324,10 +312,6 @@ object DSearch: TDSearch
       TabVisible = False
       OnResize = TSExecuteResize
       OnShow = TSExecuteShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -342,12 +326,12 @@ object DSearch: TDSearch
         DesignSize = (
           325
           169)
-        object FLProgressTables: TLabel
+        object FLProgressObjects: TLabel
           Left = 8
           Top = 40
-          Width = 85
+          Width = 89
           Height = 13
-          Caption = 'FLProgressTables'
+          Caption = 'FLProgressObjects'
         end
         object FLProgressRecords: TLabel
           Left = 8
@@ -356,14 +340,14 @@ object DSearch: TDSearch
           Height = 13
           Caption = 'FLProgressRecords'
         end
-        object FDoneTables: TLabel
-          Left = 151
+        object FDoneObjects: TLabel
+          Left = 147
           Top = 40
-          Width = 64
+          Width = 68
           Height = 13
           Alignment = taRightJustify
           Anchors = [akTop, akRight]
-          Caption = 'FDoneTables'
+          Caption = 'FDoneObjects'
         end
         object FDoneRecords: TLabel
           Left = 147
@@ -408,14 +392,14 @@ object DSearch: TDSearch
           Anchors = [akTop, akRight]
           Caption = 'FLEntiered'
         end
-        object FEntieredTables: TLabel
-          Left = 240
+        object FEntieredObjects: TLabel
+          Left = 236
           Top = 40
-          Width = 77
+          Width = 81
           Height = 13
           Alignment = taRightJustify
           Anchors = [akTop, akRight]
-          Caption = 'FEntieredTables'
+          Caption = 'FEntieredObjects'
         end
         object FEntieredRecords: TLabel
           Left = 231
