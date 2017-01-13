@@ -185,7 +185,7 @@ var
   Width: Integer;
 begin
   Size := Min(Rect.Width, Rect.Height);
-  Width := Size div 4;
+  Width := (Size + GetSystemMetrics(SM_CXEDGE)) div 4;
 
   if (Width mod 2 = 0) then
   begin

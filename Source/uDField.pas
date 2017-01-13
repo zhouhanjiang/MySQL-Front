@@ -194,7 +194,7 @@ begin
     raise ERangeError.Create(SRangeError);
   if (not Assigned(Table)) then
     raise ERangeError.Create(SRangeError);
-  if (not (Table is TSBaseTable)) then
+  if (not (TObject(Table) is TSBaseTable)) then
     try
       raise ERangeError.Create('ClassType: ' + Table.ClassName);
     except
@@ -723,7 +723,7 @@ begin
     if (TableDebug <> Table) then
       raise ERangeError.Create(SRangeError);
     // Debug 2016-12-20
-    if (not (Table is TSBaseTable)) then
+    if (not (TObject(Table) is TSBaseTable)) then
       try
         raise ERangeError.Create('ClassType: ' + Table.ClassName);
       except
@@ -741,7 +741,7 @@ begin
     if (TableDebug <> Table) then
       raise ERangeError.Create(SRangeError);
     // Debug 2016-12-20
-    if (not (Table is TSBaseTable)) then
+    if (not (TObject(Table) is TSBaseTable)) then
       try
         raise ERangeError.Create('ClassType: ' + Table.ClassName);
       except
@@ -918,7 +918,7 @@ begin
     raise ERangeError.Create(SRangeError);
   if (not Assigned(Table)) then
     raise ERangeError.Create(SRangeError);
-  if (not (Table is TSBaseTable)) then
+  if (not (TObject(Table) is TSBaseTable)) then
     try
       raise ERangeError.Create('ClassType: ' + Table.ClassName);
     except
@@ -962,7 +962,7 @@ begin
     raise ERangeError.Create(SRangeError);
   if (not Assigned(Table)) then
     raise ERangeError.Create(SRangeError);
-  if (not (Table is TSBaseTable)) then
+  if (not (TObject(Table) is TSBaseTable)) then
     try
       raise ERangeError.Create('ClassType: ' + Table.ClassName);
     except
@@ -1017,7 +1017,7 @@ begin
     raise ERangeError.Create(SRangeError);
   if (not Assigned(Table)) then
     raise ERangeError.Create(SRangeError);
-  if (not (Table is TSBaseTable)) then
+  if (not (TObject(Table) is TSBaseTable)) then
     try
       raise ERangeError.Create('ClassType: ' + Table.ClassName);
     except

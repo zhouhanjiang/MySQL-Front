@@ -3382,8 +3382,12 @@ begin
           begin
             NewKeyColumn := TSKeyColumn.Create(Key.Columns);
             NewKeyColumn.Field := NewTable.FieldByName(Session.ApplyIdentifierName(ColumnName));
-            NewKeyColumn.Ascending := AscOrDesc[0] = 'A';
-            Key.Columns.AddColumn(NewKeyColumn);
+
+            if (Assigned(NewKeyColumn.Field)) then
+            begin
+              NewKeyColumn.Ascending := AscOrDesc[0] = 'A';
+              Key.Columns.AddColumn(NewKeyColumn);
+            end;
 
             if (Key.PrimaryKey) then
               NewKeyColumn.Field.NullAllowed := False;

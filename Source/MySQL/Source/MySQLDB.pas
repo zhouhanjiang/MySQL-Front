@@ -2496,6 +2496,10 @@ end;
 
 function TMySQLConnection.ExecuteResult(var ResultHandle: TResultHandle): Boolean;
 begin
+  // Debug 2017-01-13
+  if (Assigned(ResultHandle.SyncThread) and not (ResultHandle.SyncThread.State in [ssClose, ssReady, ssNext])) then
+    raise ERangeError.Create('State: ' + IntToStr(Ord(ResultHandle.SyncThread.State)));
+
   Assert(not Assigned(ResultHandle.SyncThread) or (ResultHandle.SyncThread.State in [ssClose, ssReady, ssNext]));
 
   BeginSynchron();
@@ -3781,6 +3785,7 @@ end;
 procedure TMySQLConnection.SyncReleaseDataSet(const DataSet: TMySQLQuery);
 begin
   Assert(Assigned(DataSet));
+  Assert(Assigned(SyncThread));
 
   if (DataSet.SyncThread = SyncThread) then
   begin
@@ -5430,27 +5435,18 @@ function TMySQLQuery.SetActiveEvent(const ErrorCode: Integer; const ErrorMessage
 begin
   Assert(not Assigned(SyncThread));
 
-  // Debug 2017-01-03
-  if (not Assigned(DataHandle)) then
-    raise ERangeError.Create(SRangeError);
-  if (not Assigned(Connection.SyncThread)) then
-    raise ERangeError.Create('DataHandle.State: ' + IntToStr(Ord(DataHandle.State)) + #13#10
-      + 'DataHandle.ThreadId: ' + IntToStr(DataHandle.ThreadID));
-  // Debug 2017-01-01
-  if (DataHandle <> Connection.SyncThread) then
-    raise ERangeError.Create('DataHandle ID: ' + IntToStr(DataHandle.ThreadID) + #13#10
-      + 'Connection.SyncThread ID: ' + IntToStr(Connection.SyncThread.ThreadID) + #13#10
-      + 'DataHandle.State: ' + IntToStr(Ord(DataHandle.State)));
-
-  Assert(DataHandle = Connection.SyncThread);
-
-  if (not Data or (DataHandle.ErrorCode <> 0)) then
-    SetState(dsInactive)
-  else
+  if (Assigned(DataHandle)) then
   begin
-    DoBeforeOpen();
-    SetState(dsOpening);
-    OpenCursorComplete();
+    Assert(DataHandle = Connection.SyncThread);
+
+    if (not Data or (DataHandle.ErrorCode <> 0)) then
+      SetState(dsInactive)
+    else
+    begin
+      DoBeforeOpen();
+      SetState(dsOpening);
+      OpenCursorComplete();
+    end;
   end;
 
   Result := False;
@@ -6028,7 +6024,7 @@ begin
           end;
         end;
       end;
-    else // gmCurrent
+    gmCurrent:
       if (Filtered) then
       begin
         if (NewIndex < 0) then
@@ -6056,10 +6052,12 @@ begin
           else
             Dec(NewIndex);
       end
-      else if ((0 <= InternRecordBuffers.Index) and (InternRecordBuffers.Index < InternRecordBuffers.Count)) then
+      else if ((0 <= NewIndex) and (NewIndex < InternRecordBuffers.Count)) then
         Result := grOk
       else
         Result := grEOF;
+    else
+      raise ERangeError.Create(SRangeError);
   end;
 
   if (Result = grOk) then
@@ -6069,6 +6067,7 @@ begin
       raise ERangeError.Create('NewIndex: ' + IntToStr(NewIndex) + #13#10
         + 'Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
         + 'State: ' + IntToStr(Ord(State)) + #13#10
+        + 'GetMode: ' + IntToStr(Ord(GetMode)) + #13#10
         + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)));
 
     InternRecordBuffers.CriticalSection.Enter();
@@ -6479,6 +6478,12 @@ begin
             end;
           until (FieldName = '');
         end;
+        if (Length(WhereFields) = 0) then
+        begin
+          SetLength(WhereFields, FieldCount);
+          for I := 0 to Fields.Count - 1 do
+            WhereFields[I] := Fields[I];
+        end;
 
         AllWhereFieldsInWhere := True;
         for I := 0 to FieldCount - 1 do
@@ -6692,76 +6697,78 @@ begin
         PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
       end;
     end
-    else if (not Assigned(InternalPostResult.Exception) and (ErrorCode = 0) and SQLParseKeyword(Parse, 'SELECT')) then
+    else if ((ErrorCode = 0) and SQLParseKeyword(Parse, 'SELECT')) then
     begin
       Result := True;
 
       DataSet := TMySQLQuery.Create(nil);
       DataSet.Open(DataHandle);
-      if (DataSet.IsEmpty) then
-      begin
-        // Inserted / updated record is not in external filtered rows -> remove it
-        Index := PExternRecordBuffer(ActiveBuffer())^.Index;
-        FreeInternRecordBuffer(InternRecordBuffers[Index]);
-        InternRecordBuffers.Delete(Index);
-        if (Filtered) then
-          Dec(InternRecordBuffers.FilteredRecordCount);
-      end
-      else
-      begin
-        EqualFieldNames := DataSet.FieldCount = FieldCount;
-        if (EqualFieldNames) then
-          for I := 0 to DataSet.FieldCount - 1 do
-            EqualFieldNames := EqualFieldNames and (DataSet.Fields[I].FieldName = Fields[I].FieldName);
-        if (not EqualFieldNames) then
-          RecordMatch := False
+
+      if (not Assigned(InternalPostResult.Exception)) then
+        if (DataSet.IsEmpty) then
+        begin
+          // Inserted / updated record is not in external filtered rows -> remove it
+          Index := PExternRecordBuffer(ActiveBuffer())^.Index;
+          FreeInternRecordBuffer(InternRecordBuffers[Index]);
+          InternRecordBuffers.Delete(Index);
+          if (Filtered) then
+            Dec(InternRecordBuffers.FilteredRecordCount);
+        end
         else
         begin
-          RecordMatch := True;
-          for I := 0 to DataSet.FieldCount - 1 do
-            if (pfInWhere in Fields[I].ProviderFlags) then
-              RecordMatch := RecordMatch and (DataSet.Fields[I].Value = Fields[I].Value);
-          if (not RecordMatch) then
-          begin
-            // Inserted / updated record not in external filtered rows -> removed it
-            Index := PExternRecordBuffer(ActiveBuffer())^.Index;
-            FreeInternRecordBuffer(InternRecordBuffers[Index]);
-            InternRecordBuffers.Delete(Index);
-            if (Filtered) then
-              Dec(InternRecordBuffers.FilteredRecordCount);
-          end
-          else
-          begin
-            // Inserted / updated record matched -> update data of the record
+          EqualFieldNames := DataSet.FieldCount = FieldCount;
+          if (EqualFieldNames) then
             for I := 0 to DataSet.FieldCount - 1 do
-              if (not (pfInWhere in Fields[I].ProviderFlags)) then
-                SetFieldData(Fields[I], DataSet.LibRow^[I], DataSet.LibLengths[I]);
-          end;
-        end;
-
-        if (RecordMatch) then
-        begin
-          DataSet.FindNext();
-
-          if (not DataSet.Eof) then
-          begin
-            // 2nd record found in SELECT -> Find position in InternRecordBuffers
-            RecordBufferData.LibLengths := DataSet.LibLengths;
-            RecordBufferData.LibRow := DataSet.LibRow;
-
-            InternalPostResult.NewIndex := InternRecordBuffers.IndexOf(RecordBufferData);
-            if (InternalPostResult.NewIndex < 0) then
-              InternalPostResult.NewIndex := InternRecordBuffers.Count - 1
-            else if (InternalPostResult.NewIndex > PExternRecordBuffer(ActiveBuffer())^.Index) then
-              Dec(InternalPostResult.NewIndex);
-          end
+              EqualFieldNames := EqualFieldNames and (DataSet.Fields[I].FieldName = Fields[I].FieldName);
+          if (not EqualFieldNames) then
+            RecordMatch := False
           else
           begin
-            // 2nd record not found -> End of InternRecordBuffers
-            InternalPostResult.NewIndex := InternRecordBuffers.Count - 1;
+            RecordMatch := True;
+            for I := 0 to DataSet.FieldCount - 1 do
+              if (pfInWhere in Fields[I].ProviderFlags) then
+                RecordMatch := RecordMatch and (DataSet.Fields[I].Value = Fields[I].Value);
+            if (not RecordMatch) then
+            begin
+              // Inserted / updated record not in external filtered rows -> removed it
+              Index := PExternRecordBuffer(ActiveBuffer())^.Index;
+              FreeInternRecordBuffer(InternRecordBuffers[Index]);
+              InternRecordBuffers.Delete(Index);
+              if (Filtered) then
+                Dec(InternRecordBuffers.FilteredRecordCount);
+            end
+            else
+            begin
+              // Inserted / updated record matched -> update data of the record
+              for I := 0 to DataSet.FieldCount - 1 do
+                if (not (pfInWhere in Fields[I].ProviderFlags)) then
+                  SetFieldData(Fields[I], DataSet.LibRow^[I], DataSet.LibLengths[I]);
+            end;
+          end;
+
+          if (RecordMatch) then
+          begin
+            DataSet.FindNext();
+
+            if (not DataSet.Eof) then
+            begin
+              // 2nd record found in SELECT -> Find position in InternRecordBuffers
+              RecordBufferData.LibLengths := DataSet.LibLengths;
+              RecordBufferData.LibRow := DataSet.LibRow;
+
+              InternalPostResult.NewIndex := InternRecordBuffers.IndexOf(RecordBufferData);
+              if (InternalPostResult.NewIndex < 0) then
+                InternalPostResult.NewIndex := InternRecordBuffers.Count - 1
+              else if (InternalPostResult.NewIndex > PExternRecordBuffer(ActiveBuffer())^.Index) then
+                Dec(InternalPostResult.NewIndex);
+            end
+            else
+            begin
+              // 2nd record not found -> End of InternRecordBuffers
+              InternalPostResult.NewIndex := InternRecordBuffers.Count - 1;
+            end;
           end;
         end;
-      end;
       DataSet.Free();
     end;
   end;

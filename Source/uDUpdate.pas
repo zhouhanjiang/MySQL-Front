@@ -236,7 +236,7 @@ end;
 procedure TDUpdate.UMTerminate(var Msg: TMessage);
 begin
   if (HTTPThread.ErrorCode <> 0) then
-    MsgBox(HTTPThread.ErrorMessage, Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
+    RaiseLastOSError(HTTPThread.ErrorCode)
   else if (HTTPThread.HTTPStatus <> HTTP_STATUS_OK) then
     MsgBox(HTTPThread.HTTPMessage, Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
   else if (Assigned(PADFileStream)) then

@@ -338,6 +338,7 @@ begin
         SendStream.Read(PAnsiChar(Body)^, SendStream.Size);
         SendStream.Free();
       end;
+
       Request := HttpOpenRequest(Client, Method, PChar(StrPas(URLComponents.lpszUrlPath) + StrPas(URLComponents.lpszExtraInfo)), 'HTTP/1.1', nil, nil, INTERNET_FLAG_RELOAD + INTERNET_FLAG_NO_CACHE_WRITE, 0);
 
       if (not Assigned(Request)) then

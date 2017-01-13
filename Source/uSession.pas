@@ -1497,7 +1497,9 @@ type
   private
     ConnectionEvent: SyncObjs.TEvent;
     EventProcs: array of TEventProc;
+    Identifier963963: Integer; // Debug 2017-01-13
     FAccount: TPAccount;
+    Identifier369369: Integer; // Debug 2017-01-13
     FCharsets: TSCharsets;
     FSessions: TSSessions;
     FCollations: TSCollations;
@@ -1535,6 +1537,7 @@ type
     procedure ConnectChange(Sender: TObject; Connecting: Boolean);
     procedure DatabaseChange(const Connection: TMySQLConnection; const NewName: string);
     procedure DoSendEvent(const AEvent: TSSession.TEvent);
+    function GetAccount(): TPAccount;
     function GetCaption(): string;
     function GetCharset(): string;
     function GetCollation(): string;
@@ -1580,6 +1583,7 @@ type
     procedure Invalidate();
     function PluginByName(const PluginName: string): TSPlugin;
     function ProcessByThreadId(const ThreadId: Longword): TSProcess;
+    procedure PushBuildEvents();
     procedure RegisterEventProc(const AEventProc: TEventProc);
     function SendSQL(const SQL: string; const OnResult: TMySQLConnection.TResultEvent = nil): Boolean;
     function TableName(const Name: string): string;
@@ -1595,7 +1599,7 @@ type
     function UserByCaption(const Caption: string): TSUser;
     function UserByName(const UserName: string): TSUser;
     function VariableByName(const VariableName: string): TSVariable;
-    property Account: TPAccount read FAccount;
+    property Account: TPAccount read GetAccount;
     property Caption: string read GetCaption;
     property Charset: string read GetCharset;
     property Charsets: TSCharsets read FCharsets;
@@ -5356,7 +5360,8 @@ begin
           else if (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'VIEW') = 0) then
             NewTable := TSView.Create(Self, Name)
           else
-            raise EDatabaseError.CreateFmt('Unknown TABLE_TYPE "%s" for NewTable "%S". NewTable will be ignored.  (%s)', [DataSet.FieldByName('TABLE_TYPE').AsString, Name, DataSet.CommandText]);
+            raise EDatabaseError.CreateFmt('Unknown TABLE_TYPE "%s" for table %s.%s.' + #13#10#13#10 + 'SQL Query:' + #13#10 + '%s',
+              [DataSet.FieldByName('TABLE_TYPE').AsString, Database.Name, Name, DataSet.CommandText]);
 
           if (Index < Count) then
             Insert(Index, NewTable)
@@ -5404,7 +5409,8 @@ begin
           else if (StrIComp(PChar(DataSet.FieldByName('Table_Type').AsString), 'VIEW') = 0) then
             NewTable := TSView.Create(Self, Name)
           else
-            raise EDatabaseError.CreateFmt('Unknown TABLE_TYPE "%s" for NewTable "%S". NewTable will be ignored.  (%s)', [DataSet.FieldByName('TABLE_TYPE').AsString, Name, DataSet.CommandText]);
+            raise EDatabaseError.CreateFmt('Unknown TABLE_TYPE "%s" for table %s.%s.' + #13#10#13#10 + 'SQL Query:' + #13#10 + '%s',
+              [DataSet.FieldByName('TABLE_TYPE').AsString, Database.Name, Name, DataSet.CommandText]);
 
           if (Index < Count) then
             Insert(Index, NewTable)
@@ -10930,7 +10936,7 @@ begin
         SQL := SQL
            + Session.Connection.EscapeIdentifier('COLUMN_COMMENT') + ' LIKE ' + SQLEscape('%' + Text + '%');
       if (Name and Comment) then
-        SQL := SQL + '(';
+        SQL := SQL + ')';
       SQL := SQL
         + ')';
     end;
@@ -10958,7 +10964,7 @@ begin
     end;
     if ((DatabaseNames <> '') and Name and Comment) then
       SQL := SQL + ')';
-    SQL := SQL + ')'
+    SQL := SQL
       + ' ORDER BY ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ',' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + ';' + #13#10;
   end;
 
@@ -11133,9 +11139,10 @@ begin
         DataSet.FindNext();
     until (DataSet.Eof);
 
-  for I := 0 to Databases.Count - 1 do
-    if (Assigned(Databases[I].Events)) then
-      Databases[I].Events.FValid := True;
+  if (not Filtered) then
+    for I := 0 to Databases.Count - 1 do
+      if (Assigned(Databases[I].Events)) then
+        Databases[I].Events.FValid := True;
 
   SendEvent(etItemsValid, Self, Databases);
 
@@ -11156,9 +11163,10 @@ begin
         DataSet.FindNext();
     until (DataSet.Eof);
 
-  for I := 0 to Databases.Count - 1 do
-    if (Assigned(Databases[I].Routines)) then
-      Databases[I].Routines.FValid := True;
+  if (not Filtered) then
+    for I := 0 to Databases.Count - 1 do
+      if (Assigned(Databases[I].Routines)) then
+        Databases[I].Routines.FValid := True;
 
   SendEvent(etItemsValid, Self, Databases);
 
@@ -11179,8 +11187,9 @@ begin
         DataSet.FindNext();
     until (DataSet.Eof);
 
-  for I := 0 to Databases.Count - 1 do
-    Databases[I].Tables.FValid := True;
+  if (not Filtered) then
+    for I := 0 to Databases.Count - 1 do
+      Databases[I].Tables.FValid := True;
 
   SendEvent(etItemsValid, Self, Databases);
 
@@ -11201,9 +11210,10 @@ begin
         DataSet.FindNext();
     until (DataSet.Eof);
 
-  for I := 0 to Databases.Count - 1 do
-    if (Assigned(Databases[I].Triggers)) then
-      Databases[I].Triggers.FValid := True;
+  if (not Filtered) then
+    for I := 0 to Databases.Count - 1 do
+      if (Assigned(Databases[I].Triggers)) then
+        Databases[I].Triggers.FValid := True;
 
   SendEvent(etItemsValid, Self, Databases);
 
@@ -11330,6 +11340,9 @@ begin
 
   // Debug 2017-01-06
   Identifier123456 := 123456;
+  // Debug 2017-01-13
+  Identifier963963 := 963963;
+  Identifier369369 := 369369;
 
   FConnection := TSConnection.Create(Self);
   Sessions.Add(Self);
@@ -11807,6 +11820,18 @@ begin
   for I := 0 to FieldTypes.Count - 1 do
     if (FieldTypes[I].MySQLFieldType = MySQLFieldType) then
       Result := FieldTypes[I];
+end;
+
+function TSSession.GetAccount(): TPAccount;
+begin
+  if ((Identifier123456 <> 123456)
+    or (Identifier963963 <> 963963)
+    or (Identifier369369 <> 369369)) then
+    raise ERangeError.Create('Identifier123456: ' + IntToStr(Identifier123456) + #13#10
+      + 'Identifier963963: ' + IntToStr(Identifier963963) + #13#10
+      + 'Identifier369369: ' + IntToStr(Identifier369369));
+
+  Result := FAccount;
 end;
 
 function TSSession.GetCaption(): string;
@@ -12436,6 +12461,13 @@ begin
     for I := 0 to Processes.Count - 1 do
       if (Processes[I].ThreadId = ThreadId) then
         Result := Processes[I];
+end;
+
+procedure TSSession.PushBuildEvents();
+begin
+  Databases.PushBuildEvent(Self);
+  Users.PushBuildEvent(Self);
+  Variables.PushBuildEvent(Self);
 end;
 
 procedure TSSession.RegisterEventProc(const AEventProc: TEventProc);

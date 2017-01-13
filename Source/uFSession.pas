@@ -88,7 +88,7 @@ type
     FQuickSearch: TEdit;
     FQuickSearchEnabled: TToolButton;
     FRTF: TRichEdit;
-    FServerListView: TListView_Ext;
+    FListView: TListView_Ext;
     FSQLEditorSearch: TSynEditSearch;
     FSQLEditorSynMemo: TSynMemo;
     FSQLHistory: TTreeView_Ext;
@@ -465,7 +465,10 @@ type
     procedure FNavigatorKeyDown(Sender: TObject; var Key: Word;
       Shift: TShiftState);
     procedure FNavigatorKeyPress(Sender: TObject; var Key: Char);
+    procedure FNavigatorKeyUp(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
     procedure FObjectSearchChange(Sender: TObject);
+    procedure FObjectSearchEnter(Sender: TObject);
     procedure FObjectSearchExit(Sender: TObject);
     procedure FObjectSearchKeyPress(Sender: TObject; var Key: Char);
     procedure FObjectSearchStartClick(Sender: TObject);
@@ -624,9 +627,6 @@ type
       Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure TreeViewMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
-    procedure FObjectSearchEnter(Sender: TObject);
-    procedure FNavigatorKeyUp(Sender: TObject; var Key: Word;
-      Shift: TShiftState);
   type
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
     TTabState = set of (tsLoading, tsActive);
@@ -869,6 +869,7 @@ type
     PObjectSearch: TPObjectSearch;
     PResultHeight: Integer;
     ProcessesListView: TListView;
+    ServerListView: TListView;
     ShellLink: TJamShellLink;
     SplitColor: TColor;
     SQLEditor: TSQLEditor;
@@ -2438,7 +2439,10 @@ begin
       LastSelectedTable := '';
 
     if (NewAddressURI.Param['view'] <> OldAddressURI.Param['view']) then
-      ViewChanged(nil);
+      if (NewAddressURI.Param['view'] <> 'objectsearch') then
+        ViewChanged(nil)
+      else
+        FView := vObjectSearch;
 
     NewAddressURI.Free();
     OldAddressURI.Free();
@@ -2485,6 +2489,7 @@ begin
       vEditor: if (not (ttEditor in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttEditor); PostMessage(Window.Handle, UM_CHANGEPREFERENCES, 0, 0); end;
       vEditor2: if (not (ttEditor2 in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttEditor2); PostMessage(Window.Handle, UM_CHANGEPREFERENCES, 0, 0); end;
       vEditor3: if (not (ttEditor3 in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttEditor3); PostMessage(Window.Handle, UM_CHANGEPREFERENCES, 0, 0); end;
+      vObjectSearch: if (not (ttObjectSearch in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttObjectSearch); PostMessage(Window.Handle, UM_CHANGEPREFERENCES, 0, 0); end;
     end;
 
     ToolBarData.Caption := AddressToCaption(Address);
@@ -2590,13 +2595,15 @@ begin
         or (SelectedImageIndex in [iiEvent, iiTrigger]));
     MainAction('aEFormatSQL').Enabled := not Empty;
 
+    if (View <> vObjectSearch) then
+      FObjectSearch.Text := '';
+
     StatusBarRefresh();
 
 
     FNavigatorMenuNode := FNavigator.Selected;
 
-    if (View <> vObjectSearch) then
-      Wanted.Update := UpdateAfterAddressChanged;
+    Wanted.Update := UpdateAfterAddressChanged;
 
     if (tsLoading in FrameState) then
     begin
@@ -3051,7 +3058,6 @@ end;
 procedure TFSession.aECopyExecute(Sender: TObject);
 var
   ClipboardData: HGLOBAL;
-  ClipboardOwner: array [0..MAX_PATH] of Char;
   Data: string;
   I: Integer;
   ImageIndex: Integer;
@@ -3061,7 +3067,6 @@ var
   StringList: TStringList;
 begin
   Retry := 0;
-  SetString(S, PChar(@ClipboardOwner), GetWindowModuleFileName(GetClipboardOwner(), PChar(@ClipboardOwner), Length(ClipboardOwner)));
   repeat
     Opened := OpenClipboard(Handle);
     if (Opened) then
@@ -3073,16 +3078,11 @@ begin
     end;
   until (Opened or (Retry = 10));
 
-  // Debug 2017-01-11
-  if (Retry > 0) then
-    SendToDeveloper('Opened: ' + BoolToStr(Opened) + #13#10
-      + 'Retry: ' + IntToStr(Retry) + #13#10
-      + 'ClipboardOwner: ' + S);
-
 
   Data := '';
 
-  if (not Assigned(Window.ActiveControl)) then
+  if (not Opened
+    or not Assigned(Window.ActiveControl)) then
   begin
     MessageBeep(MB_ICONERROR);
     Exit;
@@ -3227,7 +3227,6 @@ begin
   if (Data <> '') then
   begin
     Retry := 0;
-    SetString(S, PChar(@ClipboardOwner), GetWindowModuleFileName(GetClipboardOwner(), PChar(@ClipboardOwner), Length(ClipboardOwner)));
     repeat
       Opened := OpenClipboard(Handle);
       if (Opened) then
@@ -3238,12 +3237,6 @@ begin
         Inc(Retry);
       end;
     until (Opened or (Retry = 10));
-
-    // Debug 2017-01-11
-    if (Retry > 0) then
-      SendToDeveloper('Opened: ' + BoolToStr(Opened) + #13#10
-        + 'Retry: ' + IntToStr(Retry) + #13#10
-      + 'ClipboardOwner: ' + S);
   end;
 
   if ((Data <> '') and OpenClipboard(Handle)) then
@@ -3300,7 +3293,6 @@ procedure TFSession.aEPasteExecute(Sender: TObject);
 var
   B: Boolean;
   ClipboardData: HGLOBAL;
-  ClipboardOwner: array [0..MAX_PATH] of Char;
   I: Integer;
   Node: TTreeNode;
   Opened: Boolean;
@@ -3308,7 +3300,6 @@ var
   S: string;
 begin
   Retry := 0;
-  SetString(S, PChar(@ClipboardOwner), GetWindowModuleFileName(GetClipboardOwner(), PChar(@ClipboardOwner), Length(ClipboardOwner)));
   repeat
     Opened := OpenClipboard(Handle);
     if (Opened) then
@@ -3320,14 +3311,8 @@ begin
     end;
   until (Opened or (Retry = 10));
 
-  // Debug 2017-01-11
-  if (Retry > 0) then
-    SendToDeveloper('Opened: ' + BoolToStr(Opened) + #13#10
-      + 'Retry: ' + IntToStr(Retry) + #13#10
-      + 'ClipboardOwner: ' + S);
 
-
-  if (Session.Connection.InUse()) then
+  if (not Opened) then
     MessageBeep(MB_ICONERROR)
   else if (Assigned(ActiveDBGrid) and (Window.ActiveControl = ActiveDBGrid)) then
   begin
@@ -4161,25 +4146,13 @@ begin
 end;
 
 procedure TFSession.aVRefreshAllExecute(Sender: TObject);
-var
-  ChangeEvent: TTVChangedEvent;
-  ChangingEvent: TTVChangingEvent;
-  TempAddress: string;
 begin
   KillTimer(Handle, tiStatusBar);
   KillTimer(Handle, tiNavigator);
 
   Session.Invalidate();
 
-  TempAddress := Address;
-
-  ChangingEvent := FNavigator.OnChanging; FNavigator.OnChanging := nil;
-  ChangeEvent := FNavigator.OnChange; FNavigator.OnChange := nil;
-  FNavigator.Selected := nil;
-  FNavigator.OnChanging := ChangingEvent;
-  FNavigator.OnChange := ChangeEvent;
-
-  Address := TempAddress;
+  Address := Address;
 end;
 
 procedure TFSession.aVRefreshExecute(Sender: TObject);
@@ -4255,7 +4228,10 @@ begin
               if (AllowRefresh) then
                 ActiveDBGrid.DataSource.DataSet.Refresh()
               else
+              begin
+                ActiveDBGrid.DataSource.DataSet.Close();
                 ActiveDBGrid.DataSource.DataSet.Open();
+              end;
             end;
           end;
         end;
@@ -4269,11 +4245,9 @@ begin
         end;
       vObjectSearch:
         begin
-          ObjectSearchListView.Free();
-          if (ObjectSearch.Step1()) then
-            ObjectSearchStep2()
-          else
-            Wanted.Update := ObjectSearchStep2;
+          FreeAndNil(ObjectSearchListView);
+          FreeAndNil(ObjectSearch);
+          Wanted.Update := UpdateAfterAddressChanged;
         end;
     end;
   end;
@@ -4484,7 +4458,7 @@ begin
   ActiveControlOnDeactivate := nil;
   ActiveDBGrid := nil;
   ActiveIDEInputDataSet := nil;
-  ActiveListView := FServerListView;
+  ActiveListView := nil;
   ActiveWorkbench := nil;
   CloseButtonNormal := nil;
   CloseButtonPushed := nil;
@@ -4492,6 +4466,7 @@ begin
   ObjectSearch := nil;
   ObjectSearchListView := nil;
   ProcessesListView := nil;
+  ServerListView := nil;
   UsersListView := nil;
   VariablesListView := nil;
   for Kind := Low(ListViewSortData) to High(ListViewSortData) do
@@ -4519,7 +4494,7 @@ begin
   TBLimitEnabled.Images := Preferences.Images;
   TBQuickSearchEnabled.Images := Preferences.Images;
   TBFilterEnabled.Images := Preferences.Images;
-  FServerListView.SmallImages := Preferences.Images;
+  FListView.SmallImages := Preferences.Images;
 
   FUDOffset.HandleNeeded();
   FOffset.HandleNeeded();
@@ -4696,8 +4671,8 @@ begin
   PSynMemo.Align := alClient;
   PQueryBuilder.Align := alClient;
 
-  FServerListView.RowSelect := CheckWin32Version(6);
-  SetWindowLong(ListView_GetHeader(FServerListView.Handle), GWL_STYLE, GetWindowLong(ListView_GetHeader(FServerListView.Handle), GWL_STYLE) or HDS_DRAGDROP);
+  FListView.RowSelect := CheckWin32Version(6);
+  SetWindowLong(ListView_GetHeader(FListView.Handle), GWL_STYLE, GetWindowLong(ListView_GetHeader(FListView.Handle), GWL_STYLE) or HDS_DRAGDROP);
 
   FSQLEditorSynMemo.Highlighter := MainHighlighter;
   FQueryBuilderSynMemo.Highlighter := MainHighlighter;
@@ -4818,7 +4793,7 @@ begin
     StyleServices.DrawElement(CloseButtonHot.Bitmap.Canvas.Handle, StyleServices.GetElementDetails(tbPushButtonHot), R);
     StyleServices.DrawElement(CloseButtonPushed.Bitmap.Canvas.Handle, StyleServices.GetElementDetails(tbPushButtonPressed), R);
 
-    R.Inflate(- 2 * GetSystemMetrics(SM_CXEDGE), - 2 * GetSystemMetrics(SM_CYEDGE));
+    R.Inflate(- 3 * GetSystemMetrics(SM_CXEDGE) div 2, - 3 * GetSystemMetrics(SM_CYEDGE) div 2);
     DrawCloseBitmap(CloseButtonNormal.Bitmap, R);
     DrawCloseBitmap(CloseButtonHot.Bitmap, R);
     R.Offset(GetSystemMetrics(SM_CXEDGE) div 2, GetSystemMetrics(SM_CYEDGE) div 2);
@@ -4835,7 +4810,7 @@ begin
 
     DrawEdge(CloseButtonHot.Bitmap.Canvas.Handle, R, BDR_RAISEDINNER, BF_RECT);
     DrawEdge(CloseButtonPushed.Bitmap.Canvas.Handle, R, BDR_SUNKENOUTER, BF_RECT);
-    R.Inflate(- GetSystemMetrics(SM_CXEDGE), - GetSystemMetrics(SM_CYEDGE));
+    R.Inflate(- 3 * GetSystemMetrics(SM_CXEDGE) div 2, - 3 * GetSystemMetrics(SM_CYEDGE) div 2);
     DrawCloseBitmap(CloseButtonNormal.Bitmap, R);
     DrawCloseBitmap(CloseButtonHot.Bitmap, R);
     R.Offset(GetSystemMetrics(SM_CXEDGE) div 2, GetSystemMetrics(SM_CYEDGE) div 2);
@@ -5104,24 +5079,24 @@ function TFSession.CreateListView(const Data: TCustomData): TListView;
 var
   NonClientMetrics: TNonClientMetrics;
 begin
-  Result := TListView.Create(FServerListView.Owner);
+  Result := TListView.Create(FListView.Owner);
 
   Result.Left := 0;
   Result.Top := 0;
   Result.Width := PListView.ClientWidth;
   Result.Height := PListView.ClientHeight;
   Result.Align := alClient;
-  Result.BorderStyle := FServerListView.BorderStyle;
-  Result.DragMode := FServerListView.DragMode;
+  Result.BorderStyle := FListView.BorderStyle;
+  Result.DragMode := FListView.DragMode;
   Result.HelpType := htContext;
-  Result.HelpContext := FServerListView.HelpContext;
-  Result.HideSelection := FServerListView.HideSelection;
-  Result.MultiSelect := FServerListView.MultiSelect;
-  Result.GroupView := FServerListView.GroupView;
-  Result.PopupMenu := FServerListView.PopupMenu;
-  Result.RowSelect := FServerListView.RowSelect;
+  Result.HelpContext := FListView.HelpContext;
+  Result.HideSelection := FListView.HideSelection;
+  Result.MultiSelect := FListView.MultiSelect;
+  Result.GroupView := FListView.GroupView;
+  Result.PopupMenu := FListView.PopupMenu;
+  Result.RowSelect := FListView.RowSelect;
   Result.SmallImages := Preferences.Images;
-  Result.ViewStyle := FServerListView.ViewStyle;
+  Result.ViewStyle := FListView.ViewStyle;
   Result.Visible := False;
   if (TObject(Data) is TSTable) then
   begin
@@ -5129,25 +5104,25 @@ begin
     Result.OnAdvancedCustomDrawSubItem := ListViewAdvancedCustomDrawSubItem;
   end;
 
-  Result.Parent := FServerListView.Parent;
+  Result.Parent := FListView.Parent;
 
-  Result.OnChange := FServerListView.OnChange;
-  Result.OnChanging := FServerListView.OnChanging;
-  Result.OnColumnClick := FServerListView.OnColumnClick;
-  Result.OnCompare := FServerListView.OnCompare;
-  Result.OnDblClick := FServerListView.OnDblClick;
-  Result.OnEdited := FServerListView.OnEdited;
-  Result.OnEditing := FServerListView.OnEditing;
-  Result.OnEnter := FServerListView.OnEnter;
-  Result.OnExit := FServerListView.OnExit;
-  Result.OnDragDrop := FServerListView.OnDragDrop;
-  Result.OnDragOver := FServerListView.OnDragOver;
-  Result.OnKeyDown := FServerListView.OnKeyDown;
-  Result.OnSelectItem := FServerListView.OnSelectItem;
+  Result.OnChange := FListView.OnChange;
+  Result.OnChanging := FListView.OnChanging;
+  Result.OnColumnClick := FListView.OnColumnClick;
+  Result.OnCompare := FListView.OnCompare;
+  Result.OnDblClick := FListView.OnDblClick;
+  Result.OnEdited := FListView.OnEdited;
+  Result.OnEditing := FListView.OnEditing;
+  Result.OnEnter := FListView.OnEnter;
+  Result.OnExit := FListView.OnExit;
+  Result.OnDragDrop := FListView.OnDragDrop;
+  Result.OnDragOver := FListView.OnDragOver;
+  Result.OnKeyDown := FListView.OnKeyDown;
+  Result.OnSelectItem := FListView.OnSelectItem;
 
   Result.Tag := NativeInt(Data);
 
-  SetWindowLong(ListView_GetHeader(Result.Handle), GWL_STYLE, GetWindowLong(ListView_GetHeader(FServerListView.Handle), GWL_STYLE) or HDS_DRAGDROP);
+  SetWindowLong(ListView_GetHeader(Result.Handle), GWL_STYLE, GetWindowLong(ListView_GetHeader(FListView.Handle), GWL_STYLE) or HDS_DRAGDROP);
 
   Result.Parent := PListView;
 
@@ -6230,10 +6205,7 @@ begin
   if (Assigned(ObjectSearch)) then
     ObjectSearch.Free();
 
-  FServerListView.OnChanging := nil;
-  FServerListView.Items.BeginUpdate();
-  FServerListView.Items.Clear();
-  FServerListView.Items.EndUpdate();
+  if (Assigned(ServerListView)) then FreeListView(ServerListView);
   if (Assigned(ProcessesListView)) then FreeListView(ProcessesListView);
   if (Assigned(UsersListView)) then FreeListView(UsersListView);
   if (Assigned(VariablesListView)) then FreeListView(VariablesListView);
@@ -6945,9 +6917,7 @@ begin
 
   Result := nil;
 
-  if (URI.Param['view'] = 'objectsearch') then
-    Result := nil
-  else if (URI.Param['system'] <> Null) then
+  if (URI.Param['system'] <> Null) then
   begin
     Child := FNavigator.Items.getFirstNode().getFirstChild();
     while (Assigned(Child) and not Assigned(Result)) do
@@ -7528,7 +7498,7 @@ begin
   if (not PObjectSearch.Visible) then
   begin
     Node := FNavigator.Selected;
-    while (Assigned(Node) and not (Node.ImageIndex in [iiServer, iiDatabase, iiSystemDatabase])) do
+    while (Assigned(Node) and not (Node.ImageIndex in [iiServer, iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView])) do
       Node := Node.Parent;
     if (not Assigned(Node)) then
       PObjectSearch.Location := Session
@@ -7536,7 +7506,7 @@ begin
       PObjectSearch.Location := Node.Data;
     PObjectSearch.Left := ClientToScreen(Point(FObjectSearch.Left + FObjectSearch.Width - PObjectSearch.Width, 0)).X;
     PObjectSearch.Top := ClientToScreen(Point(0, FObjectSearch.Top + FObjectSearch.Height)).Y;
-    PObjectSearch.Visible := True;
+    PObjectSearch.Visible := not (SelectedImageIndex in [iiProcesses, iiUsers, iiVariables]);
   end;
 end;
 
@@ -7558,54 +7528,84 @@ begin
 end;
 
 procedure TFSession.FObjectSearchStartClick(Sender: TObject);
+var
+  ScrollPos: record
+    Horz: Integer;
+    Vert: Integer;
+  end;
+  URI: TUURI;
 begin
   if (Assigned(ObjectSearchListView)) then
-  begin
-    ObjectSearchListView.Free();
-    ObjectSearchListView := nil;
-  end;
+    FreeAndNil(ObjectSearchListView);
   if (Assigned(ObjectSearch)) then
-  begin
-    ObjectSearch.Free();
-    ObjectSearch := nil;
-  end;
+    FreeAndNil(ObjectSearch);
 
-  if (not (((PObjectSearch.Location is TSSession) and PObjectSearch.Databases
-      or PObjectSearch.Tables
-      or PObjectSearch.Routines
-      or PObjectSearch.Events
-      or PObjectSearch.Fields
-      or PObjectSearch.Triggers
-    and (PObjectSearch.Name
-      or PObjectSearch.Comment)))) then
-    MessageBeep(MB_ICONERROR)
+  PObjectSearch.Hide();
+
+  URI := TUURI.Create(Address);
+  URI.Param['view'] := 'objectsearch';
+  if (not (PObjectSearch.Location is TSDatabase) and not (PObjectSearch.Location is TSTable)) then
+    URI.Database := '';
+  if (not (PObjectSearch.Location is TSTable)) then
+    URI.Table := '';
+  if (PObjectSearch.Location is TSProcesses) then
+    URI.Param['system'] := 'processes'
+  else if (PObjectSearch.Location is TSUsers) then
+    URI.Param['system'] := 'users'
+  else if (PObjectSearch.Location is TSVariables) then
+    URI.Param['system'] := 'variables'
   else
-  begin
-    PObjectSearch.Hide();
+    URI.Param['system'] := Null;
+  URI.Param['objecttype'] := Null;
+  URI.Param['object'] := Null;
+  URI.Param['filter'] := Null;
+  URI.Param['search'] := Null;
+  URI.Param['offset'] := Null;
+  URI.Param['file'] := Null;
+  URI.Param['cp'] := Null;
+  URI.Param['text'] := Trim(FObjectSearch.Text);
+  if (PObjectSearch.Databases) then
+    URI.Param['databases'] := '1'
+  else
+    URI.Param['databases'] := Null;
+  if (PObjectSearch.Databases) then
+    URI.Param['tables'] := '1'
+  else
+    URI.Param['tables'] := Null;
+  if (PObjectSearch.Tables) then
+    URI.Param['routines'] := '1'
+  else
+    URI.Param['routines'] := Null;
+  if (PObjectSearch.Routines) then
+    URI.Param['events'] := '1'
+  else
+    URI.Param['events'] := Null;
+  if (PObjectSearch.Fields) then
+    URI.Param['fields'] := '1'
+  else
+    URI.Param['fields'] := Null;
+  if (PObjectSearch.Triggers) then
+    URI.Param['triggers'] := '1'
+  else
+    URI.Param['triggers'] := Null;
+  if (PObjectSearch.Name) then
+    URI.Param['name'] := '1'
+  else
+    URI.Param['name'] := Null;
+  if (PObjectSearch.Comment) then
+    URI.Param['comment'] := '1'
+  else
+    URI.Param['comment'] := Null;
 
-    ObjectSearch := TSItemSearch.Create(Session);
-    ObjectSearch.Comment := PObjectSearch.Comment;
-    ObjectSearch.Databases := PObjectSearch.Databases;
-    ObjectSearch.Events := PObjectSearch.Events;
-    ObjectSearch.Fields := PObjectSearch.Fields;
-    ObjectSearch.Location := PObjectSearch.Location;
-    ObjectSearch.Name := PObjectSearch.Name;
-    ObjectSearch.Routines := PObjectSearch.Routines;
-    ObjectSearch.Tables := PObjectSearch.Tables;
-    ObjectSearch.Triggers := PObjectSearch.Triggers;
-    ObjectSearch.Text := Trim(FObjectSearch.Text);
-    if (ObjectSearch.Step1()) then
-      ObjectSearchStep2()
-    else
-      Wanted.Update := ObjectSearchStep2;
+  LockWindowUpdate(FNavigator.Handle);
+  ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);
+  ScrollPos.Vert := GetScrollPos(FNavigator.Handle, SB_VERT);
+  Address := URI.Address;
+  SetScrollPos(FNavigator.Handle, SB_HORZ, ScrollPos.Horz, TRUE);
+  SetScrollPos(FNavigator.Handle, SB_VERT, ScrollPos.Vert, TRUE);
+  LockWindowUpdate(0);
 
-    View := vObjectSearch;
-
-    PContentChange(nil);
-
-    if (Assigned(ObjectSearchListView)) then
-      Window.ActiveControl := ObjectSearchListView;
-  end;
+  URI.Free();
 end;
 
 procedure TFSession.FOffsetChange(Sender: TObject);
@@ -8469,15 +8469,23 @@ var
 begin
   if (View = vObjectSearch) then
   begin
-    if (not Assigned(ObjectSearchListView)) then
+    if (not Assigned(ObjectSearchListView) and Assigned(ObjectSearch)) then
       ObjectSearchListView := CreateListView(ObjectSearch);
     Result := ObjectSearchListView;
   end
   else if (not Assigned(FNavigator.Selected)) then
-    Result := FServerListView
+    Result := nil
   else
     case (FNavigator.Selected.ImageIndex) of
-      iiServer: Result := FServerListView;
+      iiServer:
+        begin
+          if (not Assigned(ServerListView)) then
+          begin
+            ServerListView := CreateListView(Session);
+            Session.PushBuildEvents();
+          end;
+          Result := ServerListView;
+        end;
       iiDatabase,
       iiSystemDatabase:
         Result := Desktop(TSDatabase(FNavigator.Selected.Data)).CreateListView();
@@ -9283,7 +9291,7 @@ begin
   if (not Update) then
   begin
     ListView.Columns.BeginUpdate();
-    if (ListView = FServerListView) then
+    if (ListView = ServerListView) then
     begin
       ListView.Columns.Add();
       ListView.Columns.Add();
@@ -9412,7 +9420,7 @@ begin
 
   ListView.Groups.EndUpdate();
 
-  if (ListView = FServerListView) then
+  if (ListView = ServerListView) then
   begin
     ListView.Columns[0].Caption := Preferences.LoadStr(35);
     ListView.Columns[1].Caption := Preferences.LoadStr(76);
@@ -10074,17 +10082,24 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
 
   function InsertOrUpdateItem(const Kind: TPAccount.TDesktop.TListViewKind; const GroupID: Integer; const Data: TObject): TListItem;
   var
+    Count: Integer; // Cache for speeding
+    I: Integer;
     Item: TListItem;
     Index: Integer;
     Left: Integer;
     Mid: Integer;
     Right: Integer;
   begin
-    Index := 0;
-    while ((Index < ListView.Items.Count) and (ListView.Items[Index].Data <> Data)) do
-      Inc(Index);
+    Count := ListView.Items.Count; // Cache for speeding
+    Index := -1;
+    for I := 0 to Count - 1 do
+      if (ListView.Items[I].Data = Data) then
+      begin
+        Index := I;
+        break;
+      end;
 
-    if ((0 < ListView.Items.Count) and (ListView.Items.Count = Index)) then
+    if ((Count > 0) and (Index < 0)) then
     begin
       Item := TListItem.Create(ListView.Items);
       Item.Data := Data;
@@ -10096,16 +10111,16 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
       begin
         Mid := (Right - Left) div 2 + Left;
         case (Compare(Kind, ListView.Items[Mid], Item)) of
-          -1: begin Left := Mid + 1; Index := Mid + 1; end;
-          0: raise ERangeError.CreateFmt('%s  %s - %d / %d /%d / %d', [TSItem(Data).ClassName, TSItem(Data).Name, Left, Mid, Right, ListView.Items.Count]);
-          1: begin Right := Mid - 1; Index := Mid; end;
+          -1: begin Left := Mid + 1; Index := Mid; end;
+          0: raise ERangeError.CreateFmt('%s "%s" - %d / %d / %d / %d', [TSItem(Data).ClassName, TSItem(Data).Name, Left, Mid, Right, ListView.Items.Count]);
+          1: begin Right := Mid - 1; Index := Mid - 1; end;
         end;
       end;
 
       Item.Free();
     end;
 
-    if (Index = ListView.Items.Count) then
+    if (Index < 0) then
     begin
       Result := ListView.Items.Add();
       Result.Data := Data;
@@ -10120,7 +10135,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
     UpdateItem(Result, GroupID, Data);
   end;
 
-  function AddItem(const GroupID: Integer; const Data: TSItem): TListItem;
+  function AddItem(const GroupID: Integer; const Data: TObject): TListItem;
   begin
     Result := ListView.Items.Add();
     Result.Data := Data;
@@ -10128,6 +10143,21 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
   end;
 
   procedure UpdateGroup(const Kind: TPAccount.TDesktop.TListViewKind; const GroupID: Integer; const SItems: TSItems);
+
+    function ListViewDescription(const ListView: TListView): string;
+    begin
+      if (TObject(ListView.Tag) is TSSession) then
+        Result := 'Session'
+      else if (TObject(ListView.Tag) is TSDatabase) then
+        Result := 'Database ' + TSDatabase(ListView.Tag).Name
+      else if (TObject(ListView.Tag) is TSTable) then
+        Result := 'Table ' + TSTable(ListView.Tag).Database.Name + '.' + TSTable(ListView.Tag).Name
+      else if (ListView.Tag <> 0) then
+        Result := TObject(ListView.Tag).ClassName
+      else
+        Result := '???';
+    end;
+
   var
     Add: Boolean;
     ColumnWidths: array [0..7] of Integer;
@@ -10191,7 +10221,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
         end;
       etItemCreated:
         begin
-          Session.Connection.DebugMonitor.Append('TFSession.ListViewUpdate.UpdateGroup - etItemCreated - ' + Event.Items.ClassName + ': "' + Event.Item.Name + '"', ttDebug);
+          Session.Connection.DebugMonitor.Append('TFSession.ListViewUpdate.UpdateGroup - etItemCreated - ' + ListViewDescription(ListView) + ' - ' + Event.Items.ClassName + ': "' + Event.Item.Name + '"', ttDebug);
 
           Item := InsertOrUpdateItem(Kind, GroupID, Event.Item);
           if (not Assigned(ListView.Selected)) then
@@ -10202,7 +10232,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
         end;
       etItemAltered:
         begin
-          Session.Connection.DebugMonitor.Append('TFSession.ListViewUpdate.UpdateGroup - etItemAltered - ' + Event.Items.ClassName + ': "' + Event.Item.Name + '"', ttDebug);
+          Session.Connection.DebugMonitor.Append('TFSession.ListViewUpdate.UpdateGroup - etItemAltered - ' + ListViewDescription(ListView) + ' - ' + Event.Items.ClassName + ': "' + Event.Item.Name + '"', ttDebug);
 
           Index := 0;
           while ((Index < ListView.Items.Count) and (ListView.Items[Index].Data <> Event.Item)) do
@@ -10223,7 +10253,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
         end;
       etItemDropped:
         begin
-          Session.Connection.DebugMonitor.Append('TFSession.ListViewUpdate.UpdateGroup - etItemDropped - ' + Event.Items.ClassName + ': "' + Event.Item.Name + '"', ttDebug);
+          Session.Connection.DebugMonitor.Append('TFSession.ListViewUpdate.UpdateGroup - etItemDropped - ' + ListViewDescription(ListView) + ' - ' + Event.Items.ClassName + ': "' + Event.Item.Name + '"', ttDebug);
 
           for I := ListView.Items.Count - 1 downto 0 do
             if (ListView.Items[I].Data = Event.Item) then
@@ -10291,17 +10321,20 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
     EventCount: Integer;
     FieldCount: Integer;
     I: Integer;
+    ItemSearch: TSItemSearch;
     TableCount: Integer;
     TriggerCount: Integer;
     RoutineCount: Integer;
     UserCount: Integer;
   begin
-    if (Event.Items is TSItemSearch) then
+    ItemSearch := TSItemSearch(ListView.Tag);
+
+    if (ListView.Items.Count = 0) then
       for I := 0 to Event.Items.Count - 1 do
         AddItem(GroupIDByImageIndex(ImageIndexByData(Event.Items[I])), Event.Items[I])
     else
-      for I := 0 to ObjectSearch.Count - 1 do
-        InsertOrUpdateItem(lkObjectSearch, GroupIDByImageIndex(ImageIndexByData(ObjectSearch[I])), ObjectSearch[I]);
+      for I := 0 to ItemSearch.Count - 1 do
+        InsertOrUpdateItem(lkObjectSearch, GroupIDByImageIndex(ImageIndexByData(ItemSearch[I])), ItemSearch[I]);
 
 
     DatabaseCount := 0;
@@ -10344,9 +10377,8 @@ var
   Kind: TPAccount.TDesktop.TListViewKind;
   Table: TSTable;
 begin
-  if (Assigned(ListView) and (Assigned(Event.Items)
-    or (Event.Sender is TSTable)
-    or (Event.Sender is TSItemSearch))) then
+  if (Assigned(ListView)
+    and (Assigned(Event.Items) or (Event.Sender is TSTable) or (Event.Sender is TSItemSearch))) then
   begin
     ChangingEvent := ListView.OnChanging;
     ListView.OnChanging := nil;
@@ -10354,7 +10386,7 @@ begin
     ListView.Items.BeginUpdate();
     ListView.DisableAlign();
 
-    if (ListView = ObjectSearchListView) then
+    if (TObject(ListView.Tag) is TSItemSearch) then
       UpdateObjectSearch()
     else
     begin
@@ -10366,11 +10398,11 @@ begin
             if (ListView.Items.Count = 0) then
             begin
               if (Assigned(Session.Processes)) then
-                InsertOrUpdateItem(Kind, giSystemTools, Session.Processes);
+                AddItem(giSystemTools, Session.Processes);
               if (Assigned(Session.Users)) then
-                InsertOrUpdateItem(Kind, giSystemTools, Session.Users);
+                AddItem(giSystemTools, Session.Users);
               if (Assigned(Session.Variables)) then
-                InsertOrUpdateItem(Kind, giSystemTools, Session.Variables);
+                AddItem(giSystemTools, Session.Variables);
               ListViewInitialize(ListView);
             end;
 
@@ -11336,6 +11368,18 @@ begin
     begin
       URI.Param['file'] := Null;
       URI.Param['cp'] := Null;
+    end;
+    if (URI.Param['view'] <> 'objectsearch') then
+    begin
+      URI.Param['text'] := Null;
+      URI.Param['databases'] := Null;
+      URI.Param['tables'] := Null;
+      URI.Param['routines'] := Null;
+      URI.Param['events'] := Null;
+      URI.Param['fields'] := Null;
+      URI.Param['triggers'] := Null;
+      URI.Param['name'] := Null;
+      URI.Param['comment'] := Null;
     end;
 
     if (Node = FNavigator.Selected) then
@@ -12846,28 +12890,28 @@ begin
       begin
         if (Event.Items is TSDatabases) then
         begin
-          ListViewUpdate(Event, FServerListView);
+          ListViewUpdate(Event, ServerListView);
           if (Event.Sender is TSDatabase) then
             ListViewUpdate(Event, Desktop(TSDatabase(Event.Sender)).ListView);
         end
         else if (Event.Items is TSProcesses) then
         begin
-          ListViewUpdate(Event, FServerListView);
+          ListViewUpdate(Event, ServerListView);
           ListViewUpdate(Event, ProcessesListView);
         end
         else if (Event.Items is TSUsers) then
         begin
-          ListViewUpdate(Event, FServerListView);
+          ListViewUpdate(Event, ServerListView);
           ListViewUpdate(Event, UsersListView);
         end
         else if (Event.Items is TSVariables) then
         begin
-          ListViewUpdate(Event, FServerListView);
+          ListViewUpdate(Event, ServerListView);
           ListViewUpdate(Event, VariablesListView);
         end
         else if ((Event.Sender is TSDatabase) and not (Event.Items is TSTriggers)) then
         begin
-          ListViewUpdate(Event, FServerListView);
+          ListViewUpdate(Event, ServerListView);
           if (not (Event.Items is TSTriggers)) then
             ListViewUpdate(Event, Desktop(TSDatabase(Event.Sender)).ListView)
           else if (Event.EventType = etItemDropped) then
@@ -12886,6 +12930,9 @@ begin
           ListViewUpdate(Event, Desktop(Table.Database).ListView);
           ListViewUpdate(Event, Desktop(Table).ListView);
         end;
+
+        if (Assigned(ObjectSearchListView)) then
+          ListViewUpdate(Event, ObjectSearchListView);
       end;
 
       if ((Event.EventType = etItemValid)) then
@@ -12947,124 +12994,106 @@ var
 begin
   URI := TUURI.Create(Address);
 
-  if (URI.Address <> Address) then
-    SendToDeveloper('Address: ' + Address + #13#10
-      + 'URI.Address: ' + URI.Address + #13#10
-      + 'URI.ExtraInfos: ' + URI.ExtraInfos + #13#10
-      + 'csLoading: ' + BoolToStr(csLoading in ComponentState, True) + #13#10
-      + 'csDestroying: ' + BoolToStr(csDestroying in ComponentState, True));
-
-  if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
-    raise ERangeError.Create('View: ' + IntToStr(Ord(AView)) + #13#10
-      + 'LastSelectedTable: ' + LastSelectedTable + #13#10
-      + 'Address: ' + Address + #13#10
-      + 'ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
-      + 'Text: ' + FNavigator.Selected.Text + #13#10
-      + 'URI.Address: ' + URI.Address);
-
   case (AView) of
-    vObjects: URI.Param['view'] := Null;
-    vBrowser: URI.Param['view'] := 'browser';
-    vIDE: URI.Param['view'] := 'ide';
-    vBuilder: URI.Param['view'] := 'builder';
-    vDiagram: URI.Param['view'] := 'diagram';
+    vObjects:
+      begin
+        URI.Param['view'] := 'objects';
+      end;
+    vBrowser:
+      begin
+        URI.Param['view'] := 'browser';
+        if (URI.Database = '') then
+          URI.Database := LastSelectedDatabase;
+        if (URI.Table = '') then
+          if (SelectedImageIndex = iiTrigger) then
+            URI.Table := TSTrigger(FNavigator.Selected.Data).TableName
+          else
+            URI.Table := LastSelectedTable;
+        URI.Param['system'] := Null;
+      end;
+    vIDE:
+      begin
+        URI.Param['view'] := 'ide';
+        if ((URI.Param['objecttype'] = Null) or (URI.Param['object'] = Null)) then
+          URI.Address := LastObjectIDEAddress;
+        URI.Param['system'] := Null;
+      end;
+    vBuilder:
+      begin
+        URI.Param['view'] := 'builder';
+        if (URI.Database = '') then
+          URI.Database := LastSelectedDatabase;
+        URI.Table := '';
+        URI.Param['system'] := Null;
+      end;
+    vDiagram:
+      begin
+        URI.Param['view'] := 'diagram';
+        if (URI.Database = '') then
+          URI.Database := LastSelectedDatabase;
+        URI.Table := '';
+        URI.Param['system'] := Null;
+      end;
     vEditor,
     vEditor2,
     vEditor3:
       begin
         URI.Param['view'] := ViewToParam(AView);
-        if (Assigned(SQLEditors[AView])) then
-          if (SQLEditors[AView].Filename = '') then
-          begin
-            URI.Param['file'] := Null;
-            URI.Param['cp'] := Null;
-          end
+        if (URI.Database = '') then
+          URI.Database := LastSelectedDatabase;
+        if (URI.Database = '') then
+          URI.Database := Session.Connection.DatabaseName;
+        URI.Table := '';
+        if (SQLEditors[AView].Filename = '') then
+        begin
+          URI.Param['file'] := Null;
+          URI.Param['cp'] := Null;
+        end
+        else
+        begin
+          URI.Param['file'] := EscapeURL(SQLEditors[AView].Filename);
+          if (SQLEditors[AView].FileCodePage = 0) then
+            URI.Param['cp'] := Null
           else
-          begin
-            URI.Param['file'] := EscapeURL(SQLEditors[AView].Filename);
-            if (SQLEditors[AView].FileCodePage = 0) then
-              URI.Param['cp'] := Null
-            else
-              URI.Param['cp'] := IntToStr(SQLEditors[AView].FileCodePage);
-          end;
+            URI.Param['cp'] := IntToStr(SQLEditors[AView].FileCodePage);
+        end;
       end;
-    vObjectSearch: URI.Param['view'] := 'objectsearch';
-  end;
-
-
-  if ((URI.Param['view'] = 'objects') and (SelectedImageIndex in [iiProcedure, iiFunction, iiTrigger, iiEvent])) then
-  begin
-    URI.Param['objecttype'] := Null;
-    URI.Param['object'] := Null;
-  end
-  else if ((URI.Param['view'] = 'browser') and not (SelectedImageIndex in [iiBaseTable, iiView, iiSystemView])) then
-  begin
-    if (SelectedImageIndex = iiTrigger) then
-      URI.Table := TSTrigger(FNavigator.Selected.Data).TableName
-    else if (LastSelectedTable = '') then
-      // Debug 2016-12-07
-      raise ERangeError.Create(SRangeError)
     else
-    begin
-      URI.Database := LastSelectedDatabase;
-      URI.Table := LastSelectedTable;
-    end;
-
-    // Debug 2017-01-05
-    if (URI.Table = '') then
       raise ERangeError.Create(SRangeError);
-  end
-  else if ((URI.Param['view'] = 'ide') and not (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent, iiTrigger])) then
-    URI.Address := LastObjectIDEAddress
-  else if ((URI.Param['view'] = 'builder') and not (SelectedImageIndex in [iiDatabase, iiSystemDatabase])
-    or (ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and not (SelectedImageIndex in [iiServer, iiDatabase, iiSystemDatabase])) then
+  end;
+
+  if (not (AView in [vObjects])) then
   begin
-    if (URI.Database = '') then
-      URI.Database := LastSelectedDatabase;
-    URI.Table := '';
-    URI.Param['objecttype'] := Null;
-    URI.Param['object'] := Null;
     URI.Param['system'] := Null;
+  end;
+  if (not (AView in [vBrowser])) then
+  begin
     URI.Param['filter'] := Null;
     URI.Param['search'] := Null;
     URI.Param['offset'] := Null;
-    URI.Param['file'] := Null;
-    URI.Param['cp'] := Null;
-  end
-  else if ((ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and (Session.Connection.DatabaseName <> '') and not (SelectedImageIndex in [iiDatabase, iiSystemDatabase])) then
-    URI.Database := Session.Connection.DatabaseName
-  else if ((URI.Param['view'] = 'diagram') and not (SelectedImageIndex in [iiDatabase, iiSystemDatabase])) then
-  begin
-    if (URI.Database = '') then
-      URI.Database := LastSelectedDatabase;
-    URI.Table := '';
-    URI.Param['system'] := Null;
-    URI.Param['filter'] := Null;
-    URI.Param['search'] := Null;
-    URI.Param['offset'] := Null;
-    URI.Param['file'] := Null;
-    URI.Param['cp'] := Null;
-  end
-  else if (URI.Param['view'] = 'objectsearch') then
+  end;
+  if (not (AView in [vIDE])) then
   begin
     URI.Param['objecttype'] := Null;
     URI.Param['object'] := Null;
-    URI.Param['system'] := Null;
-    URI.Param['filter'] := Null;
-    URI.Param['search'] := Null;
-    URI.Param['offset'] := Null;
+  end;
+  if (not (AView in [vEditor, vEditor2, vEditor3])) then
+  begin
     URI.Param['file'] := Null;
     URI.Param['cp'] := Null;
   end;
-
-  // Debug 2017-01-10
-  if ((URI.Param['view'] = 'browser')
-    and (URI.Table = '')) then
-    raise ERangeError.Create('Address: ' + Address + #13#10
-      + 'URI.Address: ' + URI.Address + #13#10
-      + 'LastSelectedDatabase: ' + LastSelectedDatabase + #13#10
-      + 'LastSelectedTable: ' + LastSelectedTable + #13#10
-      + 'AView: ' + IntToStr(Ord(AView)));
+  if (not (AView in [vObjectSearch])) then
+  begin
+    URI.Param['text'] := Trim(FObjectSearch.Text);
+    URI.Param['databases'] := Null;
+    URI.Param['tables'] := Null;
+    URI.Param['routines'] := Null;
+    URI.Param['events'] := Null;
+    URI.Param['fields'] := Null;
+    URI.Param['triggers'] := Null;
+    URI.Param['name'] := Null;
+    URI.Param['comment'] := Null;
+  end;
 
   LockWindowUpdate(FNavigator.Handle);
   ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);
@@ -13092,13 +13121,6 @@ var
   URI: TUURI;
 begin
   Assert(AAddress <> '');
-
-  // Debug 2017-01-10
-  URI := TUURI.Create(AAddress);
-  if ((URI.Param['view'] = 'browser')
-    and (URI.Table = '')) then
-    raise ERangeError.Create('AAddress: ' + AAddress);
-  URI.Free();
 
   AllowChange := True; Node := nil;
   NewAddress := AAddress; // We need this, since in AddressChanging maybe Wanted.Address will be changed, but AAddress is Wanted.Address
@@ -13148,7 +13170,7 @@ begin
       NewView := vEditor2
     else if (URI.Param['view'] = 'editor3') then
       NewView := vEditor3
-    else if ((URI.Param['view'] = 'objectsearch') and Assigned(ObjectSearch)) then
+    else if (URI.Param['view'] = 'objectsearch') then
       NewView := vObjectSearch
     else
       NewView := vObjects;
@@ -13216,12 +13238,6 @@ begin
               OpenSQLFile(FileName, CodePage);
         end;
     end;
-
-    // Debug 2016-12-27
-    if ((URI.Param['view'] = 'browser') and not (FNavigator.Selected.ImageIndex in [iiBaseTable, iiView, iiSystemView])) then
-      raise ERangeError.Create('Address: ' + URI.Address + #13#10
-        + 'ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
-        + 'Text: ' + FNavigator.Selected.Text);
 
     URI.Free();
 
@@ -14750,6 +14766,7 @@ begin
   FQueryBuilderEditorPageControlCheckStyle();
 
   FormResize(nil);
+  PHeaderCheckElements(nil);
 
   Perform(UM_ACTIVATEFRAME, 0, 0);
 
@@ -14805,8 +14822,6 @@ begin
     AddressChanging(nil, Session.Account.Desktop.Address, AllowChange);
     Wanted.Address := Session.Account.Desktop.Address;
   end;
-
-  PHeaderCheckElements(nil);
 end;
 
 procedure TFSession.UMStausBarRefresh(var Message: TMessage);
@@ -14828,9 +14843,11 @@ end;
 
 function TFSession.UpdateAfterAddressChanged(): Boolean;
 var
+  B: Boolean;
   Database: TSDatabase;
   I: Integer;
   List: TList;
+  URI: TUURI;
 begin
   Result := False;
 
@@ -14853,12 +14870,9 @@ begin
           begin
             Database := TSDatabase(FNavigator.Selected.Data);
             if (not Database.Tables.Update()) then
-              Wanted.Update := UpdateAfterAddressChanged;
-            List := TList.Create();
-            if (Session.Connection.MySQLVersion < 50002) then
-              List.Add(Database);
-            Result := not Session.Update(List, True);
-            List.Free();
+              Wanted.Update := UpdateAfterAddressChanged
+            else if (Session.Connection.MySQLVersion < 50002) then
+              Database.Update(True);
           end;
         iiBaseTable,
         iiView,
@@ -14880,6 +14894,43 @@ begin
         ActiveWorkbench := GetActiveWorkbench();
         if (FileExists(Session.Account.DataPath + ActiveWorkbench.Database.Name + PathDelim + 'Diagram.xml')) then
           ActiveWorkbench.LoadFromFile(Session.Account.DataPath + ActiveWorkbench.Database.Name + PathDelim + 'Diagram.xml');
+      end;
+    vObjectSearch:
+      begin
+        if (not Assigned(ObjectSearch)) then
+        begin
+          URI := TUURI.Create(Address);
+          ObjectSearch := TSItemSearch.Create(Session);
+          if (URI.Param['system'] = 'processes') then
+            ObjectSearch.Location := Session.Processes
+          else if (URI.Param['system'] = 'users') then
+            ObjectSearch.Location := Session.Users
+          else if (URI.Param['system'] = 'variables') then
+            ObjectSearch.Location := Session.Variables
+          else if (URI.Table <> '') then
+            ObjectSearch.Location := Session.DatabaseByName(URI.Database).TableByName(URI.Table)
+          else if (URI.Database <> '') then
+            ObjectSearch.Location := Session.DatabaseByName(URI.Database)
+          else
+            ObjectSearch.Location := Session;
+          ObjectSearch.Comment := (URI.Param['comment'] <> Null) and TryStrToBool(URI.Param['comment'], B) and B;
+          ObjectSearch.Databases := (URI.Param['databases'] <> Null) and TryStrToBool(URI.Param['databases'], B) and B;
+          ObjectSearch.Events := (URI.Param['events'] <> Null) and TryStrToBool(URI.Param['events'], B) and B;
+          ObjectSearch.Fields := (URI.Param['fields'] <> Null) and TryStrToBool(URI.Param['fields'], B) and B;
+          ObjectSearch.Name := (URI.Param['name'] <> Null) and TryStrToBool(URI.Param['name'], B) and B;
+          ObjectSearch.Routines := (URI.Param['routines'] <> Null) and TryStrToBool(URI.Param['routines'], B) and B;
+          ObjectSearch.Tables := (URI.Param['tables'] <> Null) and TryStrToBool(URI.Param['tables'], B) and B;
+          ObjectSearch.Triggers := (URI.Param['triggers'] <> Null) and TryStrToBool(URI.Param['triggers'], B) and B;
+          ObjectSearch.Text := URI.Param['text'];
+          URI.Free();
+
+          ActiveListView := GetActiveListView();
+
+          if (ObjectSearch.Step1()) then
+            ObjectSearchStep2()
+          else
+            Wanted.Update := ObjectSearchStep2;
+        end;
       end;
   end;
 end;
@@ -14911,8 +14962,6 @@ begin
     FView := vEditor2
   else if (tbEditor3.Down) then
     FView := vEditor3
-  else if (Assigned(ObjectSearch)) then
-    FView := vObjectSearch
   else
     FView := vObjects;
 
@@ -14926,7 +14975,6 @@ begin
 
     ObjectSearch.Free();
     ObjectSearch := nil;
-    FObjectSearch.Text := '';
   end;
 end;
 

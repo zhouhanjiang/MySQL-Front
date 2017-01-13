@@ -1029,7 +1029,8 @@ var
   begin
     // Debug 2016-12-16
     if (not Assigned(Database)) then
-      raise ERangeError.Create('Database not assigned' + #13#10 + 'ImportType: ' + IntToStr(Ord(ImportType)));
+      raise ERangeError.Create('Database not assigned' + #13#10
+        + 'ImportType: ' + IntToStr(Ord(ImportType)));
 
     TableName := Session.ApplyIdentifierName(TableName);
     if ((Answer <> IDYESALL) and not (SObject is TSTable) and Assigned(Database.TableByName(TableName))) then

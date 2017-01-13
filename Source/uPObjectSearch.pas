@@ -143,6 +143,16 @@ begin
   FEvents.Visible := ((Location is TSSession) or (Location is TSDatabase)) and (Session.Connection.MySQLVersion >= 50106);
   FFields.Visible := (Location is TSSession) or (Location is TSDatabase) or (Location is TSTable);
   FTriggers.Visible := ((Location is TSSession) or (Location is TSDatabase) or (Location is TSTable)) and (Session.Connection.MySQLVersion >= 50010);
+
+  if ((Location is TSSession) and not FDatabases.Checked and not FTables.Checked and not FRoutines.Checked and not FEvents.Checked and not FFields.Checked and not FTriggers.Checked) then
+    FTables.Checked := True;
+  if ((Location is TSDatabase) and not FTables.Checked and not FRoutines.Checked and not FEvents.Checked and not FFields.Checked and not FTriggers.Checked) then
+    FTables.Checked := True;
+  if ((Location is TSTable) and not FFields.Checked and not FTriggers.Checked) then
+    FFields.Checked := True;
+
+  if (not FName.Checked and not FComment.Checked) then
+    FName.Checked := True;
 end;
 
 procedure TPObjectSearch.UMChangePreferences(var Msg: TMessage);

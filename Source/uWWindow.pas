@@ -641,6 +641,7 @@ end;
 
 procedure TWWindow.ApplicationDeactivate(Sender: TObject);
 begin
+  SetTimer(Handle, tiFormDeactivated, 100, nil);
   SetTimer(Handle, tiEmptyWorkingMem, 60000, nil);
 end;
 
@@ -1775,10 +1776,13 @@ var
 begin
   Tab := TFSession(Message.LParam);
 
-  // Debug 2016-12-12
-  // Somewhere, Session.Account.Desktop will be cleared, but why and where???
+  // Debug 2017-01-13
   if (Assigned(Tab)) then
-    if (not Assigned(Tab.Session.Account.Desktop)) then
+    if (Sessions.IndexOf(Tab.Session) < 0) then
+      raise ERangeError.Create(SRangeError)
+    else if (Tab.Session.Identifier123456 <> 123456) then
+      raise ERangeError.Create('Identifier123456: ' + IntToStr(Tab.Session.Identifier123456))
+    else if (not Assigned(Tab.Session.Account.Desktop)) then
       raise ERangeError.Create(SRangeError);
 
   for I := ToolBar.ButtonCount - 1 downto ToolButton11.Index do
@@ -1844,16 +1848,6 @@ begin
       ToolBar.Buttons[I].Visible := Found;
       Found := False;
     end;
-
-  {$IFDEF Debug}
-  // Is this code also needed in Delphi XE4?
-  {$ELSE}
-  Found := False;
-  for I := ToolBar.ButtonCount - 1 downto ToolButton11.Index do
-    Found := Found or ToolBar.Buttons[I].Visible and (ToolBar.Buttons[I].ImageIndex >= 0) and (ToolBar.Buttons[I].Width <> ToolBar.ButtonWidth);
-  if (Found) then
-    Toolbar.ButtonWidth := 0; // Without this, the Buttons are too small. Why??? A Delphi XE2 bug?
-  {$ENDIF}
 
   while (miFReopen.Count > 1) do
     miFReopen.Delete(0);

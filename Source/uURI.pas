@@ -150,12 +150,12 @@ end;
 
 procedure TUURI.Clear();
 begin
-  Scheme := 'mysql';
+  Scheme := '';
   Username := '';
   Password := '';
   FHost := '';
   Port := 0;
-  FPath := '/';
+  FPath := '';
   FExtraInfos := '';
 end;
 
@@ -175,18 +175,27 @@ begin
   ZeroMemory(@URLComponents, SizeOf(URLComponents));
   URLComponents.dwStructSize := SizeOf(URLComponents);
 
-  URLComponents.lpszScheme := PChar(Scheme);
-  URLComponents.lpszHostName := PChar(FHost);
-  if (Port <> MYSQL_PORT) then
-    URLComponents.nPort := Port;
-  if (Username <> '') then
+  if (FHost <> '') then
   begin
-    URLComponents.lpszUserName := PChar(EscapeURL(Username));
-    if (Password <> '') then
-      URLComponents.lpszPassword := PChar(EscapeURL(Password));
+    if (Scheme = '') then
+      URLComponents.lpszScheme := 'mysql'
+    else
+      URLComponents.lpszScheme := PChar(Scheme);
+    URLComponents.lpszHostName := PChar(FHost);
+    if (Port <> MYSQL_PORT) then
+      URLComponents.nPort := Port;
+    if (Username <> '') then
+    begin
+      URLComponents.lpszUserName := PChar(EscapeURL(Username));
+      if (Password <> '') then
+        URLComponents.lpszPassword := PChar(EscapeURL(Password));
+    end;
+    if (Path = '') then
+      URLComponents.lpszUrlPath := '/'
+    else
+      URLComponents.lpszUrlPath := PChar(EscapeURL(Path));
+    URLComponents.lpszExtraInfo := PChar(Copy(FExtraInfos, 1, 1) + EscapeURL(Copy(FExtraInfos, 2, Length(FExtraInfos) - 1)));
   end;
-  URLComponents.lpszUrlPath := PChar(EscapeURL(Path));
-  URLComponents.lpszExtraInfo := PChar(Copy(FExtraInfos, 1, 1) + EscapeURL(Copy(FExtraInfos, 2, Length(FExtraInfos) - 1)));
 
   Len := Length(URL) - 1;
   if (not InternetCreateUrl(URLComponents, 0, @URL, Len)) then
