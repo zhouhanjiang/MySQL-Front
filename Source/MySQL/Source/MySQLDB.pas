@@ -3785,7 +3785,6 @@ end;
 procedure TMySQLConnection.SyncReleaseDataSet(const DataSet: TMySQLQuery);
 begin
   Assert(Assigned(DataSet));
-  Assert(Assigned(SyncThread));
 
   if (DataSet.SyncThread = SyncThread) then
   begin
