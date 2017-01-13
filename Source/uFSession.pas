@@ -4405,7 +4405,7 @@ begin
     Result := lkUsers
   else if (TObject(ListView.Tag) is TSVariables) then
     Result := lkVariables
-  else if (TOBJECT(ListView.Tag) is TSItemSearch) then
+  else if (TObject(ListView.Tag) is TSItemSearch) then
     Result := lkObjectSearch
   else
     raise ERangeError.Create(SRangeError);
@@ -8481,7 +8481,7 @@ begin
         begin
           if (not Assigned(ServerListView)) then
           begin
-            ServerListView := CreateListView(Session);
+            ServerListView := CreateListView(nil);
             Session.PushBuildEvents();
           end;
           Result := ServerListView;
@@ -9291,7 +9291,7 @@ begin
   if (not Update) then
   begin
     ListView.Columns.BeginUpdate();
-    if (ListView = ServerListView) then
+    if (ListView.Tag = 0) then
     begin
       ListView.Columns.Add();
       ListView.Columns.Add();
@@ -9420,7 +9420,7 @@ begin
 
   ListView.Groups.EndUpdate();
 
-  if (ListView = ServerListView) then
+  if (ListView.Tag = 0) then
   begin
     ListView.Columns[0].Caption := Preferences.LoadStr(35);
     ListView.Columns[1].Caption := Preferences.LoadStr(76);
