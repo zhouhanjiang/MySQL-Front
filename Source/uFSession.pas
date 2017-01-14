@@ -10354,7 +10354,8 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
             if (TObject(ListView.Tag) is TSBaseTable) then
               SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(458) + ' (' + IntToStr(TSBaseTable(ListView.Tag).Keys.Count) + ')');
           giFields:
-            SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(253) + ' (' + IntToStr(TSTable(ListView.Tag).Fields.Count) + ')');
+            if (TObject(ListView.Tag) is TSTable) then
+              SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(253) + ' (' + IntToStr(TSTable(ListView.Tag).Fields.Count) + ')');
           giForeignKeys:
             if (TObject(ListView.Tag) is TSBaseTable) then
               SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(459) + ' (' + IntToStr(TSBaseTable(ListView.Tag).ForeignKeys.Count) + ')');
