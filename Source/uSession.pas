@@ -648,7 +648,8 @@ type
     procedure Build(const Field: TField); override;
     function GetFields(): TSTableFields; override;
     function GetValid(): Boolean; override;
-    procedure ParseCreateTable(const SQL: string); virtual;
+    procedure ParseAlterTable(const SQL: string);
+    procedure ParseCreateTable(const SQL: string);
     function SQLGetSource(): string; override;
     property MergeSourceTables: TSMergeSourceTables read FMergeSourceTables;
   public
@@ -4370,6 +4371,57 @@ begin
     Result := Partitions[Index];
 end;
 
+procedure TSBaseTable.ParseAlterTable(const SQL: string);
+var
+  Field: TSField;
+  NewFieldName: string;
+  OldFieldName: string;
+  Parse: TSQLParse;
+  S: string;
+begin
+  if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion)) then
+  begin
+    if (not SQLParseKeyword(Parse, 'ALTER')) then
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+
+    SQLParseKeyword(Parse, 'IGNORE');
+
+    if (not SQLParseKeyword(Parse, 'TABLE')) then
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+
+    S := SQLParseValue(Parse);
+    if (SQLParseChar(Parse, '.')) then
+    begin
+      if (Session.Databases.NameCmp(Database.Name, S) <> 0) then
+        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+      S := SQLParseValue(Parse);
+    end;
+    if (Database.Tables.NameCmp(Name, S) <> 0) then
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+
+    while (not SQLParseEnd(Parse)) do
+    begin
+      if (SQLParseKeyword(Parse, 'CHANGE')) then
+      begin
+        SQLParseKeyword(Parse, 'COLUMN');
+
+        OldFieldName := SQLParseValue(Parse);
+        NewFieldName := SQLParseValue(Parse);
+
+        Field := FieldByName(OldFieldName);
+        if (Assigned(Field) and (NewFieldName <> OldFieldName)) then
+        begin
+          Field.Name := NewFieldName;
+          Session.SendEvent(etItemAltered, Self, Fields, Field);
+        end;
+      end;
+
+      while (not SQLParseChar(Parse, ',') and not SQLParseEnd(Parse)) do
+        SQLParseValue(Parse);
+    end;
+  end;
+end;
+
 procedure TSBaseTable.ParseCreateTable(const SQL: string);
 var
   DeleteList: TList;
@@ -4394,9 +4446,7 @@ var
   TempParse: TSQLParse;
   Unique: Boolean;
 begin
-  if (not SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion)) then
-    raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL])
-  else
+  if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion)) then
   begin
     MergeSourceTables.Clear();
 
@@ -7663,7 +7713,6 @@ procedure TSDatabase.Invalidate();
 begin
   inherited;
 
-  if (Assigned(Columns)) then Columns.Invalidate();
   Tables.Invalidate();
   if (Assigned(Routines)) then Routines.Invalidate();
   if (Assigned(Triggers)) then Triggers.Invalidate();
@@ -11993,7 +12042,7 @@ begin
     end;
   end;
 
-  if ((Connection.ErrorCode = 0) and SQLCreateParse(Parse, PChar(SQL), Length(SQL), Connection.MySQLVersion)) then
+  if ((Connection.ErrorCode = 0) and SQLCreateParse(Parse, Text, Len, Connection.MySQLVersion)) then
     if (SQLParseKeyword(Parse, 'SELECT') or SQLParseKeyword(Parse, 'SHOW')) then
       // Do nothing - but do not parse the Text further more
     else if (SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Connection.MySQLVersion)) then
@@ -12101,6 +12150,14 @@ begin
                       else
                         Table.Invalidate();
                       SendEvent(etItemAltered, Database, Database.Tables, Table);
+
+                      {$IFDEF Debug}
+                      if (Table is TSBaseTable) then
+                      begin
+                        SetString(SQL, Text, Len);
+                        TSBaseTable(Table).ParseAlterTable(SQL);
+                      end;
+                      {$ENDIF}
                     end;
                   end;
                 dtDrop:

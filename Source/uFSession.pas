@@ -10351,12 +10351,15 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
           giEvents:
             SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(876) + ' (' + IntToStr(Event.Items.Count) + ')');
           giKeys:
-            SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(458) + ' (' + IntToStr(TSBaseTable(ListView.Tag).Keys.Count) + ')');
+            if (TObject(ListView.Tag) is TSBaseTable) then
+              SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(458) + ' (' + IntToStr(TSBaseTable(ListView.Tag).Keys.Count) + ')');
           giFields:
             SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(253) + ' (' + IntToStr(TSTable(ListView.Tag).Fields.Count) + ')');
           giForeignKeys:
-            SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(459) + ' (' + IntToStr(TSBaseTable(ListView.Tag).ForeignKeys.Count) + ')');
+            if (TObject(ListView.Tag) is TSBaseTable) then
+              SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(459) + ' (' + IntToStr(TSBaseTable(ListView.Tag).ForeignKeys.Count) + ')');
           giTriggers:
+            if (TObject(ListView.Tag) is TSBaseTable) then
             begin
               Count := 0;
               for I := 0 to TSTriggers(SItems).Count - 1 do
@@ -10431,13 +10434,13 @@ begin
       UpdateGroup(Kind, giEvents, Event.Items)
     else if (Event.Sender is TSTable) then
     begin
-      if (Event.Sender is TSBaseTable) then
-        UpdateGroup(Kind, giKeys, TSBaseTable(Event.Sender).Keys);
+      if (TObject(ListView.Tag) is TSBaseTable) then
+        UpdateGroup(Kind, giKeys, TSBaseTable(ListView.Tag).Keys);
       UpdateGroup(Kind, giFields, TSTable(Event.Sender).Fields);
-      if ((Event.Sender is TSBaseTable) and Assigned(TSBaseTable(Event.Sender).ForeignKeys)) then
-        UpdateGroup(Kind, giForeignKeys, TSBaseTable(Event.Sender).ForeignKeys);
-      if ((Event.Sender is TSBaseTable) and Assigned(TSBaseTable(Event.Sender).Database.Triggers)) then
-        UpdateGroup(Kind, giTriggers, TSBaseTable(Event.Sender).Database.Triggers);
+      if ((TObject(ListView.Tag) is TSBaseTable) and Assigned(TSBaseTable(ListView.Tag).ForeignKeys)) then
+        UpdateGroup(Kind, giForeignKeys, TSBaseTable(ListView.Tag).ForeignKeys);
+      if ((Event.Sender is TSBaseTable) and Assigned(TSBaseTable(ListView.Tag).Database.Triggers)) then
+        UpdateGroup(Kind, giTriggers, TSBaseTable(ListView.Tag).Database.Triggers);
     end
     else if (Event.Items is TSTriggers) then
       UpdateGroup(Kind, giTriggers, Event.Items)
