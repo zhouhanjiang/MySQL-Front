@@ -10440,7 +10440,7 @@ begin
       UpdateGroup(Kind, giFields, TSTable(Event.Sender).Fields);
       if ((TObject(ListView.Tag) is TSBaseTable) and Assigned(TSBaseTable(ListView.Tag).ForeignKeys)) then
         UpdateGroup(Kind, giForeignKeys, TSBaseTable(ListView.Tag).ForeignKeys);
-      if ((Event.Sender is TSBaseTable) and Assigned(TSBaseTable(ListView.Tag).Database.Triggers)) then
+      if ((TObject(ListView.Tag) is TSBaseTable) and Assigned(TSBaseTable(ListView.Tag).Database.Triggers)) then
         UpdateGroup(Kind, giTriggers, TSBaseTable(ListView.Tag).Database.Triggers);
     end
     else if (Event.Items is TSTriggers) then

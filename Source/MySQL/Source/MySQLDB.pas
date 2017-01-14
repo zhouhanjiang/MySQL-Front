@@ -2468,8 +2468,6 @@ begin
 
   TerminatedThreads.Add(SyncThread);
 
-  WriteMonitor('--> Connection terminated', ttInfo);
-
   FSyncThread := nil;
 end;
 
