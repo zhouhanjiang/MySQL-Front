@@ -206,7 +206,7 @@ begin
   begin
     FVersionInfo.Caption := Preferences.LoadStr(663) + ': ' + VersionStr;
 
-    if (OnlineProgramVersion <= Preferences.Version) then
+    if (OnlineVersion <= Preferences.Version) then
     begin
       MsgBox(Preferences.LoadStr(507), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
       FBCancel.Click();
@@ -270,7 +270,7 @@ begin
 end;
 
 initialization
-  OnlineProgramVersion := -1;
+  OnlineVersion := -1;
   OnlineRecommendedVersion := -1;
   FDUpdate := nil;
 end.

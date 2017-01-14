@@ -370,6 +370,8 @@ begin
 
   if ((ModalResult = mrOk) and GBasics.Visible) then
   begin
+    Assert(Assigned(Table));
+
     if (ModifyTableOnly) then
       NewTable := Table
     else

@@ -109,7 +109,7 @@ type
     FValid: Boolean;
     function Add(const AEntity: TSEntity; const SendEvent: Boolean = False): Integer; virtual;
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
-      Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean; virtual;
+      Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean; virtual;
     function GetValid(): Boolean; virtual;
     function SQLGetItems(const Name: string = ''): string; virtual; abstract;
   protected
@@ -761,7 +761,7 @@ type
     function GetValidStatus(): Boolean;
   protected
     function Add(const AEntity: TSEntity; const SendEvent: Boolean = False): Integer; override;
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean; overload; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean; overload; override;
     function BuildFields(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean): Boolean;
     procedure Delete(const AItem: TSItem); override;
     function SQLGetItems(const Name: string = ''): string; override;
@@ -853,7 +853,7 @@ type
   private
     function GetRoutine(Index: Integer): TSRoutine;
   protected
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     procedure AddRoutine(const NewRoutine: TSRoutine); virtual;
@@ -910,7 +910,7 @@ type
   protected
     function Add(const AEntity: TSEntity; const SendEvent: Boolean = False): Integer; override;
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
-      Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean; override;
+      Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     procedure Invalidate(); override;
@@ -971,7 +971,7 @@ type
     function GetEvent(Index: Integer): TSEvent;
   protected
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
-      Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean; override;
+      Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     property Event[Index: Integer]: TSEvent read GetEvent; default;
@@ -984,7 +984,7 @@ type
     function GetColumn(Index: Integer): PChar;
   protected
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
-      Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean; override;
+      Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean; override;
     function GetCount(): Integer; override;
     function SQLGetItems(const Name: string = ''): string; override;
     property Database: TSDatabase read FDatabase;
@@ -1090,7 +1090,7 @@ type
     function GetDatabase(Index: Integer): TSDatabase; inline;
   protected
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
-      Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean; override;
+      Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean; override;
     procedure Delete(const AItem: TSItem); override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
@@ -1128,7 +1128,7 @@ type
     function GetVariable(Index: Integer): TSVariable; inline;
   protected
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
-      Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean; override;
+      Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     property Variable[Index: Integer]: TSVariable read GetVariable; default;
@@ -1164,7 +1164,7 @@ type
     function GetEngine(Index: Integer): TSEngine; inline;
   protected
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
-      Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean; override;
+      Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     function Update(): Boolean; override;
@@ -1187,7 +1187,7 @@ type
     function GetPlugin(Index: Integer): TSPlugin;
   protected
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
-      Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean; override;
+      Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     property Plugin[Index: Integer]: TSPlugin read GetPlugin; default;
@@ -1242,7 +1242,7 @@ type
     function GetCharset(Index: Integer): TSCharset;
   protected
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
-      Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean; override;
+      Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     function Update(): Boolean; override;
@@ -1273,7 +1273,7 @@ type
     function GetCollation(Index: Integer): TSCollation;
   protected
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
-      Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean; override;
+      Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     property Collation[Index: Integer]: TSCollation read GetCollation; default;
@@ -1307,7 +1307,7 @@ type
     function GetProcess(Index: Integer): TSProcess;
   protected
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
-      Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean; override;
+      Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean; override;
     procedure Delete(const AProcess: TSProcess); overload;
     function GetValid(): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
@@ -1412,8 +1412,8 @@ type
     function GetUser(Index: Integer): TSUser; inline;
   protected
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
-      Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean; override;
-    function BuildItems(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; const Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean; overload;
+      Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean; override;
+    function BuildItems(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; const Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean; overload;
     procedure Delete(const AItem: TSItem); override;
     function GetValid(): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
@@ -1526,13 +1526,13 @@ type
     StmtMonitor: TMySQLMonitor;
     procedure BuildManualURL(const DataSet: TMySQLQuery);
     function BuildEvents(const DataSet: TMySQLQuery; const Filtered: Boolean = False;
-      const ObjectSearch: TSItemSearch = nil): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
+      const ItemSearch: TSItemSearch = nil): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
     function BuildRoutines(const DataSet: TMySQLQuery; const Filtered: Boolean = False;
-      const ObjectSearch: TSItemSearch = nil): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
+      const ItemSearch: TSItemSearch = nil): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
     function BuildTables(const DataSet: TMySQLQuery; const Filtered: Boolean = False;
-      const ObjectSearch: TSItemSearch = nil): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
+      const ItemSearch: TSItemSearch = nil): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
     function BuildTriggers(const DataSet: TMySQLQuery; const Filtered: Boolean = False;
-      const ObjectSearch: TSItemSearch = nil): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
+      const ItemSearch: TSItemSearch = nil): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
     procedure BuildUser(const DataSet: TMySQLQuery);
     procedure ConnectChange(Sender: TObject; Connecting: Boolean);
     procedure DatabaseChange(const Connection: TMySQLConnection; const NewName: string);
@@ -1986,7 +1986,7 @@ begin
 end;
 
 function TSEntities.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
-  Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean;
+  Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;
 begin
   FValid := FValid or not Filtered;
 
@@ -4576,6 +4576,8 @@ begin
 
       if (Moved and not FirstParse) then
       begin
+        Session.Connection.DebugMonitor.Append('ParseCreateTable - Moved ' + Name + '.' + NewField.Name, ttDebug);
+
         Session.SendEvent(etItemDropped, Self, FFields, NewField);
         Session.SendEvent(etItemCreated, Self, FFields, NewField);
       end;
@@ -4585,6 +4587,7 @@ begin
     end;
     while (DeleteList.Count > 0) do
     begin
+      Session.Connection.DebugMonitor.Append('ParseCreateTable - FFields.Delete ' + Name + '.' + TSItem(DeleteList.Items[0]).Name, ttDebug);
       FFields.Delete(DeleteList.Items[0]);
       DeleteList.Delete(0);
     end;
@@ -5328,7 +5331,7 @@ begin
   end;
 end;
 
-function TSTables.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean;
+function TSTables.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -5489,8 +5492,8 @@ begin
 
         Item := Table[Index];
 
-        if (Assigned(ObjectSearch)) then
-          ObjectSearch.Add(Item);
+        if (Assigned(ItemSearch)) then
+          ItemSearch.Add(Item);
       until (not DataSet.FindNext() or (UseInformationSchema and (Session.Databases.NameCmp(DataSet.FieldByName('TABLE_SCHEMA').AsString, Database.Name) <> 0)));
 
     if (not Filtered) then
@@ -6272,7 +6275,7 @@ begin
 end;
 
 function TSRoutines.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
-  Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean;
+  Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -6335,8 +6338,8 @@ begin
 
         Item := Routine[Index];
 
-        if (Assigned(ObjectSearch)) then
-          ObjectSearch.Add(Item);
+        if (Assigned(ItemSearch)) then
+          ItemSearch.Add(Item);
       end;
 
       // Inside ROUTINE_DEFINITION there are no parameter, but for references
@@ -6668,7 +6671,7 @@ begin
 end;
 
 function TSTriggers.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
-  Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean;
+  Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -6736,8 +6739,8 @@ begin
 
         Item := Trigger[Index];
 
-        if (Assigned(ObjectSearch)) then
-          ObjectSearch.Add(Item);
+        if (Assigned(ItemSearch)) then
+          ItemSearch.Add(Item);
       end;
     until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('TRIGGER_SCHEMA').AsString, Database.Name) <> 0));
 
@@ -6958,7 +6961,7 @@ end;
 { TSEvents ********************************************************************}
 
 function TSEvents.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
-  Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean;
+  Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -7011,8 +7014,8 @@ begin
 
         Item := Event[Index];
 
-        if (Assigned(ObjectSearch)) then
-          ObjectSearch.Add(Item);
+        if (Assigned(ItemSearch)) then
+          ItemSearch.Add(Item);
       end;
     until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('EVENT_SCHEMA').AsString, Database.Name) <> 0));
 
@@ -7049,7 +7052,7 @@ end;
 { TSColumns *******************************************************************}
 
 function TSColumns.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
-  Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean;
+  Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;
 begin
   if (not DataSet.IsEmpty()) then
   begin
@@ -8655,7 +8658,7 @@ end;
 { TSDatabases *****************************************************************}
 
 function TSDatabases.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
-  Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean;
+  Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;
 var
   DatabaseNames: TCSVStrings;
   DeleteList: TList;
@@ -8722,8 +8725,8 @@ begin
 
         Item := Database[Index];
 
-        if (Assigned(ObjectSearch)) then
-          ObjectSearch.Add(Item);
+        if (Assigned(ItemSearch)) then
+          ItemSearch.Add(Item);
       end;
     until (not DataSet.FindNext());
   end
@@ -8940,7 +8943,7 @@ end;
 { TSVariables *****************************************************************}
 
 function TSVariables.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
-  Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean;
+  Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;
 var
   DeleteList: TList;
   I: Integer;
@@ -9152,7 +9155,7 @@ end;
 { TSEngines *******************************************************************}
 
 function TSEngines.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
-  Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean;
+  Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -9260,7 +9263,7 @@ end;
 { TSPlugins *******************************************************************}
 
 function TSPlugins.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
-  Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean;
+  Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -9471,7 +9474,7 @@ end;
 { TSCharsets ******************************************************************}
 
 function TSCharsets.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
-  Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean;
+  Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -9588,7 +9591,7 @@ end;
 { TSCollations ****************************************************************}
 
 function TSCollations.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
-  Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean;
+  Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -9693,7 +9696,7 @@ end;
 { TSProcesses *****************************************************************}
 
 function TSProcesses.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
-  Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean;
+  Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;
 var
   Days: Integer;
   DeleteList: TList;
@@ -10421,12 +10424,12 @@ end;
 { TSUsers *********************************************************************}
 
 function TSUsers.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
-  Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean;
+  Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;
 begin
   Result := BuildItems(DataSet, UseInformationSchema, Filtered, nil);
 end;
 
-function TSUsers.BuildItems(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; const Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean;
+function TSUsers.BuildItems(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; const Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -10458,8 +10461,8 @@ begin
 
       Item := User[Index];
 
-      if (Assigned(ObjectSearch)) then
-        ObjectSearch.Add(Item);
+      if (Assigned(ItemSearch)) then
+        ItemSearch.Add(Item);
     until (not DataSet.FindNext());
 
   if ((Session.Connection.ErrorCode = 0) and not Filtered) then
@@ -10646,7 +10649,7 @@ begin
   Result := inherited;
 end;
 
-{ TSObjectSearch **************************************************************}
+{ TSItemSearch ****************************************************************}
 
 procedure TSItemSearch.AddColumns(const DataSet: TMySQLQuery);
 var
@@ -10974,11 +10977,14 @@ end;
 function TSItemSearch.Step2(): Boolean;
 var
   DatabaseNames: string;
+  I: Integer;
   SQL: string;
   TableNames: string;
 begin
   SQL := '';
 
+  for I := 0 to NeededTables.Count - 1 do
+    SQL := SQL + TSTable(NeededTables[I]).SQLGetSource();
   if (Fields) then
   begin
     SQL := SQL + 'SELECT *'
@@ -11125,7 +11131,7 @@ begin
   end;
 end;
 
-function TSSession.BuildEvents(const DataSet: TMySQLQuery; const Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean;
+function TSSession.BuildEvents(const DataSet: TMySQLQuery; const Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;
 var
   Database: TSDatabase;
   I: Integer;
@@ -11134,7 +11140,7 @@ begin
     repeat
       Database := DatabaseByName(DataSet.FindField('EVENT_SCHEMA').AsString);
       if (Assigned(Database)) then
-        Database.Events.Build(DataSet, True, Filtered, ObjectSearch)
+        Database.Events.Build(DataSet, True, Filtered, ItemSearch)
       else
         DataSet.FindNext();
     until (DataSet.Eof);
@@ -11149,7 +11155,7 @@ begin
   Result := Connection.ErrorCode = ER_EVENTS_DB_ERROR;
 end;
 
-function TSSession.BuildRoutines(const DataSet: TMySQLQuery; const Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean;
+function TSSession.BuildRoutines(const DataSet: TMySQLQuery; const Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;
 var
   Database: TSDatabase;
   I: Integer;
@@ -11158,7 +11164,7 @@ begin
     repeat
       Database := DatabaseByName(DataSet.FindField('ROUTINE_SCHEMA').AsString);
       if (Assigned(Database) and Assigned(Database.Routines)) then
-        Database.Routines.Build(DataSet, True, Filtered, ObjectSearch)
+        Database.Routines.Build(DataSet, True, Filtered, ItemSearch)
       else
         DataSet.FindNext();
     until (DataSet.Eof);
@@ -11173,7 +11179,7 @@ begin
   Result := False;
 end;
 
-function TSSession.BuildTables(const DataSet: TMySQLQuery; const Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean;
+function TSSession.BuildTables(const DataSet: TMySQLQuery; const Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;
 var
   Database: TSDatabase;
   I: Integer;
@@ -11182,7 +11188,7 @@ begin
     repeat
       Database := DatabaseByName(DataSet.FindField('TABLE_SCHEMA').AsString);
       if (Assigned(Database)) then
-        Database.Tables.Build(DataSet, True, Filtered, ObjectSearch)
+        Database.Tables.Build(DataSet, True, Filtered, ItemSearch)
       else
         DataSet.FindNext();
     until (DataSet.Eof);
@@ -11196,7 +11202,7 @@ begin
   Result := False;
 end;
 
-function TSSession.BuildTriggers(const DataSet: TMySQLQuery; const Filtered: Boolean = False; const ObjectSearch: TSItemSearch = nil): Boolean;
+function TSSession.BuildTriggers(const DataSet: TMySQLQuery; const Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;
 var
   Database: TSDatabase;
   I: Integer;
@@ -11205,7 +11211,7 @@ begin
     repeat
       Database := DatabaseByName(DataSet.FindField('TRIGGER_SCHEMA').AsString);
       if (Assigned(Database)) then
-        Database.Triggers.Build(DataSet, True, Filtered, ObjectSearch)
+        Database.Triggers.Build(DataSet, True, Filtered, ItemSearch)
       else
         DataSet.FindNext();
     until (DataSet.Eof);

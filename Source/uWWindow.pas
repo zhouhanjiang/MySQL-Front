@@ -650,7 +650,7 @@ procedure TWWindow.ApplicationException(Sender: TObject; E: Exception);
 begin
   if (E.Message <> SRecordChanged) then
   begin
-    if ((OnlineProgramVersion < 0) and InternetGetConnectedState(nil, 0)) then
+    if ((OnlineVersion < 0) and InternetGetConnectedState(nil, 0)) then
       if (Assigned(CheckOnlineVersionThread)) then
         CheckOnlineVersionThread.WaitFor()
       else
@@ -662,7 +662,7 @@ begin
 
     MsgBox('Internal Program Error:' + #13#10 + E.Message, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
 
-    if ((OnlineProgramVersion > Preferences.Version) and (OnlineProgramVersion > Preferences.ObsoleteVersion)) then
+    if ((OnlineVersion > Preferences.Version) and (OnlineVersion > Preferences.ObsoleteVersion)) then
       InformOnlineUpdateFound();
     if (Preferences.ObsoleteVersion < Preferences.Version) then
       Preferences.ObsoleteVersion := Preferences.Version;
@@ -1125,7 +1125,7 @@ procedure TWWindow.OnlineVersionChecked(Sender: TObject);
 begin
   PostMessage(Handle, UM_TERMINATE, 0, 0);
   if ((OnlineRecommendedVersion > Preferences.Version)
-    or (Preferences.ObsoleteVersion > 0) and (OnlineProgramVersion > Preferences.ObsoleteVersion)) then
+    or (Preferences.ObsoleteVersion > 0) and (OnlineVersion > Preferences.ObsoleteVersion)) then
     PostMessage(Handle, UM_ONLINE_UPDATE_FOUND, 0, 0);
 end;
 
@@ -1806,17 +1806,17 @@ begin
     tbProperties.ImageIndex := 11;
   end;
 
-  tbCreateDatabase.Visible   := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects]);
-  tbDeleteDatabase.Visible   := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects]);
-  tbCreateTable.Visible      := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vDiagram]);
-  tbDeleteTable.Visible      := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vDiagram]);
-  tbCreateIndex.Visible      := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects]);
-  tbDeleteIndex.Visible      := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects]);
-  tbCreateField.Visible      := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects]);
-  tbDeleteField.Visible      := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects]);
-  tbCreateForeignKey.Visible := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vDiagram]);
-  tbDeleteForeignKey.Visible := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vDiagram]);
-  tbProperties.Visible       := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vDiagram]);
+  tbCreateDatabase.Visible   := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vObjectSearch]);
+  tbDeleteDatabase.Visible   := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vObjectSearch]);
+  tbCreateTable.Visible      := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vDiagram, vObjectSearch]);
+  tbDeleteTable.Visible      := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vDiagram, vObjectSearch]);
+  tbCreateIndex.Visible      := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vObjectSearch]);
+  tbDeleteIndex.Visible      := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vObjectSearch]);
+  tbCreateField.Visible      := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vObjectSearch]);
+  tbDeleteField.Visible      := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vObjectSearch]);
+  tbCreateForeignKey.Visible := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vDiagram, vObjectSearch]);
+  tbDeleteForeignKey.Visible := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vDiagram, vObjectSearch]);
+  tbProperties.Visible       := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vDiagram, vObjectSearch]);
 
   tbOpen.Visible             := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor, vEditor2, vEditor3]);
   tbSave.Visible             := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor, vEditor2, vEditor3]);

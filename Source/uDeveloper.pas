@@ -43,7 +43,7 @@ function CompileTime(): TDateTime;
 procedure SendToDeveloper(const Text: string; const Days: Integer = 7; const DisableSource: Boolean = False);
 
 var
-  OnlineProgramVersion: Integer;
+  OnlineVersion: Integer;
   OnlineRecommendedVersion: Integer;
 
 implementation {***************************************************************}
@@ -53,34 +53,12 @@ uses
   Forms,
   {$IFDEF EurekaLog}
   ExceptionLog7, EExceptionManager, ECallStack, EStackTracing, EClasses,
-  ETypes, EException, ESysInfo, EInfoFormat, EThreadsManager, EConsts, EWCTSupport, EEvents,
+  ETypes, EException, ESysInfo, EInfoFormat, EThreadsManager, EConsts,
+  EWCTSupport, EEvents, ELogBuilder,
   {$ENDIF}
   MySQLDB,
   uPreferences, uSession,
   uBase;
-
-{$IFDEF EurekaLog}
-type
-  TStackFormatter = class(ECallStack.TEurekaStackFormatter)
-  private
-    FHasEncryptedData: Boolean;
-    FLineLen: Integer;
-    FMaxLine: Integer;
-    FMaxModule: Integer;
-    FMaxProc: Integer;
-    FMaxUnit: Integer;
-    function FormatLine(const AMethods, ADetails, AStackAddress, AAddress, AName, AOffset, AUnit, AClass, AProcedure, ALine: String): String;
-  protected
-    function AcceptableCallStackItem(const AInd: Integer): Boolean; override;
-    procedure CalculateLengths; override;
-    function ContainEncryptedItems(const CallStack: TEurekaBaseStackList): Boolean; virtual;
-    function CreateThreadStr(const Index, No: Integer; const DebugInfo: TEurekaDebugInfo; const TextLog: Boolean; const Session: THandle; const ExternalWCTSession: Boolean = False): String; override;
-    function GetItemText(const AIndex: Integer): String; override;
-    function GetStrings(): TStrings; override;
-  public
-    constructor Create(); override;
-  end;
-{$ENDIF}
 
 var
   SendThreads: TList;
@@ -130,7 +108,7 @@ begin
       end;
       if ((Major >= 0) and (Minor >= 0) and (Patch >= 0) and (Build >= 0)) then
       begin
-        OnlineProgramVersion := EncodeVersion(Major, Minor, Patch, Build);
+        OnlineVersion := EncodeVersion(Major, Minor, Patch, Build);
         VersionStr := IntToStr(Major) + '.' + IntToStr(Minor) + '  (Build ' + IntToStr(Patch) + '.' + IntToStr(Build) + ')';
       end;
 
@@ -168,7 +146,7 @@ begin
     end;
   end;
 
-  Result := (OnlineProgramVersion >= 0) and (SetupProgramURI <> '');
+  Result := (OnlineVersion >= 0) and (SetupProgramURI <> '');
 end;
 
 function CompileTime(): TDateTime;
@@ -440,9 +418,30 @@ begin
   end;
 end;
 
+{$IFDEF EurekaLog}
+
 { TEurekaStackFormatter *******************************************************}
 
-{$IFDEF EurekaLog}
+type
+  TStackFormatter = class(ECallStack.TEurekaStackFormatter)
+  private
+    FHasEncryptedData: Boolean;
+    FLineLen: Integer;
+    FMaxLine: Integer;
+    FMaxModule: Integer;
+    FMaxProc: Integer;
+    FMaxUnit: Integer;
+    function FormatLine(const AMethods, ADetails, AStackAddress, AAddress, AName, AOffset, AUnit, AClass, AProcedure, ALine: String): String;
+  protected
+    function AcceptableCallStackItem(const AInd: Integer): Boolean; override;
+    procedure CalculateLengths; override;
+    function ContainEncryptedItems(const CallStack: TEurekaBaseStackList): Boolean; virtual;
+    function CreateThreadStr(const Index, No: Integer; const DebugInfo: TEurekaDebugInfo; const TextLog: Boolean; const Session: THandle; const ExternalWCTSession: Boolean = False): String; override;
+    function GetItemText(const AIndex: Integer): String; override;
+    function GetStrings(): TStrings; override;
+  public
+    constructor Create(); override;
+  end;
 
 function TStackFormatter.AcceptableCallStackItem(const AInd: Integer): Boolean;
 var
@@ -518,7 +517,7 @@ begin
       end;
     end;
 
-    FLineLen := FMaxModule + FMaxUnit + FMaxProc + FMaxLine + FLineLen + 5;
+    FLineLen := FMaxModule + FMaxUnit + FMaxProc + FMaxLine + 5;
     FCalculated := True;
   end;
 end;
@@ -763,11 +762,48 @@ begin
     end;
 end;
 
-{$ENDIF}
+type
+  TLogBuilder = class(ELogBuilder.TLogBuilder)
+  protected
+    function BuildReport(): String; override;
+  end;
+
+function TLogBuilder.BuildReport(): String;
+var
+  I: Integer;
+begin
+  Result := ExceptionInfo.ExceptionClass + ':' + #13#10;
+  Result := Result + ExceptionInfo.ExceptionMessage + #13#10#13#10;
+
+  if (ExceptionInfo.ClassName = 'EOutOfMemory') then
+  begin
+    Result := Result + 'Free Memory: ' + IntToStr(GetFreeMemory()) + #13#10;
+    Result := Result + 'Total Memory: ' + IntToStr(GetMemPhysicalInstalled()) + #13#10#13#10;
+  end;
+
+  if (Assigned(ExceptionInfo.CallStack)) then
+  begin
+    ExceptionInfo.CallStack.Formatter := TStackFormatter.Create();
+    Result := Result + ExceptionInfo.CallStack.ToString + #13#10;
+  end;
+
+  if (GetCurrentThreadId() = MainThreadId) then
+  begin
+    for I := 0 to Sessions.Count - 1 do
+    begin
+      Result := Result + #13#10;
+      Result := Result + 'MySQL: ' + Sessions[I].Connection.ServerVersionStr;
+      if (Sessions[I].Connection.LibraryType <> MySQLDB.ltBuiltIn) then
+        Result := Result + ' (LibraryType: ' + IntToStr(Ord(Sessions[I].Connection.LibraryType)) + ')';
+      Result := Result + #13#10;
+      Result := Result + StringOfChar('-', 72) + #13#10;
+      Result := Result + Sessions[I].Connection.DebugMonitor.CacheText + #13#10;
+    end;
+  end;
+end;
 
 {******************************************************************************}
 
-{$IFDEF EurekaLog}
 procedure CustomButtonClick(const Custom: Pointer;
   ExceptionInfo: TEurekaExceptionInfo; Dialog: TObject;
   var CloseDialog: Boolean; var CallNextHandler: Boolean);
@@ -782,7 +818,7 @@ begin
     try
       EmptyClipboard();
 
-      S := ExceptionInfo.ToString;
+      S := BuildBugReport(ExceptionInfo);
       ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Length(S) + 1) * SizeOf(S[1]));
       StrPCopy(GlobalLock(ClipboardData), S);
       SetClipboardData(CF_UNICODETEXT, ClipboardData);
@@ -800,18 +836,18 @@ procedure ExceptionNotify(const Custom: Pointer;
   var CallNextHandler: Boolean);
 var
   CheckOnlineVersionThread: TCheckOnlineVersionThread;
-  E: Exception;
-  I: Integer;
-  Report: string;
 begin
-  if ((OnlineProgramVersion < 0) and InternetGetConnectedState(nil, 0)) then
+  if ((OnlineVersion < 0) and InternetGetConnectedState(nil, 0)) then
   begin
     CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
     CheckOnlineVersionThread.Execute();
     FreeAndNil(CheckOnlineVersionThread);
   end;
 
-  Handle := Preferences.Version >= OnlineProgramVersion;
+  Handle := Preferences.Version >= OnlineVersion;
+
+  if (Preferences.ObsoleteVersion < Preferences.Version) then
+    Preferences.ObsoleteVersion := OnlineVersion;
 
   if (GetCurrentThreadId() = MainThreadId) then
     SendMessage(Application.MainFormHandle, UM_CRASH_RESCUE, 0, 0)
@@ -822,103 +858,26 @@ begin
   begin
     MessageBox(0, PChar('Internal Program Error:' + #10 + ExceptionInfo.ExceptionMessage), PChar(Preferences.LoadStr(45)), MB_OK + MB_ICONERROR);
 
-    if ((OnlineProgramVersion > Preferences.Version) and (OnlineProgramVersion > Preferences.ObsoleteVersion)) then
+    if ((OnlineVersion > Preferences.Version) and (OnlineVersion > Preferences.ObsoleteVersion)) then
       PostMessage(Application.MainFormHandle, UM_ONLINE_UPDATE_FOUND, 0, 0);
     if (Preferences.ObsoleteVersion < Preferences.Version) then
       Preferences.ObsoleteVersion := Preferences.Version;
   end
   else
   begin
-    Report := '';
+    SendToDeveloper(BuildBugReport(ExceptionInfo), 0, True);
 
-    try
-      if (Preferences.ObsoleteVersion < Preferences.Version) then
-        Preferences.ObsoleteVersion := Preferences.Version;
-    except
-      on E: Exception do
-        try SendToDeveloper(E.Message); except end;
-    end;
-
-    try
-      // In EurekaLog 7.5.0.0 is ExceptionInfo.ExceptionObject not always the exception.
-      // Is this a bug of 7.5.0.0?
-      if (not (TObject(ExceptionInfo.ExceptionObject) is Exception)) then
-        E := nil
-      else
-        E := ExceptionInfo.ExceptionObject;
-    except
-      E := nil;
-    end;
-
-    if (not Assigned(E)) then
-    begin
-      Report := Report + ExceptionInfo.ExceptionClass + ':' + #13#10;
-      Report := Report + ExceptionInfo.ExceptionMessage + #13#10#13#10;
-    end
-    else
-    begin
-      Report := Report + Exception(ExceptionInfo.ExceptionObject).ClassName + ':' + #13#10;
-      Report := Report + Exception(ExceptionInfo.ExceptionObject).Message + #13#10#13#10;
-
-      if (E is EOutOfMemory) then
-      begin
-        Report := Report + 'Free Memory: ' + IntToStr(GetFreeMemory()) + #13#10;
-        Report := Report + 'Total Memory: ' + IntToStr(GetMemPhysicalInstalled()) + #13#10#13#10;
-      end;
-    end;
-
-    try
-      if (Assigned(ExceptionInfo.CallStack)) then
-      begin
-        ExceptionInfo.CallStack.Formatter := TStackFormatter.Create();
-        Report := Report + ExceptionInfo.CallStack.ToString + #13#10;
-      end;
-    except
-      on E: Exception do
-        try SendToDeveloper(E.Message); except end;
-    end;
-
-    try
-      if (GetCurrentThreadId() = MainThreadId) then
-      begin
-        for I := 0 to Sessions.Count - 1 do
-        begin
-          Report := Report + #13#10;
-          Report := Report + 'MySQL: ' + Sessions[I].Connection.ServerVersionStr;
-          if (Sessions[I].Connection.LibraryType <> MySQLDB.ltBuiltIn) then
-            Report := Report + ' (LibraryType: ' + IntToStr(Ord(Sessions[I].Connection.LibraryType)) + ')';
-          Report := Report + #13#10;
-          Report := Report + StringOfChar('-', 72) + #13#10;
-          Report := Report + Sessions[I].Connection.DebugMonitor.CacheText + #13#10;
-        end;
-      end;
-    except
-      on E: Exception do
-        try SendToDeveloper(E.Message); except end;
-    end;
-
-    try
-      SendToDeveloper(Report, 0, True);
-    except
-      on E: Exception do
-        try SendToDeveloper(E.Message); except end;
-    end;
-
-    try
-      ExceptionInfo.Options.EMailSubject
-        := SysUtils.LoadStr(1000) + ' ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor)
-        + ' (Build: ' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + ')'
-        + ' - Error Report';
-    except
-      on E: Exception do
-        try SendToDeveloper(E.Message); except end;
-    end;
+    ExceptionInfo.Options.EMailSubject
+      := SysUtils.LoadStr(1000) + ' ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor)
+      + ' (Build: ' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + ')'
+      + ' - Error Report';
   end;
 end;
 {$ENDIF}
 
 initialization
   {$IFDEF EurekaLog}
+  LogBuilderClass := TLogBuilder;
   RegisterEventExceptionNotify(nil, ExceptionNotify);
   RegisterEventCustomButtonClick(nil, CustomButtonClick);
   {$ENDIF}
