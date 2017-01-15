@@ -1925,7 +1925,7 @@ begin
   Left := 0;
   Height := 0;
   Width := 0;
-  FavoritesVisible := {$IFNDEF Debug} False; {$ELSE} True; {$ENDIF}
+  FavoritesVisible := {$IFNDEF Debug} False; {$ELSE} False; {$ENDIF}
   GridFontName := 'Microsoft Sans Serif';
   GridFontColor := clWindowText;
   GridFontStyle := [];

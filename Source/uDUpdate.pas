@@ -206,13 +206,12 @@ begin
   begin
     FVersionInfo.Caption := Preferences.LoadStr(663) + ': ' + VersionStr;
 
-  {$MESSAGE 'Peter'}
-//    if (OnlineVersion <= Preferences.Version) then
-//    begin
-//      MsgBox(Preferences.LoadStr(507), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
-//      FBCancel.Click();
-//    end
-//    else
+    if (OnlineVersion <= Preferences.Version) then
+    begin
+      MsgBox(Preferences.LoadStr(507), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
+      FBCancel.Click();
+    end
+    else
     begin
       SendMessage(Handle, UM_UPDATE_PROGRESSBAR, 0, 0);
 
@@ -237,6 +236,8 @@ end;
 
 procedure TDUpdate.UMTerminate(var Msg: TMessage);
 begin
+  HTTPThread.WaitFor();
+
   if (HTTPThread.ErrorCode <> 0) then
     MsgBox(HTTPThread.ErrorMessage, Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
   else if (HTTPThread.HTTPStatus <> HTTP_STATUS_OK) then
@@ -248,7 +249,6 @@ begin
   else
     raise ERangeError.Create(SRangeError);
 
-  HTTPThread.WaitFor();
   HTTPThread.Free();
   HTTPThread := nil;
 
