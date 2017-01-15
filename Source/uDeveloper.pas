@@ -762,6 +762,8 @@ begin
     end;
 end;
 
+{ TLogBuilder *****************************************************************}
+
 type
   TLogBuilder = class(ELogBuilder.TLogBuilder)
   protected
@@ -771,9 +773,14 @@ type
 function TLogBuilder.BuildReport(): String;
 var
   I: Integer;
+  ExceptionMessage: string;
 begin
+  ExceptionMessage := Trim(ExceptionInfo.ExceptionMessage);
+  if ((Length(ExceptionMessage) > 0) and (ExceptionMessage[Length(ExceptionMessage)] = '.')) then
+    Delete(ExceptionMessage, Length(ExceptionMessage), 1);
+
   Result := ExceptionInfo.ExceptionClass + ':' + #13#10;
-  Result := Result + ExceptionInfo.ExceptionMessage + #13#10#13#10;
+  Result := Result + ExceptionMessage + #13#10#13#10;
 
   if (ExceptionInfo.ClassName = 'EOutOfMemory') then
   begin

@@ -2640,36 +2640,13 @@ procedure TFSession.AddressChanging(const Sender: TObject; const NewAddress: Str
 var
   Database: TSDatabase;
   DBObject: TSDBObject;
-  Host: string; // Debug 2016-12-05
-  Host2: string; // Debug 2016-12-05
   NotFound: Boolean;
   S: string;
   URI: TUURI;
 begin
-  URI := TUURI.Create(NewAddress); NotFound := False;
+  Assert(NewAddress <> '');
 
-  // Debug 2016-12-01
-  if (not Assigned(Session)) then
-    raise ERangeError.Create(SRangeError);
-  if (not Assigned(Session.Account)) then
-    raise ERangeError.Create(SRangeError);
-  if (not Assigned(Session.Account.Connection)) then
-    raise ERangeError.Create(SRangeError); // Occurred on 2016-12-22
-  // Debug 2016-12-08
-  if (not (Session.Account.Connection is TPAccount.TConnection)) then
-    raise ERangeError.Create(SRangeError);
-  Host := URI.Host;
-  if (Length(Host) > 256) then
-    raise ERangeError.Create(SRangeError);
-  Host2 := Session.Account.Connection.Host;
-  if (Length(Host2) > 256) then
-    raise ERangeError.Create(SRangeError);
-  try
-    lstrcmpi(PChar(Host), PChar(Host2));
-  except
-    raise ERangeError.Create(SRangeError + 'Host1: ' + Host + ', Host2: ' + Host2);
-  end;
-  lstrcmpi(PChar(Host), LOCAL_HOST);
+  URI := TUURI.Create(NewAddress); NotFound := False;
 
   if (URI.Scheme <> 'mysql') then
     AllowChange := False
@@ -7171,6 +7148,9 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
         FNavigatorNodeToExpand := nil;
       N := N.Parent;
     end;
+
+    Session.Connection.DebugMonitor.Append('... DeleteNode: "' + Node.Text + '"', ttDebug);
+
     Node.Data := nil;
     Node.Delete();
   end;
@@ -7232,7 +7212,7 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
         end;
       etItemDropped:
         begin
-          Session.Connection.DebugMonitor.Append('TFSession.FNavigatorUpdate.UpdateGroup: "' + Event.Items.ClassName + '"."' + Event.Item.Name + '"', ttDebug);
+          Session.Connection.DebugMonitor.Append('TFSession.FNavigatorUpdate.UpdateGroup: ' + Event.Items.ClassName + ': "' + Event.Item.Name + '"', ttDebug);
 
           Child := Node.getFirstChild();
           while (Assigned(Child)) do
@@ -7545,18 +7525,13 @@ begin
 
   URI := TUURI.Create(Address);
   URI.Param['view'] := 'objectsearch';
-  if (not (PObjectSearch.Location is TSDatabase) and not (PObjectSearch.Location is TSTable)) then
-    URI.Database := '';
-  if (not (PObjectSearch.Location is TSTable)) then
-    URI.Table := '';
-  if (PObjectSearch.Location is TSProcesses) then
-    URI.Param['system'] := 'processes'
-  else if (PObjectSearch.Location is TSUsers) then
-    URI.Param['system'] := 'users'
-  else if (PObjectSearch.Location is TSVariables) then
-    URI.Param['system'] := 'variables'
-  else
-    URI.Param['system'] := Null;
+  if (URI.Param['system'] = Null) then
+  begin
+    if (not (PObjectSearch.Location is TSDatabase) and not (PObjectSearch.Location is TSTable)) then
+      URI.Database := '';
+    if (not (PObjectSearch.Location is TSTable)) then
+      URI.Table := '';
+  end;
   URI.Param['objecttype'] := Null;
   URI.Param['object'] := Null;
   URI.Param['filter'] := Null;
@@ -9367,7 +9342,8 @@ begin
 
       ListView.Groups.Add().GroupID := giFields;
     end
-    else if (TObject(ListView.Tag) is TSProcesses) then
+    else if ((TObject(ListView.Tag) is TSProcesses)
+      or (TObject(ListView.Tag) is TSItemSearch) and (TSItemSearch(ListView.Tag).Location is TSProcesses)) then
     begin
       ListView.Columns.Add();
       ListView.Columns.Add();
@@ -9382,7 +9358,8 @@ begin
 
       ListView.Groups.Add().GroupID := giProcesses;
     end
-    else if (TObject(ListView.Tag) is TSUsers) then
+    else if ((TObject(ListView.Tag) is TSUsers)
+      or (TObject(ListView.Tag) is TSItemSearch) and (TSItemSearch(ListView.Tag).Location is TSUsers)) then
     begin
       ListView.Columns.Add();
       ListView.Columns.EndUpdate();
@@ -9390,7 +9367,8 @@ begin
 
       ListView.Groups.Add().GroupID := giUsers;
     end
-    else if (TObject(ListView.Tag) is TSVariables) then
+    else if ((TObject(ListView.Tag) is TSVariables)
+      or (TObject(ListView.Tag) is TSItemSearch) and (TSItemSearch(ListView.Tag).Location is TSVariables)) then
     begin
       ListView.Columns.Add();
       ListView.Columns.Add();
@@ -9414,8 +9392,10 @@ begin
       ListView.Groups.Add().GroupID := giRoutines;
       ListView.Groups.Add().GroupID := giEvents;
       ListView.Groups.Add().GroupID := giFields;
+      ListView.Groups.Add().GroupID := giProcesses;
       ListView.Groups.Add().GroupID := giTriggers;
       ListView.Groups.Add().GroupID := giUsers;
+      ListView.Groups.Add().GroupID := giVariables;
     end;
   end;
 
@@ -9471,7 +9451,8 @@ begin
     ListView.Columns[3].Caption := Preferences.LoadStr(72);
     ListView.Columns[4].Caption := Preferences.LoadStr(73);
   end
-  else if (TObject(ListView.Tag) is TSProcesses) then
+  else if ((TObject(ListView.Tag) is TSProcesses)
+    or (TObject(ListView.Tag) is TSItemSearch) and (TSItemSearch(ListView.Tag).Location is TSProcesses)) then
   begin
     ListView.Columns[0].Caption := Preferences.LoadStr(269);
     ListView.Columns[1].Caption := Preferences.LoadStr(561);
@@ -9482,11 +9463,13 @@ begin
     ListView.Columns[6].Caption := Preferences.LoadStr(661);
     ListView.Columns[7].Caption := Preferences.LoadStr(276);
   end
-  else if (TObject(ListView.Tag) is TSUsers) then
+  else if ((TObject(ListView.Tag) is TSUsers)
+    or (TObject(ListView.Tag) is TSItemSearch) and (TSItemSearch(ListView.Tag).Location is TSUsers)) then
   begin
     ListView.Columns[0].Caption := Preferences.LoadStr(561);
   end
-  else if (TObject(ListView.Tag) is TSVariables) then
+  else if ((TObject(ListView.Tag) is TSVariables)
+    or (TObject(ListView.Tag) is TSItemSearch) and (TSItemSearch(ListView.Tag).Location is TSVariables)) then
   begin
     ListView.Columns[0].Caption := Preferences.LoadStr(267);
     ListView.Columns[1].Caption := Preferences.LoadStr(268);
@@ -9719,7 +9702,10 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
     Item.GroupID := GroupID;
     Item.ImageIndex := ImageIndexByData(Data);
 
-    if (TObject(ListView.Tag) is TSItemSearch) then
+    if ((TObject(ListView.Tag) is TSItemSearch)
+      and not (Data is TSProcess)
+      and not (Data is TSUser)
+      and not (Data is TSVariable)) then
     begin
       if (Data is TSDatabase) then
       begin
@@ -10083,24 +10069,17 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
 
   function InsertOrUpdateItem(const Kind: TPAccount.TDesktop.TListViewKind; const GroupID: Integer; const Data: TObject): TListItem;
   var
-    Count: Integer; // Cache for speeding
-    I: Integer;
     Item: TListItem;
     Index: Integer;
     Left: Integer;
     Mid: Integer;
     Right: Integer;
   begin
-    Count := ListView.Items.Count; // Cache for speeding
-    Index := -1;
-    for I := 0 to Count - 1 do
-      if (ListView.Items[I].Data = Data) then
-      begin
-        Index := I;
-        break;
-      end;
+    Index := 0;
+    while ((Index < ListView.Items.Count) and (ListView.Items[Index].Data <> Data)) do
+      Inc(Index);
 
-    if ((Count > 0) and (Index < 0)) then
+    if ((0 < ListView.Items.Count) and (ListView.Items.Count = Index)) then
     begin
       Item := TListItem.Create(ListView.Items);
       Item.Data := Data;
@@ -10112,16 +10091,16 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
       begin
         Mid := (Right - Left) div 2 + Left;
         case (Compare(Kind, ListView.Items[Mid], Item)) of
-          -1: begin Left := Mid + 1; Index := Mid; end;
-          0: raise ERangeError.CreateFmt('%s "%s" - %d / %d / %d / %d', [TSItem(Data).ClassName, TSItem(Data).Name, Left, Mid, Right, ListView.Items.Count]);
-          1: begin Right := Mid - 1; Index := Mid - 1; end;
+          -1: begin Left := Mid + 1; Index := Mid + 1; end;
+          0: raise ERangeError.CreateFmt('%s  %s - %d / %d /%d / %d', [TSItem(Data).ClassName, TSItem(Data).Name, Left, Mid, Right, ListView.Items.Count]);
+          1: begin Right := Mid - 1; Index := Mid; end;
         end;
       end;
 
       Item.Free();
     end;
 
-    if (Index < 0) then
+    if (Index = ListView.Items.Count) then
     begin
       Result := ListView.Items.Add();
       Result.Data := Data;
@@ -10151,16 +10130,20 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
     I: Integer;
     TableCount: Integer;
     TriggerCount: Integer;
+    ProcessCount: Integer;
     RoutineCount: Integer;
     UserCount: Integer;
+    VariableCount: Integer;
   begin
     DatabaseCount := 0;
     TableCount := 0;
     RoutineCount := 0;
     EventCount := 0;
     FieldCount := 0;
+    ProcessCount := 0;
     TriggerCount := 0;
     UserCount := 0;
+    VariableCount := 0;
     for I := 0 to ListView.Items.Count - 1 do
       case (ListView.Items[I].GroupID) of
         giDatabases: Inc(DatabaseCount);
@@ -10168,8 +10151,10 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
         giRoutines: Inc(RoutineCount);
         giEvents: Inc(EventCount);
         giFields: Inc(FieldCount);
+        giProcesses: Inc(ProcessCount);
         giTriggers: Inc(TriggerCount);
         giUsers: Inc(UserCount);
+        giVariables: Inc(VariableCount);
       end;
 
     if (DatabaseCount > 0) then
@@ -10182,10 +10167,14 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
       SetListViewGroupHeader(ListView, giEvents, Preferences.LoadStr(876) + ' (' + IntToStr(EventCount) + ')');
     if (FieldCount > 0) then
       SetListViewGroupHeader(ListView, giFields, Preferences.LoadStr(253) + ' (' + IntToStr(FieldCount) + ')');
+    if (ProcessCount > 0) then
+      SetListViewGroupHeader(ListView, giProcesses, Preferences.LoadStr(24) + ' (' + IntToStr(ProcessCount) + ')');
     if (TriggerCount > 0) then
       SetListViewGroupHeader(ListView, giTriggers, Preferences.LoadStr(797) + ' (' + IntToStr(TriggerCount) + ')');
     if (UserCount > 0) then
       SetListViewGroupHeader(ListView, giUsers, Preferences.LoadStr(561) + ' (' + IntToStr(UserCount) + ')');
+    if (VariableCount > 0) then
+      SetListViewGroupHeader(ListView, giVariables, Preferences.LoadStr(22) + ' (' + IntToStr(VariableCount) + ')');
   end;
 
   procedure UpdateGroup(const Kind: TPAccount.TDesktop.TListViewKind; const GroupID: Integer; const SItems: TSItems);
@@ -10248,6 +10237,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
               ListView.Columns[I].Width := ColumnWidths[I];
         end;
       etItemValid:
+        if (GroupID = GroupIDByImageIndex(ImageIndexByData(Event.Item))) then
         begin
           if (Event.Item is TSTrigger) then
           begin
@@ -10267,6 +10257,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
                 UpdateItem(ListView.Items[I], GroupID, Event.Item);
         end;
       etItemCreated:
+        if (GroupID = GroupIDByImageIndex(ImageIndexByData(Event.Item))) then
         begin
           Session.Connection.DebugMonitor.Append('TFSession.ListViewUpdate.UpdateGroup - etItemCreated - ' + ListViewDescription(ListView) + ' - ' + Event.Items.ClassName + ': "' + Event.Item.Name + '"', ttDebug);
 
@@ -10278,6 +10269,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
           end;
         end;
       etItemAltered:
+        if (GroupID = GroupIDByImageIndex(ImageIndexByData(Event.Item))) then
         begin
           Session.Connection.DebugMonitor.Append('TFSession.ListViewUpdate.UpdateGroup - etItemAltered - ' + ListViewDescription(ListView) + ' - ' + Event.Items.ClassName + ': "' + Event.Item.Name + '"', ttDebug);
 
@@ -10299,6 +10291,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
           end;
         end;
       etItemDropped:
+        if (GroupID = GroupIDByImageIndex(ImageIndexByData(Event.Item))) then
         begin
           Session.Connection.DebugMonitor.Append('TFSession.ListViewUpdate.UpdateGroup - etItemDropped - ' + ListViewDescription(ListView) + ' - ' + Event.Items.ClassName + ': "' + Event.Item.Name + '"', ttDebug);
           if (ListView.Tag <> 0) then
@@ -10306,7 +10299,10 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
 
           for I := ListView.Items.Count - 1 downto 0 do
             if (ListView.Items[I].Data = Event.Item) then
+            begin
+              Session.Connection.DebugMonitor.Append('... ' + IntToStr(ListView.Items[I].ImageIndex) + ' - "' + ListView.Items[I].Caption + '"', ttDebug);
               ListView.Items.Delete(I);
+            end;
           if ((Kind = lkTable) and (Event.Items is TSBaseTableFields)) then
           begin
             for I := ListView.Items.Count - 1 downto 0 do
@@ -10563,6 +10559,16 @@ begin
       MainAction('aDDeleteTrigger').Enabled := (ListView.SelCount >= 1) and Selected and (Item.ImageIndex = iiTrigger);
       MainAction('aDDeleteEvent').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex = iiEvent);
       MainAction('aDDeleteKey').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex = iiKey);
+
+      // Debug 2017-01-15
+      if ((ListView.SelCount >= 1) and (Item.ImageIndex in [iiField, iiVirtualField])) then
+        if (not (TObject(Item.Data) is TSBaseTable)) then
+          raise ERangeError.Create('ClassType: ' + TObject(Item.Data).ClassName)
+        else if (not Assigned(TSBaseTableField(Item.Data).Table)) then
+          raise ERangeError.Create(SRangeError)
+        else if (not Assigned(TSBaseTableField(Item.Data).Table.Fields)) then
+          raise ERangeError.Create(SRangeError);
+
       MainAction('aDDeleteField').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex in [iiField, iiVirtualField]) and (TSBaseTableField(Item.Data).Table.Fields.Count > ListView.SelCount);
       MainAction('aDDeleteForeignKey').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013);
       MainAction('aDDeleteProcess').Enabled := (ListView.SelCount >= 1) and (Item.ImageIndex in [iiProcess]) and (TSProcess(Item.Data).ThreadId <> Session.Connection.ThreadId);
@@ -12398,6 +12404,7 @@ begin
   {$IFDEF Debug}
   FObjectSearch.Visible := (ttObjectSearch in Preferences.ToolbarTabs)
     and (Session.Connection.MySQLVersion >= 50002)
+    and (not Assigned(FNavigator.Selected) or (FNavigator.Selected.ImageIndex <> iiUsers) or (Session.Connection.MySQLVersion >= 50107))
     and (FObjectSearch.Left > Toolbar.Left + Toolbar.Width + GetSystemMetrics(SM_CXFIXEDFRAME));
   TBObjectSearch.Visible := FObjectSearch.Visible;
   if (not FObjectSearch.Visible and Assigned(PObjectSearch)) then
@@ -12881,7 +12888,7 @@ begin
   TempActiveControl := Window.ActiveControl;
 
   if (Assigned(Event)) then
-    if (Event.Sender is TSItemSearch) then
+    if (Event.Items is TSItemSearch) then
       ListViewUpdate(Event, ObjectSearchListView)
     else
     begin
@@ -12933,8 +12940,9 @@ begin
           ListViewUpdate(Event, Desktop(Table).ListView);
         end;
 
-        if (Assigned(ObjectSearchListView)
-          and ((Event.Items is TSItemSearch) or (Event.EventType in [etItemValid, etItemAltered, etItemDropped]))) then
+        if (Assigned(ObjectSearchListView) and (TObject(ObjectSearchListView.Tag) is TSItemSearch)
+          and ((Event.Items = TObject(ObjectSearchListView.Tag))
+            or (Event.EventType in [etItemValid, etItemAltered, etItemDropped]) and (TSItemSearch(ObjectSearchListView.Tag).IndexOf(Event.Item) >= 0))) then
           ListViewUpdate(Event, ObjectSearchListView);
       end;
 
@@ -14475,11 +14483,9 @@ begin
   if (not Assigned(Session.Account)) then
     raise ERangeError.Create(SRangeError);
   if (not (TObject(Session.Account) is TPAccount)) then
-    try
-      raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Session.Account).ClassName)
-    except
-      raise ERangeError.Create(SRangeError); // Occured on 2016-12-25
-    end;
+    raise ERangeError.Create(SRangeError);
+    // Occurred on 2016-12-25
+    // Occurred on 2017-01-15
 
   CanClose := True;
 

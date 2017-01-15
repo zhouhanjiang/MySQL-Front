@@ -177,6 +177,7 @@ type
       ExecutionTime: TDateTime;
       FConnection: TMySQLConnection;
       RunExecute: TEvent;
+      SQL: string;
       function GetCommandText(): string;
       function GetIsRunning(): Boolean;
       function GetNextCommandText(): string;
@@ -202,10 +203,6 @@ type
       property IsRunning: Boolean read GetIsRunning;
       property NextCommandText: string read GetNextCommandText;
     public
-
-// Should be private - for debugging public only - 2017-01-06
-      SQL: string;
-
       constructor Create(const AConnection: TMySQLConnection);
       destructor Destroy(); override;
       property Connection: TMySQLConnection read FConnection;
@@ -274,7 +271,6 @@ type
     function GetServerDateTime(): TDateTime;
     function GetHandle(): MySQLConsts.MYSQL;
     function GetInfo(): string;
-    procedure RunExecute(const SyncThread: TSyncThread);
     procedure SetDatabaseName(const ADatabaseName: string);
     procedure SetHost(const AHost: string);
     procedure SetLibraryName(const ALibraryName: string);
@@ -1140,16 +1136,6 @@ begin
 
   if (MySQLSyncThreads.IndexOf(SyncThread) >= 0) then
     SyncThread.Synchronize();
-end;
-
-procedure MySQLConnectionSynchronizeRequest(const SyncThread: TMySQLConnection.TSyncThread);
-begin
-  Assert(Assigned(MySQLConnectionOnSynchronize));
-
-  if (Assigned(SyncThread.Executed)) then
-    SyncThread.Executed.SetEvent()
-  else
-    MySQLConnectionOnSynchronize(SyncThread);
 end;
 
 function MySQLTimeStampToStr(const SQLTimeStamp: TSQLTimeStamp; const DisplayFormat: string): string;
@@ -2026,7 +2012,10 @@ begin
         Connection.TerminateCS.Enter();
         RunExecute.ResetEvent();
         if (not Terminated) then
-          MySQLConnectionSynchronizeRequest(Self);
+          if (Connection.SynchronCount > 0) then
+            Connection.SyncThreadExecuted.SetEvent()
+          else
+            MySQLConnectionOnSynchronize(Self);
         Connection.TerminateCS.Leave();
       end;
   end;
@@ -2076,13 +2065,15 @@ end;
 
 procedure TMySQLConnection.TSyncThread.Synchronize();
 begin
+  Assert(GetCurrentThreadId() = MainThreadID);
+
   if (not Terminated) then
   begin
     case (State) of
       ssConnect:
         begin
           State := ssConnecting;
-          Connection.RunExecute(Self);
+          RunExecute.SetEvent();
         end;
       ssConnecting:
         Connection.SyncConnected(Self);
@@ -2091,13 +2082,13 @@ begin
         begin
           Connection.SyncBeforeExecuteSQL(Self);
           Connection.SyncExecute(Self);
-          Connection.RunExecute(Self);
+          RunExecute.SetEvent();
         end;
       ssFirst,
       ssNext:
         begin
           Connection.SyncExecute(Self);
-          Connection.RunExecute(Self);
+          RunExecute.SetEvent();
         end;
       ssExecutingFirst,
       ssExecutingNext:
@@ -2113,27 +2104,34 @@ begin
           begin
             if (State in [ssFirst, ssNext]) then
               Synchronize();
+          end
+          else
+          begin
+            Assert(Connection.SynchronCount > 0);
+            Connection.SyncThreadExecuted.SetEvent();
           end;
         end;
-      ssResult: ; // Do nothing, also not report a problem
+      ssResult: ; // Do nothing, also don't report a problem
 	    ssReceivingResult:
         begin
-          if (DataSet.SyncThread.ErrorCode <> 0) then
+          if ((DataSet is TMySQLDataSet) and (DataSet.SyncThread.ErrorCode <> 0)) then
             Connection.DoError(DataSet.SyncThread.ErrorCode, DataSet.SyncThread.ErrorMessage);
           Connection.SyncReleaseDataSet(DataSet);
           if (Mode in [smSQL, smDataSet]) then
             if (State in [ssNext, ssFirst]) then
             begin
               Connection.SyncExecute(Self);
-              Connection.RunExecute(Self);
+              RunExecute.SetEvent();
             end
             else
-              Connection.SyncAfterExecuteSQL(Self);
+              Connection.SyncAfterExecuteSQL(Self)
+          else
+            Connection.SyncThreadExecuted.SetEvent();
         end;
       ssDisconnect:
         begin
           State := ssDisconnecting;
-          Connection.RunExecute(Self);
+          RunExecute.SetEvent();
         end;
       ssDisconnecting:
         Connection.SyncDisconnected(Self);
@@ -2297,7 +2295,7 @@ begin
 
   FDebugMonitor := TMySQLMonitor.Create(nil);
   FDebugMonitor.Connection := Self;
-  FDebugMonitor.CacheSize := 2000;
+  FDebugMonitor.CacheSize := 5000;
   FDebugMonitor.Enabled := True;
   FDebugMonitor.TraceTypes := [ttTime, ttRequest, ttInfo, ttDebug];
 end;
@@ -2361,6 +2359,7 @@ end;
 
 procedure TMySQLConnection.DoConnect();
 begin
+  Assert(Assigned(MySQLConnectionOnSynchronize));
   Assert(not Connected);
 
   FExecutionTime := 0;
@@ -2416,9 +2415,9 @@ begin
   begin
     BeginSynchron();
     SyncThread.State := ssDisconnect;
-    repeat
-      SyncThread.Synchronize();
-    until (SyncThread.State = ssClose);
+    SyncThread.Synchronize();
+    SyncThreadExecuted.WaitFor(INFINITE);
+    SyncThread.Synchronize();
     EndSynchron();
   end;
 end;
@@ -2513,7 +2512,13 @@ begin
     Assert(ResultHandle.SyncThread = SyncThread);
 
     repeat
-      SyncThread.Synchronize();
+      if (GetCurrentThreadId() = MainThreadId) then
+        SyncThread.Synchronize()
+      else
+      begin
+        MySQLConnectionOnSynchronize(SyncThread);
+        SyncThreadExecuted.WaitFor(INFINITE);
+      end;
     until (SyncThread.State in [ssClose, ssResult, ssReady]);
 
     Result := ErrorCode = 0;
@@ -2708,9 +2713,14 @@ begin
   end
   else if (SynchronCount > 0) then
   begin
-    SyncThread.State := ssFirst;
     repeat
-      SyncThread.Synchronize()
+      if (GetCurrentThreadId() = MainThreadId) then
+        SyncThread.Synchronize()
+      else
+      begin
+        MySQLConnectionOnSynchronize(SyncThread);
+        SyncThreadExecuted.WaitFor(INFINITE);
+      end;
     until ((SyncThread.State in [ssClose, ssResult, ssReady]) or (Mode = smDataSet) and (SyncThread.State = ssReceivingResult));
     Result := SyncThread.ErrorCode = 0;
   end
@@ -2719,7 +2729,7 @@ begin
     if (GetCurrentThreadId() = MainThreadId) then
       SyncThread.Synchronize()
     else
-      MySQLConnectionSynchronizeRequest(SyncThread);
+      MySQLConnectionOnSynchronize(SyncThread);
     Result := False;
   end;
 end;
@@ -2947,31 +2957,6 @@ begin
     FSQLMonitors.Add(SQLMonitor);
 end;
 
-procedure TMySQLConnection.RunExecute(const SyncThread: TSyncThread);
-begin
-  if (SynchronCount = 0) then
-    SyncThread.Executed := nil
-  else
-    SyncThread.Executed := SyncThreadExecuted;
-
-  case (SyncThread.State) of
-    ssConnecting,
-    ssExecutingFirst,
-    ssExecutingNext,
-    ssReceivingResult,
-    ssDisconnecting:
-      SyncThread.RunExecute.SetEvent();
-    else
-      raise Exception.CreateFMT(SOutOfSync + ' (State: %d)', [Ord(SyncThread.State)]);
-  end;
-
-  if (Assigned(SyncThread.Executed)) then
-  begin
-    SyncThread.Executed.WaitFor(INFINITE);
-    SyncThread.Executed := nil;
-  end;
-end;
-
 function TMySQLConnection.SendSQL(const SQL: string; const Done: TEvent): Boolean;
 begin
   Result := InternExecuteSQL(smSQL, SQL, TResultEvent(nil), Done);
@@ -3121,7 +3106,7 @@ begin
   SyncThread.State := ssReceivingResult;
 
   if (DataSet is TMySQLDataSet) then
-    RunExecute(SyncThread);
+    SyncThread.RunExecute.SetEvent();
 end;
 
 procedure TMySQLConnection.SyncConnecting(const SyncThread: TSyncThread);
@@ -4923,7 +4908,16 @@ end;
 procedure TMySQLQuery.InternalClose();
 begin
   if (Assigned(SyncThread)) then
-    Connection.SyncReleaseDataSet(Self);
+    if (SyncThread.Mode in [smSQL, smDataSet]) then
+      Connection.SyncReleaseDataSet(Self)
+    else if (GetCurrentThreadId() = MainThreadID) then
+      // Should never occur, since ResultHandle can be used in TTool only.
+      SyncThread.Synchronize()
+    else
+    begin
+      MySQLConnectionOnSynchronize(SyncThread);
+      Connection.SyncThreadExecuted.WaitFor(INFINITE);
+    end;
 
   IndexDefs.Clear();
 

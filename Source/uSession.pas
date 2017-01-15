@@ -1414,7 +1414,6 @@ type
   protected
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
       Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean; override;
-    function BuildItems(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; const Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean; overload;
     procedure Delete(const AItem: TSItem); override;
     function GetValid(): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
@@ -1658,7 +1657,7 @@ var
 implementation {***************************************************************}
 
 uses
-  Variants, SysConst, WinInet, DBConsts, RTLConsts, Math, DateUtils,
+  Variants, SysConst, WinInet, DBConsts, RTLConsts, Math, DateUtils, ShLwAPI,
   Consts, DBCommon, StrUtils,
   DBGrids,
   CSVUtils, HTTPTunnel, MySQLDBGrid,
@@ -3010,12 +3009,12 @@ begin
     end
     else if (FieldType in [mfFloat, mfDouble, mfDecimal]) then
     begin
-      Size := StrToInt(SQLParseValue(Parse));
+      Size := SysUtils.StrToInt(SQLParseValue(Parse));
 
       if (not SQLParseChar(Parse, ',') and not SQLParseChar(Parse, '.')) then
         Decimals := 0
       else
-        Decimals := StrToInt(SQLParseValue(Parse));
+        Decimals := SysUtils.StrToInt(SQLParseValue(Parse));
     end
     else if (FieldType in [mfTinyText, mfText, mfMediumText, mfLongText, mfTime, mfDateTime, mfTimeStamp]) then
     begin
@@ -3028,7 +3027,7 @@ begin
     else if (FieldType in [mfGeometry, mfPoint, mfLineString, mfPolygon, mfMultiPoint, mfMultiLineString, mfMultiPolygon, mfGeometryCollection]) then
       Size := -1
     else
-      Size := StrToInt(SQLParseValue(Parse));
+      Size := SysUtils.StrToInt(SQLParseValue(Parse));
 
     if (not SQLParseChar(Parse, ')')) then
       raise EConvertError.CreateFmt(SSourceParseError, [Name, StrPas(Parse.Start)]);
@@ -4412,6 +4411,7 @@ begin
         if (Assigned(Field) and (NewFieldName <> OldFieldName)) then
         begin
           Field.Name := NewFieldName;
+          Session.Connection.DebugMonitor.Append('ParseAlterTable - ' + Database.Name + '.' + Name + '.' + OldFieldName + ' -> ' + NewFieldName, ttDebug);
           Session.SendEvent(etItemAltered, Self, Fields, Field);
         end;
       end;
@@ -4556,7 +4556,7 @@ begin
                 NewField.Default := 'CURRENT_TIMESTAMP';
                 if (SQLParseChar(Parse, '(')) then
                 begin
-                  NewField.DefaultSize := StrToInt(SQLParseValue(Parse));
+                  NewField.DefaultSize := SysUtils.StrToInt(SQLParseValue(Parse));
                   SQLParseChar(Parse, ')');
                 end;
               end
@@ -4590,7 +4590,7 @@ begin
                 NewField.OnUpdate := 'CURRENT_TIMESTAMP';
                 if (SQLParseChar(Parse, '(')) then
                 begin
-                  NewField.OnUpdateSize := StrToInt(SQLParseValue(Parse));
+                  NewField.OnUpdateSize := SysUtils.StrToInt(SQLParseValue(Parse));
                   SQLParseChar(Parse, ')');
                 end;
               end
@@ -4699,7 +4699,7 @@ begin
 
             if (SQLParseChar(Parse, '(')) then
             begin
-              NewKeyColumn.Length := StrToInt(SQLParseValue(Parse));
+              NewKeyColumn.Length := SysUtils.StrToInt(SQLParseValue(Parse));
               SQLParseChar(Parse, ')')
             end;
 
@@ -4715,7 +4715,7 @@ begin
         if (SQLParseKeyword(Parse, 'COMMENT')) then
           NewKey.Comment := SQLParseValue(Parse)
         else if (SQLParseKeyword(Parse, 'KEY_BLOCK_SIZE') and SQLParseChar(Parse, '=')) then
-          NewKey.BlockSize := StrToInt(SQLParseValue(Parse))
+          NewKey.BlockSize := SysUtils.StrToInt(SQLParseValue(Parse))
         else if (SQLParseKeyword(Parse, 'USING')) then
           NewKey.IndexType := SQLParseValue(Parse)
         else
@@ -4887,7 +4887,7 @@ begin
       else if (SQLParseKeyword(Parse, 'KEY_BLOCK_SIZE')) then
       begin
         SQLParseChar(Parse, '=');
-        FBlockSize := StrToInt(SQLParseValue(Parse));
+        FBlockSize := SysUtils.StrToInt(SQLParseValue(Parse));
       end
       else if (SQLParseKeyword(Parse, 'MAX_ROWS')) then
       begin
@@ -4928,7 +4928,7 @@ begin
             FPartitions.Expression := '(' + SQLParseBracketContent(Parse) + ')';
 
           if (SQLParseKeyword(Parse, 'PARTITIONS')) then
-            FPartitions.PartitionsNumber := StrToInt(SQLParseValue(Parse));
+            FPartitions.PartitionsNumber := SysUtils.StrToInt(SQLParseValue(Parse));
 
           if (SQLParseChar(Parse, '(')) then
           begin
@@ -4963,12 +4963,12 @@ begin
                 else if (SQLParseKeyword(Parse, 'MAX_ROWS')) then
                 begin
                   SQLParseChar(Parse, '=');
-                  NewPartition.MaxRows := StrToInt(SQLParseValue(Parse));
+                  NewPartition.MaxRows := SysUtils.StrToInt(SQLParseValue(Parse));
                 end
                 else if (SQLParseKeyword(Parse, 'MIN_ROWS')) then
                 begin
                   SQLParseChar(Parse, '=');
-                  NewPartition.MinRows := StrToInt(SQLParseValue(Parse));
+                  NewPartition.MinRows := SysUtils.StrToInt(SQLParseValue(Parse));
                 end
                 else
                 begin
@@ -8997,8 +8997,11 @@ var
   DeleteList: TList;
   I: Integer;
   Index: Integer;
+  Item: TSItem;
   Name: string;
 begin
+  Item := nil;
+
   DeleteList := TList.Create();
   DeleteList.Assign(Self);
 
@@ -9021,6 +9024,11 @@ begin
         Variable[Index].Value := DataSet.FieldByName('Value').AsString
       else
         Variable[Index].Value := DataSet.FieldByName('VARIABLE_VALUE').AsString;
+
+      Item := Variable[Index];
+
+      if (Assigned(ItemSearch)) then
+        ItemSearch.Add(Item);
 
       if (Filtered) then
         Session.SendEvent(etItemValid, Session, Self, Variable[Index]);
@@ -9100,8 +9108,10 @@ begin
 
   Result := inherited;
 
-  if (FValid) then
-    Session.SendEvent(etItemsValid, Session, Self);
+  if (DataSet.RecordCount = 1) then
+    Session.SendEvent(etItemValid, Session, Self, Item)
+  else
+    Session.SendEvent(etItemsValid, Session, Session.Databases);
 end;
 
 function TSVariables.GetVariable(Index: Integer): TSVariable;
@@ -9827,6 +9837,9 @@ begin
       end;
 
       Item := Process[Index];
+
+      if (Assigned(ItemSearch)) then
+        ItemSearch.Add(Item);
     until (not DataSet.FindNext());
 
   if (not Filtered) then
@@ -9868,7 +9881,7 @@ end;
 
 function TSProcesses.NameCmp(const Name1, Name2: string): Integer;
 begin
-  Result := Sign(StrToInt(Name1) - StrToInt(Name2));
+  Result := Sign(SysUtils.StrToInt(Name1) - SysUtils.StrToInt(Name2));
 end;
 
 function TSProcesses.SQLGetItems(const Name: string = ''): string;
@@ -9876,7 +9889,12 @@ begin
   if (Session.Connection.MySQLVersion < 50107) then
     Result := 'SHOW FULL PROCESSLIST;' + #13#10
   else
-    Result := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('PROCESSLIST') + ';' + #13#10;
+  begin
+    Result := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('PROCESSLIST');
+    if (Name <> '') then
+      Result := Result + ' WHERE ' + Session.Connection.EscapeIdentifier('ID') + '=' + Name;
+    Result := Result + ';' + #13#10;
+  end;
 end;
 
 { TSUserRight *****************************************************************}
@@ -10474,11 +10492,6 @@ end;
 
 function TSUsers.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean;
   Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;
-begin
-  Result := BuildItems(DataSet, UseInformationSchema, Filtered, nil);
-end;
-
-function TSUsers.BuildItems(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; const Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -10786,7 +10799,7 @@ begin
     if (SQLCreateParse(Parse, PChar(CommandText), Length(CommandText), Session.Connection.MySQLVersion)) then
       if (SQLParseKeyword(Parse, 'SELECT')) then
       begin
-        if (SQLParseChar(Parse, '*')
+        if ((SQLParseChar(Parse, '*') or (SQLParseValue(Parse, 'GRANTEE')))
           and SQLParseKeyword(Parse, 'FROM')
           and SQLParseValue(Parse, INFORMATION_SCHEMA)
           and SQLParseChar(Parse, '.')) then
@@ -10795,6 +10808,8 @@ begin
             AddColumns(DataSet)
           else if (SQLParseValue(Parse, 'EVENTS')) then
             Session.BuildEvents(DataSet, True, Self)
+          else if (SQLParseValue(Parse, 'PROCESSLIST')) then
+            Session.Processes.Build(DataSet, True, True, Self)
           else if (SQLParseValue(Parse, 'ROUTINES')) then
             Session.BuildRoutines(DataSet, True, Self)
           else if (SQLParseValue(Parse, 'SCHEMATA')) then
@@ -10802,7 +10817,9 @@ begin
           else if (SQLParseValue(Parse, 'TABLES')) then
             Session.BuildTables(DataSet, True, Self)
           else if (SQLParseValue(Parse, 'TRIGGERS')) then
-            Session.BuildTriggers(DataSet, True, Self);
+            Session.BuildTriggers(DataSet, True, Self)
+          else if (SQLParseValue(Parse, 'USER_PRIVILEGES')) then
+            Session.Users.Build(DataSet, True, True, Self);
 
           Session.SendEvent(etItemsValid, Self, Self);
         end
@@ -10863,6 +10880,7 @@ end;
 function TSItemSearch.Step1(): Boolean;
 var
   DatabaseNames: string;
+  I: Integer;
   SQL: string;
   TableNames: string;
 begin
@@ -11019,6 +11037,25 @@ begin
     SQL := SQL
       + ' ORDER BY ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ',' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + ';' + #13#10;
   end;
+  if (Location is TSProcesses) then
+    SQL := SQL
+      + Session.Processes.SQLGetItems(Text);
+  if (Location is TSUsers) then
+    SQL := SQL
+      + 'SELECT ' + Session.Connection.EscapeIdentifier('GRANTEE')
+      + ' FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('USER_PRIVILEGES')
+      + ' WHERE ' + Session.Connection.EscapeIdentifier('GRANTEE') + ' LIKE ' + SQLEscape('%' + Text + '%')
+      + ' GROUP BY ' + Session.Connection.EscapeIdentifier('GRANTEE')
+      + ' ORDER BY ' + Session.Connection.EscapeIdentifier('GRANTEE') + ';' + #13#10;
+  if (Location is TSVariables) then
+  begin
+    for I := 0 to Session.Variables.Count - 1 do
+      if (Assigned(StrStrI(PChar(Session.Variables[I].Name), PChar(Text)))) then
+        Add(Session.Variables[I]);
+  end;
+
+  if (Count > 0) then
+    Session.SendEvent(etItemsValid, Self, Self);
 
   Result := (SQL = '') or Session.SendSQL(SQL, SearchResult);
 end;
@@ -11505,26 +11542,26 @@ begin
   MSec := 0;
 
   case (IntervalType) of
-    itYear: Year := StrToInt(S);
-    itQuarter: Quarter := StrToInt(S);
-    itMonth: Month := StrToInt(S);
-    itDay: Day := StrToInt(S);
-    itHour: Hour := StrToInt(S);
-    itMinute: Minute := StrToInt(S);
-    itWeek: Week := StrToInt(S);
-    itSecond: Second := StrToInt(S);
-    itMicrosecond: MSec := StrToInt(S);
-    itYearMonth: begin Year := StrToInt(Copy(S, 1, Pos('-', S) - 1)); Month := StrToInt(Copy(S, Pos('-', S) - 1, Length(S) - Pos('-', S))); end;
-    itDayHour: begin Day := StrToInt(Copy(S, 1, Pos(' ', S) - 1)); Hour := StrToInt(Copy(S, Pos(' ', S) - 1, Length(S) - Pos(' ', S))); end;
-    itDayMinute: begin Day := StrToInt(Copy(S, 1, Pos(' ', S) - 1)); DecodeTime(StrToTime(Copy(S, Pos(' ', S) - 1, Length(S) - Pos(' ', S)) + ':00'), Hour, Minute, Second, MSec); end;
-    itDaySecond: begin Day := StrToInt(Copy(S, 1, Pos(' ', S) - 1)); DecodeTime(StrToTime(Copy(S, Pos(' ', S) - 1, Length(S) - Pos(' ', S))), Hour, Minute, Second, MSec); end;
-    itHourMinute: begin Hour := StrToInt(Copy(S, 1, Pos(':', S) - 1)); Minute := StrToInt(Copy(S, Pos(':', S) - 1, Length(S) - Pos(':', S))); end;
+    itYear: Year := SysUtils.StrToInt(S);
+    itQuarter: Quarter := SysUtils.StrToInt(S);
+    itMonth: Month := SysUtils.StrToInt(S);
+    itDay: Day := SysUtils.StrToInt(S);
+    itHour: Hour := SysUtils.StrToInt(S);
+    itMinute: Minute := SysUtils.StrToInt(S);
+    itWeek: Week := SysUtils.StrToInt(S);
+    itSecond: Second := SysUtils.StrToInt(S);
+    itMicrosecond: MSec := SysUtils.StrToInt(S);
+    itYearMonth: begin Year := SysUtils.StrToInt(Copy(S, 1, Pos('-', S) - 1)); Month := SysUtils.StrToInt(Copy(S, Pos('-', S) - 1, Length(S) - Pos('-', S))); end;
+    itDayHour: begin Day := SysUtils.StrToInt(Copy(S, 1, Pos(' ', S) - 1)); Hour := SysUtils.StrToInt(Copy(S, Pos(' ', S) - 1, Length(S) - Pos(' ', S))); end;
+    itDayMinute: begin Day := SysUtils.StrToInt(Copy(S, 1, Pos(' ', S) - 1)); DecodeTime(StrToTime(Copy(S, Pos(' ', S) - 1, Length(S) - Pos(' ', S)) + ':00'), Hour, Minute, Second, MSec); end;
+    itDaySecond: begin Day := SysUtils.StrToInt(Copy(S, 1, Pos(' ', S) - 1)); DecodeTime(StrToTime(Copy(S, Pos(' ', S) - 1, Length(S) - Pos(' ', S))), Hour, Minute, Second, MSec); end;
+    itHourMinute: begin Hour := SysUtils.StrToInt(Copy(S, 1, Pos(':', S) - 1)); Minute := SysUtils.StrToInt(Copy(S, Pos(':', S) - 1, Length(S) - Pos(':', S))); end;
     itHourSecond: DecodeTime(StrToTime(S), Hour, Minute, Second, MSec);
-    itMinuteSecond: begin Minute := StrToInt(Copy(S, 1, Pos(':', S) - 1)); Second := StrToInt(Copy(S, Pos(':', S) - 1, Length(S) - Pos(':', S))); end;
-    itDayMicrosecond: begin Day := StrToInt(Copy(S, 1, Pos(' ', S) - 1)); DecodeTime(StrToTime(Copy(S, Pos(' ', S) - 1, Length(S) - Pos(' ', S))), Hour, Minute, Second, MSec); end;
+    itMinuteSecond: begin Minute := SysUtils.StrToInt(Copy(S, 1, Pos(':', S) - 1)); Second := SysUtils.StrToInt(Copy(S, Pos(':', S) - 1, Length(S) - Pos(':', S))); end;
+    itDayMicrosecond: begin Day := SysUtils.StrToInt(Copy(S, 1, Pos(' ', S) - 1)); DecodeTime(StrToTime(Copy(S, Pos(' ', S) - 1, Length(S) - Pos(' ', S))), Hour, Minute, Second, MSec); end;
     itHourMicrosecond: DecodeTime(StrToTime(S), Hour, Minute, Second, MSec);
     itMinuteMicrosecond: DecodeTime(StrToTime('00:' + S), Hour, Minute, Second, MSec);
-    itSecondMicrosecond: begin Second := StrToInt(Copy(S, 1, Pos('.', S) - 1)); MSec := StrToInt(Copy(S, Pos('.', S) - 1, Length(S) - Pos('.', S))); end;
+    itSecondMicrosecond: begin Second := SysUtils.StrToInt(Copy(S, 1, Pos('.', S) - 1)); MSec := SysUtils.StrToInt(Copy(S, Pos('.', S) - 1, Length(S) - Pos('.', S))); end;
   end;
 end;
 
@@ -11885,6 +11922,12 @@ begin
     raise ERangeError.Create('Identifier123456: ' + IntToStr(Identifier123456) + #13#10
       + 'Identifier963963: ' + IntToStr(Identifier963963) + #13#10
       + 'Identifier369369: ' + IntToStr(Identifier369369));
+  // Debug 2017-01-15
+  if (Accounts.IndexOf(FAccount) < 0) then
+    raise ERangeError.Create(SRangeError);
+  // Debug 2017-01-15
+  if (not (TObject(FAccount) is TPAccount)) then
+    raise ERangeError.Create(SRangeError);
 
   Result := FAccount;
 end;
@@ -12149,14 +12192,13 @@ begin
                         Table.Database.Invalidate()
                       else
                         Table.Invalidate();
-                      SendEvent(etItemAltered, Database, Database.Tables, Table);
 
                       {$IFDEF Debug}
-                      if (Table is TSBaseTable) then
-                      begin
-                        SetString(SQL, Text, Len);
-                        TSBaseTable(Table).ParseAlterTable(SQL);
-                      end;
+//                      if (Table is TSBaseTable) then
+//                      begin
+//                        SetString(SQL, Text, Len);
+//                        TSBaseTable(Table).ParseAlterTable(SQL);
+//                      end;
                       {$ENDIF}
                     end;
                   end;
