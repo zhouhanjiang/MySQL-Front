@@ -239,8 +239,6 @@ end;
 
 procedure TDUpdate.UMTerminate(var Msg: TMessage);
 begin
-  HTTPThread.WaitFor();
-
   if (HTTPThread.ErrorCode <> 0) then
     MsgBox(HTTPThread.ErrorMessage, Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
   else if (HTTPThread.HTTPStatus <> HTTP_STATUS_OK) then
@@ -252,8 +250,7 @@ begin
   else
     raise ERangeError.Create(SRangeError);
 
-MessageBox(0, 'Download abgeschlossen', 'Peter''s Debug', MB_OK);
-
+  HTTPThread.WaitFor();
   HTTPThread.Free();
   HTTPThread := nil;
 
