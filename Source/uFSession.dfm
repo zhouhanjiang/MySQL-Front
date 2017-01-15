@@ -1177,12 +1177,11 @@ object FSession: TFSession
     object ToolBar: TToolBar
       Left = 124
       Top = 0
-      Width = 508
-      Height = 20
+      Width = 515
+      Height = 22
       Align = alNone
       AutoSize = True
-      ButtonHeight = 20
-      ButtonWidth = 68
+      ButtonWidth = 71
       List = True
       PopupMenu = MToolBar
       ShowCaptions = True
@@ -1209,7 +1208,7 @@ object FSession: TFSession
         Style = tbsCheck
       end
       object tbIDE: TToolButton
-        Left = 142
+        Left = 144
         Top = 0
         AutoSize = True
         Caption = 'tbIDE'
@@ -1218,7 +1217,7 @@ object FSession: TFSession
         Visible = False
       end
       object tbBuilder: TToolButton
-        Left = 184
+        Left = 185
         Top = 0
         AutoSize = True
         Caption = 'tbBuilder'
@@ -1227,7 +1226,7 @@ object FSession: TFSession
         Style = tbsCheck
       end
       object tbDiagram: TToolButton
-        Left = 248
+        Left = 251
         Top = 0
         AutoSize = True
         Caption = 'tbDiagram'
@@ -1235,7 +1234,7 @@ object FSession: TFSession
         Style = tbsCheck
       end
       object tbEditor: TToolButton
-        Left = 314
+        Left = 321
         Top = 0
         AutoSize = True
         Caption = 'tbEditor'
@@ -1244,7 +1243,7 @@ object FSession: TFSession
         Style = tbsCheck
       end
       object tbEditor2: TToolButton
-        Left = 374
+        Left = 381
         Top = 0
         AutoSize = True
         Caption = 'tbEditor2'
@@ -1253,7 +1252,7 @@ object FSession: TFSession
         Style = tbsCheck
       end
       object tbEditor3: TToolButton
-        Left = 441
+        Left = 448
         Top = 0
         AutoSize = True
         Caption = 'tbEditor3'
@@ -1263,7 +1262,7 @@ object FSession: TFSession
       end
     end
     object FObjectSearch: TEdit
-      Left = 1404
+      Left = 1760
       Top = 0
       Width = 140
       Height = 22
@@ -1275,10 +1274,9 @@ object FSession: TFSession
       OnEnter = FObjectSearchEnter
       OnExit = FObjectSearchExit
       OnKeyPress = FObjectSearchKeyPress
-      ExplicitLeft = 886
     end
     object TBObjectSearch: TToolBar
-      Left = 1618
+      Left = 2012
       Top = 0
       Width = 23
       Height = 22
@@ -1287,7 +1285,6 @@ object FSession: TFSession
       TabOrder = 3
       Transparent = True
       Visible = False
-      ExplicitLeft = 1046
       object FObjectSearchStart: TToolButton
         Left = 0
         Top = 0

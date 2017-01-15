@@ -2883,6 +2883,15 @@ begin
       DField.Table := TSBaseTable(TSBaseTableField(SItem).Table);
       DField.Field := TSBaseTableField(SItem);
       DField.ModifyTableOnly := False;
+
+      // Debug 2017-01-15
+      if (DField.Field.FieldType = mfUnknown) then
+        raise ERangeError.Create('Name: ' + DField.Field.Name + #13#10
+          + 'Table.Valid: ' + BoolToStr(DField.Table.Valid) + #13#10
+          + 'Table.ValidSource: ' + BoolToStr(DField.Table.ValidSource) + #13#10
+          + 'Fields.Valid: ' + BoolToStr(DField.Table.Fields.Valid, True) + #13#10
+          + DField.Table.Source);
+
       DField.Execute();
     end
     else if (SItem is TSForeignKey) then
@@ -9171,9 +9180,8 @@ begin
               end;
             3:
               begin
-                if (String1 = '') then String1 := '0';               if (String2 = '') then String2 := '0';
+                if (String1 = '') then String1 := '0';              if (String2 = '') then String2 := '0';
 
-                String1 := ReplaceStr(String1, '???', '0');         String2 := ReplaceStr(String2, '???', '0');
                 String1 := ReplaceStr(String1, '???', '0');         String2 := ReplaceStr(String2, '???', '0');
                 String1 := ReplaceStr(String1, ' B', '');           String2 := ReplaceStr(String2, ' B', '');
                 String1 := ReplaceStr(String1, ' KB', '000');       String2 := ReplaceStr(String2, ' KB', '000');
@@ -14638,6 +14646,11 @@ begin
           raise ERangeError.Create(SRangeError);
 
         Self.View := View;
+
+        // Debug 2017-01-15
+        if (not (Self.View in [vEditor, vEditor2, vEditor3])) then
+          raise ERangeError.Create(SRangeError);
+
         Window.ActiveControl := ActiveSynMemo;
         case (MsgBox(Preferences.LoadStr(584, ExtractFileName(SQLEditors[View].Filename)), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
           IDYES: SaveSQLFile(MainAction('aFSave'));

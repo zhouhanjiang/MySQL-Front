@@ -5039,6 +5039,13 @@ begin
       if (Assigned(Session.DatabaseByName(ForeignKeys[I].Parent.DatabaseName))
         and Assigned(Session.DatabaseByName(ForeignKeys[I].Parent.DatabaseName).TableByName(ForeignKeys[I].Parent.TableName))) then
         References.Add(TSReference.Create(References, ForeignKeys[I].Parent.DatabaseName, TSTable, ForeignKeys[I].Parent.TableName));
+
+
+    // Debug 2017-01-15
+    for I := 0 to FFields.Count - 1 do
+      if (FFields[I].FieldType = mfUnknown) then
+        raise ERangeError.Create('Name: ' + FFields[I].Name + #13#10
+          + SQL);
   end;
 end;
 

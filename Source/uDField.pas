@@ -265,6 +265,9 @@ begin
     // Debug 2017-01-03
     if (not Assigned(Table.Session.FieldTypeByMySQLFieldType(Field.FieldType))) then
       raise ERangeError.Create('FieldType: ' + IntToStr(Ord(Field.FieldType)) + #13#10
+        + 'Table.Valid: ' + BoolToStr(Table.Valid) + #13#10
+        + 'Table.ValidSource: ' + BoolToStr(Table.ValidSource) + #13#10
+        + 'Fields.Valid: ' + BoolToStr(Table.Fields.Valid, True) + #13#10
         + 'Known FieldTypes: ' + IntToStr(Table.Session.FieldTypes.Count) + #13#10
         + Table.Source);
 
