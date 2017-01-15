@@ -7,8 +7,6 @@ AppVersion={BuildVerStr}
 DefaultDirName={pf}\{BuildProgramFiles}
 DefaultGroupName={BuildName}
 ChangesAssociations=yes
-WizardImageFile={BuildImagesPath}\Setup.bmp
-WizardSmallImageFile={BuildImagesPath}\Setup_Header.bmp
 AllowNoIcons=yes
 ShowLanguageDialog=auto
 VersionInfoVersion={BuildVerStrFull}
@@ -83,5 +81,3 @@ Name: "{userdesktop}\{BuildName}"; Filename: "{app}\{BuildName}.exe"; Tasks: Des
 
 [Run]
 Filename: "{app}\{BuildName}.exe"; Description: "&Launch {BuildName}"; Flags: postinstall nowait
-
-

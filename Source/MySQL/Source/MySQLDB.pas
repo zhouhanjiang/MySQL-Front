@@ -271,6 +271,7 @@ type
     function GetServerDateTime(): TDateTime;
     function GetHandle(): MySQLConsts.MYSQL;
     function GetInfo(): string;
+    procedure RunExecute(const SyncThread: TSyncThread);
     procedure SetDatabaseName(const ADatabaseName: string);
     procedure SetHost(const AHost: string);
     procedure SetLibraryName(const ALibraryName: string);
@@ -2073,7 +2074,7 @@ begin
       ssConnect:
         begin
           State := ssConnecting;
-          RunExecute.SetEvent();
+          Connection.RunExecute(Self);
         end;
       ssConnecting:
         Connection.SyncConnected(Self);
@@ -2082,13 +2083,13 @@ begin
         begin
           Connection.SyncBeforeExecuteSQL(Self);
           Connection.SyncExecute(Self);
-          RunExecute.SetEvent();
+          Connection.RunExecute(Self);
         end;
       ssFirst,
       ssNext:
         begin
           Connection.SyncExecute(Self);
-          RunExecute.SetEvent();
+          Connection.RunExecute(Self);
         end;
       ssExecutingFirst,
       ssExecutingNext:
@@ -2121,7 +2122,7 @@ begin
             if (State in [ssNext, ssFirst]) then
             begin
               Connection.SyncExecute(Self);
-              RunExecute.SetEvent();
+              Connection.RunExecute(Self);
             end
             else
               Connection.SyncAfterExecuteSQL(Self)
@@ -2131,7 +2132,7 @@ begin
       ssDisconnect:
         begin
           State := ssDisconnecting;
-          RunExecute.SetEvent();
+          Connection.RunExecute(Self);
         end;
       ssDisconnecting:
         Connection.SyncDisconnected(Self);
@@ -2375,7 +2376,14 @@ begin
 
   SyncThread.State := ssConnect;
   repeat
-    SyncThread.Synchronize();
+    if (SynchronCount > 0) then
+    begin
+      SyncThread.Synchronize();
+      SyncThreadExecuted.WaitFor(INFINITE);
+      SyncThread.Synchronize();
+    end
+    else
+      SyncThread.Synchronize();
   until ((SynchronCount = 0) or (SyncThread.State in [ssClose, ssReady]));
 end;
 
@@ -2416,8 +2424,8 @@ begin
     BeginSynchron();
     SyncThread.State := ssDisconnect;
     SyncThread.Synchronize();
-    SyncThreadExecuted.WaitFor(INFINITE);
-    SyncThread.Synchronize();
+    if (SyncThread.State = ssDisconnecting) then
+      SyncThread.Synchronize();
     EndSynchron();
   end;
 end;
@@ -2957,6 +2965,31 @@ begin
     FSQLMonitors.Add(SQLMonitor);
 end;
 
+procedure TMySQLConnection.RunExecute(const SyncThread: TSyncThread);
+begin
+  if (SynchronCount = 0) then
+    SyncThread.Executed := nil
+  else
+    SyncThread.Executed := SyncThreadExecuted;
+
+  case (SyncThread.State) of
+    ssConnecting,
+    ssExecutingFirst,
+    ssExecutingNext,
+    ssReceivingResult,
+    ssDisconnecting:
+      SyncThread.RunExecute.SetEvent();
+    else
+      raise Exception.CreateFMT(SOutOfSync + ' (State: %d)', [Ord(SyncThread.State)]);
+  end;
+
+  if (Assigned(SyncThread.Executed)) then
+  begin
+    SyncThread.Executed.WaitFor(INFINITE);
+    SyncThread.Executed := nil;
+  end;
+end;
+
 function TMySQLConnection.SendSQL(const SQL: string; const Done: TEvent): Boolean;
 begin
   Result := InternExecuteSQL(smSQL, SQL, TResultEvent(nil), Done);
@@ -3093,6 +3126,10 @@ end;
 
 procedure TMySQLConnection.SyncBindDataSet(const DataSet: TMySQLQuery);
 begin
+  // Debug 2017-01-15
+  if (SyncThread.State <> ssResult) then
+    raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
+
   Assert(Assigned(SyncThread));
   Assert(SyncThread.State = ssResult);
   Assert(not Assigned(SyncThread.DataSet));
@@ -7449,6 +7486,16 @@ var
   I: Integer;
   ValueHandled: Boolean;
 begin
+  if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
+    raise ERangeError.Create('Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
+      + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)));
+  if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
+    raise ERangeError.Create('Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
+      + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)));
+  if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData)) then
+    raise ERangeError.Create('Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
+      + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)));
+
   Result := '';
   ValueHandled := False;
   for I := 0 to FieldCount - 1 do

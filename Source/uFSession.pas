@@ -10069,17 +10069,24 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
 
   function InsertOrUpdateItem(const Kind: TPAccount.TDesktop.TListViewKind; const GroupID: Integer; const Data: TObject): TListItem;
   var
+    Count: Integer; // Cache for speeding
+    I: Integer;
     Item: TListItem;
     Index: Integer;
     Left: Integer;
     Mid: Integer;
     Right: Integer;
   begin
-    Index := 0;
-    while ((Index < ListView.Items.Count) and (ListView.Items[Index].Data <> Data)) do
-      Inc(Index);
+    Count := ListView.Items.Count; // Cache for speeding
+    Index := -1;
+    for I := 0 to Count - 1 do
+      if (ListView.Items[I].Data = Data) then
+      begin
+        Index := I;
+        break;
+      end;
 
-    if ((0 < ListView.Items.Count) and (ListView.Items.Count = Index)) then
+    if ((Count > 0) and (Index < 0)) then
     begin
       Item := TListItem.Create(ListView.Items);
       Item.Data := Data;
@@ -10091,22 +10098,24 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
       begin
         Mid := (Right - Left) div 2 + Left;
         case (Compare(Kind, ListView.Items[Mid], Item)) of
-          -1: begin Left := Mid + 1; Index := Mid + 1; end;
-          0: raise ERangeError.CreateFmt('%s  %s - %d / %d /%d / %d', [TSItem(Data).ClassName, TSItem(Data).Name, Left, Mid, Right, ListView.Items.Count]);
-          1: begin Right := Mid - 1; Index := Mid; end;
+          -1: begin Left := Mid + 1; Index := Mid; end;
+          0: raise ERangeError.CreateFmt('%s "%s" - %d / %d / %d / %d', [TSItem(Data).ClassName, TSItem(Data).Name, Left, Mid, Right, ListView.Items.Count]);
+          1: begin Right := Mid - 1; Index := Mid - 1; end;
         end;
       end;
 
       Item.Free();
     end;
 
-    if (Index = ListView.Items.Count) then
+    if (Index < 0) then
     begin
+      Session.Connection.DebugMonitor.Append('InsertOrUpdateItem - ' + TSItem(Data).Name, ttDebug);
       Result := ListView.Items.Add();
       Result.Data := Data;
     end
     else if (ListView.Items[Index].Data <> Data) then
     begin
+      Session.Connection.DebugMonitor.Append('InsertOrUpdateItem - ' + TSItem(Data).Name, ttDebug);
       Result := ListView.Items.Insert(Index);
       Result.Data := Data;
     end
@@ -10117,6 +10126,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
 
   function AddItem(const GroupID: Integer; const Data: TObject): TListItem;
   begin
+    Session.Connection.DebugMonitor.Append('AddItem - ' + TSItem(Data).Name, ttDebug);
     Result := ListView.Items.Add();
     Result.Data := Data;
     UpdateItem(Result, GroupID, Data);
@@ -10562,7 +10572,7 @@ begin
 
       // Debug 2017-01-15
       if ((ListView.SelCount >= 1) and (Item.ImageIndex in [iiField, iiVirtualField])) then
-        if (not (TObject(Item.Data) is TSBaseTable)) then
+        if (not (TObject(Item.Data) is TSBaseTableField)) then
           raise ERangeError.Create('ClassType: ' + TObject(Item.Data).ClassName)
         else if (not Assigned(TSBaseTableField(Item.Data).Table)) then
           raise ERangeError.Create(SRangeError)
