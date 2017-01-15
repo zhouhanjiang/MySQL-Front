@@ -4529,6 +4529,10 @@ begin
 
       NewField.ParseFieldType(Parse);
 
+      // Debug 2017-01-15
+      if (NewField.FieldType = mfUnknown) then
+        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+
       if (SQLParseKeyword(Parse, 'CHARACTER SET')) then
         NewField.Charset := SQLParseValue(Parse);
 

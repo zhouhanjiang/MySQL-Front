@@ -336,7 +336,13 @@ end;
 
 procedure TMySQLDBGrid.CMFontChanged(var Message);
 begin
+  try
   inherited;
+  except // Debug 2017-01-15
+    on E: Exception do
+      raise ERangeError.Create('csDestroying: ' + BoolToStr(csDestroying in ComponentState, True) + #13#10
+        + E.Message);
+  end;
 
   if (FListView > 0) then
     SendMessage(FListView, WM_SETFONT, WPARAM(Font.Handle), LPARAM(TRUE));

@@ -836,6 +836,7 @@ type
     FHTML: TWebBrowser;
     FilterMRU: TPPreferences.TMRUList;
     FNavigatorIgnoreChange: Boolean;
+    FNavigatorKeyDownNode: TTreeNode;
     FNavigatorMenuNode: TTreeNode;
     FNavigatorNodeAfterActivate: TTreeNode;
     FNavigatorNodeToExpand: TTreeNode;
@@ -941,6 +942,7 @@ type
     function Desktop(const View: TSView): TViewDesktop; overload; inline;
     function Dragging(const Sender: TObject): Boolean;
     procedure EndEditLabel(Sender: TObject);
+    procedure FavoritesAdd(const Objects: TList);
     procedure FHexEditorShow(Sender: TObject);
     procedure FHTMLHide(Sender: TObject);
     procedure FHTMLShow(Sender: TObject);
@@ -999,8 +1001,8 @@ type
     procedure SaveDiagram(Sender: TObject);
     procedure SaveSQLFile(Sender: TObject);
     procedure SendQuery(Sender: TObject; const SQL: string);
-    procedure SetView(const AView: TView);
     procedure SetAddress(const AAddress: string);
+    procedure SetView(const AView: TView);
     procedure SetListViewGroupHeader(const ListView: TListView; const GroupID: Integer; const NewHeader: string);
     procedure SetPath(const APath: TFileName);
     procedure SQLError(DataSet: TDataSet; E: EDatabaseError; var Action: TDataAction);
@@ -6224,6 +6226,10 @@ begin
   aDDelete.ShortCut := VK_DELETE;
 end;
 
+procedure TFSession.FavoritesAdd(const Objects: TList);
+begin
+end;
+
 procedure TFSession.FBlobResize(Sender: TObject);
 begin
   FText.Repaint();
@@ -6539,6 +6545,7 @@ procedure TFSession.FNavigatorChanging(Sender: TObject; Node: TTreeNode;
   var AllowChange: Boolean);
 begin
   AllowChange := AllowChange
+    and (Node.Text <> '')
     and not Dragging(Sender)
     and not (Assigned(Node) and (Node.ImageIndex in [iiKey, iiField, iiVirtualField, iiSystemViewField, iiViewField, iiForeignKey]));
 
@@ -6567,59 +6574,74 @@ begin
   else
     TargetNode := nil;
 
-  List := TList.Create();
-
-  if ((Source is TTreeView_Ext) and (TTreeView_Ext(Source).Name = FNavigator.Name)) then
+  if (TargetNode.ImageIndex = iiFavorites) then
   begin
-    SourceNode := TFSession(TTreeView_Ext(Source).Owner).MouseDownNode;
+    List := TList.Create();
 
-    case (SourceNode.ImageIndex) of
-      iiDatabase:   Objects := Objects + 'Database='    + SourceNode.Text + #13#10;
-      iiBaseTable:  Objects := Objects + 'Table='       + SourceNode.Text + #13#10;
-      iiView:       Objects := Objects + 'View='        + SourceNode.Text + #13#10;
-      iiProcedure:  Objects := Objects + 'Procedure='   + SourceNode.Text + #13#10;
-      iiFunction:   Objects := Objects + 'Function='    + SourceNode.Text + #13#10;
-      iiEvent:      Objects := Objects + 'Event='       + SourceNode.Text + #13#10;
-      iiKey:        Objects := Objects + 'Index='       + SourceNode.Text + #13#10;
-      iiField,
-      iiVirtualField,
-      iiViewField:  Objects := Objects + 'Field='       + SourceNode.Text + #13#10;
-      iiForeignKey: Objects := Objects + 'ForeignKey='  + SourceNode.Text + #13#10;
-      iiTrigger:    Objects := Objects + 'Trigger='     + SourceNode.Text + #13#10;
-      iiUser:       Objects := Objects + 'User='        + SourceNode.Text + #13#10;
-    end;
-    if (Objects <> '') then
-      Objects := 'Address=' + NavigatorNodeToAddress(SourceNode) + #13#10 + Objects;
+    if (Source = FNavigator) then
+      List.Add(MouseDownNode.Data)
+    else if ((Source is TListView) and (TListView(Source).Parent = PListView)) then
+      for I := 0 to TListView(Source).Items.Count - 1 do
+        if (TListView(Source).Items[I].Selected) then
+          List.Add(TListView(Source).Items[I].Data);
+
+    if (List.Count > 0) then
+      FavoritesAdd(List);
+
+    List.Free();
   end
-  else if ((Source is TListView) and (TListView(Source).Parent.Name = 'PListView')) then
+  else
   begin
-    SourceNode := TFSession(TComponent(TListView(Source).Owner)).FNavigator.Selected;
+    if ((Source is TTreeView_Ext) and (TTreeView_Ext(Source).Name = FNavigator.Name)) then
+    begin
+      SourceNode := TFSession(TTreeView_Ext(Source).Owner).MouseDownNode;
 
-    for I := 0 to TListView(Source).Items.Count - 1 do
-      if (TListView(Source).Items[I].Selected) then
-        case (TListView(Source).Items[I].ImageIndex) of
-          iiDatabase:   Objects := Objects + 'Database='   + TListView(Source).Items[I].Caption + #13#10;
-          iiBaseTable:  Objects := Objects + 'Table='      + TListView(Source).Items[I].Caption + #13#10;
-          iiView:       Objects := Objects + 'View='       + TListView(Source).Items[I].Caption + #13#10;
-          iiProcedure:  Objects := Objects + 'Procedure='  + TListView(Source).Items[I].Caption + #13#10;
-          iiFunction:   Objects := Objects + 'Function='   + TListView(Source).Items[I].Caption + #13#10;
-          iiEvent:      Objects := Objects + 'Event='      + TListView(Source).Items[I].Caption + #13#10;
-          iiKey:        Objects := Objects + 'Key='        + TSKey(TListView(Source).Items[I].Data).Name + #13#10;
-          iiField,
-          iiVirtualField,
-          iiViewField:  Objects := Objects + 'Field='      + TListView(Source).Items[I].Caption + #13#10;
-          iiForeignKey: Objects := Objects + 'ForeignKey=' + TListView(Source).Items[I].Caption + #13#10;
-          iiTrigger:    Objects := Objects + 'Trigger='    + TListView(Source).Items[I].Caption + #13#10;
-          iiUser:       Objects := Objects + 'User='       + TListView(Source).Items[I].Caption + #13#10;
-        end;
+      case (SourceNode.ImageIndex) of
+        iiDatabase:   Objects := Objects + 'Database='    + SourceNode.Text + #13#10;
+        iiBaseTable:  Objects := Objects + 'Table='       + SourceNode.Text + #13#10;
+        iiView:       Objects := Objects + 'View='        + SourceNode.Text + #13#10;
+        iiProcedure:  Objects := Objects + 'Procedure='   + SourceNode.Text + #13#10;
+        iiFunction:   Objects := Objects + 'Function='    + SourceNode.Text + #13#10;
+        iiEvent:      Objects := Objects + 'Event='       + SourceNode.Text + #13#10;
+        iiKey:        Objects := Objects + 'Index='       + SourceNode.Text + #13#10;
+        iiField,
+        iiVirtualField,
+        iiViewField:  Objects := Objects + 'Field='       + SourceNode.Text + #13#10;
+        iiForeignKey: Objects := Objects + 'ForeignKey='  + SourceNode.Text + #13#10;
+        iiTrigger:    Objects := Objects + 'Trigger='     + SourceNode.Text + #13#10;
+        iiUser:       Objects := Objects + 'User='        + SourceNode.Text + #13#10;
+      end;
+      if (Objects <> '') then
+        Objects := 'Address=' + NavigatorNodeToAddress(SourceNode) + #13#10 + Objects;
+    end
+    else if ((Source is TListView) and (TListView(Source).Parent.Name = 'PListView')) then
+    begin
+      SourceNode := TFSession(TComponent(TListView(Source).Owner)).FNavigator.Selected;
+
+      for I := 0 to TListView(Source).Items.Count - 1 do
+        if (TListView(Source).Items[I].Selected) then
+          case (TListView(Source).Items[I].ImageIndex) of
+            iiDatabase:   Objects := Objects + 'Database='   + TListView(Source).Items[I].Caption + #13#10;
+            iiBaseTable:  Objects := Objects + 'Table='      + TListView(Source).Items[I].Caption + #13#10;
+            iiView:       Objects := Objects + 'View='       + TListView(Source).Items[I].Caption + #13#10;
+            iiProcedure:  Objects := Objects + 'Procedure='  + TListView(Source).Items[I].Caption + #13#10;
+            iiFunction:   Objects := Objects + 'Function='   + TListView(Source).Items[I].Caption + #13#10;
+            iiEvent:      Objects := Objects + 'Event='      + TListView(Source).Items[I].Caption + #13#10;
+            iiKey:        Objects := Objects + 'Key='        + TSKey(TListView(Source).Items[I].Data).Name + #13#10;
+            iiField,
+            iiVirtualField,
+            iiViewField:  Objects := Objects + 'Field='      + TListView(Source).Items[I].Caption + #13#10;
+            iiForeignKey: Objects := Objects + 'ForeignKey=' + TListView(Source).Items[I].Caption + #13#10;
+            iiTrigger:    Objects := Objects + 'Trigger='    + TListView(Source).Items[I].Caption + #13#10;
+            iiUser:       Objects := Objects + 'User='       + TListView(Source).Items[I].Caption + #13#10;
+          end;
+      if (Objects <> '') then
+        Objects := 'Address=' + NavigatorNodeToAddress(SourceNode) + #13#10 + Objects;
+    end;
+
     if (Objects <> '') then
-      Objects := 'Address=' + NavigatorNodeToAddress(SourceNode) + #13#10 + Objects;
+      PasteExecute(TargetNode, Objects);
   end;
-
-  List.Free();
-
-  if (Objects <> '') then
-    PasteExecute(TargetNode, Objects);
 end;
 
 procedure TFSession.FNavigatorDragOver(Sender, Source: TObject; X, Y: Integer;
@@ -6637,26 +6659,36 @@ begin
   begin
     SourceNode := TFSession(TTreeView(Source).Owner).MouseDownNode;
     if (Assigned(TargetNode) and (TargetNode <> SourceNode)) then
-      case (SourceNode.ImageIndex) of
-        iiDatabase: Accept := (TargetNode = TTreeView(Sender).Items.getFirstNode()) and (TargetNode <> SourceNode.Parent);
-        iiBaseTable: Accept := (TargetNode.ImageIndex = iiDatabase) and (TargetNode <> SourceNode.Parent);
-        iiProcedure,
-        iiFunction: Accept := (TargetNode.ImageIndex = iiDatabase) and (TargetNode <> SourceNode.Parent);
-        iiField,
-        iiVirtualField: Accept := (TargetNode.ImageIndex = iiBaseTable) and (TargetNode <> SourceNode.Parent);
-      end;
+      if (TargetNode.ImageIndex = iiFavorites) then
+        Accept := (Source = FNavigator)
+          and (SourceNode.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger])
+      else
+        case (SourceNode.ImageIndex) of
+          iiDatabase: Accept := (TargetNode = TTreeView(Sender).Items.getFirstNode()) and (TargetNode <> SourceNode.Parent);
+          iiBaseTable,
+          iiView: Accept := (TargetNode.ImageIndex = iiDatabase) and (TargetNode <> SourceNode.Parent);
+          iiProcedure,
+          iiFunction: Accept := (TargetNode.ImageIndex = iiDatabase) and (TargetNode <> SourceNode.Parent);
+          iiField,
+          iiVirtualField: Accept := (TargetNode.ImageIndex = iiBaseTable) and (TargetNode <> SourceNode.Parent);
+        end;
   end
   else if ((Source is TListView) and (TListView(Source).Parent.Name = PListView.Name) and Assigned(TargetNode)) then
   begin
     SourceItem := TListView(Source).Selected;
-    case (SourceItem.ImageIndex) of
-      iiDatabase: Accept := (TargetNode = TTreeView(Sender).Items.getFirstNode()) and (TargetNode <> TFSession(TListView(Source).Owner).FNavigator.Selected);
-      iiBaseTable: Accept := (TargetNode.ImageIndex = iiDatabase) and (TargetNode <> TFSession(TListView(Source).Owner).FNavigator.Selected);
-      iiProcedure,
-      iiFunction: Accept := (TargetNode.ImageIndex = iiDatabase) and (TargetNode <> TFSession(TListView(Source).Owner).FNavigator.Selected);
-      iiField,
-      iiVirtualField: Accept := (TargetNode.ImageIndex = iiBaseTable) and (TargetNode <> TFSession(TListView(Source).Owner).FNavigator.Selected);
-    end;
+    if (TargetNode.ImageIndex = iiFavorites) then
+      Accept := (TListView(Source).Parent = PListView)
+        and (SourceItem.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger])
+    else
+      case (SourceItem.ImageIndex) of
+        iiDatabase: Accept := (TargetNode = TTreeView(Sender).Items.getFirstNode()) and (TargetNode <> TFSession(TListView(Source).Owner).FNavigator.Selected);
+        iiBaseTable,
+        iiView: Accept := (TargetNode.ImageIndex = iiDatabase) and (TargetNode <> TFSession(TListView(Source).Owner).FNavigator.Selected);
+        iiProcedure,
+        iiFunction: Accept := (TargetNode.ImageIndex = iiDatabase) and (TargetNode <> TFSession(TListView(Source).Owner).FNavigator.Selected);
+        iiField,
+        iiVirtualField: Accept := (TargetNode.ImageIndex = iiBaseTable) and (TargetNode <> TFSession(TListView(Source).Owner).FNavigator.Selected);
+      end;
   end;
 end;
 
@@ -6837,19 +6869,28 @@ procedure TFSession.FNavigatorInitialize(Sender: TObject);
 var
   Node: TTreeNode;
 begin
-  Node := FNavigator.Items.getFirstNode().getFirstChild();
-  while (Assigned(Node)) do
-  begin
-    case (Node.ImageIndex) of
-      iiProcesses: Node.Text := Preferences.LoadStr(24);
-      iiUsers: Node.Text := Preferences.LoadStr(561);
-      iiVariables: Node.Text := Preferences.LoadStr(22);
-    end;
+  Node := FNavigator.Items.getFirstNode();
+  if (Assigned(Node) and (Node.ImageIndex = iiFavorites)) then
+    Node.Text := Preferences.LoadStr(727);
+  while (Assigned(Node) and (Node.ImageIndex <> iiServer)) do
     Node := Node.getNextSibling();
+  if (Assigned(Node) and (Node.ImageIndex = iiServer)) then
+  begin
+    Node := Node.getFirstChild();
+    while (Assigned(Node)) do
+    begin
+      case (Node.ImageIndex) of
+        iiProcesses: Node.Text := Preferences.LoadStr(24);
+        iiUsers: Node.Text := Preferences.LoadStr(561);
+        iiVariables: Node.Text := Preferences.LoadStr(22);
+      end;
+      Node := Node.getNextSibling();
+    end;
   end;
 end;
 
 procedure TFSession.FNavigatorKeyDown(Sender: TObject; var Key: Word;
+
   Shift: TShiftState);
 begin
   if (not TTreeView(Sender).IsEditing()) then
@@ -6866,6 +6907,8 @@ begin
       else
         FNavigatorIgnoreChange := True;
   end;
+
+  FNavigatorKeyDownNode := FNavigator.Selected;
 end;
 
 procedure TFSession.FNavigatorKeyPress(Sender: TObject; var Key: Char);
@@ -6878,7 +6921,39 @@ end;
 
 procedure TFSession.FNavigatorKeyUp(Sender: TObject; var Key: Word;
   Shift: TShiftState);
+var
+  AllowChange: Boolean;
+  Node: TTreeNode;
 begin
+  if ((Shift = []) and (Key = VK_UP) and (FNavigator.Selected = FNavigatorKeyDownNode)) then
+  begin
+    Node := FNavigator.Selected;
+    AllowChange := False;
+    while (Assigned(Node) and not AllowChange) do
+    begin
+      Node := Node.GetPrevVisible();
+      AllowChange := Assigned(Node);
+      if (AllowChange) then
+        FNavigatorChanging(FNavigator, Node, AllowChange);
+    end;
+    if (AllowChange) then
+      FNavigator.Selected := Node;
+  end
+  else if ((Shift = []) and (Key = VK_DOWN) and (FNavigator.Selected = FNavigatorKeyDownNode)) then
+  begin
+    Node := FNavigator.Selected;
+    AllowChange := False;
+    while (Assigned(Node) and not AllowChange) do
+    begin
+      Node := Node.GetNextVisible();
+      AllowChange := Assigned(Node);
+      if (AllowChange) then
+        FNavigatorChanging(FNavigator, Node, AllowChange);
+    end;
+    if (AllowChange) then
+      FNavigator.Selected := Node;
+  end;
+
   FNavigatorIgnoreChange := False;
 end;
 
@@ -6887,6 +6962,7 @@ var
   AllowExpansion: Boolean;
   Child: TTreeNode;
   DatabaseNode: TTreeNode;
+  ServerNode: TTreeNode;
   TableName: string;
   TableNode: TTreeNode;
   URI: TUURI;
@@ -6895,9 +6971,13 @@ begin
 
   Result := nil;
 
+  ServerNode := FNavigator.Items.getFirstNode();
+  while (Assigned(ServerNode) and (ServerNode.ImageIndex <> iiServer)) do
+    ServerNode := ServerNode.getNextSibling();
+
   if (URI.Param['system'] <> Null) then
   begin
-    Child := FNavigator.Items.getFirstNode().getFirstChild();
+    Child := ServerNode.getFirstChild();
     while (Assigned(Child) and not Assigned(Result)) do
       if ((URI.Param['system'] = 'processes') and (Child.ImageIndex = iiProcesses)
         or (URI.Param['system'] = 'users') and (Child.ImageIndex = iiUsers)
@@ -6908,7 +6988,7 @@ begin
   end
   else if (URI.Database <> '') then
   begin
-    Child := FNavigator.Items.getFirstNode().getFirstChild(); DatabaseNode := nil;
+    Child := ServerNode.getFirstChild(); DatabaseNode := nil;
     while (Assigned(Child) and not Assigned(DatabaseNode)) do
       if ((Child.ImageIndex in [iiDatabase, iiSystemDatabase]) and (Session.Databases.NameCmp(URI.Database, Child.Text) = 0)) then
         DatabaseNode := Child
@@ -6978,7 +7058,7 @@ begin
     end;
   end
   else
-    Result := FNavigator.Items.getFirstNode();
+    Result := ServerNode;
 
   URI.Free();
 end;
@@ -7149,7 +7229,7 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
       N := N.Parent;
     end;
 
-    Session.Connection.DebugMonitor.Append('... DeleteNode: "' + Node.Text + '"', ttDebug);
+    Session.Connection.DebugMonitor.Append('... DeleteNode: ' + IntToStr(Node.ImageIndex) + ' "' + Node.Text + '"', ttDebug);
 
     Node.Data := nil;
     Node.Delete();
@@ -7189,9 +7269,11 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
                 AddChild(Node, SItems[I]);
         end;
       etItemCreated:
-        if (not (Event.Item is TSTrigger) or (Node.Count > 0)) then
-          InsertOrUpdateChild(Node, Event.Item);
+        if (GroupIDByImageIndex(ImageIndexByData(Event.Item)) = GroupID) then
+          if (not (Event.Item is TSTrigger) or (Node.Count > 0)) then
+            InsertOrUpdateChild(Node, Event.Item);
       etItemAltered:
+        if (GroupIDByImageIndex(ImageIndexByData(Event.Item)) = GroupID) then
         begin
           Child := Node.getFirstChild();
           while (Assigned(Child) and (Child.Data <> Event.Item)) do
@@ -7211,8 +7293,9 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
             SetNodeBoldState(Child, (Child.ImageIndex = iiKey) and TSKey(Child.Data).PrimaryKey or (Child.ImageIndex in [iiField, iiVirtualField]) and TSTableField(Child.Data).InPrimaryKey);
         end;
       etItemDropped:
+        if (GroupIDByImageIndex(ImageIndexByData(Event.Item)) = GroupID) then
         begin
-          Session.Connection.DebugMonitor.Append('TFSession.FNavigatorUpdate.UpdateGroup: ' + Event.Items.ClassName + ': "' + Event.Item.Name + '"', ttDebug);
+          Session.Connection.DebugMonitor.Append('TFSession.FNavigatorUpdate.UpdateGroup - itItemDropped: ' + Event.Items.ClassName + ': "' + Event.Item.Name + '"', ttDebug);
 
           Child := Node.getFirstChild();
           while (Assigned(Child)) do
@@ -7257,6 +7340,8 @@ begin
   if (Event.Sender is TSSession) then
   begin
     Node := FNavigator.Items.getFirstNode();
+    while (Assigned(Node) and (Node.ImageIndex <> iiServer)) do
+      Node := Node.getNextSibling();
 
     FNavigator.Items.BeginUpdate();
 
@@ -7272,7 +7357,10 @@ begin
   begin
     Database := TSDatabase(Event.Sender);
 
-    Node := FNavigator.Items.getFirstNode().getFirstChild();
+    Node := FNavigator.Items.getFirstNode();
+    while (Assigned(Node) and (Node.ImageIndex <> iiServer)) do
+      Node := Node.getNextSibling();
+    Node := Node.getFirstChild();
     while (Assigned(Node) and (Node.Data <> Database)) do
       Node := Node.getNextSibling();
 
@@ -10099,7 +10187,10 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
         Mid := (Right - Left) div 2 + Left;
         case (Compare(Kind, ListView.Items[Mid], Item)) of
           -1: begin Left := Mid + 1; Index := Mid; end;
-          0: raise ERangeError.CreateFmt('%s "%s" - %d / %d / %d / %d', [TSItem(Data).ClassName, TSItem(Data).Name, Left, Mid, Right, ListView.Items.Count]);
+          0: raise ERangeError.CreateFmt('%s "%s" = %s = %s - %d / %d / %d / %d - %s:%s',
+            [TSItem(Data).ClassName, TSItem(Data).Name, ListView.Items[Mid].Caption, Item.Caption,
+              Left, Mid, Right, ListView.Items.Count,
+              TSObject(ListView.Tag).ClassName, TSObject(ListView.Tag).Name]);
           1: begin Right := Mid - 1; Index := Mid - 1; end;
         end;
       end;
@@ -10310,7 +10401,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
           for I := ListView.Items.Count - 1 downto 0 do
             if (ListView.Items[I].Data = Event.Item) then
             begin
-              Session.Connection.DebugMonitor.Append('... ' + IntToStr(ListView.Items[I].ImageIndex) + ' - "' + ListView.Items[I].Caption + '"', ttDebug);
+              Session.Connection.DebugMonitor.Append('... deleted: ' + IntToStr(ListView.Items[I].ImageIndex) + ' - "' + ListView.Items[I].Caption + '"', ttDebug);
               ListView.Items.Delete(I);
             end;
           if ((Kind = lkTable) and (Event.Items is TSBaseTableFields)) then
@@ -13005,128 +13096,6 @@ begin
     Wanted.Update := Session.Update;
 end;
 
-procedure TFSession.SetView(const AView: TView);
-var
-  ScrollPos: record
-    Horz: Integer;
-    Vert: Integer;
-  end;
-  URI: TUURI;
-begin
-  URI := TUURI.Create(Address);
-
-  case (AView) of
-    vObjects:
-      begin
-        URI.Param['view'] := Null;
-      end;
-    vBrowser:
-      begin
-        URI.Param['view'] := 'browser';
-        if (URI.Database = '') then
-          URI.Database := LastSelectedDatabase;
-        if (URI.Table = '') then
-          if (SelectedImageIndex = iiTrigger) then
-            URI.Table := TSTrigger(FNavigator.Selected.Data).TableName
-          else
-            URI.Table := LastSelectedTable;
-        URI.Param['system'] := Null;
-      end;
-    vIDE:
-      begin
-        URI.Param['view'] := 'ide';
-        if ((URI.Param['objecttype'] = Null) or (URI.Param['object'] = Null)) then
-          URI.Address := LastObjectIDEAddress;
-        URI.Param['system'] := Null;
-      end;
-    vBuilder:
-      begin
-        URI.Param['view'] := 'builder';
-        if (URI.Database = '') then
-          URI.Database := LastSelectedDatabase;
-        URI.Table := '';
-        URI.Param['system'] := Null;
-      end;
-    vDiagram:
-      begin
-        URI.Param['view'] := 'diagram';
-        if (URI.Database = '') then
-          URI.Database := LastSelectedDatabase;
-        URI.Table := '';
-        URI.Param['system'] := Null;
-      end;
-    vEditor,
-    vEditor2,
-    vEditor3:
-      begin
-        URI.Param['view'] := ViewToParam(AView);
-        if (URI.Database = '') then
-          URI.Database := LastSelectedDatabase;
-        if (URI.Database = '') then
-          URI.Database := Session.Connection.DatabaseName;
-        URI.Table := '';
-        if (not Assigned(SQLEditors[AView]) or (SQLEditors[AView].Filename = '')) then
-        begin
-          URI.Param['file'] := Null;
-          URI.Param['cp'] := Null;
-        end
-        else
-        begin
-          URI.Param['file'] := EscapeURL(SQLEditors[AView].Filename);
-          if (SQLEditors[AView].FileCodePage = 0) then
-            URI.Param['cp'] := Null
-          else
-            URI.Param['cp'] := IntToStr(SQLEditors[AView].FileCodePage);
-        end;
-      end;
-    else
-      raise ERangeError.Create(SRangeError);
-  end;
-
-  if (not (AView in [vObjects])) then
-  begin
-    URI.Param['system'] := Null;
-  end;
-  if (not (AView in [vBrowser])) then
-  begin
-    URI.Param['filter'] := Null;
-    URI.Param['search'] := Null;
-    URI.Param['offset'] := Null;
-  end;
-  if (not (AView in [vIDE])) then
-  begin
-    URI.Param['objecttype'] := Null;
-    URI.Param['object'] := Null;
-  end;
-  if (not (AView in [vEditor, vEditor2, vEditor3])) then
-  begin
-    URI.Param['file'] := Null;
-    URI.Param['cp'] := Null;
-  end;
-  if (not (AView in [vObjectSearch])) then
-  begin
-    URI.Param['text'] := Trim(FObjectSearch.Text);
-    URI.Param['databases'] := Null;
-    URI.Param['tables'] := Null;
-    URI.Param['routines'] := Null;
-    URI.Param['events'] := Null;
-    URI.Param['fields'] := Null;
-    URI.Param['triggers'] := Null;
-    URI.Param['name'] := Null;
-    URI.Param['comment'] := Null;
-  end;
-
-  LockWindowUpdate(FNavigator.Handle);
-  ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);
-  ScrollPos.Vert := GetScrollPos(FNavigator.Handle, SB_VERT);
-  Address := URI.Address;
-  SetScrollPos(FNavigator.Handle, SB_HORZ, ScrollPos.Horz, TRUE);
-  SetScrollPos(FNavigator.Handle, SB_VERT, ScrollPos.Vert, TRUE);
-  LockWindowUpdate(0);
-
-  URI.Free();
-end;
-
 procedure TFSession.SetAddress(const AAddress: string);
 var
   AllowChange: Boolean;
@@ -13152,12 +13121,6 @@ begin
   begin
     Node := FNavigatorNodeByAddress(NewAddress);
     AllowChange := Assigned(Node);
-    if (not AllowChange) then
-    begin
-      URI := TUURI.Create(NewAddress);
-      AllowChange := URI.Param['view'] = 'objectsearch';
-      URI.Free();
-    end;
     if (not AllowChange) then
       Wanted.Address := Session.Account.ExpandAddress('/');
   end;
@@ -13267,6 +13230,142 @@ begin
     if (AllowChange) then
       AddressChanged(nil);
   end;
+end;
+
+procedure TFSession.SetView(const AView: TView);
+var
+  ScrollPos: record
+    Horz: Integer;
+    Vert: Integer;
+  end;
+  URI: TUURI;
+begin
+  URI := TUURI.Create(Address);
+
+  case (AView) of
+    vObjects:
+      begin
+        URI.Param['view'] := Null;
+      end;
+    vBrowser:
+      begin
+        URI.Param['view'] := 'browser';
+        if (URI.Database = '') then
+          URI.Database := LastSelectedDatabase;
+        if (URI.Table = '') then
+          if (SelectedImageIndex = iiTrigger) then
+          begin
+            URI.Table := TSTrigger(FNavigator.Selected.Data).TableName;
+
+            // Debug 2017-01-15
+            if (URI.Table = '') then
+              raise ERangeError.Create('Trigger: ' + FNavigator.Selected.Text + #13#10
+                + 'TableName: ' + TSTrigger(FNavigator.Selected.Data).TableName);
+          end
+          else
+          begin
+            URI.Table := LastSelectedTable;
+
+            // Debug 2017-01-15
+            if (URI.Table = '') then
+              raise ERangeError.Create('LastSelectedTable: ' + LastSelectedTable);
+          end;
+
+        URI.Param['system'] := Null;
+      end;
+    vIDE:
+      begin
+        URI.Param['view'] := 'ide';
+        if ((URI.Param['objecttype'] = Null) or (URI.Param['object'] = Null)) then
+          URI.Address := LastObjectIDEAddress;
+        URI.Param['system'] := Null;
+      end;
+    vBuilder:
+      begin
+        URI.Param['view'] := 'builder';
+        if (URI.Database = '') then
+          URI.Database := LastSelectedDatabase;
+        URI.Table := '';
+        URI.Param['system'] := Null;
+      end;
+    vDiagram:
+      begin
+        URI.Param['view'] := 'diagram';
+        if (URI.Database = '') then
+          URI.Database := LastSelectedDatabase;
+        URI.Table := '';
+        URI.Param['system'] := Null;
+      end;
+    vEditor,
+    vEditor2,
+    vEditor3:
+      begin
+        URI.Param['view'] := ViewToParam(AView);
+        if (URI.Database = '') then
+          URI.Database := LastSelectedDatabase;
+        if (URI.Database = '') then
+          URI.Database := Session.Connection.DatabaseName;
+        URI.Table := '';
+        if (not Assigned(SQLEditors[AView]) or (SQLEditors[AView].Filename = '')) then
+        begin
+          URI.Param['file'] := Null;
+          URI.Param['cp'] := Null;
+        end
+        else
+        begin
+          URI.Param['file'] := EscapeURL(SQLEditors[AView].Filename);
+          if (SQLEditors[AView].FileCodePage = 0) then
+            URI.Param['cp'] := Null
+          else
+            URI.Param['cp'] := IntToStr(SQLEditors[AView].FileCodePage);
+        end;
+      end;
+    else
+      raise ERangeError.Create(SRangeError);
+  end;
+
+  if (not (AView in [vObjects])) then
+  begin
+    URI.Param['system'] := Null;
+  end;
+  if (not (AView in [vBrowser])) then
+  begin
+    URI.Param['filter'] := Null;
+    URI.Param['search'] := Null;
+    URI.Param['offset'] := Null;
+  end;
+  if (not (AView in [vIDE])) then
+  begin
+    URI.Param['objecttype'] := Null;
+    URI.Param['object'] := Null;
+  end;
+  if (not (AView in [vEditor, vEditor2, vEditor3])) then
+  begin
+    URI.Param['file'] := Null;
+    URI.Param['cp'] := Null;
+  end;
+  if (not (AView in [vObjectSearch])) then
+  begin
+    URI.Param['text'] := Trim(FObjectSearch.Text);
+    URI.Param['databases'] := Null;
+    URI.Param['tables'] := Null;
+    URI.Param['routines'] := Null;
+    URI.Param['events'] := Null;
+    URI.Param['fields'] := Null;
+    URI.Param['triggers'] := Null;
+    URI.Param['name'] := Null;
+    URI.Param['comment'] := Null;
+  end;
+
+  LockWindowUpdate(FNavigator.Handle);
+  ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);
+  ScrollPos.Vert := GetScrollPos(FNavigator.Handle, SB_VERT);
+  Address := URI.Address;
+  SetScrollPos(FNavigator.Handle, SB_HORZ, ScrollPos.Horz, TRUE);
+  SetScrollPos(FNavigator.Handle, SB_VERT, ScrollPos.Vert, TRUE);
+  LockWindowUpdate(0);
+
+  URI.Free();
 end;
 
 procedure TFSession.SetListViewGroupHeader(const ListView: TListView; const GroupID: Integer; const NewHeader: string);
@@ -14232,6 +14331,9 @@ begin
   LeftMousePressed := (Sender is TTreeView_Ext) and (Button = mbLeft);
   if (LeftMousePressed) then
     MouseDownNode := TTreeView_Ext(Sender).GetNodeAt(X, Y);
+  if (Assigned(MouseDownNode) and (MouseDownNode.Text = '')) then
+    MouseDownNode := nil;
+
   Exclude(FrameState, tsLoading);
 end;
 
@@ -14756,6 +14858,7 @@ procedure TFSession.UMPostShow(var Message: TMessage);
 var
   AllowChange: Boolean;
   Node: TTreeNode;
+  ServerNode: TTreeNode;
   URI: TUURI;
 begin
   PNavigator.Visible := Session.Account.Desktop.NavigatorVisible;
@@ -14791,31 +14894,37 @@ begin
 
   Perform(UM_ACTIVATEFRAME, 0, 0);
 
+  if (Preferences.FavoritesVisible) then
+  begin
+    Node := FNavigator.Items.Add(nil, '');
+    Node.ImageIndex := iiFavorites;
+    FNavigator.Items.Add(nil, '');
+  end;
 
-  Node := FNavigator.Items.Add(nil, Session.Caption);
-  Node.Data := Session;
-  Node.ImageIndex := iiServer;
+  ServerNode := FNavigator.Items.Add(nil, Session.Caption);
+  ServerNode.Data := Session;
+  ServerNode.ImageIndex := iiServer;
 
   if (Assigned(Session.Processes)) then
   begin
-    Node := FNavigator.Items.AddChild(FNavigator.Items.GetFirstNode(), Preferences.LoadStr(24));
+    Node := FNavigator.Items.AddChild(ServerNode, '');
     Node.Data := Session.Processes;
     Node.ImageIndex := iiProcesses;
   end;
   if (Assigned(Session.Users)) then
   begin
-    Node := FNavigator.Items.AddChild(FNavigator.Items.GetFirstNode(), Preferences.LoadStr(561));
+    Node := FNavigator.Items.AddChild(ServerNode, '');
     Node.Data := Session.Users;
     Node.ImageIndex := iiUsers;
   end;
   if (Assigned(Session.Variables)) then
   begin
-    Node := FNavigator.Items.AddChild(FNavigator.Items.GetFirstNode(), Preferences.LoadStr(22));
+    Node := FNavigator.Items.AddChild(ServerNode, '');
     Node.Data := Session.Variables;
     Node.ImageIndex := iiVariables;
   end;
 
-  FNavigator.Items.GetFirstNode().Expand(False);
+  ServerNode.Expand(False);
 
   FNavigatorInitialize(nil);
 

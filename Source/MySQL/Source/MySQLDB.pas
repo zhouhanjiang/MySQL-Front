@@ -3411,6 +3411,11 @@ begin
     if (SyncThread.WarningCount > 0) then
       WriteMonitor('--> Warnings: ' + IntToStr(SyncThread.WarningCount), ttInfo);
 
+    // Debug 2017-01-15
+    if (not Assigned(SyncThread.LibHandle)) then
+      raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)) + #13#10
+        + 'Mode: ' + IntToStr(Ord(SyncThread.Mode)));
+
     if (Assigned(Lib.mysql_session_track_get_first) and Assigned(Lib.mysql_session_track_get_next)) then
       if (Lib.mysql_session_track_get_first(SyncThread.LibHandle, SESSION_TRACK_SYSTEM_VARIABLES, Data, Size) = 0) then
         repeat

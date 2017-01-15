@@ -377,6 +377,7 @@ type
     Event: TEvent;
     Export: TExport;
     Field: TField;
+    FavoritesVisible: Boolean;
     Find: TFind;
     ForeignKey: TForeignKey;
     GridCurrRowBGColor: TColor;
@@ -497,9 +498,14 @@ type
     TDesktop = class
     type
       TListViewKind = (lkServer, lkDatabase, lkTable, lkProcesses, lkUsers, lkVariables, lkObjectSearch);
+
+      TFavorites = class(TList)
+      end;
+
     private
       FAccount: TPAccount;
       FAddressMRU: TPPreferences.TMRUList;
+      FFavorites: TFavorites;
       FFiles: TFiles;
       FPath: string;
       function GetAddress(): string;
@@ -526,6 +532,7 @@ type
       destructor Destroy(); override;
       property Address: string read GetAddress write SetAddress;
       property AddressMRU: TPPreferences.TMRUList read FAddressMRU;
+      property Favorites: TFavorites read FFavorites;
       property Files: TFiles read FFiles;
     end;
 
@@ -1918,6 +1925,7 @@ begin
   Left := 0;
   Height := 0;
   Width := 0;
+  FavoritesVisible := {$IFNDEF Debug} False; {$ELSE} True; {$ENDIF}
   GridFontName := 'Microsoft Sans Serif';
   GridFontColor := clWindowText;
   GridFontStyle := [];

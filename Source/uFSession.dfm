@@ -1263,7 +1263,7 @@ object FSession: TFSession
       end
     end
     object FObjectSearch: TEdit
-      Left = 40682
+      Left = 1404
       Top = 0
       Width = 140
       Height = 22
@@ -1275,10 +1275,10 @@ object FSession: TFSession
       OnEnter = FObjectSearchEnter
       OnExit = FObjectSearchExit
       OnKeyPress = FObjectSearchKeyPress
-      ExplicitLeft = 32752
+      ExplicitLeft = 886
     end
     object TBObjectSearch: TToolBar
-      Left = 40667
+      Left = 1618
       Top = 0
       Width = 23
       Height = 22
@@ -1287,7 +1287,7 @@ object FSession: TFSession
       TabOrder = 3
       Transparent = True
       Visible = False
-      ExplicitLeft = 32752
+      ExplicitLeft = 1046
       object FObjectSearchStart: TToolButton
         Left = 0
         Top = 0
