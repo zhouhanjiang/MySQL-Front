@@ -230,8 +230,6 @@ begin
 
   FreeAndNil(SetupProgramStream);
 
-MessageBox(0, PChar('Programm geladen und unter "' + SetupPrgFilename + '" gespeichert'), 'Peter''s Debug', MB_OK);
-
   Preferences.SetupProgram := SetupPrgFilename;
 
   ModalResult := mrOk;
