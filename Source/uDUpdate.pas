@@ -206,12 +206,13 @@ begin
   begin
     FVersionInfo.Caption := Preferences.LoadStr(663) + ': ' + VersionStr;
 
-    if (OnlineVersion <= Preferences.Version) then
-    begin
-      MsgBox(Preferences.LoadStr(507), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
-      FBCancel.Click();
-    end
-    else
+  {$MESSAGE 'Peter'}
+//    if (OnlineVersion <= Preferences.Version) then
+//    begin
+//      MsgBox(Preferences.LoadStr(507), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
+//      FBCancel.Click();
+//    end
+//    else
     begin
       SendMessage(Handle, UM_UPDATE_PROGRESSBAR, 0, 0);
 
@@ -219,6 +220,7 @@ begin
       ActiveControl := FBForward;
     end;
   end;
+
   FreeAndNil(PADFileStream);
 end;
 
@@ -228,6 +230,8 @@ begin
 
   FreeAndNil(SetupProgramStream);
 
+MessageBox(0, PChar('Programm geladen und unter "' + SetupPrgFilename + '" gespeichert'), 'Peter''s Debug', MB_OK);
+
   Preferences.SetupProgram := SetupPrgFilename;
 
   ModalResult := mrOk;
@@ -235,6 +239,8 @@ end;
 
 procedure TDUpdate.UMTerminate(var Msg: TMessage);
 begin
+  HTTPThread.WaitFor();
+
   if (HTTPThread.ErrorCode <> 0) then
     MsgBox(HTTPThread.ErrorMessage, Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
   else if (HTTPThread.HTTPStatus <> HTTP_STATUS_OK) then
@@ -246,7 +252,8 @@ begin
   else
     raise ERangeError.Create(SRangeError);
 
-  HTTPThread.WaitFor();
+MessageBox(0, 'Download abgeschlossen', 'Peter''s Debug', MB_OK);
+
   HTTPThread.Free();
   HTTPThread := nil;
 
