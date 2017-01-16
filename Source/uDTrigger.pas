@@ -313,20 +313,17 @@ begin
     FStatement.Text := 'BEGIN' + #13#10 + '  SET @A = 1;' + #13#10 + 'END;';
 
     TSSource.TabVisible := False;
-
-    PageControl.Visible := True;
-    PSQLWait.Visible := not PageControl.Visible;
   end
   else
   begin
-    PageControl.Visible := SessionState = ssValid;
-    PSQLWait.Visible := not PageControl.Visible;
-
     if (SessionState = ssValid) then
       Built();
   end;
 
   TSInformation.TabVisible := Assigned(Trigger);
+
+  PageControl.Visible := SessionState in [ssCreate, ssValid];
+  PSQLWait.Visible := not PageControl.Visible;
 
   FBOk.Enabled := PageControl.Visible and not Assigned(Trigger);
 

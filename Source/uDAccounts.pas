@@ -467,7 +467,7 @@ begin
     Account := Accounts.AccountByName(Item.Caption);
 
   aEdit.Enabled := Assigned(Item) and Selected;
-  aDelete.Enabled := Assigned(Item) and Selected and Assigned(Account) and (Account.DesktopCount = 0);
+  aDelete.Enabled := Assigned(Item) and Selected and Assigned(Account) and (Account.SessionCount = 0);
 
   FBOkEnabledCheck(Sender);
   FBOk.Default := FBOk.Enabled;

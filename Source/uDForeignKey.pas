@@ -95,72 +95,33 @@ var
   I: Integer;
   J: Integer;
 begin
-  if (not Assigned(ForeignKey)) then
-  begin
-    FName.Text := '';
+  FName.Text := ForeignKey.Name;
 
-    FParentDatabase.ItemIndex := FParentDatabase.Items.IndexOf(Table.Database.Name);
-    FParentDatabaseChange(nil);
-    if (not Assigned(ParentTable)) then
-      FParentTable.ItemIndex := -1
-    else
-      FParentTable.ItemIndex := FParentTable.Items.IndexOf(ParentTable.Name);
-    FParentTableChange(nil);
+  for I := 0 to FFields.Items.Count - 1 do
+    for J := 0 to Length(ForeignKey.Fields) - 1 do
+      if (lstrcmpi(PChar(FFields.Items.Strings[I]), PChar(ForeignKey.Fields[J].Name)) = 0) then
+        FFields.Selected[I] := True;
 
-    FOnDelete.ItemIndex := 0;
-    FOnUpdate.ItemIndex := 0;
-  end
-  else
-  begin
-    FName.Text := ForeignKey.Name;
+  FParentDatabase.ItemIndex := FParentDatabase.Items.IndexOf(ForeignKey.Parent.DatabaseName);
+  FParentDatabaseChange(nil);
 
-    for I := 0 to FFields.Items.Count - 1 do
-      for J := 0 to Length(ForeignKey.Fields) - 1 do
-        if (lstrcmpi(PChar(FFields.Items.Strings[I]), PChar(ForeignKey.Fields[J].Name)) = 0) then
-          FFields.Selected[I] := True;
+  FParentTable.ItemIndex := FParentTable.Items.IndexOf(ForeignKey.Parent.TableName);
+  FParentTableChange(nil);
 
-    FParentDatabase.ItemIndex := FParentDatabase.Items.IndexOf(ForeignKey.Parent.DatabaseName);
-    FParentDatabaseChange(nil);
-
-    FParentTable.ItemIndex := FParentTable.Items.IndexOf(ForeignKey.Parent.TableName);
-    FParentTableChange(nil);
-
-    case (ForeignKey.OnDelete) of
-      dtRestrict: FOnDelete.ItemIndex := 0;
-      dtCascade: FOnDelete.ItemIndex := 1;
-      dtSetNull: FOnDelete.ItemIndex := 2;
-      dtSetDefault: FOnDelete.ItemIndex := 3;
-      dtNoAction: FOnDelete.ItemIndex := 4;
-    end;
-    case (ForeignKey.OnUpdate) of
-      utRestrict: FOnUpdate.ItemIndex := 0;
-      utCascade: FOnUpdate.ItemIndex := 1;
-      utSetNull: FOnUpdate.ItemIndex := 2;
-      utSetDefault: FOnUpdate.ItemIndex := 3;
-      utNoAction: FOnUpdate.ItemIndex := 4;
-    end;
+  case (ForeignKey.OnDelete) of
+    dtRestrict: FOnDelete.ItemIndex := 0;
+    dtCascade: FOnDelete.ItemIndex := 1;
+    dtSetNull: FOnDelete.ItemIndex := 2;
+    dtSetDefault: FOnDelete.ItemIndex := 3;
+    dtNoAction: FOnDelete.ItemIndex := 4;
   end;
-
-  FFields.Items.BeginUpdate();
-  for I := 0 to Table.Fields.Count - 1 do
-  begin
-    FFields.Items.Add(Table.Fields[I].Name);
-    if (Assigned(ForeignKey)) then
-      for J := 0 to Length(ForeignKey.Fields) - 1 do
-        if (Table.Fields.NameCmp(ForeignKey.Fields[J].Name, Table.Fields[I].Name) = 0) then
-          FFields.Selected[I] := True;
+  case (ForeignKey.OnUpdate) of
+    utRestrict: FOnUpdate.ItemIndex := 0;
+    utCascade: FOnUpdate.ItemIndex := 1;
+    utSetNull: FOnUpdate.ItemIndex := 2;
+    utSetDefault: FOnUpdate.ItemIndex := 3;
+    utNoAction: FOnUpdate.ItemIndex := 4;
   end;
-  FFields.Items.EndUpdate();
-
-  FName.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
-  FLName.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
-  FLTable.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
-  FLFields.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
-  FLChild.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
-  FLParent.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
-  FFields.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
-  FOnDelete.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013); FLOnDelete.Enabled := FOnDelete.Enabled;
-  FOnUpdate.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013); FLOnUpdate.Enabled := FOnUpdate.Enabled;
 end;
 
 function TDForeignKey.Execute(): Boolean;
@@ -361,6 +322,7 @@ end;
 procedure TDForeignKey.FormShow(Sender: TObject);
 var
   I: Integer;
+  J: Integer;
 begin
   Table.Session.RegisterEventProc(FormSessionEvent);
 
@@ -386,12 +348,33 @@ begin
   FDatabase.Text := Table.Database.Name;
   FTable.Text := Table.Name;
 
+  FFields.Items.BeginUpdate();
+  for I := 0 to Table.Fields.Count - 1 do
+  begin
+    FFields.Items.Add(Table.Fields[I].Name);
+    if (Assigned(ForeignKey)) then
+      for J := 0 to Length(ForeignKey.Fields) - 1 do
+        if (Table.Fields.NameCmp(ForeignKey.Fields[J].Name, Table.Fields[I].Name) = 0) then
+          FFields.Selected[I] := True;
+  end;
+  FFields.Items.EndUpdate();
+
   FParentDatabase.Clear();
   for I := 0 to Table.Session.Databases.Count - 1 do
     if (not (Table.Session.Databases[I] is TSSystemDatabase)) then
       FParentDatabase.Items.Add(Table.Session.Databases[I].Name);
 
   FParentFields.Clear();
+
+  FName.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
+  FLName.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
+  FLTable.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
+  FLFields.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
+  FLChild.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
+  FLParent.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
+  FFields.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
+  FOnDelete.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013); FLOnDelete.Enabled := FOnDelete.Enabled;
+  FOnUpdate.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013); FLOnUpdate.Enabled := FOnUpdate.Enabled;
 
   if (not Assigned(ForeignKey)) then
     SessionState := ssCreate
@@ -400,12 +383,30 @@ begin
   else
     SessionState := ssValid;
 
+  if (not Assigned(ForeignKey)) then
+  begin
+    FName.Text := '';
+
+    FParentDatabase.ItemIndex := FParentDatabase.Items.IndexOf(Table.Database.Name);
+    FParentDatabaseChange(nil);
+    if (not Assigned(ParentTable)) then
+      FParentTable.ItemIndex := -1
+    else
+      FParentTable.ItemIndex := FParentTable.Items.IndexOf(ParentTable.Name);
+    FParentTableChange(nil);
+
+    FOnDelete.ItemIndex := 0;
+    FOnUpdate.ItemIndex := 0;
+  end
+  else
+  begin
+    if (GBasics.Visible) then
+      Built();
+  end;
+
   GBasics.Visible := SessionState in [ssCreate, ssValid];
   GAttributes.Visible := GBasics.Visible;
   PSQLWait.Visible := not GBasics.Visible;
-
-  if (GBasics.Visible) then
-    Built();
 
   FBOk.Visible := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
   if (FBOk.Visible) then

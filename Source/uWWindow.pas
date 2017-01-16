@@ -1772,15 +1772,6 @@ var
 begin
   Tab := TFSession(Message.LParam);
 
-  // Debug 2017-01-13
-  if (Assigned(Tab)) then
-    if (Sessions.IndexOf(Tab.Session) < 0) then
-      raise ERangeError.Create(SRangeError)
-    else if (Tab.Session.Identifier123456 <> 123456) then
-      raise ERangeError.Create('Identifier123456: ' + IntToStr(Tab.Session.Identifier123456))
-    else if (not Assigned(Tab.Session.Account.Desktop)) then
-      raise ERangeError.Create(SRangeError);
-
   for I := ToolBar.ButtonCount - 1 downto ToolButton11.Index do
     ToolBar.Buttons[I].Visible := False;
 

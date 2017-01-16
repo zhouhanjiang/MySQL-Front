@@ -523,15 +523,9 @@ begin
     FStmt.Lines.Text := 'SELECT 1;';
 
     TSSource.TabVisible := False;
-
-    PageControl.Visible := True;
-    PSQLWait.Visible := not PageControl.Visible;
   end
   else
   begin
-    PageControl.Visible := SessionState = ssValid;
-    PSQLWait.Visible := not PageControl.Visible;
-
     if (SessionState = ssValid) then
       Built();
   end;
@@ -541,6 +535,9 @@ begin
   TSInformation.TabVisible := Assigned(View);
   TSFields.TabVisible := Assigned(View);
   TSDependencies.TabVisible := Assigned(View);
+
+  PageControl.Visible := SessionState in [ssCreate, ssValid];
+  PSQLWait.Visible := not PageControl.Visible;
 
   FBOk.Enabled := PageControl.Visible and not Assigned(View);
 

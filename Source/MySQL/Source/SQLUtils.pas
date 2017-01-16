@@ -2047,6 +2047,7 @@ const
 var
   BracketDeep: Integer;
   Len: Integer;
+  S: string; // Debug 2017-01-16
 begin
   Len := Handle.Len;
   SetLength(Result, Len);
@@ -2168,6 +2169,13 @@ begin
         POP EDI
         POP ESI
         POP ES
+    end;
+
+    // Debug 2017-01-16
+    if (Len = 0) then
+    begin
+      SetString(S, Handle.Pos, Handle.Len - (Integer(Handle.Pos) - Integer(Handle.Start)) div SizeOf(Char));
+      raise ERangeError.Create('Text: ' + S);
     end;
 
     if (Len <> Length(Result)) then

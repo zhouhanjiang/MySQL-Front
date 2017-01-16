@@ -910,7 +910,7 @@ uses
   DBConsts, Forms, Variants,
   RTLConsts, Consts, SysConst, Math, StrUtils, AnsiStrings,
   {$IFDEF EurekaLog}
-  ExceptionLog7, EExceptionManager,
+  ExceptionLog7, EExceptionManager, EFreeze,
   {$ENDIF}
   MySQLClient,
   SQLUtils, CSVUtils, HTTPTunnel;
@@ -2378,14 +2378,7 @@ begin
   SyncThread.RequestThreadID := GetCurrentThreadId();
   SyncThread.State := ssConnect;
   repeat
-    if (SynchronCount > 0) then
-    begin
-      SyncThread.Synchronize();
-      SyncThreadExecuted.WaitFor(INFINITE);
-      SyncThread.Synchronize();
-    end
-    else
-      SyncThread.Synchronize();
+    SyncThread.Synchronize();
   until ((SynchronCount = 0) or (SyncThread.State in [ssClose, ssReady]));
 end;
 
@@ -5702,6 +5695,8 @@ begin
 end;
 
 function TMySQLDataSet.TInternRecordBuffers.IndexOf(const Bookmark: TBookmark): Integer;
+var
+  Msg: string;
 begin
   // 2017-01-16
   // ... should be "inline"
@@ -5710,9 +5705,19 @@ begin
 
   // Debug 2017-01-16
   if (Length(Bookmark) <> SizeOf(PInternRecordBuffer)) then
-    raise ERangeError.Create('Length: ' + IntToStr(Length(Bookmark)));
+  begin
+    Msg := 'Length: ' + IntToStr(Length(Bookmark)) + #13#10
+      + 'Count: ' + IntToStr(Count) + #13#10
+      + 'Index: ' + IntToStr(Index) + #13#10
+      + 'State: ' + IntToStr(Ord(DataSet.State)) + #13#10;
+    if (DataSet.ActiveBuffer() <> 0) then
+      Msg := Msg
+        + 'ActiveBuffer.Index: ' + IntToStr(TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.Index) + #13#10
+        + 'ActiveBuffer.BookmarkFlag: ' + IntToStr(Ord(TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.BookmarkFlag));
+    raise ERangeError.Create(Msg);
+  end;
 
-//  Assert(Length(Bookmark) = SizeOf(PInternRecordBuffer));
+  Assert(Length(Bookmark) = SizeOf(PInternRecordBuffer));
 
   Result := IndexOf(PInternRecordBuffer(PPointer(@Bookmark[0])^))
 end;
@@ -8081,7 +8086,15 @@ end;
 procedure TMySQLTable.InternalLast();
 begin
   if (LimitedDataReceived and AutomaticLoadNextRecords and LoadNextRecords(True)) then
+  begin
+    {$IFDEF EurekaLog}
+      PauseFreezeCheck();
+    {$ENDIF}
     RecordsReceived.WaitFor(INFINITE);
+    {$IFDEF EurekaLog}
+      ResumeFreezeCheck();
+    {$ENDIF}
+  end;
 
   inherited;
 end;
@@ -8266,7 +8279,11 @@ end;
 //  RBS: RawByteString;
 //  SQL: string;
 initialization
-//  Hex := '';
+//  Hex := '53484F5720435245415445205441424C45206064625F6D757372656E62616E67602E60'
+//    + '6D61737465725F746168756E5F636F7079603B0D0A53454C454354202A2046524F4D20604'
+//    + '94E464F524D4154494F4E5F534348454D41602E605441424C455360205748455245206054'
+//    + '41424C455F534348454D41603D2764625F6D757372656E62616E672720414E44206054414'
+//    + '24C455F4E414D456020494E2028276D61737465725F746168756E5F636F707927293B0D0A';
 //  SetLength(RBS, Length(Hex) div 2);
 //  HexToBin(PChar(Hex), PAnsiChar(RBS), Length(RBS));
 //  SetLength(SQL, Length(RBS));

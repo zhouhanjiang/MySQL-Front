@@ -561,30 +561,28 @@ type
     DesktopXMLDocument: IXMLDocument;
     FAccounts: TPAccounts;
     FConnection: TConnection;
-    Identifier123123: Integer;
     FDesktop: TDesktop;
-    Identifier321321: Integer;
     FHistoryXMLDocument: IXMLDocument;
     FLastLogin: TDateTime;
     FName: string;
-    FTabs: array of record Control: Pointer; AccountEventProc: TEventProc; end;
+    FSessions: TList;
+    FTabs: TList;
     FXML: IXMLNode;
     Modified: Boolean;
     function GetDataPath(): TFileName;
-    function GetTabCount(): Integer;
-    function GetDesktop(): TDesktop;
     function GetDesktopFilename(): TFileName;
     function GetDesktopXML(): IXMLNode;
     function GetHistoryFilename(): TFileName;
     function GetHistoryXML(): IXMLNode;
     function GetName(): string;
+    function GetSessionCount(): Integer;
+    function GetTabCount(): Integer;
     procedure SetLastLogin(const ALastLogin: TDateTime);
   protected
     Section: string;
     function GetIndex(): Integer;
     procedure Load(); virtual;
     procedure Save(); virtual;
-    procedure AccountEvent(const ClassType: TClass); virtual;
     function ValidDatabaseName(const ADatabaseName: string): Boolean;
     property DesktopFilename: TFileName read GetDesktopFilename;
     property HistoryFilename: TFileName read GetHistoryFilename;
@@ -600,18 +598,21 @@ type
     function ExpandAddress(const APath: string): string; virtual;
     function FirstTab(): Pointer; virtual;
     function GetDefaultDatabase(): string; virtual;
-    procedure RegisterTab(const AControl: Pointer; const AEventProc: TEventProc); virtual;
-    procedure UnRegisterTab(const AControl: Pointer); virtual;
+    procedure RegisterSession(const ASession: Pointer);
+    procedure RegisterTab(const ATab: Pointer);
+    procedure UnRegisterSession(const ASession: Pointer);
+    procedure UnRegisterTab(const ATab: Pointer);
     property Accounts: TPAccounts read FAccounts;
     property Connection: TConnection read FConnection;
     property DataPath: TFileName read GetDataPath;
-    property Desktop: TDesktop read GetDesktop;
-    property DesktopCount: Integer read GetTabCount;
+    property Desktop: TDesktop read FDesktop;
     property DesktopXML: IXMLNode read GetDesktopXML;
     property HistoryXML: IXMLNode read GetHistoryXML;
     property Index: Integer read GetIndex;
     property LastLogin: TDateTime read FLastLogin write SetLastLogin;
     property Name: string read GetName write FName;
+    property SessionCount: Integer read GetSessionCount;
+    property TabCount: Integer read GetTabCount;
   end;
 
   TPAccounts = class(TList)
@@ -1925,7 +1926,7 @@ begin
   Left := 0;
   Height := 0;
   Width := 0;
-  FavoritesVisible := {$IFNDEF Debug} False; {$ELSE} False; {$ENDIF}
+  FavoritesVisible := {$IFNDEF Debug} False; {$ELSE} True; {$ENDIF}
   GridFontName := 'Microsoft Sans Serif';
   GridFontColor := clWindowText;
   GridFontStyle := [];
@@ -3057,15 +3058,6 @@ end;
 
 { TPAccount *******************************************************************}
 
-procedure TPAccount.AccountEvent(const ClassType: TClass);
-var
-  I: Integer;
-begin
-  for I := 0 to Length(FTabs) - 1 do
-    if (Assigned(FTabs[I].AccountEventProc)) then
-      FTabs[I].AccountEventProc(ClassType);
-end;
-
 procedure TPAccount.Assign(const Source: TPAccount);
 begin
   Assert(Assigned(Source));
@@ -3101,18 +3093,15 @@ begin
 
   FHistoryXMLDocument := nil;
   FLastLogin := 0;
+  FSessions := TList.Create();
+  FTabs := TList.Create();
   ManualURL := '';
   ManualURLVersion := '';
   Modified := False;
-  Identifier123123 := 123123;
-  Identifier321321 := 321321;
 
   FConnection := TConnection.Create();
 
   FDesktop := TDesktop.Create(Self);
-  // Debug 2016-12-05
-  if (not Assigned(FDesktop)) then
-    raise ERangeError.Create(SRangeError);
 
   if (not FileExists(DesktopFilename)) then
     DesktopXMLDocument := nil
@@ -3162,18 +3151,12 @@ begin
   end;
 
   DesktopXMLDocument.Options := DesktopXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
-
-  // Debug 2016-12-12
-  if (not Assigned(FDesktop)) then
-    raise ERangeError.Create(SRangeError);
 end;
 
 destructor TPAccount.Destroy();
 begin
-  // Debug 2016-12-12
-  if (not Assigned(FDesktop)) then
-    raise ERangeError.Create(SRangeError);
-
+  FTabs.Free();
+  FSessions.Free();
   FDesktop.Free();
   FConnection.Free();
 
@@ -3220,10 +3203,10 @@ end;
 
 function TPAccount.FirstTab(): Pointer;
 begin
-  if (Length(FTabs) = 0) then
+  if (FTabs.Count = 0) then
     Result := nil
   else
-    Result := FTabs[0].Control;
+    Result := FTabs[0];
 end;
 
 function TPAccount.GetDataPath(): TFileName;
@@ -3276,15 +3259,6 @@ begin
 
     SetLength(DatabaseNames, 0);
   end;
-end;
-
-function TPAccount.GetDesktop(): TDesktop;
-begin
-  if ((Identifier123123 <> 123123) or (Identifier321321 <> 321321)) then
-    raise ERangeError.Create('Identifier123123: ' + IntToStr(Identifier123123) + #13#10
-      + 'Identifier321321: ' + IntToStr(Identifier321321));
-
-  Result := FDesktop;
 end;
 
 function TPAccount.GetDesktopFilename(): TFileName;
@@ -3349,9 +3323,14 @@ begin
   Result := FName;
 end;
 
+function TPAccount.GetSessionCount(): Integer;
+begin
+  Result := FSessions.Count;
+end;
+
 function TPAccount.GetTabCount(): Integer;
 begin
-  Result := Length(FTabs);
+  Result := FTabs.Count;
 end;
 
 procedure TPAccount.Load();
@@ -3371,11 +3350,18 @@ begin
   end;
 end;
 
-procedure TPAccount.RegisterTab(const AControl: Pointer; const AEventProc: TEventProc);
+procedure TPAccount.RegisterSession(const ASession: Pointer);
 begin
-  SetLength(FTabs, Length(FTabs) + 1);
-  FTabs[Length(FTabs) - 1].Control := AControl;
-  FTabs[Length(FTabs) - 1].AccountEventProc := AEventProc;
+  Assert(FSessions.IndexOf(ASession) < 0);
+
+  FSessions.Add(ASession);
+end;
+
+procedure TPAccount.RegisterTab(const ATab: Pointer);
+begin
+  Assert(FTabs.IndexOf(ATab) < 0);
+
+  FTabs.Add(ATab);
 end;
 
 procedure TPAccount.Save();
@@ -3417,21 +3403,18 @@ begin
   Modified := True;
 end;
 
-procedure TPAccount.UnRegisterTab(const AControl: Pointer);
-var
-  I: Integer;
-  J: Integer;
+procedure TPAccount.UnRegisterSession(const ASession: Pointer);
 begin
-  I := 0;
-  while (I < Length(FTabs)) do
-    if (FTabs[I].Control <> AControl) then
-      Inc(I)
-    else
-    begin
-      for J := I to Length(FTabs) - 2 do
-        FTabs[J] := FTabs[J + 1];
-      SetLength(FTabs, Length(FTabs) - 1);
-    end;
+  Assert(FSessions.IndexOf(ASession) >= 0);
+
+  FSessions.Delete(FSessions.IndexOf(ASession));
+end;
+
+procedure TPAccount.UnRegisterTab(const ATab: Pointer);
+begin
+  Assert(FTabs.IndexOf(ATab) >= 0);
+
+  FTabs.Delete(FTabs.IndexOf(ATab));
 end;
 
 function TPAccount.ValidDatabaseName(const ADatabaseName: string): Boolean;
@@ -3726,7 +3709,7 @@ begin
       begin
         Result := Account[I];
         Inc(Found);
-        if ((Result = DefaultAccount) or (Result.DesktopCount > 0)) then
+        if ((Result = DefaultAccount) or (Result.TabCount > 0)) then
           break;
       end;
     end;
@@ -3807,4 +3790,5 @@ initialization
 finalization
   CoUninitialize();
 end.
+
 

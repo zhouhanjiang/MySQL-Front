@@ -788,6 +788,9 @@ begin
     Result := Result + 'Total Memory: ' + IntToStr(GetMemPhysicalInstalled()) + #13#10#13#10;
   end;
 
+  if (ExceptionInfo.ClassName = 'EFrozenApplication') then
+    Result := Result + 'FreezeTimeout: ' + IntToStr(CurrentEurekaLogOptions.FreezeTimeout) + #13#10;
+
   if (Assigned(ExceptionInfo.CallStack)) then
   begin
     ExceptionInfo.CallStack.Formatter := TStackFormatter.Create();

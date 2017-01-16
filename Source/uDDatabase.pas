@@ -423,18 +423,14 @@ begin
     FCharset.ItemIndex := FCharset.Items.IndexOf(Session.Charset); FCharsetChange(Sender);
 
     TSSource.TabVisible := False;
-
-    PageControl.Visible := True;
-    PSQLWait.Visible := not PageControl.Visible;
   end
   else
   begin
-    PageControl.Visible := SessionState = ssValid;
-    PSQLWait.Visible := not PageControl.Visible;
-
     if (SessionState = ssValid) then
       Built();
   end;
+
+  FName.SelectAll();
 
   FName.Enabled := not Assigned(Database) or not Assigned(Session.DatabaseByName(Database.Name));
   FCharset.Visible := Session.Connection.MySQLVersion >= 40101; FLCharset.Visible := FCharset.Visible;
@@ -447,7 +443,8 @@ begin
   TSInformation.TabVisible := Assigned(Database);
   TSExtras.TabVisible := Assigned(Database);
 
-  FName.SelectAll();
+  PageControl.Visible := SessionState in [ssCreate, ssValid];
+  PSQLWait.Visible := not PageControl.Visible;
 
   FBOk.Enabled := PageControl.Visible and not Assigned(Database);
 

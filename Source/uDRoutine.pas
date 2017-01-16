@@ -456,15 +456,9 @@ begin
       FSource.Lines.Clear();
 
     TSSource.TabVisible := True;
-
-    PageControl.Visible := True;
-    PSQLWait.Visible := not PageControl.Visible;
   end
   else
   begin
-    PageControl.Visible := SessionState = ssValid;
-    PSQLWait.Visible := not PageControl.Visible;
-
     if (SessionState = ssValid) then
       Built();
   end;
@@ -474,6 +468,9 @@ begin
   TSBasics.TabVisible := True;
   TSInformation.TabVisible := Assigned(Routine);
   TSDependencies.TabVisible := Assigned(Routine);
+
+  PageControl.Visible := SessionState in [ssCreate, ssValid];
+  PSQLWait.Visible := not PageControl.Visible;
 
   FBOk.Enabled := PageControl.Visible and not Assigned(Routine);
 

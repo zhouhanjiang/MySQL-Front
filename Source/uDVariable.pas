@@ -187,12 +187,11 @@ begin
   else
     SessionState := ssValid;
 
-  GroupBox.Visible := SessionState = ssValid;
-  PSQLWait.Visible := not GroupBox.Visible;
-
   if (SessionState = ssValid) then
     Built();
 
+  GroupBox.Visible := SessionState = ssValid;
+  PSQLWait.Visible := not GroupBox.Visible;
   FBOk.Enabled := False;
 
   ActiveControl := FBCancel;

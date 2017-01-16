@@ -1271,15 +1271,9 @@ begin
     FRowType.ItemIndex := Integer(NewTable.RowType);
     FAutoIncrement.Visible := NewTable.AutoIncrement > 0; FLAutoIncrement.Visible := FAutoIncrement.Visible;
     FAutoIncrement.Text := IntToStr(NewTable.AutoIncrement);
-
-    PageControl.Visible := True;
-    PSQLWait.Visible := not PageControl.Visible;
   end
   else
   begin
-    PageControl.Visible := SessionState = ssValid;
-    PSQLWait.Visible := not PageControl.Visible;
-
     if (SessionState = ssValid) then
       Built();
   end;
@@ -1300,6 +1294,9 @@ begin
   TSPartitions.TabVisible := Assigned(Table) and Assigned(NewTable.Partitions);
   TSExtras.TabVisible := Assigned(Table);
   TSSource.TabVisible := Assigned(Table);
+
+  PageControl.Visible := SessionState in [ssCreate, ssValid];
+  PSQLWait.Visible := not PageControl.Visible;
 
   FBOk.Enabled := PageControl.Visible and not Assigned(Table);
   FBCancel.Caption := Preferences.LoadStr(30);

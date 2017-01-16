@@ -127,41 +127,25 @@ begin
     else
       Lengths[I] := 0;
 
-  if (not Assigned(Key)) then
-  begin
-    FPrimary.Enabled := (Table.Keys.Count = 0) or not Table.Keys[0].PrimaryKey;
-    FPrimary.Checked := FPrimary.Enabled;
-    FOther.Checked := not FPrimary.Checked;
+  FPrimary.Enabled := Key.PrimaryKey or (Table.Keys.Count = 0) or not Table.Keys[0].PrimaryKey;
+  FPrimary.Checked := Key.PrimaryKey;
+  FOther.Checked := not FPrimary.Checked;
+  if (FOther.Checked) then FName.Text := Key.Name else FName.Text := '';
 
-    FName.Text := '';
-    FLength.Text := '';
-    FComment.Text := '';
+  for I := 0 to Key.Columns.Count - 1 do
+    if (Key.Columns.Column[I].Length > 0) then
+      Lengths[Table.Fields.IndexOf(Key.Columns.Column[I].Field)] := Key.Columns.Column[I].Length
+    else if (Key.Columns.Column[I].Field.FieldType in [mfChar, mfVarChar]) then
+      Lengths[Table.Fields.IndexOf(Key.Columns.Column[I].Field)] := Key.Columns.Column[I].Field.Size;
 
-    FUnique.Checked := False;
-    FFulltext.Checked := False;
-  end
-  else
-  begin
-    FPrimary.Enabled := Key.PrimaryKey or (Table.Keys.Count = 0) or not Table.Keys[0].PrimaryKey;
-    FPrimary.Checked := Key.PrimaryKey;
-    FOther.Checked := not FPrimary.Checked;
-    if (FOther.Checked) then FName.Text := Key.Name else FName.Text := '';
+  for I := 0 to Key.Columns.Count - 1 do
+    FIndexedFields.Items.Add().Caption := Key.Columns.Column[I].Field.Name;
+  FIndexedFields.Selected := FIndexedFields.Items[0];
 
-    for I := 0 to Key.Columns.Count - 1 do
-      if (Key.Columns.Column[I].Length > 0) then
-        Lengths[Table.Fields.IndexOf(Key.Columns.Column[I].Field)] := Key.Columns.Column[I].Length
-      else if (Key.Columns.Column[I].Field.FieldType in [mfChar, mfVarChar]) then
-        Lengths[Table.Fields.IndexOf(Key.Columns.Column[I].Field)] := Key.Columns.Column[I].Field.Size;
+  FComment.Text := Key.Comment;
 
-    for I := 0 to Key.Columns.Count - 1 do
-      FIndexedFields.Items.Add().Caption := Key.Columns.Column[I].Field.Name;
-    FIndexedFields.Selected := FIndexedFields.Items[0];
-
-    FComment.Text := Key.Comment;
-
-    FUnique.Checked := Key.Unique;
-    FFulltext.Checked := Key.Fulltext;
-  end;
+  FUnique.Checked := Key.Unique;
+  FFulltext.Checked := Key.Fulltext;
 
   FAvailableFields.Items.Clear();
   for I := 0 to Table.Fields.Count - 1 do
@@ -551,12 +535,33 @@ begin
   else
     SessionState := ssValid;
 
+  if (not Assigned(Key)) then
+  begin
+    FPrimary.Enabled := (Table.Keys.Count = 0) or not Table.Keys[0].PrimaryKey;
+    FPrimary.Checked := FPrimary.Enabled;
+    FOther.Checked := not FPrimary.Checked;
+
+    FName.Text := '';
+    FLength.Text := '';
+    FComment.Text := '';
+
+    FUnique.Checked := False;
+    FFulltext.Checked := False;
+
+    FIndexedFieldsChange(nil, nil, ctState);
+    IndexTypeChange(nil);
+    FIndexedFieldsExit(nil);
+    FAvailableFieldsExit(nil);
+  end
+  else
+  begin
+    if (GBasics.Visible) then
+      Built();
+  end;
+
   GBasics.Visible := SessionState in [ssCreate, ssValid];
   GAttributes.Visible := GBasics.Visible;
   PSQLWait.Visible := not GBasics.Visible;
-
-  if (GBasics.Visible) then
-    Built();
 
   FBOk.Enabled := False;
 

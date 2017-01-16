@@ -1501,9 +1501,7 @@ type
   private
     ConnectionEvent: SyncObjs.TEvent;
     EventProcs: array of TEventProc;
-    Identifier963963: Integer; // Debug 2017-01-13
     FAccount: TPAccount;
-    Identifier369369: Integer; // Debug 2017-01-13
     FCharsets: TSCharsets;
     FSessions: TSSessions;
     FCollations: TSCollations;
@@ -1541,7 +1539,6 @@ type
     procedure ConnectChange(Sender: TObject; Connecting: Boolean);
     procedure DatabaseChange(const Connection: TMySQLConnection; const NewName: string);
     procedure DoSendEvent(const AEvent: TSSession.TEvent);
-    function GetAccount(): TPAccount;
     function GetCaption(): string;
     function GetCharset(): string;
     function GetCollation(): string;
@@ -1561,7 +1558,6 @@ type
       const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
     property Sessions: TSSessions read FSessions;
   public
-    Identifier123456: Integer; // Debug 2017-01-06
     function AddDatabase(const NewDatabase: TSDatabase): Boolean;
     function AddUser(const ANewUser: TSUser): Boolean;
     function ApplyIdentifierName(const AIdentifierName: string): string;
@@ -1603,7 +1599,7 @@ type
     function UserByCaption(const Caption: string): TSUser;
     function UserByName(const UserName: string): TSUser;
     function VariableByName(const VariableName: string): TSVariable;
-    property Account: TPAccount read GetAccount;
+    property Account: TPAccount read FAccount;
     property Caption: string read GetCaption;
     property Charset: string read GetCharset;
     property Charsets: TSCharsets read FCharsets;
@@ -11520,14 +11516,10 @@ begin
   FSessions := ASessions;
   FAccount := AAccount;
 
-  // Debug 2017-01-06
-  Identifier123456 := 123456;
-  // Debug 2017-01-13
-  Identifier963963 := 963963;
-  Identifier369369 := 369369;
-
+  if (Assigned(AAccount)) then AAccount.RegisterSession(Self);
   FConnection := TSConnection.Create(Self);
   Sessions.Add(Self);
+
 
   ConnectionEvent := SyncObjs.TEvent.Create(nil, False, False, '');
   SetLength(EventProcs, 0);
@@ -11808,6 +11800,7 @@ end;
 destructor TSSession.Destroy();
 begin
   Connection.UnRegisterClient(Self);
+  if (Assigned(Account)) then Account.UnRegisterSession(Self);
 
   SetLength(EventProcs, 0);
 
@@ -12002,26 +11995,6 @@ begin
   for I := 0 to FieldTypes.Count - 1 do
     if (FieldTypes[I].MySQLFieldType = MySQLFieldType) then
       Result := FieldTypes[I];
-end;
-
-function TSSession.GetAccount(): TPAccount;
-begin
-  if ((Identifier123456 <> 123456)
-    or (Identifier963963 <> 963963)
-    or (Identifier369369 <> 369369)) then
-    raise ERangeError.Create('Identifier123456: ' + IntToStr(Identifier123456) + #13#10
-      + 'Identifier963963: ' + IntToStr(Identifier963963) + #13#10
-      + 'Identifier369369: ' + IntToStr(Identifier369369));
-  // Debug 2017-01-15
-  if (Assigned(FAccount)) then
-  begin
-    if (Accounts.IndexOf(FAccount) < 0) then
-      raise ERangeError.Create(SRangeError);
-    if (not (TObject(FAccount) is TPAccount)) then
-      raise ERangeError.Create(SRangeError);
-  end;
-
-  Result := FAccount;
 end;
 
 function TSSession.GetCaption(): string;

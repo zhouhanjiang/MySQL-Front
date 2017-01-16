@@ -367,18 +367,15 @@ begin
     FUDQueriesPerHour.Position := 0;
     FUDUpdatesPerHour.Position := 0;
     FUDUserConnections.Position := 0;
-
-    PageControl.Visible := True;
-    PSQLWait.Visible := not PageControl.Visible;
   end
   else
   begin
-    PageControl.Visible := SessionState = ssValid;
-    PSQLWait.Visible := not PageControl.Visible;
-
     if (SessionState = ssValid) then
       Built();
   end;
+
+  PageControl.Visible := SessionState in [ssCreate, ssValid];
+  PSQLWait.Visible := not PageControl.Visible;
 
   ActiveControl := FBCancel;
   if (PageControl.Visible) then
