@@ -44,6 +44,7 @@ type
     procedure FParentDatabaseChange(Sender: TObject);
     procedure FParentTableChange(Sender: TObject);
   private
+    SessionState: (ssCreate, ssInit, ssValid, ssAlter);
     Wanted: record
       ComboBox: TComboBox;
     end;
@@ -248,15 +249,13 @@ begin
 
     if (not ModifyTableOnly) then
     begin
+      SessionState := ssAlter;
+
       CanClose := Table.Database.UpdateBaseTable(Table, NewTable);
 
-      if (not CanClose) then
-      begin
-        GBasics.Visible := CanClose;
-        GAttributes.Visible := GBasics.Visible;
-        PSQLWait.Visible := not GBasics.Visible;
-      end;
-
+      GBasics.Visible := False;
+      GAttributes.Visible := GBasics.Visible;
+      PSQLWait.Visible := not GBasics.Visible;
       FBOk.Enabled := False;
     end;
 
@@ -314,34 +313,49 @@ begin
 end;
 
 procedure TDForeignKey.FormSessionEvent(const Event: TSSession.TEvent);
+var
+  FirstValid: Boolean;
 begin
-  if ((Event.EventType = etItemValid) and (Event.Item = Table)) then
-    Built()
-  else if ((Event.EventType = etItemAltered) and (Event.Item = Table)) then
+  FirstValid := SessionState = ssInit;
+
+  if ((SessionState = ssInit) and (Event.EventType = etError)) then
+    ModalResult := mrCancel
+  else if ((SessionState in [ssInit]) and (Event.EventType = etItemValid) and (Event.Item = Table)) then
+  begin
+    Built();
+    SessionState := ssValid;
+  end
+  else if ((SessionState = ssAlter) and (Event.EventType = etError)) then
+  begin
+    if (not Assigned(ForeignKey)) then
+      SessionState := ssCreate
+    else
+      SessionState := ssValid;
+  end
+  else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemAltered]) and (Event.Item = Table)) then
     ModalResult := mrOk;
 
-  if ((Event.EventType = etError) and (ModalResult = mrNone)) then
-    ModalResult := mrCancel
-  else if (Event.EventType = etError) then
+  if (SessionState = ssValid) then
   begin
     FParentTable.Cursor := crDefault;
     FParentFields.Cursor := crDefault;
 
     Wanted.ComboBox := nil;
-  end
-  else if (Event.EventType = etAfterExecuteSQL) then
-  begin
-    if (not GBasics.Visible and (ModalResult = mrNone)) then
+
+    if (not GBasics.Visible) then
     begin
       GBasics.Visible := True;
       GAttributes.Visible := GBasics.Visible;
       PSQLWait.Visible := not GBasics.Visible;
       FBOkCheckEnabled(nil);
-      ActiveControl := FName;
-    end;
 
-    PostMessage(Handle, UM_POST_AFTEREXECUTESQL, 0, 0);
+      if (FirstValid) then
+        ActiveControl := FName;
+    end;
   end;
+
+  if (Event.EventType = etAfterExecuteSQL) then
+    PostMessage(Handle, UM_POST_AFTEREXECUTESQL, 0, 0);
 end;
 
 procedure TDForeignKey.FormShow(Sender: TObject);
@@ -379,7 +393,14 @@ begin
 
   FParentFields.Clear();
 
-  GBasics.Visible := (Table.Fields.Count > 0) or Table.Update();
+  if (not Assigned(ForeignKey)) then
+    SessionState := ssCreate
+  else if (not Table.ForeignKeys.Valid and not Table.Update()) then
+    SessionState := ssInit
+  else
+    SessionState := ssValid;
+
+  GBasics.Visible := SessionState in [ssCreate, ssValid];
   GAttributes.Visible := GBasics.Visible;
   PSQLWait.Visible := not GBasics.Visible;
 

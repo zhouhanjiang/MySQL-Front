@@ -73,9 +73,10 @@ type
     procedure TSDependenciesShow(Sender: TObject);
   private
     RecordCount: Integer;
+    SessionState: (ssCreate, ssInit, ssDependencies, ssValid, ssAlter);
     procedure Built();
+    procedure BuiltDependencies();
     procedure FBOkCheckEnabled(Sender: TObject);
-    procedure FDependenciesBuild();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
@@ -166,6 +167,79 @@ begin
   FSource.Lines.Text := View.Source + #13#10;
 
   TSSource.TabVisible := Assigned(View) and (View.Source <> '');
+end;
+
+procedure TDView.BuiltDependencies();
+
+  procedure AddDBObject(const DBObject: TSDBObject);
+  var
+    I: Integer;
+    Item: TListItem;
+  begin
+    for I := 0 to DBObject.References.Count - 1 do
+      if (DBObject.References[I].DBObject = View) then
+      begin
+        Item := FDependencies.Items.Add();
+
+        if (DBObject is TSView) then
+        begin
+          Item.ImageIndex := iiView;
+          Item.Caption := DBObject.Caption;
+          Item.SubItems.Add(Preferences.LoadStr(738));
+        end
+        else if (DBObject is TSProcedure) then
+        begin
+          Item.ImageIndex := iiProcedure;
+          Item.Caption := DBObject.Caption;
+          Item.SubItems.Add(Preferences.LoadStr(768));
+        end
+        else if (DBObject is TSFunction) then
+        begin
+          Item.ImageIndex := iiFunction;
+          Item.Caption := DBObject.Caption;
+          Item.SubItems.Add(Preferences.LoadStr(769));
+        end
+        else if (DBObject is TSTrigger) then
+        begin
+          Item.ImageIndex := iiTrigger;
+          Item.Caption := DBObject.Caption;
+          Item.SubItems.Add(Preferences.LoadStr(923, TSTrigger(DBObject).TableName));
+        end
+        else if (DBObject is TSEvent) then
+        begin
+          Item.ImageIndex := iiEvent;
+          Item.Caption := DBObject.Caption;
+          Item.SubItems.Add(Preferences.LoadStr(812));
+        end
+        else
+          raise ERangeError.Create(SRangeError);
+        Item.Data := DBObject;
+      end;
+  end;
+
+var
+  I: Integer;
+begin
+  FDependencies.Items.BeginUpdate();
+  FDependencies.Items.Clear();
+
+  for I := 0 to Database.Tables.Count - 1 do
+    if (Database.Tables[I] <> View) then
+      AddDBObject(Database.Tables[I]);
+
+  if (Assigned(Database.Routines)) then
+    for I := 0 to Database.Routines.Count - 1 do
+      AddDBObject(Database.Routines[I]);
+
+  if (Assigned(Database.Triggers)) then
+    for I := 0 to Database.Triggers.Count - 1 do
+      AddDBObject(Database.Triggers[I]);
+
+  if (Assigned(Database.Events)) then
+    for I := 0 to Database.Events.Count - 1 do
+      AddDBObject(Database.Events[I]);
+
+  FDependencies.Items.EndUpdate();
 end;
 
 function TDView.Execute(): Boolean;
@@ -286,6 +360,8 @@ begin
       NewView.CheckOption := voDefault;
     NewView.Stmt := Trim(FStmt.Lines.Text);
 
+    SessionState := ssAlter;
+
     if (not Assigned(View)) then
       CanClose := Database.AddView(NewView)
     else
@@ -293,12 +369,8 @@ begin
 
     NewView.Free();
 
-    if (not CanClose) then
-    begin
-      PageControl.Visible := CanClose;
-      PSQLWait.Visible := not PageControl.Visible;
-    end;
-
+    PageControl.Visible := False;
+    PSQLWait.Visible := not PageControl.Visible;
     FBOk.Enabled := False;
   end;
 end;
@@ -350,32 +422,43 @@ begin
 end;
 
 procedure TDView.FormSessionEvent(const Event: TSSession.TEvent);
+var
+  FirstValid: Boolean;
 begin
-  if ((Event.EventType = etItemValid) and (Event.Item = View)) then
-    Built()
-  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.Item is TSView)) then
-    ModalResult := mrOK;
+  FirstValid := SessionState = ssInit;
 
-  if ((Event.EventType = etError) and (ModalResult = mrNone)) then
+  if ((SessionState = ssInit) and (Event.EventType = etError)) then
     ModalResult := mrCancel
-  else if (Event.EventType = etAfterExecuteSQL) then
+  else if ((SessionState in [ssInit, ssDependencies]) and (Event.EventType = etItemValid) and (Event.Item = View)) then
   begin
-    if (FDependencies.Cursor = crSQLWait) then
-    begin
-      FDependenciesBuild();
-      FDependencies.Cursor := crDefault;
-    end;
+    if (SessionState = ssInit) then
+      Built()
+    else
+      BuiltDependencies();
+    SessionState := ssValid;
+  end
+  else if ((SessionState = ssAlter) and (Event.EventType = etError)) then
+  begin
+    if (not Assigned(View)) then
+      SessionState := ssCreate
+    else
+      SessionState := ssValid;
+  end
+  else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemCreated, etItemAltered]) and (Event.Item = View)) then
+    ModalResult := mrOk;
 
-    if (not PageControl.Visible and (ModalResult = mrNone)) then
+  if (SessionState = ssValid) then
+  begin
+    FDependencies.Cursor := crDefault;
+
+    if (not PageControl.Visible) then
     begin
       PageControl.Visible := True;
       PSQLWait.Visible := not PageControl.Visible;
+      FBOkCheckEnabled(nil);
 
-      if (ActiveControl = FBCancel) then
-      begin
-        FBOkCheckEnabled(nil);
+      if (FirstValid) then
         ActiveControl := FName;
-      end;
     end;
   end;
 end;
@@ -411,6 +494,13 @@ begin
   RecordCount := -1;
 
   if (not Assigned(View)) then
+    SessionState := ssCreate
+  else if (not View.Valid and not View.Update()) then
+    SessionState := ssInit
+  else
+    SessionState := ssValid;
+
+  if (SessionState = ssCreate) then
   begin
     FName.Text := Preferences.LoadStr(747);
     while (not Assigned(View) and Assigned(Database.TableByName(FName.Text))) do
@@ -439,10 +529,10 @@ begin
   end
   else
   begin
-    PageControl.Visible := View.Update();
+    PageControl.Visible := SessionState = ssValid;
     PSQLWait.Visible := not PageControl.Visible;
 
-    if (PageControl.Visible) then
+    if (SessionState = ssValid) then
       Built();
   end;
 
@@ -457,79 +547,6 @@ begin
   ActiveControl := FBCancel;
   if (PageControl.Visible) then
     ActiveControl := FName;
-end;
-
-procedure TDView.FDependenciesBuild();
-
-  procedure AddDBObject(const DBObject: TSDBObject);
-  var
-    I: Integer;
-    Item: TListItem;
-  begin
-    for I := 0 to DBObject.References.Count - 1 do
-      if (DBObject.References[I].DBObject = View) then
-      begin
-        Item := FDependencies.Items.Add();
-
-        if (DBObject is TSView) then
-        begin
-          Item.ImageIndex := iiView;
-          Item.Caption := DBObject.Caption;
-          Item.SubItems.Add(Preferences.LoadStr(738));
-        end
-        else if (DBObject is TSProcedure) then
-        begin
-          Item.ImageIndex := iiProcedure;
-          Item.Caption := DBObject.Caption;
-          Item.SubItems.Add(Preferences.LoadStr(768));
-        end
-        else if (DBObject is TSFunction) then
-        begin
-          Item.ImageIndex := iiFunction;
-          Item.Caption := DBObject.Caption;
-          Item.SubItems.Add(Preferences.LoadStr(769));
-        end
-        else if (DBObject is TSTrigger) then
-        begin
-          Item.ImageIndex := iiTrigger;
-          Item.Caption := DBObject.Caption;
-          Item.SubItems.Add(Preferences.LoadStr(923, TSTrigger(DBObject).TableName));
-        end
-        else if (DBObject is TSEvent) then
-        begin
-          Item.ImageIndex := iiEvent;
-          Item.Caption := DBObject.Caption;
-          Item.SubItems.Add(Preferences.LoadStr(812));
-        end
-        else
-          raise ERangeError.Create(SRangeError);
-        Item.Data := DBObject;
-      end;
-  end;
-
-var
-  I: Integer;
-begin
-  FDependencies.Items.BeginUpdate();
-  FDependencies.Items.Clear();
-
-  for I := 0 to Database.Tables.Count - 1 do
-    if (Database.Tables[I] <> View) then
-      AddDBObject(Database.Tables[I]);
-
-  if (Assigned(Database.Routines)) then
-    for I := 0 to Database.Routines.Count - 1 do
-      AddDBObject(Database.Routines[I]);
-
-  if (Assigned(Database.Triggers)) then
-    for I := 0 to Database.Triggers.Count - 1 do
-      AddDBObject(Database.Triggers[I]);
-
-  if (Assigned(Database.Events)) then
-    for I := 0 to Database.Events.Count - 1 do
-      AddDBObject(Database.Events[I]);
-
-  FDependencies.Items.EndUpdate();
 end;
 
 procedure TDView.FSecurityClick(Sender: TObject);
@@ -570,9 +587,13 @@ begin
     List := TList.Create();
     List.Add(View.DependenciesSearch);
     if (not Database.Session.Update(List)) then
-      FDependencies.Cursor := crSQLWait
+    begin
+      SessionState := ssDependencies;
+
+      FDependencies.Cursor := crSQLWait;
+    end
     else
-      FDependenciesBuild();
+      BuiltDependencies();
     List.Free();
   end;
 end;

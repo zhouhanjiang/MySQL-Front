@@ -74,6 +74,7 @@ type
     procedure tbUpDownClick(Sender: TObject);
   private
     Lengths: array of Integer;
+    SessionState: (ssCreate, ssInit, ssValid, ssAlter);
     procedure Built();
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure FormSessionEvent(const Event: TSSession.TEvent);
@@ -420,15 +421,13 @@ begin
 
     if (not ModifyTableOnly) then
     begin
+      SessionState := ssAlter;
+
       CanClose := Table.Database.UpdateBaseTable(Table, NewTable);
 
-      if (not CanClose) then
-      begin
-        GBasics.Visible := CanClose;
-        GAttributes.Visible := GBasics.Visible;
-        PSQLWait.Visible := not GBasics.Visible;
-      end;
-
+      GBasics.Visible := False;
+      GAttributes.Visible := GBasics.Visible;
+      PSQLWait.Visible := not GBasics.Visible;
       FBOk.Enabled := False;
     end;
 
@@ -486,23 +485,37 @@ begin
 end;
 
 procedure TDKey.FormSessionEvent(const Event: TSSession.TEvent);
+var
+  FirstValid: Boolean;
 begin
-  if ((Event.EventType = etItemValid) and (Event.Item = Table)) then
-    Built()
-  else if ((Event.EventType = etItemAltered) and (Event.Item = Table)) then
+  FirstValid := SessionState = ssInit;
+
+  if ((SessionState = ssInit) and (Event.EventType = etError)) then
+    ModalResult := mrCancel
+  else if ((SessionState in [ssInit]) and (Event.EventType = etItemValid) and (Event.Item = Table)) then
+  begin
+    Built();
+    SessionState := ssValid;
+  end
+  else if ((SessionState = ssAlter) and (Event.EventType = etError)) then
+    if (not Assigned(Key)) then
+      SessionState := ssCreate
+    else
+      SessionState := ssValid
+  else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemAltered]) and (Event.Item = Table)) then
     ModalResult := mrOk;
 
-  if ((Event.EventType = etError) and (ModalResult = mrNone)) then
-    ModalResult := mrCancel
-  else if (Event.EventType = etAfterExecuteSQL) then
+  if (SessionState = ssValid) then
   begin
-    if (not GBasics.Visible and (ModalResult = mrNone)) then
+    if (not GBasics.Visible) then
     begin
       GBasics.Visible := True;
       GAttributes.Visible := GBasics.Visible;
       PSQLWait.Visible := not GBasics.Visible;
       FBOkCheckEnabled(nil);
-      ActiveControl := FLName.FocusControl;
+
+      if (FirstValid) then
+        ActiveControl := FLName.FocusControl;
     end;
   end;
 end;
@@ -531,7 +544,14 @@ begin
   FIndexedFields.Items.Clear();
   FComment.Visible := Table.Session.Connection.MySQLVersion >= 50503; FLComment.Visible := FComment.Visible;
 
-  GBasics.Visible := (Table.Fields.Count > 0) or Table.Update();
+  if (not Assigned(Key)) then
+    SessionState := ssCreate
+  else if (not Table.Keys.Valid and not Table.Update()) then
+    SessionState := ssInit
+  else
+    SessionState := ssValid;
+
+  GBasics.Visible := SessionState in [ssCreate, ssValid];
   GAttributes.Visible := GBasics.Visible;
   PSQLWait.Visible := not GBasics.Visible;
 

@@ -106,6 +106,7 @@ type
     procedure FUDMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
   private
+    SessionState: (ssCreate, ssInit, ssValid, ssAlter);
     procedure Built();
     function GetDefault(): string;
     function GetDefaultDecimals(): Integer;
@@ -879,15 +880,13 @@ begin
 
       if (not ModifyTableOnly) then
       begin
+        SessionState := ssAlter;
+
         CanClose := Table.Database.UpdateBaseTable(Table, NewTable);
 
-        if (not CanClose) then
-        begin
-          GBasics.Visible := CanClose;
-          GAttributes.Visible := GBasics.Visible;
-          PSQLWait.Visible := not GBasics.Visible;
-        end;
-
+        GBasics.Visible := False;
+        GAttributes.Visible := GBasics.Visible;
+        PSQLWait.Visible := not GBasics.Visible;
         FBOk.Enabled := False;
       end;
 
@@ -927,23 +926,39 @@ begin
 end;
 
 procedure TDField.FormSessionEvent(const Event: TSSession.TEvent);
+var
+  FirstValid: Boolean;
 begin
-  if ((Event.EventType = etItemValid) and (Event.Item = Table)) then
-    Built()
-  else if ((Event.EventType = etItemAltered) and (Event.Item = Table)) then
+  FirstValid := SessionState = ssInit;
+
+  if ((SessionState = ssInit) and (Event.EventType = etError)) then
+    ModalResult := mrCancel
+  else if ((SessionState in [ssInit]) and (Event.EventType = etItemValid) and (Event.Item = Table)) then
+  begin
+    Built();
+    SessionState := ssValid;
+  end
+  else if ((SessionState = ssAlter) and (Event.EventType = etError)) then
+    if (not Assigned(Field)) then
+      SessionState := ssCreate
+    else
+      SessionState := ssValid
+  else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemAltered]) and (Event.Item = Table)) then
     ModalResult := mrOk;
 
-  if ((Event.EventType = etError) and (ModalResult = mrNone)) then
-    ModalResult := mrCancel
-  else if (Event.EventType = etAfterExecuteSQL) then
-    if (not GBasics.Visible and (ModalResult = mrNone)) then
+  if (SessionState = ssValid) then
+  begin
+    if (not GBasics.Visible) then
     begin
       GBasics.Visible := True;
       GAttributes.Visible := GBasics.Visible;
       PSQLWait.Visible := not GBasics.Visible;
       FBOkCheckEnabled(nil);
-      ActiveControl := FName;
+
+      if (FirstValid) then
+        ActiveControl := FName;
     end;
+  end;
 end;
 
 procedure TDField.FormShow(Sender: TObject);
@@ -951,18 +966,6 @@ var
   I: Integer;
 begin
   TableDebug := Table;
-
-  // Debug 2016-12-19
-  if (TableDebug <> Table) then
-    raise ERangeError.Create(SRangeError);
-  if (not Assigned(Table)) then
-    raise ERangeError.Create(SRangeError);
-  if (not (TObject(Table) is TSBaseTable)) then
-    try
-      raise ERangeError.Create('ClassType: ' + Table.ClassName);
-    except
-      raise ERangeError.Create(SRangeError);
-    end;
 
   Table.Session.RegisterEventProc(FormSessionEvent);
 
@@ -994,11 +997,18 @@ begin
 
   FComment.Visible := Table.Session.Connection.MySQLVersion >= 40100; FLComment.Visible := FComment.Visible;
 
-  GBasics.Visible := (Table.Fields.Count > 0) or Table.Update();
+  if (not Assigned(Field)) then
+    SessionState := ssCreate
+  else if (not Table.Fields.Valid and not Table.Update()) then
+    SessionState := ssInit
+  else
+    SessionState := ssValid;
+
+  GBasics.Visible := SessionState in [ssCreate, ssValid];
   GAttributes.Visible := GBasics.Visible;
   PSQLWait.Visible := not GBasics.Visible;
 
-  if (GBasics.Visible) then
+  if (SessionState = ssValid) then
     Built();
 
   FBOk.Enabled := GBasics.Visible and not Assigned(Field);
@@ -1006,18 +1016,6 @@ begin
   ActiveControl := FBCancel;
   if (GBasics.Visible) then
     ActiveControl := FName;
-
-  // Debug 2016-12-19
-  if (TableDebug <> Table) then
-    raise ERangeError.Create(SRangeError);
-  if (not Assigned(Table)) then
-    raise ERangeError.Create(SRangeError);
-  if (not (TObject(Table) is TSBaseTable)) then
-    try
-      raise ERangeError.Create('ClassType: ' + Table.ClassName);
-    except
-      raise ERangeError.Create(SRangeError);
-    end;
 end;
 
 procedure TDField.FRDefaultClick(Sender: TObject);

@@ -112,7 +112,6 @@ type
       Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean; virtual;
     function GetValid(): Boolean; virtual;
     function SQLGetItems(const Name: string = ''): string; virtual; abstract;
-  protected
   public
     procedure Clear(); override;
     constructor Create(const ASession: TSSession);
@@ -318,14 +317,18 @@ type
     FTable: TSBaseTable;
     function GetKey(Index: Integer): TSKey; inline;
     function GetPrimaryKey(): TSKey;
+  protected
+    FValid: Boolean;
   public
     procedure AddKey(const NewKey: TSKey); virtual;
     procedure Assign(const Source: TSKeys); virtual;
-    constructor Create(const ATable: TSBaseTable); reintroduce; virtual;
+    constructor Create(const ATable: TSBaseTable);
+    procedure Invalidate();
     procedure Delete(const AKey: TSKey); overload;
     property Key[Index: Integer]: TSKey read GetKey; default;
     property PrimaryKey: TSKey read GetPrimaryKey;
     property Table: TSBaseTable read FTable;
+    property Valid: Boolean read FValid;
   end;
 
   TSField = class(TSItem)
@@ -499,6 +502,7 @@ type
     procedure Clear(); override;
     constructor Create(const ATable: TSBaseTable); reintroduce; virtual;
     procedure Delete(const AForeignKey: TSForeignKey); overload;
+    procedure Invalidate();
     property ForeignKey[Index: Integer]: TSForeignKey read GetForeignKey; default;
     property Table: TSBaseTable read FTable;
     property Valid: Boolean read FValid;
@@ -2604,8 +2608,6 @@ begin
   Delete(IndexOf(AItem));
 
   Session.SendEvent(etItemsValid, Session, Session.Databases);
-
-  Session.Connection.DebugMonitor.Append('TSDBObjects.Delete: "' + TSDBObject(AItem).Database.Name + '"."' + AItem.Name + '"', ttDebug);
   Session.SendEvent(etItemDropped, Database, Self, AItem);
 
   AItem.Free();
@@ -2852,6 +2854,8 @@ begin
   inherited Create(ATable.Session);
 
   FTable := ATable;
+
+  FValid := False;
 end;
 
 procedure TSKeys.Delete(const AKey: TSKey);
@@ -2881,6 +2885,11 @@ begin
     Result := nil
   else
     Result := Key[0];
+end;
+
+procedure TSKeys.Invalidate();
+begin
+  FValid := False;
 end;
 
 { TSField *********************************************************************}
@@ -3247,10 +3256,10 @@ end;
 
 function TSBaseTableField.GetTable(): TSBaseTable;
 begin
-  if (not Assigned(Fields) or not (Fields.Table is TSBaseTable)) then
-    Result := nil
-  else
-    Result := TSBaseTable(Fields.Table);
+  Assert(Assigned(Fields));
+  Assert(Fields.Table is TSBaseTable);
+
+  Result := TSBaseTable(Fields.Table);
 end;
 
 procedure TSBaseTableField.SetName(const AName: string);
@@ -3304,6 +3313,7 @@ begin
   inherited Create(ATable.Session);
 
   FTable := ATable;
+
   FValid := False;
 end;
 
@@ -3585,9 +3595,9 @@ constructor TSForeignKeys.Create(const ATable: TSBaseTable);
 begin
   inherited Create(ATable.Session);
 
-  FValid := False;
-
   FTable := ATable;
+
+  FValid := False;
 end;
 
 procedure TSForeignKeys.Delete(const AForeignKey: TSForeignKey);
@@ -3602,6 +3612,11 @@ end;
 function TSForeignKeys.GetForeignKey(Index: Integer): TSForeignKey;
 begin
   Result := TSForeignKey(Items[Index]);
+end;
+
+procedure TSForeignKeys.Invalidate();
+begin
+  FValid := False;
 end;
 
 { TSTableDataSet **************************************************************}
@@ -4316,6 +4331,8 @@ procedure TSBaseTable.InvalidateData();
 begin
   inherited;
 
+  Keys.Invalidate();
+  ForeignKeys.Invalidate();
   InvalidateStatus();
 end;
 
@@ -4413,7 +4430,6 @@ begin
         if (Assigned(Field) and (NewFieldName <> OldFieldName)) then
         begin
           Field.Name := NewFieldName;
-          Session.Connection.DebugMonitor.Append('ParseAlterTable - ' + Database.Name + '.' + Name + '.' + OldFieldName + ' -> ' + NewFieldName, ttDebug);
           Session.SendEvent(etItemAltered, Self, Fields, Field);
         end;
       end;
@@ -4632,8 +4648,6 @@ begin
 
       if (Moved and not FirstParse) then
       begin
-        Session.Connection.DebugMonitor.Append('ParseCreateTable - Moved ' + Name + '.' + NewField.Name, ttDebug);
-
         Session.SendEvent(etItemDropped, Self, FFields, NewField);
         Session.SendEvent(etItemCreated, Self, FFields, NewField);
       end;
@@ -4643,7 +4657,6 @@ begin
     end;
     while (DeleteList.Count > 0) do
     begin
-      Session.Connection.DebugMonitor.Append('ParseCreateTable - FFields.Delete ' + Name + '.' + TSItem(DeleteList.Items[0]).Name, ttDebug);
       FFields.Delete(DeleteList.Items[0]);
       DeleteList.Delete(0);
     end;
@@ -4739,6 +4752,7 @@ begin
       FKeys.Delete(DeleteList.Items[0]);
       DeleteList.Delete(0);
     end;
+    FKeys.FValid := True;
 
 
     DeleteList.Assign(FForeignKeys);
@@ -4837,6 +4851,7 @@ begin
       DeleteList.Delete(0);
     end;
     DeleteList.Free();
+    FForeignKeys.FValid := True;
 
 
     if (not SQLParseChar(Parse, ')')) then
@@ -12270,13 +12285,11 @@ begin
                       else
                         Table.Invalidate();
 
-                      {$IFDEF Debug}
-//                      if (Table is TSBaseTable) then
-//                      begin
-//                        SetString(SQL, Text, Len);
-//                        TSBaseTable(Table).ParseAlterTable(SQL);
-//                      end;
-                      {$ENDIF}
+                      if (Table is TSBaseTable) then
+                      begin
+                        SetString(SQL, Text, Len);
+                        TSBaseTable(Table).ParseAlterTable(SQL);
+                      end;
                     end;
                   end;
                 dtDrop:

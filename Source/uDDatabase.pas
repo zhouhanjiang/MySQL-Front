@@ -72,6 +72,7 @@ type
     procedure FBCheckClick(Sender: TObject);
     procedure FBFlushClick(Sender: TObject);
   private
+    SessionState: (ssCreate, ssInit, ssStatus, ssValid, ssAlter);
     procedure Built();
     procedure BuiltStatus();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
@@ -124,19 +125,6 @@ end;
 
 procedure TDDatabase.BuiltStatus();
 begin
-  GDates.Cursor := crDefault;
-  FLCreated.Cursor := crDefault;
-  FLUpdated.Cursor := crDefault;
-  GSize.Cursor := crDefault;
-  FLIndexSize.Cursor := crDefault;
-  FLDataSize.Cursor := crDefault;
-
-  GOptimize.Cursor := crDefault;
-  FLUnusedSize.Cursor := crDefault;
-  GCheck.Cursor := crDefault;
-  FLChecked.Cursor := crDefault;
-
-
   if (Database.Created = 0) then FCreated.Caption := '???' else FCreated.Caption := SysUtils.DateTimeToStr(Database.Created, LocaleFormatSettings);
   if (Database.Updated = 0) then FUpdated.Caption := '???' else FUpdated.Caption := SysUtils.DateTimeToStr(Database.Updated, LocaleFormatSettings);
 
@@ -285,6 +273,8 @@ begin
     else
       NewDatabase.Collation := FCollation.Text;
 
+    SessionState := ssAlter;
+
     if (not Assigned(Database) or not Assigned(Session.DatabaseByName(Database.Name))) then
       CanClose := Session.AddDatabase(NewDatabase)
     else
@@ -292,12 +282,8 @@ begin
 
     NewDatabase.Free();
 
-    if (not CanClose) then
-    begin
-      PageControl.Visible := CanClose;
-      PSQLWait.Visible := not PageControl.Visible;
-    end;
-
+    PageControl.Visible := False;
+    PSQLWait.Visible := not PageControl.Visible;
     FBOk.Enabled := False;
   end;
 end;
@@ -327,34 +313,58 @@ begin
 end;
 
 procedure TDDatabase.FormSessionEvent(const Event: TSSession.TEvent);
+var
+  FirstValid: Boolean;
 begin
-  if ((Event.EventType = etItemValid) and (Event.Item = Database)) then
-    if (not PageControl.Visible) then
+  FirstValid := SessionState = ssInit;
+
+  if ((SessionState = ssInit) and (Event.EventType = etError)) then
+    ModalResult := mrCancel
+  else if ((SessionState in [ssInit, ssStatus]) and (Event.EventType = etItemValid) and (Event.Item = Database)) then
+  begin
+    if (SessionState = ssInit) then
       Built()
     else
-      BuiltStatus()
-  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.Item is TSDatabase)) then
+      BuiltStatus();
+    SessionState := ssValid;
+  end
+  else if ((SessionState = ssAlter) and (Event.EventType = etError)) then
+  begin
+    if (not Assigned(Database)) then
+      SessionState := ssCreate
+    else
+      SessionState := ssValid;
+  end
+  else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemCreated, etItemAltered]) and (Event.Item = Database)) then
     ModalResult := mrOk;
 
-  if ((Event.EventType = etError) and (ModalResult = mrNone)) then
-    ModalResult := mrCancel
-  else if (Event.EventType = etAfterExecuteSQL) then
+  if (SessionState = ssValid) then
   begin
-    if (not PageControl.Visible and (ModalResult = mrNone)) then
+    GDates.Cursor := crDefault;
+    FLCreated.Cursor := crDefault;
+    FLUpdated.Cursor := crDefault;
+    GSize.Cursor := crDefault;
+    FLIndexSize.Cursor := crDefault;
+    FLDataSize.Cursor := crDefault;
+
+    GOptimize.Cursor := crDefault;
+    FLUnusedSize.Cursor := crDefault;
+    GCheck.Cursor := crDefault;
+    FLChecked.Cursor := crDefault;
+
+    if (not PageControl.Visible) then
     begin
       PageControl.Visible := True;
       PSQLWait.Visible := not PageControl.Visible;
+      FBOkCheckEnabled(nil);
 
-      if (ActiveControl = FBCancel) then
-      begin
-        FBOkCheckEnabled(nil);
+      if (FirstValid) then
         if (FName.Enabled) then
           ActiveControl := FName
         else if (FCharset.Visible) then
           ActiveControl := FCharset
         else
           ActiveControl := FBCancel;
-      end;
     end;
   end;
 end;
@@ -392,6 +402,13 @@ begin
     FCharset.Items.Add(Session.Charsets[I].Name);
 
   if (not Assigned(Database)) then
+    SessionState := ssCreate
+  else if (not Database.Valid and not Database.Update()) then
+    SessionState := ssInit
+  else
+    SessionState := ssValid;
+
+  if (SessionState = ssCreate) then
   begin
     FName.Text := Preferences.LoadStr(145);
     while (Assigned(Session.DatabaseByName(FName.Text))) do
@@ -412,10 +429,10 @@ begin
   end
   else
   begin
-    PageControl.Visible := Database.Update(True);
+    PageControl.Visible := SessionState = ssValid;
     PSQLWait.Visible := not PageControl.Visible;
 
-    if (PageControl.Visible) then
+    if (SessionState = ssValid) then
       Built();
   end;
 
@@ -456,6 +473,8 @@ procedure TDDatabase.TSExtrasShow(Sender: TObject);
 begin
   if (not Database.Update(True)) then
   begin
+    SessionState := ssStatus;
+
     GOptimize.Cursor := crSQLWait;
     FLUnusedSize.Cursor := crSQLWait;
     FUnusedSize.Caption := '';
@@ -471,6 +490,8 @@ procedure TDDatabase.TSInformationShow(Sender: TObject);
 begin
   if (not Database.Update(True)) then
   begin
+    SessionState := ssStatus;
+
     GDates.Cursor := crSQLWait;
     FLCreated.Cursor := crSQLWait;
     FCreated.Caption := '';

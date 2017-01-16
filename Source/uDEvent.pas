@@ -97,6 +97,7 @@ type
     procedure FStartEnabledKeyPress(Sender: TObject; var Key: Char);
     procedure TSSourceShow(Sender: TObject);
   private
+    SessionState: (ssCreate, ssInit, ssValid, ssAlter);
     procedure Built();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
@@ -246,27 +247,41 @@ begin
 end;
 
 procedure TDEvent.FormSessionEvent(const Event: TSSession.TEvent);
+var
+  FirstValid: Boolean;
 begin
-  if ((Event.EventType = etItemValid) and (Event.Item = Self.Event)) then
-    Built()
-  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.Item is TSEvent)) then
+  FirstValid := SessionState = ssInit;
+
+  if ((SessionState = ssInit) and (Event.EventType = etError)) then
+    ModalResult := mrCancel
+  else if ((SessionState in [ssInit]) and (Event.EventType = etItemValid) and (Event.Item = Self.Event)) then
+  begin
+    Built();
+    SessionState := ssValid;
+  end
+  else if ((SessionState = ssAlter) and (Event.EventType = etError)) then
+  begin
+    if (not Assigned(Self.Event)) then
+      SessionState := ssCreate
+    else
+      SessionState := ssValid;
+  end
+  else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemCreated, etItemAltered]) and (Event.Item = Self.Event)) then
     ModalResult := mrOk;
 
-
-  if ((Event.EventType = etError) and (ModalResult = mrNone)) then
-    ModalResult := mrCancel
-  else if (Event.EventType = etAfterExecuteSQL) then
+  if (SessionState = ssValid) then
   begin
-    if (not PageControl.Visible and (ModalResult = mrNone)) then
+    if (not PageControl.Visible) then
     begin
       PageControl.Visible := True;
       PSQLWait.Visible := not PageControl.Visible;
+      FBOkCheckEnabled(nil);
 
-      if (ActiveControl = FBCancel) then
-      begin
-        FBOkCheckEnabled(nil);
-        ActiveControl := FName;
-      end;
+      if (FirstValid) then
+        if (not Assigned(Event)) then
+          ActiveControl := FName
+        else
+          ActiveControl := FComment;
     end;
   end;
 end;
@@ -321,6 +336,7 @@ begin
       NewEvent.Comment := Trim(FComment.Text);
     NewEvent.Stmt := FStatement.Lines.Text;
 
+    SessionState := ssAlter;
     if (not Assigned(Event)) then
       CanClose := Database.AddEvent(NewEvent)
     else
@@ -328,12 +344,8 @@ begin
 
     NewEvent.Free();
 
-    if (not CanClose) then
-    begin
-      PageControl.Visible := CanClose;
-      PSQLWait.Visible := not PageControl.Visible;
-    end;
-
+    PageControl.Visible := False;
+    PSQLWait.Visible := not PageControl.Visible;
     FBOk.Enabled := False;
   end;
 end;
@@ -394,6 +406,13 @@ begin
     HelpContext := 1113;
 
   if (not Assigned(Event)) then
+    SessionState := ssCreate
+  else if (not Event.Valid and not Event.Update()) then
+    SessionState := ssInit
+  else
+    SessionState := ssValid;
+
+  if (SessionState = ssCreate) then
   begin
     EventName := Preferences.LoadStr(814);
     I := 2;
@@ -433,10 +452,10 @@ begin
   end
   else
   begin
-    PageControl.Visible := Event.Update();
+    PageControl.Visible := SessionState = ssValid;
     PSQLWait.Visible := not PageControl.Visible;
 
-    if (PageControl.Visible) then
+    if (SessionState = ssValid) then
       Built();
   end;
 

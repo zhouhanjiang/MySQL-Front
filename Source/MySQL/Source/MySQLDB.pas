@@ -191,6 +191,7 @@ type
       LibThreadId: my_uint;
       Mode: TMode;
       OnResult: TResultEvent;
+      RequestThreadID: TThreadID;
       ResHandle: MYSQL_RES;
       SQLIndex: Integer;
       StmtIndex: Integer;
@@ -532,7 +533,7 @@ type
       constructor Create(const ADataSet: TMySQLDataSet);
       procedure Delete(Index: Integer);
       destructor Destroy(); override;
-      function IndexOf(const Bookmark: TBookmark): Integer; overload; inline;
+      function IndexOf(const Bookmark: TBookmark): Integer; overload;
       function IndexOf(const Data: TMySQLQuery.TRecordBufferData): Integer; overload;
       procedure Insert(Index: Integer; Item: Pointer);
       property Buffers[Index: Integer]: PInternRecordBuffer read Get write Put; default;
@@ -2374,6 +2375,7 @@ begin
   if (not Assigned(FSyncThread)) then
     FSyncThread := TSyncThread.Create(Self);
 
+  SyncThread.RequestThreadID := GetCurrentThreadId();
   SyncThread.State := ssConnect;
   repeat
     if (SynchronCount > 0) then
@@ -2422,6 +2424,7 @@ begin
   else if (not SyncThread.Terminated) then
   begin
     BeginSynchron();
+    SyncThread.RequestThreadID := GetCurrentThreadId();
     SyncThread.State := ssDisconnect;
     SyncThread.Synchronize();
     if (SyncThread.State = ssDisconnecting) then
@@ -2710,6 +2713,7 @@ begin
       Inc(SQLIndex, StmtLength);
     end;
 
+  SyncThread.RequestThreadID := GetCurrentThreadId();
   if (SyncThread.SQL = '') then
     raise EDatabaseError.Create('Empty query')
   else if (SyncThread.StmtLengths.Count = 0) then
@@ -2983,7 +2987,7 @@ begin
       raise Exception.CreateFMT(SOutOfSync + ' (State: %d)', [Ord(SyncThread.State)]);
   end;
 
-  if (Assigned(SyncThread.Executed)) then
+  if (Assigned(SyncThread.Executed) and (SyncThread.RequestThreadID = MainThreadID)) then
   begin
     SyncThread.Executed.WaitFor(INFINITE);
     SyncThread.Executed := nil;
@@ -3223,7 +3227,10 @@ begin
       Lib.mysql_set_character_set(SyncThread.LibHandle, 'utf8mb5');
 
     if (SyncThread.ErrorCode > 0) then
+    begin
+      DebugMonitor.Append('SyncDisconnecting - #' + IntToStr(SyncThread.ErrorCode), ttDebug);
       SyncDisconnecting(SyncThread);
+    end;
   end;
 end;
 
@@ -5000,6 +5007,12 @@ begin
       UniqueDatabaseName := True;
 
       repeat
+        // Debug 2017-01-16
+        if (not Assigned(Connection)) then
+          raise ERangeError.Create(SRangeError);
+        if (not Assigned(Connection.Lib)) then
+          raise ERangeError.Create(SRangeError);
+
         RawField := MYSQL_FIELD(Connection.Lib.mysql_fetch_field(Handle));
 
         if (Assigned(RawField)) then
@@ -5690,7 +5703,16 @@ end;
 
 function TMySQLDataSet.TInternRecordBuffers.IndexOf(const Bookmark: TBookmark): Integer;
 begin
-  Assert(Length(Bookmark) = SizeOf(PInternRecordBuffer));
+  // 2017-01-16
+  // ... should be "inline"
+
+  // 2017-01-16 Last SQL: SELECT ... LIMIT 200,2147483447, TTExportExcel is running
+
+  // Debug 2017-01-16
+  if (Length(Bookmark) <> SizeOf(PInternRecordBuffer)) then
+    raise ERangeError.Create('Length: ' + IntToStr(Length(Bookmark)));
+
+//  Assert(Length(Bookmark) = SizeOf(PInternRecordBuffer));
 
   Result := IndexOf(PInternRecordBuffer(PPointer(@Bookmark[0])^))
 end;
@@ -6852,6 +6874,7 @@ begin
   if (SQL <> '') then
   begin
     Connection.BeginSynchron();
+    Connection.DebugMonitor.Append('InternalRefresh', ttDebug);
     Success := Connection.InternExecuteSQL(smDataSet, SQL);
     Connection.EndSynchron();
     if (Success) then
@@ -7364,12 +7387,17 @@ begin
       begin
         // Debug 2017-01-03
         Index := InternRecordBuffers.IndexOf(DeleteBookmarks[I]);
+
         if ((Index < 0) or (InternRecordBuffers.Count <= Index)) then
           raise ERangeError.Create('Index: ' + IntToStr(Index) + #13#10
             + 'InternRecordBuffers.Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
             + 'Length(DeleteBookmarks): ' + IntToStr(Length(DeleteBookmarks)));
+        // Debug 2017-01-16
+        if (not Assigned(InternRecordBuffers[Index]^.OldData)) then
+          raise ERangeError.Create(SRangeError);
+
         InternRecordBuffer := InternRecordBuffers[Index];
-        if (not Assigned(InternRecordBuffer^.OldData) or not Assigned(InternRecordBuffer^.OldData^.LibRow^[WhereField.FieldNo - 1])) then
+        if (not Assigned(InternRecordBuffer^.OldData^.LibRow^[WhereField.FieldNo - 1])) then
           NullValue := True
         else
         begin

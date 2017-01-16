@@ -1114,10 +1114,6 @@ end;
 
 procedure TWWindow.MySQLConnectionSynchronize(const Data: Pointer);
 begin
-  // Debug 2016-12-07
-  if (not Assigned(Self)) then
-    raise ERangeError.Create(SRangeError);
-
   PostMessage(Handle, UM_MYSQLCLIENT_SYNCHRONIZE, 0, LPARAM(Data));
 end;
 

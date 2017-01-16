@@ -71,6 +71,7 @@ type
   private
     NewUser: TSUser;
     RightsModified: Boolean;
+    SessionState: (ssCreate, ssInit, ssValid, ssAlter);
     procedure Built();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure FRightsRefresh(Sender: TObject);
@@ -200,26 +201,39 @@ begin
 end;
 
 procedure TDUser.FormSessionEvent(const Event: TSSession.TEvent);
+var
+  FirstValid: Boolean;
 begin
-  if ((Event.EventType = etItemValid) and (Event.Item = User)) then
-    Built()
-  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.Item is TSUser)) then
+  FirstValid := SessionState = ssInit;
+
+  if ((SessionState = ssInit) and (Event.EventType = etError)) then
+    ModalResult := mrCancel
+  else if ((SessionState in [ssInit]) and (Event.EventType = etItemValid) and (Event.Item = User)) then
+  begin
+    Built();
+    SessionState := ssValid;
+  end
+  else if ((SessionState = ssAlter) and (Event.EventType = etError)) then
+  begin
+    if (not Assigned(User)) then
+      SessionState := ssCreate
+    else
+      SessionState := ssValid;
+  end
+  else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemCreated, etItemAltered]) and (Event.Item = User)) then
     ModalResult := mrOk;
 
-  if ((Event.EventType = etError) and (ModalResult = mrNone)) then
-    ModalResult := mrCancel
-  else if (Event.EventType = etAfterExecuteSQL) then
+  if (SessionState = ssValid) then
   begin
-    if (not PageControl.Visible and (ModalResult = mrNone)) then
+    if (not PageControl.Visible) then
     begin
       PageControl.Visible := True;
       PSQLWait.Visible := not PageControl.Visible;
+      FBOkCheckEnabled(nil);
 
-      if (ActiveControl = FBCancel) then
-      begin
-        FBOkCheckEnabled(nil);
-        ActiveControl := FName;
-      end;
+      if (FirstValid) then
+        if (not Assigned(Event)) then
+          ActiveControl := FName;
     end;
   end;
 end;
@@ -245,17 +259,14 @@ begin
     for I := 0 to NewUser.RightCount - 1 do
       NewUser.Rights[I].NewPassword := NewUser.NewPassword;
 
+    SessionState := ssAlter;
     if (not Assigned(User)) then
       CanClose := Session.AddUser(NewUser)
     else
       CanClose := Session.UpdateUser(User, NewUser);
 
-    if (not CanClose) then
-    begin
-      PageControl.Visible := CanClose;
-      PSQLWait.Visible := not PageControl.Visible;
-    end;
-
+    PageControl.Visible := False;
+    PSQLWait.Visible := not PageControl.Visible;
     FBOk.Enabled := False;
   end;
 end;
@@ -320,7 +331,22 @@ begin
     HelpContext := 1059;
   end;
 
+  FBRightsEdit.Enabled := False;
+
+  FUserConnections.Visible := Session.Connection.MySQLVersion >= 50003;
+  FLUserConnections.Visible := FUserConnections.Visible;
+  FUDUserConnections.Visible := FUserConnections.Visible;
+
+  TSSource.TabVisible := Assigned(User);
+
   if (not Assigned(User)) then
+    SessionState := ssCreate
+  else if (not User.Valid and not User.Update()) then
+    SessionState := ssInit
+  else
+    SessionState := ssValid;
+
+  if (SessionState = ssCreate) then
   begin
     FName.Text := Preferences.LoadStr(280);
     while (Assigned(Session.UserByCaption(FName.Text))) do
@@ -347,20 +373,12 @@ begin
   end
   else
   begin
-    PageControl.Visible := User.Update();
+    PageControl.Visible := SessionState = ssValid;
     PSQLWait.Visible := not PageControl.Visible;
 
-    if (PageControl.Visible) then
-      Built()
-    else
-      FBRightsEdit.Enabled := False;
+    if (SessionState = ssValid) then
+      Built();
   end;
-
-  FUserConnections.Visible := Session.Connection.MySQLVersion >= 50003;
-  FLUserConnections.Visible := FUserConnections.Visible;
-  FUDUserConnections.Visible := FUserConnections.Visible;
-
-  TSSource.TabVisible := Assigned(User);
 
   ActiveControl := FBCancel;
   if (PageControl.Visible) then

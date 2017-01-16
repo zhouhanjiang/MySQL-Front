@@ -64,6 +64,7 @@ type
     procedure FTimingKeyPress(Sender: TObject; var Key: Char);
     procedure HideTSSource(Sender: TObject);
   private
+    SessionState: (ssCreate, ssInit, ssValid, ssAlter);
     procedure Built();
     procedure FBOkCheckEnabled(Sender: TObject);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
@@ -160,26 +161,39 @@ begin
 end;
 
 procedure TDTrigger.FormSessionEvent(const Event: TSSession.TEvent);
+var
+  FirstValid: Boolean;
 begin
-  if ((Event.EventType = etItemValid) and (Event.Item = Trigger)) then
-    Built()
-  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.Item is TSTrigger)) then
+  FirstValid := SessionState = ssInit;
+
+  if ((SessionState = ssInit) and (Event.EventType = etError)) then
+    ModalResult := mrCancel
+  else if ((SessionState in [ssInit]) and (Event.EventType = etItemValid) and (Event.Item = Trigger)) then
+  begin
+    Built();
+    SessionState := ssValid;
+  end
+  else if ((SessionState = ssAlter) and (Event.EventType = etError)) then
+  begin
+    if (not Assigned(Trigger)) then
+      SessionState := ssCreate
+    else
+      SessionState := ssValid;
+  end
+  else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemCreated, etItemAltered]) and (Event.Item = Trigger)) then
     ModalResult := mrOk;
 
-  if ((Event.EventType = etError) and (ModalResult = mrNone)) then
-    ModalResult := mrCancel
-  else if (Event.EventType = etAfterExecuteSQL) then
+  if (SessionState = ssValid) then
   begin
-    if (not PageControl.Visible and (ModalResult = mrNone)) then
+    if (not PageControl.Visible) then
     begin
       PageControl.Visible := True;
       PSQLWait.Visible := not PageControl.Visible;
+      FBOkCheckEnabled(nil);
 
-      if (ActiveControl = FBCancel) then
-      begin
-        FBOkCheckEnabled(nil);
-        ActiveControl := FName;
-      end;
+      if (FirstValid) then
+        if (not Assigned(Event)) then
+          ActiveControl := FName;
     end;
   end;
 end;
@@ -203,6 +217,7 @@ begin
     if (FDelete.Checked) then NewTrigger.Event := teDelete;
     NewTrigger.Stmt := SQLTrimStmt(PChar(FStatement.Text));
 
+    SessionState := ssAlter;
     if (not Assigned(Trigger)) then
       CanClose := Table.Database.AddTrigger(NewTrigger)
     else
@@ -213,11 +228,8 @@ begin
 // UpdateTrigger uses ExecuteSQL (not SendSQL). Because of this,
 // FormSessionEvent will be called inside UpdateTrigger - and this code
 // whould hide PageControl permanentely
-//    if (not CanClose) then
-//    begin
-//      PageControl.Visible := CanClose;
-//      PSQLWait.Visible := not PageControl.Visible;
-//    end;
+//    PageControl.Visible := False;
+//    PSQLWait.Visible := not PageControl.Visible;
 
     FBOk.Enabled := False;
   end;
@@ -278,6 +290,13 @@ begin
   end;
 
   if (not Assigned(Trigger)) then
+    SessionState := ssCreate
+  else if (not Trigger.Valid and not Trigger.Update()) then
+    SessionState := ssInit
+  else
+    SessionState := ssValid;
+
+  if (SessionState = ssCreate) then
   begin
     FName.Text := Preferences.LoadStr(789);
     while (Assigned(Table.Database.TriggerByName(FName.Text))) do
@@ -300,10 +319,10 @@ begin
   end
   else
   begin
-    PageControl.Visible := Trigger.Update();
+    PageControl.Visible := SessionState = ssValid;
     PSQLWait.Visible := not PageControl.Visible;
 
-    if (PageControl.Visible) then
+    if (SessionState = ssValid) then
       Built();
   end;
 

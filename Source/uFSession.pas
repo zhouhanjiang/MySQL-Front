@@ -2025,7 +2025,7 @@ begin
   if (AAddress <> FAddress) then
   begin
     // Debug 2016-12-16
-    URI := TUURI.Create(Address);
+    URI := TUURI.Create(AAddress);
     if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
       raise ERangeError.Create('Address: ' + Address);
     if ((URI.Param['view'] = 'ide') and (URI.Database = '')) then
@@ -5735,18 +5735,6 @@ procedure TFSession.DBGridEditExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  // Debug 2016-12-15
-  if (not Assigned(ActiveDBGrid)) then
-    if (not Assigned(Sender)) then
-      raise ERangeError.Create(SRangeError + #13#10 + 'Address: ' + Address)
-    else if (Sender is TAction) then
-      raise ERangeError.Create('Action Name: ' + TAction(Sender).Name + #13#10
-        + 'Address: ' + Address + #13#10
-        + 'Assigned: ' + BoolToStr(Assigned(GetActiveDBGrid()), True))
-    else
-      raise ERangeError.Create('Sender ClassType: ' + Sender.ClassName + #13#10
-        + 'Address: ' + Address);
-
   DBGridDblClick(ActiveDBGrid);
 end;
 
@@ -6078,6 +6066,7 @@ begin
   DBGrid.Columns.EndUpdate();
 
   DBGridColEnter(DBGrid);
+  DBGridColExit(DBGrid);
 
   SResult.Visible := PResult.Visible and (PQueryBuilder.Visible or PSynMemo.Visible);
 end;
@@ -7238,7 +7227,6 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
       N := N.Parent;
     end;
 
-    Session.Connection.DebugMonitor.Append('... DeleteNode: ' + IntToStr(Node.ImageIndex) + ' "' + Node.Text + '"', ttDebug);
 
     Node.Data := nil;
     Node.Delete();
@@ -7304,7 +7292,6 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
       etItemDropped:
         if (GroupIDByImageIndex(ImageIndexByData(Event.Item)) = GroupID) then
         begin
-          Session.Connection.DebugMonitor.Append('TFSession.FNavigatorUpdate.UpdateGroup - itItemDropped: ' + Event.Items.ClassName + ': "' + Event.Item.Name + '"', ttDebug);
 
           Child := Node.getFirstChild();
           while (Assigned(Child)) do
@@ -9096,16 +9083,14 @@ procedure TFSession.ListViewCompare(Sender: TObject; Item1: TListItem;
 const
   ImageIndexSort = Chr(iiProcesses) + Chr(iiUsers) + Chr(iiVariables);
 var
+  ListView: TListView;
   String1: string;
   String2: string;
   SortRec: ^TListViewSortRec;
 begin
-  // Debug 2016-11-21
-  if (not Assigned(Item1.Data)) then
-    raise ERangeError.Create(SRangeError);
-  if (not Assigned(Item2.Data)) then
-    raise ERangeError.Create(SRangeError);
+  Assert(Sender is TListView);
 
+  ListView := TListView(Sender);
   SortRec := @TListViewSortRec(Pointer(Data)^);
 
   Compare := 0;
@@ -9128,87 +9113,85 @@ begin
       String2 := Item2.SubItems[SortRec^.Index - 1];
 
       Compare := 0;
-      case (SelectedImageIndex) of
-        iiServer:
-          case (SortRec^.Index) of
-            1:
-              begin
-                if (String1 = '') then String1 := '0';              if (String2 = '') then String2 := '0';
-                Compare := Sign(SysUtils.StrToInt64(String1) - SysUtils.StrToInt64(String2));
-              end;
-            2:
-              begin
-                if (String1 = '') then String1 := '0';              if (String2 = '') then String2 := '0';
+      if (TObject(ListView.Tag) is TSSession) then
+        case (SortRec^.Index) of
+          1:
+            begin
+              if (String1 = '') then String1 := '0';              if (String2 = '') then String2 := '0';
+              Compare := Sign(SysUtils.StrToInt64(String1) - SysUtils.StrToInt64(String2));
+            end;
+          2:
+            begin
+              if (String1 = '') then String1 := '0';              if (String2 = '') then String2 := '0';
 
-                String1 := ReplaceStr(String1, '???', '0');         String2 := ReplaceStr(String2, '???', '0');
+              String1 := ReplaceStr(String1, '???', '0');         String2 := ReplaceStr(String2, '???', '0');
 
-                String1 := ReplaceStr(String1, ' B', '');           String2 := ReplaceStr(String2, ' B', '');
-                String1 := ReplaceStr(String1, ' KB', '000');       String2 := ReplaceStr(String2, ' KB', '000');
-                String1 := ReplaceStr(String1, ' MB', '000000');    String2 := ReplaceStr(String2, ' MB', '000000');
-                String1 := ReplaceStr(String1, ' GB', '000000000'); String2 := ReplaceStr(String2, ' GB', '000000000');
+              String1 := ReplaceStr(String1, ' B', '');           String2 := ReplaceStr(String2, ' B', '');
+              String1 := ReplaceStr(String1, ' KB', '000');       String2 := ReplaceStr(String2, ' KB', '000');
+              String1 := ReplaceStr(String1, ' MB', '000000');    String2 := ReplaceStr(String2, ' MB', '000000');
+              String1 := ReplaceStr(String1, ' GB', '000000000'); String2 := ReplaceStr(String2, ' GB', '000000000');
 
-                String1 := ReplaceStr(String1, LocaleFormatSettings.ThousandSeparator, '');
-                String2 := ReplaceStr(String2, LocaleFormatSettings.ThousandSeparator, '');
-                Compare := Sign(SysUtils.StrToFloat(String1, LocaleFormatSettings) - SysUtils.StrToFloat(String2, LocaleFormatSettings));
-              end;
-            3:
-              begin
-                if (String1 = '') then String1 := SysUtils.DateToStr(1, LocaleFormatSettings);
-                if (String2 = '') then String2 := SysUtils.DateToStr(1, LocaleFormatSettings);
+              String1 := ReplaceStr(String1, LocaleFormatSettings.ThousandSeparator, '');
+              String2 := ReplaceStr(String2, LocaleFormatSettings.ThousandSeparator, '');
+              Compare := Sign(SysUtils.StrToFloat(String1, LocaleFormatSettings) - SysUtils.StrToFloat(String2, LocaleFormatSettings));
+            end;
+          3:
+            begin
+              if (String1 = '') then String1 := SysUtils.DateToStr(1, LocaleFormatSettings);
+              if (String2 = '') then String2 := SysUtils.DateToStr(1, LocaleFormatSettings);
 
-                String1 := ReplaceStr(String1, '???', SysUtils.DateToStr(1, LocaleFormatSettings));
-                String2 := ReplaceStr(String2, '???', SysUtils.DateToStr(1, LocaleFormatSettings));
+              String1 := ReplaceStr(String1, '???', SysUtils.DateToStr(1, LocaleFormatSettings));
+              String2 := ReplaceStr(String2, '???', SysUtils.DateToStr(1, LocaleFormatSettings));
 
-                Compare := Sign(SysUtils.StrToDateTime(String1, LocaleFormatSettings) - SysUtils.StrToDateTime(String2, LocaleFormatSettings));
-              end;
-          end;
-        iiDatabase:
-          case (SortRec^.Index) of
-            2:
-              begin
-                if (String1 = '') then String1 := '0';
-                if (String2 = '') then String2 := '0';
+              Compare := Sign(SysUtils.StrToDateTime(String1, LocaleFormatSettings) - SysUtils.StrToDateTime(String2, LocaleFormatSettings));
+            end;
+        end
+      else if (TObject(ListView.Tag) is TSDatabase) then
+        case (SortRec^.Index) of
+          2:
+            begin
+              if (String1 = '') then String1 := '0';
+              if (String2 = '') then String2 := '0';
 
-                String1 := ReplaceStr(String1, '???', '0');         String2 := ReplaceStr(String2, '???', '0');
+              String1 := ReplaceStr(String1, '???', '0');         String2 := ReplaceStr(String2, '???', '0');
 
-                if ((Length(String1) >= 1) and (String1[1] = '~')) then Delete(String1, 1, 1);
-                if ((Length(String2) >= 1) and (String2[1] = '~')) then Delete(String2, 1, 1);
+              if ((Length(String1) >= 1) and (String1[1] = '~')) then Delete(String1, 1, 1);
+              if ((Length(String2) >= 1) and (String2[1] = '~')) then Delete(String2, 1, 1);
 
-                String1 := ReplaceStr(String1, LocaleFormatSettings.ThousandSeparator, '');
-                String2 := ReplaceStr(String2, LocaleFormatSettings.ThousandSeparator, '');
-                Compare := Sign(SysUtils.StrToFloat(String1, LocaleFormatSettings) - SysUtils.StrToFloat(String2, LocaleFormatSettings));
-              end;
-            3:
-              begin
-                if (String1 = '') then String1 := '0';              if (String2 = '') then String2 := '0';
+              String1 := ReplaceStr(String1, LocaleFormatSettings.ThousandSeparator, '');
+              String2 := ReplaceStr(String2, LocaleFormatSettings.ThousandSeparator, '');
+              Compare := Sign(SysUtils.StrToFloat(String1, LocaleFormatSettings) - SysUtils.StrToFloat(String2, LocaleFormatSettings));
+            end;
+          3:
+            begin
+              if (String1 = '') then String1 := '0';              if (String2 = '') then String2 := '0';
 
-                String1 := ReplaceStr(String1, '???', '0');         String2 := ReplaceStr(String2, '???', '0');
-                String1 := ReplaceStr(String1, ' B', '');           String2 := ReplaceStr(String2, ' B', '');
-                String1 := ReplaceStr(String1, ' KB', '000');       String2 := ReplaceStr(String2, ' KB', '000');
-                String1 := ReplaceStr(String1, ' MB', '000000');    String2 := ReplaceStr(String2, ' MB', '000000');
-                String1 := ReplaceStr(String1, ' GB', '000000000'); String2 := ReplaceStr(String2, ' GB', '000000000');
+              String1 := ReplaceStr(String1, '???', '0');         String2 := ReplaceStr(String2, '???', '0');
+              String1 := ReplaceStr(String1, ' B', '');           String2 := ReplaceStr(String2, ' B', '');
+              String1 := ReplaceStr(String1, ' KB', '000');       String2 := ReplaceStr(String2, ' KB', '000');
+              String1 := ReplaceStr(String1, ' MB', '000000');    String2 := ReplaceStr(String2, ' MB', '000000');
+              String1 := ReplaceStr(String1, ' GB', '000000000'); String2 := ReplaceStr(String2, ' GB', '000000000');
 
-                String1 := ReplaceStr(String1, LocaleFormatSettings.ThousandSeparator, '');
-                String2 := ReplaceStr(String2, LocaleFormatSettings.ThousandSeparator, '');
-                Compare := Sign(SysUtils.StrToFloat(String1, LocaleFormatSettings) - SysUtils.StrToFloat(String2, LocaleFormatSettings));
-              end;
-            4:
-              begin
-                if (String1 = '') then String1 := SysUtils.DateToStr(1, LocaleFormatSettings);
-                if (String2 = '') then String2 := SysUtils.DateToStr(1, LocaleFormatSettings);
+              String1 := ReplaceStr(String1, LocaleFormatSettings.ThousandSeparator, '');
+              String2 := ReplaceStr(String2, LocaleFormatSettings.ThousandSeparator, '');
+              Compare := Sign(SysUtils.StrToFloat(String1, LocaleFormatSettings) - SysUtils.StrToFloat(String2, LocaleFormatSettings));
+            end;
+          4:
+            begin
+              if (String1 = '') then String1 := SysUtils.DateToStr(1, LocaleFormatSettings);
+              if (String2 = '') then String2 := SysUtils.DateToStr(1, LocaleFormatSettings);
 
-                String1 := ReplaceStr(String1, '???', SysUtils.DateToStr(1, LocaleFormatSettings));
-                String2 := ReplaceStr(String2, '???', SysUtils.DateToStr(1, LocaleFormatSettings));
+              String1 := ReplaceStr(String1, '???', SysUtils.DateToStr(1, LocaleFormatSettings));
+              String2 := ReplaceStr(String2, '???', SysUtils.DateToStr(1, LocaleFormatSettings));
 
-                Compare := Sign(SysUtils.StrToDateTime(String1, LocaleFormatSettings) - SysUtils.StrToDateTime(String2, LocaleFormatSettings));
-              end;
-          end;
-        iiProcesses:
-          case (SortRec^.Index) of
-            6:
-              Compare := Sign(Double(TSProcess(Item1.Data).Time) - Double(TSProcess(Item2.Data).Time))
-          end;
-      end;
+              Compare := Sign(SysUtils.StrToDateTime(String1, LocaleFormatSettings) - SysUtils.StrToDateTime(String2, LocaleFormatSettings));
+            end;
+        end
+      else if (TObject(ListView.Tag) is TSProcesses) then
+        case (SortRec^.Index) of
+          6:
+            Compare := Sign(Double(TSProcess(Item1.Data).Time) - Double(TSProcess(Item2.Data).Time))
+        end;
     end;
 
     if (Compare = 0) then
@@ -9781,7 +9764,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
 
   function Compare(const Kind: TPAccount.TDesktop.TListViewKind; const Item1, Item2: TListItem): Integer;
   begin
-    ListViewCompare(nil, Item1, Item2, LPARAM(@ListViewSortData[Kind]), Result);
+    ListViewCompare(ListView, Item1, Item2, LPARAM(@ListViewSortData[Kind]), Result);
   end;
 
   procedure UpdateItem(const Item: TListItem; const GroupID: Integer; const Data: TObject);
@@ -10195,10 +10178,12 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
         Mid := (Right - Left) div 2 + Left;
         case (Compare(Kind, ListView.Items[Mid], Item)) of
           -1: begin Left := Mid + 1; Index := Mid; end;
-          0: raise ERangeError.CreateFmt('%s "%s" = %s = %s - %d / %d / %d / %d - %s:%s',
-            [TSItem(Data).ClassName, TSItem(Data).Name, ListView.Items[Mid].Caption, Item.Caption,
+          0: raise ERangeError.CreateFmt('%s - %s: %s = %s = %s, %d = %d - %d / %d / %d / %d - %s, %s',
+            [TObject(ListView.Tag).ClassName, TSItem(Data).ClassName,
+              TSItem(Data).Name, ListView.Items[Mid].Caption, Item.Caption,
+              ListView.Items[Mid].ImageIndex, Item.ImageIndex,
               Left, Mid, Right, ListView.Items.Count,
-              TSObject(ListView.Tag).ClassName, TSObject(ListView.Tag).Name]);
+              TObject(ListView.Tag).ClassName]);
           1: begin Right := Mid - 1; Index := Mid - 1; end;
         end;
       end;
@@ -10208,13 +10193,13 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
 
     if (Index < 0) then
     begin
-      Session.Connection.DebugMonitor.Append('InsertOrUpdateItem - ' + TSItem(Data).Name, ttDebug);
+      Session.Connection.DebugMonitor.Append('InsertOrUpdateItem - ' + TSItem(Data).ClassName + ': ' + TSItem(Data).Name, ttDebug);
       Result := ListView.Items.Add();
       Result.Data := Data;
     end
     else if (ListView.Items[Index].Data <> Data) then
     begin
-      Session.Connection.DebugMonitor.Append('InsertOrUpdateItem - ' + TSItem(Data).Name, ttDebug);
+      Session.Connection.DebugMonitor.Append('InsertOrUpdateItem - ' + TSItem(Data).ClassName + ': ' + TSItem(Data).Name, ttDebug);
       Result := ListView.Items.Insert(Index);
       Result.Data := Data;
     end
@@ -10225,7 +10210,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
 
   function AddItem(const GroupID: Integer; const Data: TObject): TListItem;
   begin
-    Session.Connection.DebugMonitor.Append('AddItem - ' + TSItem(Data).Name, ttDebug);
+    Session.Connection.DebugMonitor.Append('InsertOrUpdateItem - ' + TSItem(Data).ClassName + ': ' + TSItem(Data).Name, ttDebug);
     Result := ListView.Items.Add();
     Result.Data := Data;
     UpdateItem(Result, GroupID, Data);
@@ -10368,7 +10353,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
       etItemCreated:
         if (GroupID = GroupIDByImageIndex(ImageIndexByData(Event.Item))) then
         begin
-          Session.Connection.DebugMonitor.Append('TFSession.ListViewUpdate.UpdateGroup - etItemCreated - ' + ListViewDescription(ListView) + ' - ' + Event.Items.ClassName + ': "' + Event.Item.Name + '"', ttDebug);
+          Session.Connection.DebugMonitor.Append('UpdateGroup - etItemCreated - ' + TSItem(Event.Item).ClassName + ': ' + TSItem(Event.Item).Name, ttDebug);
 
           Item := InsertOrUpdateItem(Kind, GroupID, Event.Item);
           if (not Assigned(ListView.Selected)) then
@@ -10380,7 +10365,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
       etItemAltered:
         if (GroupID = GroupIDByImageIndex(ImageIndexByData(Event.Item))) then
         begin
-          Session.Connection.DebugMonitor.Append('TFSession.ListViewUpdate.UpdateGroup - etItemAltered - ' + ListViewDescription(ListView) + ' - ' + Event.Items.ClassName + ': "' + Event.Item.Name + '"', ttDebug);
+          Session.Connection.DebugMonitor.Append('UpdateGroup - etItemAltered - ' + TSItem(Event.Item).ClassName + ': ' + TSItem(Event.Item).Name, ttDebug);
 
           Index := 0;
           while ((Index < ListView.Items.Count) and (ListView.Items[Index].Data <> Event.Item)) do
@@ -10402,14 +10387,11 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
       etItemDropped:
         if (GroupID = GroupIDByImageIndex(ImageIndexByData(Event.Item))) then
         begin
-          Session.Connection.DebugMonitor.Append('TFSession.ListViewUpdate.UpdateGroup - etItemDropped - ' + ListViewDescription(ListView) + ' - ' + Event.Items.ClassName + ': "' + Event.Item.Name + '"', ttDebug);
-          if (ListView.Tag <> 0) then
-            Session.Connection.DebugMonitor.Append('... ListView.Tag.ClassType: ' + TObject(ListView.Tag).ClassName, ttDebug);
+          Session.Connection.DebugMonitor.Append('UpdateGroup - etItemDropped - ' + TSItem(Event.Item).ClassName + ': ' + TSItem(Event.Item).Name, ttDebug);
 
           for I := ListView.Items.Count - 1 downto 0 do
             if (ListView.Items[I].Data = Event.Item) then
             begin
-              Session.Connection.DebugMonitor.Append('... deleted: ' + IntToStr(ListView.Items[I].ImageIndex) + ' - "' + ListView.Items[I].Caption + '"', ttDebug);
               ListView.Items.Delete(I);
             end;
           if ((Kind = lkTable) and (Event.Items is TSBaseTableFields)) then
@@ -10418,19 +10400,16 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
               if ((TObject(ListView.Items[I].Data) is TSKey) and (TSBaseTable(TSBaseTableFields(Event.Items).Table).Keys.IndexOf(ListView.Items[I].Data) < 0)) then
               begin
                 ListView.Items.Delete(I);
-                Session.Connection.DebugMonitor.Append('... Key found!', ttDebug);
               end;
             for I := ListView.Items.Count - 1 downto 0 do
               if ((TObject(ListView.Items[I].Data) is TSField) and (TSBaseTable(TSBaseTableFields(Event.Items).Table).Fields.IndexOf(ListView.Items[I].Data) < 0)) then
               begin
                 ListView.Items.Delete(I);
-                Session.Connection.DebugMonitor.Append('... Field found!', ttDebug);
               end;
             for I := ListView.Items.Count - 1 downto 0 do
               if ((TObject(ListView.Items[I].Data) is TSForeignKey) and (TSBaseTable(TSBaseTableFields(Event.Items).Table).ForeignKeys.IndexOf(ListView.Items[I].Data) < 0)) then
               begin
                 ListView.Items.Delete(I);
-                Session.Connection.DebugMonitor.Append('... ForeignKey found!', ttDebug);
               end;
           end;
         end;
@@ -13261,7 +13240,7 @@ begin
         if (URI.Database = '') then
           URI.Database := LastSelectedDatabase;
         if (URI.Table = '') then
-          if (SelectedImageIndex = iiTrigger) then
+          if (FNavigator.Selected.ImageIndex = iiTrigger) then
           begin
             URI.Table := TSTrigger(FNavigator.Selected.Data).TableName;
 
@@ -13276,7 +13255,10 @@ begin
 
             // Debug 2017-01-15
             if (URI.Table = '') then
-              raise ERangeError.Create('LastSelectedTable: ' + LastSelectedTable);
+              raise ERangeError.Create('LastSelectedDatabase: ' + LastSelectedDatabase + #13#10
+                + 'LastSelectedTable: ' + LastSelectedTable + #13#10
+                + 'Address: ' + Address + #13#10
+                + 'FNavigator: ' + IntToStr(FNavigator.Selected.ImageIndex) + ' - ' + FNavigator.Selected.Text);
           end;
 
         URI.Param['system'] := Null;

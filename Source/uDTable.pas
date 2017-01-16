@@ -192,14 +192,15 @@ type
   private
     FCreatedName: string;
     NewTable: TSBaseTable;
+    SessionState: (ssCreate, ssInit, ssStatus, ssDependencies, ssValid, ssAlter);
     procedure Built();
+    procedure BuiltDependencies();
     procedure BuiltStatus();
     procedure FFieldsRefresh(Sender: TObject);
     procedure FForeignKeysRefresh(Sender: TObject);
     procedure FIndicesRefresh(Sender: TObject);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure FPartitionsRefresh(Sender: TObject);
-    procedure FDependenciesBuild();
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Charset: string;
@@ -607,22 +608,88 @@ begin
   TSSource.TabVisible := NewTable.Source <> '';
 end;
 
+procedure TDTable.BuiltDependencies();
+
+  procedure AddDBObject(const DBObject: TSDBObject);
+  var
+    I: Integer;
+    Item: TListItem;
+  begin
+    for I := 0 to DBObject.References.Count - 1 do
+      if (DBObject.References[I].DBObject = Table) then
+      begin
+        Item := FDependencies.Items.Add();
+
+        if (DBObject is TSBaseTable) then
+        begin
+          Item.ImageIndex := iiBaseTable;
+          Item.Caption := DBObject.Caption;
+          Item.SubItems.Add(Preferences.LoadStr(302));
+        end
+        else if (DBObject is TSView) then
+        begin
+          Item.ImageIndex := iiView;
+          Item.Caption := DBObject.Caption;
+          Item.SubItems.Add(Preferences.LoadStr(738));
+        end
+        else if (DBObject is TSProcedure) then
+        begin
+          Item.ImageIndex := iiProcedure;
+          Item.Caption := DBObject.Caption;
+          Item.SubItems.Add(Preferences.LoadStr(768));
+        end
+        else if (DBObject is TSFunction) then
+        begin
+          Item.ImageIndex := iiFunction;
+          Item.Caption := DBObject.Caption;
+          Item.SubItems.Add(Preferences.LoadStr(769));
+        end
+        else if (DBObject is TSTrigger) then
+        begin
+          Item.ImageIndex := iiTrigger;
+          Item.Caption := DBObject.Caption;
+          Item.SubItems.Add(Preferences.LoadStr(923, TSTrigger(DBObject).TableName));
+        end
+        else if (DBObject is TSEvent) then
+        begin
+          Item.ImageIndex := iiEvent;
+          Item.Caption := DBObject.Caption;
+          Item.SubItems.Add(Preferences.LoadStr(812));
+        end
+        else
+          raise ERangeError.Create(SRangeError);
+        Item.Data := DBObject;
+      end;
+  end;
+
+var
+  I: Integer;
+begin
+  FDependencies.Items.BeginUpdate();
+  FDependencies.Items.Clear();
+
+  for I := 0 to Database.Tables.Count - 1 do
+    if (Database.Tables[I] <> Table) then
+      AddDBObject(Database.Tables[I]);
+
+  if (Assigned(Database.Routines)) then
+    for I := 0 to Database.Routines.Count - 1 do
+      AddDBObject(Database.Routines[I]);
+
+  if (Assigned(Database.Triggers)) then
+    for I := 0 to Database.Triggers.Count - 1 do
+      if (Database.Triggers[I].Table <> Table) then
+        AddDBObject(Database.Triggers[I]);
+
+  if (Assigned(Database.Events)) then
+    for I := 0 to Database.Events.Count - 1 do
+      AddDBObject(Database.Events[I]);
+
+  FDependencies.Items.EndUpdate();
+end;
+
 procedure TDTable.BuiltStatus();
 begin
-  GDates.Cursor := crDefault;
-  FLCreated.Cursor := crDefault;
-  FLUpdated.Cursor := crDefault;
-  GSize.Cursor := crDefault;
-  FLIndexSize.Cursor := crDefault;
-  FLDataSize.Cursor := crDefault;
-  GRecordCount.Cursor := crDefault;
-
-  GOptimize.Cursor := crDefault;
-  FLUnusedSize.Cursor := crDefault;
-  GCheck.Cursor := crDefault;
-  FLChecked.Cursor := crDefault;
-
-
   if (Table.Created = 0) then FCreated.Caption := '???' else FCreated.Caption := SysUtils.DateTimeToStr(Table.Created, LocaleFormatSettings);
   if (Table.Updated = 0) then FUpdated.Caption := '???' else FUpdated.Caption := SysUtils.DateTimeToStr(Table.Updated, LocaleFormatSettings);
 
@@ -950,6 +1017,8 @@ begin
       NewTable.AutoIncrement := 0;
     end;
 
+      SessionState := ssAlter;
+
     if (not Assigned(Table)) then
       CanClose := Database.AddBaseTable(NewTable)
     else
@@ -960,12 +1029,8 @@ begin
     else
       FCreatedName := NewTable.Name;
 
-    if (not CanClose) then
-    begin
-      PageControl.Visible := CanClose;
-      PSQLWait.Visible := not PageControl.Visible;
-    end;
-
+    PageControl.Visible := False;
+    PSQLWait.Visible := not PageControl.Visible;
     FBOk.Enabled := False;
   end;
 end;
@@ -1037,35 +1102,56 @@ begin
 end;
 
 procedure TDTable.FormSessionEvent(const Event: TSSession.TEvent);
+var
+  FirstValid: Boolean;
 begin
-  if ((Event.EventType = etItemValid) and (Event.Item = Table)) then
-    if (not PageControl.Visible) then
+  FirstValid := SessionState = ssInit;
+
+  if ((SessionState = ssInit) and (Event.EventType = etError)) then
+    ModalResult := mrCancel
+  else if ((SessionState in [ssInit, ssStatus, ssDependencies]) and (Event.EventType = etItemValid) and (Event.Item = Table)) then
+  begin
+    if (SessionState = ssInit) then
       Built()
-    else
+    else if (SessionState = ssStatus) then
       BuiltStatus()
-  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.Item is TSTable)) then
+    else
+      BuiltDependencies();
+    SessionState := ssValid;
+  end
+  else if ((SessionState = ssAlter) and (Event.EventType = etError)) then
+  begin
+    if (not Assigned(Table)) then
+      SessionState := ssCreate
+    else
+      SessionState := ssValid;
+  end
+  else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemCreated, etItemAltered]) and (Event.Item = Table)) then
     ModalResult := mrOk;
 
-  if ((Event.EventType = etError) and (ModalResult = mrNone)) then
-    ModalResult := mrCancel
-  else if (Event.EventType = etAfterExecuteSQL) then
+  if (SessionState = ssValid) then
   begin
-    if (FDependencies.Cursor = crSQLWait) then
-    begin
-      FDependenciesBuild();
-      FDependencies.Cursor := crDefault;
-    end;
+    GDates.Cursor := crDefault;
+    FLCreated.Cursor := crDefault;
+    FLUpdated.Cursor := crDefault;
+    GSize.Cursor := crDefault;
+    FLIndexSize.Cursor := crDefault;
+    FLDataSize.Cursor := crDefault;
+    GRecordCount.Cursor := crDefault;
 
-    if (not PageControl.Visible and (ModalResult = mrNone)) then
+    GOptimize.Cursor := crDefault;
+    FLUnusedSize.Cursor := crDefault;
+    GCheck.Cursor := crDefault;
+    FLChecked.Cursor := crDefault;
+
+    if (not PageControl.Visible) then
     begin
       PageControl.Visible := True;
       PSQLWait.Visible := not PageControl.Visible;
+      FBOkCheckEnabled(nil);
 
-      if (ActiveControl = FBCancel) then
-      begin
-        FBOkCheckEnabled(nil);
+      if (FirstValid) then
         ActiveControl := FName;
-      end;
     end;
   end;
 end;
@@ -1124,6 +1210,13 @@ begin
   NewTable := TSBaseTable.Create(Database.Tables);
 
   if (not Assigned(Table)) then
+    SessionState := ssCreate
+  else if (not Table.Valid and not Table.Update()) then
+    SessionState := ssInit
+  else
+    SessionState := ssValid;
+
+  if (SessionState = ssCreate) then
   begin
     NewTable.Charset := Database.Charset;
     NewTable.Collation := Database.Collation;
@@ -1184,10 +1277,10 @@ begin
   end
   else
   begin
-    PageControl.Visible := Table.Update();
+    PageControl.Visible := SessionState = ssValid;
     PSQLWait.Visible := not PageControl.Visible;
 
-    if (PageControl.Visible) then
+    if (SessionState = ssValid) then
       Built();
   end;
 
@@ -1315,86 +1408,6 @@ begin
   FPartitionsChange(Sender, nil, ctState);
 
   FBOkCheckEnabled(Sender);
-end;
-
-procedure TDTable.FDependenciesBuild();
-
-  procedure AddDBObject(const DBObject: TSDBObject);
-  var
-    I: Integer;
-    Item: TListItem;
-  begin
-    for I := 0 to DBObject.References.Count - 1 do
-      if (DBObject.References[I].DBObject = Table) then
-      begin
-        Item := FDependencies.Items.Add();
-
-        if (DBObject is TSBaseTable) then
-        begin
-          Item.ImageIndex := iiBaseTable;
-          Item.Caption := DBObject.Caption;
-          Item.SubItems.Add(Preferences.LoadStr(302));
-        end
-        else if (DBObject is TSView) then
-        begin
-          Item.ImageIndex := iiView;
-          Item.Caption := DBObject.Caption;
-          Item.SubItems.Add(Preferences.LoadStr(738));
-        end
-        else if (DBObject is TSProcedure) then
-        begin
-          Item.ImageIndex := iiProcedure;
-          Item.Caption := DBObject.Caption;
-          Item.SubItems.Add(Preferences.LoadStr(768));
-        end
-        else if (DBObject is TSFunction) then
-        begin
-          Item.ImageIndex := iiFunction;
-          Item.Caption := DBObject.Caption;
-          Item.SubItems.Add(Preferences.LoadStr(769));
-        end
-        else if (DBObject is TSTrigger) then
-        begin
-          Item.ImageIndex := iiTrigger;
-          Item.Caption := DBObject.Caption;
-          Item.SubItems.Add(Preferences.LoadStr(923, TSTrigger(DBObject).TableName));
-        end
-        else if (DBObject is TSEvent) then
-        begin
-          Item.ImageIndex := iiEvent;
-          Item.Caption := DBObject.Caption;
-          Item.SubItems.Add(Preferences.LoadStr(812));
-        end
-        else
-          raise ERangeError.Create(SRangeError);
-        Item.Data := DBObject;
-      end;
-  end;
-
-var
-  I: Integer;
-begin
-  FDependencies.Items.BeginUpdate();
-  FDependencies.Items.Clear();
-
-  for I := 0 to Database.Tables.Count - 1 do
-    if (Database.Tables[I] <> Table) then
-      AddDBObject(Database.Tables[I]);
-
-  if (Assigned(Database.Routines)) then
-    for I := 0 to Database.Routines.Count - 1 do
-      AddDBObject(Database.Routines[I]);
-
-  if (Assigned(Database.Triggers)) then
-    for I := 0 to Database.Triggers.Count - 1 do
-      if (Database.Triggers[I].Table <> Table) then
-        AddDBObject(Database.Triggers[I]);
-
-  if (Assigned(Database.Events)) then
-    for I := 0 to Database.Events.Count - 1 do
-      AddDBObject(Database.Events[I]);
-
-  FDependencies.Items.EndUpdate();
 end;
 
 procedure TDTable.FTriggersChange(Sender: TObject; Item: TListItem;
@@ -1605,6 +1618,8 @@ procedure TDTable.TSInformationShow(Sender: TObject);
 begin
   if (not Table.Update(True)) then
   begin
+    SessionState := ssStatus;
+
     GDates.Cursor := crSQLWait;
     FLCreated.Cursor := crSQLWait;
     FCreated.Caption := '';
@@ -1645,9 +1660,12 @@ begin
     List := TList.Create();
     List.Add(Table.DependenciesSearch);
     if (not Database.Session.Update(List)) then
-      FDependencies.Cursor := crSQLWait
+    begin
+      SessionState := ssDependencies;
+      FDependencies.Cursor := crSQLWait;
+    end
     else
-      FDependenciesBuild();
+      BuiltDependencies();
     List.Free();
   end;
 end;

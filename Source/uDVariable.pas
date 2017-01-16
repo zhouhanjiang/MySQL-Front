@@ -30,6 +30,8 @@ type
     procedure FormCanResize(Sender: TObject; var NewWidth, NewHeight: Integer;
       var Resize: Boolean);
   private
+    SessionState: (ssInit, ssValid, ssAlter);
+    procedure Built();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
@@ -63,6 +65,13 @@ end;
 
 { TDVariable ******************************************************************}
 
+procedure TDVariable.Built();
+begin
+  FValue.Text := Variable.Value;
+  FGlobal.Checked := False;
+  FSession.Checked := True;
+end;
+
 function TDVariable.Execute(): Boolean;
 begin
   ShowModal();
@@ -81,18 +90,35 @@ begin
 end;
 
 procedure TDVariable.FormSessionEvent(const Event: TSSession.TEvent);
+var
+  FirstValid: Boolean;
 begin
-  if ((Event.EventType in [etItemAltered]) and (Event.Item is TSVariable)) then
+  FirstValid := SessionState = ssInit;
+
+  if ((SessionState = ssInit) and (Event.EventType = etError)) then
+    ModalResult := mrCancel
+  else if ((SessionState in [ssInit]) and (Event.EventType = etItemValid) and (Event.Item = Variable)) then
+  begin
+    Built();
+    SessionState := ssValid;
+  end
+  else if ((SessionState = ssAlter) and (Event.EventType = etError)) then
+  begin
+    SessionState := ssValid;
+  end
+  else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemAltered]) and (Event.Item = Variable)) then
     ModalResult := mrOk;
 
-  if ((Event.EventType = etError) and (ModalResult = mrNone)) then
-    ModalResult := mrCancel
-  else if (Event.EventType = etAfterExecuteSQL) then
+  if (SessionState = ssValid) then
   begin
-    if (not GroupBox.Visible and (ModalResult = mrNone)) then
+    if (not GroupBox.Visible) then
     begin
       GroupBox.Visible := True;
       PSQLWait.Visible := not GroupBox.Visible;
+
+      if (FirstValid) then
+        if (not Assigned(Event)) then
+          ActiveControl := FValue;
     end;
   end;
 end;
@@ -121,16 +147,13 @@ begin
     if (FGlobal.Checked) then Include(UpdateModes, vuGlobal);
     if (FSession.Checked) then Include(UpdateModes, vuSession);
 
+    SessionState := ssAlter;
     CanClose := Session.UpdateVariable(Variable, NewVariable, UpdateModes);
 
     NewVariable.Free();
 
-    if (not CanClose) then
-    begin
-      GroupBox.Visible := CanClose;
-      PSQLWait.Visible := not GroupBox.Visible;
-    end;
-
+    GroupBox.Visible := False;
+    PSQLWait.Visible := not GroupBox.Visible;
     FBOk.Enabled := False;
   end;
 end;
@@ -154,17 +177,21 @@ begin
 
   Caption := Preferences.LoadStr(842, Variable.Name);
 
-  FValue.Text := Variable.Value;
-  FGlobal.Checked := False;
-  FSession.Checked := True;
-
   FGlobal.Visible := Session.Connection.MySQLVersion >= 40003;
   FSession.Visible := Session.Connection.MySQLVersion >= 40003;
 
   FGlobal.Enabled := not Assigned(Session.UserRights) or Session.UserRights.RSuper;
 
-  GroupBox.Visible := True;
+  if (not Session.Variables.Valid and not Session.Variables.Update()) then
+    SessionState := ssInit
+  else
+    SessionState := ssValid;
+
+  GroupBox.Visible := SessionState = ssValid;
   PSQLWait.Visible := not GroupBox.Visible;
+
+  if (SessionState = ssValid) then
+    Built();
 
   FBOk.Enabled := False;
 
