@@ -2047,16 +2047,12 @@ const
 var
   BracketDeep: Integer;
   Len: Integer;
-  S: string; // Debug 2017-01-16
-  OldPos: PChar; // Debug 2017-01-16
 begin
   Len := Handle.Len;
   SetLength(Result, Len);
 
   if (Len > 0) then
   begin
-    OldPos := Handle.Pos;
-
     asm
         PUSH ES
         PUSH ESI
@@ -2089,8 +2085,6 @@ begin
 
       Unquoted:
         MOV AX,[ESI]                     // Character in SQL
-        CMP AX,';'                       // End of SQL statement?
-        JE Finish                        // Yes!
 
         CALL MoveString                  // If quoted string: Copy it
         JE UnquotedLE                    // Quoted string!
@@ -2107,14 +2101,20 @@ begin
       Unquoted1:
         CMP AX,')'                       // End brackets?
         JNE Unquoted2                    // No!
-        CMP BracketDeep,0                // Are we inside an open brackt?
+        CMP BracketDeep,0                // Are we inside an brackts?
         JE Finish                        // No!
         DEC BracketDeep                  // Close bracket
-        JNZ UnquotedC                    // We're still in open brackets!
+        JNZ UnquotedC                    // We're still inside brackets!
         MOVSW                            // Copy closing bracket to Result
         JMP Finish
 
       Unquoted2:
+        CMP BracketDeep,0                // Are we inside an brackts?
+        JNE UnquotedC                    // Yes!
+
+        CMP AX,';'                       // End of SQL statement?
+        JE Finish                        // Yes!
+
         MOV EBX,Handle
         CMP ECX,[EBX + 4]                // First character?
         JE UnquotedC                     // Yes!
@@ -2172,13 +2172,6 @@ begin
         POP EDI
         POP ESI
         POP ES
-    end;
-
-    // Debug 2017-01-16
-    if (Handle.Pos = OldPos) then
-    begin
-      SetString(S, Handle.Pos, Handle.Len - (Integer(Handle.Pos) - Integer(Handle.Start)) div SizeOf(Char));
-      raise ERangeError.Create('Text: ' + S);
     end;
 
     if (Len <> Length(Result)) then
@@ -2250,8 +2243,6 @@ begin
       Unquoted:
       UnquotedL:
         MOV AX,[ESI]                     // Character in SQL
-        CMP AX,';'                       // End of SQL statement?
-        JE Compare                       // Yes!
 
         CALL MoveString                  // If quoted string: Copy it
         JE UnquotedLE                    // Quoted string!
@@ -2276,6 +2267,12 @@ begin
         JMP Compare
 
       Unquoted2:
+        CMP BracketDeep,0                // Are we inside an brackts?
+        JNE UnquotedC                    // Yes!
+
+        CMP AX,';'                       // End of SQL statement?
+        JE Compare                       // Yes!
+
         MOV EBX,Handle
         CMP ECX,[EBX + 4]                // First character?
         JE UnquotedC                     // Yes!

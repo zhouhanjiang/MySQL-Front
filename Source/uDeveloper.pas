@@ -782,13 +782,13 @@ begin
   Result := ExceptionInfo.ExceptionClass + ':' + #13#10;
   Result := Result + ExceptionMessage + #13#10#13#10;
 
-  if (ExceptionInfo.ClassName = 'EOutOfMemory') then
+  if (ExceptionInfo.ExceptionClass = 'EOutOfMemory') then
   begin
     Result := Result + 'Free Memory: ' + IntToStr(GetFreeMemory()) + #13#10;
     Result := Result + 'Total Memory: ' + IntToStr(GetMemPhysicalInstalled()) + #13#10#13#10;
   end;
 
-  if (ExceptionInfo.ClassName = 'EFrozenApplication') then
+  if (ExceptionInfo.ExceptionClass = 'EFrozenApplication') then
     Result := Result + 'FreezeTimeout: ' + IntToStr(CurrentEurekaLogOptions.FreezeTimeout) + #13#10;
 
   if (Assigned(ExceptionInfo.CallStack)) then
@@ -862,7 +862,7 @@ begin
   else
     PostMessage(Application.MainFormHandle, UM_CRASH_RESCUE, 0, 0);
 
-  if (ExceptionInfo.ClassName = 'EFrozenApplication') then
+  if (ExceptionInfo.ExceptionClass = 'EFrozenApplication') then
   begin
     Handle := False;
 

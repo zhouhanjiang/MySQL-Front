@@ -10116,12 +10116,11 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
         Mid := (Right - Left) div 2 + Left;
         case (Compare(Kind, ListView.Items[Mid], Item)) of
           -1: begin Left := Mid + 1; Index := Mid; end;
-          0: raise ERangeError.CreateFmt('%s - %s: %s = %s = %s, %d = %d - %d / %d / %d / %d - %s',
+          0: raise ERangeError.CreateFmt('%s - %s: %s = %s = %s, %d = %d - %d / %d / %d / %d',
             [TObject(ListView.Tag).ClassName, TSItem(Data).ClassName,
               TSItem(Data).Name, ListView.Items[Mid].Caption, Item.Caption,
               ListView.Items[Mid].ImageIndex, Item.ImageIndex,
-              Left, Mid, Right, ListView.Items.Count,
-              TObject(ListView.Tag).ClassName]);
+              Left, Mid, Right, ListView.Items.Count]);
           1: begin Right := Mid - 1; Index := Mid - 1; end;
         end;
       end;
@@ -10447,15 +10446,15 @@ begin
         AddItem(GroupIDByImageIndex(ImageIndexByData(Event.Items[I])), Event.Items[I]);
       UpdateObjectSearchGroupHeaders();
     end
-    else if (Event.Items is TSDatabases) then
+    else if ((Kind in [lkServer, lkObjectSearch]) and (Event.Items is TSDatabases)) then
       UpdateGroup(Kind, giDatabases, Event.Items)
-    else if (Event.Items is TSTables) then
+    else if ((Kind in [lkDatabase, lkObjectSearch]) and (Event.Items is TSTables)) then
       UpdateGroup(Kind, giTables, Event.Items)
-    else if (Event.Items is TSRoutines) then
+    else if ((Kind in [lkDatabase, lkObjectSearch]) and (Event.Items is TSRoutines)) then
       UpdateGroup(Kind, giRoutines, Event.Items)
-    else if (Event.Items is TSEvents) then
+    else if ((Kind in [lkDatabase, lkObjectSearch]) and (Event.Items is TSEvents)) then
       UpdateGroup(Kind, giEvents, Event.Items)
-    else if (Event.Sender is TSTable) then
+    else if ((Kind in [lkTable, lkObjectSearch]) and (Event.Sender is TSTable)) then
     begin
       if (TObject(ListView.Tag) is TSBaseTable) then
         UpdateGroup(Kind, giKeys, TSBaseTable(ListView.Tag).Keys);
@@ -10465,13 +10464,13 @@ begin
       if ((TObject(ListView.Tag) is TSBaseTable) and Assigned(TSBaseTable(ListView.Tag).Database.Triggers)) then
         UpdateGroup(Kind, giTriggers, TSBaseTable(ListView.Tag).Database.Triggers);
     end
-    else if (Event.Items is TSTriggers) then
+    else if ((Kind in [lkTable, lkObjectSearch]) and (Event.Items is TSTriggers)) then
       UpdateGroup(Kind, giTriggers, Event.Items)
-    else if (Event.Items is TSProcesses) then
+    else if ((Kind in [lkServer, lkObjectSearch]) and (Event.Items is TSProcesses)) then
       UpdateGroup(Kind, giProcesses, Event.Items)
-    else if (Event.Items is TSUsers) then
+    else if ((Kind in [lkServer, lkObjectSearch]) and (Event.Items is TSUsers)) then
       UpdateGroup(Kind, giUsers, Event.Items)
-    else if (Event.Items is TSVariables) then
+    else if ((Kind in [lkServer, lkObjectSearch]) and (Event.Items is TSVariables)) then
       UpdateGroup(Kind, giVariables, Event.Items);
 
     if ((Window.ActiveControl = ListView) and Assigned(ListView.OnSelectItem)) then
@@ -13268,7 +13267,8 @@ begin
 
   // Debug 2017-01-16
   if (Pos('http://', URI.Address) = 1) then
-    raise ERangeError.Create('Address: ' + URI.Address);
+    raise ERangeError.Create('Address: ' + Address + #13#10
+      + 'URI.Address: ' + URI.Address);
 
   LockWindowUpdate(FNavigator.Handle);
   ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);
