@@ -854,8 +854,6 @@ begin
     FreeAndNil(CheckOnlineVersionThread);
   end;
 
-  Handle := Preferences.Version >= OnlineVersion;
-
   if (Preferences.ObsoleteVersion < Preferences.Version) then
     Preferences.ObsoleteVersion := OnlineVersion;
 
@@ -863,6 +861,15 @@ begin
     SendMessage(Application.MainFormHandle, UM_CRASH_RESCUE, 0, 0)
   else
     PostMessage(Application.MainFormHandle, UM_CRASH_RESCUE, 0, 0);
+
+  if (ExceptionInfo.ClassName = 'EFrozenApplication') then
+  begin
+    Handle := False;
+
+    SendToDeveloper(BuildBugReport(ExceptionInfo), 0, True);
+  end
+  else
+    Handle := Preferences.Version >= OnlineVersion;
 
   if (not Handle) then
   begin

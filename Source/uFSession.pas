@@ -13165,6 +13165,10 @@ var
   end;
   URI: TUURI;
 begin
+  // Debug 2017-01-16
+  if (Pos('http://', Address) = 1) then
+    raise ERangeError.Create('Address: ' + Address);
+
   URI := TUURI.Create(Address);
 
   case (AView) of
@@ -13261,6 +13265,10 @@ begin
     URI.Param['name'] := Null;
     URI.Param['comment'] := Null;
   end;
+
+  // Debug 2017-01-16
+  if (Pos('http://', URI.Address) = 1) then
+    raise ERangeError.Create('Address: ' + URI.Address);
 
   LockWindowUpdate(FNavigator.Handle);
   ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);

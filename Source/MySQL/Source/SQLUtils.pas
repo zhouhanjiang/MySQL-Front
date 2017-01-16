@@ -2048,12 +2048,15 @@ var
   BracketDeep: Integer;
   Len: Integer;
   S: string; // Debug 2017-01-16
+  OldPos: PChar; // Debug 2017-01-16
 begin
   Len := Handle.Len;
   SetLength(Result, Len);
 
   if (Len > 0) then
   begin
+    OldPos := Handle.Pos;
+
     asm
         PUSH ES
         PUSH ESI
@@ -2172,7 +2175,7 @@ begin
     end;
 
     // Debug 2017-01-16
-    if (Len = 0) then
+    if (Handle.Pos = OldPos) then
     begin
       SetString(S, Handle.Pos, Handle.Len - (Integer(Handle.Pos) - Integer(Handle.Start)) div SizeOf(Char));
       raise ERangeError.Create('Text: ' + S);
