@@ -106,8 +106,9 @@ type
     procedure FUDMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
   private
-    SessionState: (ssCreate, ssInit, ssValid, ssAlter);
+    SessionState: (ssTable, ssCreate, ssInit, ssValid, ssAlter);
     procedure Built();
+    procedure BuiltTable();
     function GetDefault(): string;
     function GetDefaultDecimals(): Integer;
     function GetDefaultSize(): Integer;
@@ -286,6 +287,16 @@ begin
   FRDefaultClick(nil);
 
   FComment.Text := SQLUnwrapStmt(Field.Comment, Table.Session.Connection.MySQLVersion);
+end;
+
+procedure TDField.BuiltTable();
+var
+  I: Integer;
+begin
+  FPosition.Items.Add(Preferences.LoadStr(95));
+  for I := 0 to Table.Fields.Count - 1 do
+    if (not Assigned(Field) or (Table.Fields[I].Name <> Field.Name)) then
+      FPosition.Items.Add(Preferences.LoadStr(96) + ' "' + Table.Fields[I].Name + '"');
 end;
 
 function TDField.Execute(): Boolean;
@@ -870,6 +881,10 @@ begin
 
   Preferences.Field.Width := Width;
   Preferences.Field.Height := Height;
+
+  FPosition.Items.BeginUpdate();
+  FPosition.Items.Clear();
+  FPosition.Items.EndUpdate();
 end;
 
 procedure TDField.FormSessionEvent(const Event: TSSession.TEvent);
@@ -878,7 +893,15 @@ var
 begin
   FirstValid := SessionState = ssInit;
 
-  if ((SessionState = ssInit) and (Event.EventType = etError)) then
+  if ((SessionState = ssTable) and (Event.EventType = etItemValid) and (Event.Item = Table)) then
+  begin
+    BuiltTable();
+    if (not Assigned(Field)) then
+      SessionState := ssCreate
+    else
+      SessionState := ssValid;
+  end
+  else if ((SessionState = ssInit) and (Event.EventType = etError)) then
     ModalResult := mrCancel
   else if ((SessionState in [ssInit]) and (Event.EventType = etItemValid) and (Event.Item = Table)) then
   begin
@@ -934,11 +957,6 @@ begin
     HelpContext := 1056;
   end;
 
-  FPosition.Items.Clear();
-  FPosition.Items.Add(Preferences.LoadStr(95));
-  for I := 0 to Table.Fields.Count - 1 do
-    if (not Assigned(Field) or (Table.Fields[I].Name <> Field.Name)) then
-      FPosition.Items.Add(Preferences.LoadStr(96) + ' "' + Table.Fields[I].Name + '"');
   FPosition.Enabled := not Assigned(Field) or (Table.Session.Connection.MySQLVersion >= 40001);
 
   FFieldType.Clear();
@@ -954,14 +972,16 @@ begin
 
   FComment.Visible := Table.Session.Connection.MySQLVersion >= 40100; FLComment.Visible := FComment.Visible;
 
-  if (not Assigned(Field)) then
+  if (not Table.Update()) then
+    SessionState := ssTable
+  else if (not Assigned(Field)) then
     SessionState := ssCreate
   else if (not Table.Fields.Valid and not Table.Update()) then
     SessionState := ssInit
   else
     SessionState := ssValid;
 
-  if (SessionState = ssCreate) then
+  if (not Assigned(Field)) then
   begin
     FPosition.ItemIndex := FPosition.Items.Count - 1;
 
@@ -999,12 +1019,12 @@ begin
     FFlagNational.Checked := Table.Session.Connection.MySQLVersion < 40101;
     FFlagAscii.Checked := False; FFlagCharClick(nil);
     FFlagUnicode.Checked := False; FFlagCharClick(nil);
-  end
-  else
-  begin
-    if (SessionState = ssValid) then
-      Built();
   end;
+
+  if (SessionState <> ssTable) then
+    BuiltTable();
+  if (SessionState = ssValid) then
+    Built();
 
   GBasics.Visible := SessionState in [ssCreate, ssValid];
   GAttributes.Visible := GBasics.Visible;

@@ -74,8 +74,9 @@ type
     procedure tbUpDownClick(Sender: TObject);
   private
     Lengths: array of Integer;
-    SessionState: (ssCreate, ssInit, ssValid, ssAlter);
+    SessionState: (ssTable, ssCreate, ssInit, ssValid, ssAlter);
     procedure Built();
+    procedure BuiltTable();
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
@@ -118,25 +119,10 @@ var
   I: Integer;
   J: Integer;
 begin
-  SetLength(Lengths, Table.Fields.Count);
-  for I := 0 to Length(Lengths) - 1 do
-    if (Table.Fields[I].FieldType in [mfChar, mfVarChar]) then
-      Lengths[I] := Table.Fields[I].Size
-    else if (Table.Fields[I].FieldType in [mfTinyText, mfText, mfMediumText, mfLongText, mfTinyBlob, mfBlob, mfMediumBlob, mfLongBlob]) then
-      Lengths[I] := 10
-    else
-      Lengths[I] := 0;
-
   FPrimary.Enabled := Key.PrimaryKey or (Table.Keys.Count = 0) or not Table.Keys[0].PrimaryKey;
   FPrimary.Checked := Key.PrimaryKey;
   FOther.Checked := not FPrimary.Checked;
   if (FOther.Checked) then FName.Text := Key.Name else FName.Text := '';
-
-  for I := 0 to Key.Columns.Count - 1 do
-    if (Key.Columns.Column[I].Length > 0) then
-      Lengths[Table.Fields.IndexOf(Key.Columns.Column[I].Field)] := Key.Columns.Column[I].Length
-    else if (Key.Columns.Column[I].Field.FieldType in [mfChar, mfVarChar]) then
-      Lengths[Table.Fields.IndexOf(Key.Columns.Column[I].Field)] := Key.Columns.Column[I].Field.Size;
 
   for I := 0 to Key.Columns.Count - 1 do
     FIndexedFields.Items.Add().Caption := Key.Columns.Column[I].Field.Name;
@@ -147,6 +133,7 @@ begin
   FUnique.Checked := Key.Unique;
   FFulltext.Checked := Key.Fulltext;
 
+  FAvailableFields.Items.BeginUpdate();
   FAvailableFields.Items.Clear();
   for I := 0 to Table.Fields.Count - 1 do
   begin
@@ -158,13 +145,31 @@ begin
     if (not Found and ((Table.Fields[I].FieldKind <> mkVirtual) or (Table.Fields[I].Stored = msStored))) then
       FAvailableFields.Items.Add().Caption := Table.Fields[I].Name;
   end;
-  if (Assigned(FAvailableFields.Items[0])) then
+  FAvailableFields.Items.EndUpdate();
+  if (FAvailableFields.Items.Count > 0) then
     FAvailableFields.Items[0].Selected := True;
 
   FIndexedFieldsChange(nil, nil, ctState);
   IndexTypeChange(nil);
   FIndexedFieldsExit(nil);
   FAvailableFieldsExit(nil);
+end;
+
+procedure TDKey.BuiltTable();
+var
+  I: Integer;
+begin
+  for I := 0 to Table.Fields.Count - 1 do
+    FAvailableFields.Items.Add().Caption := Table.Fields[I].Name;
+
+  SetLength(Lengths, Table.Fields.Count);
+  for I := 0 to Length(Lengths) - 1 do
+    if (Table.Fields[I].FieldType in [mfChar, mfVarChar]) then
+      Lengths[I] := Table.Fields[I].Size
+    else if (Table.Fields[I].FieldType in [mfTinyText, mfText, mfMediumText, mfLongText, mfTinyBlob, mfBlob, mfMediumBlob, mfLongBlob]) then
+      Lengths[I] := 10
+    else
+      Lengths[I] := 0;
 end;
 
 procedure TDKey.CMSysFontChanged(var Message: TMessage);
@@ -474,7 +479,15 @@ var
 begin
   FirstValid := SessionState = ssInit;
 
-  if ((SessionState = ssInit) and (Event.EventType = etError)) then
+  if ((SessionState = ssTable) and (Event.EventType = etItemValid) and (Event.Item = Table)) then
+  begin
+    BuiltTable();
+    if (not Assigned(Key)) then
+      SessionState := ssCreate
+    else
+      SessionState := ssValid;
+  end
+  else if ((SessionState = ssInit) and (Event.EventType = etError)) then
     ModalResult := mrCancel
   else if ((SessionState in [ssInit]) and (Event.EventType = etItemValid) and (Event.Item = Table)) then
   begin
@@ -525,10 +538,11 @@ begin
     HelpContext := 1055;
   end;
 
-  FIndexedFields.Items.Clear();
   FComment.Visible := Table.Session.Connection.MySQLVersion >= 50503; FLComment.Visible := FComment.Visible;
 
-  if (not Assigned(Key)) then
+  if (not Table.Update()) then
+    SessionState := ssTable
+  else if (not Assigned(Key)) then
     SessionState := ssCreate
   else if (not Table.Keys.Valid and not Table.Update()) then
     SessionState := ssInit
@@ -552,12 +566,12 @@ begin
     IndexTypeChange(nil);
     FIndexedFieldsExit(nil);
     FAvailableFieldsExit(nil);
-  end
-  else
-  begin
-    if (GBasics.Visible) then
-      Built();
   end;
+
+  if (SessionState <> ssTable) then
+    BuiltTable();
+  if (SessionState = ssValid) then
+    Built();
 
   GBasics.Visible := SessionState in [ssCreate, ssValid];
   GAttributes.Visible := GBasics.Visible;

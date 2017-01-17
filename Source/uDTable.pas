@@ -1126,7 +1126,7 @@ begin
     else
       SessionState := ssValid;
   end
-  else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemCreated, etItemAltered]) and (Event.Item = Table)) then
+  else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemCreated, etItemAltered])) then
     ModalResult := mrOk;
 
   if (SessionState = ssValid) then
@@ -1216,7 +1216,7 @@ begin
   else
     SessionState := ssValid;
 
-  if (SessionState = ssCreate) then
+  if (not Assigned(Table)) then
   begin
     NewTable.Charset := Database.Charset;
     NewTable.Collation := Database.Collation;

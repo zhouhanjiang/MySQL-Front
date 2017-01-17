@@ -1306,6 +1306,11 @@ begin
   end
   else if (Link = Workbench.CreatedLink) then
   begin
+    // Debug 2017-01-17
+    // Check, if Link was created completely
+    if (Assigned(Workbench.CreatedLink)) then
+      Workbench.CreatedLink.LastPoint.Link;
+
     if (not Workbench.OnValidateControl(Workbench, Workbench.CreatedLink)) then
       FreeAndNil(Workbench.CreatedLink)
     else if ((Workbench.CreatedLink is TWLink) and not (Workbench.CreatedLink is TWForeignKey)) then
@@ -2149,6 +2154,10 @@ var
   Line: TWLinkLine;
   OldMoveState: TWLinkPoint.TMoveState;
 begin
+  // Debug 2017-01-17
+  // Check, if Link is complete
+  LastPoint.Link;
+
   OldMoveState := Point.MoveState;
   if (Point.MoveState = msNormal) then
     Point.MoveState := msFixed;
@@ -2175,6 +2184,10 @@ begin
 
   Result.MoveTo(Sender, [], APosition);
   Result.Selected := Point.Selected;
+
+  // Debug 2017-01-17
+  // Check, if Link is complete
+  LastPoint.Link;
 end;
 
 destructor TWLink.Destroy();
@@ -2228,6 +2241,8 @@ begin
   // Debug 2017-01-07
   if (not Assigned(Point.Link)) then
     raise ERangeError.Create('Point is not a part of a Link');
+  // Debug 2017-01-17
+  LastPoint.Link;
 
   if (Line = Point.LineA) then
   begin
@@ -2255,6 +2270,8 @@ begin
   // Debug 2017-01-07
   if (not Assigned(TempPoint.Link)) then
     raise ERangeError.Create('TempPoint is not a part of a Link');
+  // Debug 2017-01-17
+  TempPoint.Link;
 end;
 
 function TWLink.GetCaption(): TCaption;
@@ -3771,8 +3788,12 @@ begin
       CreatedTable := nil;
       OldModified := True;
     end
-    else if (Assigned(CreatedLink) and (CreatedLink is TWForeignKey)) then
+    else if (CreatedLink is TWForeignKey) then
     begin
+      // Debug 2017-01-17
+      // Check, if Link was created completely
+      CreatedLink.LastPoint.Link;
+
       for J := 0 to BaseTable.ForeignKeys.Count - 1 do
         if (not Assigned(LinkByCaption(BaseTable.ForeignKeys[J].Name))) then
           TWForeignKey(CreatedLink).BaseForeignKey := BaseTable.ForeignKeys[J];
@@ -3829,7 +3850,13 @@ begin
                 else
                   Link := nil;
                 if (Assigned(Link)) then
+                begin
                   Link.LoadFromXML(XML.ChildNodes[J]);
+
+                  // Debug 2017-01-17
+                  // Check, if the link is complete
+                  Link.LastPoint.Link;
+                end;
               end;
             end;
         end;

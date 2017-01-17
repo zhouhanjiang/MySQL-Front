@@ -789,7 +789,7 @@ begin
   end;
 
   if (ExceptionInfo.ExceptionClass = 'EFrozenApplication') then
-    Result := Result + 'FreezeTimeout: ' + IntToStr(CurrentEurekaLogOptions.FreezeTimeout) + #13#10;
+    Result := Result + 'FreezeTimeout: ' + IntToStr(CurrentEurekaLogOptions.FreezeTimeout) + ' Seconds' + #13#10#13#10;
 
   if (Assigned(ExceptionInfo.CallStack)) then
   begin

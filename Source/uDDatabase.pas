@@ -335,7 +335,7 @@ begin
     else
       SessionState := ssValid;
   end
-  else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemCreated, etItemAltered]) and (Event.Item = Database)) then
+  else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemCreated, etItemAltered])) then
     ModalResult := mrOk;
 
   if (SessionState = ssValid) then
@@ -408,7 +408,7 @@ begin
   else
     SessionState := ssValid;
 
-  if (SessionState = ssCreate) then
+  if (not Assigned(Database)) then
   begin
     FName.Text := Preferences.LoadStr(145);
     while (Assigned(Session.DatabaseByName(FName.Text))) do

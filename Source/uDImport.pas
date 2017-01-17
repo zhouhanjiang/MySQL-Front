@@ -585,6 +585,7 @@ begin
   // occurred on 2017-01-09: 2abc_, ImportType: 1
   // occurred on 2017-01-09: 2abnqrsxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyptuAfijkc_, ImportType: 4
   // occurred on 2017-01-09: 2abc_, ImportType: 1
+  // occurred on 2017-01-17: 2abnsptuAfijkc_, ImportType: 1, ClassType: TSDatabase, CodePage: Ansi, ... no SQL log
 
   Progress := Progress + 'f';
 
@@ -675,6 +676,11 @@ begin
   // Occurred 2017-01-07 Progress: 2abnsqrxylmlmlmlmlmlmAfhi, ImportType: 1
   // Occurred 2017-01-07 Progress: 2abnsqrxylmlmAfhi, ImportType: 1
   // Occurred 2017-01-08 Progress: 2abnqrlmsxylmlmAfhi, ImportType: 4
+
+  // Occurred 2017-01-17 Progress: 2abns, ImportType: 1, TSDatabase
+  //   ... no SQL Log and TTImportSQL still running!
+
+  // Occurred 2017-01-17 Progress: 2abnsovwAfhi, ImportType: 1, CodePage: Ansi, ClassType: TSDatabase, ... no SQL Log
 
   Progress := Progress + 'j';
 

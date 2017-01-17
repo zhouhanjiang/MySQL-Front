@@ -468,9 +468,10 @@ type
     procedure FNavigatorKeyUp(Sender: TObject; var Key: Word;
       Shift: TShiftState);
     procedure FObjectSearchChange(Sender: TObject);
-    procedure FObjectSearchEnter(Sender: TObject);
     procedure FObjectSearchExit(Sender: TObject);
     procedure FObjectSearchKeyPress(Sender: TObject; var Key: Char);
+    procedure FObjectSearchMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
     procedure FObjectSearchStartClick(Sender: TObject);
     procedure FOffsetChange(Sender: TObject);
     procedure FOffsetKeyPress(Sender: TObject; var Key: Char);
@@ -536,6 +537,7 @@ type
       var AllowEdit: Boolean);
     procedure ListViewEnter(Sender: TObject);
     procedure ListViewExit(Sender: TObject);
+    procedure ListViewHeaderUpdate(Sender: TObject);
     procedure ListViewKeyDown(Sender: TObject; var Key: Word;
       Shift: TShiftState);
     procedure ListViewSelectItem(Sender: TObject; Item: TListItem;
@@ -2020,21 +2022,9 @@ begin
 end;
 
 procedure TFSession.TWanted.SetAddress(const AAddress: string);
-var
-  URI: TUURI;
 begin
   if (AAddress <> FAddress) then
   begin
-    // Debug 2016-12-16
-    URI := TUURI.Create(AAddress);
-    if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
-      raise ERangeError.Create('Address: ' + Address);
-    if ((URI.Param['view'] = 'ide') and (URI.Database = '')) then
-      raise ERangeError.Create('Address: ' + Address);
-    if ((URI.Param['view'] = 'ide') and (URI.Param['object'] = Null)) then
-      raise ERangeError.Create('Address: ' + Address);
-    URI.Free();
-
     Clear();
     FAddress := AAddress;
   end;
@@ -4052,6 +4042,10 @@ var
   Control: TWinControl; // Debug 2016-12-12
   NewView: TView;
 begin
+  // Debug 2017-01-17
+  if (Address = '') then
+    raise ERangeError.Create(SRangeError);
+
   if (Sender = MainAction('aVObjects')) then
     NewView := vObjects
   else if (Sender = MainAction('aVBrowser')) then
@@ -7331,7 +7325,10 @@ begin
     else
       Table := TSTable(Event.Sender);
 
-    Node := FNavigator.Items.getFirstNode().getFirstChild();
+    Node := FNavigator.Items.getFirstNode();
+    while (Assigned(Node) and (Node.ImageIndex <> iiServer)) do
+      Node := Node.getNextSibling();
+    Node := Node.getFirstChild();
     while (Assigned(Node) and (Node.Data <> Table.Database)) do
       Node := Node.getNextSibling();
 
@@ -7485,15 +7482,34 @@ begin
   FObjectSearchStart.Enabled := Trim(FObjectSearch.Text) <> '';
 end;
 
-procedure TFSession.FObjectSearchEnter(Sender: TObject);
+procedure TFSession.FObjectSearchExit(Sender: TObject);
+begin
+  if (Assigned(PObjectSearch)) then
+    PObjectSearch.Hide();
+end;
+
+procedure TFSession.FObjectSearchKeyPress(Sender: TObject; var Key: Char);
+begin
+  if (Key = #13) then
+  begin
+    FObjectSearchStart.Click();
+    Key := #0;
+  end
+  else if (Key = #27) then
+  begin
+    if (Assigned(PObjectSearch)) then
+      PObjectSearch.Hide();
+  end
+  else
+    inherited;
+end;
+
+procedure TFSession.FObjectSearchMouseDown(Sender: TObject;
+  Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
   Node: TTreeNode;
 begin
-  {$IFNDEF Debug}
-  raise ERangeError.Create(SRangeError);
-  {$ENDIF}
-
-  if (not Assigned(PObjectSearch)) then
+  if (not Assigned(PObjectSearch) and (Button = mbLeft) and (Shift = [])) then
   begin
     PObjectSearch := TPObjectSearch.Create(nil);
     PObjectSearch.Color := FObjectSearch.Color;
@@ -7517,23 +7533,6 @@ begin
     PObjectSearch.Top := ClientToScreen(Point(0, FObjectSearch.Top + FObjectSearch.Height)).Y;
     PObjectSearch.Visible := not (SelectedImageIndex in [iiProcesses, iiUsers, iiVariables]);
   end;
-end;
-
-procedure TFSession.FObjectSearchExit(Sender: TObject);
-begin
-  if (Assigned(PObjectSearch)) then
-    PObjectSearch.Hide();
-end;
-
-procedure TFSession.FObjectSearchKeyPress(Sender: TObject; var Key: Char);
-begin
-  if (Key = #13) then
-  begin
-    FObjectSearchStart.Click();
-    Key := #0;
-  end
-  else
-    inherited;
 end;
 
 procedure TFSession.FObjectSearchStartClick(Sender: TObject);
@@ -8969,15 +8968,12 @@ end;
 
 procedure TFSession.ListViewColumnClick(Sender: TObject; Column: TListColumn);
 var
-  HDItem: THDItem;
-  I: Integer;
   ListView: TListView;
   Kind: TPAccount.TDesktop.TListViewKind;
 begin
-  if (not (Sender is TListView)) then
-    raise ERangeError.Create(SRangeError)
-  else
-    ListView := TListView(Sender);
+  Assert(Sender is TListView);
+
+  ListView := TListView(Sender);
 
   Kind := ColumnWidthKindByListView(ListView);
 
@@ -8993,24 +8989,7 @@ begin
 
     ListView.CustomSort(nil, LPARAM(@ListViewSortData[Kind]));
 
-    HDItem.Mask := HDI_FORMAT;
-    for I := 0 to ListView.Columns.Count - 1 do
-      if (BOOL(SendMessage(ListView_GetHeader(ListView.Handle), HDM_GETITEM, I, LParam(@HDItem)))) then
-      begin
-        if ((Order = 0) or (I <> Index)) then
-          HDItem.fmt := HDItem.fmt and not HDF_SORTUP and not HDF_SORTDOWN
-        else if (Order > 0) then
-          HDItem.fmt := HDItem.fmt and not HDF_SORTDOWN or HDF_SORTUP
-        else
-          HDItem.fmt := HDItem.fmt and not HDF_SORTUP or HDF_SORTDOWN;
-        SendMessage(ListView_GetHeader(ListView.Handle), HDM_SETITEM, I, LParam(@HDItem));
-      end;
-
-    if ((ComCtl32MajorVersion >= 6) and not CheckWin32Version(6, 1)) then
-      if (Order = 0) then
-        SendMessage(ListView.Handle, LVM_SETSELECTEDCOLUMN, -1, 0)
-      else
-        SendMessage(ListView.Handle, LVM_SETSELECTEDCOLUMN, Index, 0);
+    ListViewHeaderUpdate(Sender);
 
     OldFListOrderIndex := Index;
   end;
@@ -9036,11 +9015,11 @@ begin
     Compare := Sign(Item1.GroupID - Item2.GroupID)
   else if (Item1.GroupID = giSystemTools) then
     Compare := Sign(Pos(Chr(Item1.ImageIndex), ImageIndexSort) - Pos(Chr(Item2.ImageIndex), ImageIndexSort))
-  else if (SortRec^.Index = 0) then
+  else if ((SortRec^.Index = 0) and ((SortRec^.Kind <> lkTable) or (SortRec^.Order = 0))) then
     Compare := Sign(TSItem(Item1.Data).Index - TSItem(Item2.Data).Index)
   else
   begin
-    if ((SortRec^.Index > Item1.SubItems.Count) or (SortRec^.Index > Item2.SubItems.Count)) then
+    if ((SortRec^.Index = 0) or (SortRec^.Index > Item1.SubItems.Count) or (SortRec^.Index > Item2.SubItems.Count)) then
     begin
       String1 := Item1.Caption;
       String2 := Item2.Caption;
@@ -9501,6 +9480,38 @@ begin
   end;
 end;
 
+procedure TFSession.ListViewHeaderUpdate(Sender: TObject);
+var
+  HDItem: THDItem;
+  I: Integer;
+  ListView: TListView;
+  Kind: TPAccount.TDesktop.TListViewKind;
+begin
+  Assert(Sender is TListView);
+
+  ListView := TListView(Sender);
+  Kind := ColumnWidthKindByListView(ListView);
+
+  HDItem.Mask := HDI_FORMAT;
+  for I := 0 to ListView.Columns.Count - 1 do
+    if (BOOL(SendMessage(ListView_GetHeader(ListView.Handle), HDM_GETITEM, I, LParam(@HDItem)))) then
+    begin
+      if ((ListViewSortData[Kind].Order = 0) or (I <> ListViewSortData[Kind].Index)) then
+        HDItem.fmt := HDItem.fmt and not HDF_SORTUP and not HDF_SORTDOWN
+      else if (ListViewSortData[Kind].Order > 0) then
+        HDItem.fmt := HDItem.fmt and not HDF_SORTDOWN or HDF_SORTUP
+      else
+        HDItem.fmt := HDItem.fmt and not HDF_SORTUP or HDF_SORTDOWN;
+      SendMessage(ListView_GetHeader(ListView.Handle), HDM_SETITEM, I, LParam(@HDItem));
+    end;
+
+  if ((ComCtl32MajorVersion >= 6) and not CheckWin32Version(6, 1)) then
+    if (ListViewSortData[Kind].Order = 0) then
+      SendMessage(ListView.Handle, LVM_SETSELECTEDCOLUMN, -1, 0)
+    else
+      SendMessage(ListView.Handle, LVM_SETSELECTEDCOLUMN, ListViewSortData[Kind].Index, 0);
+end;
+
 procedure TFSession.ListViewKeyDown(Sender: TObject; var Key: Word;
   Shift: TShiftState);
 var
@@ -9699,6 +9710,8 @@ begin
 end;
 
 procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView: TListView; const Data: TCustomData = nil);
+var
+  RefreshColumnHeaders: Boolean;
 
   function Compare(const Kind: TPAccount.TDesktop.TListViewKind; const Item1, Item2: TListItem): Integer;
   begin
@@ -10084,7 +10097,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
     Item.SubItems.EndUpdate();
   end;
 
-  function InsertOrUpdateItem(const Kind: TPAccount.TDesktop.TListViewKind; const GroupID: Integer; const Data: TObject): TListItem;
+  function InsertOrUpdateItem(const Kind: TPAccount.TDesktop.TListViewKind; GroupID: Integer; const Data: TObject): TListItem;
   var
     Count: Integer; // Cache for speeding
     I: Integer;
@@ -10092,6 +10105,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
     Index: Integer;
     Left: Integer;
     Mid: Integer;
+    ReorderGroup: Boolean;
     Right: Integer;
   begin
     Count := ListView.Items.Count; // Cache for speeding
@@ -10116,11 +10130,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
         Mid := (Right - Left) div 2 + Left;
         case (Compare(Kind, ListView.Items[Mid], Item)) of
           -1: begin Left := Mid + 1; Index := Mid; end;
-          0: raise ERangeError.CreateFmt('%s - %s: %s = %s = %s, %d = %d - %d / %d / %d / %d',
-            [TObject(ListView.Tag).ClassName, TSItem(Data).ClassName,
-              TSItem(Data).Name, ListView.Items[Mid].Caption, Item.Caption,
-              ListView.Items[Mid].ImageIndex, Item.ImageIndex,
-              Left, Mid, Right, ListView.Items.Count]);
+          0: raise ERangeError.CreateFmt('%s = %s', [ListView.Items[Mid].Caption, Item.Caption]);
           1: begin Right := Mid - 1; Index := Mid - 1; end;
         end;
       end;
@@ -10130,27 +10140,45 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
 
     if (Index < 0) then
     begin
-      Session.Connection.DebugMonitor.Append('InsertOrUpdateItem - ' + TSItem(Data).ClassName + ': ' + TSItem(Data).Name, ttDebug);
       Result := ListView.Items.Add();
       Result.Data := Data;
+      ReorderGroup := False;
+      RefreshColumnHeaders := True;
     end
     else if (ListView.Items[Index].Data <> Data) then
     begin
-      Session.Connection.DebugMonitor.Append('InsertOrUpdateItem - ' + TSItem(Data).ClassName + ': ' + TSItem(Data).Name, ttDebug);
-      Result := ListView.Items.Insert(Index);
+      Result := ListView.Items.Insert(Index + 1);
       Result.Data := Data;
+      ReorderGroup := True;
+      RefreshColumnHeaders := True;
     end
     else
+    begin
       Result := ListView.Items[Index];
+      ReorderGroup := not (Data is TSItem) or (TSItem(Data).Caption <> Result.Caption);
+    end;
     UpdateItem(Result, GroupID, Data);
+
+    if (ReorderGroup and ListView.GroupView) then
+    begin
+      // This code is needed in Delphi XE4 to place inserted items into the
+      // right place
+      GroupID := Result.GroupID;
+      for I := Result.Index + 1 to ListView.Items.Count - 1 do
+        if (ListView.Items[I].GroupID = GroupID) then
+        begin
+          ListView.Items[I].GroupID := -1;
+          ListView.Items[I].GroupID := GroupID; // Why is this needed (in Delphi XE4)???
+        end;
+    end;
   end;
 
   function AddItem(const GroupID: Integer; const Data: TObject): TListItem;
   begin
-    Session.Connection.DebugMonitor.Append('InsertOrUpdateItem - ' + TSItem(Data).ClassName + ': ' + TSItem(Data).Name, ttDebug);
     Result := ListView.Items.Add();
     Result.Data := Data;
     UpdateItem(Result, GroupID, Data);
+    RefreshColumnHeaders := True;
   end;
 
   procedure UpdateObjectSearchGroupHeaders();
@@ -10228,7 +10256,6 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
     Add: Boolean;
     ColumnWidths: array [0..7] of Integer;
     Count: Integer;
-    Data: Pointer; // Debug 2016-12-26
     Header: string;
     I: Integer;
     Index: Integer;
@@ -10290,8 +10317,6 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
       etItemCreated:
         if (GroupID = GroupIDByImageIndex(ImageIndexByData(Event.Item))) then
         begin
-          Session.Connection.DebugMonitor.Append('UpdateGroup - etItemCreated - ' + TSItem(Event.Item).ClassName + ': ' + TSItem(Event.Item).Name, ttDebug);
-
           Item := InsertOrUpdateItem(Kind, GroupID, Event.Item);
           if (not Assigned(ListView.Selected)) then
           begin
@@ -10302,8 +10327,6 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
       etItemAltered:
         if (GroupID = GroupIDByImageIndex(ImageIndexByData(Event.Item))) then
         begin
-          Session.Connection.DebugMonitor.Append('UpdateGroup - etItemAltered - ' + TSItem(Event.Item).ClassName + ': ' + TSItem(Event.Item).Name, ttDebug);
-
           Index := 0;
           while ((Index < ListView.Items.Count) and (ListView.Items[Index].Data <> Event.Item)) do
             Inc(Index);
@@ -10324,8 +10347,6 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
       etItemDropped:
         if (GroupID = GroupIDByImageIndex(ImageIndexByData(Event.Item))) then
         begin
-          Session.Connection.DebugMonitor.Append('UpdateGroup - etItemDropped - ' + TSItem(Event.Item).ClassName + ': ' + TSItem(Event.Item).Name, ttDebug);
-
           for I := ListView.Items.Count - 1 downto 0 do
             if (ListView.Items[I].Data = Event.Item) then
             begin
@@ -10409,16 +10430,15 @@ begin
   if (Assigned(ListView)
     and (Assigned(Event.Items) or (Event.Sender is TSTable) or (Event.Sender is TSItemSearch))) then
   begin
+    RefreshColumnHeaders := False;
+
     ChangingEvent := ListView.OnChanging;
     ListView.OnChanging := nil;
     ListView.Columns.BeginUpdate();
     ListView.Items.BeginUpdate();
     ListView.DisableAlign();
 
-    if (TObject(ListView.Tag) is TSItemSearch) then
-      Kind := lkObjectSearch
-    else
-      Kind := ColumnWidthKindByListView(ListView);
+    Kind := ColumnWidthKindByListView(ListView);
 
     if (TObject(ListView.Tag) is TSSession) then
     begin
@@ -10466,11 +10486,11 @@ begin
     end
     else if ((Kind in [lkTable, lkObjectSearch]) and (Event.Items is TSTriggers)) then
       UpdateGroup(Kind, giTriggers, Event.Items)
-    else if ((Kind in [lkServer, lkObjectSearch]) and (Event.Items is TSProcesses)) then
+    else if ((Kind in [lkProcesses, lkObjectSearch]) and (Event.Items is TSProcesses)) then
       UpdateGroup(Kind, giProcesses, Event.Items)
-    else if ((Kind in [lkServer, lkObjectSearch]) and (Event.Items is TSUsers)) then
+    else if ((Kind in [lkUsers, lkObjectSearch]) and (Event.Items is TSUsers)) then
       UpdateGroup(Kind, giUsers, Event.Items)
-    else if ((Kind in [lkServer, lkObjectSearch]) and (Event.Items is TSVariables)) then
+    else if ((Kind in [lkVariables, lkObjectSearch]) and (Event.Items is TSVariables)) then
       UpdateGroup(Kind, giVariables, Event.Items);
 
     if ((Window.ActiveControl = ListView) and Assigned(ListView.OnSelectItem)) then
@@ -10480,6 +10500,9 @@ begin
     ListView.Items.EndUpdate();
     ListView.Columns.EndUpdate();
     ListView.OnChanging := ChangingEvent;
+
+    if (RefreshColumnHeaders and (ListViewSortData[Kind].Order <> 0)) then
+      ListViewHeaderUpdate(ListView);
   end;
 end;
 
@@ -10612,7 +10635,7 @@ begin
       MainAction('aDEditVariable').Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiVariable]);
       MainAction('aDEmpty').Enabled := (ListView.SelCount >= 1) and ((Item.ImageIndex in [iiDatabase, iiBaseTable]) or (Item.ImageIndex in [iiField]) and TSBaseTableField(Item.Data).NullAllowed);
 
-      mlOpen.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
+      mlOpen.Enabled := (ListView.SelCount = 1) and (Item.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiProcesses, iiUsers, iiVariables]);
       aDDelete.Enabled := (ListView.SelCount >= 1);
 
       case (Item.ImageIndex) of
@@ -13034,11 +13057,9 @@ var
   Table: TSTable;
   URI: TUURI;
 begin
-  if (AAddress = '') then
-    NewAddress := Session.Account.ExpandAddress('/')
-  else
-    NewAddress := AAddress;
+  Assert(AAddress <> '');
 
+  NewAddress := AAddress;
   AllowChange := True; Node := nil;
   AddressChanging(nil, NewAddress, AllowChange);
   if (AllowChange) then
@@ -13164,6 +13185,8 @@ var
   end;
   URI: TUURI;
 begin
+  if (Address = '') then
+    raise ERangeError.Create(SRangeError);
   // Debug 2017-01-16
   if (Pos('http://', Address) = 1) then
     raise ERangeError.Create('Address: ' + Address);
@@ -14918,7 +14941,14 @@ begin
         iiBaseTable,
         iiView,
         iiSystemView:
-          TSTable(FNavigator.Selected.Data).Update();
+          begin
+            // Debug 2017-01-17
+            if (not Assigned(FNavigator.Selected.Data)) then
+              raise ERangeError.Create('ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
+                + 'Text: ' + FNavigator.Selected.Text + #13#10
+                + 'Present: ' + BoolToStr(Assigned(TSDatabase(FNavigator.Selected.Parent.Data).TableByName(FNavigator.Selected.Text)), True));
+            TSTable(FNavigator.Selected.Data).Update();
+          end;
       end;
     vBrowser:
       if ((TObject(FNavigator.Selected.Data) is TSView and not TSView(FNavigator.Selected.Data).Update())

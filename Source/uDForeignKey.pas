@@ -44,11 +44,12 @@ type
     procedure FParentDatabaseChange(Sender: TObject);
     procedure FParentTableChange(Sender: TObject);
   private
-    SessionState: (ssCreate, ssInit, ssValid, ssAlter);
+    SessionState: (ssTable, ssCreate, ssInit, ssValid, ssAlter);
     Wanted: record
       ComboBox: TComboBox;
     end;
     procedure Built();
+    procedure BuiltTable();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     function GetParentDatabase(): TSDatabase;
     function GetParentTable(): TSBaseTable;
@@ -122,6 +123,16 @@ begin
     utSetDefault: FOnUpdate.ItemIndex := 3;
     utNoAction: FOnUpdate.ItemIndex := 4;
   end;
+end;
+
+procedure TDForeignKey.BuiltTable();
+var
+  I: Integer;
+begin
+  FFields.Items.BeginUpdate();
+  for I := 0 to Table.Fields.Count - 1 do
+    FFields.Items.Add(Table.Fields[I].Name);
+  FFields.Items.EndUpdate();
 end;
 
 function TDForeignKey.Execute(): Boolean;
@@ -279,7 +290,15 @@ var
 begin
   FirstValid := SessionState = ssInit;
 
-  if ((SessionState = ssInit) and (Event.EventType = etError)) then
+  if ((SessionState = ssTable) and (Event.EventType = etItemValid) and (Event.Item = Table)) then
+  begin
+    BuiltTable();
+    if (not Assigned(ForeignKey)) then
+      SessionState := ssCreate
+    else
+      SessionState := ssValid;
+  end
+  else if ((SessionState = ssInit) and (Event.EventType = etError)) then
     ModalResult := mrCancel
   else if ((SessionState in [ssInit]) and (Event.EventType = etItemValid) and (Event.Item = Table)) then
   begin
@@ -376,7 +395,9 @@ begin
   FOnDelete.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013); FLOnDelete.Enabled := FOnDelete.Enabled;
   FOnUpdate.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013); FLOnUpdate.Enabled := FOnUpdate.Enabled;
 
-  if (not Assigned(ForeignKey)) then
+  if (not Table.Update()) then
+    SessionState := ssTable
+  else if (not Assigned(ForeignKey)) then
     SessionState := ssCreate
   else if (not Table.ForeignKeys.Valid and not Table.Update()) then
     SessionState := ssInit
@@ -397,12 +418,12 @@ begin
 
     FOnDelete.ItemIndex := 0;
     FOnUpdate.ItemIndex := 0;
-  end
-  else
-  begin
-    if (GBasics.Visible) then
-      Built();
   end;
+
+  if (SessionState <> ssTable) then
+    BuiltTable();
+  if (SessionState = ssValid) then
+    Built();
 
   GBasics.Visible := SessionState in [ssCreate, ssValid];
   GAttributes.Visible := GBasics.Visible;

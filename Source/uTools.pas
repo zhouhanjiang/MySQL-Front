@@ -2824,7 +2824,9 @@ procedure TTImportText.GetValues(const Item: TTImport.TItem; const Values: TTool
 var
   I: Integer;
   Len: Integer;
+  L: Integer; // Debug 2017-01-17
   S: string;
+  Text: PChar; // Debug 2017-01-17
 begin
   for I := 0 to Length(FieldMappings) - 1 do
   begin
@@ -2842,16 +2844,12 @@ begin
           UnescapeBuffer.Length := CSVValues[CSVColumns[I]].Length;
           ReallocMem(UnescapeBuffer.Text, UnescapeBuffer.Length * SizeOf(UnescapeBuffer.Text[0]));
         end;
-try // Debug 2016-12-03
-        Len := CSVUnescape(CSVValues[CSVColumns[I]].Text, CSVValues[CSVColumns[I]].Length, UnescapeBuffer.Text, UnescapeBuffer.Length, Quoter);
-except
-  on E: Exception do
-    begin
-      SetString(S, CSVValues[CSVColumns[I]].Text, CSVValues[CSVColumns[I]].Length);
-      raise Exception.Create('CSV: ' + S + #13#10
-        + E.Message);
-    end;
-end;
+
+        // Debug 2017-01-17
+        // There were a crash in shte CSVUnescape call ... but try ... except didn't work :-(
+        Text := CSVValues[CSVColumns[I]].Text;
+        L := CSVValues[CSVColumns[I]].Length;
+        Len := CSVUnescape(Text, L, UnescapeBuffer.Text, UnescapeBuffer.Length, Quoter);
       end;
 
       if (FieldMappings[I].DestinationField.FieldType = mfBit) then

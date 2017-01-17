@@ -135,6 +135,7 @@ begin
   DAccount.ShowType := stDefault;
   if (DAccount.Execute()) then
   begin
+    Accounts.Save();
     SetFAccounts(Accounts.AccountByName(DAccount.AccountName));
     FBCancel.Caption := Preferences.LoadStr(231);
   end;

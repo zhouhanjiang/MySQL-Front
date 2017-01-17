@@ -1966,11 +1966,6 @@ begin
 
   KeyBase := SysUtils.LoadStr(1003);
   GetVersion(FVerMajor, FVerMinor, FVerPatch, FVerBuild);
-  {$IFDEF Debug}
-  if (SysUtils.LoadStr(1000) = '') then
-    FInternetAgent := 'MySQL-Front'
-  else
-  {$ENDIF}
   FInternetAgent := SysUtils.LoadStr(1000) + '/' + IntToStr(VerMajor) + '.' + IntToStr(VerMinor);
   SHGetFolderPath(0, CSIDL_PERSONAL, 0, 0, @Foldername);
   Path := IncludeTrailingPathDelimiter(PChar(@Foldername));
@@ -2161,28 +2156,30 @@ var
   BufferSize: Cardinal;
   FileInfo: ^VS_FIXEDFILEINFO;
   FileInfoSize: UINT;
-  FileVersionAvailable: Boolean;
+  Filename: array [0 .. MAX_PATH] of Char;
   Handle: Cardinal;
 begin
   Result := False;
   VerMajor := -1; VerMinor := -1; VerPatch := -1; VerBuild := -1;
 
-  BufferSize := GetFileVersionInfoSize(PChar(Application.ExeName), Handle);
 
+  if (GetModuleFileName(0, @Filename, Length(Filename)) = 0) then
+    RaiseLastOSError();
+
+  BufferSize := GetFileVersionInfoSize(@Filename, Handle);
   if (BufferSize > 0) then
   begin
     GetMem(Buffer, BufferSize);
-    FileVersionAvailable := GetFileVersionInfo(PChar(Application.ExeName), Application.Handle, BufferSize, Buffer);
-    if (FileVersionAvailable) then
-      if (VerQueryValue(Buffer, '\', Pointer(FileInfo), FileInfoSize)) then
-        if (FileInfoSize >= SizeOf(FileInfo^)) then
-        begin
-          VerMajor := FileInfo.dwFileVersionMS shr 16;
-          VerMinor := FileInfo.dwFileVersionMS and $FFFF;
-          VerPatch := FileInfo.dwFileVersionLS shr 16;
-          VerBuild := FileInfo.dwFileVersionLS and $FFFF;
-          Result := (VerMajor > 0) and (VerMinor >= 0) and (VerPatch >= 0) and (VerBuild >= 0);
-        end;
+    if (GetFileVersionInfo(@Filename, 0, BufferSize, Buffer)
+      and (VerQueryValue(Buffer, '\', Pointer(FileInfo), FileInfoSize))
+      and (FileInfoSize >= SizeOf(FileInfo^))) then
+    begin
+      VerMajor := FileInfo.dwFileVersionMS shr 16;
+      VerMinor := FileInfo.dwFileVersionMS and $FFFF;
+      VerPatch := FileInfo.dwFileVersionLS shr 16;
+      VerBuild := FileInfo.dwFileVersionLS and $FFFF;
+      Result := (VerMajor > 0) and (VerMinor >= 0) and (VerPatch >= 0) and (VerBuild >= 0);
+    end;
     FreeMem(Buffer);
   end;
 end;

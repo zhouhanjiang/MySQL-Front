@@ -4387,7 +4387,7 @@ end;
 
 procedure TSBaseTable.ParseAlterTable(const SQL: string);
 var
-  Field: TSField;
+  Field: TSBaseTableField;
   NewFieldName: string;
   OldFieldName: string;
   Parse: TSQLParse;
@@ -4426,6 +4426,7 @@ begin
         if (Assigned(Field) and (NewFieldName <> OldFieldName)) then
         begin
           Field.Name := NewFieldName;
+          Field.OriginalName := NewFieldName;
           Session.SendEvent(etItemAltered, Self, Fields, Field);
         end;
       end;
@@ -7103,7 +7104,7 @@ begin
   else
     Session.SendEvent(etItemsValid, Database, Self);
 
-  Result := inherited or (Session.Connection.ErrorCode = ER_EVENTS_DB_ERROR);
+  Result := inherited or (Session.Connection.ErrorCode = ER_NO_SUCH_TABLE) or (Session.Connection.ErrorCode = ER_EVENTS_DB_ERROR);
 end;
 
 function TSEvents.GetEvent(Index: Integer): TSEvent;
@@ -11324,7 +11325,7 @@ begin
 
   SendEvent(etItemsValid, Self, Databases);
 
-  Result := Connection.ErrorCode = ER_EVENTS_DB_ERROR;
+  Result := (Connection.ErrorCode = ER_NO_SUCH_TABLE) or (Connection.ErrorCode = ER_EVENTS_DB_ERROR);
 end;
 
 function TSSession.BuildRoutines(const DataSet: TMySQLQuery; const Filtered: Boolean = False; const ItemSearch: TSItemSearch = nil): Boolean;
@@ -12241,6 +12242,12 @@ begin
                       Database.Tables.Add(TSBaseTable.Create(Database.Tables, DDLStmt.ObjectName))
                     else
                     begin
+                      if (Table is TSBaseTable) then
+                      begin
+                        SetString(SQL, Text, Len);
+                        TSBaseTable(Table).ParseAlterTable(SQL);
+                      end;
+
                       if (DDLStmt.DefinitionType = dtAlterRename) then
                       begin
                         if (DatabaseByName(DDLStmt.NewDatabaseName) <> Database) then
@@ -12257,12 +12264,6 @@ begin
                         Table.Database.Invalidate()
                       else
                         Table.Invalidate();
-
-                      if (Table is TSBaseTable) then
-                      begin
-                        SetString(SQL, Text, Len);
-                        TSBaseTable(Table).ParseAlterTable(SQL);
-                      end;
                     end;
                   end;
                 dtDrop:

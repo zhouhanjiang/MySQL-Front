@@ -180,7 +180,7 @@ begin
     else
       SessionState := ssValid;
   end
-  else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemCreated, etItemAltered]) and (Event.Item = Trigger)) then
+  else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemCreated, etItemAltered])) then
     ModalResult := mrOk;
 
   if (SessionState = ssValid) then
@@ -296,7 +296,7 @@ begin
   else
     SessionState := ssValid;
 
-  if (SessionState = ssCreate) then
+  if (not Assigned(Trigger)) then
   begin
     FName.Text := Preferences.LoadStr(789);
     while (Assigned(Table.Database.TriggerByName(FName.Text))) do

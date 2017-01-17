@@ -220,7 +220,7 @@ begin
     else
       SessionState := ssValid;
   end
-  else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemCreated, etItemAltered]) and (Event.Item = User)) then
+  else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemCreated, etItemAltered])) then
     ModalResult := mrOk;
 
   if (SessionState = ssValid) then
@@ -320,7 +320,7 @@ begin
   NewUser := TSUser.Create(Session.Users);
 
   RightsModified := False;
-  if (not Assigned(User)) then
+  if (SessionState = ssCreate) then
   begin
     Caption := Preferences.LoadStr(286);
     HelpContext := 1077;
@@ -346,7 +346,7 @@ begin
   else
     SessionState := ssValid;
 
-  if (SessionState = ssCreate) then
+  if (not Assigned(User)) then
   begin
     FName.Text := Preferences.LoadStr(280);
     while (Assigned(Session.UserByCaption(FName.Text))) do

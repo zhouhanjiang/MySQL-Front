@@ -444,7 +444,7 @@ begin
     else
       SessionState := ssValid;
   end
-  else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemCreated, etItemAltered]) and (Event.Item = View)) then
+  else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemCreated, etItemAltered])) then
     ModalResult := mrOk;
 
   if (SessionState = ssValid) then
@@ -500,7 +500,7 @@ begin
   else
     SessionState := ssValid;
 
-  if (SessionState = ssCreate) then
+  if (not Assigned(View)) then
   begin
     FName.Text := Preferences.LoadStr(747);
     while (not Assigned(View) and Assigned(Database.TableByName(FName.Text))) do

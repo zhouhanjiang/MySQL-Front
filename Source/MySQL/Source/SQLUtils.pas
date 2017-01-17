@@ -2047,12 +2047,15 @@ const
 var
   BracketDeep: Integer;
   Len: Integer;
+  OldPos: PChar;
 begin
   Len := Handle.Len;
   SetLength(Result, Len);
 
   if (Len > 0) then
   begin
+    OldPos := Handle.Pos;
+
     asm
         PUSH ES
         PUSH ESI
@@ -2173,6 +2176,10 @@ begin
         POP ESI
         POP ES
     end;
+
+    if (Handle.Pos = OldPos) then
+      raise ERangeError.Create('Empty Value' + #13#10
+        + StrPas(Handle.Start));
 
     if (Len <> Length(Result)) then
       SetLength(Result, Len);
