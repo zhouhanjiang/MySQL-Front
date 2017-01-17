@@ -2039,7 +2039,7 @@ end;
 function SQLParseValue(var Handle: TSQLParse; const TrimAfterValue: Boolean = True): string;
 label
   StringL,
-  Quoted,
+  Quoted, QuotedE,
   Unquoted, Unquoted1, Unquoted2, UnquotedTerminatorsL, UnquotedC, UnquotedLE,
   Finish, FinishE;
 const
@@ -2140,15 +2140,18 @@ begin
       // -------------------
 
       Quoted:
-        MOV EBX,0
         CALL UnescapeString              // Unquote and unescape string
         MOV ECX,EAX
         JECXZ Finish                     // End of SQL!
         CMP WORD PTR [ESI],'@'           // '@' in SQL?
-        JNE Finish                       // No!
+        JNE QuotedE                      // No!
         MOVSW                            // Copy '@' from SQL to Result
         DEC ECX                          // '@' handled
         JMP StringL
+      QuotedE:
+        CMP BracketDeep,0                // Are we inside an brackts?
+        JNE StringL                      // Yes!
+        JMP Finish
 
       // -------------------
 
@@ -2189,7 +2192,7 @@ end;
 function SQLParseValue(var Handle: TSQLParse; const Value: PChar; const TrimAfterValue: Boolean = True): Boolean;
 label
   StringL,
-  Quoted,
+  Quoted, QuotedE,
   Unquoted, UnquotedL, Unquoted1, Unquoted2, UnquotedTerminatorsL, UnquotedC, UnquotedLE,
   Compare,
   Found,
@@ -2302,15 +2305,18 @@ begin
       // -------------------
 
       Quoted:
-        MOV EBX,0
         CALL UnescapeString              // Unquote and unescape string
         MOV ECX,EAX
         JECXZ Compare                    // End of SQL!
         CMP WORD PTR [ESI],'@'           // '@' in SQL?
-        JNE Compare                      // No!
+        JNE QuotedE                      // No!
         MOVSW                            // Copy '@' from SQL to Result
         DEC ECX                          // '@' handled
         JMP StringL
+      QuotedE:
+        CMP BracketDeep,0                // Are we inside an brackts?
+        JNE StringL                      // Yes!
+        JMP Finish
 
       // -------------------
 
@@ -3617,5 +3623,12 @@ begin
   Result := StrPas(P);
 end;
 
+var
+  Parse: TSQLParse;
+  SQL: string;
+begin
+  SQL := '(`categoria`(25))';
+  if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), 50000)) then
+    SQLParseValue(Parse);
 end.
 

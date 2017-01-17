@@ -9712,6 +9712,7 @@ end;
 procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView: TListView; const Data: TCustomData = nil);
 var
   RefreshColumnHeaders: Boolean;
+  ReorderGroupIndex: Integer;
 
   function Compare(const Kind: TPAccount.TDesktop.TListViewKind; const Item1, Item2: TListItem): Integer;
   begin
@@ -10105,7 +10106,6 @@ var
     Index: Integer;
     Left: Integer;
     Mid: Integer;
-    ReorderGroup: Boolean;
     Right: Integer;
   begin
     Count := ListView.Items.Count; // Cache for speeding
@@ -10142,35 +10142,28 @@ var
     begin
       Result := ListView.Items.Add();
       Result.Data := Data;
-      ReorderGroup := False;
       RefreshColumnHeaders := True;
     end
     else if (ListView.Items[Index].Data <> Data) then
     begin
       Result := ListView.Items.Insert(Index + 1);
       Result.Data := Data;
-      ReorderGroup := True;
+      if (ReorderGroupIndex < 0) then
+        ReorderGroupIndex := Index + 1
+      else
+        ReorderGroupIndex := Min(ReorderGroupIndex, Index + 1);
       RefreshColumnHeaders := True;
     end
     else
     begin
       Result := ListView.Items[Index];
-      ReorderGroup := not (Data is TSItem) or (TSItem(Data).Caption <> Result.Caption);
+      if (not (Data is TSItem) or (TSItem(Data).Caption <> Result.Caption)) then
+        if (ReorderGroupIndex < 0) then
+          ReorderGroupIndex := Index
+        else
+          ReorderGroupIndex := Min(ReorderGroupIndex, Index);
     end;
     UpdateItem(Result, GroupID, Data);
-
-    if (ReorderGroup and ListView.GroupView) then
-    begin
-      // This code is needed in Delphi XE4 to place inserted items into the
-      // right place
-      GroupID := Result.GroupID;
-      for I := Result.Index + 1 to ListView.Items.Count - 1 do
-        if (ListView.Items[I].GroupID = GroupID) then
-        begin
-          ListView.Items[I].GroupID := -1;
-          ListView.Items[I].GroupID := GroupID; // Why is this needed (in Delphi XE4)???
-        end;
-    end;
   end;
 
   function AddItem(const GroupID: Integer; const Data: TObject): TListItem;
@@ -10183,6 +10176,7 @@ var
 
   procedure UpdateObjectSearchGroupHeaders();
   var
+    Count: Integer;
     DatabaseCount: Integer;
     EventCount: Integer;
     FieldCount: Integer;
@@ -10203,7 +10197,8 @@ var
     TriggerCount := 0;
     UserCount := 0;
     VariableCount := 0;
-    for I := 0 to ListView.Items.Count - 1 do
+    Count := ListView.Items.Count; // Cache for speeding
+    for I := 0 to Count - 1 do
       case (ListView.Items[I].GroupID) of
         giDatabases: Inc(DatabaseCount);
         giTables: Inc(TableCount);
@@ -10267,6 +10262,8 @@ var
     S: string;
     UserCount: Integer;
   begin
+    ReorderGroupIndex := -1;
+
     case (Event.EventType) of
       etItemsValid:
         begin
@@ -10300,7 +10297,8 @@ var
           if (Event.Item is TSTrigger) then
           begin
             Add := True;
-            for I := 0 to ListView.Items.Count - 1 do
+            Count := ListView.Items.Count; // Cache for speeding
+            for I := 0 to Count - 1 do
               if (ListView.Items[I].Data = Event.Item) then
               begin
                 UpdateItem(ListView.Items[I], GroupID, Event.Item);
@@ -10310,9 +10308,12 @@ var
               InsertOrUpdateItem(Kind, GroupID, Event.Item);
           end
           else
-            for I := 0 to ListView.Items.Count - 1 do
+          begin
+            Count := ListView.Items.Count; // Cache for speeding
+            for I := 0 to Count - 1 do
               if (ListView.Items[I].Data = Event.Item) then
                 UpdateItem(ListView.Items[I], GroupID, Event.Item);
+          end;
         end;
       etItemCreated:
         if (GroupID = GroupIDByImageIndex(ImageIndexByData(Event.Item))) then
@@ -10328,9 +10329,10 @@ var
         if (GroupID = GroupIDByImageIndex(ImageIndexByData(Event.Item))) then
         begin
           Index := 0;
-          while ((Index < ListView.Items.Count) and (ListView.Items[Index].Data <> Event.Item)) do
+          Count := ListView.Items.Count; // Cache for speeding
+          while ((Index < Count) and (ListView.Items[Index].Data <> Event.Item)) do
             Inc(Index);
-          if (Index = ListView.Items.Count) then
+          if (Index = Count) then
             InsertOrUpdateItem(Kind, GroupID, Event.Item)
           else if (ListView.Items[Index].Caption = Event.Item.Caption) then
             UpdateItem(ListView.Items[Index], GroupID, Event.Item)
@@ -10370,6 +10372,19 @@ var
                 ListView.Items.Delete(I);
               end;
           end;
+        end;
+    end;
+
+    if ((ReorderGroupIndex >= 0) and ListView.GroupView) then
+    begin
+      // This code is needed in Delphi XE4 to place inserted items into the
+      // right place. Without this code, they will be placed to the bottom
+      Count := ListView.Items.Count; // Cache for speeding
+      for I := ReorderGroupIndex + 1 to Count - 1 do
+        if (ListView.Items[I].GroupID = GroupID) then
+        begin
+          ListView.Items[I].GroupID := -1;
+          ListView.Items[I].GroupID := GroupID;
         end;
     end;
 
@@ -10424,6 +10439,7 @@ var
 
 var
   ChangingEvent: TLVChangingEvent;
+  Count: Integer;
   I: Integer;
   Kind: TPAccount.TDesktop.TListViewKind;
 begin
@@ -10455,9 +10471,12 @@ begin
       if ((Event.Items is TSProcesses)
         or (Event.Items is TSUsers)
         or (Event.Items is TSVariables)) then
-        for I := 0 to ListView.Items.Count - 1 do
+      begin
+        Count := ListView.Items.Count; // Cache for speeding
+        for I := 0 to Count - 1 do
           if (ListView.Items[I].Data = Event.Items) then
             UpdateItem(ListView.Items[I], giSystemTools, Event.Items);
+      end;
     end;
 
     if (Event.Items is TSItemSearch) then
@@ -13185,11 +13204,7 @@ var
   end;
   URI: TUURI;
 begin
-  if (Address = '') then
-    raise ERangeError.Create(SRangeError);
-  // Debug 2017-01-16
-  if (Pos('http://', Address) = 1) then
-    raise ERangeError.Create('Address: ' + Address);
+  Assert(Address <> '');
 
   URI := TUURI.Create(Address);
 
@@ -13291,7 +13306,11 @@ begin
   // Debug 2017-01-16
   if (Pos('http://', URI.Address) = 1) then
     raise ERangeError.Create('Address: ' + Address + #13#10
-      + 'URI.Address: ' + URI.Address);
+      + 'URI.Address: ' + URI.Address + #13#10
+      + 'AView: ' + IntToStr(Ord(AView)) + #13#10
+      + 'LastSelectedDatabase: ' + LastSelectedDatabase + #13#10
+      + 'LastSelectedTable: ' + LastSelectedTable + #13#10
+      + 'LastSelectedObjectIDE' + LastSelectedObjectIDE);
 
   LockWindowUpdate(FNavigator.Handle);
   ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);

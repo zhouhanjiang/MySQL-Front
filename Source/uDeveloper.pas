@@ -391,7 +391,7 @@ constructor TCheckOnlineVersionThread.Create();
 begin
   PADFileStream := TStringStream.Create();
 
-  inherited Create(SysUtils.LoadStr(1005), nil, PADFileStream);
+  inherited Create(SysUtils.LoadStr(1005) + '?' + IntToStr(Random(High(Integer))), nil, PADFileStream);
 end;
 
 destructor TCheckOnlineVersionThread.Destroy();
@@ -893,6 +893,8 @@ end;
 {$ENDIF}
 
 initialization
+  Randomize();
+
   {$IFDEF EurekaLog}
   LogBuilderClass := TLogBuilder;
   RegisterEventExceptionNotify(nil, ExceptionNotify);

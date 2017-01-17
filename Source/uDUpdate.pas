@@ -158,7 +158,7 @@ begin
 
   if (Assigned(HTTPThread)) then
     TerminateThread(HTTPThread.Handle, 0);
-  HTTPThread := THTTPThread.Create(SysUtils.LoadStr(1005), nil, PADFileStream);
+  HTTPThread := THTTPThread.Create(SysUtils.LoadStr(1005) + '?' + IntToStr(Random(High(Integer))), nil, PADFileStream);
   HTTPThread.OnProgress := OnProgress;
   HTTPThread.OnTerminate := OnTerminate;
 
