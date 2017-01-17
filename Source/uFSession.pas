@@ -13204,8 +13204,6 @@ var
   end;
   URI: TUURI;
 begin
-  Assert(Address <> '');
-
   URI := TUURI.Create(Address);
 
   case (AView) of
@@ -13215,29 +13213,30 @@ begin
       end;
     vBrowser:
       begin
-        if (URI.Table = '') then
+        if ((URI.Database = '') and (LastSelectedTable <> '')) then
           URI.Address := LastSelectedTable;
         URI.Param['view'] := 'browser';
       end;
     vIDE:
       begin
-        if ((URI.Param['objecttype'] = Null) or (URI.Param['object'] = Null)) then
-          if (not Assigned(Session.DatabaseByName(URI.Database))
+        if ((URI.Param['objecttype'] = Null) or (URI.Param['object'] = Null)
+          and (LastSelectedObjectIDE <> '')
+          and (not Assigned(Session.DatabaseByName(URI.Database))
             or not Assigned(Session.DatabaseByName(URI.Database).TableByName(URI.Table))
-            or not (Session.DatabaseByName(URI.Database).TableByName(URI.Table) is TSView)) then
+            or not (Session.DatabaseByName(URI.Database).TableByName(URI.Table) is TSView))) then
           URI.Address := LastSelectedObjectIDE;
         URI.Param['view'] := 'ide';
       end;
     vBuilder:
       begin
-        if (URI.Database = '') then
+        if ((URI.Database = '') and (LastSelectedDatabase <> '')) then
           URI.Address := LastSelectedDatabase;
         URI.Table := '';
         URI.Param['view'] := 'builder';
       end;
     vDiagram:
       begin
-        if (URI.Database = '') then
+        if ((URI.Database = '') and (LastSelectedDatabase <> '')) then
           URI.Address := LastSelectedDatabase;
         URI.Table := '';
         URI.Param['view'] := 'diagram';
@@ -13246,9 +13245,9 @@ begin
     vEditor2,
     vEditor3:
       begin
-        if (URI.Database = '') then
+        if ((URI.Database = '') and (LastSelectedDatabase <> '')) then
           URI.Address := LastSelectedDatabase;
-        if (URI.Database = '') then
+        if ((URI.Database = '') and (LastSelectedDatabase <> '')) then
           URI.Database := Session.Connection.DatabaseName;
         URI.Table := '';
         if (not Assigned(SQLEditors[AView]) or (SQLEditors[AView].Filename = '')) then
@@ -13302,15 +13301,6 @@ begin
     URI.Param['name'] := Null;
     URI.Param['comment'] := Null;
   end;
-
-  // Debug 2017-01-16
-  if (Pos('http://', URI.Address) = 1) then
-    raise ERangeError.Create('Address: ' + Address + #13#10
-      + 'URI.Address: ' + URI.Address + #13#10
-      + 'AView: ' + IntToStr(Ord(AView)) + #13#10
-      + 'LastSelectedDatabase: ' + LastSelectedDatabase + #13#10
-      + 'LastSelectedTable: ' + LastSelectedTable + #13#10
-      + 'LastSelectedObjectIDE' + LastSelectedObjectIDE);
 
   LockWindowUpdate(FNavigator.Handle);
   ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);

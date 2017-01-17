@@ -45,6 +45,7 @@ procedure SendToDeveloper(const Text: string; const Days: Integer = 7; const Dis
 var
   OnlineVersion: Integer;
   OnlineRecommendedVersion: Integer;
+  MaxSendEventCount: Int64;
 
 implementation {***************************************************************}
 
@@ -367,12 +368,15 @@ begin
   end;
 
   if (FErrorCode <> 0) then
-  begin
-    Len := FormatMessage(FORMAT_MESSAGE_FROM_HMODULE,
-      Pointer(GetModuleHandle('Wininet.dll')), GetLastError(), 0, @MessageBuffer, Length(MessageBuffer), nil);
-    while (Len > 0) and (CharInSet(MessageBuffer[Len - 1], [#0..#32])) do Dec(Len);
-    SetString(FErrorMessage, PChar(@MessageBuffer[0]), Len);
-  end;
+    if ((INTERNET_ERROR_BASE <= FErrorCode) and (FErrorCode <= INTERNET_ERROR_LAST)) then
+    begin
+      Len := FormatMessage(FORMAT_MESSAGE_FROM_HMODULE,
+        Pointer(GetModuleHandle('Wininet.dll')), GetLastError(), 0, @MessageBuffer, Length(MessageBuffer), nil);
+      while (Len > 0) and (CharInSet(MessageBuffer[Len - 1], [#0..#32])) do Dec(Len);
+      SetString(FErrorMessage, PChar(@MessageBuffer[0]), Len);
+    end
+    else
+      FErrorMessage := SysErrorMessage(FErrorCode);
 
   if (not Terminated and Assigned(OnProgress)) then
     OnProgress(Self, ReceiveStream.Size, ReceiveStream.Size);
@@ -774,6 +778,7 @@ function TLogBuilder.BuildReport(): String;
 var
   I: Integer;
   ExceptionMessage: string;
+  Frequency: Int64;
 begin
   ExceptionMessage := Trim(ExceptionInfo.ExceptionMessage);
   if ((Length(ExceptionMessage) > 0) and (ExceptionMessage[Length(ExceptionMessage)] = '.')) then
@@ -809,6 +814,12 @@ begin
       Result := Result + StringOfChar('-', 72) + #13#10;
       Result := Result + Sessions[I].Connection.DebugMonitor.CacheText + #13#10;
     end;
+  end;
+
+  if ((MaxSendEventCount > 0) and QueryPerformanceFrequency(Frequency)) then
+  begin
+    Result := Result + StringOfChar('-', 72) + #13#10;
+    Result := Result + 'MaxSendEventCount: ' + FormatFloat('#,##0.000', MaxSendEventCount * 1000 div Frequency) + ' s' + #13#10;
   end;
 end;
 
@@ -893,6 +904,7 @@ end;
 {$ENDIF}
 
 initialization
+  MaxSendEventCount := 0;
   Randomize();
 
   {$IFDEF EurekaLog}
