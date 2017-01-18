@@ -2219,7 +2219,7 @@ begin
 
   FDebugMonitor := TMySQLMonitor.Create(nil);
   FDebugMonitor.Connection := Self;
-  FDebugMonitor.CacheSize := 100;
+  FDebugMonitor.CacheSize := 1000;
   FDebugMonitor.Enabled := True;
   FDebugMonitor.TraceTypes := [ttTime, ttRequest, ttInfo, ttDebug];
 end;

@@ -572,7 +572,8 @@ begin
       raise ERangeError.Create('Progress: ' + Progress + #13#10
         + 'ImportType: ' + IntToStr(Ord(ImportType)) + #13#10
         + 'CodePage: ' + IntToStr(CodePage) + #13#10
-        + 'SObject = SObjectDebug: ' + BoolToStr(SObject = SObjectDebug, True));
+        + 'SObject = SObjectDebug: ' + BoolToStr(SObject = SObjectDebug, True) + #13#10
+        + 'ThreadID: ' + IntToStr(GetCurrentThreadId()));
       // SObject.Class names shows cryptical data - but always nearly the same...
 
 
@@ -669,7 +670,8 @@ begin
         + 'ImportType: ' + IntToStr(Ord(ImportType)) + #13#10
         + 'CodePage: ' + IntToStr(CodePage) + #13#10
         + 'SObject = SObjectDebug: ' + BoolToStr(SObject = SObjectDebug, True) + #13#10
-        + 'SObject: ' + SObject.ClassName);
+        + 'SObject: ' + SObject.ClassName + #13#10
+        + 'ThreadID: ' + IntToStr(GetCurrentThreadId()));
   // Occurred 2017-01-05 Progress: abenqrsxyfhifhifhifhifhifhi
   // Occurred 2017-01-05 Progress: 2abnsqrxylmlmAfhi, ImportType: 1
   // Occurred 2017-01-07 Progress: 2abnsqrxylmlmlmlmlmlmlmlm .. lmlmlmlmAfhi, ImportType: 1
@@ -681,6 +683,7 @@ begin
   //   ... no SQL Log and TTImportSQL still running!
 
   // Occurred 2017-01-17 Progress: 2abnsovwAfhi, ImportType: 1, CodePage: Ansi, ClassType: TSDatabase, ... no SQL Log
+  // Occurred 2017-01-18 Progress: 2abnsfhi, ImportType: 1, CodePage: Ansi, ClassType: TSDatabase, ... no SQL Log
 
   Progress := Progress + 'j';
 

@@ -818,8 +818,9 @@ begin
 
   if ((MaxSendEventCount > 0) and QueryPerformanceFrequency(Frequency)) then
   begin
+    Result := Result + #13#10;
     Result := Result + StringOfChar('-', 72) + #13#10;
-    Result := Result + 'MaxSendEventCount: ' + FormatFloat('#,##0.000', MaxSendEventCount * 1000 div Frequency) + ' s' + #13#10;
+    Result := Result + 'MaxSendEventCount: ' + FormatFloat('#,##0.000', MaxSendEventCount * 1000 div Frequency / 1000) + ' s' + #13#10;
   end;
 end;
 

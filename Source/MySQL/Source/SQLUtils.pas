@@ -2180,7 +2180,7 @@ begin
         POP ES
     end;
 
-    if (Handle.Pos = OldPos) then
+    if ((Handle.Pos = OldPos) and (Handle.Len > 0) and (Handle.Pos[0] <> ';')) then
       raise ERangeError.Create('Empty Value' + #13#10
         + StrPas(Handle.Start));
 

@@ -4210,6 +4210,11 @@ begin
         end;
       vDiagram:
         begin
+          // Debug 2017-01-18
+          if (not (TObject(FNavigator.Selected.Data) is TSDatabase)) then
+            raise ERangeError.Create('Address: ' + Address + #13#10
+              + 'Assigned: ' + BoolToStr(Assigned(FNavigator.Selected.Data), True));
+
           TSDatabase(FNavigator.Selected.Data).Tables.Invalidate();
           List := TList.Create();
           List.Add(TSDatabase(FNavigator.Selected.Data).Tables);
@@ -13213,7 +13218,7 @@ begin
       end;
     vBrowser:
       begin
-        if ((URI.Database = '') and (LastSelectedTable <> '')) then
+        if ((URI.Table = '') and (LastSelectedTable <> '')) then
           URI.Address := LastSelectedTable;
         URI.Param['view'] := 'browser';
       end;

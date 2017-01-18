@@ -103,7 +103,7 @@ begin
     FBForward.Enabled := False;
     ActiveControl := FBCancel;
 
-    SetupProgramStream := TFileStream.Create(SetupPrgFilename, fmCreate);
+    SetupProgramStream := TFileStream.Create(SetupPrgFilename + '?' + IntToStr(Random(High(Integer))), fmCreate);
 
     HTTPThread := THTTPThread.Create(SetupProgramURI, nil, SetupProgramStream);
     HTTPThread.OnProgress := OnProgress;
