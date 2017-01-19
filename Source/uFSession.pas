@@ -4428,6 +4428,7 @@ begin
   ASession.Account.RegisterTab(Self);
 
   TimeMonitor := TMySQLMonitor.Create(nil);
+  TimeMonitor.CacheSize := 2000;
 
   Parent := TWinControl(AParent);
 
@@ -6083,7 +6084,7 @@ begin
   Session.UnRegisterEventProc(FormSessionEvent);
   Session.CreateDesktop := nil;
 
-  if (TimeMonitor.CacheSize > 0) then
+  if (TimeMonitor.CacheText <> '') then
     SendToDeveloper(TimeMonitor.CacheText, 1);
   TimeMonitor.Free();
 
@@ -7842,7 +7843,7 @@ begin
   if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
     if ((Finish - Start) div Frequency > 1) then
     begin
-      S := 'FNavigatorUpdate - '
+      S := 'FormSessionEvent - '
         + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
       if (Assigned(Event.Items)) then
         S := S
@@ -14618,7 +14619,9 @@ end;
 procedure TFSession.UMChangePreferences(var Message: TMessage);
 var
   I: Integer;
+{$IFDEF Debug}
   Node: TTreeNode;
+{$ENDIF}
 begin
   if (not CheckWin32Version(6) or TStyleManager.Enabled and (TStyleManager.ActiveStyle <> TStyleManager.SystemStyle)) then
   begin

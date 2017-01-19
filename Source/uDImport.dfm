@@ -615,6 +615,10 @@ object DImport: TDImport
       TabVisible = False
       OnResize = TSExecuteResize
       OnShow = TSExecuteShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)

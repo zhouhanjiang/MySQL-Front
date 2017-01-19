@@ -2272,6 +2272,16 @@ begin
     raise ERangeError.Create('TempPoint is not a part of a Link');
   // Debug 2017-01-17
   TempPoint.Link;
+
+  // Debug 2017-01-07
+  TempPoint := TempPoint.Link;
+  while (Assigned(TempPoint)) do
+    if (Workbench.LinkPoints.IndexOf(TempPoint) < 0) then
+      raise ERangeError.Create(SRangeError)
+    else if (Assigned(TempPoint.LineB)) then
+      TempPoint := TempPoint.LineB.PointB
+    else
+      TempPoint := nil;
 end;
 
 function TWLink.GetCaption(): TCaption;

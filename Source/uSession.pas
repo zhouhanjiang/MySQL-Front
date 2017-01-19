@@ -11841,7 +11841,7 @@ begin
         '# MySQL: ' + Self.Connection.ServerVersionStr + #13#10
         + #13#10
         + UnparsableSQL;
-    SendToDeveloper(UnparsableSQL);
+    SendToDeveloper(UnparsableSQL, 7, True);
   end;
 
   FConnection.Free();

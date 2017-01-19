@@ -176,7 +176,7 @@ begin
     Body := Text;
 
     {$IFDEF EurekaLog}
-    if (not DisableSource) then
+    if (not DisableSource or (Trim(Text) = '')) then
     begin
       CallStack := GetCurrentCallStack();
       Index := 0; StackItem := 0; Item := nil;
@@ -185,6 +185,7 @@ begin
         Item := CallStack.GetItem(1, Buffer); GetModuleFileName(GetModuleHandle(nil), @Filename, Length(Filename));
         if ((Item^.Location.DebugDetail = ddSourceCode) and (lstrcmpI(PChar(Item^.Location.ModuleName), PChar(@Filename)) = 0)) then
           Inc(StackItem);
+        Inc(Index);
       end;
       if (Assigned(Item) and (StackItem = 2)) then
       begin

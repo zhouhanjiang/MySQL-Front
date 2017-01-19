@@ -573,7 +573,8 @@ begin
         + 'ImportType: ' + IntToStr(Ord(ImportType)) + #13#10
         + 'CodePage: ' + IntToStr(CodePage) + #13#10
         + 'SObject = SObjectDebug: ' + BoolToStr(SObject = SObjectDebug, True) + #13#10
-        + 'ThreadID: ' + IntToStr(GetCurrentThreadId()));
+        + 'ThreadID: ' + IntToStr(GetCurrentThreadId()) + #13#10
+        + 'Destroying: ' + BoolToStr(csDestroying in ComponentState));
       // SObject.Class names shows cryptical data - but always nearly the same...
 
 
@@ -673,7 +674,8 @@ begin
         + 'CodePage: ' + IntToStr(CodePage) + #13#10
         + 'SObject = SObjectDebug: ' + BoolToStr(SObject = SObjectDebug, True) + #13#10
         + 'SObject: ' + SObject.ClassName + #13#10
-        + 'ThreadID: ' + IntToStr(GetCurrentThreadId()));
+        + 'ThreadID: ' + IntToStr(GetCurrentThreadId()) + #13#10
+        + 'Destroying: ' + BoolToStr(csDestroying in ComponentState));
   // Occurred 2017-01-05 Progress: abenqrsxyfhifhifhifhifhifhi
   // Occurred 2017-01-05 Progress: 2abnsqrxylmlmAfhi, ImportType: 1
   // Occurred 2017-01-07 Progress: 2abnsqrxylmlmlmlmlmlmlmlm .. lmlmlmlmAfhi, ImportType: 1
