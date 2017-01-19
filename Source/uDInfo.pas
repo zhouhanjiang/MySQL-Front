@@ -74,11 +74,30 @@ procedure TDInfo.FormCreate(Sender: TObject);
 var
   GPBitmap: TGPBitmap;
   GPGraphics: TGPGraphics;
+  Icon: HICON;
+  IconId: Integer;
+  ResData: HGLOBAL;
+  ResInfo: HRSRC;
+  Resource: Pointer;
 begin
-  GPBitmap := TGPBitmap.Create(HInstance, 'Info');
+  ResInfo := FindResource(HInstance, 'MAINICON', RT_GROUP_ICON);
+  ResData := LoadResource(HInstance, ResInfo);
+  Resource := LockResource(ResData);
+  IconId := LookupIconIdFromDirectoryEx(Resource, TRUE, 256, 256, LR_DEFAULTCOLOR);
+  ResInfo := FindResource(HInstance, MAKEINTRESOURCE(IconId), RT_ICON);
+  ResData := LoadResource(HInstance, ResInfo);
+  Icon := CreateIconFromResourceEx(
+    LockResource(ResData), SizeOfResource(HInstance, ResInfo),
+    TRUE, $00030000, 256, 256, LR_DEFAULTCOLOR);
+
+  FImage.Picture.Bitmap.PixelFormat := pf32bit;
+  SetBkMode(FImage.Picture.Bitmap.Canvas.Handle, TRANSPARENT);
+  FImage.Picture.Bitmap.SetSize(FImage.Width, FImage.Height);
+
+  GPBitmap := TGPBitmap.Create(ICON);
   GPGraphics := TGPGraphics.Create(FImage.Canvas.Handle);
   GPGraphics.SetInterpolationMode(InterpolationModeHighQuality);
-  GPGraphics.DrawImage(GPBitmap, 8, 8, FImage.Width, FImage.Height);
+  GPGraphics.DrawImage(GPBitmap, 0, 0, FImage.Width, FImage.Height);
   GPGraphics.Free();
   GPBitmap.Free();
 end;

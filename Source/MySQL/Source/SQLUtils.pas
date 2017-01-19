@@ -2316,7 +2316,7 @@ begin
       QuotedE:
         CMP BracketDeep,0                // Are we inside an brackts?
         JNE StringL                      // Yes!
-        JMP Finish
+        JMP Compare
 
       // -------------------
 

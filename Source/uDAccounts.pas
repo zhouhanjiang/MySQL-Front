@@ -48,15 +48,15 @@ type
     procedure FAccountsColumnResize(Sender: TObject; Column: TListColumn);
     procedure FAccountsCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
+    procedure FAccountsContextPopup(Sender: TObject; MousePos: TPoint;
+      var Handled: Boolean);
     procedure FAccountsDblClick(Sender: TObject);
     procedure FAccountsResize(Sender: TObject);
     procedure FAccountsSelectItem(Sender: TObject; Item: TListItem;
       Selected: Boolean);
-    procedure ItemMenuPopup(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure HeaderMenuClick(Sender: TObject);
-    procedure FAccountsContextPopup(Sender: TObject; MousePos: TPoint;
-      var Handled: Boolean);
+    procedure ItemMenuPopup(Sender: TObject);
   private
     IgnoreColumnResize: Boolean;
     IgnoreResize: Boolean;

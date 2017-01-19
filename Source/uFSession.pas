@@ -163,6 +163,9 @@ type
     miNExportSQL: TMenuItem;
     miNExportText: TMenuItem;
     miNExportXML: TMenuItem;
+    miNFavoriteAdd: TMenuItem;
+    miNFavoriteRemove: TMenuItem;
+    miNFavoriteOpen: TMenuItem;
     miNImport: TMenuItem;
     miNImportAccess: TMenuItem;
     miNImportExcel: TMenuItem;
@@ -229,6 +232,7 @@ type
     mtEditor: TMenuItem;
     mtEditor2: TMenuItem;
     mtEditor3: TMenuItem;
+    mtObjectSearch: TMenuItem;
     MText: TPopupMenu;
     mtIDE: TMenuItem;
     mtObjects: TMenuItem;
@@ -289,11 +293,13 @@ type
     N27: TMenuItem;
     N28: TMenuItem;
     N29: TMenuItem;
+    N3: TMenuItem;
     N30: TMenuItem;
     N31: TMenuItem;
     N32: TMenuItem;
     N33: TMenuItem;
     N34: TMenuItem;
+    N4: TMenuItem;
     OpenDialog: TOpenDialog_Ext;
     PBlob: TPanel_Ext;
     PQueryBuilder: TPanel_Ext;
@@ -361,7 +367,6 @@ type
     tmEPaste: TMenuItem;
     tmESelectAll: TMenuItem;
     ToolBar: TToolBar;
-    mtObjectSearch: TMenuItem;
     procedure aDCreateDatabaseExecute(Sender: TObject);
     procedure aDCreateEventExecute(Sender: TObject);
     procedure aDCreateExecute(Sender: TObject);
@@ -629,6 +634,9 @@ type
       Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure TreeViewMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
+    procedure miNFavoriteAddClick(Sender: TObject);
+    procedure miNFavoriteRemoveClick(Sender: TObject);
+    procedure miNFavoriteOpenClick(Sender: TObject);
   type
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
     TTabState = set of (tsLoading, tsActive);
@@ -946,16 +954,18 @@ type
     function Dragging(const Sender: TObject): Boolean;
     procedure EndEditLabel(Sender: TObject);
     procedure FavoritesAdd(const Objects: TList);
+    procedure FavoritesEvent(const Favorites: TPAccount.TFavorites);
     procedure FHexEditorShow(Sender: TObject);
     procedure FHTMLHide(Sender: TObject);
     procedure FHTMLShow(Sender: TObject);
     procedure FieldSetText(Sender: TField; const Text: string);
     procedure FImageShow(Sender: TObject);
     procedure FLogUpdate();
+    procedure FNavigatorChanged(Sender: TObject; const Node: TTreeNode);
     procedure FNavigatorEmptyExecute(Sender: TObject);
     procedure FNavigatorInitialize(Sender: TObject);
     function FNavigatorNodeByAddress(const Address: string): TTreeNode;
-    procedure FNavigatorChanged(Sender: TObject; const Node: TTreeNode);
+    procedure FNavigatorRemoveFavorites();
     procedure FNavigatorUpdate(const Event: TSSession.TEvent);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     function FQueryBuilderActiveSelectList(): TacQueryBuilderSelectListControl;
@@ -1008,6 +1018,7 @@ type
     procedure SetView(const AView: TView);
     procedure SetListViewGroupHeader(const ListView: TListView; const GroupID: Integer; const NewHeader: string);
     procedure SetPath(const APath: TFileName);
+    function SItemToAddress(const Item: TSItem): string;
     procedure SQLError(DataSet: TDataSet; E: EDatabaseError; var Action: TDataAction);
     procedure SynMemoApplyPreferences(const SynMemo: TSynMemo);
     procedure TableOpen(Sender: TObject);
@@ -4687,6 +4698,7 @@ begin
 
   Session.CreateDesktop := CreateDesktop;
   Session.RegisterEventProc(FormSessionEvent);
+  Session.Account.Favorites.RegisterEventProc(FavoritesEvent);
 
   Wanted := TWanted.Create(Self);
 
@@ -6059,10 +6071,12 @@ destructor TFSession.Destroy();
 var
   DatabasesXML: IXMLNode;
   I: Integer;
+  Node: TTreeNode;
   TempB: Boolean;
   URI: TUURI;
   View: TView;
 begin
+  Session.Account.Favorites.UnRegisterEventProc(FavoritesEvent);
   Session.UnRegisterEventProc(FormSessionEvent);
   Session.CreateDesktop := nil;
 
@@ -6074,6 +6088,16 @@ begin
   Window.ActiveControl := nil;
   OnResize := nil;
 
+  Node := FNavigator.Items.GetFirstNode();
+  if (Assigned(Node) and (Node.ImageIndex = iiQuickAccess)) then
+  begin
+    Node := Node.getFirstChild();
+    while (Assigned(Node)) do
+    begin
+      StrDispose(PChar(Node.Data));
+      Node := Node.getNextSibling();
+    end;
+  end;
   FNavigator.Items.BeginUpdate();
   FNavigator.Items.Clear();
   FNavigator.Items.EndUpdate();
@@ -6168,7 +6192,79 @@ begin
 end;
 
 procedure TFSession.FavoritesAdd(const Objects: TList);
+var
+  I: Integer;
 begin
+  FNavigator.Items.BeginUpdate();
+  for I := 0 to Objects.Count - 1 do
+    if (Session.Account.Favorites.IndexOf(SItemToAddress(TSItem(Objects[I]))) < 0) then
+      Session.Account.Favorites.Add(SItemToAddress(TSItem(Objects[I])));
+  FNavigator.Items.EndUpdate();
+end;
+
+procedure TFSession.FavoritesEvent(const Favorites: TPAccount.TFavorites);
+var
+  FavoritesNode: TTreeNode;
+  I: Integer;
+  ImageIndex: Integer;
+  Node: TTreeNode;
+  Text: string;
+  URI: TUURI;
+begin
+  FavoritesNode := FNavigator.Items.GetFirstNode();
+
+  if (Assigned(FavoritesNode) and (FavoritesNode.ImageIndex = iiQuickAccess)) then
+  begin
+    FNavigator.Items.BeginUpdate();
+    URI := TUURI.Create();
+
+    FNavigatorRemoveFavorites();
+
+    for I := 0 to Favorites.Count - 1 do
+    begin
+      URI.Address := Favorites[I];
+      if (URI.Param['objecttype'] = 'procedure') then
+      begin
+        ImageIndex := iiProcedure;
+        Text := URI.Param['object'];
+      end
+      else if (URI.Param['objecttype'] = 'function') then
+      begin
+        ImageIndex := iiFunction;
+        Text := URI.Param['object'];
+      end
+      else if (URI.Param['objecttype'] = 'event') then
+      begin
+        ImageIndex := iiEvent;
+        Text := URI.Param['object'];
+      end
+      else if (URI.Param['objecttype'] = 'trigger') then
+      begin
+        ImageIndex := iiTrigger;
+        Text := URI.Param['object'];
+      end
+      else if (URI.Table <> '') then
+      begin
+        ImageIndex := iiTable;
+        Text := URI.Table;
+      end
+      else if (URI.Database <> '') then
+      begin
+        ImageIndex := iiDatabase;
+        Text := URI.Database;
+      end
+      else
+        raise ERangeError.Create(SRangeError);
+
+      Node := FNavigator.Items.AddChild(FavoritesNode, Text);
+      Node.ImageIndex := ImageIndex;
+      Node.Data := StrNew(PChar(Favorites[I]));
+    end;
+
+    URI.Free();
+    FavoritesNode.Expand(False);
+    FNavigator.Items.EndUpdate();
+  end;
 end;
 
 procedure TFSession.FBlobResize(Sender: TObject);
@@ -6475,18 +6571,35 @@ begin
 end;
 
 procedure TFSession.FNavigatorChange2(Sender: TObject; Node: TTreeNode);
+var
+  ScrollPos: record
+    Horz: Integer;
+    Vert: Integer;
+  end;
 begin
   KillTimer(Handle, tiNavigator);
   FNavigatorNodeAfterActivate := nil;
 
-  Address := NavigatorNodeToAddress(Node);
+  if (Assigned(Node) and Assigned(Node.Parent) and (Node.Parent.ImageIndex = iiQuickAccess)) then
+  begin
+    LockWindowUpdate(FNavigator.Handle);
+    ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);
+    ScrollPos.Vert := GetScrollPos(FNavigator.Handle, SB_VERT);
+    Address := StrPas(PChar(Node.Data));
+    SetScrollPos(FNavigator.Handle, SB_HORZ, ScrollPos.Horz, TRUE);
+    SetScrollPos(FNavigator.Handle, SB_VERT, ScrollPos.Vert, TRUE);
+    LockWindowUpdate(0);
+  end
+  else
+    Address := NavigatorNodeToAddress(Node);
 end;
 
 procedure TFSession.FNavigatorChanging(Sender: TObject; Node: TTreeNode;
   var AllowChange: Boolean);
 begin
   AllowChange := AllowChange
-    and (Node.Text <> '')
+    and (Node.ImageIndex >= 0) and (Node.Text <> '')
+    and not (Node.ImageIndex in [iiQuickAccess])
     and not Dragging(Sender)
     and not (Assigned(Node) and (Node.ImageIndex in [iiKey, iiField, iiVirtualField, iiSystemViewField, iiViewField, iiForeignKey]));
 
@@ -6515,7 +6628,7 @@ begin
   else
     TargetNode := nil;
 
-  if (TargetNode.ImageIndex = iiFavorites) then
+  if (TargetNode.ImageIndex = iiQuickAccess) then
   begin
     List := TList.Create();
 
@@ -6600,7 +6713,7 @@ begin
   begin
     SourceNode := TFSession(TTreeView(Source).Owner).MouseDownNode;
     if (Assigned(TargetNode) and (TargetNode <> SourceNode)) then
-      if (TargetNode.ImageIndex = iiFavorites) then
+      if (TargetNode.ImageIndex = iiQuickAccess) then
         Accept := (Source = FNavigator)
           and (SourceNode.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger])
       else
@@ -6617,7 +6730,7 @@ begin
   else if ((Source is TListView) and (TListView(Source).Parent.Name = PListView.Name) and Assigned(TargetNode)) then
   begin
     SourceItem := TListView(Source).Selected;
-    if (TargetNode.ImageIndex = iiFavorites) then
+    if (TargetNode.ImageIndex = iiQuickAccess) then
       Accept := (TListView(Source).Parent = PListView)
         and (SourceItem.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger])
     else
@@ -6763,11 +6876,9 @@ var
   Database: TSDatabase;
   Table: TSTable;
 begin
-  // Debug 2016-11-17
-  if (not Assigned(Node.Data)) then
-    raise ERangeError(SRangeError);
-
-  if (Node.HasChildren) then
+  if (Node.ImageIndex = iiQuickAccess) then
+    AllowExpansion := True
+  else if (Node.HasChildren) then
   begin
     Database := nil;
     Table := nil;
@@ -6811,8 +6922,6 @@ var
   Node: TTreeNode;
 begin
   Node := FNavigator.Items.getFirstNode();
-  if (Assigned(Node) and (Node.ImageIndex = iiFavorites)) then
-    Node.Text := Preferences.LoadStr(727);
   while (Assigned(Node) and (Node.ImageIndex <> iiServer)) do
     Node := Node.getNextSibling();
   if (Assigned(Node) and (Node.ImageIndex = iiServer)) then
@@ -7002,6 +7111,25 @@ begin
     Result := ServerNode;
 
   URI.Free();
+end;
+
+procedure TFSession.FNavigatorRemoveFavorites();
+var
+  QuickAccessNode: TTreeNode;
+  Node: TTreeNode;
+begin
+  if (Assigned(FNavigator.Items.GetFirstNode()) and (FNavigator.Items.GetFirstNode().ImageIndex = iiQuickAccess)) then
+  begin
+    QuickAccessNode := FNavigator.Items.GetFirstNode();
+
+    Node := QuickAccessNode.getFirstChild();
+    while (Assigned(Node)) do
+    begin
+      StrDispose(PChar(Node.Data));
+      Node := Node.getNextSibling();
+    end;
+    QuickAccessNode.DeleteChildren();
+  end;
 end;
 
 procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
@@ -7474,11 +7602,6 @@ begin
   ToolBarData.tbPropertiesAction := miNProperties.Action;
   Window.Perform(UM_UPDATETOOLBAR, 0, LPARAM(Self));
 
-  ShowEnabledItems(MNavigator.Items);
-
-  miNExpand.Default := miNExpand.Visible;
-  miNCollapse.Default := miNCollapse.Visible;
-
   FNavigator.ReadOnly := not MainAction('aERename').Enabled;
 end;
 
@@ -7490,7 +7613,10 @@ end;
 procedure TFSession.FObjectSearchExit(Sender: TObject);
 begin
   if (Assigned(PObjectSearch)) then
+  begin
     PObjectSearch.Hide();
+    FObjectSearch.SelectAll();
+  end;
 end;
 
 procedure TFSession.FObjectSearchKeyPress(Sender: TObject; var Key: Char);
@@ -7503,7 +7629,10 @@ begin
   else if (Key = #27) then
   begin
     if (Assigned(PObjectSearch)) then
+    begin
       PObjectSearch.Hide();
+      FObjectSearch.SelectAll();
+    end;
   end
   else
     inherited;
@@ -7554,6 +7683,7 @@ begin
     FreeAndNil(ObjectSearch);
 
   PObjectSearch.Hide();
+  FObjectSearch.SelectAll();
 
   URI := TUURI.Create(Address);
   URI.Param['view'] := 'objectsearch';
@@ -11075,6 +11205,26 @@ begin
   end;
 end;
 
+procedure TFSession.miNFavoriteAddClick(Sender: TObject);
+var
+  List: TList;
+begin
+  List := TList.Create();
+  List.Add(FNavigator.Selected.Data);
+  FavoritesAdd(List);
+  List.Free();
+end;
+
+procedure TFSession.miNFavoriteRemoveClick(Sender: TObject);
+begin
+  Session.Account.Favorites.Delete(Session.Account.Favorites.IndexOf(PChar(FNavigatorMenuNode.Data)));
+end;
+
+procedure TFSession.miNFavoriteOpenClick(Sender: TObject);
+begin
+  FNavigator.Selected := FNavigatorMenuNode;
+end;
+
 procedure TFSession.MListPopup(Sender: TObject);
 var
   I: Integer;
@@ -11131,6 +11281,8 @@ end;
 procedure TFSession.MNavigatorPopup(Sender: TObject);
 var
   AllowChange: Boolean;
+  I: Integer;
+  J: Integer;
   P: TPoint;
 begin
   KillTimer(Handle, tiStatusBar);
@@ -11141,14 +11293,35 @@ begin
 
   if (Sender = FNavigator.PopupMenu) then
   begin
-    // Bei einem Click auf den WhiteSpace: FNavigator.Selected zeigt den zuletzt selektierten Node an :-(
+    // On click to the whitespace, FNavigator.Selected is set to the last selected node. :-/
     P := GetClientOrigin();
     FNavigatorMenuNode := FNavigator.GetNodeAt(MNavigator.PopupPoint.X - P.x - (PSideBar.Left + PNavigator.Left + FNavigator.Left), MNavigator.PopupPoint.y - P.y - (PSideBar.Top + PNavigator.Top + FNavigator.Top));
   end
   else
     FNavigatorMenuNode := FNavigator.Selected;
 
-  FNavigatorChanged(Sender, FNavigatorMenuNode);
+  for I := 0 to MNavigator.Items.Count - 1 do
+  begin
+    MNavigator.Items[I].Enabled := False;
+    for J := 0 to MNavigator.Items[I].Count - 1 do
+      MNavigator.Items[I][J].Enabled := False;
+  end;
+
+  if (Assigned(FNavigatorMenuNode)) then
+    if (FNavigatorMenuNode.ImageIndex = iiQuickAccess) then
+      miNFavoriteAdd.Enabled := Assigned(FNavigator.Selected) and (FNavigator.Selected.ImageIndex <> iiServer)
+    else if (Assigned(FNavigatorMenuNode.Parent) and (FNavigatorMenuNode.Parent.ImageIndex = iiQuickAccess)) then
+    begin
+      miNFavoriteOpen.Enabled := True;
+      miNFavoriteRemove.Enabled := True;
+    end
+    else
+      FNavigatorChanged(Sender, FNavigatorMenuNode);
+
+  ShowEnabledItems(MNavigator.Items);
+
+  miNExpand.Default := miNExpand.Visible;
+  miNCollapse.Default := miNCollapse.Visible;
 end;
 
 procedure TFSession.MSQLEditorPopup(Sender: TObject);
@@ -12026,123 +12199,123 @@ begin
             begin
               DExecutingSQL.Session := SourceSession;
               DExecutingSQL.Update := SourceDatabase.Tables.Update;
-              if (not Assigned(SourceDatabase) or not SourceDatabase.Tables.Valid and not DExecutingSQL.Execute()) then
-                SourceTable := nil
-              else
+              if (SourceDatabase.Tables.Valid or DExecutingSQL.Execute()) then
+              begin
                 SourceTable := SourceDatabase.BaseTableByName(SourceURI.Table);
 
-              DExecutingSQL.Update := SourceTable.Update;
-              if (not Assigned(SourceTable) or not SourceTable.Valid and not DExecutingSQL.Execute()) then
-                MessageBeep(MB_ICONERROR)
-              else
-              begin
-                Database := TSDatabase(Node.Parent.Data);
-                Table := TSBaseTable(Node.Data);
-
-                DExecutingSQL.Update := Table.Update;
-                if (Table.Valid or DExecutingSQL.Execute()) then
+                DExecutingSQL.Update := SourceTable.Update;
+                if (not Assigned(SourceTable) or not SourceTable.Valid and not DExecutingSQL.Execute()) then
+                  MessageBeep(MB_ICONERROR)
+                else
                 begin
-                  NewTable := TSBaseTable.Create(Database.Tables);
-                  NewTable.Assign(Table);
+                  Database := TSDatabase(Node.Parent.Data);
+                  Table := TSBaseTable(Node.Data);
 
-                  for I := 1 to StringList.Count - 1 do
-                    if (StringList.Names[I] = 'Field') then
-                    begin
-                      Name := CopyName(StringList.ValueFromIndex[I], NewTable.Fields);
+                  DExecutingSQL.Update := Table.Update;
+                  if (Table.Valid or DExecutingSQL.Execute()) then
+                  begin
+                    NewTable := TSBaseTable.Create(Database.Tables);
+                    NewTable.Assign(Table);
 
-                      SourceField := SourceTable.FieldByName(StringList.ValueFromIndex[I]);
-
-                      if (not Assigned(SourceField)) then
-                        MessageBeep(MB_ICONERROR)
-                      else
+                    for I := 1 to StringList.Count - 1 do
+                      if (StringList.Names[I] = 'Field') then
                       begin
-                        NewField := TSBaseTableField.Create(NewTable.Fields);
-                        NewField.Assign(SourceField);
-                        TSBaseTableField(NewField).OriginalName := '';
-                        NewField.Name := Name;
-                        NewField.FieldBefore := NewTable.Fields[NewTable.Fields.Count - 1];
-                        NewTable.Fields.AddField(NewField);
-                        NewField.Free();
-                      end;
-                    end;
+                        Name := CopyName(StringList.ValueFromIndex[I], NewTable.Fields);
 
-                  for I := 1 to StringList.Count - 1 do
-                    if (StringList.Names[I] = 'Key') then
-                    begin
-                      Name := CopyName(StringList.ValueFromIndex[I], NewTable.Keys);
+                        SourceField := SourceTable.FieldByName(StringList.ValueFromIndex[I]);
 
-                      SourceKey := SourceTable.KeyByName(StringList.ValueFromIndex[I]);
-
-                      if (not Assigned(SourceKey)) then
-                        MessageBeep(MB_ICONERROR)
-                      else
-                      begin
-                        Found := True;
-                        for J := 0 to SourceKey.Columns.Count - 1 do
-                          if (not Assigned(NewTable.FieldByName(SourceKey.Columns[J].Field.Name))) then
-                            Found := False;
-                        if (not Found) then
+                        if (not Assigned(SourceField)) then
                           MessageBeep(MB_ICONERROR)
                         else
                         begin
-                          NewKey := TSKey.Create(NewTable.Keys);
-                          NewKey.Assign(SourceKey);
-                          NewKey.Name := Name;
-                          NewTable.Keys.AddKey(NewKey);
-                          NewKey.Free();
+                          NewField := TSBaseTableField.Create(NewTable.Fields);
+                          NewField.Assign(SourceField);
+                          TSBaseTableField(NewField).OriginalName := '';
+                          NewField.Name := Name;
+                          NewField.FieldBefore := NewTable.Fields[NewTable.Fields.Count - 1];
+                          NewTable.Fields.AddField(NewField);
+                          NewField.Free();
                         end;
                       end;
-                    end
-                    else if (StringList.Names[I] = 'ForeignKey') then
-                    begin
-                      Name := CopyName(StringList.ValueFromIndex[I], NewTable.ForeignKeys);
 
-                      SourceForeignKey := SourceTable.ForeignKeyByName(StringList.ValueFromIndex[I]);
-
-                      if (not Assigned(SourceForeignKey)) then
-                        MessageBeep(MB_ICONERROR)
-                      else
+                    for I := 1 to StringList.Count - 1 do
+                      if (StringList.Names[I] = 'Key') then
                       begin
-                        NewForeignKey := TSForeignKey.Create(NewTable.ForeignKeys);
-                        NewForeignKey.Assign(SourceForeignKey);
-                        NewForeignKey.Name := Name;
-                        NewTable.ForeignKeys.AddForeignKey(NewForeignKey);
-                        NewForeignKey.Free();
-                      end;
-                    end;
+                        Name := CopyName(StringList.ValueFromIndex[I], NewTable.Keys);
 
-                  Session.Connection.BeginSynchron();
-                  Database.UpdateBaseTable(Table, NewTable);
-                  Session.Connection.EndSynchron();
+                        SourceKey := SourceTable.KeyByName(StringList.ValueFromIndex[I]);
 
-                  for I := 1 to StringList.Count - 1 do
-                    if (StringList.Names[I] = 'Trigger') then
-                    begin
-                      DExecutingSQL.Session := SourceSession;
-                      DExecutingSQL.Update := SourceDatabase.Triggers.Update;
-                      if (not Assigned(SourceDatabase) or not SourceDatabase.Triggers.Valid and not DExecutingSQL.Execute()) then
-                        SourceTrigger := nil
-                      else
-                        SourceTrigger := SourceDatabase.TriggerByName(StringList.ValueFromIndex[I]);
-
-                      if (not Assigned(SourceTrigger)) then
-                        MessageBeep(MB_ICONERROR)
-                      else
+                        if (not Assigned(SourceKey)) then
+                          MessageBeep(MB_ICONERROR)
+                        else
+                        begin
+                          Found := True;
+                          for J := 0 to SourceKey.Columns.Count - 1 do
+                            if (not Assigned(NewTable.FieldByName(SourceKey.Columns[J].Field.Name))) then
+                              Found := False;
+                          if (not Found) then
+                            MessageBeep(MB_ICONERROR)
+                          else
+                          begin
+                            NewKey := TSKey.Create(NewTable.Keys);
+                            NewKey.Assign(SourceKey);
+                            NewKey.Name := Name;
+                            NewTable.Keys.AddKey(NewKey);
+                            NewKey.Free();
+                          end;
+                        end;
+                      end
+                      else if (StringList.Names[I] = 'ForeignKey') then
                       begin
-                        Name := CopyName(StringList.ValueFromIndex[I], Database.Triggers);
+                        Name := CopyName(StringList.ValueFromIndex[I], NewTable.ForeignKeys);
 
-                        NewTrigger := TSTrigger.Create(Database.Triggers);
-                        NewTrigger.Assign(SourceTrigger);
-                        NewTrigger.Name := Name;
-                        NewTrigger.TableName := NewTable.Name;
-                        Session.Connection.BeginSynchron();
-                        Database.AddTrigger(NewTrigger);
-                        Session.Connection.EndSynchron();
-                        NewTrigger.Free();
+                        SourceForeignKey := SourceTable.ForeignKeyByName(StringList.ValueFromIndex[I]);
+
+                        if (not Assigned(SourceForeignKey)) then
+                          MessageBeep(MB_ICONERROR)
+                        else
+                        begin
+                          NewForeignKey := TSForeignKey.Create(NewTable.ForeignKeys);
+                          NewForeignKey.Assign(SourceForeignKey);
+                          NewForeignKey.Name := Name;
+                          NewTable.ForeignKeys.AddForeignKey(NewForeignKey);
+                          NewForeignKey.Free();
+                        end;
                       end;
-                    end;
 
-                  NewTable.Free();
+                    Session.Connection.BeginSynchron();
+                    Database.UpdateBaseTable(Table, NewTable);
+                    Session.Connection.EndSynchron();
+
+                    for I := 1 to StringList.Count - 1 do
+                      if (StringList.Names[I] = 'Trigger') then
+                      begin
+                        DExecutingSQL.Session := SourceSession;
+                        DExecutingSQL.Update := SourceDatabase.Triggers.Update;
+                        if (not Assigned(SourceDatabase) or not SourceDatabase.Triggers.Valid and not DExecutingSQL.Execute()) then
+                          SourceTrigger := nil
+                        else
+                          SourceTrigger := SourceDatabase.TriggerByName(StringList.ValueFromIndex[I]);
+
+                        if (not Assigned(SourceTrigger)) then
+                          MessageBeep(MB_ICONERROR)
+                        else
+                        begin
+                          Name := CopyName(StringList.ValueFromIndex[I], Database.Triggers);
+
+                          NewTrigger := TSTrigger.Create(Database.Triggers);
+                          NewTrigger.Assign(SourceTrigger);
+                          NewTrigger.Name := Name;
+                          NewTrigger.TableName := NewTable.Name;
+                          Session.Connection.BeginSynchron();
+                          Database.AddTrigger(NewTrigger);
+                          Session.Connection.EndSynchron();
+                          NewTrigger.Free();
+                        end;
+                      end;
+
+                    NewTable.Free();
+                  end;
                 end;
               end;
             end;
@@ -12480,7 +12653,10 @@ begin
     and (FObjectSearch.Left > Toolbar.Left + Toolbar.Width + GetSystemMetrics(SM_CXFIXEDFRAME));
   TBObjectSearch.Visible := FObjectSearch.Visible;
   if (not FObjectSearch.Visible and Assigned(PObjectSearch)) then
+  begin
     PObjectSearch.Hide();
+    FObjectSearch.SelectAll();
+  end;
   {$ENDIF}
 end;
 
@@ -12558,8 +12734,7 @@ begin
   if (Assigned(PObjectSearch)) then
   begin
     PObjectSearch.Hide();
-    if (Window.ActiveControl = FObjectSearch) then
-      Window.ActiveControl := nil;
+    FObjectSearch.SelectAll();
   end;
 
   PHeaderCheckElements(Sender);
@@ -13095,7 +13270,9 @@ begin
   end;
   if (AllowChange) then
   begin
-    FAddress := NewAddress;
+    // Debug 2017-01-18
+    if (NewAddress = '') then
+      raise ERangeError.Create('AAddress: ' + AAddress);
 
     ChangingEvent := FNavigator.OnChanging; FNavigator.OnChanging := nil;
     ChangeEvent := FNavigator.OnChange; FNavigator.OnChange := nil;
@@ -13103,7 +13280,12 @@ begin
     FNavigator.OnChanging := ChangingEvent;
     FNavigator.OnChange := ChangeEvent;
 
-    URI := TUURI.Create(Address);
+    URI := TUURI.Create(NewAddress);
+
+    if ((URI.Param['view'] = Null) and ((URI.Param['objecttype'] = 'procedure') or (URI.Param['objecttype'] = 'function') or (URI.Param['objecttype'] = 'trigger') or (URI.Param['objecttype'] = 'event'))) then
+      URI.Param['view'] := 'ide';
+
+    FAddress := URI.Address;
 
     // Debug 2016-12-12
     if ((URI.Param['view'] = 'browser')
@@ -13340,6 +13522,51 @@ begin
     if (Assigned(FFolders) and (APath <> FFolders.SelectedFolder)) then
       FFolders.SelectedFolder := APath;
   end;
+end;
+
+function TFSession.SItemToAddress(const Item: TSItem): string;
+var
+  URI: TUURI;
+begin
+  URI := TUURI.Create(Session.Account.ExpandAddress('/'));
+
+  if (Item is TSDatabase) then
+    URI.Database := Item.Name
+  else if (Item is TSTable) then
+  begin
+    URI.Database := TSTable(Item).Database.Name;
+    URI.Table := TSTable(Item).Name;
+  end
+  else if (Item is TSProcedure) then
+  begin
+    URI.Database := TSProcedure(Item).Database.Name;
+    URI.Param['objecttype'] := 'procedure';
+    URI.Param['object'] := TSProcedure(Item).Name;
+  end
+  else if (Item is TSFunction) then
+  begin
+    URI.Database := TSFunction(Item).Database.Name;
+    URI.Param['objecttype'] := 'function';
+    URI.Param['object'] := TSFunction(Item).Name;
+  end
+  else if (Item is TSEvent) then
+  begin
+    URI.Database := TSEvent(Item).Database.Name;
+    URI.Param['objecttype'] := 'event';
+    URI.Param['object'] := TSEvent(Item).Name;
+  end
+  else if (Item is TSTrigger) then
+  begin
+    URI.Database := TSTrigger(Item).Database.Name;
+    URI.Param['objecttype'] := 'trigger';
+    URI.Param['object'] := TSTrigger(Item).Name;
+  end
+  else
+    raise ERangeError.Create(SRangeError);
+
+  Result := URI.Address;
+
+  URI.Free();
 end;
 
 procedure TFSession.SLogCanResize(Sender: TObject; var NewSize: Integer;
@@ -14319,6 +14546,7 @@ end;
 procedure TFSession.UMChangePreferences(var Message: TMessage);
 var
   I: Integer;
+  Node: TTreeNode;
 begin
   if (not CheckWin32Version(6) or TStyleManager.Enabled and (TStyleManager.ActiveStyle <> TStyleManager.SystemStyle)) then
   begin
@@ -14389,6 +14617,9 @@ begin
   miNExport.Caption := Preferences.LoadStr(200);
   miNCreate.Caption := Preferences.LoadStr(26);
   miNDelete.Caption := Preferences.LoadStr(28);
+  miNFavoriteAdd.Caption := Preferences.LoadStr(937);
+  miNFavoriteOpen.Caption := Preferences.LoadStr(581);
+  miNFavoriteRemove.Caption := Preferences.LoadStr(938);
 
   miHOpen.Caption := Preferences.LoadStr(581);
   miHStatementIntoSQLEditor.Caption := Preferences.LoadStr(198) + ' -> ' + Preferences.LoadStr(20);
@@ -14434,6 +14665,24 @@ begin
   tbEditor3.Visible := ttEditor3 in Preferences.ToolbarTabs;
   PHeaderResize(nil);
 
+
+  if (not Preferences.QuickAccessVisible and Assigned(FNavigator.Items.GetFirstNode()) and (FNavigator.Items.GetFirstNode().ImageIndex = iiQuickAccess)) then
+  begin
+    FNavigatorRemoveFavorites();
+    FNavigator.Items.Delete(FNavigator.Items.GetFirstNode());
+    FNavigator.Items.Delete(FNavigator.Items.GetFirstNode());
+  end
+  else if (Preferences.QuickAccessVisible and (not Assigned(FNavigator.Items.GetFirstNode()) or (FNavigator.Items.GetFirstNode().ImageIndex <> iiQuickAccess))) then
+  begin
+{$IFDEF Debug}
+    FNavigator.Items.AddFirst(nil, '');
+    Node := FNavigator.Items.AddFirst(nil, '');
+    Node.ImageIndex := iiQuickAccess;
+    FavoritesEvent(Session.Account.Favorites);
+{$ENDIF}
+  end;
+  if (Assigned(FNavigator.Items.GetFirstNode()) and (FNavigator.Items.GetFirstNode().ImageIndex = iiQuickAccess)) then
+    FNavigator.Items.GetFirstNode().Text := Preferences.LoadStr(939);
 
   if (not (tsLoading in FrameState)) then
   begin
@@ -14838,13 +15087,6 @@ begin
   PHeaderCheckElements(nil);
 
   Perform(UM_ACTIVATEFRAME, 0, 0);
-
-  if (Preferences.FavoritesVisible) then
-  begin
-    Node := FNavigator.Items.Add(nil, '');
-    Node.ImageIndex := iiFavorites;
-    FNavigator.Items.Add(nil, '');
-  end;
 
   ServerNode := FNavigator.Items.Add(nil, Session.Caption);
   ServerNode.Data := Session;

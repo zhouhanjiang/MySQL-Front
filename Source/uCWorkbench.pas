@@ -2677,11 +2677,19 @@ begin
 end;
 
 destructor TWTable.Destroy();
+var
+  I: Integer;
 begin
   while (Length(FLinkPoints) > 0) do
     FLinkPoints[0].Free();
 
   Workbench.Tables.Delete(Workbench.Tables.IndexOf(Self));
+
+  // Debug 2017-01-17
+  for I := 0 to Workbench.Links.Count - 1 do
+    if ((Workbench.Links[I].ParentTable = Self)
+      or (Workbench.Links[I].ChildTable = Self)) then
+    raise ERangeError.Create(SRangeError);
 
   inherited;
 end;

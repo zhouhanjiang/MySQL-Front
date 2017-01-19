@@ -4540,7 +4540,11 @@ begin
       else
         NewField.FieldBefore := FFields.Field[Index - 1];
 
-      NewField.ParseFieldType(Parse);
+      try
+        NewField.ParseFieldType(Parse);
+      except
+        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+      end;
 
       // Debug 2017-01-15
       if (NewField.FieldType = mfUnknown) then
@@ -6125,12 +6129,13 @@ begin
       FreeAndNil(FFunctionResult);
 
     if (not SQLParseKeyword(Parse, 'CREATE')) then
-      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
     Index := SQLParseGetIndex(Parse);
     if (SQLParseKeyword(Parse, 'DEFINER')) then
     begin
-      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
+      if (not SQLParseChar(Parse, '=')) then
+        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
       SQLParseValue(Parse);
       Delete(S, Index - RemovedLength, SQLParseGetIndex(Parse) - Index);
       Inc(RemovedLength, SQLParseGetIndex(Parse) - Index);
@@ -6141,13 +6146,13 @@ begin
     else if (SQLParseKeyword(Parse, 'FUNCTION')) then
       FRoutineType := rtFunction
     else
-      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
     FName := SQLParseValue(Parse);
     if (SQLParseChar(Parse, '.')) then
     begin
       if (Session.Databases.NameCmp(Database.Name, FName) <> 0) then
-        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + FName, S]);
+        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + FName, SQL]);
       FName := SQLParseValue(Parse);
     end;
 
@@ -6170,7 +6175,7 @@ begin
         try
           Parameter.ParseFieldType(Parse);
         except
-          raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
+          raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
         end;
 
         if (SQLParseKeyword(Parse, 'CHARSET')) then
@@ -6188,7 +6193,7 @@ begin
       try
         FFunctionResult.ParseFieldType(Parse);
       except
-        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
+        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
       end;
 
       if (SQLParseKeyword(Parse, 'CHARSET')) then

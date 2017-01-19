@@ -230,7 +230,7 @@ end;
 
 procedure THTTPThread.Execute();
 const
-  GET: PChar = 'GET';
+  GET: PChar = 'POST';
   POST: PChar = 'POST';
 var
   Body: RawByteString;
@@ -778,7 +778,6 @@ function TLogBuilder.BuildReport(): String;
 var
   I: Integer;
   ExceptionMessage: string;
-  Frequency: Int64;
 begin
   ExceptionMessage := Trim(ExceptionInfo.ExceptionMessage);
   if ((Length(ExceptionMessage) > 0) and (ExceptionMessage[Length(ExceptionMessage)] = '.')) then
@@ -802,8 +801,17 @@ begin
     Result := Result + ExceptionInfo.CallStack.ToString + #13#10;
   end;
 
-  if (GetCurrentThreadId() = MainThreadId) then
+  if (GetCurrentThreadId() <> MainThreadId) then
   begin
+    Result := Result + #13#10;
+    Result := Result + 'ThreadID: ' + IntToStr(GetCurrentThreadId()) + #13#10;
+  end
+  else if (Sessions.Count = 0) then
+  begin
+    Result := Result + #13#10;
+    Result := Result + 'No open sessions' + #13#10;
+  end
+  else
     for I := 0 to Sessions.Count - 1 do
     begin
       Result := Result + #13#10;
@@ -814,14 +822,6 @@ begin
       Result := Result + StringOfChar('-', 72) + #13#10;
       Result := Result + Sessions[I].Connection.DebugMonitor.CacheText + #13#10;
     end;
-  end;
-
-  if ((MaxSendEventCount > 0) and QueryPerformanceFrequency(Frequency)) then
-  begin
-    Result := Result + #13#10;
-    Result := Result + StringOfChar('-', 72) + #13#10;
-    Result := Result + 'MaxSendEventCount: ' + FormatFloat('#,##0.000', MaxSendEventCount * 1000 div Frequency / 1000) + ' s' + #13#10;
-  end;
 end;
 
 {******************************************************************************}

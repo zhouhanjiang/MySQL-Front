@@ -45,16 +45,12 @@ object DOptions: TDOptions
     Top = 8
     Width = 362
     Height = 345
-    ActivePage = TSUpdates
+    ActivePage = TSView
     HotTrack = True
     MultiLine = True
     TabOrder = 0
     object TSView: TTabSheet
       Caption = 'TSView'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GProgram: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -84,10 +80,12 @@ object DOptions: TDOptions
       end
       object GTabs: TGroupBox_Ext
         Left = 4
-        Top = 67
+        Top = 62
         Width = 345
-        Height = 45
+        Height = 44
+        BiDiMode = bdLeftToRight
         Caption = 'GTabs'
+        ParentBiDiMode = False
         TabOrder = 1
         object FLTabsVisible: TLabel
           Left = 8
@@ -105,14 +103,33 @@ object DOptions: TDOptions
           TabOrder = 0
         end
       end
+      object GNavigator: TGroupBox
+        Left = 4
+        Top = 114
+        Width = 345
+        Height = 44
+        Caption = 'GNavigator'
+        TabOrder = 2
+        object FLQuickAccessVisible: TLabel
+          Left = 8
+          Top = 19
+          Width = 105
+          Height = 13
+          Caption = 'FLQuickAccessVisible'
+        end
+        object FQuickAccessVisible: TCheckBox
+          Left = 144
+          Top = 16
+          Width = 193
+          Height = 17
+          Caption = 'FQuickAccessVisible'
+          TabOrder = 0
+        end
+      end
     end
     object TSBrowser: TTabSheet
       Caption = 'TSBrowser'
       OnResize = TSBrowserResize
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GGrid: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -272,10 +289,6 @@ object DOptions: TDOptions
     object TSEditor: TTabSheet
       Caption = 'TSEditor'
       OnResize = TSEditorResize
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GEditor: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -365,7 +378,7 @@ object DOptions: TDOptions
           Width = 41
           Height = 21
           TabOrder = 6
-          Text = '1000'
+          Text = '1.000'
         end
         object FBEditorFont: TButton
           Left = 265
@@ -393,10 +406,6 @@ object DOptions: TDOptions
     object TSLog: TTabSheet
       Caption = 'TSLog'
       OnResize = TSLogResize
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GLog: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -506,10 +515,6 @@ object DOptions: TDOptions
     object TSHighlighter: TTabSheet
       Caption = 'TSHighlighter'
       OnShow = TSHighlighterShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GColors: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -662,10 +667,6 @@ object DOptions: TDOptions
     end
     object TSExtras: TTabSheet
       Caption = 'TSExtras'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GAssociate: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -692,10 +693,6 @@ object DOptions: TDOptions
     end
     object TSUpdates: TTabSheet
       Caption = 'TSUpdates'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GUpdates: TGroupBox_Ext
         Left = 4
         Top = 4

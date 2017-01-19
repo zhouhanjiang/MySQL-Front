@@ -343,6 +343,7 @@ begin
       raise ERangeError.Create('csDestroying: ' + BoolToStr(csDestroying in ComponentState, True) + #13#10
         + E.Message);
   end;
+  // On 2017-01-19 try ... except didn't work: AV in Vcl.DBGrids|CheckForPassthroughs
 
   if (FListView > 0) then
     SendMessage(FListView, WM_SETFONT, WPARAM(Font.Handle), LPARAM(TRUE));

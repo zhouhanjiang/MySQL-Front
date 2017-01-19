@@ -320,7 +320,7 @@ begin
   NewUser := TSUser.Create(Session.Users);
 
   RightsModified := False;
-  if (SessionState = ssCreate) then
+  if (not Assigned(User)) then
   begin
     Caption := Preferences.LoadStr(286);
     HelpContext := 1077;

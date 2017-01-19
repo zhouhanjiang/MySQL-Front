@@ -15,7 +15,6 @@ const
   iiDatabase = 24;
   iiEvent = 85;
   iiExport = 104;
-  iiFavorites = 73;
   iiField = 27;
   iiForeignKey = 28;
   iiFunction = 77;
@@ -28,6 +27,7 @@ const
   iiProcess = 43;
   iiProcesses = 31;
   iiQuery = 83;
+  iiQuickAccess = 73;
   iiServer = 23;
   iiStatement = 82;
   iiStatus = 44;

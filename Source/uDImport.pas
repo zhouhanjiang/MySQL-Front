@@ -587,6 +587,8 @@ begin
   // occurred on 2017-01-09: 2abnqrsxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyptuAfijkc_, ImportType: 4
   // occurred on 2017-01-09: 2abc_, ImportType: 1
   // occurred on 2017-01-17: 2abnsptuAfijkc_, ImportType: 1, ClassType: TSDatabase, CodePage: Ansi, ... no SQL log
+  // occurred on 2017-01-18: 2abnsptuAfijkc_, ImportType: 4, ClassType: TSBaseTable, CodePage: Ansi, ... no SQL log
+  // occurred on 2017-01-18: 2abnsptuAfijkc_, ImportType: 1, ClassType: TSDatabase, CodePage: UTF-8, ... no SQL log, MainThread
 
   Progress := Progress + 'f';
 

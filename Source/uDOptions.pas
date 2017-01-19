@@ -99,6 +99,9 @@ type
     TSUpdates: TTabSheet;
     TSView: TTabSheet;
     FBLogFont: TButton;
+    GNavigator: TGroupBox;
+    FQuickAccessVisible: TCheckBox;
+    FLQuickAccessVisible: TLabel;
     procedure FBackgroundClick(Sender: TObject);
     procedure FBackgroundKeyPress(Sender: TObject; var Key: Char);
     procedure FBBackgroundClick(Sender: TObject);
@@ -391,6 +394,7 @@ begin
           Preferences.LanguageFilename := Languages[I].Filename;
 
     Preferences.TabsVisible := FTabsVisible.Checked;
+    Preferences.QuickAccessVisible := FQuickAccessVisible.Checked;
 
     Preferences.GridFontName := PGridFont.Font.Name;
     Preferences.GridFontStyle := PGridFont.Font.Style - [fsBold];
@@ -500,6 +504,7 @@ begin
 
 
   FTabsVisible.Checked := Preferences.TabsVisible;
+  FQuickAccessVisible.Checked := Preferences.QuickAccessVisible;
 
   FUDMaxColumnWidth.Position := Preferences.GridMaxColumnWidth;
 
@@ -706,8 +711,14 @@ begin
   GProgram.Caption := Preferences.LoadStr(52);
   FLLanguage.Caption := Preferences.LoadStr(32) + ':';
   GTabs.Caption := Preferences.LoadStr(851);
-  FLTabsVisible.Caption := Preferences.LoadStr(851) + ':';
-  FTabsVisible.Caption := LowerCase(Preferences.LoadStr(699));
+  FLTabsVisible.Caption := Preferences.LoadStr(699) + ':';
+  FTabsVisible.Caption := Preferences.LoadStr(851);
+
+  GNavigator.Caption := Preferences.LoadStr(10);
+  FLQuickAccessVisible.Caption := Preferences.LoadStr(527) + ':';
+  FQuickAccessVisible.Caption := Preferences.LoadStr(939);
+
+  {$IFNDEF Debug} GNavigator.Visible := False; {$ENDIF}
 
   TSExtras.Caption := Preferences.LoadStr(73);
   GAssociate.Caption := Preferences.LoadStr(108);

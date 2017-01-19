@@ -1017,7 +1017,14 @@ begin
 end;
 
 procedure TWWindow.FormHide(Sender: TObject);
+var
+  Frequency: Int64;
 begin
+  if ((MaxSendEventCount > 0)
+    and QueryPerformanceFrequency(Frequency)
+    and (MaxSendEventCount div Frequency >= 1)) then
+    SendToDeveloper(FormatFloat('#,##0.000', MaxSendEventCount * 1000 div Frequency / 1000) + ' s', 1);
+
   Preferences.WindowState := WindowState;
   if (WindowState = wsNormal) then
     begin Preferences.Top := Top; Preferences.Left := Left; Preferences.Height := Height; Preferences.Width := Width; end;

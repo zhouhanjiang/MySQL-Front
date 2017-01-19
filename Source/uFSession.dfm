@@ -1263,7 +1263,7 @@ object FSession: TFSession
       end
     end
     object FObjectSearch: TEdit
-      Left = 6635
+      Left = 15863
       Top = 0
       Width = 140
       Height = 22
@@ -1275,10 +1275,9 @@ object FSession: TFSession
       OnExit = FObjectSearchExit
       OnKeyPress = FObjectSearchKeyPress
       OnMouseDown = FObjectSearchMouseDown
-      ExplicitLeft = 5330
     end
     object TBObjectSearch: TToolBar
-      Left = 7403
+      Left = 17607
       Top = 0
       Width = 23
       Height = 22
@@ -1287,7 +1286,6 @@ object FSession: TFSession
       TabOrder = 3
       Transparent = True
       Visible = False
-      ExplicitLeft = 5960
       object FObjectSearchStart: TToolButton
         Left = 0
         Top = 0
@@ -1687,6 +1685,24 @@ object FSession: TFSession
     object miNProperties: TMenuItem
       Caption = 'miNProperties'
       Visible = False
+    end
+    object N3: TMenuItem
+      Caption = '-'
+    end
+    object miNFavoriteAdd: TMenuItem
+      Caption = 'miNFavoriteAdd'
+      OnClick = miNFavoriteAddClick
+    end
+    object miNFavoriteOpen: TMenuItem
+      Caption = 'miNFavoriteOpen'
+      OnClick = miNFavoriteOpenClick
+    end
+    object N4: TMenuItem
+      Caption = '-'
+    end
+    object miNFavoriteRemove: TMenuItem
+      Caption = 'miNFavoriteRemove'
+      OnClick = miNFavoriteRemoveClick
     end
   end
   object MLog: TPopupMenu

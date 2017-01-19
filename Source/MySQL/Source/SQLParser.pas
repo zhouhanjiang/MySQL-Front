@@ -623,7 +623,7 @@ type
         ditConstraint,
         ditColumnAlias,
         ditTableAlias,
-        ditConstant,
+        ditConstante,
         ditTriggerRec,
         ditPlugin,
         ditEngine,
@@ -1133,7 +1133,7 @@ type
         'ditConstraint',
         'ditColumnAlias',
         'ditTableAlias',
-        'ditConstant',
+        'ditConstante',
         'ditTriggerRec',
         'ditPlugin',
         'ditEngine',
@@ -14230,7 +14230,7 @@ var
 begin
   if ((Token.UsageType in [utKeyword, utOperator])
     or (Token.UsageType = utDbIdent)
-      and ((Token.DbIdentType = ditConstant)
+      and ((Token.DbIdentType = ditConstante)
         or (Token.DbIdentType = ditFunction) and (FunctionList.IndexOf(Token.FText, Token.FLength) >= 0)
         or (Token.DbIdentType = ditTriggerRec))) then
   begin
@@ -15139,7 +15139,7 @@ begin
     if (IsNextSymbol(1, ttOpenBracket) and IsNextSymbol(2, ttCloseBracket)) then
       Result := ParseDefaultFunc() // CURRENT_USER()
     else
-      Result := ApplyCurrentToken(utDbIdent) // CURRENT_USER
+      Result := ParseConstIdent() // CURRENT_USER
   else if ((TokenPtr(CurrentToken)^.TokenType in ttIdents) or (TokenPtr(CurrentToken)^.TokenType in ttStrings)) then
   begin
     FillChar(Nodes, SizeOf(Nodes), 0);
@@ -16623,7 +16623,7 @@ end;
 
 function TSQLParser.ParseConstIdent(): TOffset;
 begin
-  Result := ParseDbIdent(ditConstant, False);
+  Result := ParseDbIdent(ditConstante, False);
 end;
 
 function TSQLParser.ParseConvertFunc(): TOffset;
@@ -18557,7 +18557,7 @@ function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
         and (QualifiedIdentifier
           or (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0)
           or (ADbIdentType = ditCharset) and (StrLIComp(TokenPtr(CurrentToken)^.FText, 'binary', 6) = 0)
-          or (ADbIdentType in [ditVariable,ditConstant]))
+          or (ADbIdentType in [ditVariable,ditConstante]))
       or (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent) and not (ADbIdentType in [ditCharset, ditCollation])
       or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and (AnsiQuotes or (ADbIdentType in [ditUser, ditHost, ditConstraint, ditColumnAlias, ditCharset, ditCollation]))
       or (TokenPtr(CurrentToken)^.TokenType = ttString) and (ADbIdentType in [ditUser, ditHost, ditConstraint, ditColumnAlias, ditCharset, ditCollation])
@@ -22899,8 +22899,8 @@ begin
 
   if (not ErrorFound) then
     if (not EndOfStmt(CurrentToken)
-      and ((UpperCase(TokenPtr(CurrentToken)^.Text) = 'ON') or (UpperCase(TokenPtr(CurrentToken)^.Text) = 'OFF'))) then
-      Nodes.ValueExpr := ApplyCurrentToken(utDbIdent)
+      and ((StrLIComp(TokenPtr(CurrentToken)^.FText, 'ON', 2) = 0) or (StrLIComp(TokenPtr(CurrentToken)^.FText, 'OFF', 3) = 0))) then
+      Nodes.ValueExpr := ParseConstIdent()
     else
       Nodes.ValueExpr := ParseExpr();
 

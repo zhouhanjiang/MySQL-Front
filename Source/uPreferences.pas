@@ -377,7 +377,6 @@ type
     Event: TEvent;
     Export: TExport;
     Field: TField;
-    FavoritesVisible: Boolean;
     Find: TFind;
     ForeignKey: TForeignKey;
     GridCurrRowBGColor: TColor;
@@ -410,6 +409,7 @@ type
     ODBC: TODBC;
     Paste: TPaste;
     Path: TFileName;
+    QuickAccessVisible: Boolean;
     Replace: TReplace;
     Routine: TRoutine;
     Server: TServer;
@@ -461,7 +461,22 @@ type
     TFiles = class;
     TDesktop = class;
 
-    TEventProc = procedure (const ClassType: TClass) of object;
+    TFavorites = class(TStringList)
+    type
+      TEventProc = procedure(const Favorites: TFavorites) of object;
+    private
+      EventProcs: array of TEventProc;
+      FAccount: TPAccount;
+    protected
+      procedure Changed(); override;
+      procedure LoadFromXML(const XML: IXMLNode);
+      procedure SaveToXML(const XML: IXMLNode);
+    public
+      constructor Create(const AAccount: TPAccount); reintroduce;
+      procedure RegisterEventProc(const AEventProc: TEventProc);
+      procedure UnRegisterEventProc(const AEventProc: TEventProc);
+      property Account: TPAccount read FAccount;
+    end;
 
     TFile = class
     private
@@ -498,14 +513,8 @@ type
     TDesktop = class
     type
       TListViewKind = (lkServer, lkDatabase, lkTable, lkProcesses, lkUsers, lkVariables, lkObjectSearch);
-
-      TFavorites = class(TList)
-      end;
-
     private
       FAccount: TPAccount;
-      FAddressMRU: TPPreferences.TMRUList;
-      FFavorites: TFavorites;
       FFiles: TFiles;
       FPath: string;
       function GetAddress(): string;
@@ -531,8 +540,6 @@ type
       constructor Create(const AAccount: TPAccount); overload; virtual;
       destructor Destroy(); override;
       property Address: string read GetAddress write SetAddress;
-      property AddressMRU: TPPreferences.TMRUList read FAddressMRU;
-      property Favorites: TFavorites read FFavorites;
       property Files: TFiles read FFiles;
     end;
 
@@ -562,6 +569,7 @@ type
     FAccounts: TPAccounts;
     FConnection: TConnection;
     FDesktop: TDesktop;
+    FFavorites: TFavorites;
     FHistoryXMLDocument: IXMLDocument;
     FLastLogin: TDateTime;
     FName: string;
@@ -607,6 +615,7 @@ type
     property DataPath: TFileName read GetDataPath;
     property Desktop: TDesktop read FDesktop;
     property DesktopXML: IXMLNode read GetDesktopXML;
+    property Favorites: TFavorites read FFavorites;
     property HistoryXML: IXMLNode read GetHistoryXML;
     property Index: Integer read GetIndex;
     property LastLogin: TDateTime read FLastLogin write SetLastLogin;
@@ -1926,7 +1935,6 @@ begin
   Left := 0;
   Height := 0;
   Width := 0;
-  FavoritesVisible := {$IFNDEF Debug} False; {$ELSE} True; {$ENDIF}
   GridFontName := 'Microsoft Sans Serif';
   GridFontColor := clWindowText;
   GridFontStyle := [];
@@ -1941,6 +1949,7 @@ begin
   GridMemoContent := False;
   GridDefaultSorting := True;
   ObsoleteVersion := 0;
+  QuickAccessVisible := True;
   SetupProgramExecute := False;
   SetupProgramInstalled := False;
   SQLFontName := 'Courier New';
@@ -2334,24 +2343,7 @@ begin
   if (Assigned(XMLNode(XML, 'log/size')) and TryStrToInt(XMLNode(XML, 'log/size').Text, LogSize)) then LogSize := Round(LogSize * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'log/dbresult'))) then TryStrToBool(XMLNode(XML, 'log/dbresult').Attributes['visible'], LogResult);
   if (Assigned(XMLNode(XML, 'log/time'))) then TryStrToBool(XMLNode(XML, 'log/time').Attributes['visible'], LogTime);
-  if (Assigned(XMLNode(XML, 'toolbar/objects')) and TryStrToBool(XMLNode(XML, 'toolbar/objects').Attributes['visible'], Visible)) then
-    if (Visible) then ToolbarTabs := ToolbarTabs + [ttObjects] else ToolbarTabs := ToolbarTabs - [ttObjects];
-  if (Assigned(XMLNode(XML, 'toolbar/browser')) and TryStrToBool(XMLNode(XML, 'toolbar/browser').Attributes['visible'], Visible)) then
-    if (Visible) then ToolbarTabs := ToolbarTabs + [ttBrowser] else ToolbarTabs := ToolbarTabs - [ttBrowser];
-  if (Assigned(XMLNode(XML, 'toolbar/ide')) and TryStrToBool(XMLNode(XML, 'toolbar/ide').Attributes['visible'], Visible)) then
-    if (Visible) then ToolbarTabs := ToolbarTabs + [ttIDE] else ToolbarTabs := ToolbarTabs - [ttIDE];
-  if (Assigned(XMLNode(XML, 'toolbar/builder')) and TryStrToBool(XMLNode(XML, 'toolbar/builder').Attributes['visible'], Visible)) then
-    if (Visible) then ToolbarTabs := ToolbarTabs + [ttBuilder] else ToolbarTabs := ToolbarTabs - [ttBuilder];
-  if (Assigned(XMLNode(XML, 'toolbar/diagram')) and TryStrToBool(XMLNode(XML, 'toolbar/diagram').Attributes['visible'], Visible)) then
-    if (Visible) then ToolbarTabs := ToolbarTabs + [ttDiagram] else ToolbarTabs := ToolbarTabs - [ttDiagram];
-  if (Assigned(XMLNode(XML, 'toolbar/editor')) and TryStrToBool(XMLNode(XML, 'toolbar/editor').Attributes['visible'], Visible)) then
-    if (Visible) then ToolbarTabs := ToolbarTabs + [ttEditor] else ToolbarTabs := ToolbarTabs - [ttEditor];
-  if (Assigned(XMLNode(XML, 'toolbar/editor2')) and TryStrToBool(XMLNode(XML, 'toolbar/editor2').Attributes['visible'], Visible)) then
-    if (Visible) then ToolbarTabs := ToolbarTabs + [ttEditor2] else ToolbarTabs := ToolbarTabs - [ttEditor2];
-  if (Assigned(XMLNode(XML, 'toolbar/editor3')) and TryStrToBool(XMLNode(XML, 'toolbar/editor3').Attributes['visible'], Visible)) then
-    if (Visible) then ToolbarTabs := ToolbarTabs + [ttEditor3] else ToolbarTabs := ToolbarTabs - [ttEditor3];
-  if (Assigned(XMLNode(XML, 'toolbar/objectsearch')) and TryStrToBool(XMLNode(XML, 'toolbar/objectsearch').Attributes['visible'], Visible)) then
-    if (Visible) then ToolbarTabs := ToolbarTabs + [ttObjectSearch] else ToolbarTabs := ToolbarTabs - [ttObjectSearch];
+  if (Assigned(XMLNode(XML, 'quickaccess'))) then TryStrToBool(XMLNode(XML, 'quickaccess').Attributes['visible'], QuickAccessVisible);
   if (Assigned(XMLNode(XML, 'sql/font/charset'))) then TryStrToInt(XMLNode(XML, 'sql/font/charset').Text, SQLFontCharset);
   if (Assigned(XMLNode(XML, 'sql/font/color'))) then SQLFontColor := StringToColor(XMLNode(XML, 'sql/font/color').Text);
   if (Assigned(XMLNode(XML, 'sql/font/name'))) then SQLFontName := XMLNode(XML, 'sql/font/name').Text;
@@ -2391,6 +2383,24 @@ begin
   if (Assigned(XMLNode(XML, 'sql/highlighting/variable/background/color'))) then Editor.VariableBackground := StringToColor(XMLNode(XML, 'sql/highlighting/variable/background/color').Text);
   if (Assigned(XMLNode(XML, 'sql/highlighting/variable/style'))) then Editor.VariableStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/variable/style').Text);
   if (Assigned(XMLNode(XML, 'tabs'))) then TryStrToBool(XMLNode(XML, 'tabs').Attributes['visible'], TabsVisible);
+  if (Assigned(XMLNode(XML, 'toolbar/objects')) and TryStrToBool(XMLNode(XML, 'toolbar/objects').Attributes['visible'], Visible)) then
+    if (Visible) then ToolbarTabs := ToolbarTabs + [ttObjects] else ToolbarTabs := ToolbarTabs - [ttObjects];
+  if (Assigned(XMLNode(XML, 'toolbar/browser')) and TryStrToBool(XMLNode(XML, 'toolbar/browser').Attributes['visible'], Visible)) then
+    if (Visible) then ToolbarTabs := ToolbarTabs + [ttBrowser] else ToolbarTabs := ToolbarTabs - [ttBrowser];
+  if (Assigned(XMLNode(XML, 'toolbar/ide')) and TryStrToBool(XMLNode(XML, 'toolbar/ide').Attributes['visible'], Visible)) then
+    if (Visible) then ToolbarTabs := ToolbarTabs + [ttIDE] else ToolbarTabs := ToolbarTabs - [ttIDE];
+  if (Assigned(XMLNode(XML, 'toolbar/builder')) and TryStrToBool(XMLNode(XML, 'toolbar/builder').Attributes['visible'], Visible)) then
+    if (Visible) then ToolbarTabs := ToolbarTabs + [ttBuilder] else ToolbarTabs := ToolbarTabs - [ttBuilder];
+  if (Assigned(XMLNode(XML, 'toolbar/diagram')) and TryStrToBool(XMLNode(XML, 'toolbar/diagram').Attributes['visible'], Visible)) then
+    if (Visible) then ToolbarTabs := ToolbarTabs + [ttDiagram] else ToolbarTabs := ToolbarTabs - [ttDiagram];
+  if (Assigned(XMLNode(XML, 'toolbar/editor')) and TryStrToBool(XMLNode(XML, 'toolbar/editor').Attributes['visible'], Visible)) then
+    if (Visible) then ToolbarTabs := ToolbarTabs + [ttEditor] else ToolbarTabs := ToolbarTabs - [ttEditor];
+  if (Assigned(XMLNode(XML, 'toolbar/editor2')) and TryStrToBool(XMLNode(XML, 'toolbar/editor2').Attributes['visible'], Visible)) then
+    if (Visible) then ToolbarTabs := ToolbarTabs + [ttEditor2] else ToolbarTabs := ToolbarTabs - [ttEditor2];
+  if (Assigned(XMLNode(XML, 'toolbar/editor3')) and TryStrToBool(XMLNode(XML, 'toolbar/editor3').Attributes['visible'], Visible)) then
+    if (Visible) then ToolbarTabs := ToolbarTabs + [ttEditor3] else ToolbarTabs := ToolbarTabs - [ttEditor3];
+  if (Assigned(XMLNode(XML, 'toolbar/objectsearch')) and TryStrToBool(XMLNode(XML, 'toolbar/objectsearch').Attributes['visible'], Visible)) then
+    if (Visible) then ToolbarTabs := ToolbarTabs + [ttObjectSearch] else ToolbarTabs := ToolbarTabs - [ttObjectSearch];
   if (Assigned(XMLNode(XML, 'top')) and TryStrToInt(XMLNode(XML, 'top').Text, Top)) then Top := Round(Top * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'updates/check'))) then TryStrToUpdateCheck(XMLNode(XML, 'updates/check').Text, UpdateCheck);
   if (Assigned(XMLNode(XML, 'updates/lastcheck'))) then TryStrToDate(XMLNode(XML, 'updates/lastcheck').Text, UpdateChecked, FileFormatSettings);
@@ -2550,15 +2560,7 @@ begin
   XMLNode(XML, 'log/time').Attributes['visible'] := LogTime;
   if (WindowState in [wsNormal, wsMaximized	]) then
     XMLNode(XML, 'windowstate').Text := WindowStateToStr(WindowState);
-  XMLNode(XML, 'toolbar/objects').Attributes['visible'] := ttObjects in ToolbarTabs;
-  XMLNode(XML, 'toolbar/browser').Attributes['visible'] := ttBrowser in ToolbarTabs;
-  XMLNode(XML, 'toolbar/ide').Attributes['visible'] := ttIDE in ToolbarTabs;
-  XMLNode(XML, 'toolbar/builder').Attributes['visible'] := ttBuilder in ToolbarTabs;
-  XMLNode(XML, 'toolbar/diagram').Attributes['visible'] := ttDiagram in ToolbarTabs;
-  XMLNode(XML, 'toolbar/editor').Attributes['visible'] := ttEditor in ToolbarTabs;
-  XMLNode(XML, 'toolbar/editor2').Attributes['visible'] := ttEditor2 in ToolbarTabs;
-  XMLNode(XML, 'toolbar/editor3').Attributes['visible'] := ttEditor3 in ToolbarTabs;
-  XMLNode(XML, 'toolbar/objectsearch').Attributes['visible'] := ttObjectSearch in ToolbarTabs;
+  XMLNode(XML, 'quickaccess').Attributes['visible'] := QuickAccessVisible;
   XMLNode(XML, 'sql/font/charset').Text := IntToStr(SQLFontCharset);
   XMLNode(XML, 'sql/font/color').Text := ColorToString(SQLFontColor);
   XMLNode(XML, 'sql/font/name').Text := SQLFontName;
@@ -2598,6 +2600,15 @@ begin
   XMLNode(XML, 'sql/highlighting/variable/background/color').Text := ColorToString(Editor.VariableBackground);
   XMLNode(XML, 'sql/highlighting/variable/style').Text := StyleToStr(Editor.VariableStyle);
   XMLNode(XML, 'tabs').Attributes['visible'] := TabsVisible;
+  XMLNode(XML, 'toolbar/objects').Attributes['visible'] := ttObjects in ToolbarTabs;
+  XMLNode(XML, 'toolbar/browser').Attributes['visible'] := ttBrowser in ToolbarTabs;
+  XMLNode(XML, 'toolbar/ide').Attributes['visible'] := ttIDE in ToolbarTabs;
+  XMLNode(XML, 'toolbar/builder').Attributes['visible'] := ttBuilder in ToolbarTabs;
+  XMLNode(XML, 'toolbar/diagram').Attributes['visible'] := ttDiagram in ToolbarTabs;
+  XMLNode(XML, 'toolbar/editor').Attributes['visible'] := ttEditor in ToolbarTabs;
+  XMLNode(XML, 'toolbar/editor2').Attributes['visible'] := ttEditor2 in ToolbarTabs;
+  XMLNode(XML, 'toolbar/editor3').Attributes['visible'] := ttEditor3 in ToolbarTabs;
+  XMLNode(XML, 'toolbar/objectsearch').Attributes['visible'] := ttObjectSearch in ToolbarTabs;
   XMLNode(XML, 'top').Text := IntToStr(Top);
   XMLNode(XML, 'updates/check').Text := UpdateCheckToStr(UpdateCheck);
   XMLNode(XML, 'updates/lastcheck').Text := SysUtils.DateToStr(UpdateChecked, FileFormatSettings);
@@ -2640,6 +2651,92 @@ begin
       XML.OwnerDocument.SaveToFile(Filename);
     except
     end;
+end;
+
+{ TPAccount.TFavorites ********************************************************}
+
+procedure TPAccount.TFavorites.Changed();
+var
+  I: Integer;
+begin
+  inherited;
+
+  for I := 0 to Length(EventProcs) - 1 do
+    EventProcs[I](Self);
+end;
+
+constructor TPAccount.TFavorites.Create(const AAccount: TPAccount);
+begin
+  inherited Create();
+
+  FAccount := AAccount;
+end;
+
+procedure TPAccount.TFavorites.LoadFromXML(const XML: IXMLNode);
+var
+  Node: IXMLNode;
+begin
+  BeginUpdate();
+
+  Clear();
+
+  Node := XML.ChildNodes.First();
+  while (Assigned(Node)) do
+  begin
+    if ((Node.NodeName = 'favorite')
+      and (Node.Text <> '')) then
+      inherited Add(Account.ExpandAddress(Node.Text));
+    Node := Node.NextSibling();
+  end;
+
+  EndUpdate();
+end;
+
+procedure TPAccount.TFavorites.SaveToXML(const XML: IXMLNode);
+var
+  I: Integer;
+begin
+  for I := XML.ChildNodes.Count - 1 downto 0 do
+    if (XML.ChildNodes[I].NodeName = 'favorite') then
+      XML.ChildNodes.Delete(I);
+
+  for I := 0 to Count - 1 do
+    XML.AddChild('favorite').Text := Account.ExtractPath(Strings[I]);
+end;
+
+procedure TPAccount.TFavorites.RegisterEventProc(const AEventProc: TEventProc);
+var
+  I: Integer;
+  Index: Integer;
+begin
+  Index := -1;
+  for I := 0 to Length(EventProcs) - 1 do
+    if (CompareMem(@TMethod(EventProcs[I]), @TMethod(AEventProc), SizeOf(TEventProc))) then
+      Index := I;
+
+  if (Index < 0) then
+  begin
+    SetLength(EventProcs, Length(EventProcs) + 1);
+    EventProcs[Length(EventProcs) - 1] := AEventProc;
+  end;
+end;
+
+procedure TPAccount.TFavorites.UnRegisterEventProc(const AEventProc: TEventProc);
+var
+  I: Integer;
+  Index: Integer;
+begin
+  Index := -1;
+  for I := 0 to Length(EventProcs) - 1 do
+    if (CompareMem(@TMethod(EventProcs[I]), @TMethod(AEventProc), SizeOf(TEventProc))) then
+      Index := I;
+
+  if (Index >= 0) then
+  begin
+    if (Index + 1 < Length(EventProcs)) then
+      MoveMemory(@TMethod(EventProcs[Index]), @TMethod(EventProcs[Index + 1]), (Length(EventProcs) - Index - 1) * SizeOf(TEventProc));
+    SetLength(EventProcs, Length(EventProcs) - 1);
+  end;
 end;
 
 { TPAccount.TFile *************************************************************}
@@ -2794,7 +2891,6 @@ begin
 
   FAccount := AAccount;
 
-  FAddressMRU := TPPreferences.TMRUList.Create(10);
   BlobHeight := Round(100 * Screen.PixelsPerInch / USER_DEFAULT_SCREEN_DPI);
   for Kind := Low(Kind) to High(Kind) do
     for I := 0 to Length(ColumnWidths[Kind]) - 1 do
@@ -2814,15 +2910,10 @@ begin
   SQLHistoryVisible := False;
 
   FFiles := TFiles.Create(Self, 10);
-
-  // Debug 2016-12-17
-  if (not Assigned(FFiles)) then
-    raise ERangeError.Create(SRangeError);
 end;
 
 destructor TPAccount.TDesktop.Destroy();
 begin
-  FAddressMRU.Free();
   FFiles.Free();
 
   inherited;
@@ -3097,8 +3188,8 @@ begin
   Modified := False;
 
   FConnection := TConnection.Create();
-
   FDesktop := TDesktop.Create(Self);
+  FFavorites := TFavorites.Create(Self);
 
   if (not FileExists(DesktopFilename)) then
     DesktopXMLDocument := nil
@@ -3154,6 +3245,7 @@ destructor TPAccount.Destroy();
 begin
   FTabs.Free();
   FSessions.Free();
+  FFavorites.Free();
   FDesktop.Free();
   FConnection.Free();
 
@@ -3341,9 +3433,12 @@ begin
 
     Modified := False;
 
-    if (Assigned(XMLNode(XML, 'connection'))) then Connection.LoadFromXML(XMLNode(XML, 'connection'));
+    if (Assigned(XMLNode(XML, 'connection'))) then
+      Connection.LoadFromXML(XMLNode(XML, 'connection'));
     if (Assigned(DesktopXMLDocument.DocumentElement)) then
       Desktop.LoadFromXML(DesktopXMLDocument.DocumentElement); // Desktop must be loaded to use ExpandAddress correctly
+    if (Assigned(XMLNode(XML, 'favorites'))) then
+      Favorites.LoadFromXML(XMLNode(XML, 'favorites'));
   end;
 end;
 
@@ -3374,6 +3469,9 @@ begin
     Connection.SaveToXML(XMLNode(XML, 'connection', True));
 
     Desktop.SaveToXML(DesktopXMLDocument.DocumentElement);
+    {$IFDEF Debug}
+    Favorites.SaveToXML(XMLNode(XML, 'favorites', True));
+    {$ENDIF}
 
     if (ForceDirectories(DataPath)) then
     begin

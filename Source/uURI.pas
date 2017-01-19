@@ -194,7 +194,7 @@ begin
       URLComponents.lpszUrlPath := '/'
     else
       URLComponents.lpszUrlPath := PChar(EscapeURL(Path));
-    URLComponents.lpszExtraInfo := PChar(Copy(FExtraInfos, 1, 1) + EscapeURL(Copy(FExtraInfos, 2, Length(FExtraInfos) - 1)));
+    URLComponents.lpszExtraInfo := PChar(FExtraInfos);
   end;
 
   Len := Length(URL) - 1;
@@ -308,7 +308,7 @@ begin
     if (URLComponents.dwExtraInfoLength = 0) then
       FExtraInfos := ''
     else
-      FExtraInfos := Copy(URLComponents.lpszExtraInfo, 1, 1) + UnescapeURL(Copy(URLComponents.lpszExtraInfo, 2, URLComponents.dwExtraInfoLength - 1));
+      FExtraInfos := StrPas(URLComponents.lpszExtraInfo);
   end;
 end;
 

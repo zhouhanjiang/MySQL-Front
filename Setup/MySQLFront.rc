@@ -22,9 +22,7 @@
 
 1 RT_MANIFEST "{BuildTempPath}\\MySQLFront.manifest"  
 
-Info BITMAP "{BuildImagesPath}\\Info.bmp"
-
-MAINICON ICON "{BuildImagesPath}\\MySQLFront.ico"
+MAINICON ICON "{BuildImagesPath}\\MAINICON.ico"
 10000 ICON "{BuildImagesPath}\\Blank.ico"
 10001 ICON "{BuildImagesPath}\\cubes.ico"
 10002 ICON "{BuildImagesPath}\\table_sql_view.ico"

@@ -4,8 +4,8 @@ object DInfo: TDInfo
   HelpContext = 1075
   BorderStyle = bsDialog
   Caption = 'DInfo'
-  ClientHeight = 243
-  ClientWidth = 377
+  ClientHeight = 187
+  ClientWidth = 313
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -20,8 +20,8 @@ object DInfo: TDInfo
   PixelsPerInch = 106
   TextHeight = 14
   object FVersion: TLabel
-    Left = 207
-    Top = 69
+    Left = 138
+    Top = 51
     Width = 66
     Height = 18
     Caption = 'FVersion'
@@ -33,8 +33,8 @@ object DInfo: TDInfo
     ParentFont = False
   end
   object FBuild: TLabel
-    Left = 207
-    Top = 93
+    Left = 138
+    Top = 74
     Width = 29
     Height = 13
     Caption = 'FBuild'
@@ -46,8 +46,8 @@ object DInfo: TDInfo
     ParentFont = False
   end
   object FURI: TLabel
-    Left = 207
-    Top = 125
+    Left = 138
+    Top = 107
     Width = 25
     Height = 13
     Cursor = crHandPoint
@@ -61,14 +61,14 @@ object DInfo: TDInfo
     OnClick = FURIClick
   end
   object FName: TLabel
-    Left = 207
-    Top = 34
-    Width = 63
-    Height = 22
+    Left = 138
+    Top = 16
+    Width = 66
+    Height = 23
     Caption = 'FName'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
-    Font.Height = -18
+    Font.Height = -19
     Font.Name = 'Tahoma'
     Font.Style = [fsBold]
     ParentFont = False
@@ -76,24 +76,24 @@ object DInfo: TDInfo
   object PImage: TPanel
     Left = 17
     Top = 17
-    Width = 173
-    Height = 173
+    Width = 95
+    Height = 95
     BevelOuter = bvLowered
     Color = clWhite
     ParentBackground = False
     TabOrder = 1
     object FImage: TImage
-      Left = 17
-      Top = 17
-      Width = 138
-      Height = 138
+      Left = 13
+      Top = 13
+      Width = 69
+      Height = 69
     end
   end
   object FBOk: TButton
-    Left = 293
-    Top = 209
-    Width = 75
-    Height = 25
+    Left = 223
+    Top = 149
+    Width = 76
+    Height = 24
     Cancel = True
     Caption = 'FBOk'
     Default = True

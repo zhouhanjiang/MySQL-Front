@@ -320,6 +320,7 @@ type
     procedure SetCharset(const ACharset: string); virtual;
     procedure SetConnected(Value: Boolean); override;
     function SQLUse(const DatabaseName: string): string; virtual;
+    procedure Sync(const SyncThread: TSyncThread);
     procedure SyncAfterExecuteSQL(const SyncThread: TSyncThread);
     procedure SyncBeforeExecuteSQL(const SyncThread: TSyncThread);
     procedure SyncBindDataSet(const DataSet: TMySQLQuery);
@@ -331,7 +332,6 @@ type
     procedure SyncExecuted(const SyncThread: TSyncThread);
     procedure SyncExecutingFirst(const SyncThread: TSyncThread);
     procedure SyncExecutingNext(const SyncThread: TSyncThread);
-    procedure Synchronize(const SyncThread: TSyncThread);
     procedure SyncHandledResult(const SyncThread: TSyncThread);
     procedure SyncPing(const SyncThread: TSyncThread);
     procedure SyncReceivingResult(const SyncThread: TSyncThread);
@@ -343,6 +343,7 @@ type
     property Handle: MySQLConsts.MYSQL read GetHandle;
     property IdentifierQuoter: Char read FIdentifierQuoter;
     property IdentifierQuoted: Boolean read FIdentifierQuoted write FIdentifierQuoted;
+    property SyncThread: TSyncThread read FSyncThread;
     property TerminateCS: TCriticalSection read FTerminateCS;
     property TerminatedThreads: TTerminatedThreads read FTerminatedThreads;
   public
@@ -390,10 +391,6 @@ type
     property ServerVersionStr: string read FServerVersionStr;
     property SQLParser: TSQLParser read FSQLParser;
     property SuccessfullExecutedSQLLength: Integer read FSuccessfullExecutedSQLLength;
-
-// Should be protected - for Debug only public - 2017-01-06
-    property SyncThread: TSyncThread read FSyncThread;
-
     property ThreadId: my_uint read FThreadId;
     property WarningCount: Integer read FWarningCount;
   published
@@ -533,7 +530,7 @@ type
       constructor Create(const ADataSet: TMySQLDataSet);
       procedure Delete(Index: Integer);
       destructor Destroy(); override;
-      function IndexOf(const Bookmark: TBookmark): Integer; overload;
+      function IndexOf(const Bookmark: TBookmark): Integer; overload; inline;
       function IndexOf(const Data: TMySQLQuery.TRecordBufferData): Integer; overload;
       procedure Insert(Index: Integer; Item: Pointer);
       property Buffers[Index: Integer]: PInternRecordBuffer read Get write Put; default;
@@ -555,7 +552,6 @@ type
     InternalPostResult: record
       Exception: Exception;
       NewIndex: Integer;
-      Resync: Boolean;
     end;
     function AllocInternRecordBuffer(): PInternRecordBuffer;
     procedure FreeInternRecordBuffer(const InternRecordBuffer: PInternRecordBuffer);
@@ -654,14 +650,20 @@ type
     FLimit: Integer;
     FLimitedDataReceived: Boolean;
     FOffset: Integer;
+    FWaitForLast: Boolean;
   protected
     RequestedRecordCount: Integer;
+    procedure DoBeforeScroll(); override;
     function GetCanModify(): Boolean; override;
     procedure InternalClose(); override;
+    procedure InternalDelete(); override;
+    procedure InternalEdit(); override;
+    procedure InternalInsert(); override;
     procedure InternalLast(); override;
     procedure InternalOpen(); override;
     function SQLSelect(): string; overload;
     function SQLSelect(const IgnoreLimit: Boolean): string; overload; virtual;
+    property WaitForLast: Boolean read FWaitForLast;
   public
     constructor Create(AOwner: TComponent); override;
     function LoadNextRecords(const AllRecords: Boolean = False): Boolean; virtual;
@@ -912,6 +914,7 @@ uses
   {$IFDEF EurekaLog}
   ExceptionLog7, EExceptionManager, EFreeze,
   {$ENDIF}
+//uDeveloper,
   MySQLClient,
   SQLUtils, CSVUtils, HTTPTunnel;
 
@@ -1137,7 +1140,7 @@ begin
   SyncThread := TMySQLConnection.TSyncThread(Data);
 
   if (MySQLSyncThreads.IndexOf(SyncThread) >= 0) then
-    SyncThread.Connection.Synchronize(SyncThread);
+    SyncThread.Connection.Sync(SyncThread);
 end;
 
 function MySQLTimeStampToStr(const SQLTimeStamp: TSQLTimeStamp; const DisplayFormat: string): string;
@@ -2300,7 +2303,7 @@ begin
   SyncThread.RequestThreadID := GetCurrentThreadId();
   SyncThread.State := ssConnect;
   repeat
-    Synchronize(SyncThread);
+    Sync(SyncThread);
   until ((SynchronCount = 0) or (SyncThread.State in [ssClose, ssReady]));
 end;
 
@@ -2341,9 +2344,9 @@ begin
     BeginSynchron();
     SyncThread.RequestThreadID := GetCurrentThreadId();
     SyncThread.State := ssDisconnect;
-    Synchronize(SyncThread);
+    Sync(SyncThread);
     if (SyncThread.State = ssDisconnecting) then
-      Synchronize(SyncThread);
+      Sync(SyncThread);
     EndSynchron();
   end;
 end;
@@ -2377,6 +2380,8 @@ end;
 
 procedure TMySQLConnection.DoTerminate();
 begin
+  Assert(GetCurrentThreadId() = MainThreadID);
+
   KillThreadId := SyncThread.ThreadId;
 
   {$IFDEF Debug}
@@ -2442,7 +2447,7 @@ begin
 
     repeat
       if (GetCurrentThreadId() = MainThreadId) then
-        Synchronize(SyncThread)
+        Sync(SyncThread)
       else
       begin
         MySQLConnectionOnSynchronize(SyncThread);
@@ -2640,7 +2645,7 @@ begin
   begin
     repeat
       if (GetCurrentThreadId() = MainThreadId) then
-        Synchronize(SyncThread)
+        Sync(SyncThread)
       else
       begin
         MySQLConnectionOnSynchronize(SyncThread);
@@ -2652,7 +2657,7 @@ begin
   else
   begin
     if (GetCurrentThreadId() = MainThreadId) then
-      Synchronize(SyncThread)
+      Sync(SyncThread)
     else
       MySQLConnectionOnSynchronize(SyncThread);
     Result := False;
@@ -3017,6 +3022,86 @@ end;
 function TMySQLConnection.SQLUse(const DatabaseName: string): string;
 begin
   Result := 'USE ' + EscapeIdentifier(DatabaseName) + ';' + #13#10;
+end;
+
+procedure TMySQLConnection.Sync(const SyncThread: TSyncThread);
+begin
+  Assert(Assigned(SyncThread));
+
+  if (not SyncThread.Terminated) then
+  begin
+    case (SyncThread.State) of
+      ssConnect:
+        begin
+          SyncThread.State := ssConnecting;
+          RunExecute(SyncThread);
+        end;
+      ssConnecting:
+        SyncConnected(SyncThread);
+      ssClose,
+      ssReady:
+        begin
+          SyncBeforeExecuteSQL(SyncThread);
+          SyncExecute(SyncThread);
+          RunExecute(SyncThread);
+        end;
+      ssFirst,
+      ssNext:
+        begin
+          SyncExecute(SyncThread);
+          RunExecute(SyncThread);
+        end;
+      ssExecutingFirst,
+      ssExecutingNext:
+        begin
+          SyncExecuted(SyncThread);
+          if ((KillThreadId > 0) and (SyncThread.Mode = smResultHandle)) then
+          begin
+            SyncHandledResult(SyncThread);
+            KillThreadId := 0;
+            Sync(SyncThread);
+          end
+          else if (SyncThread.Mode in [smSQL, smDataSet]) then
+          begin
+            if (SyncThread.State in [ssFirst, ssNext]) then
+              Sync(SyncThread);
+          end
+          else
+          begin
+            Assert(SynchronCount > 0);
+            SyncThreadExecuted.SetEvent();
+          end;
+        end;
+      ssResult: ; // Do nothing, also don't report a problem
+	    ssReceivingResult:
+        begin
+          Assert(SyncThread.DataSet.SyncThread = SyncThread);
+
+          if ((SyncThread.DataSet is TMySQLDataSet) and (SyncThread.ErrorCode <> 0)) then
+            DoError(SyncThread.ErrorCode, SyncThread.ErrorMessage);
+          SyncReleaseDataSet(SyncThread.DataSet);
+          if (SyncThread.Mode in [smSQL, smDataSet]) then
+            if (SyncThread.State in [ssNext, ssFirst]) then
+            begin
+              SyncExecute(SyncThread);
+              RunExecute(SyncThread);
+            end
+            else
+              SyncAfterExecuteSQL(SyncThread)
+          else
+            SyncThreadExecuted.SetEvent();
+        end;
+      ssDisconnect:
+        begin
+          SyncThread.State := ssDisconnecting;
+          RunExecute(SyncThread);
+        end;
+      ssDisconnecting:
+        SyncDisconnected(SyncThread);
+      else
+        raise Exception.CreateFMT(SOutOfSync + ' (State: %d)', [Ord(SyncThread.State)]);
+    end;
+  end;
 end;
 
 procedure TMySQLConnection.SyncAfterExecuteSQL(const SyncThread: TSyncThread);
@@ -3654,7 +3739,7 @@ begin
   begin
     // Debug 2017-01-17
     // For "Stmt #_ of _ has not been handled
-    DebugMonitor.Append('Stmt #' + IntToStr(SyncThread.StmtIndex) + ' handled - State: ' + IntToStr(Ord(SyncThread.State)), ttDebug);
+    DebugMonitor.Append('Stmt #' + IntToStr(SyncThread.StmtIndex + 1) + ' handled - State: ' + IntToStr(Ord(SyncThread.State)), ttDebug);
 
     Inc(SyncThread.SQLIndex, Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]));
     Inc(SyncThread.StmtIndex);
@@ -3673,86 +3758,6 @@ begin
     SyncThread.State := ssFirst
   else
     SyncThread.State := ssReady;
-end;
-
-procedure TMySQLConnection.Synchronize(const SyncThread: TSyncThread);
-begin
-  Assert(Assigned(SyncThread));
-
-  if (not SyncThread.Terminated) then
-  begin
-    case (SyncThread.State) of
-      ssConnect:
-        begin
-          SyncThread.State := ssConnecting;
-          RunExecute(SyncThread);
-        end;
-      ssConnecting:
-        SyncConnected(SyncThread);
-      ssClose,
-      ssReady:
-        begin
-          SyncBeforeExecuteSQL(SyncThread);
-          SyncExecute(SyncThread);
-          RunExecute(SyncThread);
-        end;
-      ssFirst,
-      ssNext:
-        begin
-          SyncExecute(SyncThread);
-          RunExecute(SyncThread);
-        end;
-      ssExecutingFirst,
-      ssExecutingNext:
-        begin
-          SyncExecuted(SyncThread);
-          if ((KillThreadId > 0) and (SyncThread.Mode = smResultHandle)) then
-          begin
-            SyncHandledResult(SyncThread);
-            KillThreadId := 0;
-            Synchronize(SyncThread);
-          end
-          else if (SyncThread.Mode in [smSQL, smDataSet]) then
-          begin
-            if (SyncThread.State in [ssFirst, ssNext]) then
-              Synchronize(SyncThread);
-          end
-          else
-          begin
-            Assert(SynchronCount > 0);
-            SyncThreadExecuted.SetEvent();
-          end;
-        end;
-      ssResult: ; // Do nothing, also don't report a problem
-	    ssReceivingResult:
-        begin
-          Assert(SyncThread.DataSet.SyncThread = SyncThread);
-
-          if ((SyncThread.DataSet is TMySQLDataSet) and (SyncThread.ErrorCode <> 0)) then
-            DoError(SyncThread.ErrorCode, SyncThread.ErrorMessage);
-          SyncReleaseDataSet(SyncThread.DataSet);
-          if (SyncThread.Mode in [smSQL, smDataSet]) then
-            if (SyncThread.State in [ssNext, ssFirst]) then
-            begin
-              SyncExecute(SyncThread);
-              RunExecute(SyncThread);
-            end
-            else
-              SyncAfterExecuteSQL(SyncThread)
-          else
-            SyncThreadExecuted.SetEvent();
-        end;
-      ssDisconnect:
-        begin
-          SyncThread.State := ssDisconnecting;
-          RunExecute(SyncThread);
-        end;
-      ssDisconnecting:
-        SyncDisconnected(SyncThread);
-      else
-        raise Exception.CreateFMT(SOutOfSync + ' (State: %d)', [Ord(SyncThread.State)]);
-    end;
-  end;
 end;
 
 procedure TMySQLConnection.SyncPing(const SyncThread: TSyncThread);
@@ -3829,7 +3834,12 @@ begin
     begin
       SyncHandledResult(SyncThread);
       if ((SyncThread.Mode = smDataSet) and (SyncThread.State = ssReady)) then
+      begin
         SyncAfterExecuteSQL(SyncThread);
+
+        if ((DataSet is TMySQLTable) and TMySQLTable(DataSet).WaitForLast) then
+          DataSet.Last();
+      end;
     end;
     TerminateCS.Leave();
   end;
@@ -4963,7 +4973,7 @@ begin
       Connection.SyncReleaseDataSet(Self)
     else if (GetCurrentThreadId() = MainThreadID) then
       // Should never occur, since ResultHandle can be used in TTool only.
-      Connection.Synchronize(SyncThread)
+      Connection.Sync(SyncThread)
     else
     begin
       MySQLConnectionOnSynchronize(SyncThread);
@@ -5216,8 +5226,13 @@ begin
                 UniqueDatabaseName := UniqueDatabaseName and (Connection.LibDecode(LibField.db) = DName);
 
             if (LibField.flags and AUTO_INCREMENT_FLAG <> 0) then
-              Field.AutoGenerateValue := arAutoInc
-            else if (LibField.flags and NO_DEFAULT_VALUE_FLAG = 0) then
+            begin
+              Field.ProviderFlags := Field.ProviderFlags + [pfInWhere];
+              Field.AutoGenerateValue := arAutoInc;
+            end
+            else if ((LibField.table = '')
+              or (Field.Tag and ftTimestampField <> 0) and (Connection.MySQLVersion >= 40102)
+              or (Field.Tag and ftDateTimeField <> 0) and (Connection.MySQLVersion >= 50605)) then
               Field.AutoGenerateValue := arDefault
             else
               Field.AutoGenerateValue := arNone;
@@ -5704,29 +5719,8 @@ begin
 end;
 
 function TMySQLDataSet.TInternRecordBuffers.IndexOf(const Bookmark: TBookmark): Integer;
-var
-  Msg: string;
 begin
-  // 2017-01-16
-  // ... should be "inline"
-
-  // 2017-01-16 Last SQL: SELECT ... LIMIT 200,2147483447, TTExportExcel is running
-
-  // Debug 2017-01-16
-  if (Length(Bookmark) <> SizeOf(PInternRecordBuffer)) then
-  begin
-    Msg := 'Length: ' + IntToStr(Length(Bookmark)) + #13#10
-      + 'Count: ' + IntToStr(Count) + #13#10
-      + 'Index: ' + IntToStr(Index) + #13#10
-      + 'State: ' + IntToStr(Ord(DataSet.State)) + #13#10;
-    if (DataSet.ActiveBuffer() <> 0) then
-      Msg := Msg
-        + 'ActiveBuffer.Index: ' + IntToStr(TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.Index) + #13#10
-        + 'ActiveBuffer.BookmarkFlag: ' + IntToStr(Ord(TMySQLDataSet.PExternRecordBuffer(DataSet.ActiveBuffer())^.BookmarkFlag));
-    raise ERangeError.Create(Msg);
-  end;
-
-  Assert(Length(Bookmark) = SizeOf(PInternRecordBuffer));
+  Assert(Length(Bookmark) = DataSet.BookmarkSize);
 
   Result := IndexOf(PInternRecordBuffer(PPointer(@Bookmark[0])^))
 end;
@@ -5869,6 +5863,12 @@ end;
 
 function TMySQLDataSet.CompareBookmarks(Bookmark1, Bookmark2: TBookmark): Integer;
 begin
+  // Debug 2017-01-18
+  if ((Length(Bookmark1) <> BookmarkSize) or (Length(Bookmark2) <> BookmarkSize)) then
+    raise ERangeError.Create('Length(Bookmark1): ' + IntToStr(Length(Bookmark1)) + #13#10
+      + 'Length(Bookmark2): ' + IntToStr(Length(Bookmark2)) + #13#10
+      + 'State: ' + IntToStr(Ord(State)));
+
   Result := Sign(InternRecordBuffers.IndexOf(Bookmark1) - InternRecordBuffers.IndexOf(Bookmark2));
 end;
 
@@ -6438,7 +6438,7 @@ begin
 
   // Debug 2017-01-17
   // ... for CompareBookmark with Length(Bookmark) = 0
-  Connection.DebugMonitor.Append('InternalRefresh - ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + ' - ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)), ttDebug);
+  Connection.DebugMonitor.Append('InternalInsert - ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + ' - ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)), ttDebug);
 
   if (Filtered) then
     Inc(InternRecordBuffers.FilteredRecordCount);
@@ -6488,8 +6488,9 @@ end;
 procedure TMySQLDataSet.InternalPost();
 var
   AllWhereFieldsInWhere: Boolean;
-  CalculatedValues: Boolean;
+  AutoGeneratedValues: Boolean;
   CheckPosition: Boolean;
+  ControlPosition: Boolean;
   ControlSQL: string;
   Field: TField;
   FieldName: string;
@@ -6501,7 +6502,6 @@ var
   Update: Boolean;
   WhereClause: string;
   WhereFields: array of TField;
-  WhereFieldsChanged: Boolean;
 begin
   if (CachedUpdates) then
   begin
@@ -6513,189 +6513,190 @@ begin
   end
   else
   begin
+    AutoGeneratedValues := False;
+    CheckPosition := False;
+    ControlPosition := False;
+
     Update := PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag = bfCurrent;
+
+    for I := 0 to FieldCount - 1 do
+      if (Fields[I].AutoGenerateValue <> arNone) then
+        AutoGeneratedValues := True;
+
+    Pos := 1;
+    repeat
+      Field := FieldByName(ExtractFieldName(SortDef.Fields, Pos));
+      if (not Assigned(Field)) then
+        raise ERangeError.Create(SRangeError);
+      if (not Update or (Field.NewValue <> Field.OldValue)) then
+      begin
+        CheckPosition := True;
+        if (Field.DataType in TextDataTypes) then
+          ControlPosition := True;
+      end;
+    until (Pos = Length(SortDef.Fields));
 
     if (not (Self is TMySQLTable)) then
       SQL := CommandText
     else
       SQL := TMySQLTable(Self).SQLSelect();
-    if ((SQL = '') or not Connection.SQLParser.ParseSQL(PChar(SQL), Length(SQL))) then
+
+    if ((SQL = '')
+      or not Connection.SQLParser.ParseSQL(PChar(SQL), Length(SQL))
+      or not AutoGeneratedValues and not ControlPosition) then
       ControlSQL := ''
     else
     begin
-      WhereFieldsChanged := False;
-      if (Update) then
-        for I := 0 to FieldCount - 1 do
-          WhereFieldsChanged := WhereFieldsChanged
-            or (pfInWhere in Fields[I].ProviderFlags) and (Fields[I].Value <> Fields[I].OldValue);
+      SetLength(WhereFields, 0);
 
-      CalculatedValues := False;
-      CheckPosition := WhereFieldsChanged and (SortDef.Fields <> '');
-      for I := 0 to FieldCount - 1 do
+      if (not ControlPosition) then
       begin
-        CalculatedValues := CalculatedValues
-          or Fields[I].ReadOnly
-          or (Fields[I].Tag and ftTimestampField <> 0) and (Connection.MySQLVersion >= 40102)
-          or (Fields[I].Tag and ftDateTimeField <> 0) and (Connection.MySQLVersion >= 50605);
-        CheckPosition := CheckPosition
-          or not Update and (Fields[I].AutoGenerateValue = arAutoInc);
-      end;
-
-      if (not CheckPosition and not CalculatedValues) then
-        ControlSQL := ''
+        for I := 0 to Fields.Count - 1 do
+          if (pfInWhere in Fields[I].ProviderFlags) then
+          begin
+            SetLength(WhereFields, Length(WhereFields) + 1);
+            WhereFields[Length(WhereFields) - 1] := Fields[I];
+          end;
+      end
       else
       begin
-        SetLength(WhereFields, 0);
+        Pos := 1;
+        repeat
+          FieldName := ExtractFieldName(SortDef.Fields, Pos);
+          if (FieldName <> '') then
+          begin
+            Field := FieldByName(FieldName);
+            if (not Assigned(Field)) then
+              raise ERangeError.Create(SRangeError);
+            SetLength(WhereFields, Length(WhereFields) + 1);
+            WhereFields[Length(WhereFields) - 1] := Field;
+          end;
+        until (FieldName = '');
+      end;
+      if (Length(WhereFields) = 0) then
+      begin
+        SetLength(WhereFields, FieldCount);
+        for I := 0 to Fields.Count - 1 do
+          WhereFields[I] := Fields[I];
+      end;
 
-        if (not CheckPosition) then
+      AllWhereFieldsInWhere := True;
+      for I := 0 to FieldCount - 1 do
+        if (AllWhereFieldsInWhere and (pfInWhere in Fields[I].ProviderFlags)) then
         begin
-          for I := 0 to Fields.Count - 1 do
-            if (pfInWhere in Fields[I].ProviderFlags) then
-            begin
-              SetLength(WhereFields, Length(WhereFields) + 1);
-              WhereFields[Length(WhereFields) - 1] := Fields[I];
-            end;
+          AllWhereFieldsInWhere := False;
+          for J := 0 to Length(WhereFields) - 1 do
+            if (WhereFields[J] = Fields[I]) then
+              AllWhereFieldsInWhere := True;
+        end;
+      if (AllWhereFieldsInWhere) then
+        for I := Length(WhereFields) - 1 downto 0 do
+          if (not (pfInWhere in WhereFields[I].ProviderFlags)) then
+          begin
+            if (I < Length(WhereFields) - 1) then
+              MoveMemory(@WhereFields[I], @WhereFields[I + 1], SizeOf(WhereFields[0]));
+            SetLength(WhereFields, Length(WhereFields) - 1);
+          end;
+
+      WhereClause := '';
+      for I := 0 to Length(WhereFields) - 2 do
+        if (not WhereFields[I].IsNull) then
+        begin
+          if (WhereClause <> '') then WhereClause := WhereClause + ' AND ';
+          WhereClause := WhereClause
+            + Connection.EscapeIdentifier(WhereFields[I].FieldName)
+            + '='
+            + SQLFieldValue(WhereFields[I], TRecordBuffer(PExternRecordBuffer(ActiveBuffer())));
         end
+        else if (WhereFields[I].AutoGenerateValue = arAutoInc) then
+        begin
+          if (WhereClause <> '') then WhereClause := WhereClause + ' AND ';
+          WhereClause := WhereClause
+            + Connection.EscapeIdentifier(WhereFields[I].FieldName)
+            + '='
+            + 'LAST_INSERT_ID()';
+        end;
+      if (not WhereFields[Length(WhereFields) - 1].IsNull
+        or ((WhereFields[Length(WhereFields) - 1].AutoGenerateValue = arAutoInc) and (WhereFields[Length(WhereFields) - 1].AsString = '0'))) then
+      begin
+        if (WhereClause <> '') then WhereClause := WhereClause + ' AND ';
+        WhereClause := WhereClause + Connection.EscapeIdentifier(WhereFields[Length(WhereFields) - 1].FieldName);
+        if (not ControlPosition) then
+          WhereClause := WhereClause + '='
+        else if (WhereFields[Length(WhereFields) - 1].Tag and ftDescSortedField = 0) then
+          WhereClause := WhereClause + '>='
         else
+          WhereClause := WhereClause + '<=';
+        WhereClause := WhereClause + SQLFieldValue(WhereFields[Length(WhereFields) - 1], TRecordBuffer(PExternRecordBuffer(ActiveBuffer())));
+      end
+      else if (WhereFields[Length(WhereFields) - 1].AutoGenerateValue = arAutoInc) then
+      begin
+        if (WhereClause <> '') then WhereClause := WhereClause + ' AND ';
+        WhereClause := WhereClause + Connection.EscapeIdentifier(WhereFields[Length(WhereFields) - 1].FieldName);
+        if (not ControlPosition) then
+          WhereClause := WhereClause + '='
+        else if (WhereFields[Length(WhereFields) - 1].Tag and ftDescSortedField = 0) then
+          WhereClause := WhereClause + '>='
+        else
+          WhereClause := WhereClause + '<=';
+        WhereClause := WhereClause + 'LAST_INSERT_ID()';
+      end;
+
+      if (ControlPosition) then
+        for I := 1 to Length(WhereFields) - 1 do
         begin
-          Pos := 1;
-          repeat
-            FieldName := ExtractFieldName(SortDef.Fields, Pos);
-            if (FieldName <> '') then
+          WhereClause := WhereClause + ' OR ';
+
+          for J := 0 to Length(WhereFields) - I - 1 do
+          begin
+            if (J > 0) then WhereClause := WhereClause + ' AND ';
+
+            WhereClause := WhereClause + Connection.EscapeIdentifier(WhereFields[J].FieldName);
+
+            if (J < Length(WhereFields) - I - 1) then
             begin
-              Field := FieldByName(FieldName);
-              if (not Assigned(Field)) then
-                raise ERangeError.Create(SRangeError);
-              SetLength(WhereFields, Length(WhereFields) + 1);
-              WhereFields[Length(WhereFields) - 1] := Field;
-            end;
-          until (FieldName = '');
-        end;
-        if (Length(WhereFields) = 0) then
-        begin
-          SetLength(WhereFields, FieldCount);
-          for I := 0 to Fields.Count - 1 do
-            WhereFields[I] := Fields[I];
-        end;
-
-        AllWhereFieldsInWhere := True;
-        for I := 0 to FieldCount - 1 do
-          if (AllWhereFieldsInWhere and (pfInWhere in Fields[I].ProviderFlags)) then
-          begin
-            AllWhereFieldsInWhere := False;
-            for J := 0 to Length(WhereFields) - 1 do
-              if (WhereFields[J] = Fields[I]) then
-                AllWhereFieldsInWhere := True;
-          end;
-        if (AllWhereFieldsInWhere) then
-          for I := Length(WhereFields) - 1 downto 0 do
-            if (not (pfInWhere in WhereFields[I].ProviderFlags)) then
-            begin
-              if (I < Length(WhereFields) - 1) then
-                MoveMemory(@WhereFields[I], @WhereFields[I + 1], SizeOf(WhereFields[0]));
-              SetLength(WhereFields, Length(WhereFields) - 1);
-            end;
-
-        WhereClause := '';
-        for I := 0 to Length(WhereFields) - 2 do
-          if (not WhereFields[I].IsNull) then
-          begin
-            if (WhereClause <> '') then WhereClause := WhereClause + ' AND ';
-            WhereClause := WhereClause
-              + Connection.EscapeIdentifier(WhereFields[I].FieldName)
-              + '='
-              + SQLFieldValue(WhereFields[I], TRecordBuffer(PExternRecordBuffer(ActiveBuffer())));
-          end
-          else if (WhereFields[I].AutoGenerateValue = arAutoInc) then
-          begin
-            if (WhereClause <> '') then WhereClause := WhereClause + ' AND ';
-            WhereClause := WhereClause
-              + Connection.EscapeIdentifier(WhereFields[I].FieldName)
-              + '='
-              + 'LAST_INSERT_ID()';
-          end;
-        if (not WhereFields[Length(WhereFields) - 1].IsNull
-          or ((WhereFields[Length(WhereFields) - 1].AutoGenerateValue = arAutoInc) and (WhereFields[Length(WhereFields) - 1].AsString = '0'))) then
-        begin
-          if (WhereClause <> '') then WhereClause := WhereClause + ' AND ';
-          WhereClause := WhereClause + Connection.EscapeIdentifier(WhereFields[Length(WhereFields) - 1].FieldName);
-          if (not CheckPosition) then
-            WhereClause := WhereClause + '='
-          else if (WhereFields[Length(WhereFields) - 1].Tag and ftDescSortedField = 0) then
-            WhereClause := WhereClause + '>='
-          else
-            WhereClause := WhereClause + '<=';
-          WhereClause := WhereClause + SQLFieldValue(WhereFields[Length(WhereFields) - 1], TRecordBuffer(PExternRecordBuffer(ActiveBuffer())));
-        end
-        else if (WhereFields[Length(WhereFields) - 1].AutoGenerateValue = arAutoInc) then
-        begin
-          if (WhereClause <> '') then WhereClause := WhereClause + ' AND ';
-          WhereClause := WhereClause + Connection.EscapeIdentifier(WhereFields[Length(WhereFields) - 1].FieldName);
-          if (not CheckPosition) then
-            WhereClause := WhereClause + '='
-          else if (WhereFields[Length(WhereFields) - 1].Tag and ftDescSortedField = 0) then
-            WhereClause := WhereClause + '>='
-          else
-            WhereClause := WhereClause + '<=';
-          WhereClause := WhereClause + 'LAST_INSERT_ID()';
-        end;
-
-        if (CheckPosition) then
-          for I := 1 to Length(WhereFields) - 1 do
-          begin
-            WhereClause := WhereClause + ' OR ';
-
-            for J := 0 to Length(WhereFields) - I - 1 do
-            begin
-              if (J > 0) then WhereClause := WhereClause + ' AND ';
-
-              WhereClause := WhereClause + Connection.EscapeIdentifier(WhereFields[J].FieldName);
-
-              if (J < Length(WhereFields) - I - 1) then
-              begin
-                if (not WhereFields[J].IsNull) then
-                  WhereClause := WhereClause + '=' + SQLFieldValue(WhereFields[J], TRecordBuffer(PExternRecordBuffer(ActiveBuffer())))
-                else if (WhereFields[J].AutoGenerateValue = arAutoInc) then
-                  WhereClause := WhereClause + '=LAST_INSERT_ID()'
-                else
-                  WhereClause := WhereClause + ' IS NULL';
-              end
+              if (not WhereFields[J].IsNull) then
+                WhereClause := WhereClause + '=' + SQLFieldValue(WhereFields[J], TRecordBuffer(PExternRecordBuffer(ActiveBuffer())))
+              else if (WhereFields[J].AutoGenerateValue = arAutoInc) then
+                WhereClause := WhereClause + '=LAST_INSERT_ID()'
               else
-              begin
-                if (not WhereFields[J].IsNull) then
-                  if (WhereFields[J].Tag and ftDescSortedField = 0) then
-                    WhereClause := WhereClause + '>' + SQLFieldValue(WhereFields[J], TRecordBuffer(PExternRecordBuffer(ActiveBuffer())))
-                  else
-                    WhereClause := WhereClause + '<' + SQLFieldValue(WhereFields[J], TRecordBuffer(PExternRecordBuffer(ActiveBuffer())))
-                else if (WhereFields[J].AutoGenerateValue = arAutoInc) then
-                  WhereClause := WhereClause + '=LAST_INSERT_ID()'
+                WhereClause := WhereClause + ' IS NULL';
+            end
+            else
+            begin
+              if (not WhereFields[J].IsNull) then
+                if (WhereFields[J].Tag and ftDescSortedField = 0) then
+                  WhereClause := WhereClause + '>' + SQLFieldValue(WhereFields[J], TRecordBuffer(PExternRecordBuffer(ActiveBuffer())))
                 else
-                  WhereClause := WhereClause + ' IS NOT NULL';
-              end;
+                  WhereClause := WhereClause + '<' + SQLFieldValue(WhereFields[J], TRecordBuffer(PExternRecordBuffer(ActiveBuffer())))
+              else if (WhereFields[J].AutoGenerateValue = arAutoInc) then
+                WhereClause := WhereClause + '=LAST_INSERT_ID()'
+              else
+                WhereClause := WhereClause + ' IS NOT NULL';
             end;
+          end;
 
-            if (WhereClause = '') then
+          if (WhereClause = '') then
+            ControlSQL := ''
+          else
+          begin
+            SQL := ExpandSelectStmtWhereClause(Connection.SQLParser.FirstStmt, WhereClause);
+
+            if (not Connection.SQLParser.ParseSQL(SQL)) then
               ControlSQL := ''
             else
             begin
-              SQL := ExpandSelectStmtWhereClause(Connection.SQLParser.FirstStmt, WhereClause);
-
-              if (not Connection.SQLParser.ParseSQL(SQL)) then
-                ControlSQL := ''
+              if (not ControlPosition) then
+                RowCount := -1
               else
-              begin
-                if (not CheckPosition) then
-                  RowCount := -1
-                else
-                  RowCount := 2;
-                ControlSQL := ReplaceSelectStmtLimit(Connection.SQLParser.FirstStmt, 0, RowCount);
+                RowCount := 2;
+              ControlSQL := ReplaceSelectStmtLimit(Connection.SQLParser.FirstStmt, 0, RowCount);
 
-                if (ControlSQL <> '') then
-                  ControlSQL := ControlSQL + #13#10;
-              end;
+              if (ControlSQL <> '') then
+                ControlSQL := ControlSQL + #13#10;
             end;
           end;
-      end;
+        end;
     end;
 
     Connection.SQLParser.Clear();
@@ -6712,7 +6713,6 @@ begin
         SQL := Connection.SQLUse(DatabaseName) + SQL;
 
       InternalPostResult.Exception := nil;
-      InternalPostResult.Resync := False;
 
       Connection.BeginSilent();
       Connection.BeginSynchron();
@@ -6724,7 +6724,7 @@ begin
         raise InternalPostResult.Exception;
 
 
-      if ((ControlSQL = '') and not Update) then
+      if (CheckPosition and (ControlSQL = '')) then
       begin
         InternalPostResult.NewIndex := InternRecordBuffers.IndexOf(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData);
         if (InternalPostResult.NewIndex < 0) then
@@ -6737,12 +6737,8 @@ begin
           // Position in InternRecordBuffers change -> move it and resync buffer
           InternRecordBuffers.Move(PExternRecordBuffer(ActiveBuffer())^.Index, InternalPostResult.NewIndex);
           InternRecordBuffers.Index := InternalPostResult.NewIndex;
-          InternalPostResult.Resync := True;
         end;
       end;
-
-      if (InternalPostResult.Resync) then
-        Resync([]);
     end;
   end;
 end;
@@ -7076,6 +7072,10 @@ var
   TS: TTimeStamp;
   U: UInt64;
 begin
+  // Debug 2017-01-19
+  if (not Assigned(Field)) then
+    raise ERangeError.Create('CommandText: ' + CommandText);
+
   if ((Field.AutoGenerateValue <> arAutoInc) or (Length(Buffer) > 0)) then
   begin
     // Debug 2017-01-07
@@ -8071,6 +8071,13 @@ end;
 
 { TMySQLTable *****************************************************************}
 
+procedure TMySQLTable.DoBeforeScroll();
+begin
+  FWaitForLast := False;
+
+  inherited;
+end;
+
 function TMySQLTable.GetCanModify(): Boolean;
 begin
   if (not IndexDefs.Updated) then
@@ -8087,6 +8094,7 @@ begin
   SetLength(DeleteBookmarks, 0);
   FCommandType := ctTable;
   FLimitedDataReceived := False;
+  FWaitForLast := False;
 end;
 
 procedure TMySQLTable.InternalClose();
@@ -8096,20 +8104,33 @@ begin
   FLimitedDataReceived := False;
 end;
 
+procedure TMySQLTable.InternalDelete();
+begin
+  FWaitForLast := False;
+
+  inherited;
+end;
+
+procedure TMySQLTable.InternalEdit();
+begin
+  FWaitForLast := False;
+
+  inherited;
+end;
+
+procedure TMySQLTable.InternalInsert();
+begin
+  FWaitForLast := False;
+
+  inherited;
+end;
+
 procedure TMySQLTable.InternalLast();
 begin
   if (LimitedDataReceived and AutomaticLoadNextRecords and LoadNextRecords(True)) then
-  begin
-    {$IFDEF EurekaLog}
-      PauseFreezeCheck();
-    {$ENDIF}
-    RecordsReceived.WaitFor(INFINITE);
-    {$IFDEF EurekaLog}
-      ResumeFreezeCheck();
-    {$ENDIF}
-  end;
-
-  inherited;
+    FWaitForLast := True
+  else
+    inherited;
 end;
 
 procedure TMySQLTable.InternalOpen();

@@ -240,8 +240,10 @@ begin
 
   if ((INTERNET_ERROR_BASE <= HTTPThread.ErrorCode) and (HTTPThread.ErrorCode <= INTERNET_ERROR_LAST)) then
   begin
-    SendToDeveloper(HTTPThread.ErrorMessage);
-    MsgBox(HTTPThread.ErrorMessage, Preferences.LoadStr(45), MB_OK or MB_ICONERROR);
+    SendToDeveloper('ErrorCode: ' + IntToStr(HTTPThread.ErrorCode) + #13#10
+      + 'ErrorMessage: ' + HTTPThread.ErrorMessage);
+    MsgBox('Error #' + IntToStr(HTTPThread.ErrorCode) + #10
+      + HTTPThread.ErrorMessage, Preferences.LoadStr(45), MB_OK or MB_ICONERROR);
   end
   else if (HTTPThread.ErrorCode <> 0) then
     RaiseLastOSError(HTTPThread.ErrorCode)
