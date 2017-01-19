@@ -11852,17 +11852,10 @@ end;
 
 procedure TSSession.DoSendEvent(const AEvent: TSSession.TEvent);
 var
-  Finish: Int64;
   I: Integer;
-  Start: Int64;
 begin
   for I := 0 to Length(EventProcs) - 1 do
-  begin
-    if (not QueryPerformanceCounter(Start)) then Start := 0;
     EventProcs[I](AEvent);
-    if (QueryPerformanceCounter(Finish) and (Start > 0)) then
-      MaxSendEventCount := Max(MaxSendEventCount, Finish - Start);
-  end;
 end;
 
 procedure TSSession.EmptyDatabases(const Databases: TList);

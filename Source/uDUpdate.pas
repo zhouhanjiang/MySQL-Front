@@ -103,7 +103,7 @@ begin
     FBForward.Enabled := False;
     ActiveControl := FBCancel;
 
-    SetupProgramStream := TFileStream.Create(SetupPrgFilename + '?' + IntToStr(Random(High(Integer))), fmCreate);
+    SetupProgramStream := TFileStream.Create(SetupPrgFilename, fmCreate);
 
     HTTPThread := THTTPThread.Create(SetupProgramURI, nil, SetupProgramStream);
     HTTPThread.OnProgress := OnProgress;
@@ -158,7 +158,7 @@ begin
 
   if (Assigned(HTTPThread)) then
     TerminateThread(HTTPThread.Handle, 0);
-  HTTPThread := THTTPThread.Create(SysUtils.LoadStr(1005) + '?' + IntToStr(Random(High(Integer))), nil, PADFileStream);
+  HTTPThread := THTTPThread.Create(SysUtils.LoadStr(1005), nil, PADFileStream);
   HTTPThread.OnProgress := OnProgress;
   HTTPThread.OnTerminate := OnTerminate;
 

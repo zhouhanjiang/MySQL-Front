@@ -1063,6 +1063,7 @@ type
     Session: TSSession;
     StatusBar: TStatusBar;
     ToolBarData: TToolBarData;
+    TimeMonitor: TMySQLMonitor;
     constructor Create(const AOwner: TComponent; const AParent: TWinControl; const ASession: TSSession; const AParam: string); reintroduce;
     destructor Destroy(); override;
     function AddressToCaption(const AAddress: string): string;
@@ -4426,6 +4427,8 @@ begin
 
   ASession.Account.RegisterTab(Self);
 
+  TimeMonitor := TMySQLMonitor.Create(nil);
+
   Parent := TWinControl(AParent);
 
   Width := Window.ClientWidth;
@@ -6080,6 +6083,10 @@ begin
   Session.UnRegisterEventProc(FormSessionEvent);
   Session.CreateDesktop := nil;
 
+  if (TimeMonitor.CacheSize > 0) then
+    SendToDeveloper(TimeMonitor.CacheText, 1);
+  TimeMonitor.Free();
+
   FNavigatorChanging(nil, nil, TempB);
 
   if (Assigned(PObjectSearch)) then
@@ -7398,7 +7405,13 @@ var
   Node: TTreeNode;
   OldSelected: TTreeNode;
   Table: TSTable;
+  Start: Int64;
+  Finish: Int64;
+  Frequency: Int64;
+  S: string;
 begin
+  if (not QueryPerformanceCounter(Start)) then Start := 0;
+
   OldSelected := FNavigator.Selected;
 
   ChangingEvent := FNavigator.OnChanging; FNavigator.OnChanging := nil;
@@ -7508,6 +7521,19 @@ begin
     FNavigatorNodeToExpand := nil;
     FNavigator.OnExpanding := ExpandingEvent;
   end;
+
+  if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
+    if ((Finish - Start) div Frequency > 1) then
+    begin
+      S := 'FNavigatorUpdate - '
+        + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
+      if (Assigned(Event.Items)) then
+        S := S
+          + 'ClassType: ' + Event.Items.ClassName
+          + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
+      S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000) + ' s';
+      TimeMonitor.Append(S, ttDebug);
+    end;
 end;
 
 procedure TFSession.FNavigatorChanged(Sender: TObject; const Node: TTreeNode);
@@ -7787,7 +7813,14 @@ begin
 end;
 
 procedure TFSession.FormSessionEvent(const Event: TSSession.TEvent);
+var
+  Start: Int64;
+  Finish: Int64;
+  Frequency: Int64;
+  S: string;
 begin
+  if (not QueryPerformanceCounter(Start)) then Start := 0;
+
   if (not (csDestroying in ComponentState)) then
     case (Event.EventType) of
       etItemsValid,
@@ -7804,6 +7837,19 @@ begin
         AfterExecuteSQL(Event);
       etError:
         Wanted.Clear();
+    end;
+
+  if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
+    if ((Finish - Start) div Frequency > 1) then
+    begin
+      S := 'FNavigatorUpdate - '
+        + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
+      if (Assigned(Event.Items)) then
+        S := S
+          + 'ClassType: ' + Event.Items.ClassName
+          + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
+      S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000) + ' s';
+      TimeMonitor.Append(S, ttDebug);
     end;
 end;
 
@@ -8502,7 +8548,14 @@ var
 begin
   case (View) of
     vBrowser:
-      Result := Desktop(TSTable(FNavigator.Selected.Data)).CreateDBGrid();
+      begin
+        // Debug 2017-01-19
+        if (not Assigned(FNavigator.Selected.Data)) then
+          raise ERangeError.Create('ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
+            + 'Text: ' + FNavigator.Selected.Text);
+
+        Result := Desktop(TSTable(FNavigator.Selected.Data)).CreateDBGrid();
+      end;
     vIDE:
       case (FNavigator.Selected.ImageIndex) of
         iiProcedure,
@@ -10577,10 +10630,16 @@ var
   Count: Integer;
   I: Integer;
   Kind: TPAccount.TDesktop.TListViewKind;
+  Start: Int64;
+  Finish: Int64;
+  Frequency: Int64;
+  S: string;
 begin
   if (Assigned(ListView)
     and (Assigned(Event.Items) or (Event.Sender is TSTable) or (Event.Sender is TSItemSearch))) then
   begin
+    if (not QueryPerformanceCounter(Start)) then Start := 0;
+
     RefreshColumnHeaders := False;
 
     ChangingEvent := ListView.OnChanging;
@@ -10657,6 +10716,19 @@ begin
 
     if (RefreshColumnHeaders and (ListViewSortData[Kind].Order <> 0)) then
       ListViewHeaderUpdate(ListView);
+
+    if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
+      if ((Finish - Start) div Frequency > 1) then
+      begin
+        S := 'ListViewUpdate - '
+          + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
+        if (Assigned(Event.Items)) then
+          S := S
+            + 'ClassType: ' + Event.Items.ClassName
+            + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
+        S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000) + ' s';
+        TimeMonitor.Append(S, ttDebug);
+      end;
   end;
 end;
 

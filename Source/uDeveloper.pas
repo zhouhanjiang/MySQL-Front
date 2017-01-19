@@ -45,7 +45,6 @@ procedure SendToDeveloper(const Text: string; const Days: Integer = 7; const Dis
 var
   OnlineVersion: Integer;
   OnlineRecommendedVersion: Integer;
-  MaxSendEventCount: Int64;
 
 implementation {***************************************************************}
 
@@ -395,7 +394,7 @@ constructor TCheckOnlineVersionThread.Create();
 begin
   PADFileStream := TStringStream.Create();
 
-  inherited Create(SysUtils.LoadStr(1005) + '?' + IntToStr(Random(High(Integer))), nil, PADFileStream);
+  inherited Create(SysUtils.LoadStr(1005), nil, PADFileStream);
 end;
 
 destructor TCheckOnlineVersionThread.Destroy();
@@ -905,9 +904,6 @@ end;
 {$ENDIF}
 
 initialization
-  MaxSendEventCount := 0;
-  Randomize();
-
   {$IFDEF EurekaLog}
   LogBuilderClass := TLogBuilder;
   RegisterEventExceptionNotify(nil, ExceptionNotify);

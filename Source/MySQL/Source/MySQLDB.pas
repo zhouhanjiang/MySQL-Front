@@ -1877,7 +1877,8 @@ begin
 
     if (Cache.UsedLen > 0) then
     begin
-      if (not Assigned(Cache.Mem) or (Cache.First >= Cache.MemLen)) then
+      // Debug 2017-01-19
+      if (not Assigned(Cache.Mem) or ((Cache.First + Cache.UsedLen - 1) >= Cache.MemLen)) then
         raise ERangeError.Create('Assigned(Mem): ' + BoolToStr(Assigned(Cache.Mem), True) + #13#10
           + 'First: ' + IntToStr(Cache.First) + #13#10
           + 'UsedLen: ' + IntToStr(Cache.UsedLen) + #13#10
