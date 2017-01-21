@@ -77,7 +77,7 @@ package, you have to make a right click -> Install.
 
 Now, please close Delphi again and call Build_Setup.bat. This will build the
 .res file for this program. If you did not install all tools for building the
-setup program, the Build_Setup.bat will fails - but this is not a problem,
+setup program, the Build_Setup.bat will fail - but this is not a problem,
 the .res file was build hopefully.
 
 Now you can start Delphi again and build the program to execute it.
@@ -88,4 +88,4 @@ Building the setup program:
 
 The setup program will be built with the Build_Setup.bat file.
 
-With Clean.bat all temporary files can be deleted easily.
+With Cleanup.bat all temporary files can be deleted easily.

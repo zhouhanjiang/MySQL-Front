@@ -540,7 +540,7 @@ begin
 
   FComment.Visible := Table.Session.Connection.MySQLVersion >= 50503; FLComment.Visible := FComment.Visible;
 
-  if (not Table.Update()) then
+  if (not ModifyTableOnly and not Table.Update()) then
     SessionState := ssTable
   else if (not Assigned(Key)) then
     SessionState := ssCreate
@@ -548,6 +548,9 @@ begin
     SessionState := ssInit
   else
     SessionState := ssValid;
+
+  if (SessionState <> ssTable) then
+    BuiltTable();
 
   if (not Assigned(Key)) then
   begin
@@ -568,8 +571,6 @@ begin
     FAvailableFieldsExit(nil);
   end;
 
-  if (SessionState <> ssTable) then
-    BuiltTable();
   if (SessionState = ssValid) then
     Built();
 

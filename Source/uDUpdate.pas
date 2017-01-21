@@ -242,8 +242,7 @@ begin
   begin
     SendToDeveloper('ErrorCode: ' + IntToStr(HTTPThread.ErrorCode) + #13#10
       + 'ErrorMessage: ' + HTTPThread.ErrorMessage);
-    MsgBox('Error #' + IntToStr(HTTPThread.ErrorCode) + #10
-      + HTTPThread.ErrorMessage, Preferences.LoadStr(45), MB_OK or MB_ICONERROR);
+    MsgBox(HTTPThread.ErrorMessage + ' (#' + IntToStr(HTTPThread.ErrorCode), Preferences.LoadStr(45), MB_OK or MB_ICONERROR);
   end
   else if (HTTPThread.ErrorCode <> 0) then
     RaiseLastOSError(HTTPThread.ErrorCode)

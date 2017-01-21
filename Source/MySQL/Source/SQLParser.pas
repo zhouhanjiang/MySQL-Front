@@ -27762,23 +27762,15 @@ begin
 end;
 
 function RemoveDatabaseName(const Stmt: TSQLParser.PStmt; const DatabaseName: string; const CaseSensitive: Boolean = False): string;
-type
-  Tstrcmp = function (lpString1, lpString2: PWideChar): Integer; stdcall;
 var
   Length: Integer;
   Text: PChar;
   Token: TSQLParser.PToken;
-  strcmp: Tstrcmp;
 begin
   if (not Assigned(Stmt)) then
     Result := ''
   else
   begin
-    if (CaseSensitive) then
-      strcmp := lstrcmp
-    else
-      strcmp := lstrcmpi;
-
     Stmt^.Parser.Commands := TSQLParser.TFormatBuffer.Create();
 
     Token := Stmt^.FirstToken;
@@ -27786,7 +27778,8 @@ begin
     begin
       if ((Token^.DbIdentType = ditDatabase)
         and Assigned(Token^.NextToken) and (Token^.NextToken^.TokenType = ttDot)
-        and (strcmp(PChar(Token^.AsString), PChar(DatabaseName)) = 0)) then
+        and (CaseSensitive and (StrComp(PChar(Token^.AsString), PChar(DatabaseName)) = 0)
+          or not CaseSensitive and (StrIComp(PChar(Token^.AsString), PChar(DatabaseName)) = 0))) then
         Token := Token^.NextTokenAll
       else
       begin
@@ -27807,24 +27800,16 @@ begin
 end;
 
 function RemoveTableName(const Stmt: TSQLParser.PStmt; const TableName: string; const CaseSensitive: Boolean = False): string;
-type
-  Tstrcmp = function (lpString1, lpString2: PWideChar): Integer; stdcall;
 var
   Length: Integer;
   Text: PChar;
   Token: TSQLParser.PToken;
   PreviousToken: TSQLParser.PToken;
-  strcmp: Tstrcmp;
 begin
   if (not Assigned(Stmt)) then
     Result := ''
   else
   begin
-    if (CaseSensitive) then
-      strcmp := lstrcmp
-    else
-      strcmp := lstrcmpi;
-
     Stmt^.Parser.Commands := TSQLParser.TFormatBuffer.Create();
 
     Token := Stmt^.FirstToken; PreviousToken := nil;
@@ -27833,7 +27818,8 @@ begin
       if ((not Assigned(PreviousToken) or (PreviousToken.TokenType <> ttDot))
         and (Token^.DbIdentType = ditTable)
         and Assigned(Token^.NextToken) and (Token^.NextToken^.TokenType = ttDot)
-        and (strcmp(PChar(Token^.AsString), PChar(TableName)) = 0)) then
+        and (CaseSensitive and (StrComp(PChar(Token^.AsString), PChar(TableName)) = 0)
+          or not CaseSensitive and (StrIComp(PChar(Token^.AsString), PChar(TableName)) = 0))) then
         Token := Token^.NextTokenAll
       else
       begin

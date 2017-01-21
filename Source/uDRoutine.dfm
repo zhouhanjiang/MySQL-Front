@@ -278,6 +278,10 @@ object DRoutine: TDRoutine
       Caption = 'TSDependencies'
       ImageIndex = 3
       OnShow = TSDependenciesShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         297)

@@ -341,7 +341,6 @@ end;
 procedure TDForeignKey.FormShow(Sender: TObject);
 var
   I: Integer;
-  J: Integer;
 begin
   Table.Session.RegisterEventProc(FormSessionEvent);
 
@@ -367,23 +366,11 @@ begin
   FDatabase.Text := Table.Database.Name;
   FTable.Text := Table.Name;
 
-  FFields.Items.BeginUpdate();
-  for I := 0 to Table.Fields.Count - 1 do
-  begin
-    FFields.Items.Add(Table.Fields[I].Name);
-    if (Assigned(ForeignKey)) then
-      for J := 0 to Length(ForeignKey.Fields) - 1 do
-        if (Table.Fields.NameCmp(ForeignKey.Fields[J].Name, Table.Fields[I].Name) = 0) then
-          FFields.Selected[I] := True;
-  end;
-  FFields.Items.EndUpdate();
-
   FParentDatabase.Clear();
+  FParentFields.Clear();
   for I := 0 to Table.Session.Databases.Count - 1 do
     if (not (Table.Session.Databases[I] is TSSystemDatabase)) then
       FParentDatabase.Items.Add(Table.Session.Databases[I].Name);
-
-  FParentFields.Clear();
 
   FName.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
   FLName.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013);
@@ -395,7 +382,7 @@ begin
   FOnDelete.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013); FLOnDelete.Enabled := FOnDelete.Enabled;
   FOnUpdate.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.MySQLVersion >= 40013); FLOnUpdate.Enabled := FOnUpdate.Enabled;
 
-  if (not Table.Update()) then
+  if (not ModifyTableOnly and not Table.Update()) then
     SessionState := ssTable
   else if (not Assigned(ForeignKey)) then
     SessionState := ssCreate
@@ -403,6 +390,9 @@ begin
     SessionState := ssInit
   else
     SessionState := ssValid;
+
+  if (SessionState <> ssTable) then
+    BuiltTable();
 
   if (not Assigned(ForeignKey)) then
   begin
@@ -420,8 +410,6 @@ begin
     FOnUpdate.ItemIndex := 0;
   end;
 
-  if (SessionState <> ssTable) then
-    BuiltTable();
   if (SessionState = ssValid) then
     Built();
 

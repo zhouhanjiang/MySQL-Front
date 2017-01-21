@@ -183,7 +183,7 @@ begin
       while ((Index < CallStack.Count) and (StackItem < 2)) do
       begin
         Item := CallStack.GetItem(1, Buffer); GetModuleFileName(GetModuleHandle(nil), @Filename, Length(Filename));
-        if ((Item^.Location.DebugDetail = ddSourceCode) and (lstrcmpI(PChar(Item^.Location.ModuleName), PChar(@Filename)) = 0)) then
+        if ((Item^.Location.DebugDetail = ddSourceCode) and (StrIComp(PChar(Item^.Location.ModuleName), PChar(@Filename)) = 0)) then
           Inc(StackItem);
         Inc(Index);
       end;
@@ -371,7 +371,7 @@ begin
     if ((INTERNET_ERROR_BASE <= FErrorCode) and (FErrorCode <= INTERNET_ERROR_LAST)) then
     begin
       Len := FormatMessage(FORMAT_MESSAGE_FROM_HMODULE,
-        Pointer(GetModuleHandle('Wininet.dll')), GetLastError(), 0, @MessageBuffer, Length(MessageBuffer), nil);
+        Pointer(GetModuleHandle('Wininet.dll')), FErrorCode, 0, @MessageBuffer, Length(MessageBuffer), nil);
       while (Len > 0) and (CharInSet(MessageBuffer[Len - 1], [#0..#32])) do Dec(Len);
       SetString(FErrorMessage, PChar(@MessageBuffer[0]), Len);
     end
@@ -801,17 +801,7 @@ begin
     Result := Result + ExceptionInfo.CallStack.ToString + #13#10;
   end;
 
-  if (GetCurrentThreadId() <> MainThreadId) then
-  begin
-    Result := Result + #13#10;
-    Result := Result + 'ThreadID: ' + IntToStr(GetCurrentThreadId()) + #13#10;
-  end
-  else if (Sessions.Count = 0) then
-  begin
-    Result := Result + #13#10;
-    Result := Result + 'No open sessions' + #13#10;
-  end
-  else
+  if (GetCurrentThreadId() = MainThreadId) then
     for I := 0 to Sessions.Count - 1 do
     begin
       Result := Result + #13#10;

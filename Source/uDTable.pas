@@ -1303,7 +1303,10 @@ begin
 
   ActiveControl := FBCancel;
   if (PageControl.Visible) then
+  begin
+    FName.SelectAll();
     ActiveControl := FName;
+  end;
 end;
 
 procedure TDTable.FPartitionsNumberChange(Sender: TObject);

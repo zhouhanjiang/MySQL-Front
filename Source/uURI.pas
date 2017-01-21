@@ -336,6 +336,8 @@ begin
   else
     Items.Values[AName] := Value;
 
+  Items.Sort();
+
   FExtraInfos := ReplaceStr(Trim(Items.Text), #13#10, '&');
 
   if (FExtraInfos <> '') then

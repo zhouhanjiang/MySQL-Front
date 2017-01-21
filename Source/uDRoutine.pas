@@ -114,7 +114,7 @@ begin
   FComment.Text := SQLUnwrapStmt(Routine.Comment, Database.Session.Connection.MySQLVersion);
 
   if (Double(Routine.Created) = 0) then FCreated.Caption := '???' else FCreated.Caption := SysUtils.DateTimeToStr(Routine.Created, LocaleFormatSettings);
-  if (Double(Routine.Modified) = 0) then FUpdated.Caption := '???' else FUpdated.Caption := SysUtils.DateTimeToStr(Routine.Modified, LocaleFormatSettings);
+  if (Double(Routine.Updated) = 0) then FUpdated.Caption := '???' else FUpdated.Caption := SysUtils.DateTimeToStr(Routine.Updated, LocaleFormatSettings);
   FDefiner.Caption := Routine.Definer;
 
   FSize.Caption := FormatFloat('#,##0', Length(Routine.Source), LocaleFormatSettings);

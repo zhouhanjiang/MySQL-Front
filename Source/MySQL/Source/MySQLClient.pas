@@ -1904,7 +1904,7 @@ begin
   Result := 0;
 
   for I := 0 to Length(MySQL_Collations) - 1 do
-    if (lstrcmpa(MySQL_Collations[I].CharsetName, PAnsiChar(fcharacter_set_name)) = 0) then
+    if (AnsiStrings.StrIComp(MySQL_Collations[I].CharsetName, PAnsiChar(fcharacter_set_name)) = 0) then
       Result := MySQL_Collations[I].CodePage;
 
   if (Result = 0) then

@@ -3457,6 +3457,8 @@ begin
 end;
 
 procedure TPAccount.Save();
+var
+  Filename: TFileName;
 begin
   if (Assigned(XML)) then
   begin
@@ -3475,16 +3477,22 @@ begin
 
     if (ForceDirectories(DataPath)) then
     begin
-      try
-        if (DesktopXMLDocument.Modified) then
-          if (ForceDirectories(ExtractFilePath(DesktopFilename))) then
-            DesktopXMLDocument.SaveToFile(DesktopFilename);
+      if (DesktopXMLDocument.Modified) then
+        if (ForceDirectories(ExtractFilePath(DesktopFilename))) then
+        begin
+          Filename := DesktopFilename;
+          SetLastError(0); // Debug 2017-01-20
+          try
+            DesktopXMLDocument.SaveToFile(Filename);
+          except
+            // Do not inform user about problems while saving file
+          end;
+          if (GetLastError() <> 0) then
+            SendToDeveloper('Error: ' + IntToStr(GetLastError()));
+        end;
         if (Assigned(HistoryXMLDocument) and HistoryXMLDocument.Modified) then
           if (ForceDirectories(ExtractFilePath(HistoryFilename))) then
             HistoryXMLDocument.SaveToFile(HistoryFilename);
-      except
-        // Do not inform user about problems while saving file
-      end;
     end;
 
     Modified := False;

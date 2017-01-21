@@ -669,7 +669,7 @@ begin
   else
   begin
     Node := FDestination.Selected;
-    while (Assigned(Node.Parent)) do Node := Node.Parent;
+    while (Assigned(Node) and Assigned(Node.Parent)) do Node := Node.Parent;
     DestinationSession := GetSession(Node);
     if (not DestinationSession.Databases.Update()) then
       Wanted.Page := TSExecute;

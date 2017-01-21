@@ -494,7 +494,7 @@ begin
 
   for I := 0 to MainActionList.ActionCount - 1 do
     if (not Assigned(Result)) then
-      if (MainActionList.Actions[I].Name = Name) then
+      if ((MainActionList.Actions[I].Name = Name) and (MainActionList.Actions[I] is TAction)) then
         Result := TAction(MainActionList.Actions[I]);
 
   {$IFOPT R+}

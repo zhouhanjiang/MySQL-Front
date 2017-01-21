@@ -380,6 +380,12 @@ begin
     raise ERangeError.Create('Progress: ' + Progress);
   // Occurred 2017-01-08 Progress: 2abnqrlmsxylmlmAfhi
   Progress := Progress + 'c';
+
+  // 2017-01-20
+  if (not Visible) then
+    Progress := Progress + '-'
+  else
+    Progress := Progress + '+';
 end;
 
 procedure TDImport.FBBackClick(Sender: TObject);
@@ -574,7 +580,8 @@ begin
         + 'CodePage: ' + IntToStr(CodePage) + #13#10
         + 'SObject = SObjectDebug: ' + BoolToStr(SObject = SObjectDebug, True) + #13#10
         + 'ThreadID: ' + IntToStr(GetCurrentThreadId()) + #13#10
-        + 'Destroying: ' + BoolToStr(csDestroying in ComponentState));
+        + 'Destroying: ' + BoolToStr(csDestroying in ComponentState, True) + #13#10
+        + 'Visible: ' + BoolToStr(Visible));
       // SObject.Class names shows cryptical data - but always nearly the same...
 
 
@@ -675,7 +682,8 @@ begin
         + 'SObject = SObjectDebug: ' + BoolToStr(SObject = SObjectDebug, True) + #13#10
         + 'SObject: ' + SObject.ClassName + #13#10
         + 'ThreadID: ' + IntToStr(GetCurrentThreadId()) + #13#10
-        + 'Destroying: ' + BoolToStr(csDestroying in ComponentState));
+        + 'Destroying: ' + BoolToStr(csDestroying in ComponentState, True) + #13#10
+        + 'Visible: ' + BoolToStr(Visible));
   // Occurred 2017-01-05 Progress: abenqrsxyfhifhifhifhifhifhi
   // Occurred 2017-01-05 Progress: 2abnsqrxylmlmAfhi, ImportType: 1
   // Occurred 2017-01-07 Progress: 2abnsqrxylmlmlmlmlmlmlmlm .. lmlmlmlmAfhi, ImportType: 1

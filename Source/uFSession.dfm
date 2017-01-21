@@ -177,6 +177,7 @@ object FSession: TFSession
         ShowLines = False
         ShowRoot = False
         TabOrder = 0
+        OnAdvancedCustomDrawItem = FNavigatorAdvancedCustomDrawItem
         OnChange = FNavigatorChange
         OnChanging = FNavigatorChanging
         OnCollapsed = TreeViewCollapsed
@@ -195,6 +196,7 @@ object FSession: TFSession
         OnKeyPress = FNavigatorKeyPress
         OnKeyUp = FNavigatorKeyUp
         OnMouseDown = TreeViewMouseDown
+        OnMouseMove = FNavigatorMouseMove
         OnMouseUp = TreeViewMouseUp
       end
     end
@@ -1263,7 +1265,7 @@ object FSession: TFSession
       end
     end
     object FObjectSearch: TEdit
-      Left = 19712
+      Left = 50528
       Top = 0
       Width = 140
       Height = 22
@@ -1275,10 +1277,10 @@ object FSession: TFSession
       OnExit = FObjectSearchExit
       OnKeyPress = FObjectSearchKeyPress
       OnMouseDown = FObjectSearchMouseDown
-      ExplicitLeft = 15863
+      ExplicitLeft = 32752
     end
     object TBObjectSearch: TToolBar
-      Left = 21863
+      Left = 50495
       Top = 0
       Width = 23
       Height = 22
@@ -1287,7 +1289,7 @@ object FSession: TFSession
       TabOrder = 3
       Transparent = True
       Visible = False
-      ExplicitLeft = 17607
+      ExplicitLeft = 32752
       object FObjectSearchStart: TToolButton
         Left = 0
         Top = 0
@@ -1624,10 +1626,10 @@ object FSession: TFSession
       Caption = '-'
     end
     object miNCopy: TMenuItem
-      Caption = 'aECopy'
+      Caption = 'miNCopy'
     end
     object miNPaste: TMenuItem
-      Caption = 'aEPaste'
+      Caption = 'miNPaste'
     end
     object N08: TMenuItem
       Caption = '-'
@@ -2137,7 +2139,7 @@ object FSession: TFSession
       Caption = '-'
     end
     object mwDEmpty: TMenuItem
-      Caption = 'aDEmpty'
+      Caption = 'mwDEmpty'
     end
     object N34: TMenuItem
       Caption = '-'

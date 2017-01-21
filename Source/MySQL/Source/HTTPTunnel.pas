@@ -613,7 +613,7 @@ begin
                     CharsetNr := 0;
 
                     for I := 0 to Length(MySQL_Collations) - 1 do
-                      if ((lstrcmpiA(MySQL_Collations[I].CharsetName, PAnsiChar(fcharacter_set_name)) = 0) and MySQL_Collations[I].Default) then
+                      if ((AnsiStrings.StrIComp(MySQL_Collations[I].CharsetName, PAnsiChar(fcharacter_set_name)) = 0) and MySQL_Collations[I].Default) then
                       begin
                         CharsetNr := MySQL_Collations[I].CharsetNr;
                         fcharacter_set_name := MySQL_Collations[I].CharsetName;

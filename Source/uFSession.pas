@@ -34,7 +34,7 @@ const
 
 type
   TSynMemoBeforeDrag = record SelStart: Integer; SelLength: Integer; end;
-  TListViewSortRec = record Kind: TPAccount.TDesktop.TListViewKind; Index: Integer; Order: Integer; end;
+  TListViewSortRec = record Kind: TPAccount.TDesktop.TListViewKind; ColumnIndex: Integer; Order: Integer; end;
   TListViewSortData = array [Low(TPAccount.TDesktop.TListViewKind) .. High(TPAccount.TDesktop.TListViewKind)] of TListViewSortRec;
 
 type
@@ -452,6 +452,9 @@ type
     procedure FLimitEnabledClick(Sender: TObject);
     procedure FLogEnter(Sender: TObject);
     procedure FLogExit(Sender: TObject);
+    procedure FNavigatorAdvancedCustomDrawItem(Sender: TCustomTreeView;
+      Node: TTreeNode; State: TCustomDrawState; Stage: TCustomDrawStage;
+      var PaintImages, DefaultDraw: Boolean);
     procedure FNavigatorChange(Sender: TObject; Node: TTreeNode);
     procedure FNavigatorChange2(Sender: TObject; Node: TTreeNode);
     procedure FNavigatorChanging(Sender: TObject; Node: TTreeNode;
@@ -472,6 +475,8 @@ type
     procedure FNavigatorKeyPress(Sender: TObject; var Key: Char);
     procedure FNavigatorKeyUp(Sender: TObject; var Key: Word;
       Shift: TShiftState);
+    procedure FNavigatorMouseMove(Sender: TObject; Shift: TShiftState; X,
+      Y: Integer);
     procedure FObjectSearchChange(Sender: TObject);
     procedure FObjectSearchExit(Sender: TObject);
     procedure FObjectSearchKeyPress(Sender: TObject; var Key: Char);
@@ -566,6 +571,9 @@ type
     procedure miHOpenClick(Sender: TObject);
     procedure miHPropertiesClick(Sender: TObject);
     procedure miHStatementIntoSQLEditorClick(Sender: TObject);
+    procedure miNFavoriteAddClick(Sender: TObject);
+    procedure miNFavoriteRemoveClick(Sender: TObject);
+    procedure miNFavoriteOpenClick(Sender: TObject);
     procedure MListPopup(Sender: TObject);
     procedure mlOpenClick(Sender: TObject);
     procedure MNavigatorPopup(Sender: TObject);
@@ -634,9 +642,6 @@ type
       Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure TreeViewMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
-    procedure miNFavoriteAddClick(Sender: TObject);
-    procedure miNFavoriteRemoveClick(Sender: TObject);
-    procedure miNFavoriteOpenClick(Sender: TObject);
   type
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
     TTabState = set of (tsLoading, tsActive);
@@ -846,6 +851,8 @@ type
     FFolders: TJamShellTree;
     FHTML: TWebBrowser;
     FilterMRU: TPPreferences.TMRUList;
+    FNavigatorDragDisabled: Boolean;
+    FNavigatorHotTrackDisabled: Boolean;
     FNavigatorIgnoreChange: Boolean;
     FNavigatorKeyDownNode: TTreeNode;
     FNavigatorMenuNode: TTreeNode;
@@ -873,7 +880,6 @@ type
     ObjectSearch: TSItemSearch;
     ObjectSearchListView: TListView;
     OldAddress: string;
-    OldFListOrderIndex: Integer;
     PanelMouseDownPoint: TPoint;
     Param: string;
     PasteMode: Boolean;
@@ -928,7 +934,7 @@ type
     procedure BeginEditLabel(Sender: TObject);
     procedure SessionUpdate(const Event: TSSession.TEvent);
     function ColumnWidthKindByListView(const ListView: TListView): TPAccount.TDesktop.TListViewKind;
-    procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
+    procedure CMSysFontChanged(var Msg: TMessage); message CM_SYSFONTCHANGED;
     function CreateDesktop(const CObject: TSObject): TSObject.TDesktop;
     procedure CreateExplorer();
     function CreateDBGrid(const PDBGrid: TPanel_Ext; const DataSource: TDataSource): TMySQLDBGrid;
@@ -1023,18 +1029,18 @@ type
     procedure SynMemoApplyPreferences(const SynMemo: TSynMemo);
     procedure TableOpen(Sender: TObject);
     procedure TCResultMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
-    procedure UMActivateDBGrid(var Message: TMessage); message UM_ACTIVATE_DBGRID;
-    procedure UMActivateFText(var Message: TMessage); message UM_ACTIVATEFTEXT;
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
-    procedure UMCloseFrame(var Message: TMessage); message UM_CLOSE_FRAME;
-    procedure UMCloseTabQuery(var Message: TMessage); message UM_CLOSE_TAB_QUERY;
-    procedure UMFrameActivate(var Message: TMessage); message UM_ACTIVATEFRAME;
-    procedure UMFrameDeactivate(var Message: TMessage); message UM_DEACTIVATEFRAME;
-    procedure UMPostBuilderQueryChange(var Message: TMessage); message UM_POST_BUILDER_QUERY_CHANGE;
-    procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
-    procedure UMStausBarRefresh(var Message: TMessage); message UM_STATUS_BAR_REFRESH;
-    procedure UMSynCompletionTime(var Message: TMessage); message UM_SYNCOMPLETION_TIMER;
-    procedure UMWantedSynchronize(var Message: TMessage); message UM_WANTED_SYNCHRONIZE;
+    procedure UMActivateDBGrid(var Msg: TMessage); message UM_ACTIVATE_DBGRID;
+    procedure UMActivateFText(var Msg: TMessage); message UM_ACTIVATEFTEXT;
+    procedure UMChangePreferences(var Msg: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMCloseFrame(var Msg: TMessage); message UM_CLOSE_FRAME;
+    procedure UMCloseTabQuery(var Msg: TMessage); message UM_CLOSE_TAB_QUERY;
+    procedure UMFrameActivate(var Msg: TMessage); message UM_ACTIVATEFRAME;
+    procedure UMFrameDeactivate(var Msg: TMessage); message UM_DEACTIVATEFRAME;
+    procedure UMPostBuilderQueryChange(var Msg: TMessage); message UM_POST_BUILDER_QUERY_CHANGE;
+    procedure UMPostShow(var Msg: TMessage); message UM_POST_SHOW;
+    procedure UMStausBarRefresh(var Msg: TMessage); message UM_STATUS_BAR_REFRESH;
+    procedure UMSynCompletionTime(var Msg: TMessage); message UM_SYNCOMPLETION_TIMER;
+    procedure UMWantedSynchronize(var Msg: TMessage); message UM_WANTED_SYNCHRONIZE;
     function UpdateAfterAddressChanged(): Boolean;
     procedure ViewChanged(Sender: TObject);
     function ViewToParam(const AView: TView): Variant;
@@ -1049,9 +1055,9 @@ type
     procedure WorkbenchExit(Sender: TObject);
     procedure WorkbenchPasteExecute(Sender: TObject);
     function WorkbenchValidateControl(Sender: TObject; Control: TWControl): Boolean;
-    procedure WMNotify(var Message: TWMNotify); message WM_NOTIFY;
-    procedure WMParentNotify(var Message: TWMParentNotify); message WM_PARENTNOTIFY;
-    procedure WMTimer(var Message: TWMTimer); message WM_TIMER;
+    procedure WMNotify(var Msg: TWMNotify); message WM_NOTIFY;
+    procedure WMParentNotify(var Msg: TWMParentNotify); message WM_PARENTNOTIFY;
+    procedure WMTimer(var Msg: TWMTimer); message WM_TIMER;
     property EditorField: TField read GetEditorField;
     property FocusedSItem: TSItem read GetFocusedSItem;
     property MenuDatabase: TSDatabase read GetMenuDatabase;
@@ -2056,7 +2062,6 @@ var
   TempAction: TAction;
   TempAddress: string;
   TempUpdate: TSSession.TUpdate;
-  URI: TUURI;
 begin
   if (Assigned(Action)) then
   begin
@@ -2068,28 +2073,10 @@ begin
   begin
     TempAddress := Address;
     Clear();
-
-    // Debug 2016-12-16
-    URI := TUURI.Create(TempAddress);
-    if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
-      raise ERangeError.Create('Address: ' + TempAddress);
-    if ((URI.Param['view'] = 'ide') and (URI.Database = '')) then
-      raise ERangeError.Create('Address: ' + TempAddress);
-    URI.Free();
-
     FSession.Address := TempAddress;
-    if (Nothing and (FSession.Address <> TempAddress)) then
-    begin
-      URI := TUURI.Create();
-      URI.Address := TempAddress;
-      URI.Database := '';
-      URI.Table := '';
-      URI.Param['view'] := Null;
-      URI.Param['objecttype'] := Null;
-      URI.Param['object'] := Null;
-      FSession.Address := URI.Address;
-      URI.Free();
-    end;
+
+    if ((FSession.Address <> TempAddress) and not FSession.Session.Connection.InUse()) then
+      FSession.Address := FSession.Session.Account.ExpandAddress('/');
   end
   else if (Assigned(Update)) then
   begin
@@ -2680,12 +2667,12 @@ begin
     if (URI.Param['system'] = 'processes') then
     begin
       Session.Processes.Invalidate();
-      Session.Processes.Update();
+      Session.Update();
     end
     else if (URI.Param['system'] = 'users') then
-      Session.Users.Update()
+      Session.Update()
     else if (URI.Param['system'] = 'variables') then
-      Session.Variables.Update()
+      Session.Update()
     else if (URI.Database = '') then
       Session.Update(nil, URI.Param['view'] = Null)
     else if (not Session.Databases.Update()) then
@@ -4056,7 +4043,7 @@ var
 begin
   // Debug 2017-01-17
   if (Address = '') then
-    raise ERangeError.Create(SRangeError);
+    raise ERangeError.Create('Loading: ' + BoolToStr(tsLoading in FrameState, True));
 
   if (Sender = MainAction('aVObjects')) then
     NewView := vObjects
@@ -4449,6 +4436,7 @@ begin
   CloseButtonNormal := nil;
   CloseButtonPushed := nil;
   CloseButtonHot := nil;
+  FAddress := '';
   FAddresses := TStringList.Create();
   ObjectSearch := nil;
   ObjectSearchListView := nil;
@@ -4459,12 +4447,14 @@ begin
   for Kind := Low(ListViewSortData) to High(ListViewSortData) do
   begin
     ListViewSortData[Kind].Kind := Kind;
-    ListViewSortData[Kind].Index := 0;
+    ListViewSortData[Kind].ColumnIndex := 0;
     if (Kind = lkTable) then
       ListViewSortData[Kind].Order := 0
     else
       ListViewSortData[Kind].Order := 1;
   end;
+  FNavigatorDragDisabled := False;
+  FNavigatorHotTrackDisabled := False;
   FNavigatorIgnoreChange := False;
   FNavigatorNodeAfterActivate := nil;
   FNavigatorNodeToExpand := nil;
@@ -4698,8 +4688,6 @@ begin
   LastTableView := vObjects;
 
 
-  OldFListOrderIndex := -1;
-
   Session.CreateDesktop := CreateDesktop;
   Session.RegisterEventProc(FormSessionEvent);
   Session.Account.Favorites.RegisterEventProc(FavoritesEvent);
@@ -4733,7 +4721,7 @@ begin
     and not (WS_THICKFRAME or WS_SYSMENU or WS_DLGFRAME or WS_BORDER);
 end;
 
-procedure TFSession.CMSysFontChanged(var Message: TMessage);
+procedure TFSession.CMSysFontChanged(var Msg: TMessage);
 var
   Color: TColor;
   LogFont: TLogFont;
@@ -5668,17 +5656,16 @@ procedure TFSession.DBGridDblClick(Sender: TObject);
 var
   DBGrid: TMySQLDBGrid;
 begin
-  if (not (Sender is TMySQLDBGrid)) then
-    raise ERangeError.Create(SRangeError)
-  else
-    DBGrid := TMySQLDBGrid(Sender);
+  Assert(Sender is TMySQLDBGrid);
+
+  DBGrid := TMySQLDBGrid(Sender);
 
   Wanted.Clear();
 
   // Debug 2017-01-05
   if (not DBGrid.DataSource.Enabled) then
-    raise ERangeERror.Create('ClassType: ' + DBGrid.ClassName + #13#10
-      + 'Name: ' + DBGrid.Name);
+    raise ERangeERror.Create('Visible: ' + BoolToStr(DBGrid.Visible, True) + #13#10
+      + 'Assigned(DataSet): ' + BoolToStr(Assigned(DBGrid.DataSource.DataSet), True));
 
   if (DBGrid.DataSource.DataSet.CanModify) then
     if (not Assigned(DBGrid.SelectedField) or not (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob])) then
@@ -6085,7 +6072,7 @@ begin
   Session.CreateDesktop := nil;
 
   if (TimeMonitor.CacheText <> '') then
-    SendToDeveloper(TimeMonitor.CacheText, 1);
+    SendToDeveloper(TimeMonitor.CacheText, 2);
   TimeMonitor.Free();
 
   FNavigatorChanging(nil, nil, TempB);
@@ -6539,8 +6526,6 @@ end;
 
 procedure TFSession.FLogEnter(Sender: TObject);
 begin
-  MainAction('aSSearchReplace').Enabled := False;
-
   MainAction('aHIndex').ShortCut := 0;
   MainAction('aHSQL').ShortCut := ShortCut(VK_F1, []);
 end;
@@ -6559,6 +6544,14 @@ begin
 
     PLogResize(nil);
   end;
+end;
+
+procedure TFSession.FNavigatorAdvancedCustomDrawItem(Sender: TCustomTreeView;
+  Node: TTreeNode; State: TCustomDrawState; Stage: TCustomDrawStage;
+  var PaintImages, DefaultDraw: Boolean);
+begin
+  if (cdsDropHilited in State) then
+    Write;
 end;
 
 procedure TFSession.FNavigatorChange(Sender: TObject; Node: TTreeNode);
@@ -6739,7 +6732,7 @@ begin
   begin
     SourceItem := TListView(Source).Selected;
     if (TargetNode.ImageIndex = iiQuickAccess) then
-      Accept := (TListView(Source).Parent = PListView)
+      Accept := True or (TListView(Source).Parent = PListView)
         and (SourceItem.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger])
     else
       case (SourceItem.ImageIndex) of
@@ -7015,6 +7008,45 @@ begin
   FNavigatorIgnoreChange := False;
 end;
 
+procedure TFSession.FNavigatorMouseMove(Sender: TObject; Shift: TShiftState; X,
+  Y: Integer);
+var
+  Node: TTreeNode;
+begin
+  if (not Dragging(FNavigator)) then
+  begin
+    Node := FNavigator.GetNodeAt(X, Y);
+
+    if (Assigned(Node) and (Node.ImageIndex < 0)) then
+    begin
+      if (FNavigator.HotTrack) then
+      begin
+        FNavigator.HotTrack := False;
+        FNavigatorHotTrackDisabled := True;
+      end;
+    end
+    else if (FNavigatorHotTrackDisabled) then
+    begin
+      FNavigator.HotTrack := True;
+      FNavigatorHotTrackDisabled := False;
+    end;
+
+    if (Assigned(Node) and (Node.ImageIndex < 0)) then
+    begin
+      if (FNavigator.DragMode = dmAutomatic) then
+      begin
+        FNavigator.DragMode := dmManual;
+        FNavigatorDragDisabled := True;
+      end;
+    end
+    else if (FNavigatorDragDisabled) then
+    begin
+      FNavigator.DragMode := dmAutomatic;
+      FNavigatorDragDisabled := False;
+    end;
+  end;
+end;
+
 function TFSession.FNavigatorNodeByAddress(const Address: string): TTreeNode;
 var
   AllowExpansion: Boolean;
@@ -7173,64 +7205,27 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
       raise ERangeError.Create(SRangeError);
   end;
 
-  procedure InsertOrUpdateChild(const Node: TTreeNode; const Data: TObject);
+  procedure InsertOrUpdateChild(const Parent: TTreeNode; const Data: TObject);
   var
     Added: Boolean;
-    C: Integer;
     Child: TTreeNode;
-    I: Integer;
-    Index: Integer;
-    Left: Integer;
-    Mid: Integer;
-    MidChild: TTreeNode;
-    NodeCount: Integer;
-    OldMid: Integer;
-    Right: Integer;
+    Node: TTreeNode;
     Text: string;
-    VirtualChild: TTreeNode;
   begin
-    Index := 0;
-    Child := Node.getFirstChild();
-    while (Assigned(Child) and (Child.Data <> Data)) do
+    Node := TTreeNode.Create(Parent.Owner);
+    Node.Data := Data;
+    Node.ImageIndex := ImageIndexByData(Data);
+    Node.Text := TSItem(Data).Caption;
+
+    Child := Parent.getFirstChild();
+    while (Assigned(Child)) do
     begin
+      if (Compare(Child, Node) >= 0) then
+        break;
       Child := Child.getNextSibling();
-      Inc(Index);
     end;
 
-    NodeCount := Node.Count;
-    if ((Index = NodeCount) and (NodeCount > 0)) then
-    begin
-      VirtualChild := TTreeNode.Create(Node.Owner);
-      VirtualChild.Data := Data;
-      VirtualChild.ImageIndex := ImageIndexByData(Data);
-      VirtualChild.Text := TSItem(Data).Caption;
-
-      Left := 0; C := 0; OldMid := 0; MidChild := Node.getFirstChild();
-      Right := NodeCount - 1;
-      while (Left <= Right) do
-      begin
-        Mid := (Right - Left) div 2 + Left;
-        if (Mid < OldMid) then
-          for I := OldMid downto Mid + 1 do
-            MidChild := MidChild.getPrevSibling()
-        else if (Mid > OldMid) then
-          for I := OldMid to Mid - 1 do
-            MidChild := MidChild.getNextSibling();
-        OldMid := Mid;
-        C := Compare(MidChild, VirtualChild);
-        case (C) of
-          -1: begin Left := Mid + 1; Index := Mid + 1; end;
-          0: raise ERangeError.Create(SRangeError);
-          1: begin Right := Mid - 1; Index := Mid; end;
-        end;
-      end;
-      if (C = -1) then
-        Child := MidChild.getNextSibling()
-      else
-        Child := MidChild;
-
-      VirtualChild.Free();
-    end;
+    Node.Free();
 
     if (TObject(Data) is TSItem) then
       Text := TSItem(Data).Caption
@@ -7243,9 +7238,9 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
     else
       raise ERangeError.Create(SRangeError);
 
-    if (Index = NodeCount) then
+    if (not Assigned(Child)) then
     begin
-      Child := FNavigator.Items.AddChild(Node, Text);
+      Child := FNavigator.Items.AddChild(Parent, Text);
       Added := True;
     end
     else if (Child.Data <> Data) then
@@ -7264,7 +7259,7 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
       SetNodeBoldState(Child, (Child.ImageIndex = iiKey) and TSKey(Child.Data).PrimaryKey or (Child.ImageIndex in [iiField, iiVirtualField]) and TSTableField(Child.Data).InPrimaryKey);
   end;
 
-  procedure AddChild(const Node: TTreeNode; const Data: TObject);
+  procedure AddChild(const Parent: TTreeNode; const Data: TObject);
   var
     Child: TTreeNode;
     Text: string;
@@ -7280,7 +7275,7 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
     else
       raise ERangeError.Create(SRangeError);
 
-    Child := FNavigator.Items.AddChild(Node, Text);
+    Child := FNavigator.Items.AddChild(Parent, Text);
     Child.Data := Data;
     Child.ImageIndex := ImageIndexByData(Data);
     Child.Text := Text;
@@ -7288,82 +7283,84 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
       Child.HasChildren := True;
     if (Assigned(Child)) then
       SetNodeBoldState(Child, (Child.ImageIndex = iiKey) and TSKey(Child.Data).PrimaryKey or (Child.ImageIndex in [iiField, iiVirtualField]) and TSTableField(Child.Data).InPrimaryKey);
-
-    // Debug 2016-12-08
-    if (not Assigned(Child.Data)) then
-      raise ERangeError.Create(SRangeError);
   end;
 
-  procedure DeleteNode(const Node: TTreeNode);
+  procedure DeleteChild(const Child: TTreeNode);
   var
-    N: TTreeNode;
+    Node: TTreeNode;
   begin
-    N := FNavigatorNodeToExpand;
-    while (Assigned(N)) do
+    Node := FNavigatorNodeToExpand;
+    while (Assigned(Node)) do
     begin
-      if (Node = N) then
+      if (Child = Node) then
         FNavigatorNodeToExpand := nil;
-      N := N.Parent;
+      Node := Node.Parent;
     end;
 
-
-    Node.Data := nil;
-    Node.Delete();
+    Child.Data := nil;
+    Child.Delete();
   end;
 
-  procedure UpdateGroup(const Node: TTreeNode; const GroupID: Integer; const SItems: TSItems);
+  procedure UpdateGroup(const Parent: TTreeNode; const GroupID: Integer; const Items: TSItems);
   var
     Add: Boolean;
     Child: TTreeNode;
-    DeleteChild: TTreeNode;
     Destination: TTreeNode;
+    Node: TTreeNode;
     I: Integer;
   begin
     case (Event.EventType) of
-      etItemsValid,
-      etItemValid:
+      etItemsValid:
         begin
-          Child := Node.getFirstChild();
+          Child := Parent.getFirstChild();
           while (Assigned(Child)) do
-            if ((GroupIDByImageIndex(Child.ImageIndex) <> GroupID) or (SItems.IndexOf(Child.Data) >= 0)) then
+            if ((GroupIDByImageIndex(Child.ImageIndex) <> GroupID) or (Items.IndexOf(Child.Data) >= 0)) then
               Child := Child.getNextSibling()
             else
             begin
               if ((Child = FNavigatorNodeToExpand) or (Child.Parent = FNavigatorNodeToExpand)) then
                 FNavigatorNodeToExpand := nil;
-              DeleteChild := Child;
+              Node := Child;
               Child := Child.getNextSibling();
-              DeleteNode(DeleteChild);
+              DeleteChild(Node);
             end;
 
-          Add := not Assigned(Node.getFirstChild());
-          for I := 0 to SItems.Count - 1 do
-            if (not (SItems is TSTriggers) or (TSTriggers(SItems)[I].Table = Node.Data)) then
+          Add := not Assigned(Parent.getFirstChild());
+          for I := 0 to Items.Count - 1 do
+            if (not (Items is TSTriggers) or (TSTriggers(Items)[I].Table = Parent.Data)) then
+            begin
+              // Debug 2017-01-20
+              if (not Assigned(Items[I])) then
+                raise ERangeError.Create('Items = Event.Items: ' + BoolToStr(Items = Event.Items, True) + #13#10
+                  + 'ClassType: ' + Event.Items.ClassName);
+
               if (not Add) then
-                InsertOrUpdateChild(Node, SItems[I])
+                InsertOrUpdateChild(Parent, Items[I])
               else
-                AddChild(Node, SItems[I]);
+                AddChild(Parent, Items[I]);
+            end;
         end;
       etItemCreated:
         if (GroupIDByImageIndex(ImageIndexByData(Event.Item)) = GroupID) then
-          if (not (Event.Item is TSTrigger) or (Node.Count > 0)) then
-            InsertOrUpdateChild(Node, Event.Item);
+          if (not (Event.Item is TSTrigger) or (Parent.Count > 0)) then
+            InsertOrUpdateChild(Parent, Event.Item);
+      etItemValid,
       etItemAltered:
         if (GroupIDByImageIndex(ImageIndexByData(Event.Item)) = GroupID) then
         begin
-          Child := Node.getFirstChild();
+          Child := Parent.getFirstChild();
           while (Assigned(Child) and (Child.Data <> Event.Item)) do
             Child := Child.getNextSibling();
-          if (Assigned(Child) and (Child.Text <> Event.Item.Caption)) then
+          if (Assigned(Child)) then
           begin
             Child.Text := Event.Item.Caption;
-            Destination := Node.getFirstChild();
+            Destination := Parent.getFirstChild();
             while (Assigned(Destination) and ((Destination = Child) or (Compare(Destination, Child) < 0))) do
               Destination := Destination.getNextSibling();
             if (Assigned(Destination)) then
               Child.MoveTo(Destination, naInsert)
             else
-              Child.MoveTo(Node, naAddChild);
+              Child.MoveTo(Parent, naAddChild);
           end;
           if (Assigned(Child)) then
             SetNodeBoldState(Child, (Child.ImageIndex = iiKey) and TSKey(Child.Data).PrimaryKey or (Child.ImageIndex in [iiField, iiVirtualField]) and TSTableField(Child.Data).InPrimaryKey);
@@ -7371,8 +7368,7 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
       etItemDropped:
         if (GroupIDByImageIndex(ImageIndexByData(Event.Item)) = GroupID) then
         begin
-
-          Child := Node.getFirstChild();
+          Child := Parent.getFirstChild();
           while (Assigned(Child)) do
             if (Child.Data <> Event.Item) then
               Child := Child.getNextSibling()
@@ -7380,18 +7376,18 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
             begin
               if ((Child = FNavigatorNodeToExpand) or (Child.Parent = FNavigatorNodeToExpand)) then
                 FNavigatorNodeToExpand := nil;
-              DeleteChild := FNavigator.Selected;
-              while (Assigned(DeleteChild)) do
+              Node := FNavigator.Selected;
+              while (Assigned(Node)) do
               begin
-                if (Child = DeleteChild) then
+                if (Child = Node) then
                   NavigatorElapse := 1; // We're inside a Monitor callback - but the related Address change has to be outside the callback
-                DeleteChild := DeleteChild.Parent;
+                Node := Node.Parent;
               end;
-              DeleteChild := Child;
+              Node := Child;
               Child := Child.getNextSibling();
-              DeleteNode(DeleteChild);
+              DeleteChild(Node);
               if (not Assigned(FNavigator.Selected)) then
-                FNavigator.Selected := Node;
+                FNavigator.Selected := Parent;
             end;
         end;
     end;
@@ -7452,12 +7448,14 @@ begin
       Expanded := Node.Expanded;
 
       if (Expanded or (Node = FNavigatorNodeToExpand)) then
+      begin
         if (Event.Items is TSTables) then
           UpdateGroup(Node, giTables, Event.Items)
         else if (Event.Items is TSRoutines) then
           UpdateGroup(Node, giRoutines, Event.Items)
         else if (Event.Items is TSEvents) then
           UpdateGroup(Node, giEvents, Event.Items);
+      end;
 
       Node.HasChildren := Assigned(Node.getFirstChild());
       Node.Expanded := Expanded;
@@ -7492,6 +7490,7 @@ begin
         Expanded := Node.Expanded;
 
         if (Expanded or (Node = FNavigatorNodeToExpand)) then
+        begin
           if (Table is TSBaseTable) then
             UpdateGroup(Node, giKeys, TSBaseTable(Table).Keys);
           UpdateGroup(Node, giFields, Table.Fields);
@@ -7499,6 +7498,7 @@ begin
             UpdateGroup(Node, giForeignKeys, TSBaseTable(Table).ForeignKeys);
           if ((Table is TSBaseTable) and Assigned(Table.Database.Triggers)) then
             UpdateGroup(Node, giTriggers, Table.Database.Triggers);
+        end;
 
         Node.HasChildren := Assigned(Node.getFirstChild());
         Node.Expanded := Expanded;
@@ -7530,8 +7530,11 @@ begin
         + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
       if (Assigned(Event.Items)) then
         S := S
-          + 'ClassType: ' + Event.Items.ClassName
+          + 'ClassType: ' + Event.Items.ClassName + ', '
           + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
+      if (Event.Item is TSTable) then
+        S := S
+          + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
       S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000) + ' s';
       TimeMonitor.Append(S, ttDebug);
     end;
@@ -7539,9 +7542,6 @@ end;
 
 procedure TFSession.FNavigatorChanged(Sender: TObject; const Node: TTreeNode);
 begin
-  aPExpand.Enabled := Assigned(Node) and (not Assigned(Node) or not Node.Expanded) and (Assigned(Node) and Node.HasChildren);
-  aPCollapse.Enabled := Assigned(Node) and (not Assigned(Node) or Node.Expanded) and (Node.ImageIndex <> iiServer);
-
   MainAction('aFImportSQL').Enabled := Assigned(Node) and (((Node.ImageIndex = iiServer) and (not Assigned(Session.UserRights) or Session.UserRights.RInsert)) or (Node.ImageIndex = iiDatabase));
   MainAction('aFImportText').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
   MainAction('aFImportExcel').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
@@ -7660,6 +7660,7 @@ begin
       PObjectSearch.Hide();
       FObjectSearch.SelectAll();
     end;
+    Key := #0;
   end
   else
     inherited;
@@ -7670,29 +7671,32 @@ procedure TFSession.FObjectSearchMouseDown(Sender: TObject;
 var
   Node: TTreeNode;
 begin
-  if (not Assigned(PObjectSearch) and (Button = mbLeft) and (Shift = [])) then
+  if (Shift = [ssLeft]) then
   begin
-    PObjectSearch := TPObjectSearch.Create(nil);
-    PObjectSearch.Color := FObjectSearch.Color;
-    PObjectSearch.Perform(CM_SYSFONTCHANGED, 0, 0);
-    PObjectSearch.Perform(UM_CHANGEPREFERENCES, 0, 0);
-    PObjectSearch.PopupParent := Window;
+    if (not Assigned(PObjectSearch)) then
+    begin
+      PObjectSearch := TPObjectSearch.Create(nil);
+      PObjectSearch.Color := FObjectSearch.Color;
+      PObjectSearch.Perform(CM_SYSFONTCHANGED, 0, 0);
+      PObjectSearch.Perform(UM_CHANGEPREFERENCES, 0, 0);
+      PObjectSearch.PopupParent := Window;
 
-    PObjectSearch.Session := Session;
-  end;
+      PObjectSearch.Session := Session;
+    end;
 
-  if (not PObjectSearch.Visible) then
-  begin
-    Node := FNavigator.Selected;
-    while (Assigned(Node) and not (Node.ImageIndex in [iiServer, iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView])) do
-      Node := Node.Parent;
-    if (not Assigned(Node)) then
-      PObjectSearch.Location := Session
-    else
-      PObjectSearch.Location := Node.Data;
-    PObjectSearch.Left := ClientToScreen(Point(FObjectSearch.Left + FObjectSearch.Width - PObjectSearch.Width, 0)).X;
-    PObjectSearch.Top := ClientToScreen(Point(0, FObjectSearch.Top + FObjectSearch.Height)).Y;
-    PObjectSearch.Visible := not (SelectedImageIndex in [iiProcesses, iiUsers, iiVariables]);
+    if (Assigned(PObjectSearch) and not PObjectSearch.Visible) then
+    begin
+      Node := FNavigator.Selected;
+      while (Assigned(Node) and not (Node.ImageIndex in [iiServer, iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView])) do
+        Node := Node.Parent;
+      if (not Assigned(Node)) then
+        PObjectSearch.Location := Session
+      else
+        PObjectSearch.Location := Node.Data;
+      PObjectSearch.Left := ClientToScreen(Point(FObjectSearch.Left + FObjectSearch.Width - PObjectSearch.Width, 0)).X;
+      PObjectSearch.Top := ClientToScreen(Point(0, FObjectSearch.Top + FObjectSearch.Height)).Y;
+      PObjectSearch.Visible := not (SelectedImageIndex in [iiProcesses, iiUsers, iiVariables]);
+    end;
   end;
 end;
 
@@ -7847,8 +7851,11 @@ begin
         + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
       if (Assigned(Event.Items)) then
         S := S
-          + 'ClassType: ' + Event.Items.ClassName
+          + 'ClassType: ' + Event.Items.ClassName + ', '
           + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
+      if (Event.Item is TSTable) then
+        S := S
+          + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
       S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000) + ' s';
       TimeMonitor.Append(S, ttDebug);
     end;
@@ -8359,12 +8366,9 @@ end;
 
 procedure TFSession.FSQLHistoryMouseDown(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
-var
-  Point: TPoint;
 begin
   TreeViewMouseDown(Sender, Button, Shift, X, Y);
 
-  Point := GetClientOrigin();
   FSQLHistoryMenuNode := FSQLHistory.GetNodeAt(X, Y);
 end;
 
@@ -9166,152 +9170,367 @@ begin
 
   Kind := ColumnWidthKindByListView(ListView);
 
-  with (ListViewSortData[Kind]) do
-  begin
-    ListViewSortData[Kind].Index := Column.Index;
-    if ((OldFListOrderIndex <> Index) or ((Order = 0) or (Order < 0) and (not (SelectedImageIndex in [iiBaseTable, iiView, iiSystemView]) or (Index > 0)))) then
-      ListViewSortData[Kind].Order := 1
-    else if (Order = 1) then
-      ListViewSortData[Kind].Order := -1
-    else
-      ListViewSortData[Kind].Order := 0;
+  if ((Kind = lkTable) and (Column.Index = 0) and (ListViewSortData[Kind].ColumnIndex = 0) and (ListViewSortData[Kind].Order < 0)) then
+    ListViewSortData[Kind].Order := 0
+  else if ((Column.Index <> ListViewSortData[Kind].ColumnIndex)
+    or (ListViewSortData[Kind].Order <= 0)) then
+    ListViewSortData[Kind].Order := 1
+  else
+    ListViewSortData[Kind].Order := -1;
+  ListViewSortData[Kind].ColumnIndex := Column.Index;
 
-    ListView.CustomSort(nil, LPARAM(@ListViewSortData[Kind]));
+  ListView.CustomSort(nil, LPARAM(@ListViewSortData[Kind]));
 
-    ListViewHeaderUpdate(Sender);
-
-    OldFListOrderIndex := Index;
-  end;
+  ListViewHeaderUpdate(Sender);
 end;
 
 procedure TFSession.ListViewCompare(Sender: TObject; Item1: TListItem;
   Item2: TListItem; Data: Integer; var Compare: Integer);
 const
-  ImageIndexSort = Chr(iiProcesses) + Chr(iiUsers) + Chr(iiVariables);
+  ImageIndexSort = Chr(iiDatabase) + Chr(iiSystemDatabase) + Chr(iiBaseTable)
+    + Chr(iiView) + Chr(iiSystemView) + Chr(iiKey) + Chr(iiField)
+    + Chr(iiViewField) + Chr(iiForeignKey) + Chr(iiProcesses) + Chr(iiUsers)
+    + Chr(iiVariables);
 var
-  ListView: TListView;
-  String1: string;
-  String2: string;
+  DateTime1, DateTime2: TDateTime;
+  Int1, Int2: Integer;
   SortRec: ^TListViewSortRec;
 begin
-  Assert(Sender is TListView);
-
-  ListView := TListView(Sender);
   SortRec := @TListViewSortRec(Pointer(Data)^);
 
-  Compare := 0;
   if (Item1.GroupID <> Item2.GroupID) then
     Compare := Sign(Item1.GroupID - Item2.GroupID)
   else if (Item1.GroupID = giSystemTools) then
     Compare := Sign(Pos(Chr(Item1.ImageIndex), ImageIndexSort) - Pos(Chr(Item2.ImageIndex), ImageIndexSort))
-  else if ((SortRec^.Index = 0) and ((SortRec^.Kind <> lkTable) or (SortRec^.Order = 0))) then
-    Compare := Sign(TSItem(Item1.Data).Index - TSItem(Item2.Data).Index)
   else
-  begin
-    if ((SortRec^.Index = 0) or (SortRec^.Index > Item1.SubItems.Count) or (SortRec^.Index > Item2.SubItems.Count)) then
-    begin
-      String1 := Item1.Caption;
-      String2 := Item2.Caption;
-    end
-    else
-    begin
-      String1 := Item1.SubItems[SortRec^.Index - 1];
-      String2 := Item2.SubItems[SortRec^.Index - 1];
-
-      Compare := 0;
-      if (TObject(ListView.Tag) is TSSession) then
-        case (SortRec^.Index) of
+    case (SortRec^.Kind) of
+      lkServer:
+        case (SortRec^.ColumnIndex) of
+          0:
+            Compare := Sign(TSItem(Item1.Data).Index - TSItem(Item2.Data).Index);
           1:
             begin
-              if (String1 = '') then String1 := '0';              if (String2 = '') then String2 := '0';
-              Compare := Sign(SysUtils.StrToInt64(String1) - SysUtils.StrToInt64(String2));
+              case (Item1.ImageIndex) of
+                iiDatabase,
+                iiSystemDatabase:
+                  Int1 := TSDatabase(Item1.Data).Count;
+                iiUsers:
+                  Int1 := TSUsers(Item1.Data).Count;
+                iiVariables:
+                  Int1 := TSUsers(Item1.Data).Count;
+                else
+                  raise ERangeError.Create(SRangeError);
+              end;
+              case (Item2.ImageIndex) of
+                iiDatabase,
+                iiSystemDatabase:
+                  Int2 := TSDatabase(Item2.Data).Count;
+                iiUsers:
+                  Int2 := TSUsers(Item2.Data).Count;
+                iiVariables:
+                  Int2 := TSUsers(Item2.Data).Count;
+                else
+                  raise ERangeError.Create(SRangeError);
+              end;
+              Compare := Sign(Int1 - Int2);
             end;
           2:
             begin
-              if (String1 = '') then String1 := '0';              if (String2 = '') then String2 := '0';
-
-              String1 := ReplaceStr(String1, '???', '0');         String2 := ReplaceStr(String2, '???', '0');
-
-              String1 := ReplaceStr(String1, ' B', '');           String2 := ReplaceStr(String2, ' B', '');
-              String1 := ReplaceStr(String1, ' KB', '000');       String2 := ReplaceStr(String2, ' KB', '000');
-              String1 := ReplaceStr(String1, ' MB', '000000');    String2 := ReplaceStr(String2, ' MB', '000000');
-              String1 := ReplaceStr(String1, ' GB', '000000000'); String2 := ReplaceStr(String2, ' GB', '000000000');
-
-              String1 := ReplaceStr(String1, LocaleFormatSettings.ThousandSeparator, '');
-              String2 := ReplaceStr(String2, LocaleFormatSettings.ThousandSeparator, '');
-              Compare := Sign(SysUtils.StrToFloat(String1, LocaleFormatSettings) - SysUtils.StrToFloat(String2, LocaleFormatSettings));
+              case (Item1.ImageIndex) of
+                iiDatabase,
+                iiSystemDatabase:
+                  Int1 := TSDatabase(Item1.Data).DataSize;
+                else
+                  raise ERangeError.Create(SRangeError);
+              end;
+              case (Item2.ImageIndex) of
+                iiDatabase,
+                iiSystemDatabase:
+                  Int2 := TSDatabase(Item2.Data).DataSize;
+                else
+                  raise ERangeError.Create(SRangeError);
+              end;
+              Compare := Sign(Int1 - Int2);
             end;
           3:
             begin
-              if (String1 = '') then String1 := SysUtils.DateToStr(1, LocaleFormatSettings);
-              if (String2 = '') then String2 := SysUtils.DateToStr(1, LocaleFormatSettings);
-
-              String1 := ReplaceStr(String1, '???', SysUtils.DateToStr(1, LocaleFormatSettings));
-              String2 := ReplaceStr(String2, '???', SysUtils.DateToStr(1, LocaleFormatSettings));
-
-              Compare := Sign(SysUtils.StrToDateTime(String1, LocaleFormatSettings) - SysUtils.StrToDateTime(String2, LocaleFormatSettings));
+              case (Item1.ImageIndex) of
+                iiDatabase,
+                iiSystemDatabase:
+                  DateTime1 := TSDatabase(Item1.Data).Created;
+                else
+                  raise ERangeError.Create(SRangeError);
+              end;
+              case (Item2.ImageIndex) of
+                iiDatabase,
+                iiSystemDatabase:
+                  DateTime2 := TSDatabase(Item2.Data).Created;
+                else
+                  raise ERangeError.Create(SRangeError);
+              end;
+              Compare := Sign(DateTime1 - DateTime2);
             end;
-        end
-      else if (TObject(ListView.Tag) is TSDatabase) then
-        case (SortRec^.Index) of
+          4:
+            Compare := lstrcmpi(PChar(Item1.SubItems[3]), PChar(Item2.SubItems[3]));
+          else
+            raise ERangeError.Create(SRangeError);
+        end;
+      lkDatabase:
+        case (SortRec^.ColumnIndex) of
+          0:
+            Compare := Sign(TSItem(Item1.Data).Index - TSItem(Item2.Data).Index);
+          1:
+            Compare := Sign(Pos(Chr(Item1.ImageIndex), ImageIndexSort) - Pos(Chr(Item2.ImageIndex), ImageIndexSort));
           2:
             begin
-              if (String1 = '') then String1 := '0';
-              if (String2 = '') then String2 := '0';
-
-              String1 := ReplaceStr(String1, '???', '0');         String2 := ReplaceStr(String2, '???', '0');
-
-              if ((Length(String1) >= 1) and (String1[1] = '~')) then Delete(String1, 1, 1);
-              if ((Length(String2) >= 1) and (String2[1] = '~')) then Delete(String2, 1, 1);
-
-              String1 := ReplaceStr(String1, LocaleFormatSettings.ThousandSeparator, '');
-              String2 := ReplaceStr(String2, LocaleFormatSettings.ThousandSeparator, '');
-              Compare := Sign(SysUtils.StrToFloat(String1, LocaleFormatSettings) - SysUtils.StrToFloat(String2, LocaleFormatSettings));
+              case (Item1.ImageIndex) of
+                iiBaseTable:
+                  Int1 := TSBaseTable(Item1.Data).RecordCount;
+                else
+                  Int1 := 0;
+              end;
+              case (Item2.ImageIndex) of
+                iiBaseTable:
+                  Int2 := TSBaseTable(Item2.Data).RecordCount;
+                else
+                  Int2 := 0;
+              end;
+              Compare := Sign(Int1 - Int2);
             end;
           3:
             begin
-              if (String1 = '') then String1 := '0';              if (String2 = '') then String2 := '0';
-
-              String1 := ReplaceStr(String1, '???', '0');         String2 := ReplaceStr(String2, '???', '0');
-              String1 := ReplaceStr(String1, ' B', '');           String2 := ReplaceStr(String2, ' B', '');
-              String1 := ReplaceStr(String1, ' KB', '000');       String2 := ReplaceStr(String2, ' KB', '000');
-              String1 := ReplaceStr(String1, ' MB', '000000');    String2 := ReplaceStr(String2, ' MB', '000000');
-              String1 := ReplaceStr(String1, ' GB', '000000000'); String2 := ReplaceStr(String2, ' GB', '000000000');
-
-              String1 := ReplaceStr(String1, LocaleFormatSettings.ThousandSeparator, '');
-              String2 := ReplaceStr(String2, LocaleFormatSettings.ThousandSeparator, '');
-              Compare := Sign(SysUtils.StrToFloat(String1, LocaleFormatSettings) - SysUtils.StrToFloat(String2, LocaleFormatSettings));
+              case (Item1.ImageIndex) of
+                iiBaseTable:
+                  Int1 := TSBaseTable(Item1.Data).DataSize;
+                iiView,
+                iiSystemView:
+                  Int1 := 0;
+                iiProcedure,
+                iiFunction:
+                  Int1 := Length(TSRoutine(Item1.Data).Source);
+                iiEvent:
+                  Int1 := Length(TSEvent(Item1.Data).Source);
+                else
+                  raise ERangeError.Create(SRangeError);
+              end;
+              case (Item2.ImageIndex) of
+                iiBaseTable:
+                  Int2 := TSBaseTable(Item2.Data).DataSize;
+                iiView,
+                iiSystemView:
+                  Int2 := 0;
+                iiProcedure,
+                iiFunction:
+                  Int2 := Length(TSRoutine(Item2.Data).Source);
+                iiEvent:
+                  Int2 := Length(TSEvent(Item2.Data).Source);
+                else
+                  raise ERangeError.Create(SRangeError);
+              end;
+              Compare := Sign(Int1 - Int2);
             end;
           4:
             begin
-              if (String1 = '') then String1 := SysUtils.DateToStr(1, LocaleFormatSettings);
-              if (String2 = '') then String2 := SysUtils.DateToStr(1, LocaleFormatSettings);
-
-              String1 := ReplaceStr(String1, '???', SysUtils.DateToStr(1, LocaleFormatSettings));
-              String2 := ReplaceStr(String2, '???', SysUtils.DateToStr(1, LocaleFormatSettings));
-
-              Compare := Sign(SysUtils.StrToDateTime(String1, LocaleFormatSettings) - SysUtils.StrToDateTime(String2, LocaleFormatSettings));
+              case (Item1.ImageIndex) of
+                iiBaseTable:
+                  DateTime1 := TSBaseTable(Item1.Data).Updated;
+                iiView,
+                iiSystemView:
+                  DateTime1 := 0;
+                iiProcedure,
+                iiFunction:
+                  DateTime1 := TSRoutine(Item1.Data).Updated;
+                iiEvent:
+                  DateTime1 := TSEvent(Item1.Data).Updated;
+                else
+                  raise ERangeError.Create(SRangeError);
+              end;
+              case (Item2.ImageIndex) of
+                iiBaseTable:
+                  DateTime2 := TSBaseTable(Item2.Data).Updated;
+                iiView,
+                iiSystemView:
+                  DateTime2 := 0;
+                iiProcedure,
+                iiFunction:
+                  DateTime2 := TSRoutine(Item2.Data).Updated;
+                iiEvent:
+                  DateTime2 := TSEvent(Item2.Data).Updated;
+                else
+                  raise ERangeError.Create(SRangeError);
+              end;
+              Compare := Sign(DateTime1 - DateTime2);
             end;
-        end
-      else if (TObject(ListView.Tag) is TSProcesses) then
-        case (SortRec^.Index) of
+          5:
+            Compare := lstrcmpi(PChar(Item1.SubItems[4]), PChar(Item2.SubItems[4]));
           6:
-            Compare := Sign(Double(TSProcess(Item1.Data).Time) - Double(TSProcess(Item2.Data).Time))
+            Compare := lstrcmpi(PChar(Item1.SubItems[5]), PChar(Item2.SubItems[5]));
+          else
+            raise ERangeError.Create(SRangeError);
         end;
+      lkTable:
+        case (SortRec^.ColumnIndex) of
+          0:
+            if (SortRec^.Order = 0) then
+              Compare := Sign(TSItem(Item1.Data).Index - TSItem(Item2.Data).Index)
+            else
+              Compare := lstrcmpi(PChar(TSItem(Item1.Data).Caption), PChar(TSItem(Item2.Data).Caption));
+          1:
+            Compare := lstrcmpi(PChar(Item1.SubItems[0]), PChar(Item2.SubItems[0]));
+          2:
+            begin
+              if (not (Item1.ImageIndex in [iiField, iiViewField])) then
+                Int1 := 0
+              else if (TSTableField(Item1.Data).NullAllowed) then
+                Int1 := 1
+              else
+                Int1 := 2;
+              if (not (Item2.ImageIndex in [iiField, iiViewField])) then
+                Int2 := 0
+              else if (TSTableField(Item2.Data).NullAllowed) then
+                Int2 := 1
+              else
+                Int2 := 2;
+              Compare := Int1 - Int2;
+            end;
+          3:
+            Compare := lstrcmpi(PChar(Item1.SubItems[2]), PChar(Item2.SubItems[2]));
+          4:
+            Compare := lstrcmpi(PChar(Item1.SubItems[3]), PChar(Item2.SubItems[3]));
+          5:
+            Compare := lstrcmpi(PChar(Item1.SubItems[4]), PChar(Item2.SubItems[4]));
+          else
+            raise ERangeError.Create(SRangeError);
+        end;
+      lkProcesses:
+        case (SortRec^.ColumnIndex) of
+          0:
+            Compare := Sign(TSItem(Item1.Data).Index - TSItem(Item2.Data).Index);
+          1:
+            Compare := lstrcmpi(PChar(TSProcess(Item1.Data).UserName), PChar(TSProcess(Item2.Data).UserName));
+          2:
+            Compare := lstrcmpi(PChar(TSProcess(Item1.Data).Host), PChar(TSProcess(Item2.Data).Host));
+          3:
+            Compare := lstrcmpi(PChar(TSProcess(Item1.Data).DatabaseName), PChar(TSProcess(Item2.Data).DatabaseName));
+          4:
+            Compare := lstrcmpi(PChar(TSProcess(Item1.Data).Command), PChar(TSProcess(Item2.Data).Command));
+          5:
+            Compare := lstrcmpi(PChar(TSProcess(Item1.Data).SQL), PChar(TSProcess(Item2.Data).SQL));
+          6:
+            Compare := Sign(TSProcess(Item1.Data).Time - TSProcess(Item2.Data).Time);
+          7:
+            Compare := lstrcmpi(PChar(TSProcess(Item1.Data).State), PChar(TSProcess(Item2.Data).State));
+          else
+            raise ERangeError.Create(SRangeError);
+        end;
+      lkUsers:
+        case (SortRec^.ColumnIndex) of
+          0:
+            Compare := Sign(TSItem(Item1.Data).Index - TSItem(Item2.Data).Index);
+          else
+            raise ERangeError.Create(SRangeError);
+        end;
+      lkVariables:
+        case (SortRec^.ColumnIndex) of
+          0:
+            Compare := Sign(TSItem(Item1.Data).Index - TSItem(Item2.Data).Index);
+          1:
+            Compare := lstrcmpi(PChar(TSVariable(Item1.Data).Value), PChar(TSVariable(Item2.Data).Value));
+          else
+            raise ERangeError.Create(SRangeError);
+        end;
+      lkObjectSearch:
+        case (SortRec^.ColumnIndex) of
+          0:
+            begin
+              Compare := lstrcmpi(PChar(TSItem(Item1.Data).Name), PChar(TSItem(Item1.Data).Name));
+              if (Compare = 0) then
+                Compare := lstrcmpi(PChar(Item1.SubItems[1]), PChar(Item2.SubItems[1]));
+              if (Compare = 0) then
+                Compare := Sign(Pos(Chr(Item1.ImageIndex), ImageIndexSort) - Pos(Chr(Item2.ImageIndex), ImageIndexSort));
+            end;
+          1:
+            begin
+              Compare := Sign(Pos(Chr(Item1.ImageIndex), ImageIndexSort) - Pos(Chr(Item2.ImageIndex), ImageIndexSort));
+              if (Compare = 0) then
+                Compare := lstrcmpi(PChar(TSItem(Item1.Data).Name), PChar(TSItem(Item1.Data).Name));
+              if (Compare = 0) then
+                Compare := lstrcmpi(PChar(Item1.SubItems[1]), PChar(Item2.SubItems[1]));
+            end;
+          2:
+            begin
+              Compare := lstrcmpi(PChar(Item1.SubItems[1]), PChar(Item2.SubItems[1]));
+              if (Compare = 0) then
+                Compare := Sign(Pos(Chr(Item1.ImageIndex), ImageIndexSort) - Pos(Chr(Item2.ImageIndex), ImageIndexSort));
+              if (Compare = 0) then
+                Compare := lstrcmpi(PChar(TSItem(Item1.Data).Name), PChar(TSItem(Item1.Data).Name));
+            end;
+          3:
+            begin
+              case (Item1.ImageIndex) of
+                iiDatabase,
+                iiSystemDatabase:
+                  DateTime1 := TSDatabase(Item1.Data).Updated;
+                iiBaseTable:
+                  DateTime1 := TSBaseTable(Item1.Data).Updated;
+                iiView,
+                iiSystemView:
+                  DateTime1 := 0;
+                iiProcedure,
+                iiFunction:
+                  DateTime1 := TSRoutine(Item1.Data).Updated;
+                iiEvent:
+                  DateTime1 := TSEvent(Item1.Data).Updated;
+                else
+                  raise ERangeError.Create(SRangeError);
+              end;
+              case (Item2.ImageIndex) of
+                iiDatabase,
+                iiSystemDatabase:
+                  DateTime2 := TSDatabase(Item2.Data).Updated;
+                iiBaseTable:
+                  DateTime2 := TSBaseTable(Item2.Data).Updated;
+                iiView,
+                iiSystemView:
+                  DateTime2 := 0;
+                iiProcedure,
+                iiFunction:
+                  DateTime2 := TSRoutine(Item2.Data).Updated;
+                iiEvent:
+                  DateTime2 := TSEvent(Item2.Data).Updated;
+                else
+                  raise ERangeError.Create(SRangeError);
+              end;
+              Compare := Sign(DateTime1 - DateTime2);
+              if (Compare = 0) then
+                Compare := lstrcmpi(PChar(TSItem(Item1.Data).Name), PChar(TSItem(Item1.Data).Name));
+              if (Compare = 0) then
+                Compare := lstrcmpi(PChar(Item1.SubItems[1]), PChar(Item2.SubItems[1]));
+              if (Compare = 0) then
+                Compare := Sign(Pos(Chr(Item1.ImageIndex), ImageIndexSort) - Pos(Chr(Item2.ImageIndex), ImageIndexSort));
+            end;
+          4:
+            begin
+              Compare := lstrcmpi(PChar(Item1.SubItems[3]), PChar(Item2.SubItems[3]));
+              if (Compare = 0) then
+                Compare := lstrcmpi(PChar(TSItem(Item1.Data).Name), PChar(TSItem(Item1.Data).Name));
+              if (Compare = 0) then
+                Compare := lstrcmpi(PChar(Item1.SubItems[1]), PChar(Item2.SubItems[1]));
+              if (Compare = 0) then
+                Compare := Sign(Pos(Chr(Item1.ImageIndex), ImageIndexSort) - Pos(Chr(Item2.ImageIndex), ImageIndexSort));
+            end
+          else
+            raise ERangeError.Create(SRangeError);
+        end;
+      else
+        raise ERangeError.Create(SRangeError);
     end;
 
-    if (Compare = 0) then
-      Compare := Sign(lstrcmpi(PChar(String1), PChar(String2)));
-    if (Compare = 0) then
-      Compare := Sign(lstrcmp(PChar(String1), PChar(String2)));
-    if (Compare = 0) then
-      Compare := Sign(lstrcmpi(PChar(Item1.Caption), PChar(Item2.Caption)));
-    if (Compare = 0) then
-      Compare := Sign(lstrcmp(PChar(Item1.Caption), PChar(Item2.Caption)));
-  end;
+  if (Compare = 0) then
+    Compare := Sign(TSItem(Item1.Data).Index - TSItem(Item2.Data).Index);
 
-  if (ListViewSortData[SortRec^.Kind].Order <> 0) then
-    Compare := ListViewSortData[SortRec^.Kind].Order * Compare;
+  if (ListViewSortData[SortRec^.Kind].Order < 0) then
+    Compare := - Compare;
 end;
 
 procedure TFSession.ListViewDblClick(Sender: TObject);
@@ -9685,7 +9904,7 @@ begin
   for I := 0 to ListView.Columns.Count - 1 do
     if (BOOL(SendMessage(ListView_GetHeader(ListView.Handle), HDM_GETITEM, I, LParam(@HDItem)))) then
     begin
-      if ((ListViewSortData[Kind].Order = 0) or (I <> ListViewSortData[Kind].Index)) then
+      if ((ListViewSortData[Kind].Order = 0) or (I <> ListViewSortData[Kind].ColumnIndex)) then
         HDItem.fmt := HDItem.fmt and not HDF_SORTUP and not HDF_SORTDOWN
       else if (ListViewSortData[Kind].Order > 0) then
         HDItem.fmt := HDItem.fmt and not HDF_SORTDOWN or HDF_SORTUP
@@ -9698,7 +9917,7 @@ begin
     if (ListViewSortData[Kind].Order = 0) then
       SendMessage(ListView.Handle, LVM_SETSELECTEDCOLUMN, -1, 0)
     else
-      SendMessage(ListView.Handle, LVM_SETSELECTEDCOLUMN, ListViewSortData[Kind].Index, 0);
+      SendMessage(ListView.Handle, LVM_SETSELECTEDCOLUMN, ListViewSortData[Kind].ColumnIndex, 0);
 end;
 
 procedure TFSession.ListViewKeyDown(Sender: TObject; var Key: Word;
@@ -9900,7 +10119,7 @@ end;
 
 procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView: TListView; const Data: TCustomData = nil);
 var
-  RefreshColumnHeaders: Boolean;
+  RefreshHeader: Boolean;
   ReorderGroupIndex: Integer;
 
   function Compare(const Kind: TPAccount.TDesktop.TListViewKind; const Item1, Item2: TListItem): Integer;
@@ -10101,10 +10320,10 @@ var
           Item.SubItems.Add('')
         else
           Item.SubItems.Add(SizeToStr(Length(TSRoutine(Data).Stmt)));
-        if (TSRoutine(Data).Modified = 0) then
+        if (TSRoutine(Data).Updated = 0) then
           Item.SubItems.Add('')
         else
-          Item.SubItems.Add(SysUtils.DateTimeToStr(TSRoutine(Data).Modified, LocaleFormatSettings));
+          Item.SubItems.Add(SysUtils.DateTimeToStr(TSRoutine(Data).Updated, LocaleFormatSettings));
         if (not Assigned(TSRoutine(Data).FunctionResult) or (TSRoutine(Data).FunctionResult.Charset = '') or (TSRoutine(Data).FunctionResult.Charset = TSRoutine(Data).Database.Charset)) then
           Item.SubItems.Add('')
         else
@@ -10285,6 +10504,7 @@ var
     end;
 
     Item.SubItems.EndUpdate();
+    RefreshHeader := True;
   end;
 
   function InsertOrUpdateItem(const Kind: TPAccount.TDesktop.TListViewKind; GroupID: Integer; const Data: TObject): TListItem;
@@ -10331,7 +10551,6 @@ var
     begin
       Result := ListView.Items.Add();
       Result.Data := Data;
-      RefreshColumnHeaders := True;
     end
     else if (ListView.Items[Index].Data <> Data) then
     begin
@@ -10341,7 +10560,6 @@ var
         ReorderGroupIndex := Index + 1
       else
         ReorderGroupIndex := Min(ReorderGroupIndex, Index + 1);
-      RefreshColumnHeaders := True;
     end
     else
     begin
@@ -10360,7 +10578,6 @@ var
     Result := ListView.Items.Add();
     Result.Data := Data;
     UpdateItem(Result, GroupID, Data);
-    RefreshColumnHeaders := True;
   end;
 
   procedure UpdateObjectSearchGroupHeaders();
@@ -10466,7 +10683,7 @@ var
             if ((ListView.Items[I].GroupID = GroupID) and (SItems.IndexOf(ListView.Items[I].Data) < 0)) then
               ListView.Items.Delete(I);
 
-          Add := (ListView.Items.Count = 0) and (ListViewSortData[Kind].Index = 0) and (ListViewSortData[Kind].Order = 1);
+          Add := (ListView.Items.Count = 0) and (ListViewSortData[Kind].ColumnIndex = 0) and (ListViewSortData[Kind].Order = 1);
           for I := 0 to SItems.Count - 1 do
             if (not (SItems is TSTriggers) or (TSTriggers(SItems)[I].Table = TObject(ListView.Tag))) then
               if (not Add) then
@@ -10641,7 +10858,7 @@ begin
   begin
     if (not QueryPerformanceCounter(Start)) then Start := 0;
 
-    RefreshColumnHeaders := False;
+    RefreshHeader := False;
 
     ChangingEvent := ListView.OnChanging;
     ListView.OnChanging := nil;
@@ -10715,7 +10932,7 @@ begin
     ListView.Columns.EndUpdate();
     ListView.OnChanging := ChangingEvent;
 
-    if (RefreshColumnHeaders and (ListViewSortData[Kind].Order <> 0)) then
+    if (RefreshHeader) then
       ListViewHeaderUpdate(ListView);
 
     if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
@@ -10725,8 +10942,11 @@ begin
           + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
         if (Assigned(Event.Items)) then
           S := S
-            + 'ClassType: ' + Event.Items.ClassName
+            + 'ClassType: ' + Event.Items.ClassName + ', '
             + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
+        if (Event.Item is TSTable) then
+          S := S
+            + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
         S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000) + ' s';
         TimeMonitor.Append(S, ttDebug);
       end;
@@ -11354,8 +11574,6 @@ end;
 procedure TFSession.MNavigatorPopup(Sender: TObject);
 var
   AllowChange: Boolean;
-  I: Integer;
-  J: Integer;
   P: TPoint;
 begin
   KillTimer(Handle, tiStatusBar);
@@ -11373,28 +11591,29 @@ begin
   else
     FNavigatorMenuNode := FNavigator.Selected;
 
-  for I := 0 to MNavigator.Items.Count - 1 do
-  begin
-    MNavigator.Items[I].Enabled := False;
-    for J := 0 to MNavigator.Items[I].Count - 1 do
-      MNavigator.Items[I][J].Enabled := False;
-  end;
+  aPExpand.Enabled := Assigned(FNavigatorMenuNode) and not FNavigatorMenuNode.Expanded and FNavigatorMenuNode.HasChildren;
+  aPCollapse.Enabled := Assigned(FNavigatorMenuNode) and FNavigatorMenuNode.Expanded and Assigned(FNavigatorMenuNode.Parent);
 
-  if (Assigned(FNavigatorMenuNode)) then
-    if (FNavigatorMenuNode.ImageIndex = iiQuickAccess) then
-      miNFavoriteAdd.Enabled := Assigned(FNavigator.Selected) and (FNavigator.Selected.ImageIndex <> iiServer)
-    else if (Assigned(FNavigatorMenuNode.Parent) and (FNavigatorMenuNode.Parent.ImageIndex = iiQuickAccess)) then
-    begin
-      miNFavoriteOpen.Enabled := True;
-      miNFavoriteRemove.Enabled := True;
-    end
-    else
-      FNavigatorChanged(Sender, FNavigatorMenuNode);
+  FNavigatorChanged(Sender, FNavigatorMenuNode);
+
+  miNFavoriteAdd.Enabled := Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex = iiQuickAccess);
+  miNFavoriteOpen.Enabled := Assigned(FNavigatorMenuNode) and Assigned(FNavigatorMenuNode.Parent) and (FNavigatorMenuNode.Parent.ImageIndex = iiQuickAccess);
+  miNFavoriteRemove.Enabled := Assigned(FNavigatorMenuNode) and Assigned(FNavigatorMenuNode.Parent) and (FNavigatorMenuNode.Parent.ImageIndex = iiQuickAccess);
 
   ShowEnabledItems(MNavigator.Items);
 
   miNExpand.Default := miNExpand.Visible;
   miNCollapse.Default := miNCollapse.Visible;
+
+  miNImport.Visible := Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex <> iiQuickAccess) and (not Assigned(FNavigatorMenuNode.Parent) or (FNavigatorMenuNode.Parent.ImageIndex <> iiQuickAccess));
+  miNExport.Visible := Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex <> iiQuickAccess) and (not Assigned(FNavigatorMenuNode.Parent) or (FNavigatorMenuNode.Parent.ImageIndex <> iiQuickAccess));
+  miNCopy.Visible := Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex <> iiQuickAccess) and (not Assigned(FNavigatorMenuNode.Parent) or (FNavigatorMenuNode.Parent.ImageIndex <> iiQuickAccess));
+  miNPaste.Visible := Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex <> iiQuickAccess) and (not Assigned(FNavigatorMenuNode.Parent) or (FNavigatorMenuNode.Parent.ImageIndex <> iiQuickAccess));
+  miNCreate.Visible := Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex <> iiQuickAccess) and (not Assigned(FNavigatorMenuNode.Parent) or (FNavigatorMenuNode.Parent.ImageIndex <> iiQuickAccess));
+  miNDelete.Visible := Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex <> iiQuickAccess) and (not Assigned(FNavigatorMenuNode.Parent) or (FNavigatorMenuNode.Parent.ImageIndex <> iiQuickAccess));
+  miNEmpty.Visible := Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex <> iiQuickAccess) and (not Assigned(FNavigatorMenuNode.Parent) or (FNavigatorMenuNode.Parent.ImageIndex <> iiQuickAccess));
+  miNRename.Visible := Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex <> iiQuickAccess) and (not Assigned(FNavigatorMenuNode.Parent) or (FNavigatorMenuNode.Parent.ImageIndex <> iiQuickAccess));
+  miNProperties.Visible := Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex <> iiQuickAccess) and (not Assigned(FNavigatorMenuNode.Parent) or (FNavigatorMenuNode.Parent.ImageIndex <> iiQuickAccess));
 end;
 
 procedure TFSession.MSQLEditorPopup(Sender: TObject);
@@ -11570,11 +11789,12 @@ begin
   mwEPaste.Enabled := MainAction('aEPaste').Enabled;
 
   ActiveWorkbench.UpdateAction(MainAction('aEDelete'));
-  mwEDelete.Enabled := not (ActiveWorkbench.Selected is TWForeignKey);
-  if ((ActiveWorkbench.Selected is TWTable)) then
-    mwEDelete.Caption := Preferences.LoadStr(559)
-  else
-    mwEDelete.Caption := Preferences.LoadStr(28);
+  mwEDelete.Enabled := (ActiveWorkbench.SelCount >= 1);
+  for I := 0 to ActiveWorkbench.ControlCount - 1 do
+    if ((ActiveWorkbench.Controls[I] is TWForeignKey)
+      and TWForeignKey(ActiveWorkbench.Controls[I]).Selected) then
+      mwEDelete.Enabled := False;
+  mwEDelete.Caption := Preferences.LoadStr(559);
 
 
   if (not Assigned(ActiveWorkbench.Selected)) then
@@ -11591,6 +11811,8 @@ begin
   mwDProperties.Default := mwDProperties.Enabled;
 
   mwDCreateForeignKey.OnClick := mwDCreateForeignKeyClick;
+
+  aDDelete.Enabled := ActiveWorkbench.SelCount >= 1;
 
   ShowEnabledItems(MWorkbench.Items);
 end;
@@ -13358,7 +13580,14 @@ begin
     if ((URI.Param['view'] = Null) and ((URI.Param['objecttype'] = 'procedure') or (URI.Param['objecttype'] = 'function') or (URI.Param['objecttype'] = 'trigger') or (URI.Param['objecttype'] = 'event'))) then
       URI.Param['view'] := 'ide';
 
-    FAddress := URI.Address;
+    NewAddress := URI.Address;
+
+    // Debug 2017-01-18
+    if (NewAddress = '') then
+      raise ERangeError.Create('AAddress: ' + AAddress + #13#10
+        + 'NewAddress: ' + NewAddress);
+
+    FAddress := NewAddress;
 
     // Debug 2016-12-12
     if ((URI.Param['view'] = 'browser')
@@ -13475,6 +13704,12 @@ begin
       begin
         if ((URI.Table = '') and (LastSelectedTable <> '')) then
           URI.Address := LastSelectedTable;
+
+        if (URI.Table = '') then
+          raise ERangeError.Create('Address: ' + Address + #13#10
+            + 'AView: ' + IntToStr(Ord(AView)) + #13#10
+            + 'LastSelectedTable: ' + LastSelectedTable);
+
         URI.Param['view'] := 'browser';
       end;
     vIDE:
@@ -14292,6 +14527,7 @@ begin
   MainAction('aERedo').Enabled := False;
   MainAction('aECopyToFile').Enabled := False;
   MainAction('aEPasteFromFile').Enabled := False;
+  MainAction('aEFormatSQL').Enabled := False;
 
   MainAction('aHIndex').ShortCut := ShortCut(VK_F1, []);
   MainAction('aHSQL').ShortCut := 0;
@@ -14547,7 +14783,7 @@ begin
     if ((View = vBrowser) and not (Node.ImageIndex in [iiBaseTable, iiView, iiSystemView]) and (Node = TTreeView_Ext(Sender).Selected.Parent)) then
       TTreeView_Ext(Sender).Selected := Node;
 
-    AllowCollapse := Node <> TTreeView_Ext(Sender).Items.getFirstNode();
+    AllowCollapse := Assigned(Node.Parent);
   end;
 end;
 
@@ -14578,9 +14814,9 @@ end;
 procedure TFSession.TreeViewMouseDown(Sender: TObject;
   Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
-  LeftMousePressed := (Sender is TTreeView_Ext) and (Button = mbLeft);
+  LeftMousePressed := (Sender is TTreeView) and (Button = mbLeft);
   if (LeftMousePressed) then
-    MouseDownNode := TTreeView_Ext(Sender).GetNodeAt(X, Y);
+    MouseDownNode := TTreeView(Sender).GetNodeAt(X, Y);
   if (Assigned(MouseDownNode) and (MouseDownNode.Text = '')) then
     MouseDownNode := nil;
 
@@ -14593,30 +14829,30 @@ begin
   LeftMousePressed := False;
 end;
 
-procedure TFSession.UMActivateDBGrid(var Message: TMessage);
+procedure TFSession.UMActivateDBGrid(var Msg: TMessage);
 begin
-  Window.ActiveControl := TWinControl(Message.LParam);
+  Window.ActiveControl := TWinControl(Msg.LParam);
   ActiveDBGrid.EditorMode := False;
 end;
 
-procedure TFSession.UMActivateFText(var Message: TMessage);
+procedure TFSession.UMActivateFText(var Msg: TMessage);
 const
   KEYEVENTF_UNICODE = 4;
 var
   Input: TInput;
 begin
-  if (Message.WParam <> 0) then
+  if (Msg.WParam <> 0) then
   begin
     ZeroMemory(@Input, SizeOf(Input));
     Input.Itype := INPUT_KEYBOARD;
-    Input.ki.wVk := Message.WParam;
+    Input.ki.wVk := Msg.WParam;
     Input.ki.dwFlags := KEYEVENTF_UNICODE;
     SendInput(1, Input, SizeOf(Input));
   end;
   FText.SelStart := Length(FText.Text);
 end;
 
-procedure TFSession.UMChangePreferences(var Message: TMessage);
+procedure TFSession.UMChangePreferences(var Msg: TMessage);
 var
   I: Integer;
 {$IFDEF Debug}
@@ -14729,6 +14965,9 @@ begin
   mtEditor2.Caption := tbEditor2.Caption;
   mtEditor3.Caption := tbEditor3.Caption;
   mtObjectSearch.Caption := Preferences.LoadStr(934);
+  {$IFNDEF Debug}
+  mtObjectSearch.Visible := False;
+  {$ENDIF}
 
   tbObjects.Visible := ttObjects in Preferences.ToolbarTabs;
   tbBrowser.Visible := ttBrowser in Preferences.ToolbarTabs;
@@ -14750,7 +14989,7 @@ begin
   else if (Preferences.QuickAccessVisible and (not Assigned(FNavigator.Items.GetFirstNode()) or (FNavigator.Items.GetFirstNode().ImageIndex <> iiQuickAccess))) then
   begin
 {$IFDEF Debug}
-    FNavigator.Items.AddFirst(nil, '');
+    FNavigator.Items.AddFirst(nil, '').ImageIndex := -1;
     Node := FNavigator.Items.AddFirst(nil, '');
     Node.ImageIndex := iiQuickAccess;
     FavoritesEvent(Session.Account.Favorites);
@@ -14849,12 +15088,12 @@ begin
   PasteMode := False;
 end;
 
-procedure TFSession.UMCloseFrame(var Message: TMessage);
+procedure TFSession.UMCloseFrame(var Msg: TMessage);
 begin
   MainAction('aFClose').Execute();
 end;
 
-procedure TFSession.UMCloseTabQuery(var Message: TMessage);
+procedure TFSession.UMCloseTabQuery(var Msg: TMessage);
 var
   CanClose: Boolean;
   I: Integer;
@@ -14919,9 +15158,9 @@ begin
       Desktop(Session.Databases[I]).CloseQuery(nil, CanClose);
 
   if (not CanClose) then
-    Message.Result := 0
+    Msg.Result := 0
   else
-    Message.Result := 1;
+    Msg.Result := 1;
 
   // Debug 2016-12-26
   if (not Assigned(Session.Account)) then
@@ -14934,7 +15173,7 @@ begin
     end;
 end;
 
-procedure TFSession.UMFrameActivate(var Message: TMessage);
+procedure TFSession.UMFrameActivate(var Msg: TMessage);
 begin
   Include(FrameState, tsActive);
 
@@ -15079,7 +15318,7 @@ begin
     StatusBarRefresh(True);
 end;
 
-procedure TFSession.UMFrameDeactivate(var Message: TMessage);
+procedure TFSession.UMFrameDeactivate(var Msg: TMessage);
 begin
   KillTimer(Handle, tiNavigator);
   KillTimer(Handle, tiStatusBar);
@@ -15115,15 +15354,15 @@ begin
   else if (Window.ActiveControl is TSynMemo) then SynMemoExit(Window.ActiveControl)
   else if (Window.ActiveControl = ActiveDBGrid) then DBGridExit(Window.ActiveControl);
 
-  Include(FrameState, tsActive);
+  Exclude(FrameState, tsActive);
 end;
 
-procedure TFSession.UMPostBuilderQueryChange(var Message: TMessage);
+procedure TFSession.UMPostBuilderQueryChange(var Msg: TMessage);
 begin
   FQueryBuilderEditorPageControlCheckStyle();
 end;
 
-procedure TFSession.UMPostShow(var Message: TMessage);
+procedure TFSession.UMPostShow(var Msg: TMessage);
 var
   AllowChange: Boolean;
   Node: TTreeNode;
@@ -15219,18 +15458,18 @@ begin
   end;
 end;
 
-procedure TFSession.UMStausBarRefresh(var Message: TMessage);
+procedure TFSession.UMStausBarRefresh(var Msg: TMessage);
 begin
   StatusBarRefresh();
 end;
 
-procedure TFSession.UMSynCompletionTime(var Message: TMessage);
+procedure TFSession.UMSynCompletionTime(var Msg: TMessage);
 begin
   // SetTimer must be called after SynMemoStatusChange
-  SetTimer(Handle, Message.WParam, Message.LParam, nil);
+  SetTimer(Handle, Msg.WParam, Msg.LParam, nil);
 end;
 
-procedure TFSession.UMWantedSynchronize(var Message: TMessage);
+procedure TFSession.UMWantedSynchronize(var Msg: TMessage);
 begin
   if (not (csDestroying in ComponentState)) then
     Wanted.Synchronize();
@@ -15280,6 +15519,12 @@ begin
                 + 'Present: ' + BoolToStr(Assigned(TSDatabase(FNavigator.Selected.Parent.Data).TableByName(FNavigator.Selected.Text)), True));
             TSTable(FNavigator.Selected.Data).Update();
           end;
+        iiProcesses:
+          Session.Processes.Update();
+        iiUsers:
+          Session.User.Update();
+        iiVariables:
+          Session.User.Update();
       end;
     vBrowser:
       if ((TObject(FNavigator.Selected.Data) is TSView and not TSView(FNavigator.Selected.Data).Update())
@@ -15394,14 +15639,14 @@ begin
   end;
 end;
 
-procedure TFSession.WMNotify(var Message: TWMNotify);
+procedure TFSession.WMNotify(var Msg: TWMNotify);
 begin
-  case (Message.NMHdr^.code) of
+  case (Msg.NMHdr^.code) of
     TVN_BEGINLABELEDIT,
     LVN_BEGINLABELEDIT: BeginEditLabel(Window.ActiveControl);
     TVN_ENDLABELEDIT,
     LVN_ENDLABELEDIT: EndEditLabel(Window.ActiveControl);
-    LVN_ITEMCHANGING: NMListView := PNMListView(Message.NMHdr);
+    LVN_ITEMCHANGING: NMListView := PNMListView(Msg.NMHdr);
   end;
 
   inherited;
@@ -15409,17 +15654,17 @@ begin
   NMListView := nil;
 end;
 
-procedure TFSession.WMParentNotify(var Message: TWMParentNotify);
+procedure TFSession.WMParentNotify(var Msg: TWMParentNotify);
 var
   ClientPoint: TPoint;
   GridPoint: TPoint;
   GridCoord: TGridCoord;
   ScreenPoint: TPoint;
 begin
-  ClientPoint := Point(Message.XPos, Message.YPos);
+  ClientPoint := Point(Msg.XPos, Msg.YPos);
   ScreenPoint := ClientToScreen(ClientPoint);
 
-  if ((Message.Event = WM_RBUTTONDOWN)
+  if ((Msg.Event = WM_RBUTTONDOWN)
     and (ControlAtPos(ClientPoint, False, True) = PContent)
     and (PContent.ControlAtPos(PContent.ScreenToClient(ScreenPoint), False, True) = PResult)
     and (PResult.ControlAtPos(PResult.ScreenToClient(ScreenPoint), False, True) = ActiveDBGrid.Parent)
@@ -15437,17 +15682,17 @@ begin
   inherited;
 end;
 
-procedure TFSession.WMTimer(var Message: TWMTimer);
+procedure TFSession.WMTimer(var Msg: TWMTimer);
 begin
-  case (Message.TimerID) of
+  case (Msg.TimerID) of
     tiHideSynCompletion:
       begin
-        KillTimer(Handle, Message.TimerID);
+        KillTimer(Handle, Msg.TimerID);
         SynCompletion.CancelCompletion();
       end;
     tiNavigator:
       begin
-        KillTimer(Handle, Message.TimerID);
+        KillTimer(Handle, Msg.TimerID);
         if (Window.Active) then
           FNavigatorChange2(FNavigator, FNavigator.Selected)
         else
@@ -15455,7 +15700,7 @@ begin
       end;
     tiShowSynCompletion:
       begin
-        KillTimer(Handle, Message.TimerID);
+        KillTimer(Handle, Msg.TimerID);
         if (Window.Active and (View in [vEditor, vEditor2, vEditor3])) then
         begin
           SynCompletion.Form.CurrentEditor := ActiveSynMemo;
@@ -15465,7 +15710,7 @@ begin
       end;
     tiStatusBar:
       begin
-        KillTimer(Handle, Message.TimerID);
+        KillTimer(Handle, Msg.TimerID);
         StatusBar.Panels[sbMessage].Text := '';
         StatusBarRefresh();
       end;

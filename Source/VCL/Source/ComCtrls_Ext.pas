@@ -35,8 +35,7 @@ procedure Register();
 implementation {***************************************************************}
 
 uses
-SysConst,
-  StdActns, StdCtrls, Math;
+  Types, StdActns, StdCtrls, Math;
 
 procedure Register();
 begin

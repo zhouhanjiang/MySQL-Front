@@ -803,12 +803,12 @@ type
     FDefiner: string;
     FFunctionResult: TSField;
     FInputDataSet: TMySQLDataSet;
-    FModified: TDateTime;
     FParameters: array of TSRoutineParameter;
     FRoutineType: TRoutineType;
     FSecurity: TSDBObject.TSecurity;
     FSourceEx: string;
     FStmt: string;
+    FUpdated: TDateTime;
     function GetInputDataSet(): TMySQLDataSet;
     function GetParameter(Index: Integer): TSRoutineParameter;
     function GetParameterCount(): Integer;
@@ -829,13 +829,13 @@ type
     property Definer: string read FDefiner;
     property FunctionResult: TSField read FFunctionResult;
     property InputDataSet: TMySQLDataSet read GetInputDataSet;
-    property Modified: TDateTime read FModified;
     property Security: TSDBObject.TSecurity read FSecurity write FSecurity;
     property Source: string read FSource write SetSource;
     property Parameter[Index: Integer]: TSRoutineParameter read GetParameter;
     property ParameterCount: Integer read GetParameterCount;
     property Routines: TSRoutines read GetRoutines;
     property RoutineType: TRoutineType read FRoutineType;
+    property Updated: TDateTime read FUpdated;
   end;
 
   TSProcedure = class(TSRoutine)
@@ -2938,6 +2938,10 @@ begin
 
   if (National and (Session.Connection.MySQLVersion < 40101)) then
     Result := Result + 'national ';
+
+  // Debug 2017-01-20
+  if (not Assigned(Session.FieldTypeByMySQLFieldType(FieldType))) then
+    raise ERangeError.Create('FieldType: ' + IntToStr(Ord(FieldType)));
 
   Result := Result + Session.FieldTypeByMySQLFieldType(FieldType).DBTypeStr();
 
@@ -5876,7 +5880,7 @@ begin
     FFunctionResult := TSField.Create(Session.FieldTypes);
     FFunctionResult.Assign(Source.FFunctionResult);
   end;
-  FModified := Source.Modified;
+  FUpdated := Source.Updated;
   SetLength(FParameters, Length(Source.FParameters));
   for I := 0 to Length(FParameters) - 1 do
   begin
@@ -5907,7 +5911,7 @@ begin
   FCreated := 0;
   FDefiner := '';
   FFunctionResult := nil;
-  FModified := 0;
+  FUpdated := 0;
   FRoutineType := rtUnknown;
   FSecurity := seDefiner;
   FStmt := '';
@@ -6406,7 +6410,7 @@ begin
           Routine[Index].FSecurity := seDefiner;
         Routine[Index].FCreated := DataSet.FieldByName('CREATED').AsDateTime;
         Routine[Index].FDefiner := DataSet.FieldByName('DEFINER').AsString;
-        Routine[Index].FModified := DataSet.FieldByName('LAST_ALTERED').AsDateTime;
+        Routine[Index].FUpdated := DataSet.FieldByName('LAST_ALTERED').AsDateTime;
         Routine[Index].FRoutineType := RoutineType;
         Routine[Index].FStmt := DataSet.FieldByName('ROUTINE_DEFINITION').AsString;
 
@@ -11841,7 +11845,7 @@ begin
         '# MySQL: ' + Self.Connection.ServerVersionStr + #13#10
         + #13#10
         + UnparsableSQL;
-    SendToDeveloper(UnparsableSQL, 7, True);
+    SendToDeveloper(UnparsableSQL, 0, True);
   end;
 
   FConnection.Free();

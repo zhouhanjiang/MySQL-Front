@@ -1855,6 +1855,7 @@ end;
 
 procedure TMySQLMonitor.SetCacheSize(const ACacheSize: Integer);
 var
+  NewMem: PChar;
   NewSize: Integer;
 begin
   NewSize := ACacheSize - ACacheSize mod SizeOf(Cache.Mem[0]);
@@ -1875,21 +1876,23 @@ begin
       Cache.ItemsLen.Delete(0);
     end;
 
-    if (Cache.UsedLen > 0) then
-    begin
-      // Debug 2017-01-19
-      if (not Assigned(Cache.Mem) or ((Cache.First + Cache.UsedLen - 1) >= Cache.MemLen)) then
-        raise ERangeError.Create('Assigned(Mem): ' + BoolToStr(Assigned(Cache.Mem), True) + #13#10
-          + 'First: ' + IntToStr(Cache.First) + #13#10
-          + 'UsedLen: ' + IntToStr(Cache.UsedLen) + #13#10
-          + 'MemLen: ' + IntToStr(Cache.MemLen) + #13#10
-          + 'NewSize: ' + IntToStr(NewSize));
-      MoveMemory(@Cache.Mem[0], @Cache.Mem[Cache.First], Cache.UsedLen * SizeOf(Cache.Mem[0]));
-    end;
-    Cache.First := 0;
+    GetMem(NewMem, NewSize);
 
+    if (Cache.UsedLen > 0) then
+      if (Cache.First + Cache.UsedLen <= Cache.MemLen) then
+        MoveMemory(@NewMem[0], @Cache.Mem[Cache.First], Cache.UsedLen * SizeOf(Cache.Mem[0]))
+      else
+      begin
+        MoveMemory(@NewMem[0], @Cache.Mem[Cache.First], (Cache.MemLen - Cache.First) * SizeOf(Cache.Mem[0]));
+        MoveMemory(@NewMem[Cache.MemLen - Cache.First], @Cache.Mem[0], (Cache.First + Cache.UsedLen - Cache.MemLen) * SizeOf(Cache.Mem[0]));
+      end;
+
+    if (Assigned(Cache.Mem)) then
+      FreeMem(Cache.Mem);
+
+    Cache.Mem := NewMem;
     Cache.MemLen := NewSize div SizeOf(Cache.Mem[0]);
-    ReallocMem(Cache.Mem, Cache.MemLen * SizeOf(Cache.Mem[0]));
+    Cache.First := 0;
   end;
 end;
 
@@ -2090,13 +2093,13 @@ begin
   if (MySQLVersion < 40101) then
   begin
     for I := 0 to Length(MySQL_Character_Sets) - 1 do
-      if (lstrcmpiA(PAnsiChar(AnsiString(Charset)), MySQL_Character_Sets[I].CharsetName) = 0) then
+      if (AnsiStrings.StrIComp(PAnsiChar(AnsiString(Charset)), MySQL_Character_Sets[I].CharsetName) = 0) then
         Result := I;
   end
   else
   begin
     for I := 0 to Length(MySQL_Collations) - 1 do
-      if (MySQL_Collations[I].Default and (lstrcmpiA(PAnsiChar(AnsiString(Charset)), MySQL_Collations[I].CharsetName) = 0)) then
+      if (MySQL_Collations[I].Default and (AnsiStrings.StrIComp(PAnsiChar(AnsiString(Charset)), MySQL_Collations[I].CharsetName) = 0)) then
         Result := MySQL_Collations[I].CharsetNr;
   end;
 end;
@@ -2110,13 +2113,13 @@ begin
   if (MySQLVersion < 40101) then
   begin
     for I := 0 to Length(MySQL_Character_Sets) - 1 do
-      if (lstrcmpiA(PAnsiChar(AnsiString(Charset)), MySQL_Character_Sets[I].CharsetName) = 0) then
+      if (AnsiStrings.StrIComp(PAnsiChar(AnsiString(Charset)), MySQL_Character_Sets[I].CharsetName) = 0) then
         Result := MySQL_Character_Sets[I].CodePage;
   end
   else
   begin
     for I := 0 to Length(MySQL_Collations) - 1 do
-      if (MySQL_Collations[I].Default and (lstrcmpiA(PAnsiChar(AnsiString(Charset)), MySQL_Collations[I].CharsetName) = 0)) then
+      if (MySQL_Collations[I].Default and (AnsiStrings.StrIComp(PAnsiChar(AnsiString(Charset)), MySQL_Collations[I].CharsetName) = 0)) then
         Result := MySQL_Collations[I].CodePage;
   end;
 end;
@@ -2305,7 +2308,7 @@ begin
   SyncThread.State := ssConnect;
   repeat
     Sync(SyncThread);
-  until ((SynchronCount = 0) or (SyncThread.State in [ssClose, ssReady]));
+  until ((SynchronCount = 0) or not Assigned(SyncThread) or (SyncThread.State in [ssClose, ssReady]));
 end;
 
 procedure TMySQLConnection.DoConvertError(const Sender: TObject; const Text: string; const Error: EConvertError);
@@ -2430,6 +2433,10 @@ end;
 
 function TMySQLConnection.ExecuteResult(var ResultHandle: TResultHandle): Boolean;
 begin
+  if (Assigned(ResultHandle.SyncThread) and not (ResultHandle.SyncThread.State in [ssClose, ssReady, ssFirst, ssNext])) then
+    raise ERangeError.Create('State: ' + IntToStr(Ord(ResultHandle.SyncThread.State)) + #13#10
+      + 'ResultHandle.SyncThread = SyncThread: ' + BoolToStr(ResultHandle.SyncThread = SyncThread, True));
+
   Assert(not Assigned(ResultHandle.SyncThread) or (ResultHandle.SyncThread.State in [ssClose, ssReady, ssFirst, ssNext]));
 
   BeginSynchron();
@@ -2652,7 +2659,7 @@ begin
         MySQLConnectionOnSynchronize(SyncThread);
         SyncThreadExecuted.WaitFor(INFINITE);
       end;
-    until ((SyncThread.State in [ssClose, ssResult, ssReady]) or (Mode = smDataSet) and (SyncThread.State = ssReceivingResult));
+    until (not Assigned(SyncThread) or (SyncThread.State in [ssClose, ssResult, ssReady]) or (Mode = smDataSet) and (SyncThread.State = ssReceivingResult));
     Result := SyncThread.ErrorCode = 0;
   end
   else
@@ -2668,7 +2675,7 @@ end;
 function TMySQLConnection.InUse(): Boolean;
 begin
   TerminateCS.Enter();
-  Result := Assigned(SyncThread) and SyncThread.IsRunning;
+  Result := Assigned(SyncThread) and not (SyncThread.State in [ssClose, ssReady]);
   TerminateCS.Leave();
 end;
 
@@ -4908,15 +4915,9 @@ end;
 function TMySQLQuery.GetLibRow(): MYSQL_ROW;
 begin
   Assert(Active);
+  Assert(ActiveBuffer() <> 0);
 
-  if (not Assigned(Pointer(ActiveBuffer()))) then
-  {$IFDEF Debug}
-    raise ERangeError.Create(SRangeError)
-  {$ELSE}
-    Result := nil
-  {$ENDIF}
-  else
-    Result := PRecordBufferData(ActiveBuffer())^.LibRow;
+  Result := PRecordBufferData(ActiveBuffer())^.LibRow;
 end;
 
 function TMySQLQuery.GetIsIndexField(Field: TField): Boolean;
@@ -5438,7 +5439,7 @@ begin
   else
   begin
     case (Field.DataType) of
-      ftString: Result := lstrcmpA(A^.LibRow^[Field.FieldNo - 1], B^.LibRow^[Field.FieldNo - 1]);
+      ftString: Result := AnsiStrings.StrComp(A^.LibRow^[Field.FieldNo - 1], B^.LibRow^[Field.FieldNo - 1]);
       ftShortInt: begin GetFieldData(Field, @ShortIntA, A); GetFieldData(Field, @ShortIntB, B); Result := Sign(ShortIntA - ShortIntB); end;
       ftByte:
         begin
@@ -5475,15 +5476,15 @@ begin
       ftDate: begin GetFieldData(Field, @DateTimeA, A); GetFieldData(Field, @DateTimeB, B); Result := Sign(DateTimeA.Date - DateTimeB.Date); end;
       ftDateTime: begin GetFieldData(Field, @DateTimeA, A); GetFieldData(Field, @DateTimeB, B); Result := Sign(DateTimeA.DateTime - DateTimeB.DateTime); end;
       ftTime: begin GetFieldData(Field, @IntegerA, A); GetFieldData(Field, @IntegerB, B); Result := Sign(IntegerA - IntegerB); end;
-      ftTimeStamp: Result := lstrcmpA(A^.LibRow^[Field.FieldNo - 1], B^.LibRow^[Field.FieldNo - 1]);
+      ftTimeStamp: Result := AnsiStrings.StrComp(A^.LibRow^[Field.FieldNo - 1], B^.LibRow^[Field.FieldNo - 1]);
       ftWideString,
       ftWideMemo:
         begin
           StringA := Connection.LibDecode(A^.LibRow^[Field.FieldNo - 1], A^.LibLengths^[Field.FieldNo - 1]);
           StringB := Connection.LibDecode(B^.LibRow^[Field.FieldNo - 1], B^.LibLengths^[Field.FieldNo - 1]);
-          Result := lstrcmpi(PChar(StringA), PChar(StringB));
+          Result := AnsiCompareStr(StringA, StringB);
         end;
-      ftBlob: Result := lstrcmpA(A^.LibRow^[Field.FieldNo - 1], B^.LibRow^[Field.FieldNo - 1]);
+      ftBlob: Result := AnsiStrings.StrComp(A^.LibRow^[Field.FieldNo - 1], B^.LibRow^[Field.FieldNo - 1]);
       else
         raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%d)', [Field.Name, Integer(Field.DataType)]);
     end;
@@ -5721,9 +5722,10 @@ end;
 
 function TMySQLDataSet.TInternRecordBuffers.IndexOf(const Bookmark: TBookmark): Integer;
 begin
-  Assert(Length(Bookmark) = DataSet.BookmarkSize);
-
-  Result := IndexOf(PInternRecordBuffer(PPointer(@Bookmark[0])^))
+  if (Length(Bookmark) <> DataSet.BookmarkSize) then
+    Result := -1
+  else
+    Result := IndexOf(PInternRecordBuffer(PPointer(@Bookmark[0])^))
 end;
 
 function TMySQLDataSet.TInternRecordBuffers.IndexOf(const Data: TMySQLQuery.TRecordBufferData): Integer;
@@ -5864,12 +5866,6 @@ end;
 
 function TMySQLDataSet.CompareBookmarks(Bookmark1, Bookmark2: TBookmark): Integer;
 begin
-  // Debug 2017-01-18
-  if ((Length(Bookmark1) <> BookmarkSize) or (Length(Bookmark2) <> BookmarkSize)) then
-    raise ERangeError.Create('Length(Bookmark1): ' + IntToStr(Length(Bookmark1)) + #13#10
-      + 'Length(Bookmark2): ' + IntToStr(Length(Bookmark2)) + #13#10
-      + 'State: ' + IntToStr(Ord(State)));
-
   Result := Sign(InternRecordBuffers.IndexOf(Bookmark1) - InternRecordBuffers.IndexOf(Bookmark2));
 end;
 
@@ -6266,13 +6262,17 @@ var
   Index: Integer;
 begin
   case (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag) of
+    bfBOF:
+      begin
+        FreeInternRecordBuffer(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
+        InternalInitRecord(ActiveBuffer());
+      end;
     bfCurrent:
       if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData) then
       begin
         FreeMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData);
         PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData;
       end;
-    bfBOF,
     bfInserted,
     bfEOF:
       if (InternRecordBuffers.Count = 0) then
@@ -7910,13 +7910,13 @@ function TMySQLDataSet.VisibleInFilter(const InternRecordBuffer: PInternRecordBu
               P := PAnsiChar(@FilterParser.FilterData[Expr^.iLiteralStart + Node^.Func.FunctionNameOfs]);
               Arg1 := ParseNode(@FilterParser.FilterData[CANEXPRSIZE + Node^.Func.ArgOfs]);
 
-              if (lstrcmpiA(P, 'UPPER') = 0) then
+              if (AnsiStrings.StrIComp(P, 'UPPER') = 0) then
                 if (VIsNull(Arg1)) then Result := Null else Result := UpperCase(VarToStr(Arg1))
 
-              else if (lstrcmpiA(P, 'LOWER') = 0) then
+              else if (AnsiStrings.StrIComp(P, 'LOWER') = 0) then
                 if (VIsNull(Arg1)) then Result := Null else Result := LowerCase(VarToStr(Arg1))
 
-              else if (lstrcmpiA(P, 'SUBSTRING') = 0) then
+              else if (AnsiStrings.StrIComp(P, 'SUBSTRING') = 0) then
                 if (VIsNull(Arg1)) then
                   Result := Null
                 else
@@ -7937,37 +7937,37 @@ function TMySQLDataSet.VisibleInFilter(const InternRecordBuffer: PInternRecordBu
                     Result := VarToStr(Arg1);
                 end
 
-              else if (lstrcmpiA(P, 'TRIM') = 0) then
+              else if (AnsiStrings.StrIComp(P, 'TRIM') = 0) then
                 if (VIsNull(Arg1)) then Result := Null else Result := Trim(VarToStr(Arg1))
 
-              else if (lstrcmpiA(P, 'TRIMLEFT') = 0) then
+              else if (AnsiStrings.StrIComp(P, 'TRIMLEFT') = 0) then
                 if (VIsNull(Arg1)) then Result := Null else Result := TrimLeft(VarToStr(Arg1))
 
-              else if (lstrcmpiA(P, 'TRIMRIGHT') = 0) then
+              else if (AnsiStrings.StrIComp(P, 'TRIMRIGHT') = 0) then
                 if (VIsNull(Arg1)) then Result := Null else Result := TrimRight(VarToStr(Arg1))
 
-              else if (lstrcmpiA(P, 'GETDATE') = 0) then
+              else if (AnsiStrings.StrIComp(P, 'GETDATE') = 0) then
                 Result := Now()
 
-              else if (lstrcmpiA(P, 'YEAR') = 0) then
+              else if (AnsiStrings.StrIComp(P, 'YEAR') = 0) then
                 if (VIsNull(Arg1)) then Result := Null else begin DecodeDate(VarToDateTime(Arg1), Year, Month, Day); Result := Year; end
 
-              else if (lstrcmpiA(P, 'MONTH') = 0) then
+              else if (AnsiStrings.StrIComp(P, 'MONTH') = 0) then
                 if (VIsNull(Arg1)) then Result := Null else begin DecodeDate(VarToDateTime(Arg1), Year, Month, Day); Result := Month; end
 
-              else if (lstrcmpiA(P, 'DAY') = 0) then
+              else if (AnsiStrings.StrIComp(P, 'DAY') = 0) then
                 if (VIsNull(Arg1)) then Result := Null else begin DecodeDate(VarToDateTime(Arg1), Year, Month, Day); Result := Day; end
 
-              else if (lstrcmpiA(P, 'HOUR') = 0) then
+              else if (AnsiStrings.StrIComp(P, 'HOUR') = 0) then
                 if (VIsNull(Arg1)) then Result := Null else begin DecodeTime(VarToDateTime(Arg1), Hour, Min, Sec, MSec); Result := Hour; end
 
-              else if (lstrcmpiA(P, 'MINUTE') = 0) then
+              else if (AnsiStrings.StrIComp(P, 'MINUTE') = 0) then
                 if (VIsNull(Arg1)) then Result := Null else begin DecodeTime(VarToDateTime(Arg1), Hour, Min, Sec, MSec); Result := Min; end
 
-              else if (lstrcmpiA(P, 'SECOND') = 0) then
+              else if (AnsiStrings.StrIComp(P, 'SECOND') = 0) then
                 if (VIsNull(Arg1)) then Result := Null else begin DecodeTime(VarToDateTime(Arg1), Hour, Min, Sec, MSec); Result := Sec; end
 
-              else if (lstrcmpiA(P, 'DATE') = 0) then  // Format: DATE('datestring','formatstring')
+              else if (AnsiStrings.StrIComp(P, 'DATE') = 0) then  // Format: DATE('datestring','formatstring')
               begin                                    //   or    DATE(datevalue)
                 Result := Arg1;
                 if VarIsArray(Result) then
@@ -7992,7 +7992,7 @@ function TMySQLDataSet.VisibleInFilter(const InternRecordBuffer: PInternRecordBu
                   Result := Longint(Trunc(VarToDateTime(Result)));
               end
 
-              else if (lstrcmpiA(P, 'TIME') = 0) then  // Format TIME('timestring','formatstring')
+              else if (AnsiStrings.StrIComp(P, 'TIME') = 0) then  // Format TIME('timestring','formatstring')
               begin                                               // or     TIME(datetimevalue)
                 Result := Arg1;
                 if (VarIsArray(Result)) then
