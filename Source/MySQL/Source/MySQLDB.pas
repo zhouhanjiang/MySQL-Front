@@ -2384,6 +2384,13 @@ end;
 
 procedure TMySQLConnection.DoTerminate();
 begin
+  // Debug 2017-01-21
+  TerminateCS.Enter();
+  if (GetCurrentThreadId() <> MainThreadID) then
+    raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
+  TerminateCS.Leave();
+
+
   Assert(GetCurrentThreadId() = MainThreadID);
 
   KillThreadId := SyncThread.ThreadId;
@@ -6877,7 +6884,6 @@ begin
 
   ClearBuffers();
   InternRecordBuffers.Clear();
-  ActivateBuffers();
 
   RecordsReceived.ResetEvent();
 

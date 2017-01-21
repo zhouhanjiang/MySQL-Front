@@ -1098,6 +1098,7 @@ uses
   acQBLocalizer, acQBStrings,
   CommCtrl_Ext, StdActns_Ext,
   MySQLConsts, SQLUtils,
+uProfiling,
   uDeveloper,
   uDField, uDKey, uDTable, uDTables, uDVariable, uDDatabase, uDForeignKey,
   uDUser, uDQuickFilter, uDSQLHelp, uDTransfer, uDSearch, uDServer,
@@ -7212,10 +7213,14 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
     Node: TTreeNode;
     Text: string;
   begin
+    ProfilingPoint(1);
+
     Node := TTreeNode.Create(Parent.Owner);
     Node.Data := Data;
     Node.ImageIndex := ImageIndexByData(Data);
     Node.Text := TSItem(Data).Caption;
+
+    ProfilingPoint(2);
 
     Child := Parent.getFirstChild();
     while (Assigned(Child)) do
@@ -7224,6 +7229,8 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
         break;
       Child := Child.getNextSibling();
     end;
+
+    ProfilingPoint(3);
 
     Node.Free();
 
@@ -7237,6 +7244,8 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
       Text := Preferences.LoadStr(22)
     else
       raise ERangeError.Create(SRangeError);
+
+    ProfilingPoint(4);
 
     if (not Assigned(Child)) then
     begin
@@ -7255,8 +7264,13 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
     Child.Text := Text;
     if (Added and (Child.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView])) then
       Child.HasChildren := True;
+
+    ProfilingPoint(5);
+
     if (Assigned(Child)) then
       SetNodeBoldState(Child, (Child.ImageIndex = iiKey) and TSKey(Child.Data).PrimaryKey or (Child.ImageIndex in [iiField, iiVirtualField]) and TSTableField(Child.Data).InPrimaryKey);
+
+    ProfilingPoint(6);
   end;
 
   procedure AddChild(const Parent: TTreeNode; const Data: TObject);
@@ -7275,20 +7289,32 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
     else
       raise ERangeError.Create(SRangeError);
 
+    ProfilingPoint(7);
+
     Child := FNavigator.Items.AddChild(Parent, Text);
+
+    ProfilingPoint(8);
+
     Child.Data := Data;
     Child.ImageIndex := ImageIndexByData(Data);
     Child.Text := Text;
     if (Child.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView]) then
       Child.HasChildren := True;
+
+    ProfilingPoint(9);
+
     if (Assigned(Child)) then
       SetNodeBoldState(Child, (Child.ImageIndex = iiKey) and TSKey(Child.Data).PrimaryKey or (Child.ImageIndex in [iiField, iiVirtualField]) and TSTableField(Child.Data).InPrimaryKey);
+
+    ProfilingPoint(10);
   end;
 
   procedure DeleteChild(const Child: TTreeNode);
   var
     Node: TTreeNode;
   begin
+    ProfilingPoint(11);
+
     Node := FNavigatorNodeToExpand;
     while (Assigned(Node)) do
     begin
@@ -7299,6 +7325,8 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
 
     Child.Data := nil;
     Child.Delete();
+
+    ProfilingPoint(12);
   end;
 
   procedure UpdateGroup(const Parent: TTreeNode; const GroupID: Integer; const Items: TSItems);
@@ -7408,6 +7436,7 @@ var
   S: string;
 begin
   if (not QueryPerformanceCounter(Start)) then Start := 0;
+  ProfilingReset();
 
   OldSelected := FNavigator.Selected;
 
@@ -7536,8 +7565,10 @@ begin
         S := S
           + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
       S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000) + ' s';
+      S := S + ProfilingReport() + #13#10;
       TimeMonitor.Append(S, ttDebug);
     end;
+  ProfilingReset();
 end;
 
 procedure TFSession.FNavigatorChanged(Sender: TObject; const Node: TTreeNode);
@@ -10135,11 +10166,15 @@ var
   begin
     Assert(Item.Data = Data);
 
+    ProfilingPoint(5);
+
     Item.SubItems.BeginUpdate();
     Item.SubItems.Clear();
 
     Item.GroupID := GroupID;
     Item.ImageIndex := ImageIndexByData(Data);
+
+    ProfilingPoint(6);
 
     if ((TObject(ListView.Tag) is TSItemSearch)
       and not (Data is TSProcess)
@@ -10503,7 +10538,12 @@ var
       end;
     end;
 
+    ProfilingPoint(7);
+
     Item.SubItems.EndUpdate();
+
+    ProfilingPoint(8);
+
     RefreshHeader := True;
   end;
 
@@ -10517,6 +10557,8 @@ var
     Mid: Integer;
     Right: Integer;
   begin
+    ProfilingPoint(1);
+
     Count := ListView.Items.Count; // Cache for speeding
     Index := -1;
     for I := 0 to Count - 1 do
@@ -10570,13 +10612,18 @@ var
         else
           ReorderGroupIndex := Min(ReorderGroupIndex, Index);
     end;
+    ProfilingPoint(2);
+
     UpdateItem(Result, GroupID, Data);
   end;
 
   function AddItem(const GroupID: Integer; const Data: TObject): TListItem;
   begin
+    ProfilingPoint(3);
     Result := ListView.Items.Add();
     Result.Data := Data;
+    ProfilingPoint(4);
+
     UpdateItem(Result, GroupID, Data);
   end;
 
@@ -10781,6 +10828,8 @@ var
         end;
     end;
 
+    ProfilingPoint(9);
+
     if ((ReorderGroupIndex >= 0) and ListView.GroupView) then
     begin
       // This code is needed in Delphi XE4 to place inserted items into the
@@ -10793,6 +10842,8 @@ var
           ListView.Items[I].GroupID := GroupID;
         end;
     end;
+
+    ProfilingPoint(10);
 
     if (Event.EventType in [etItemsValid, etItemCreated, etItemDropped]) then
       if (TObject(ListView.Tag) is TSItemSearch) then
@@ -10841,6 +10892,8 @@ var
           giVariables:
             SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(22) + ' (' + IntToStr(Session.Variables.Count) + ')');
         end;
+
+    ProfilingPoint(11);
   end;
 
 var
@@ -10857,6 +10910,7 @@ begin
     and (Assigned(Event.Items) or (Event.Sender is TSTable) or (Event.Sender is TSItemSearch))) then
   begin
     if (not QueryPerformanceCounter(Start)) then Start := 0;
+    ProfilingReset();
 
     RefreshHeader := False;
 
@@ -10924,16 +10978,24 @@ begin
     else if ((Kind in [lkVariables, lkObjectSearch]) and (Event.Items is TSVariables)) then
       UpdateGroup(Kind, giVariables, Event.Items);
 
+    ProfilingPoint(13);
+
     if ((Window.ActiveControl = ListView) and Assigned(ListView.OnSelectItem)) then
       ListView.OnSelectItem(nil, ListView.Selected, Assigned(ListView.Selected));
+
+    ProfilingPoint(14);
 
     ListView.EnableAlign();
     ListView.Items.EndUpdate();
     ListView.Columns.EndUpdate();
     ListView.OnChanging := ChangingEvent;
 
+    ProfilingPoint(15);
+
     if (RefreshHeader) then
       ListViewHeaderUpdate(ListView);
+
+    ProfilingPoint(16);
 
     if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
       if ((Finish - Start) div Frequency > 1) then
@@ -10948,8 +11010,11 @@ begin
           S := S
             + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
         S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000) + ' s';
+        S := S + ProfilingReport() + #13#10;
         TimeMonitor.Append(S, ttDebug);
       end;
+
+    ProfilingReset();
   end;
 end;
 
@@ -11848,33 +11913,33 @@ begin
       iiSystemView:
         begin
           if ((URI.Param['view'] <> Null) and (URI.Param['view'] <> 'browser')) then URI.Param['view'] := Null;
-          URI.Database := TSDatabase(Node.Parent.Data).Name;
+          URI.Database := TSTable(Node.Data).Database.Name;
           URI.Table := TSTable(Node.Data).Name;
         end;
       iiView:
         begin
           if ((URI.Param['view'] <> Null) and (URI.Param['view'] <> 'browser') and (URI.Param['view'] <> 'ide')) then URI.Param['view'] := ViewToParam(LastTableView);
-          URI.Database := TSDatabase(Node.Parent.Data).Name;
+          URI.Database := TSTable(Node.Data).Database.Name;
           URI.Table := TSTable(Node.Data).Name;
         end;
       iiProcedure:
         begin
           URI.Param['view'] := 'ide';
-          URI.Database := TSDatabase(Node.Parent.Data).Name;
+          URI.Database := TSTable(Node.Data).Database.Name;
           URI.Param['objecttype'] := 'procedure';
           URI.Param['object'] := Node.Text;
         end;
       iiFunction:
         begin
           URI.Param['view'] := 'ide';
-          URI.Database := TSDatabase(Node.Parent.Data).Name;
+          URI.Database := TSTable(Node.Data).Database.Name;
           URI.Param['objecttype'] := 'function';
           URI.Param['object'] := Node.Text;
         end;
       iiEvent:
         begin
           URI.Param['view'] := 'ide';
-          URI.Database := TSDatabase(Node.Parent.Data).Name;
+          URI.Database := TSTable(Node.Data).Database.Name;
           URI.Param['objecttype'] := 'event';
           URI.Param['object'] := Node.Text;
         end;
@@ -11882,14 +11947,14 @@ begin
       iiViewField:
         begin
           URI.Param['view'] := Null;
-          URI.Database := TSDatabase(Node.Parent.Parent.Data).Name;
-          URI.Table := TSTable(Node.Parent.Data).Name;
+          URI.Database := TSTableField(Node.Data).Table.Database.Name;
+          URI.Table := TSTableField(Node.Data).Table.Name;
         end;
       iiTrigger:
         begin
           URI.Param['view'] := 'ide';
-          URI.Database := TSDatabase(Node.Parent.Parent.Data).Name;
-          URI.Table := TSTrigger(Node.Parent.Data).Name;
+          URI.Database := TSTrigger(Node.Data).Database.Name;
+          URI.Table := TSTrigger(Node.Data).Table.Name;
           URI.Param['objecttype'] := 'trigger';
           URI.Param['object'] := Node.Text;
         end;
@@ -12503,8 +12568,8 @@ begin
                   MessageBeep(MB_ICONERROR)
                 else
                 begin
-                  Database := TSDatabase(Node.Parent.Data);
                   Table := TSBaseTable(Node.Data);
+                  Database := Table.Database;
 
                   DExecutingSQL.Update := Table.Update;
                   if (Table.Valid or DExecutingSQL.Execute()) then

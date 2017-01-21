@@ -102,7 +102,7 @@ EventLog_Name=""
 ExternalConfig=""
 FiltersCount=0
 Foreground Tab=1
-Freeze Activate=1
+Freeze Activate=0
 Freeze Debugger Disable=1
 Freeze Timeout=4
 HTMLLayout="%U003Chtml%U003E\r\n  %U003Chead%U003E\r\n    %U003C%%content_type%%%U003E\r\n    %U003Cmeta http-equiv=\qcontent-style-type\q content=\qtext/css\q /%U003E\r\n    %U003Ctitle%U003E%U003C%%TITLE%%%U003E%U003C/title%U003E\r\n  %U003C/head%U003E\r\n  %U003Cbody%U003E\r\n    %U003Ch1%U003EInternal Application Error%U003C/h1%U003E\r\n    %U003Cp%U003E%U003C%%EXCEPTION_MESSAGE%%%U003E%U003C/p%U003E\r\n    %U003Cp%U003E%U003Chr width=\q100%%\q%U003E\r\n    %U003Cp%U003EThe exception details were saved to log file. Contact site administrator.%U003C/p%U003E\r\n\r\n    %U003C!\d\d IMPORTANT: We recommend to remove the 5 lines below (and this comment line) before compiling production build \d\d%U003E\r\n    %U003Chr /%U003E\r\n    %U003Cp%U003ECall Stack:%U003C/p%U003E\r\n    %U003C%%call_stack%%%U003E\r\n    %U003Cp%U003E%U003C/p%U003E\r\n    %U003Cp%U003ESee %U003Ccode%U003E%U003C%%file_name%%%U003E%U003C/code%U003E file for full details.%U003C/p%U003E\r\n  %U003C/body%U003E\r\n%U003C/html%U003E"
