@@ -6613,17 +6613,17 @@ begin
     URI := TUURI.Create(TPAccount.TFavorite(Node.Data).Address)
   else if (Node.ImageIndex = iiProcesses) then
   begin
-    URI := TUURI.Create();
+    URI := TUURI.Create(Session.Account.ExpandAddress('/'));
     URI.Param['system'] := 'processes';
   end
   else if (Node.ImageIndex = iiUsers) then
   begin
-    URI := TUURI.Create();
+    URI := TUURI.Create(Session.Account.ExpandAddress('/'));
     URI.Param['system'] := 'users';
   end
   else if (Node.ImageIndex = iiVariables) then
   begin
-    URI := TUURI.Create();
+    URI := TUURI.Create(Session.Account.ExpandAddress('/'));
     URI.Param['system'] := 'variables';
   end
   else if (TObject(Node.Data) is TSItem) then
