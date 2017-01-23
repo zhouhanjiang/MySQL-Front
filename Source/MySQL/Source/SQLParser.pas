@@ -23239,7 +23239,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  if (IsTag(kiSHOW, kiDATABASE)) then
+  if (IsTag(kiSHOW, kiDATABASES)) then
     Nodes.StmtTag := ParseTag(kiSHOW, kiDATABASES)
   else
     Nodes.StmtTag := ParseTag(kiSHOW, kiSCHEMA);

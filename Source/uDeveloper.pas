@@ -66,6 +66,7 @@ var
   CheckOnlineVersionThreadErrorCode: Integer;
   CheckOnlineVersionThreadHTTPStatus: Integer;
   {$ENDIF}
+  CheckOnlineVersionProgress: string;
 
 {******************************************************************************}
 
@@ -82,21 +83,27 @@ var
 begin
   SetupProgramURI := '';
 
+  CheckOnlineVersionProgress := CheckOnlineVersionProgress + 'a';
+
   XML := NewXMLDocument();
   try
     XML.LoadFromStream(Stream, xetUnknown);
+  CheckOnlineVersionProgress := CheckOnlineVersionProgress + 'b';
   except
     // Corrupt PAD File.
   end;
   if (XML.Active and (Assigned(XML.Node))) then
   begin
+  CheckOnlineVersionProgress := CheckOnlineVersionProgress + 'c';
     PAD := XML.Node.ChildNodes.FindNode('XML_DIZ_INFO');
     if (Assigned(PAD)) then
     begin
+  CheckOnlineVersionProgress := CheckOnlineVersionProgress + 'd';
       Major := -1; Minor := -1; Patch := -1; Build := -1;
       Infos := PAD.ChildNodes.FindNode('Program_Info');
       if (Assigned(Infos)) then
       begin
+  CheckOnlineVersionProgress := CheckOnlineVersionProgress + 'e';
         Node := Infos.ChildNodes.FindNode('Program_Version_Major');
         if (Assigned(Node)) and (Node.IsTextElement) then
           Major := StrToInt(Node.GetText());
@@ -112,6 +119,7 @@ begin
       end;
       if ((Major >= 0) and (Minor >= 0) and (Patch >= 0) and (Build >= 0)) then
       begin
+  CheckOnlineVersionProgress := CheckOnlineVersionProgress + 'f';
         OnlineVersion := EncodeVersion(Major, Minor, Patch, Build);
         VersionStr := IntToStr(Major) + '.' + IntToStr(Minor) + '  (Build ' + IntToStr(Patch) + '.' + IntToStr(Build) + ')';
       end;
@@ -427,16 +435,22 @@ var
   SetupProgramURI: string;
   VersionStr: string;
 begin
+  CheckOnlineVersionProgress := CheckOnlineVersionProgress + '1';
+
   inherited;
 
   if (ReturnValue = HTTP_STATUS_OK) then
   begin
+  CheckOnlineVersionProgress := CheckOnlineVersionProgress + '2';
     Preferences.UpdateChecked := Now();
 
     CoInitialize(nil);
+  CheckOnlineVersionProgress := CheckOnlineVersionProgress + '3';
     CheckOnlineVersion(PADFileStream, VersionStr, SetupProgramURI);
+  CheckOnlineVersionProgress := CheckOnlineVersionProgress + '4';
     CoUninitialize();
   end;
+  CheckOnlineVersionProgress := CheckOnlineVersionProgress + '5';
 end;
 
 {$IFDEF EurekaLog}
@@ -834,9 +848,10 @@ begin
   begin
     Result := Result + #13#10;
     Result := Result + 'OnlineVersion: ' + IntToStr(OnlineVersion) + #13#10;
-    Result := Result + 'InternetConneced: ' + BoolToStr(InternetGetConnectedState(nil, 0)) + #13#10;
+    Result := Result + 'InternetConneced: ' + BoolToStr(InternetGetConnectedState(nil, 0), True) + #13#10;
     Result := Result + 'CheckOnlineVersionThreadErrorCode: ' + IntToStr(CheckOnlineVersionThreadErrorCode) + #13#10;
     Result := Result + 'CheckOnlineVersionThreadHTTPStatus: ' + IntToStr(CheckOnlineVersionThreadHTTPStatus) + #13#10;
+    Result := Result + 'CheckOnlineVersionProgress: ' + CheckOnlineVersionProgress + #13#10;
   end;
 end;
 
@@ -924,6 +939,10 @@ end;
 
 initialization
   {$IFDEF EurekaLog}
+  CheckOnlineVersionThreadErrorCode := -1;
+  CheckOnlineVersionThreadHTTPStatus := -1;
+  CheckOnlineVersionProgress := '';
+
   LogBuilderClass := TLogBuilder;
   RegisterEventExceptionNotify(nil, ExceptionNotify);
   RegisterEventCustomButtonClick(nil, CustomButtonClick);

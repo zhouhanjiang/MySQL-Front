@@ -136,8 +136,8 @@ type
     FDesktop: TDesktop;
     FSource: string;
     FValidSource: Boolean;
-    procedure Build(const DataSet: TMySQLQuery); overload; virtual; abstract;
-    procedure Build(const Field: TField); overload; virtual;
+    function Build(const DataSet: TMySQLQuery): Boolean; overload; virtual; abstract;
+    function Build(const Field: TField): Boolean; overload; virtual;
     procedure FreeDesktop(); virtual;
     function GetDesktop(): TDesktop; virtual;
     function GetValid(): Boolean; virtual;
@@ -223,8 +223,8 @@ type
     FReferences: TSReferences;
     function GetDBObjects(): TSDBObjects; inline;
   protected
-    procedure Build(const DataSet: TMySQLQuery); override; abstract;
-    procedure Build(const Field: TField); override;
+    function Build(const DataSet: TMySQLQuery): Boolean; override; abstract;
+    function Build(const Field: TField): Boolean; override;
     procedure SetDatabase(const ADatabase: TSDatabase); virtual;
     procedure SetReferences(const SQL: string); virtual;
     function SQLGetSource(): string; virtual; abstract;
@@ -648,8 +648,8 @@ type
   protected
     FValidStatus: Boolean;
     procedure AddReference(const ReferencedTable: TSBaseTable);
-    procedure Build(const DataSet: TMySQLQuery); override;
-    procedure Build(const Field: TField); override;
+    function Build(const DataSet: TMySQLQuery): Boolean; override;
+    function Build(const Field: TField): Boolean; override;
     function GetFields(): TSTableFields; override;
     function GetValid(): Boolean; override;
     procedure ParseAlterTable(const SQL: string);
@@ -723,8 +723,8 @@ type
     function ParseCreateView(const SQL: string): string;
   protected
     FComment: string;
-    procedure Build(const DataSet: TMySQLQuery); overload; override;
-    procedure Build(const Field: TField); override;
+    function Build(const DataSet: TMySQLQuery): Boolean; overload; override;
+    function Build(const Field: TField): Boolean; override;
     function GetFields(): TSTableFields; override;
     function GetValid(): Boolean; override;
     function SQLGetSource(): string; override;
@@ -749,7 +749,7 @@ type
     function GetValidFields(): Boolean; inline;
     function GetViewFields(): TSViewFields; inline;
   protected
-    procedure Build(const DataSet: TMySQLQuery); override;
+    function Build(const DataSet: TMySQLQuery): Boolean; override;
     function GetFields(): TSTableFields; override;
     function SQLGetSource(): string; override;
     property ValidFields: Boolean read GetValidFields;
@@ -815,7 +815,7 @@ type
     function GetRoutines(): TSRoutines; inline;
     procedure ParseCreateRoutine(const SQL: string);
   protected
-    procedure Build(const Field: TField); override;
+    function Build(const Field: TField): Boolean; override;
     function SQLGetSource(): string; override;
   public
     procedure Assign(const Source: TSRoutine); reintroduce; virtual;
@@ -840,7 +840,7 @@ type
 
   TSProcedure = class(TSRoutine)
   protected
-    procedure Build(const DataSet: TMySQLQuery); overload; override;
+    function Build(const DataSet: TMySQLQuery): Boolean; overload; override;
     function SQLGetSource(): string; override;
   public
     function SQLRun(): string; override;
@@ -848,7 +848,7 @@ type
 
   TSFunction = class(TSRoutine)
   protected
-    procedure Build(const DataSet: TMySQLQuery); overload; override;
+    function Build(const DataSet: TMySQLQuery): Boolean; overload; override;
     function SQLGetSource(): string; override;
   public
     function SQLRun(): string; override;
@@ -884,8 +884,8 @@ type
     FTableName: string;
     FTiming: TTiming;
     FValid: Boolean;
-    procedure Build(const DataSet: TMySQLQuery); overload; override;
-    procedure Build(const Field: TField); override;
+    function Build(const DataSet: TMySQLQuery): Boolean; overload; override;
+    function Build(const Field: TField): Boolean; override;
     function SQLGetSource(): string; override;
     property Valid: Boolean read FValid;
   public
@@ -947,8 +947,8 @@ type
     function GetEvents(): TSEvents; inline;
   protected
     procedure ParseCreateEvent(const SQL: string); virtual;
-    procedure Build(const DataSet: TMySQLQuery); override;
-    procedure Build(const Field: TField); override;
+    function Build(const DataSet: TMySQLQuery): Boolean; override;
+    function Build(const Field: TField): Boolean; override;
     function SQLGetSource(): string; override;
   public
     procedure Assign(const Source: TSEvent); reintroduce; virtual;
@@ -1022,8 +1022,8 @@ type
     function GetValidSources(): Boolean;
     procedure ParseCreateDatabase(const SQL: string);
   protected
-    procedure Build(const DataSet: TMySQLQuery); override;
-    procedure Build(const Field: TField); override;
+    function Build(const DataSet: TMySQLQuery): Boolean; override;
+    function Build(const Field: TField): Boolean; override;
     procedure FreeDesktop(); override;
     function GetCreated(): TDateTime; virtual;
     function GetValid(): Boolean; override;
@@ -1387,7 +1387,7 @@ type
     function GetCaption(): string; override;
     function GetValid(): Boolean; override;
     procedure SetName(const AName: string); override;
-    procedure Build(const DataSet: TMySQLQuery); override;
+    function Build(const DataSet: TMySQLQuery): Boolean; override;
     function SQLGetSource(): string;
   public
     function AddRight(const NewUserRight: TSUserRight): Boolean;
@@ -1529,14 +1529,14 @@ type
     StmtMonitor: TMySQLMonitor;
     procedure BuildManualURL(const DataSet: TMySQLQuery);
     function BuildEvents(const DataSet: TMySQLQuery; const Filtered: Boolean = False;
-      const ItemSearch: TSItemSearch = nil): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
+      const ItemSearch: TSItemSearch = nil): Boolean;
     function BuildRoutines(const DataSet: TMySQLQuery; const Filtered: Boolean = False;
-      const ItemSearch: TSItemSearch = nil): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
+      const ItemSearch: TSItemSearch = nil): Boolean;
     function BuildTables(const DataSet: TMySQLQuery; const Filtered: Boolean = False;
-      const ItemSearch: TSItemSearch = nil): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
+      const ItemSearch: TSItemSearch = nil): Boolean;
     function BuildTriggers(const DataSet: TMySQLQuery; const Filtered: Boolean = False;
-      const ItemSearch: TSItemSearch = nil): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
-    procedure BuildUser(const DataSet: TMySQLQuery);
+      const ItemSearch: TSItemSearch = nil): Boolean;
+    function BuildUser(const DataSet: TMySQLQuery): Boolean;
     procedure ConnectChange(Sender: TObject; Connecting: Boolean);
     procedure DatabaseChange(const Connection: TMySQLConnection; const NewName: string);
     procedure DoSendEvent(const AEvent: TSSession.TEvent);
@@ -2054,7 +2054,7 @@ begin
   FValidSource := Source.ValidSource;
 end;
 
-procedure TSObject.Build(const Field: TField);
+function TSObject.Build(const Field: TField): Boolean;
 var
   Len: Integer;
   RBS: RawByteString;
@@ -2076,6 +2076,8 @@ begin
     SQL := SQL + ';' + #13#10;
 
   SetSource(SQL);
+
+  Result := False;
 
   if ((Now() <= IncDay(CompileTime(), 7)) and (SQL <> '')) then
   begin
@@ -2429,9 +2431,9 @@ begin
   end;
 end;
 
-procedure TSDBObject.Build(const Field: TField);
+function TSDBObject.Build(const Field: TField): Boolean;
 begin
-  inherited;
+  Result := inherited;
 
   if (not (Self is TSBaseTable)) then
     SetReferences(Source);
@@ -4092,17 +4094,17 @@ begin
     end;
 end;
 
-procedure TSBaseTable.Build(const DataSet: TMySQLQuery);
+function TSBaseTable.Build(const DataSet: TMySQLQuery): Boolean;
 begin
-  Build(DataSet.FindField('Create Table'));
+  Result := Build(DataSet.FindField('Create Table'));
 end;
 
-procedure TSBaseTable.Build(const Field: TField);
+function TSBaseTable.Build(const Field: TField): Boolean;
 var
   RBS: RawByteString;
 begin
   try
-    inherited;
+    Result := inherited;
   except
     on E: Exception do
       begin
@@ -4121,6 +4123,8 @@ begin
         // This code allow the user to handle this table - but the comments are wrong.
         SetString(RBS, TMySQLQuery(Field.DataSet).LibRow^[Field.FieldNo - 1], TMySQLQuery(Field.DataSet).LibLengths^[Field.FieldNo - 1]);
         SetSource(string(RBS));
+
+        Result := False;
       end;
   end;
 
@@ -5098,14 +5102,14 @@ begin
   FStmt := TSView(Source).Stmt;
 end;
 
-procedure TSView.Build(const DataSet: TMySQLQuery);
+function TSView.Build(const DataSet: TMySQLQuery): Boolean;
 begin
-  Build(DataSet.FieldByName('Create View'));
+  Result := Build(DataSet.FieldByName('Create View'));
 end;
 
-procedure TSView.Build(const Field: TField);
+function TSView.Build(const Field: TField): Boolean;
 begin
-  inherited Build(Field);
+  Result := inherited;
 
   if (Source <> '') then
     ParseCreateView(Source);
@@ -5337,8 +5341,9 @@ end;
 
 { TSSystemView ****************************************************************}
 
-procedure TSSystemView.Build(const DataSet: TMySQLQuery);
+function TSSystemView.Build(const DataSet: TMySQLQuery): Boolean;
 begin
+  raise EAbstractError.Create(SAbstractError);
 end;
 
 constructor TSSystemView.Create(const ASDBObjects: TSDBObjects; const AName: string = '');
@@ -5892,9 +5897,9 @@ begin
   FValidSource := Source.ValidSource;
 end;
 
-procedure TSRoutine.Build(const Field: TField);
+function TSRoutine.Build(const Field: TField): Boolean;
 begin
-  inherited;
+  Result := inherited;
 
   if (Source <> '') then
     ParseCreateRoutine(Source);
@@ -6240,9 +6245,9 @@ end;
 
 { TSProcedure *****************************************************************}
 
-procedure TSProcedure.Build(const DataSet: TMySQLQuery);
+function TSProcedure.Build(const DataSet: TMySQLQuery): Boolean;
 begin
-  Build(DataSet.FieldByName('Create Procedure'));
+  Result := Build(DataSet.FieldByName('Create Procedure'));
 end;
 
 function TSProcedure.SQLGetSource(): string;
@@ -6306,9 +6311,9 @@ end;
 
 { TSFunction ******************************************************************}
 
-procedure TSFunction.Build(const DataSet: TMySQLQuery);
+function TSFunction.Build(const DataSet: TMySQLQuery): Boolean;
 begin
-  Build(DataSet.FieldByName('Create Function'));
+  Result := Build(DataSet.FieldByName('Create Function'));
 end;
 
 function TSFunction.SQLGetSource(): string;
@@ -6473,14 +6478,14 @@ begin
   FTiming := Source.Timing;
 end;
 
-procedure TSTrigger.Build(const DataSet: TMySQLQuery);
+function TSTrigger.Build(const DataSet: TMySQLQuery): Boolean;
 begin
-  Build(DataSet.FieldByName('SQL Original Statement'));
+  Result := Build(DataSet.FieldByName('SQL Original Statement'));
 end;
 
-procedure TSTrigger.Build(const Field: TField);
+function TSTrigger.Build(const Field: TField): Boolean;
 begin
-  inherited;
+  Result := inherited;
 
   if (Source <> '') then
     ParseCreateTrigger(Source);
@@ -6887,14 +6892,14 @@ begin
   FUpdated := Source.Updated;
 end;
 
-procedure TSEvent.Build(const DataSet: TMySQLQuery);
+function TSEvent.Build(const DataSet: TMySQLQuery): Boolean;
 begin
-  Build(DataSet.FieldByName('Create Event'));
+  Result := Build(DataSet.FieldByName('Create Event'));
 end;
 
-procedure TSEvent.Build(const Field: TField);
+function TSEvent.Build(const Field: TField): Boolean;
 begin
-  inherited;
+  Result := inherited;
 
   if (Source <> '') then
     ParseCreateEvent(Source);
@@ -7224,19 +7229,27 @@ begin
     Result := TSBaseTable(Tables[Index]);
 end;
 
-procedure TSDatabase.Build(const DataSet: TMySQLQuery);
+function TSDatabase.Build(const DataSet: TMySQLQuery): Boolean;
 begin
   // On ONE 4.1.10 server, on the first execution of SHOW CREATE DATABASE,
-  // only one field ("Database") will be given back - not "Create Database" field.
+  // only one field ("Database") will be given back - not a "Create Database" field.
   // On the second execution, the "Create Database" field is given.
-  // This is a bug of the MySQL 4.1.10 server, I think.
+  // Is this a bug of MySQL 4.1.10?
   if (Assigned(DataSet.FindField('Create Database'))) then
-    Build(DataSet.FieldByName('Create Database'));
+    Result := Build(DataSet.FieldByName('Create Database'))
+  else
+  begin
+    // Debug 2017-01-23
+    SendToDeveloper('FieldCount: ' + IntToStr(DataSet.FieldCount) + #13#10
+      + 'MySQL: ' + Session.Connection.ServerVersionStr);
+
+    Result := False;
+  end;
 end;
 
-procedure TSDatabase.Build(const Field: TField);
+function TSDatabase.Build(const Field: TField): Boolean;
 begin
-  inherited;
+  Result := inherited;
 
   ParseCreateDatabase(Source);
 
@@ -10470,7 +10483,7 @@ begin
     Name := FName + '@%';
 end;
 
-procedure TSUser.Build(const DataSet: TMySQLQuery);
+function TSUser.Build(const DataSet: TMySQLQuery): Boolean;
 var
   SQL: string;
 begin
@@ -10492,6 +10505,8 @@ begin
     if (Valid) then
       Session.SendEvent(etItemValid, Session, Users, Self);
   end;
+
+  Result := DataSet.Connection.ErrorCode = ER_OPTION_PREVENTS_STATEMENT;
 end;
 
 function TSUser.SQLGetSource(): string;
@@ -11445,7 +11460,7 @@ begin
   end;
 end;
 
-procedure TSSession.BuildUser(const DataSet: TMySQLQuery);
+function TSSession.BuildUser(const DataSet: TMySQLQuery): Boolean;
 var
   Index: Integer;
 begin
@@ -11453,7 +11468,7 @@ begin
 
   FUser := TSUser.Create(Users);
 
-  FUser.Build(DataSet);
+  Result := FUser.Build(DataSet);
 
   if (not Users.InsertIndex(FUser.Name, Index)) then
   begin
@@ -12910,14 +12925,14 @@ begin
       else if (SQLParseKeyword(Parse, 'GRANTS FOR')) then
       begin
         if (SQLParseKeyword(Parse, 'CURRENT_USER')) then
-          BuildUser(DataSet)
+          Result := BuildUser(DataSet)
         else
         begin
           ObjectName := SQLParseValue(Parse);
           if (not Assigned(User) and (Users.NameCmp(ObjectName, FCurrentUser) = 0)) then
-            BuildUser(DataSet)
+            Result := BuildUser(DataSet)
           else if (Assigned(UserByName(ObjectName))) then
-            UserByName(ObjectName).Build(DataSet)
+            Result := UserByName(ObjectName).Build(DataSet)
           else
             Users.Invalidate();
         end;

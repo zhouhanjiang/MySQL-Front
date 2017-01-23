@@ -533,7 +533,9 @@ end;
 procedure TDImport.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   if (not Visible) then
-    SendToDeveloper('Form not visible');
+    SendToDeveloper('Form not visible' + #13#10
+     + 'fsModal: ' + BoolToStr(fsModal in FormState, True) + #13#10
+     + 'ModalResult: ' + IntToStr(Ord(ModalResult)));
 
   if (Assigned(Import) and Import.Suspended) then
   begin

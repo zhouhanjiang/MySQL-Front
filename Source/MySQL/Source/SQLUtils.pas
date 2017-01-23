@@ -195,12 +195,12 @@ asm
         CMP AX,'\'                       // Character = Escaper?
         JNE QuotedL2                     // No!
         DEC ECX                          // Escaper handled
-        JZ Finish                        // No further characters left in SQL!
+        JZ Finish                        // End of SQL!
         LODSW
         CMP EDI,0                        // Store the string somewhere?
-        JE QuotedLE                      // No!
+        JE QuotedL2                      // No!
         STOSW                            // Put character
-        JMP QuotedLE
+        JMP QuotedL2
 
       QuotedL2:
         CMP AX,DX                        // End of Quoted?
@@ -511,7 +511,8 @@ procedure UnescapeString();
 // ZF if no text buffer or text buffer too small or unterminated string
 label
   StringL, String1, String2, String3, String4, String5, String6, String7,
-  String8, String9, String10, String11, StringLE, StringLE2, StringE,
+  String8, String9, String10, String11, String12, String13, String14, String15,
+  String16, StringLE, StringLE2, StringE,
   Finish;
 var
   Quoter: Char;
@@ -540,7 +541,7 @@ asm
         JNE StringLE                     // No!
         CMP ECX,1                        // Last character?
         JE StringE                       // Yes!
-        MOV BX,[ESI + 2]
+        MOV BX,[ESI]                     // Character after "\"
         CMP BX,'0'                       // "\0"?
         JNE String2                      // No!
         ADD ESI,2                        // Step over Escaper
@@ -548,70 +549,105 @@ asm
         MOV AX,0                         // replace with #0
         JMP StringLE
       String2:
-        CMP BX,''''                       // "\'"?
+        CMP BX,''''                      // "\'"?
         JNE String3                      // No!
         ADD ESI,2                        // Step over Escaper
         DEC ECX                          // Ignore Escaper
         MOV AX,BX                        // replace with "'"
         JMP StringLE
       String3:
-        CMP BX,'"'                       // "\t"?
+        CMP BX,'"'                       // '\"'?
         JNE String4                      // No!
         ADD ESI,2                        // Step over Escaper
         DEC ECX                          // Ignore Escaper
         MOV AX,BX                        // replace with '"'
         JMP StringLE
       String4:
-        CMP BX,'b'                       // "\b"?
+        CMP BX,'B'                       // "\B"?
         JNE String5                      // No!
         ADD ESI,2                        // Step over Escaper
         DEC ECX                          // Ignore Escaper
         MOV AX,8                         // replace with Backspace
         JMP StringLE
       String5:
-        CMP BX,'n'                       // "\n"?
+        CMP BX,'b'                       // "\b"?
         JNE String6                      // No!
+        ADD ESI,2                        // Step over Escaper
+        DEC ECX                          // Ignore Escaper
+        MOV AX,8                         // replace with Backspace
+        JMP StringLE
+      String6:
+        CMP BX,'N'                       // "\N"?
+        JNE String7                      // No!
         ADD ESI,2                        // Step over Escaper
         DEC ECX                          // Ignore Escaper
         MOV AX,10                        // replace with NewLine
         JMP StringLE
-      String6:
-        CMP BX,'r'                       // "\R"?
-        JNE String7                      // No!
+      String7:
+        CMP BX,'n'                       // "\n"?
+        JNE String8                      // No!
+        ADD ESI,2                        // Step over Escaper
+        DEC ECX                          // Ignore Escaper
+        MOV AX,10                        // replace with NewLine
+        JMP StringLE
+      String8:
+        CMP BX,'R'                       // "\R"?
+        JNE String9                      // No!
         ADD ESI,2                        // Step over Escaper
         DEC ECX                          // Ignore Escaper
         MOV AX,13                        // replace with CarriadeReturn
         JMP StringLE
-      String7:
-        CMP BX,'t'                       // "\t"?
-        JNE String8                      // No!
+      String9:
+        CMP BX,'r'                       // "\r"?
+        JNE String10                     // No!
+        ADD ESI,2                        // Step over Escaper
+        DEC ECX                          // Ignore Escaper
+        MOV AX,13                        // replace with CarriadeReturn
+        JMP StringLE
+      String10:
+        CMP BX,'T'                       // "\T"?
+        JNE String11                     // No!
         ADD ESI,2                        // Step over Escaper
         DEC ECX                          // Ignore Escaper
         MOV AX,9                         // replace with Tabulator
         JMP StringLE
-      String8:
-        CMP BX,'Z'                       // "\t"?
-        JNE String9                      // No!
+      String11:
+        CMP BX,'t'                       // "\t"?
+        JNE String12                     // No!
+        ADD ESI,2                        // Step over Escaper
+        DEC ECX                          // Ignore Escaper
+        MOV AX,9                         // replace with Tabulator
+        JMP StringLE
+      String12:
+        CMP BX,'Z'                       // "\Z"?
+        JNE String13                     // No!
         ADD ESI,2                        // Step over Escaper
         DEC ECX                          // Ignore Escaper
         MOV AX,26                        // replace with EOF
         JMP StringLE
-      String9:
+      String13:
+        CMP BX,'z'                       // "\Z"?
+        JNE String14                     // No!
+        ADD ESI,2                        // Step over Escaper
+        DEC ECX                          // Ignore Escaper
+        MOV AX,26                        // replace with EOF
+        JMP StringLE
+      String14:
         CMP BX,'\'                       // "\\"?
-        JNE String10                     // No!
+        JNE String15                     // No!
         ADD ESI,2                        // Step over Escaper
         DEC ECX                          // Ignore Escaper
         MOV AX,BX                        // replace with "\"
         JMP StringLE
-      String10:
+      String15:
         CMP BX,'%'                       // "\%"?
-        JNE String11                     // No!
+        JNE String16                     // No!
         ADD ESI,2                        // Step over Escaper
         DEC ECX                          // Ignore Escaper
         MOV AX,BX                        // replace with "%"
         JMP StringLE
-      String11:
-        CMP BX,'_'                       // "\%"?
+      String16:
+        CMP BX,'_'                       // "\_"?
         JNE StringLE                     // No!
         ADD ESI,2                        // Step over Escaper
         DEC ECX                          // Ignore Escaper
@@ -867,7 +903,8 @@ end;
 function SQLEscape(const Value: PChar; const ValueLen: Integer; const Escaped: PChar; const EscapedLen: Integer; const Quoter: Char = ''''): Integer; overload;
 label
   Start, StartE,
-  ValueStart, ValueL, Value2, Value3, Value4, Value5, Value6, Value7, Value8, ValueLE, ValueFinish,
+  ValueStart, ValueL, Value2, Value3, Value4, Value5, Value6, Value7, Value8,
+  ValueLE, ValueFinish,
   Error,
   Finish;
 begin
@@ -987,7 +1024,7 @@ begin
         JMP ValueLE
 
       Value7:
-        CMP AX,'\'                       // '\' ?
+        CMP AX,'\'                       // "\" ?
         JNE Value8                       // No!
         ADD EBX,2                        // 2 characters needed in Escaped
         CMP Escaped,0                    // Calculate length only?
@@ -3546,12 +3583,5 @@ begin
   Result := StrPas(P);
 end;
 
-var
-  Parse: TSQLParse;
-  SQL: string;
-begin
-  SQL := '(`categoria`(25))';
-  if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), 50000)) then
-    SQLParseValue(Parse);
 end.
 
