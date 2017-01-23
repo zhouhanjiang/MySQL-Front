@@ -6555,7 +6555,7 @@ begin
       Rect.Left := FNavigatorDividerNode.Level * TreeView.Indent
     else
       Rect.Left := Max(FNavigatorDividerNode.Level, FNavigatorDividerNode.GetPrevVisible().Level) * TreeView.Indent;
-    Rect.Right := TreeView.ClientWidth - GetSystemMetrics(SM_CXFIXEDFRAME) - 1;
+    Rect.Right := TreeView.ClientWidth - GetSystemMetrics(SM_CXEDGE) - 1;
 
     ZeroMemory(@ScrollBarInfo, SizeOf(ScrollBarInfo));
     ScrollBarInfo.cbSize := SizeOf(ScrollBarInfo);
@@ -6842,7 +6842,7 @@ begin
       Accept := True;
     end;
 
-    if (TObject(TargetNode.Data) is TSItem) then
+    if (Assigned(TargetNode) and (TObject(TargetNode.Data) is TSItem)) then
       if (Source is TTreeView and (TTreeView(Source).Name = FNavigator.Name)) then
       begin
         SourceNode := TFSession(TTreeView(Source).Owner).MouseDownNode;
@@ -7363,17 +7363,16 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
       if (Compare(Child, Node) >= 0) then
         break;
     ProfilingPoint(4);
-      Child := Child.getNextSibling();
-
-    ProfilingPoint(5);
       Wnd := FNavigator.Handle;
       ItemId := Child.ItemId;
-    ProfilingPoint(6);
+    ProfilingPoint(5);
       TreeView_GetNextSibling(Wnd, ItemId);
-    ProfilingPoint(7);
+    ProfilingPoint(6);
       Item.hItem := ItemId;
       Item.mask := TVIF_PARAM;
       TreeView_GetItem(Handle, Item);
+    ProfilingPoint(7);
+      Child := Child.getNextSibling();
 
     ProfilingPoint(8);
     end;
@@ -11145,6 +11144,7 @@ begin
     ListView.Items.EndUpdate();
     ProfilingPoint(26);
     ListView.Columns.EndUpdate();
+    // 5 seconds
     ProfilingPoint(27);
     ListView.OnChanging := ChangingEvent;
 
