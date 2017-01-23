@@ -574,7 +574,7 @@ begin
                 else if (TSBaseTableField(Table.Fields[I]).FieldKind = mkVirtual) then
                   NewNode.ImageIndex := iiVirtualField
                 else
-                  NewNode.ImageIndex := iiField;
+                  NewNode.ImageIndex := iiBaseField;
                 NewNode.Data := Table.Fields[I];
               end;
               Node.HasChildren := Assigned(Node.getFirstChild());
@@ -866,7 +866,7 @@ begin
         end
         else if (FSelect.Items[I].ImageIndex in [iiProcedure, iiFunction, iiTrigger, iiEvent]) then
           Search.Add(FSelect.Items[I].Data)
-        else if (FSelect.Selected.ImageIndex in [iiField, iiViewField, iiVirtualField]) then
+        else if (FSelect.Selected.ImageIndex in [iiBaseField, iiViewField, iiVirtualField]) then
         begin
           Table := TSTable(FSelect.Items[I].Parent.Data);
           List.Add(Table);

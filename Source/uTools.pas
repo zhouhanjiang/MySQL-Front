@@ -757,11 +757,13 @@ implementation {***************************************************************}
 
 uses
   ActiveX, SysConst, Shlwapi, UITypes, Types,
-  Forms, DBConsts, Registry, DBCommon, StrUtils, Math, Variants,
-  {$IFDEF EurekaLog}
-  ExceptionLog7, EExceptionManager,
+  RegularExpressionsCore, Math, Variants,
+  Forms, DBConsts, Registry, DBCommon, StrUtils
+  {$IFNDEF EurekaLog}
+  ;
+  {$ELSE}
+  , ExceptionLog7, EExceptionManager;
   {$ENDIF}
-  PerlRegEx;
 
 resourcestring
   SSourceParseError = 'Source code of "%s" cannot be analyzed (%d):' + #10#10 + '%s';
@@ -8787,14 +8789,14 @@ begin
         else
         begin
           PerlRegEx := TPerlRegEx.Create();
-          PerlRegEx.RegEx := UTF8Encode(FindText);
+          PerlRegEx.RegEx := FindText;
           if (MatchCase) then
             PerlRegEx.Options := PerlRegEx.Options - [preCaseLess]
           else
             PerlRegEx.Options := PerlRegEx.Options + [preCaseLess];
           PerlRegEx.Study();
           if (Self is TTReplace) then
-            PerlRegEx.Replacement := UTF8Encode(TTReplace(Self).ReplaceText);
+            PerlRegEx.Replacement := TTReplace(Self).ReplaceText;
         end;
 
         UseIndexFields := False;
@@ -8834,7 +8836,7 @@ begin
                 else
                 begin
                   // not MatchCase, since otherwise ExecuteMatchCase will be used
-                  PerlRegEx.Subject := UTF8Encode(Value);
+                  PerlRegEx.Subject := Value;
                   Found := Found or PerlRegEx.Match();
                 end
               else
@@ -8847,10 +8849,10 @@ begin
                 end
                 else
                 begin
-                  PerlRegEx.Subject := UTF8Encode(Value);
+                  PerlRegEx.Subject := Value;
                   Found := PerlRegEx.ReplaceAll();
                   if (Found) then
-                    NewValue := UTF8ToWideString(PerlRegEx.Subject);
+                    NewValue := PerlRegEx.Subject;
                 end;
 
                 if (Found) then

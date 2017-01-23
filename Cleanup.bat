@@ -14,7 +14,6 @@ SET ClearSourceQueryBuilderPath=%CleanSourcePath%\QueryBuilder
 SET ClearSourceShellBrowserPath=%CleanSourcePath%\ShellBrowser
 SET ClearSourceSynEditPath=%CleanSourcePath%\SynEdit
 SET ClearSourceSynopsePDFPath=%CleanSourcePath%\SynopsePDF
-SET ClearSourceTPerlRegExPath=%CleanSourcePath%\TPerlRegEx
 SET ClearSourceVCLPath=%CleanSourcePath%\VCL
 SET ClearSourceWin32Path=%CleanSourcePath%\Win32
 SET CleanPublishPath=%CleanRootPath%\Publish
@@ -44,8 +43,6 @@ if not exist "%ClearSourceSynEditPath%\Bin" MKDIR "%ClearSourceSynEditPath%\Bin"
 if not exist "%ClearSourceSynopsePDFPath%\Source" MKDIR "%ClearSourceSynopsePDFPath%\Source"
 if not exist "%ClearSourceSynopsePDFPath%\Resource" MKDIR "%ClearSourceSynopsePDFPath%\Resource"
 if not exist "%ClearSourceSynopsePDFPath%\Bin" MKDIR "%ClearSourceSynopsePDFPath%\Bin"
-if not exist "%ClearSourceTPerlRegExPath%\Source" MKDIR "%ClearSourceTPerlRegExPath%\Source"
-if not exist "%ClearSourceTPerlRegExPath%\Bin" MKDIR "%ClearSourceTPerlRegExPath%\Bin"
 if not exist "%ClearSourceVCLPath%\Source" MKDIR "%ClearSourceVCLPath%\Source"
 if not exist "%ClearSourceWin32Path%\Source" MKDIR "%ClearSourceWin32Path%\Source"
 

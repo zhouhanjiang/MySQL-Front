@@ -22404,10 +22404,9 @@ begin
 
   Nodes.Expr := ParseExpr([eoIn, eoAllFields, eoOperators]);
 
-  if ((Nodes.Expr > 0)
-    and ((NodePtr(Nodes.Expr)^.NodeType <> ntDbIdent)
-      or not Assigned(PDbIdent(NodePtr(Nodes.Expr))^.Ident)
-      or (PDbIdent(NodePtr(Nodes.Expr))^.Ident^.TokenType <> ttOperator))) then
+  if (not IsToken(Nodes.Expr)
+    or (TokenPtr(Nodes.Expr)^.UsageType <> utDbIdent)
+    or (TokenPtr(Nodes.Expr)^.AsString <> '*')) then
   begin
     if (not ErrorFound) then
       if (IsTag(kiAS)) then
@@ -23240,7 +23239,10 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.StmtTag := ParseTag(kiSHOW, kiDATABASES);
+  if (IsTag(kiSHOW, kiDATABASE)) then
+    Nodes.StmtTag := ParseTag(kiSHOW, kiDATABASES)
+  else
+    Nodes.StmtTag := ParseTag(kiSHOW, kiSCHEMA);
 
   if (not ErrorFound) then
     if (IsTag(kiLIKE)) then
@@ -24248,6 +24250,8 @@ begin
     Result := ParseShowProfilesStmt()
   else if (IsTag(kiSHOW, kiRELAYLOG, kiEVENTS)) then
     Result := ParseShowRelaylogEventsStmt()
+  else if (IsTag(kiSHOW, kiSCHEMA)) then
+    Result := ParseShowDatabasesStmt()
   else if (IsTag(kiSHOW, kiSLAVE, kiHOSTS)) then
     Result := ParseShowSlaveHostsStmt()
   else if (IsTag(kiSHOW, kiSLAVE, kiSTATUS)) then

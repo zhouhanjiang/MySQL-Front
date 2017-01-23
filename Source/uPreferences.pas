@@ -458,24 +458,43 @@ type
 
   TPAccount = class
   type
+    TFavorites = class;
     TFiles = class;
     TDesktop = class;
 
-    TFavorites = class(TStringList)
+    TFavorite = class
+    private
+      FAddress: string;
+      FFavorites: TFavorites;
+    public
+      constructor Create(const AFavorites: TFavorites; const AAddress: string);
+      property Address: string read FAddress;
+      property Favorites: TFavorites read FFavorites;
+    end;
+
+    TFavorites = class(TList)
     type
       TEventProc = procedure(const Favorites: TFavorites) of object;
     private
       EventProcs: array of TEventProc;
       FAccount: TPAccount;
+      function GetFavorite(Index: Integer): TFavorite; inline;
     protected
-      procedure Changed(); override;
+      procedure Changed();
       procedure LoadFromXML(const XML: IXMLNode);
       procedure SaveToXML(const XML: IXMLNode);
     public
+      procedure Add(const Address: string); overload;
+      procedure Clear(); override;
       constructor Create(const AAccount: TPAccount); reintroduce;
+      procedure Delete(Index: Integer);
+      function IndexOf(const Address: string): Integer; overload;
+      procedure Insert(Index: Integer; const Address: string); overload;
+      procedure Move(CurIndex, NewIndex: Integer);
       procedure RegisterEventProc(const AEventProc: TEventProc);
       procedure UnRegisterEventProc(const AEventProc: TEventProc);
       property Account: TPAccount read FAccount;
+      property Favorite[Index: Integer]: TFavorite read GetFavorite; default;
     end;
 
     TFile = class
@@ -2653,16 +2672,44 @@ begin
     end;
 end;
 
+{ TPAccount.TFavorite *********************************************************}
+
+constructor TPAccount.TFavorite.Create(const AFavorites: TFavorites; const AAddress: string);
+begin
+  inherited Create();
+
+  FFavorites := AFavorites;
+  FAddress := AAddress;
+end;
+
 { TPAccount.TFavorites ********************************************************}
+
+procedure TPAccount.TFavorites.Add(const Address: string);
+begin
+  if (IndexOf(Address) < 0) then
+  begin
+    Add(TFavorite.Create(Self, Address));
+
+    Changed();
+  end;
+end;
 
 procedure TPAccount.TFavorites.Changed();
 var
   I: Integer;
 begin
-  inherited;
-
   for I := 0 to Length(EventProcs) - 1 do
     EventProcs[I](Self);
+end;
+
+procedure TPAccount.TFavorites.Clear();
+var
+  I: Integer;
+begin
+  for I := 0 to Count - 1 do
+    Favorite[I].Free();
+
+  inherited;
 end;
 
 constructor TPAccount.TFavorites.Create(const AAccount: TPAccount);
@@ -2672,12 +2719,43 @@ begin
   FAccount := AAccount;
 end;
 
+procedure TPAccount.TFavorites.Delete(Index: Integer);
+begin
+  inherited;
+
+  Changed();
+end;
+
+function TPAccount.TFavorites.GetFavorite(Index: Integer): TFavorite;
+begin
+  Result := TFavorite(Items[Index]);
+end;
+
+function TPAccount.TFavorites.IndexOf(const Address: string): Integer;
+var
+  I: Integer;
+begin
+  Result := -1;
+
+  for I := 0 to Count - 1 do
+    if (Favorite[I].Address = Address) then
+      Result := I;
+end;
+
+procedure TPAccount.TFavorites.Insert(Index: Integer; const Address: string);
+begin
+  if (IndexOf(Address) < 0) then
+  begin
+    inherited Insert(Index, TFavorite.Create(Self, Address));
+
+    Changed();
+  end;
+end;
+
 procedure TPAccount.TFavorites.LoadFromXML(const XML: IXMLNode);
 var
   Node: IXMLNode;
 begin
-  BeginUpdate();
-
   Clear();
 
   Node := XML.ChildNodes.First();
@@ -2685,11 +2763,18 @@ begin
   begin
     if ((Node.NodeName = 'favorite')
       and (Node.Text <> '')) then
-      inherited Add(Account.ExpandAddress(Node.Text));
+      Add(TFavorite.Create(Self, Account.ExpandAddress(Node.Text)));
     Node := Node.NextSibling();
   end;
 
-  EndUpdate();
+  Changed();
+end;
+
+procedure TPAccount.TFavorites.Move(CurIndex, NewIndex: Integer);
+begin
+  inherited;
+
+  Changed();
 end;
 
 procedure TPAccount.TFavorites.SaveToXML(const XML: IXMLNode);
@@ -2701,7 +2786,7 @@ begin
       XML.ChildNodes.Delete(I);
 
   for I := 0 to Count - 1 do
-    XML.AddChild('favorite').Text := Account.ExtractPath(Strings[I]);
+    XML.AddChild('favorite').Text := Account.ExtractPath(Favorite[I].Address);
 end;
 
 procedure TPAccount.TFavorites.RegisterEventProc(const AEventProc: TEventProc);

@@ -402,7 +402,7 @@ begin
     Item := FRights.Items.Add();
     Item.Caption := NewUser.Rights[I].Caption;
     if (NewUser.Rights[I].FieldName <> '') then
-      Item.ImageIndex := iiField
+      Item.ImageIndex := iiBaseField
     else if (NewUser.Rights[I].TableName <> '') then
       Item.ImageIndex := iiBaseTable
     else if (NewUser.Rights[I].ProcedureName <> '') then

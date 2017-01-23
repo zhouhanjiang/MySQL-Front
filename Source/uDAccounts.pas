@@ -587,10 +587,11 @@ begin
         Item.SubItems.Add(Accounts[I].Connection.Username);
       if (miHDatabase.Checked) then
         Item.SubItems.Add(Accounts[I].Connection.Database);
-      if (Accounts[I].LastLogin = 0) then
-        Item.SubItems.Add('???')
-      else
-        Item.SubItems.Add(DateTimeToStr(Accounts[I].LastLogin, LocaleFormatSettings));
+      if (miHLastLogin.Checked) then
+        if (Accounts[I].LastLogin = 0) then
+          Item.SubItems.Add('???')
+        else
+          Item.SubItems.Add(DateTimeToStr(Accounts[I].LastLogin, LocaleFormatSettings));
       Item.ImageIndex := 23;
       Item.Data := Accounts[I];
     end;

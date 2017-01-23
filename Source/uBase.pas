@@ -9,13 +9,13 @@ uses
   uPreferences;
 
 const
+  iiBaseField = 27;
   iiBaseTable = 25;
   iiCalendar = 81;
   iiClock = 84;
   iiDatabase = 24;
   iiEvent = 85;
   iiExport = 104;
-  iiField = 27;
   iiForeignKey = 28;
   iiFunction = 77;
   iiImport = 103;

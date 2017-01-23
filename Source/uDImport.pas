@@ -127,7 +127,6 @@ type
     procedure TSWhatShow(Sender: TObject);
     procedure WhatClick(Sender: TObject);
     procedure WhatKeyPress(Sender: TObject; var Key: Char);
-    procedure FBCancelClick(Sender: TObject);
     procedure TSExecuteResize(Sender: TObject);
   type
     TTableName = class
@@ -181,8 +180,6 @@ type
   public
     CodePage: Cardinal;
     Filename: TFileName;
-    FNavigator: PPointer; // Debug 2016-12-22
-    Progress: string; // Debug 2016-12-22
     ImportType: TImportType;
     Session: TSSession;
     SObject: TSObject;
@@ -364,28 +361,10 @@ begin
     if (not GetDataSource()) then
       ModalResult := mrCancel;
 
-  Progress := Progress + 'a';
-  // Debug 2017-01-03
-  if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-    raise ERangeError.Create('Progress: ' + Progress);
-  Progress := Progress + 'b';
-
   if (ModalResult = mrCancel) then
     Result := False
   else
     Result := ShowModal() = mrOk;
-
-  // Debug 2017-01-03
-  if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-    raise ERangeError.Create('Progress: ' + Progress);
-  // Occurred 2017-01-08 Progress: 2abnqrlmsxylmlmAfhi
-  Progress := Progress + 'c';
-
-  // 2017-01-20
-  if (not Visible) then
-    Progress := Progress + '-'
-  else
-    Progress := Progress + '+';
 end;
 
 procedure TDImport.FBBackClick(Sender: TObject);
@@ -398,16 +377,6 @@ begin
       PageControl.ActivePageIndex := PageIndex;
       exit;
     end;
-
-  // Debug 2017-01-03
-  if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-    raise ERangeError.Create('Progress: ' + Progress);
-  Progress := Progress + 'd';
-end;
-
-procedure TDImport.FBCancelClick(Sender: TObject);
-begin
-  Progress := Progress + 'A';
 end;
 
 procedure TDImport.FBForwardClick(Sender: TObject);
@@ -503,11 +472,6 @@ begin
 
     CheckActivePageChange(TSCSVOptions);
   end;
-
-  // Debug 2017-01-03
-  if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-    raise ERangeError.Create('Progress: ' + Progress);
-  Progress := Progress + 'e';
 end;
 
 procedure TDImport.FCharsetChange(Sender: TObject);
@@ -568,54 +532,17 @@ end;
 
 procedure TDImport.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
-  // Debug 2016-12-22
-  if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-    if (not Assigned(SObject)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-        + 'ImportType: ' + IntToStr(Ord(ImportType)) + #13#10
-        + 'CodePage: ' + IntToStr(CodePage))
-    else
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-        + 'ImportType: ' + IntToStr(Ord(ImportType)) + #13#10
-        + 'CodePage: ' + IntToStr(CodePage) + #13#10
-        + 'SObject = SObjectDebug: ' + BoolToStr(SObject = SObjectDebug, True) + #13#10
-        + 'ThreadID: ' + IntToStr(GetCurrentThreadId()) + #13#10
-        + 'Destroying: ' + BoolToStr(csDestroying in ComponentState, True) + #13#10
-        + 'Visible: ' + BoolToStr(Visible));
-      // SObject.Class names shows cryptical data - but always nearly the same...
-
-
-  // occurred on 2017-01-05: abnsqrxylm .. lmlmqrxyptufijkc
-  // occurred on 2017-01-05: abenqrsxylmlmlmlmlmlmlmlmqrxylmlmlmlmlmlmlmqrxyptufijkc, ImportType: 2
-  // occurred on 2017-01-05: abnsqrxylmlm .. lmqrxyqrxyptufijkc, ImportType: 1
-  // occurred on 2017-01-06: 2abeneeeeeqrsxylmlmlmlmlmlmlmlmlmlmqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyovwqrxylmlmlmlmqrxyptuAfijkc_, ImportType: 2
-  // occurred on 2017-01-07: 2abnsqrxylmlmlmlmlmlmlml .. lmlmqrxyptuAfijkc_, ImportType: 1
-  // occurred on 2017-01-09: 2abnsqrxy .. qrxyptuAfijkc_, ImportType: 1
-  // occurred on 2017-01-09: 2abc_, ImportType: 1
-  // occurred on 2017-01-09: 2abnqrsxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyqrxyptuAfijkc_, ImportType: 4
-  // occurred on 2017-01-09: 2abc_, ImportType: 1
-  // occurred on 2017-01-17: 2abnsptuAfijkc_, ImportType: 1, ClassType: TSDatabase, CodePage: Ansi, ... no SQL log
-  // occurred on 2017-01-18: 2abnsptuAfijkc_, ImportType: 4, ClassType: TSBaseTable, CodePage: Ansi, ... no SQL log
-  // occurred on 2017-01-18: 2abnsptuAfijkc_, ImportType: 1, ClassType: TSDatabase, CodePage: UTF-8, ... no SQL log, MainThread
-
-  Progress := Progress + 'f';
+  if (not Visible) then
+    SendToDeveloper('Form not visible');
 
   if (Assigned(Import) and Import.Suspended) then
   begin
-  // Debug 2016-12-22
-  if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-    raise ERangeError.Create('Progress: ' + Progress);
-  Progress := Progress + 'g';
     Import.Free();
     Import := nil;
   end;
 
   if (Assigned(Import)) then
   begin
-  // Debug 2016-12-22
-  if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-    raise ERangeError.Create('Progress: ' + Progress);
-  Progress := Progress + 'h';
     Import.Terminate();
     CanClose := False;
   end
@@ -627,11 +554,6 @@ begin
     SetClassLong(Handle, GCL_STYLE, GetClassLong(Handle, GCL_STYLE) and not CS_NOCLOSE)
   else
     SetClassLong(Handle, GCL_STYLE, GetClassLong(Handle, GCL_STYLE) or CS_NOCLOSE);
-
-  // Debug 2016-12-22
-  if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-    raise ERangeError.Create('Progress: ' + Progress);
-  Progress := Progress + 'i';
 end;
 
 procedure TDImport.FormCreate(Sender: TObject);
@@ -669,111 +591,77 @@ end;
 
 procedure TDImport.FormHide(Sender: TObject);
 begin
-  // Debug 2016-12-22
-  if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-    if (not Assigned(SObject)) then
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-        + 'ImportType: ' + IntToStr(Ord(ImportType))
-        + 'CodePage: ' + IntToStr(CodePage) + #13#10)
-    else
-      raise ERangeError.Create('Progress: ' + Progress + #13#10
-        + 'ImportType: ' + IntToStr(Ord(ImportType)) + #13#10
-        + 'CodePage: ' + IntToStr(CodePage) + #13#10
-        + 'SObject = SObjectDebug: ' + BoolToStr(SObject = SObjectDebug, True) + #13#10
-        + 'SObject: ' + SObject.ClassName + #13#10
-        + 'ThreadID: ' + IntToStr(GetCurrentThreadId()) + #13#10
-        + 'Destroying: ' + BoolToStr(csDestroying in ComponentState, True) + #13#10
-        + 'Visible: ' + BoolToStr(Visible));
-  // Occurred 2017-01-05 Progress: abenqrsxyfhifhifhifhifhifhi
-  // Occurred 2017-01-05 Progress: 2abnsqrxylmlmAfhi, ImportType: 1
-  // Occurred 2017-01-07 Progress: 2abnsqrxylmlmlmlmlmlmlmlm .. lmlmlmlmAfhi, ImportType: 1
-  // Occurred 2017-01-07 Progress: 2abnsqrxylmlmlmlmlmlmAfhi, ImportType: 1
-  // Occurred 2017-01-07 Progress: 2abnsqrxylmlmAfhi, ImportType: 1
-  // Occurred 2017-01-08 Progress: 2abnqrlmsxylmlmAfhi, ImportType: 4
-
-  // Occurred 2017-01-17 Progress: 2abns, ImportType: 1, TSDatabase
-  //   ... no SQL Log and TTImportSQL still running!
-
-  // Occurred 2017-01-17 Progress: 2abnsovwAfhi, ImportType: 1, CodePage: Ansi, ClassType: TSDatabase, ... no SQL Log
-  // Occurred 2017-01-18 Progress: 2abnsfhi, ImportType: 1, CodePage: Ansi, ClassType: TSDatabase, ... no SQL Log
-
-  Progress := Progress + 'j';
-
-  Session.UnRegisterEventProc(FormSessionEvent);
-
-  Preferences.Import.Width := Width;
-  Preferences.Import.Height := Height;
-
-  if (ModalResult = mrOk) then
+  if (not Visible) then
+    SendToDeveloper('Form not visible')
+  else
   begin
-    case (ImportType) of
-      itTextFile:
-        begin
-          Preferences.Import.CSV.Headline := FCSVHeadline.Checked;
-          if (FDelimiterTab.Checked) then
-            Preferences.Import.CSV.DelimiterType := dtTab
-          else if (FDelimiterChar.Checked) then
-            Preferences.Import.CSV.DelimiterType := dtChar;
-          Preferences.Import.CSV.Delimiter := FDelimiter.Text;
-          Preferences.Import.CSV.QuoteChar := FQuoteChar.Text;
-          if (FQuoteNothing.Checked) then
-            Preferences.Import.CSV.Quote := qtNone
-          else
-            Preferences.Import.CSV.Quote := qtStrings;
-        end;
-      itODBC:
-        begin
-          Preferences.Import.Structure := FStructure.Checked;
-          Preferences.Import.Data := FData.Checked;
-        end;
+    Session.UnRegisterEventProc(FormSessionEvent);
+
+    Preferences.Import.Width := Width;
+    Preferences.Import.Height := Height;
+
+    if (ModalResult = mrOk) then
+    begin
+      case (ImportType) of
+        itTextFile:
+          begin
+            Preferences.Import.CSV.Headline := FCSVHeadline.Checked;
+            if (FDelimiterTab.Checked) then
+              Preferences.Import.CSV.DelimiterType := dtTab
+            else if (FDelimiterChar.Checked) then
+              Preferences.Import.CSV.DelimiterType := dtChar;
+            Preferences.Import.CSV.Delimiter := FDelimiter.Text;
+            Preferences.Import.CSV.QuoteChar := FQuoteChar.Text;
+            if (FQuoteNothing.Checked) then
+              Preferences.Import.CSV.Quote := qtNone
+            else
+              Preferences.Import.CSV.Quote := qtStrings;
+          end;
+        itODBC:
+          begin
+            Preferences.Import.Structure := FStructure.Checked;
+            Preferences.Import.Data := FData.Checked;
+          end;
+      end;
+
+      if (FReplace.Checked) then
+        Preferences.Import.StmtType := stReplace
+      else if (FUpdate.Checked) then
+        Preferences.Import.StmtType := stUpdate
+      else if (FInsertOrUpdate.Checked) then
+        Preferences.Import.StmtType := stInsertOrUpdate
+      else
+        Preferences.Import.StmtType := stInsert;
     end;
 
-    if (FReplace.Checked) then
-      Preferences.Import.StmtType := stReplace
-    else if (FUpdate.Checked) then
-      Preferences.Import.StmtType := stUpdate
-    else if (FInsertOrUpdate.Checked) then
-      Preferences.Import.StmtType := stInsertOrUpdate
-    else
-      Preferences.Import.StmtType := stInsert;
+    FTables.Items.BeginUpdate();
+    FTables.Items.Clear();
+    FTables.Items.EndUpdate();
+    ClearTSFields(Sender);
+
+    FCSVPreview.Items.BeginUpdate();
+    FCSVPreview.Items.Clear();
+    FCSVPreview.Columns.Clear();
+    FCSVPreview.Items.EndUpdate();
+
+    FEngine.Items.BeginUpdate();
+    FEngine.Items.Clear();
+    FEngine.Items.EndUpdate();
+    FCharset.Items.BeginUpdate();
+    FCharset.Items.Clear();
+    FCharset.Items.EndUpdate();
+    FCollation.Items.BeginUpdate();
+    FCollation.Items.Clear();
+    FCollation.Items.EndUpdate();
+
+    TableNames.Free();
+
+    PageControl.ActivePage := nil;
   end;
-
-  FTables.Items.BeginUpdate();
-  FTables.Items.Clear();
-  FTables.Items.EndUpdate();
-  ClearTSFields(Sender);
-
-  FCSVPreview.Items.BeginUpdate();
-  FCSVPreview.Items.Clear();
-  FCSVPreview.Columns.Clear();
-  FCSVPreview.Items.EndUpdate();
-
-  FEngine.Items.BeginUpdate();
-  FEngine.Items.Clear();
-  FEngine.Items.EndUpdate();
-  FCharset.Items.BeginUpdate();
-  FCharset.Items.Clear();
-  FCharset.Items.EndUpdate();
-  FCollation.Items.BeginUpdate();
-  FCollation.Items.Clear();
-  FCollation.Items.EndUpdate();
-
-  TableNames.Free();
-
-  PageControl.ActivePage := nil;
-
-  // Debug 2016-12-22
-  if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-    raise ERangeError.Create('Progress: ' + Progress);
-  Progress := Progress + 'k';
 end;
 
 procedure TDImport.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  // Debug 2017-01-03
-  if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-    raise ERangeError.Create('Progress: ' + Progress);
-
   if (Event.EventType = etError) then
   begin
     SetControlCursor(GFields, crDefault);
@@ -783,10 +671,6 @@ begin
   end
   else if (Event.EventType = etAfterExecuteSQL) then
     PostMessage(Handle, UM_POST_AFTEREXECUTESQL, 0, 0);
-
-  // Debug 2017-01-03
-  if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-    raise ERangeError.Create('Progress: ' + Progress);
 end;
 
 procedure TDImport.FormShow(Sender: TObject);
@@ -847,11 +731,6 @@ begin
 
   if (ImportType in [itSQLFile]) then
     PostMessage(Handle, UM_POST_SHOW, 0, 0);
-
-  // Debug 2016-12-22
-  if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-    raise ERangeError.Create('Hui!');
-  Progress := Progress + 'n';
 end;
 
 procedure TDImport.FQuoteClick(Sender: TObject);
@@ -966,36 +845,17 @@ end;
 
 function TDImport.OnError(const Details: TTool.TErrorDetails): TDataAction;
 begin
-  // Debug 2017-01-03
-  if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-    raise ERangeError.Create('Progress: ' + Progress);
-  Progress := Progress + 'o';
-
   Result := TDataAction(SendMessage(Handle, UM_TOOL_ERROR, 0, LPARAM(@Details)));
 end;
 
 procedure TDImport.OnTerminate(Sender: TObject);
 begin
-  // Debug 2016-12-22
-  if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-    raise ERangeError.Create('Progress: ' + Progress);
-  Progress := Progress + 'p';
-
   PostMessage(Handle, UM_TERMINATE, WPARAM(not Import.Terminated), 0);
 end;
 
 procedure TDImport.OnUpdate(const AProgressInfos: TTool.TProgressInfos);
 begin
-  // Debug 2017-01-03
-  if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-    raise ERangeError.Create('Progress: ' + Progress);
-
   MoveMemory(@ProgressInfos, @AProgressInfos, SizeOf(AProgressInfos));
-
-  // Debug 2017-01-03
-  if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-    raise ERangeError.Create('Progress: ' + Progress);
-
   PostMessage(Handle, UM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos))
 end;
 
@@ -1178,11 +1038,6 @@ begin
   CheckActivePageChange(TSExecute);
   FBBack.Enabled := False;
   ActiveControl := FBCancel;
-
-  // Debug 2016-12-22
-  if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-    raise ERangeError.Create('Progress: ' + Progress);
-  Progress := Progress + 's';
 end;
 
 procedure TDImport.TSFieldsShow(Sender: TObject);
@@ -1495,11 +1350,6 @@ procedure TDImport.UMTerminate(var Message: TMessage);
 var
   Success: Boolean;
 begin
-  // Debug 2016-12-22
-  if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-    raise ERangeError.Create('Progress: ' + Progress);
-  Progress := Progress + 't';
-
   Success := Boolean(Message.WParam);
 
   Import.WaitFor();
@@ -1522,11 +1372,6 @@ begin
     FBCancel.ModalResult := mrOk
   else
     FBCancel.ModalResult := mrCancel;
-
-  // Debug 2016-12-22
-  if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-    raise ERangeError.Create('Progress: ' + Progress);
-  Progress := Progress + 'u';
 end;
 
 procedure TDImport.UMToolError(var Message: TMessage);
@@ -1536,11 +1381,6 @@ var
   Flags: Integer;
   Msg: string;
 begin
-  // Debug 2017-01-03
-  if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-    raise ERangeError.Create('Progress: ' + Progress);
-  Progress := Progress + 'v';
-
   Details := Pointer(Message.LParam);
 
   ErrorMsg := '';
@@ -1595,11 +1435,6 @@ begin
     FErrors.Caption := IntToStr(Details^.Tool.ErrorCount);
     FErrorMessages.Text := FErrorMessages.Text + Trim(ErrorMsg);
   end;
-
-  // Debug 2017-01-03
-  if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-    raise ERangeError.Create('Progress: ' + Progress);
-  Progress := Progress + 'w';
 end;
 
 procedure TDImport.UMUpdateProgressInfo(var Message: TMessage);
@@ -1607,10 +1442,6 @@ var
   Infos: TTool.PProgressInfos;
 begin
   Infos := TTool.PProgressInfos(Message.LParam);
-
-  // Debug 2016-12-31
-  if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-    raise ERangeError.Create('Progress: ' + IntToStr(Infos^.Progress));
 
   if (Infos^.ObjectsSum < 0) then
     FEntieredObjects.Caption := '???'
@@ -1633,10 +1464,6 @@ begin
   FDoneTime.Caption := TimeToStr(Infos^.TimeDone, DurationFormatSettings);
 
   FProgressBar.Position := Infos^.Progress;
-
-  // Debug 2017-01-03
-  if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-    raise ERangeError.Create('Progress: ' + IntToStr(Infos^.Progress));
 end;
 
 procedure TDImport.WhatClick(Sender: TObject);

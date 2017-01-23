@@ -909,15 +909,16 @@ begin
 end;
 
 procedure TWWindow.EmptyWorkingMem();
-var
-  Process: THandle;
+//var
+//  Process: THandle;
 begin
-  Process := OpenProcess(PROCESS_ALL_ACCESS, FALSE, GetCurrentProcessId());
-  if (Process <> 0) then
-  begin
-    SetProcessWorkingSetSize(Process, Size_T(-1), Size_T(-1));
-    CloseHandle(Process);
-  end;
+  // Disabled 2017-01-22
+//  Process := OpenProcess(PROCESS_ALL_ACCESS, FALSE, GetCurrentProcessId());
+//  if (Process <> 0) then
+//  begin
+//    SetProcessWorkingSetSize(Process, Size_T(-1), Size_T(-1));
+//    CloseHandle(Process);
+//  end;
 end;
 
 procedure TWWindow.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
@@ -1423,6 +1424,10 @@ begin
 
     FSession := TFSession.Create(Self, PWorkSpace, DAccounts.Session, PChar(Message.LParam));
     FSession.Visible := True;
+
+    // Debug 2017-01-23
+    if (FSession.ClassName = '') then
+      SendToDeveloper('Unknown ClassName');
 
     Inc(UniqueTabNameCounter);
     FSession.Name := FSession.ClassName + '_' + IntToStr(UniqueTabNameCounter);

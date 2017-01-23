@@ -171,7 +171,7 @@ type
     TSyncThread = class(TThread)
     type
       TMode = (smSQL, smResultHandle, smDataSet);
-      TState = (ssClose, ssConnect, ssConnecting, ssReady, ssFirst, ssExecutingFirst, ssResult, ssReceivingResult, ssNext, ssExecutingNext, ssDisconnect, ssDisconnecting);
+      TState = (ssClose, ssConnect, ssConnecting, ssReady, ssFirst, ssExecutingFirst, ssResult, ssReceivingResult, ssNext, ssExecutingNext, ssDisconnect, ssDisconnecting, ssTerminate);
     private
       Done: TEvent;
       ExecutionTime: TDateTime;
@@ -266,7 +266,6 @@ type
     SilentCount: Integer;
     SynchronCount: Integer;
     SyncThreadExecuted: TEvent;
-    procedure DoTerminate();
     function GetNextCommandText(): string;
     function GetServerDateTime(): TDateTime;
     function GetHandle(): MySQLConsts.MYSQL;
@@ -336,6 +335,7 @@ type
     procedure SyncPing(const SyncThread: TSyncThread);
     procedure SyncReceivingResult(const SyncThread: TSyncThread);
     procedure SyncReleaseDataSet(const DataSet: TMySQLQuery);
+    procedure SyncTerminate();
     procedure UnRegisterSQLMonitor(const SQLMonitor: TMySQLMonitor); virtual;
     procedure WriteMonitor(const Text: string; const TraceType: TMySQLMonitor.TTraceType); overload; inline;
     procedure WriteMonitor(const Text: PChar; const Length: Integer; const TraceType: TMySQLMonitor.TTraceType); overload;
@@ -2382,39 +2382,6 @@ begin
       FOnSQLError(Self, ErrorCode, ErrorMessage);
 end;
 
-procedure TMySQLConnection.DoTerminate();
-begin
-  // Debug 2017-01-21
-  TerminateCS.Enter();
-  if (GetCurrentThreadId() <> MainThreadID) then
-    raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
-  TerminateCS.Leave();
-
-
-  Assert(GetCurrentThreadId() = MainThreadID);
-
-  KillThreadId := SyncThread.ThreadId;
-
-  {$IFDEF Debug}
-    MessageBox(0, 'Terminate!', 'Warning', MB_OK + MB_ICONWARNING);
-  {$ENDIF}
-
-  MySQLSyncThreads.Delete(MySQLSyncThreads.IndexOf(SyncThread));
-
-  SyncThread.Terminate();
-
-  if (GetCurrentThreadId() = MainThreadID) then
-    WriteMonitor('--> Connection terminated!', ttInfo);
-
-  {$IFDEF EurekaLog}
-    SetEurekaLogStateInThread(SyncThread.ThreadID, False);
-  {$ENDIF}
-
-  TerminatedThreads.Add(SyncThread);
-
-  FSyncThread := nil;
-end;
-
 procedure TMySQLConnection.DoVariableChange(const Name, NewValue: string);
 begin
   if (Assigned(FOnVariableChange)) then
@@ -2583,6 +2550,7 @@ var
   SQLLength: Integer;
   StmtIndex: Integer;
   StmtLength: Integer;
+  S: PChar; // Debug 2017-01-22
 begin
   Assert(SQL <> '');
   Assert(not Assigned(Done) or (Done.WaitFor(IGNORE) <> wrSignaled));
@@ -2627,10 +2595,22 @@ begin
 
   SQLIndex := 1;
   SQLLength := Length(SyncThread.SQL);
-  while ((SQLLength > 0) and CharInSet(SyncThread.SQL[SQLLength], [#9, #10, #13, ' '])) do Dec(SQLLength);
+
+  // Debug 2017-01-22
+  // In the while loop, there occurred and AV twice - but why???
+  S := PChar(SyncThread.SQL);
+  while ((SQLLength > 0) and CharInSet(S[SQLLength - 1], [#9, #10, #13, ' '])) do Dec(SQLLength);
+
+
   while (SQLIndex < SQLLength) do
   begin
+    try // Debug 2017-01-23
     StmtLength := SQLStmtLength(PChar(@SyncThread.SQL[SQLIndex]), SQLLength - (SQLIndex - 1));
+    except
+      on E: Exception do
+        raise ERangeError.Create(SyncThread.SQL + #13#10
+          + E.Message);
+    end;
     SyncThread.StmtLengths.Add(Pointer(StmtLength));
     Inc(SQLIndex, StmtLength);
   end;
@@ -3113,6 +3093,11 @@ begin
         end;
       ssDisconnecting:
         SyncDisconnected(SyncThread);
+      ssTerminate:
+        begin
+          SyncTerminate();
+          SyncThreadExecuted.SetEvent();
+        end;
       else
         raise Exception.CreateFMT(SOutOfSync + ' (State: %d)', [Ord(SyncThread.State)]);
     end;
@@ -3862,11 +3847,43 @@ begin
   DataSet.SyncThread := nil;
 end;
 
+procedure TMySQLConnection.SyncTerminate();
+begin
+  Assert(GetCurrentThreadId() = MainThreadID);
+
+  KillThreadId := SyncThread.ThreadId;
+
+  {$IFDEF Debug}
+    MessageBox(0, 'Terminate!', 'Warning', MB_OK + MB_ICONWARNING);
+  {$ENDIF}
+
+  MySQLSyncThreads.Delete(MySQLSyncThreads.IndexOf(SyncThread));
+
+  SyncThread.Terminate();
+
+  if (GetCurrentThreadId() = MainThreadID) then
+    WriteMonitor('--> Connection terminated!', ttInfo);
+
+  {$IFDEF EurekaLog}
+    SetEurekaLogStateInThread(SyncThread.ThreadID, False);
+  {$ENDIF}
+
+  TerminatedThreads.Add(SyncThread);
+
+  FSyncThread := nil;
+end;
+
 procedure TMySQLConnection.Terminate();
 begin
   TerminateCS.Enter();
   if (Assigned(SyncThread) and SyncThread.IsRunning) then
-    DoTerminate();
+    if (GetCurrentThreadId() = MainThreadID) then
+      SyncTerminate()
+    else
+    begin
+      MySQLConnectionOnSynchronize(SyncThread);
+      SyncThreadExecuted.WaitFor(INFINITE);
+    end;
   TerminateCS.Leave();
 end;
 
@@ -5200,6 +5217,11 @@ begin
           end;
 
           Field.FieldName := Connection.LibDecode(LibField.name);
+
+          // Debug 2017-01-23
+          if (Field.FieldName = '') then
+            raise ERangeError.Create('LibField.name: ' + string(AnsiStrings.StrPas(LibField.name)));
+
           if (Assigned(FindField(Field.FieldName))) then
           begin
             I := 2;
@@ -6162,6 +6184,12 @@ begin
 
   if (Result = grOk) then
   begin
+    // Debug 2017-01-22
+    if ((NewIndex < 0) or (InternRecordBuffers.Count <= NewIndex)) then
+      raise ERangeError.Create('Index: ' + IntToStr(NewIndex) + #13#10
+        + 'Count: ' + IntToStr(InternRecordBuffers.Count) + #13#10
+        + 'GetMode: ' + IntToStr(Ord(GetMode)));
+
     InternRecordBuffers.CriticalSection.Enter();
     InternRecordBuffers.Index := NewIndex;
 
@@ -6721,6 +6749,7 @@ begin
         SQL := Connection.SQLUse(DatabaseName) + SQL;
 
       InternalPostResult.Exception := nil;
+      InternalPostResult.NewIndex := PExternRecordBuffer(ActiveBuffer())^.Index;
 
       Connection.BeginSilent();
       Connection.BeginSynchron();
@@ -6731,21 +6760,21 @@ begin
       if (Assigned(InternalPostResult.Exception)) then
         raise InternalPostResult.Exception;
 
-
-      if (CheckPosition and (ControlSQL = '')) then
+      if ((ControlSQL = '') and CheckPosition) then
       begin
         InternalPostResult.NewIndex := InternRecordBuffers.IndexOf(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData);
         if (InternalPostResult.NewIndex < 0) then
           InternalPostResult.NewIndex := InternRecordBuffers.Count - 1
         else if (InternalPostResult.NewIndex > PExternRecordBuffer(ActiveBuffer())^.Index) then
           Dec(InternalPostResult.NewIndex);
+      end;
 
-        if (InternalPostResult.NewIndex <> PExternRecordBuffer(ActiveBuffer())^.Index) then
-        begin
-          // Position in InternRecordBuffers change -> move it and resync buffer
-          InternRecordBuffers.Move(PExternRecordBuffer(ActiveBuffer())^.Index, InternalPostResult.NewIndex);
-          InternRecordBuffers.Index := InternalPostResult.NewIndex;
-        end;
+      if (InternalPostResult.NewIndex <> PExternRecordBuffer(ActiveBuffer())^.Index) then
+      begin
+        // Position in InternRecordBuffers change -> move it
+        InternRecordBuffers.Move(PExternRecordBuffer(ActiveBuffer())^.Index, InternalPostResult.NewIndex);
+        InternRecordBuffers.Index := InternalPostResult.NewIndex;
+        PExternRecordBuffer(ActiveBuffer())^.Index := InternRecordBuffers.Index;
       end;
     end;
   end;
@@ -7168,6 +7197,11 @@ var
   NewData: TMySQLQuery.PRecordBufferData;
   OldData: TMySQLQuery.PRecordBufferData;
 begin
+  // Debug 2017-01-23
+  if (ActiveBuffer() = 0) then
+    raise ERangeError.Create('State: ' + IntToStr(Ord(State)) + #13#10
+      + 'Count: ' + IntToStr(InternRecordBuffers.Count));
+
   OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
 
   MemSize := SizeOf(NewData^) + FieldCount * (SizeOf(NewData^.LibLengths^[0]) + SizeOf(NewData^.LibRow^[0]));
@@ -7452,6 +7486,13 @@ begin
           begin
             InternRecordBuffer := InternRecordBuffers[InternRecordBuffers.IndexOf(DeleteBookmarks[I])];
             if (ValueHandled) then Result := Result + ' AND ';
+
+            // Debug 2017-01-22
+            if (not Assigned(InternRecordBuffer^.OldData)) then
+              raise ERangeError.Create(SRangeError);
+            if (not Assigned(InternRecordBuffer^.OldData^.LibRow)) then
+              raise ERangeError.Create(SRangeError);
+
             if (not Assigned(InternRecordBuffer^.OldData^.LibRow^[Fields[J].FieldNo - 1])) then
               Result := Result + Connection.EscapeIdentifier(Fields[J].FieldName) + ' IS NULL'
             else

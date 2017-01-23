@@ -76,9 +76,8 @@ implementation {***************************************************************}
 
 uses
   WinINet, UITypes, IOUtils, Shlwapi,
-  StrUtils,
-  MySQLConsts,
-  MySQLDB,
+  StrUtils, RegularExpressions,
+  MySQLConsts, MySQLDB,
   uDDatabases;
 
 var
@@ -96,37 +95,14 @@ begin
 end;
 
 function ValidHostName(const HostName: string; const Port: Integer): Boolean;
-var
-  URL: string;
-  URLComponents: TURLComponents;
-  URLComponentsExtraInfo: array [0 .. INTERNET_MAX_PATH_LENGTH] of Char;
-  URLComponentsHostName: array [0 .. INTERNET_MAX_HOST_NAME_LENGTH] of Char;
-  URLComponentsPassword: array [0 .. INTERNET_MAX_PASSWORD_LENGTH] of Char;
-  URLComponentsPath: array [0 .. INTERNET_MAX_PATH_LENGTH] of Char;
-  URLComponentsSchemeName: array [0 .. INTERNET_MAX_SCHEME_LENGTH] of Char;
-  URLComponentsUserName: array [0 .. INTERNET_MAX_USER_NAME_LENGTH] of Char;
+const
+  IP4Addr = '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$';
+  IP6Addr = '^(?:[A-F0-9]{1,4}:){7}[A-F0-9]{1,4}$';
+  Domainname = '^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$';
 begin
-  URLComponents.dwStructSize := SizeOf(URLComponents);
-  URLComponents.dwSchemeLength := Length(URLComponentsSchemeName);
-  URLComponents.dwHostNameLength := Length(URLComponentsHostName);
-  URLComponents.dwUserNameLength := Length(URLComponentsUserName);
-  URLComponents.dwPasswordLength := Length(URLComponentsPassword);
-  URLComponents.dwUrlPathLength := Length(URLComponentsPath);
-  URLComponents.dwExtraInfoLength := Length(URLComponentsExtraInfo);
-  URLComponents.lpszScheme := @URLComponentsSchemeName;
-  URLComponents.lpszHostName := @URLComponentsHostName;
-  URLComponents.lpszUserName := @URLComponentsUserName;
-  URLComponents.lpszPassword := @URLComponentsPassword;
-  URLComponents.lpszUrlPath := @URLComponentsPath;
-  URLComponents.lpszExtraInfo := @URLComponentsExtraInfo;
-
-  if ((HostName = '') or (Pos('://', HostName) > 0) or (Port = 0)) then
-    Result := False
-  else
-  begin
-    URL := 'mysql://' + HostName + ':' + IntToStr(Port) + '/';
-    Result := InternetCrackUrl(PChar(URL), Length(URL), 0, URLComponents);
-  end;
+  Result := TRegEx.IsMatch(HostName, Domainname, [roSingleLine, roIgnoreCase])
+    or TRegEx.IsMatch(HostName, IP4Addr, [roSingleLine])
+    or TRegEx.IsMatch(HostName, IP6Addr, [roSingleLine]);
 end;
 
 function ValidURL(const URL: string): Boolean;

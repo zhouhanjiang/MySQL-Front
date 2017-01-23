@@ -674,6 +674,9 @@ var
 begin
   if ((ModalResult = mrOk) and GBasics.Visible) then
   begin
+    // Debug 2017-01-22
+    if (not Visible) then
+      raise ERangeError.Create(SRangeError);
     if (TableDebug <> Table) then
       raise ERangeError.Create(SRangeError);
     // Debug 2016-12-20
@@ -1208,7 +1211,7 @@ end;
 
 procedure TDField.UMChangePreferences(var Message: TMessage);
 begin
-  Preferences.Images.GetIcon(iiField, Icon);
+  Preferences.Images.GetIcon(iiBaseField, Icon);
 
   PSQLWait.Caption := Preferences.LoadStr(882) + '...';
 

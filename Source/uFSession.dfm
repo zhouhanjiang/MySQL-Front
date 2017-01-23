@@ -168,10 +168,12 @@ object FSession: TFSession
         HelpContext = 1038
         Align = alClient
         BorderStyle = bsNone
+        DoubleBuffered = True
         DragMode = dmAutomatic
         HideSelection = False
         HotTrack = True
         Indent = 19
+        ParentDoubleBuffered = False
         PopupMenu = MNavigator
         RightClickSelect = True
         ShowLines = False
@@ -1265,7 +1267,7 @@ object FSession: TFSession
       end
     end
     object FObjectSearch: TEdit
-      Left = 50528
+      Left = 40682
       Top = 0
       Width = 140
       Height = 22
@@ -1280,7 +1282,7 @@ object FSession: TFSession
       ExplicitLeft = 32752
     end
     object TBObjectSearch: TToolBar
-      Left = 50495
+      Left = 40667
       Top = 0
       Width = 23
       Height = 22

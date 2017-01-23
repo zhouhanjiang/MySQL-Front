@@ -1221,6 +1221,7 @@ type
     function FieldAvailable(const Engine: TSEngine; const MySQLFieldType: TSField.TFieldType): Boolean; virtual;
   public
     function ApplyMySQLFieldType(const Engine: TSEngine; const MySQLFieldType: TSField.TFieldType): TSField.TFieldType; virtual;
+    procedure Clear(); reintroduce;
     constructor Create(const ASession: TSSession); reintroduce; virtual;
     property FieldType[Index: Integer]: TSFieldType read GetFieldType; default;
   end;
@@ -4444,8 +4445,8 @@ end;
 procedure TSBaseTable.ParseCreateTable(const SQL: string);
 var
   DeleteList: TList;
+  Field: TSBaseTableField;
   FieldName: string;
-  FirstParse: Boolean;
   Fulltext: Boolean;
   I: Integer;
   Index: Integer;
@@ -4453,7 +4454,6 @@ var
   K: Integer;
   L: Largeint;
   Moved: Boolean;
-  NewField: TSBaseTableField;
   NewName: string;
   NewForeignKey: TSForeignKey;
   NewKey: TSKey;
@@ -4469,8 +4469,6 @@ begin
   begin
     MergeSourceTables.Clear();
 
-
-    FirstParse := FFields.Count = 0;
 
     if (not SQLParseKeyword(Parse, 'CREATE')) then
       raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
@@ -4537,125 +4535,126 @@ begin
         TSBaseTableField(FFields[Index]).FName := NewName;
       end;
 
-      NewField := TSBaseTableField(FFields[Index]);
+      Field := TSBaseTableField(FFields[Index]);
 
       if (Index = 0) then
-        NewField.FieldBefore := nil
+        Field.FieldBefore := nil
       else
-        NewField.FieldBefore := FFields.Field[Index - 1];
+        Field.FieldBefore := FFields.Field[Index - 1];
 
       try
-        NewField.ParseFieldType(Parse);
+        Field.ParseFieldType(Parse);
       except
         raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
       end;
 
       // Debug 2017-01-15
-      if (NewField.FieldType = mfUnknown) then
+      if (Field.FieldType = mfUnknown) then
         raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
       if (SQLParseKeyword(Parse, 'CHARACTER SET')) then
-        NewField.Charset := SQLParseValue(Parse);
+        Field.Charset := SQLParseValue(Parse);
 
       if (SQLParseKeyword(Parse, 'COLLATE')) then
-        NewField.Collation := SQLParseValue(Parse);
+        Field.Collation := SQLParseValue(Parse);
 
       SQLParseKeyword(Parse, 'GENERATED ALWAYS');
 
       if (SQLParseChar(Parse, ',', False) or SQLParseChar(Parse, ')', False)) then
-        NewField.FieldKind := mkReal
+        Field.FieldKind := mkReal
       else
         while (not SQLParseChar(Parse, ',', False) and not SQLParseChar(Parse, ')', False)) do
           if (not SQLParseKeyword(Parse, 'AS', False)) then
           begin
-            NewField.FieldKind := mkReal;
+            Field.FieldKind := mkReal;
 
             if (SQLParseKeyword(Parse, 'NOT NULL')) then
-              NewField.NullAllowed := False
+              Field.NullAllowed := False
             else if (SQLParseKeyword(Parse, 'NULL')) then
-              NewField.NullAllowed := True
+              Field.NullAllowed := True
             else if (SQLParseKeyword(Parse, 'DEFAULT')) then
             begin
               if (SQLParseKeyword(Parse, 'NULL')) then
-                NewField.Default := 'NULL'
+                Field.Default := 'NULL'
               else if (SQLParseKeyword(Parse, 'CURRENT_TIMESTAMP')) then
               begin
-                NewField.Default := 'CURRENT_TIMESTAMP';
+                Field.Default := 'CURRENT_TIMESTAMP';
                 if (SQLParseChar(Parse, '(')) then
                 begin
-                  NewField.DefaultSize := SysUtils.StrToInt(SQLParseValue(Parse));
+                  Field.DefaultSize := SysUtils.StrToInt(SQLParseValue(Parse));
                   SQLParseChar(Parse, ')');
                 end;
               end
-              else if (NewField.FieldType = mfBit) then
+              else if (Field.FieldType = mfBit) then
               begin
                 S := SQLParseValue(Parse);
                 if (LowerCase(Copy(S, 1, 1)) <> 'b') then
                 begin
                   MoveMemory(@L, PAnsiChar(RawByteString(S)), Length(S));
-                  NewField.Default := IntToBitString(L, NewField.Size);
+                  Field.Default := IntToBitString(L, Field.Size);
                 end
                 else
                 begin
                   Delete(S, 1, 1);
-                  NewField.Default := SQLUnescape(S);
+                  Field.Default := SQLUnescape(S);
                 end;
               end
               else
-                NewField.Default := SQLEscape(SQLParseValue(Parse));
+                Field.Default := SQLEscape(SQLParseValue(Parse));
             end
             else if (SQLParseKeyword(Parse, 'AUTO_INCREMENT')) then
-              NewField.AutoIncrement := True
+              Field.AutoIncrement := True
             else if (SQLParseKeyword(Parse, 'COMMENT')) then
-              NewField.Comment := SQLParseValue(Parse)
+              Field.Comment := SQLParseValue(Parse)
             else if (SQLParseKeyword(Parse, 'COLUMN_FORMAT')) then
-              NewField.Format := StrToMySQLRowType(SQLParseValue(Parse))
+              Field.Format := StrToMySQLRowType(SQLParseValue(Parse))
             else if (SQLParseKeyword(Parse, 'ON UPDATE')) then
             begin
               if (SQLParseKeyword(Parse, 'CURRENT_TIMESTAMP')) then
               begin
-                NewField.OnUpdate := 'CURRENT_TIMESTAMP';
+                Field.OnUpdate := 'CURRENT_TIMESTAMP';
                 if (SQLParseChar(Parse, '(')) then
                 begin
-                  NewField.OnUpdateSize := SysUtils.StrToInt(SQLParseValue(Parse));
+                  Field.OnUpdateSize := SysUtils.StrToInt(SQLParseValue(Parse));
                   SQLParseChar(Parse, ')');
                 end;
               end
               else
-                NewField.OnUpdate := SQLParseValue(Parse);
+                Field.OnUpdate := SQLParseValue(Parse);
             end
             else
-              raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name + '.' + NewField.Name, SQL]);
+              raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name + '.' + Field.Name, SQL]);
           end
           else if (SQLParseKeyword(Parse, 'AS')) then
           begin
-            NewField.FieldKind := mkVirtual;
+            Field.FieldKind := mkVirtual;
 
-            NewField.Expression := SQLParseBracketContent(Parse);
+            Field.Expression := SQLParseValue(Parse);
+            if ((Length(Field.Expression) >= 2) and (Field.Expression[1] = '(') and (Field.Expression[Length(Field.Expression)] = ')')) then
+              Field.Expression := Copy(Field.Expression, 1, Length(Field.Expression) - 2)
+            else
+              raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name + '.' + Field.Name, SQL]);
 
             if (SQLParseKeyword(Parse, 'VIRTUAL')) then
-              NewField.Stored := msVirtual
+              Field.Stored := msVirtual
             else if ((Session.Connection.MariaDBVersion > 0) and SQLParseKeyword(Parse, 'PERSISTENT')) then
-              NewField.Stored := msStored
+              Field.Stored := msStored
             else if ((Session.Connection.MariaDBVersion = 0) and SQLParseKeyword(Parse, 'STORED')) then
-              NewField.Stored := msStored;
+              Field.Stored := msStored;
 
             if (SQLParseKeyword(Parse, 'COMMENT')) then
-              NewField.Comment := SQLParseValue(Parse);
+              Field.Comment := SQLParseValue(Parse);
 
             if (SQLParseKeyword(Parse, 'NOT NULL')) then
-              NewField.NullAllowed := False
+              Field.NullAllowed := False
             else if (SQLParseKeyword(Parse, 'NULL')) then
-              NewField.NullAllowed := True;
+              Field.NullAllowed := True;
           end
           else
             SQLParseValue(Parse);
 
-      if (Moved and not FirstParse) then
-      begin
-        Session.SendEvent(etItemDropped, Self, FFields, NewField);
-        Session.SendEvent(etItemCreated, Self, FFields, NewField);
-      end;
+      if (Moved) then
+        Session.SendEvent(etItemAltered, Self, FFields, Field);
 
       Inc(Index);
       SQLParseChar(Parse, ',');
@@ -4952,7 +4951,7 @@ begin
 
           FPartitions.PartitionType := StrToPartitionType(SQLParseValue(Parse));
           if (SQLParseChar(Parse, '(', False)) then
-            FPartitions.Expression := '(' + SQLParseBracketContent(Parse) + ')';
+            FPartitions.Expression := SQLParseValue(Parse);
 
           if (SQLParseKeyword(Parse, 'PARTITIONS')) then
             FPartitions.PartitionsNumber := SysUtils.StrToInt(SQLParseValue(Parse));
@@ -6444,7 +6443,7 @@ begin
     Session.SendEvent(etItemsValid, Session, Session.Databases);
   Session.SendEvent(etItemsValid, Database, Self);
 
-  Result := inherited or (Session.Connection.ErrorCode = ER_CANNOT_LOAD_FROM_TABLE);
+  Result := inherited or (Session.Connection.ErrorCode = ER_NO_SUCH_TABLE) or (Session.Connection.ErrorCode = ER_CANNOT_LOAD_FROM_TABLE);
 end;
 
 function TSRoutines.GetRoutine(Index: Integer): TSRoutine;
@@ -9456,6 +9455,11 @@ begin
       mfJSON: Result := mfVarChar;
       else Result := MySQLFieldType;
     end;
+end;
+
+procedure TSFieldTypes.Clear();
+begin
+  raise EAbstractError.Create('Should never called!');
 end;
 
 constructor TSFieldTypes.Create(const ASession: TSSession);

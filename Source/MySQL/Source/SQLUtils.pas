@@ -49,7 +49,6 @@ function SQLEscape(const Value: PChar; const ValueLen: Integer; const Escaped: P
 function SQLEscapeBin(const Data: PAnsiChar; const Len: Integer; const Escaped: PChar; const EscapedLen: Integer; const ODBCEncoding: Boolean): Integer; overload;
 function SQLEscapeBin(const Data: PAnsiChar; const Len: Integer; const ODBCEncoding: Boolean): string; overload;
 function SQLEscapeBin(const Value: string; const ODBCEncoding: Boolean): string; overload;
-function SQLParseBracketContent(var Handle: TSQLParse): string;
 function SQLParseCallStmt(const SQL: PChar; const Len: Integer; out ProcedureName: string; const Version: Integer): Boolean;
 function SQLParseChar(var Handle: TSQLParse; const Character: Char; const IncrementIndex: Boolean = True): Boolean; overload;
 function SQLParseCLStmt(out CLStmt: TSQLCLStmt; const SQL: PChar; const Len: Integer; const Version: Integer): Boolean;
@@ -1209,82 +1208,6 @@ begin
         POP ESI
         POP ES
     end;
-end;
-
-function SQLParseBracketContent(var Handle: TSQLParse): string;
-label
-  StringL, String2, StringE,
-  Finish;
-var
-  Len: Integer;
-begin
-  SetLength(Result, Handle.Len);
-
-    asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-        PUSH EBX
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-        MOV EBX,Handle
-        MOV ESI,[EBX + 0]                // Position in SQL
-        MOV ECX,[EBX + 4]                // Characters left in SQL
-        MOV EDX,[EBX + 8]                // MySQL version
-
-        MOV EAX,Result                   // Copy characters to Result
-        MOV EDI,[EAX]
-
-        MOV EBX,0                        // BracketDeep = 0
-
-      StringL:
-        CMP ECX,0                        // End of SQL?
-        JE Finish                        // Yes!
-        CALL MoveString                  // String in SQL?
-        JZ StringL                       // Yes!
-        CMP WORD PTR [ESI],'('           // Open Bracket?
-        JNE String2                      // Yes!
-        INC EBX                          // Additional Bracket
-        JMP StringE
-      String2:
-        CMP WORD PTR [ESI],')'           // Closing Bracket?
-        JNE StringE                      // No!
-        DEC EBX                          // Bracket Deep - 1
-        JNZ StringE                      // BracketDeep > 0!
-        LODSW                            // Load character from SQL
-        STOSW                            // Store WideChar into Result
-        DEC ECX                          // One character handled
-        CALL Trim                        // Trim SQL
-        JMP Finish
-      StringE:
-        LODSW                            // Load character from SQL
-        STOSW                            // Store WideChar into Result
-        DEC ECX                          // One character handled
-        JMP StringL
-
-      Finish:
-        MOV EBX,Handle
-        MOV [EBX + 0],ESI                // New Position in SQL
-        MOV [EBX + 4],ECX                // Characters left in SQL
-        MOV [EBX + 8],EDX                // MySQL version
-
-        MOV EAX,Result                   // Calculate new length of Result
-        MOV EAX,[EAX]
-        SUB EDI,EAX
-        SHR EDI,1                        // 2 Bytes = 1 character
-        MOV Len,EDI
-
-        POP EBX
-        POP EDI
-        POP ESI
-        POP ES
-    end;
-
-  SetLength(Result, Len);
-  Result := SysUtils.Trim(Copy(Result, 2, Length(Result) - 2));
 end;
 
 function SQLParseCallStmt(const SQL: PChar; const Len: Integer; out ProcedureName: string; const Version: Integer): Boolean;

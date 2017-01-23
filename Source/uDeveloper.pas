@@ -62,6 +62,10 @@ uses
 
 var
   SendThreads: TList;
+  {$IFDEF EurekaLog}
+  CheckOnlineVersionThreadErrorCode: Integer;
+  CheckOnlineVersionThreadHTTPStatus: Integer;
+  {$ENDIF}
 
 {******************************************************************************}
 
@@ -230,7 +234,7 @@ end;
 
 procedure THTTPThread.Execute();
 const
-  GET: PChar = 'POST';
+  GET: PChar = 'GET';
   POST: PChar = 'POST';
 var
   Body: RawByteString;
@@ -257,6 +261,12 @@ var
   URLComponentsPath: array [0 .. INTERNET_MAX_PATH_LENGTH] of Char;
   URLComponentsSchemeName: array [0 .. INTERNET_MAX_SCHEME_LENGTH] of Char;
   URLComponentsUserName: array [0 .. INTERNET_MAX_USER_NAME_LENGTH] of Char;
+
+  // Debug 2017-01-23
+  lpszHeaders: LPWSTR;
+  dwHeadersLength: DWORD;
+  lpOptional: Pointer;
+  dwOptionalLength: DWORD;
 begin
   {$IFDEF EurekaLog}
   try
@@ -327,7 +337,14 @@ begin
         repeat
           FileSize := -1;
 
-          if (not HttpSendRequest(Request, PChar(Headers), Length(Headers), PAnsiChar(Body), Length(Body))) then
+          // Debug 2017-01-23
+          lpszHeaders := PChar(Headers);
+          dwHeadersLength := Length(Headers);
+          lpOptional := PAnsiChar(Body);
+          dwOptionalLength := Length(Body);
+          // ... an AV occurred in the following line...
+
+          if (not HttpSendRequest(Request, lpszHeaders, dwHeadersLength, lpOptional, dwOptionalLength)) then
             FErrorCode := GetLastError()
           else
           begin
@@ -812,6 +829,15 @@ begin
       Result := Result + StringOfChar('-', 72) + #13#10;
       Result := Result + Sessions[I].Connection.DebugMonitor.CacheText + #13#10;
     end;
+
+  if (OnlineVersion <= 0) then
+  begin
+    Result := Result + #13#10;
+    Result := Result + 'OnlineVersion: ' + IntToStr(OnlineVersion) + #13#10;
+    Result := Result + 'InternetConneced: ' + BoolToStr(InternetGetConnectedState(nil, 0)) + #13#10;
+    Result := Result + 'CheckOnlineVersionThreadErrorCode: ' + IntToStr(CheckOnlineVersionThreadErrorCode) + #13#10;
+    Result := Result + 'CheckOnlineVersionThreadHTTPStatus: ' + IntToStr(CheckOnlineVersionThreadHTTPStatus) + #13#10;
+  end;
 end;
 
 {******************************************************************************}
@@ -844,7 +870,7 @@ begin
 end;
 
 procedure ExceptionNotify(const Custom: Pointer;
-  ExceptionInfo: TEurekaExceptionInfo; var Handle: Boolean;
+  ExceptionInfo: TEurekaExceptionInfo; var ShowDialog: Boolean;
   var CallNextHandler: Boolean);
 var
   CheckOnlineVersionThread: TCheckOnlineVersionThread;
@@ -853,6 +879,8 @@ begin
   begin
     CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
     CheckOnlineVersionThread.Execute();
+    CheckOnlineVersionThreadErrorCode := CheckOnlineVersionThread.ErrorCode;
+    CheckOnlineVersionThreadHTTPStatus := CheckOnlineVersionThread.HTTPStatus;
     FreeAndNil(CheckOnlineVersionThread);
   end;
 
@@ -866,14 +894,14 @@ begin
 
   if (ExceptionInfo.ExceptionClass = 'EFrozenApplication') then
   begin
-    Handle := False;
+    ShowDialog := False;
 
     SendToDeveloper(BuildBugReport(ExceptionInfo), 0, True);
   end
   else
-    Handle := Preferences.Version >= OnlineVersion;
+    ShowDialog := (Preferences.Version >= OnlineVersion);
 
-  if (not Handle) then
+  if (not ShowDialog) then
   begin
     MessageBox(0, PChar('Internal Program Error:' + #10 + ExceptionInfo.ExceptionMessage), PChar(Preferences.LoadStr(45)), MB_OK + MB_ICONERROR);
 
@@ -902,6 +930,7 @@ initialization
   {$ENDIF}
 
   SendThreads := TList.Create();
+  OnlineVersion := -1;
 finalization
   while (SendThreads.Count > 0) do
   begin

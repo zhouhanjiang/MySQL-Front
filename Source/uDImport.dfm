@@ -45,7 +45,6 @@ object DImport: TDImport
     Caption = 'FBCancel'
     ModalResult = 2
     TabOrder = 4
-    OnClick = FBCancelClick
   end
   object PSQLWait: TPanel_Ext
     Left = 8

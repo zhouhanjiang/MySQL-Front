@@ -971,7 +971,7 @@ begin
   ListView := TListView(Sender);
 
   aPCreateField.Enabled := not Selected and (Page = TSFields);
-  aPDeleteField.Enabled := Selected and (ListView.SelCount >= 1) and (Item.ImageIndex = iiField) and (NewTable.Fields.Count > 1);
+  aPDeleteField.Enabled := Selected and (ListView.SelCount >= 1) and (Item.ImageIndex = iiBaseField) and (NewTable.Fields.Count > 1);
   aPEditField.Enabled := Selected and (ListView.SelCount = 1) and (Page = TSFields);
   aPCreateKey.Enabled := not Selected and (Page = TSKeys);
   aPDeleteKey.Enabled := Selected and (ListView.SelCount >= 1) and (Item.ImageIndex = iiKey);
@@ -1498,14 +1498,14 @@ begin
         ListItem.SubItems.Add(S);
         if (NewTable.Session.Connection.MySQLVersion >= 40100) then
           ListItem.SubItems.Add(NewTable.Fields[I].Comment);
-        ListItem.ImageIndex := iiField;
+        ListItem.ImageIndex := iiBaseField;
       end
       else if (NewTable.Fields[I].FieldKind = mkVirtual) then
       begin
         ListItem.SubItems.Add(NewTable.Fields[I].Expression);
         ListItem.SubItems.Add('');
         ListItem.SubItems.Add(NewTable.Fields[I].Comment);
-        ListItem.ImageIndex := iiField;
+        ListItem.ImageIndex := iiBaseField;
       end;
     end;
 

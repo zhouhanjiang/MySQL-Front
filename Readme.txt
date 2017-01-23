@@ -23,9 +23,6 @@ http://www.jam-software.de/shellbrowser_delphi/
 Synopse PDF:
 http://synopse.info/fossil/wiki?name=PDF+Engine
 
-TPerlRegEx:
-http://www.regular-expressions.info/delphi.html
-
 Unicode SynEdit:
 https://github.com/SynEdit/SynEdit/
 
