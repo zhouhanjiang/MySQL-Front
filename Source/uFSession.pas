@@ -4147,12 +4147,6 @@ begin
             iiView,
             iiSystemView:
               begin
-                // Debug 2016-11-21
-                if (not Assigned(FNavigator.Selected.Data)) then
-                  raise ERangeError.Create(SRangeError);
-                if (not (TObject(FNavigator.Selected.Data) is TSTable)) then
-                  raise ERangeError.Create(SRangeError + ' (' + IntToStr(FNavigator.Selected.ImageIndex) + ')');
-
                 TSTable(FNavigator.Selected.Data).Invalidate();
 
                 if ((TSTable(FNavigator.Selected.Data) is TSBaseTable) and
@@ -4167,6 +4161,16 @@ begin
             iiUsers: Session.Users.Invalidate();
             iiVariables: Session.Variables.Invalidate();
           end;
+
+          // Debug 2017-01-24
+          if (Address = '') then
+            if (not Assigned(FNavigator.Selected)) then
+              raise ERangeError.Create(SRangeError)
+            else
+              raise ERangeError.Create('ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
+                + 'Text: ' + FNavigator.Selected.Text + #13#10
+                + 'View: ' + IntToStr(Ord(View)));
+
           Address := Address;
         end;
       vBrowser,
@@ -6687,21 +6691,22 @@ var
   SourceNode: TTreeNode;
   TargetNode: TTreeNode;
 begin
-  if (Sender = FNavigator) then
-    TargetNode := FNavigator.GetNodeAt(X, Y)
-  else if (Sender = ActiveListView) then
-    TargetNode := FNavigator.Selected
-  else
-    TargetNode := nil;
+  Assert(Sender is TTreeView);
+
+  TargetNode := TTreeView(Sender).GetNodeAt(X, Y);
 
   if ((TargetNode.ImageIndex = iiQuickAccess)
-    or (TObject(TargetNode.Data) is TPAccount.TFavorite)) then
+    or (TObject(TargetNode.Data) is TPAccount.TFavorite)
+    or (Assigned(TargetNode.GetPrevVisible()) and (TObject(TargetNode.GetPrevVisible().Data) is TPAccount.TFavorite)) and (Y < TargetNode.DisplayRect(False).Top + GetSystemMetrics(SM_CYFIXEDFRAME))) then
   begin
-    if ((TargetNode.ImageIndex = iiQuickAccess)
-      or (Y < TargetNode.DisplayRect(False).Top + (TargetNode.DisplayRect(False).Bottom - TargetNode.DisplayRect(False).Top) div 2)) then
+    if ((TargetNode.ImageIndex = iiQuickAccess) and (Y >= TargetNode.DisplayRect(False).Bottom - GetSystemMetrics(SM_CYFIXEDFRAME))) then
+      Index := 0
+    else if ((TObject(TargetNode.Data) is TPAccount.TFavorite) and (Y < TargetNode.DisplayRect(False).Top + GetSystemMetrics(SM_CYFIXEDFRAME))) then
       Index := TargetNode.Index
+    else if ((TObject(TargetNode.Data) is TPAccount.TFavorite) and (Y >= TargetNode.DisplayRect(False).Bottom - GetSystemMetrics(SM_CYFIXEDFRAME))) then
+      Index := TargetNode.Index + 1
     else
-      Index := TargetNode.Index + 1;
+      Index := Session.Account.Favorites.Count;
 
     if (Source = FNavigator) then
     begin
@@ -6784,7 +6789,6 @@ procedure TFSession.FNavigatorDragOver(Sender, Source: TObject; X, Y: Integer;
   end;
 
 var
-  Node: TTreeNode;
   OldDividerNode: TTreeNode;
   Rect: TRect;
   SourceItem: TListItem;
@@ -6793,42 +6797,46 @@ var
 begin
   Assert(Sender is TTreeView);
 
-  SourceNode := nil;
-  SourceItem := nil;
-  TargetNode := TTreeView(Sender).GetNodeAt(X, Y);
   Accept := False;
 
-  OldDividerNode := FNavigatorDividerNode;
-  Node := TTreeView(Sender).GetNodeAt(X, Y);
+  if (Source is TTreeView and (TTreeView(Source).Name = FNavigator.Name)) then
+    SourceNode := TFSession(TTreeView(Source).Owner).MouseDownNode
+  else
+    SourceNode := nil;
+  if ((Source is TListView) and (TListView(Source).Parent.Name = PListView.Name) and (TListView(Source).SelCount = 1)) then
+    SourceItem := TListView(Source).Selected
+  else
+    SourceItem := nil;
+  TargetNode := TTreeView(Sender).GetNodeAt(X, Y);
 
-  if ((Assigned(SourceNode) and (TObject(SourceNode.Data) is TSItem) and (SourceNode.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger])
+  OldDividerNode := FNavigatorDividerNode;
+
+  if ((State in [dsDragEnter, dsDragMove]) and Assigned(TargetNode)
+    and ((TargetNode.ImageIndex = iiQuickAccess) and (Y >= TargetNode.DisplayRect(False).Bottom - GetSystemMetrics(SM_CYFIXEDFRAME))
+      or (TObject(TargetNode.Data) is TPAccount.TFavorite)
+      or Assigned(TargetNode.GetPrevVisible()) and (TObject(TargetNode.GetPrevVisible().Data) is TPAccount.TFavorite) and (Y >= TargetNode.GetPrevVisible().DisplayRect(False).Bottom - GetSystemMetrics(SM_CYFIXEDFRAME)))
+    and (Assigned(SourceNode) and (TObject(SourceNode.Data) is TSItem) and (SourceNode.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger])
       or (Assigned(SourceItem) and (TObject(SourceItem.Data) is TSItem) and (SourceItem.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]))
-      or Assigned(SourceNode) and (TObject(SourceNode.Data) is TPAccount.TFavorite))
-    and ((TargetNode.ImageIndex = iiQuickAccess)
-      or (TObject(TargetNode.Data) is TPAccount.TFavorite))
-    and (State in [dsDragEnter, dsDragMove]) and Assigned(Node)
-    and ((Node.ImageIndex = iiQuickAccess) and (Y > Node.DisplayRect(False).Top + (Node.DisplayRect(False).Bottom - Node.DisplayRect(False).Top) div 2)
-      or (TObject(Node.Data) is TPAccount.TFavorite)
-      or Assigned(Node.GetPrevVisible()) and (TObject(Node.GetPrevVisible().Data) is TPAccount.TFavorite))) then
+      or Assigned(SourceNode) and (TObject(SourceNode.Data) is TPAccount.TFavorite))) then
   begin
-    Rect := Node.DisplayRect(False);
+    Rect := TargetNode.DisplayRect(False);
     if (Y < Rect.Top + GetSystemMetrics(SM_CYFIXEDFRAME)) then
     begin
-      FNavigatorDividerNode := Node;
-      TreeView_SetItemState(TTreeView(Sender).Handle, Node.ItemId, TreeView_GetItemState(TTreeView(Sender).Handle, Node.ItemId, TVIF_STATE) and not TVIS_DROPHILITED, TVIF_STATE);
-      InvalidateNode(Node.GetPrevVisible());
+      FNavigatorDividerNode := TargetNode;
+      TreeView_SetItemState(TTreeView(Sender).Handle, TargetNode.ItemId, TreeView_GetItemState(TTreeView(Sender).Handle, TargetNode.ItemId, TVIF_STATE) and not TVIS_DROPHILITED, TVIF_STATE);
+      InvalidateNode(TargetNode.GetPrevVisible());
     end
     else
     if (Y >= Rect.Bottom - GetSystemMetrics(SM_CYFIXEDFRAME)) then
     begin
-      FNavigatorDividerNode := Node.GetNextVisible();
-      TreeView_SetItemState(TTreeView(Sender).Handle, Node.ItemId, TreeView_GetItemState(TTreeView(Sender).Handle, Node.ItemId, TVIF_STATE) and not TVIS_DROPHILITED, TVIF_STATE);
-      InvalidateNode(Node.GetNextVisible());
+      FNavigatorDividerNode := TargetNode.GetNextVisible();
+      TreeView_SetItemState(TTreeView(Sender).Handle, TargetNode.ItemId, TreeView_GetItemState(TTreeView(Sender).Handle, TargetNode.ItemId, TVIF_STATE) and not TVIS_DROPHILITED, TVIF_STATE);
+      InvalidateNode(TargetNode.GetNextVisible());
     end
     else if (Assigned(FNavigatorDividerNode)) then
     begin
       FNavigatorDividerNode := nil;
-      TreeView_SetItemState(TTreeView(Sender).Handle, Node.ItemId, TreeView_GetItemState(TTreeView(Sender).Handle, Node.ItemId, TVIF_STATE) or TVIS_DROPHILITED, TVIF_STATE);
+      TreeView_SetItemState(TTreeView(Sender).Handle, TargetNode.ItemId, TreeView_GetItemState(TTreeView(Sender).Handle, TargetNode.ItemId, TVIF_STATE) or TVIS_DROPHILITED, TVIF_STATE);
     end;
 
     Accept := Assigned(FNavigatorDividerNode);
@@ -6838,14 +6846,17 @@ begin
     if (Assigned(FNavigatorDividerNode)) then
     begin
       FNavigatorDividerNode := nil;
-      TreeView_SetItemState(TTreeView(Sender).Handle, Node.ItemId, TreeView_GetItemState(TTreeView(Sender).Handle, Node.ItemId, TVIF_STATE) or TVIS_DROPHILITED, TVIF_STATE);
+      TreeView_SetItemState(TTreeView(Sender).Handle, TargetNode.ItemId, TreeView_GetItemState(TTreeView(Sender).Handle, TargetNode.ItemId, TVIF_STATE) or TVIS_DROPHILITED, TVIF_STATE);
       Accept := True;
     end;
 
-    if (Assigned(TargetNode) and (TObject(TargetNode.Data) is TSItem)) then
-      if (Source is TTreeView and (TTreeView(Source).Name = FNavigator.Name)) then
+    if (Assigned(TargetNode) and (TargetNode.ImageIndex = iiQuickAccess)
+      and (Assigned(SourceNode) and (TObject(SourceNode.Data) is TSItem) and (SourceNode.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger])
+        or Assigned(SourceItem) and (TObject(SourceItem.Data) is TSItem) and (SourceItem.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]))) then
+      Accept := True
+    else if (Assigned(TargetNode) and (TObject(TargetNode.Data) is TSItem)) then
+      if (Assigned(SourceNode)) then
       begin
-        SourceNode := TFSession(TTreeView(Source).Owner).MouseDownNode;
         if ((TargetNode <> SourceNode)
           and (TObject(SourceNode.Data) is TSItem)) then
           case (SourceNode.ImageIndex) of
@@ -6858,9 +6869,8 @@ begin
             iiVirtualField: Accept := (TObject(TargetNode.Data) is TSBaseTable) and (TargetNode <> SourceNode.Parent);
           end;
       end
-      else if ((Source is TListView) and (TListView(Source).Parent.Name = PListView.Name) and (TListView(Source).SelCount = 1) and Assigned(TargetNode)) then
+      else if (Assigned(SourceItem)) then
       begin
-        SourceItem := TListView(Source).Selected;
         if (TObject(SourceItem.Data) is TSItem) then
           case (SourceItem.ImageIndex) of
             iiDatabase: Accept := (TObject(TargetNode.Data) is TSSession) and (TargetNode <> TFSession(TListView(Source).Owner).FNavigator.Selected);
@@ -6872,6 +6882,12 @@ begin
             iiVirtualField: Accept := (TObject(TargetNode.Data) is TSBaseTable) and (TargetNode <> TFSession(TListView(Source).Owner).FNavigator.Selected);
           end;
       end;
+  end;
+
+  if ((State in [dsDragEnter, dsDragMove]) and Assigned(TargetNode) and (TargetNode.ImageIndex < 0)) then
+  begin
+    TreeView_SetItemState(TTreeView(Sender).Handle, TargetNode.ItemId, TreeView_GetItemState(TTreeView(Sender).Handle, TargetNode.ItemId, TVIF_STATE) and not TVIS_DROPHILITED, TVIF_STATE);
+    InvalidateNode(TargetNode);
   end;
 
   if ((FNavigatorDividerNode <> OldDividerNode) and Assigned(OldDividerNode)) then
@@ -7519,7 +7535,7 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
         if (GroupIDByImageIndex(ImageIndexByData(Event.Item)) = GroupID) then
           if (not (Event.Item is TSTrigger) or (Parent.Count > 0)) then
             InsertOrUpdateChild(Parent, Event.Item);
-      etItemAltered:
+      etItemReorder:
         if (GroupIDByImageIndex(ImageIndexByData(Event.Item)) = GroupID) then
         begin
           Child := Parent.getFirstChild();
@@ -8013,7 +8029,7 @@ begin
       etItemsValid,
       etItemValid,
       etItemCreated,
-      etItemAltered,
+      etItemReorder,
       etItemDropped:
         SessionUpdate(Event);
       etMonitor:
@@ -8729,6 +8745,11 @@ begin
   aVBlobRTF.Visible := (EditorField.DataType = ftWideMemo) and not EditorField.IsNull and IsRTF(EditorField.AsString);
 end;
 
+// Debug 2017-01-24
+type
+  TUnprotectedDBGrid = class(TMySQLDBGrid)
+  end;
+
 function TFSession.GetActiveDBGrid(): TMySQLDBGrid;
 var
   I: Integer;
@@ -8775,8 +8796,8 @@ begin
 
   if (Assigned(Result)) then
   begin
-    // Debug 2016-11-23
-    if (not Assigned(aDDeleteRecord)) then
+    // Debug 2017-01-24
+    if (not Assigned(TUnprotectedDBGrid(Result).DataLink)) then
       raise ERangeError.Create(SRangeError);
 
     aDDeleteRecord.DataSource := Result.DataSource;
@@ -9023,23 +9044,19 @@ function TFSession.GetFocusedSItem(): TSItem;
 begin
   if (not Assigned(Window.ActiveControl)) then
     Result := nil
-  else if ((Window.ActiveControl = ActiveListView) and Assigned(ActiveListView.Selected)) then
-    if ((ActiveListView.SelCount > 1) or not (TSObject(ActiveListView.Selected.Data) is TSItem)) then
-      Result := nil
-    else
-      Result := TSItem(ActiveListView.Selected.Data)
-  else if ((Window.ActiveControl = ActiveWorkbench) and Assigned(ActiveWorkbench) and Assigned(ActiveWorkbench.Selected)) then
-    if (ActiveWorkbench.Selected is TWTable) then
-      Result := TWTable(ActiveWorkbench.Selected).BaseTable
-    else if (ActiveWorkbench.Selected is TWForeignKey) then
-      Result := TWForeignKey(ActiveWorkbench.Selected).BaseForeignKey
-    else
-      Result := TSDatabase(FNavigator.Selected.Data)
-  else if ((Window.ActiveControl = ActiveListView) and not Assigned(ActiveListView.Selected) or (Window.ActiveControl = ActiveWorkbench) and (not Assigned(ActiveWorkbench) or not Assigned(ActiveWorkbench.Selected))) then
-    Result := TSItem(FNavigator.Selected.Data)
-  else if (Assigned(FNavigatorMenuNode)) then
+  else if ((Window.ActiveControl = FNavigator) and Assigned(FNavigatorMenuNode) and (TObject(FNavigatorMenuNode.Data) is TSItem)) then
     Result := TSItem(FNavigatorMenuNode.Data)
-  else if ((Window.ActiveControl = FNavigator) and Assigned(FNavigator.Selected)) then
+  else if ((Window.ActiveControl = FNavigator) and Assigned(FNavigator.Selected) and (TObject(FNavigator.Selected.Data) is TSItem)) then
+    Result := TSItem(FNavigator.Selected.Data)
+  else if ((Window.ActiveControl = ActiveListView) and Assigned(ActiveListView.Selected) and (TSObject(ActiveListView.Selected.Data) is TSItem)) then
+    Result := TSItem(ActiveListView.Selected.Data)
+  else if ((Window.ActiveControl = ActiveWorkbench) and (ActiveWorkbench.Selected is TWTable)) then
+    Result := TWTable(ActiveWorkbench.Selected).BaseTable
+  else if ((Window.ActiveControl = ActiveWorkbench) and (ActiveWorkbench.Selected is TWForeignKey)) then
+    Result := TWForeignKey(ActiveWorkbench.Selected).BaseForeignKey
+  else if ((Window.ActiveControl = ActiveListView) and not Assigned(ActiveListView.Selected) and (TObject(FNavigator.Selected.Data) is TSItem)) then
+    Result := TSItem(FNavigator.Selected.Data)
+  else if ((Window.ActiveControl = ActiveWorkbench) and not Assigned(ActiveWorkbench.Selected) and (TObject(FNavigator.Selected.Data) is TSItem)) then
     Result := TSItem(FNavigator.Selected.Data)
   else
     Result := nil;
@@ -9054,7 +9071,14 @@ begin
       raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName);
     end;
     if (not (TObject(Result) is TSItem)) then
-      raise ERangeError.Create('ActiveControl.ClassType: ' + Window.ActiveControl.ClassName);
+      if ((Window.ActiveControl is TTreeView) and Assigned(TTreeView(Window.ActiveControl).Selected)) then
+        raise ERangeError.Create('ImageIndex: ' + IntToStr(TTreeView(Window.ActiveControl).Selected.ImageIndex) + #13#10
+          + 'Text: ' + TTreeView(Window.ActiveControl).Selected.Text)
+      else if ((Window.ActiveControl is TListView) and Assigned(TListView(Window.ActiveControl).Selected)) then
+        raise ERangeError.Create('ImageIndex: ' + IntToStr(TListView(Window.ActiveControl).Selected.ImageIndex) + #13#10
+          + 'Text: ' + TListView(Window.ActiveControl).Selected.Caption)
+      else
+        raise ERangeError.Create('ActiveControl.ClassType: ' + Window.ActiveControl.ClassName);
   end;
 end;
 
@@ -10323,18 +10347,21 @@ var
   begin
     Assert(Item.Data = Data);
 
-    ProfilingPoint(11);
+    if (ListView.Columns[0].Width < 0) then
+      SendToDeveloper('ClassType: ' + TObject(ListView.Tag).ClassName);
 
-    Item.SubItems.BeginUpdate();
-    ProfilingPoint(12);
-    Item.SubItems.Clear();
     ProfilingPoint(13);
 
-    Item.GroupID := GroupID;
+    Item.SubItems.BeginUpdate();
     ProfilingPoint(14);
+    Item.SubItems.Clear();
+    ProfilingPoint(15);
+
+    Item.GroupID := GroupID;
+    ProfilingPoint(16);
     Item.ImageIndex := ImageIndexByData(Data);
 
-    ProfilingPoint(15);
+    ProfilingPoint(17);
 
     if ((TObject(ListView.Tag) is TSItemSearch)
       and not (Data is TSProcess)
@@ -10698,11 +10725,11 @@ var
       end;
     end;
 
-    ProfilingPoint(16);
+    ProfilingPoint(18);
 
     Item.SubItems.EndUpdate();
 
-    ProfilingPoint(17);
+    ProfilingPoint(19);
 
     RefreshHeader := True;
   end;
@@ -10728,6 +10755,8 @@ var
         break;
       end;
 
+    ProfilingPoint(8);
+
     if ((Count > 0) and (Index < 0)) then
     begin
       Item := TListItem.Create(ListView.Items);
@@ -10748,6 +10777,8 @@ var
 
       Item.Free();
     end;
+
+    ProfilingPoint(9);
 
     if (Index < 0) then
     begin
@@ -10772,17 +10803,17 @@ var
         else
           ReorderGroupIndex := Min(ReorderGroupIndex, Index);
     end;
-    ProfilingPoint(8);
+    ProfilingPoint(10);
 
     UpdateItem(Result, GroupID, Data);
   end;
 
   function AddItem(const GroupID: Integer; const Data: TObject): TListItem;
   begin
-    ProfilingPoint(9);
+    ProfilingPoint(11);
     Result := ListView.Items.Add();
     Result.Data := Data;
-    ProfilingPoint(10);
+    ProfilingPoint(12);
 
     UpdateItem(Result, GroupID, Data);
   end;
@@ -10939,7 +10970,7 @@ var
             Item.Focused := True;
           end;
         end;
-      etItemAltered:
+      etItemReorder:
         if (GroupID = GroupIDByImageIndex(ImageIndexByData(Event.Item))) then
         begin
           Index := -1;
@@ -10961,15 +10992,15 @@ var
       etItemDropped:
         if (GroupID = GroupIDByImageIndex(ImageIndexByData(Event.Item))) then
         begin
-          ProfilingPoint(18);
+          ProfilingPoint(20);
           for I := ListView.Items.Count - 1 downto 0 do
             if (ListView.Items[I].Data = Event.Item) then
               ListView.Items.Delete(I);
-          ProfilingPoint(19);
+          ProfilingPoint(21);
         end;
     end;
 
-    ProfilingPoint(20);
+    ProfilingPoint(22);
 
     if ((ReorderGroupIndex >= 0) and ListView.GroupView) then
     begin
@@ -10984,7 +11015,7 @@ var
         end;
     end;
 
-    ProfilingPoint(21);
+    ProfilingPoint(23);
 
     if (Event.EventType in [etItemsValid, etItemCreated, etItemDropped]) then
       if (TObject(ListView.Tag) is TSItemSearch) then
@@ -11034,7 +11065,7 @@ var
             SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(22) + ' (' + IntToStr(Session.Variables.Count) + ')');
         end;
 
-    ProfilingPoint(22);
+    ProfilingPoint(24);
   end;
 
 var
@@ -11132,28 +11163,29 @@ begin
     else if ((Kind in [lkVariables, lkObjectSearch]) and (Event.Items is TSVariables)) then
       UpdateGroup(Kind, giVariables, Event.Items);
 
-    ProfilingPoint(23);
+    ProfilingPoint(25);
 
     if ((Window.ActiveControl = ListView) and Assigned(ListView.OnSelectItem)) then
       ListView.OnSelectItem(nil, ListView.Selected, Assigned(ListView.Selected));
 
-    ProfilingPoint(24);
+    ProfilingPoint(26);
 
     ListView.EnableAlign();
-    ProfilingPoint(25);
+    ProfilingPoint(27);
     ListView.Items.EndUpdate();
-    ProfilingPoint(26);
+    ProfilingPoint(28);
     ListView.Columns.EndUpdate();
     // 5 seconds
-    ProfilingPoint(27);
+    // 1 seconds, EventType: 1, FieldCount: 36
+    ProfilingPoint(29);
     ListView.OnChanging := ChangingEvent;
 
-    ProfilingPoint(28);
+    ProfilingPoint(30);
 
     if (RefreshHeader) then
       ListViewHeaderUpdate(ListView);
 
-    ProfilingPoint(29);
+    ProfilingPoint(31);
 
     if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
       if ((Finish - Start) div Frequency > 1) then
@@ -11732,8 +11764,12 @@ begin
 end;
 
 procedure TFSession.miNFavoriteRemoveClick(Sender: TObject);
+var
+  Index: Integer;
 begin
-  Session.Account.Favorites.Delete(Session.Account.Favorites.IndexOf(TPAccount.TFavorite(FNavigatorMenuNode.Data)));
+  Index := Session.Account.Favorites.IndexOf(TPAccount.TFavorite(FNavigatorMenuNode.Data));
+  TPAccount.TFavorite(FNavigatorMenuNode.Data).Free();
+  Session.Account.Favorites.Delete(Index);
 end;
 
 procedure TFSession.miNFavoriteOpenClick(Sender: TObject);
@@ -12583,7 +12619,7 @@ begin
                 for I := 1 to StringList.Count - 1 do
                   Found := Found or (StringList.Names[I] = 'Table');
 
-                DExecutingSQL.Update := SourceDatabase.Tables.Update;
+                DExecutingSQL.Update := TSEntities(SourceDatabase.Tables).Update;
                 if (not Assigned(Database) or not SourceDatabase.Tables.Valid and not DExecutingSQL.Execute()) then
                   MessageBeep(MB_ICONERROR)
                 else if (not Found or DPaste.Execute()) then
@@ -12712,7 +12748,7 @@ begin
             else
             begin
               DExecutingSQL.Session := SourceSession;
-              DExecutingSQL.Update := SourceDatabase.Tables.Update;
+              DExecutingSQL.Update := TSEntities(SourceDatabase.Tables).Update;
               if (SourceDatabase.Tables.Valid or DExecutingSQL.Execute()) then
               begin
                 SourceTable := SourceDatabase.BaseTableByName(SourceURI.Table);
@@ -13653,10 +13689,10 @@ begin
       ListViewUpdate(Event, ObjectSearchListView)
     else
     begin
-      if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemAltered, etItemDropped]) then
+      if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemReorder, etItemDropped]) then
         FNavigatorUpdate(Event);
 
-      if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemAltered, etItemDropped]) then
+      if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemReorder, etItemDropped]) then
       begin
         if (Event.Items is TSDatabases) then
         begin
@@ -13703,7 +13739,7 @@ begin
 
         if (Assigned(ObjectSearchListView) and (TObject(ObjectSearchListView.Tag) is TSItemSearch)
           and ((Event.Items = TObject(ObjectSearchListView.Tag))
-            or (Event.EventType in [etItemValid, etItemAltered, etItemDropped]) and (TSItemSearch(ObjectSearchListView.Tag).IndexOf(Event.Item) >= 0))) then
+            or (Event.EventType in [etItemValid, etItemReorder, etItemDropped]) and (TSItemSearch(ObjectSearchListView.Tag).IndexOf(Event.Item) >= 0))) then
           ListViewUpdate(Event, ObjectSearchListView);
       end;
 
@@ -13749,7 +13785,7 @@ begin
   PostMessage(Handle, UM_STATUS_BAR_REFRESH, 0, 0);
 
   if (Assigned(Event)
-    and ((Event.EventType in [etItemCreated, etItemAltered])
+    and ((Event.EventType in [etItemCreated, etItemReorder])
       or (Event.EventType in [etItemValid]) and (Event.Item is TSObject) and not TSObject(Event.Item).Valid)
     and (Screen.ActiveForm = Window)
     and Wanted.Nothing) then
@@ -13801,18 +13837,7 @@ begin
 
     NewAddress := URI.Address;
 
-    // Debug 2017-01-18
-    if (NewAddress = '') then
-      raise ERangeError.Create('AAddress: ' + AAddress + #13#10
-        + 'NewAddress: ' + NewAddress);
-
     FAddress := NewAddress;
-
-    // Debug 2016-12-12
-    if ((URI.Param['view'] = 'browser')
-      and (URI.Table = '')) then
-      raise ERangeError.Create('NewAddress: ' + NewAddress + #13#10
-        + 'Address: ' + Address);
 
     if ((URI.Param['view'] = 'browser') and (Node.ImageIndex in [iiBaseTable, iiView, iiSystemView])) then
       NewView := vBrowser
@@ -13912,7 +13937,13 @@ var
   end;
   URI: TUURI;
 begin
-  URI := TUURI.Create(Address);
+  if (FNavigator.Selected.ImageIndex = iiServer) then
+    URI := TUURI.Create(Session.Account.ExpandAddress('/'))
+  else if (TObject(FNavigator.Selected.Data) is TSItem) then
+    URI := TUURI.Create(SItemToAddress(TSItem(FNavigator.Selected.Data)))
+  else
+    raise ERangeError.Create('ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
+      + 'Text: ' + FNavigator.Selected.Text);
 
   case (AView) of
     vObjects:
@@ -14089,7 +14120,7 @@ begin
     URI.Param['object'] := TSTrigger(Item).Name;
   end
   else
-    raise ERangeError.Create(SRangeError);
+    raise ERangeError.Create('ClassType: ' + Item.ClassName);
 
   Result := URI.Address;
 
@@ -15738,7 +15769,7 @@ begin
         iiSystemDatabase:
           begin
             Database := TSDatabase(FNavigator.Selected.Data);
-            if (not Database.Tables.Update()) then
+            if (not Database.Tables.Update(True)) then
               Wanted.Update := UpdateAfterAddressChanged
             else if (Session.Connection.MySQLVersion < 50002) then
               Database.Update(True);

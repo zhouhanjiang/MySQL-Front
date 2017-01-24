@@ -365,6 +365,11 @@ begin
     Result := False
   else
     Result := ShowModal() = mrOk;
+
+  if (fsModal in FormState) then
+    SendToDeveloper('Form is fsModal' + #13#10
+      + 'Visible: ' + BoolToStr(Visible, True) + #13#10
+      + 'ModalResult: ' + IntToStr(Ord(ModalResult)), 2);
 end;
 
 procedure TDImport.FBBackClick(Sender: TObject);
@@ -535,7 +540,7 @@ begin
   if (not Visible) then
     SendToDeveloper('Form not visible' + #13#10
       + 'fsModal: ' + BoolToStr(fsModal in FormState, True) + #13#10
-      + 'ModalResult: ' + IntToStr(Ord(ModalResult)));
+      + 'ModalResult: ' + IntToStr(Ord(ModalResult)), 2);
 
   if (Assigned(Import) and Import.Suspended) then
   begin
@@ -593,7 +598,7 @@ end;
 
 procedure TDImport.FormHide(Sender: TObject);
 begin
-  if (not Visible) then
+  if (Visible) then
     SendToDeveloper('Form not visible' + #13#10
       + 'fsModal: ' + BoolToStr(fsModal in FormState, True) + #13#10
       + 'ModalResult: ' + IntToStr(Ord(ModalResult)))

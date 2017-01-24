@@ -294,6 +294,10 @@ object DView: TDView
       Caption = 'TSDependencies'
       ImageIndex = 4
       OnShow = TSDependenciesShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         279)

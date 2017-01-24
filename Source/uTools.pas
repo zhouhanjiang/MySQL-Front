@@ -4780,7 +4780,7 @@ begin
 
   Content := Content + '# Host: ' + Session.Caption + '  (Version ' + Session.Connection.ServerVersionStr + ')' + #13#10;
   Content := Content + '# Date: ' + MySQLDB.DateTimeToStr(Now(), Session.Connection.FormatSettings) + #13#10;
-  Content := Content + '# Generator: ' + LoadStr(1000) + ' ' + Preferences.VersionStr + ' - ' + SysUtils.LoadStr(1004) + #13#10;
+  Content := Content + '# Generator: ' + LoadStr(1000) + ' ' + Preferences.VersionStr + #13#10;
   Content := Content + #13#10;
 
   if ((CodePage <> CP_UNICODE) and (Session.Connection.CodePageToCharset(CodePage) <> '') and (Session.Connection.MySQLVersion >= 40101)) then

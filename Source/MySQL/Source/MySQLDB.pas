@@ -206,6 +206,8 @@ type
       constructor Create(const AConnection: TMySQLConnection);
       destructor Destroy(); override;
       property Connection: TMySQLConnection read FConnection;
+
+      property DebugSQL: string read SQL; // Debug 2017-01-24
     end;
 
     TTerminatedThreads = class(TList)
@@ -393,6 +395,7 @@ type
     property SuccessfullExecutedSQLLength: Integer read FSuccessfullExecutedSQLLength;
     property ThreadId: my_uint read FThreadId;
     property WarningCount: Integer read FWarningCount;
+    property DebugSyncThread: TSyncThread read FSyncThread; // Debug 2017-01-24
   published
     property Asynchron: Boolean read FAsynchron write FAsynchron default False;
     property AfterExecuteSQL: TNotifyEvent read FAfterExecuteSQL write FAfterExecuteSQL;
@@ -579,6 +582,7 @@ type
     procedure InternalCancel(); override;
     procedure InternalClose(); override;
     procedure InternalDelete(); override;
+    procedure InternalEdit(); override;
     procedure InternalFirst(); override;
     procedure InternalGotoBookmark(Bookmark: TBookmark); override;
     procedure InternalInitFieldDefs(); override;
@@ -1354,6 +1358,7 @@ function AnsiCharToWideChar(const CodePage: UINT; const lpMultiByteStr: LPCSTR; 
 var
   Hex: string;
   Length: Integer;
+  Text: TBytes;
 begin
   if (not Assigned(lpMultiByteStr) or (cchMultiByte = 0)) then
     Result := 0
@@ -1365,7 +1370,9 @@ begin
       Length := cchMultiByte - 1;
       while ((Length > 0) and (MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, lpMultiByteStr, Length, nil, 0) = 0)) do
         Dec(Length);
-      Hex := SQLEscapeBin(lpMultiByteStr, cchMultiByte, True);
+      SetLength(Text, cchMultiByte);
+      BinToHex(BytesOf(lpMultiByteStr, cchMultiByte), 0, Text, 0, cchMultiByte);
+      Hex := '0x' + string(AnsiStrings.StrPas(PAnsiChar(@Text[0])));
       raise Exception.CreateFMT('#%d %s (CodePage: %d, Hex: %s, Index: %d)', [GetLastError(), SysErrorMessage(GetLastError()), CodePage, Hex, Length]);
     end;
   end;
@@ -2021,7 +2028,7 @@ begin
         Connection.TerminateCS.Enter();
         RunExecute.ResetEvent();
         if (not Terminated) then
-          if ((Connection.SynchronCount > 0) and (State <> ssReceivingResult)) then
+          if ((Connection.SynchronCount > 0) and not (State in [ssExecutingFirst, ssExecutingNext, ssReceivingResult])) then
             Connection.SyncThreadExecuted.SetEvent()
           else
             MySQLConnectionOnSynchronize(Self);
@@ -3059,7 +3066,9 @@ begin
           else if (SyncThread.Mode in [smSQL, smDataSet]) then
           begin
             if (SyncThread.State in [ssFirst, ssNext]) then
-              Sync(SyncThread);
+              Sync(SyncThread)
+            else if (SynchronCount > 0) then
+              SyncThreadExecuted.SetEvent();
           end
           else
           begin
@@ -3737,10 +3746,6 @@ begin
 
   if (SyncThread.StmtIndex < SyncThread.StmtLengths.Count) then
   begin
-    // Debug 2017-01-17
-    // For "Stmt #_ of _ has not been handled
-    DebugMonitor.Append('Stmt #' + IntToStr(SyncThread.StmtIndex + 1) + ' handled - State: ' + IntToStr(Ord(SyncThread.State)), ttDebug);
-
     Inc(SyncThread.SQLIndex, Integer(SyncThread.StmtLengths[SyncThread.StmtIndex]));
     Inc(SyncThread.StmtIndex);
     if (SyncThread.ErrorCode = 0) then
@@ -6389,6 +6394,17 @@ begin
   end;
 end;
 
+procedure TMySQLDataSet.InternalEdit();
+begin
+  // Debug 2017-01-24
+  if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData)) then
+    raise ERangeError.Create('Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
+      + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)) + #13#10
+      + 'State: ' + IntToStr(Ord(State)));
+
+  inherited;
+end;
+
 procedure TMySQLDataSet.InternalFirst();
 begin
   InternRecordBuffers.Index := -1;
@@ -6471,10 +6487,6 @@ begin
     else
       raise ERangeError.Create(SRangeError);
   end;
-
-  // Debug 2017-01-17
-  // ... for CompareBookmark with Length(Bookmark) = 0
-  Connection.DebugMonitor.Append('InternalInsert - ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + ' - ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)), ttDebug);
 
   if (Filtered) then
     Inc(InternRecordBuffers.FilteredRecordCount);
@@ -6772,6 +6784,13 @@ begin
       if (InternalPostResult.NewIndex <> PExternRecordBuffer(ActiveBuffer())^.Index) then
       begin
         // Position in InternRecordBuffers change -> move it
+
+        // Debug 2017-01-24
+        if ((PExternRecordBuffer(ActiveBuffer())^.Index < 0) or (InternalPostResult.NewIndex < 0)) then
+          raise ERangeError.Create('ActiveBuffer.Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
+            + 'InternalPostResult.NewIndex: ' + IntToStr(InternalPostResult.NewIndex) + #13#10
+            + 'ControlSQL: ' + ControlSQL);
+
         InternRecordBuffers.Move(PExternRecordBuffer(ActiveBuffer())^.Index, InternalPostResult.NewIndex);
         InternRecordBuffers.Index := InternalPostResult.NewIndex;
         PExternRecordBuffer(ActiveBuffer())^.Index := InternRecordBuffers.Index;
@@ -7585,15 +7604,11 @@ var
   I: Integer;
   ValueHandled: Boolean;
 begin
-  if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
-    raise ERangeError.Create('Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
-      + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)));
-  if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData)) then
-    raise ERangeError.Create('Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
-      + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)));
+  // Debug 2017-01-24
   if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData)) then
     raise ERangeError.Create('Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
-      + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)));
+      + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)) + #13#10
+      + 'State: ' + IntToStr(Ord(State)));
 
   Result := '';
   ValueHandled := False;

@@ -98,7 +98,7 @@ function ValidHostName(const HostName: string; const Port: Integer): Boolean;
 const
   IP4Addr = '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$';
   IP6Addr = '^(?:[A-F0-9]{1,4}:){7}[A-F0-9]{1,4}$';
-  Domainname = '^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$';
+  Domainname = '^(([a-z0-9\p{L}]|[a-z0-9\p{L}][a-z0-9\-\p{L}]*[a-z0-9\p{L}])\.)*([a-z0-9\p{L}]|[a-z0-9\p{L}][a-z0-9\-\p{L}]*[a-z0-9\p{L}])$';
 begin
   Result := TRegEx.IsMatch(HostName, Domainname, [roSingleLine, roIgnoreCase])
     or TRegEx.IsMatch(HostName, IP4Addr, [roSingleLine])

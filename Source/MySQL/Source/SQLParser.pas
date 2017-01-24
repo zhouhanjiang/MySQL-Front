@@ -15528,8 +15528,9 @@ begin
     Nodes.Ident := ParseTableIdent();
 
 
-  Found := True;
-  repeat
+  Found := not EndOfStmt(CurrentToken);
+  while (not ErrorFound and Found and not EndOfStmt(CurrentToken)) do
+  begin
 
     Found2 := True; OldSpecificationsCount := Specifications.Count;
     while (not ErrorFound and Found2) do
@@ -15812,7 +15813,7 @@ begin
           Specifications.Add(Comma);
       end;
     end;
-  until (ErrorFound or not Found or EndOfStmt(CurrentToken));
+  end;
 
   if (not ErrorFound and Found) then
     SetError(PE_UnexpectedToken);

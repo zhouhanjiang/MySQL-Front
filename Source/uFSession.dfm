@@ -200,6 +200,7 @@ object FSession: TFSession
         OnMouseDown = TreeViewMouseDown
         OnMouseMove = FNavigatorMouseMove
         OnMouseUp = TreeViewMouseUp
+        ExplicitTop = 4
       end
     end
   end

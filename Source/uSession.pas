@@ -117,7 +117,7 @@ type
     constructor Create(const ASession: TSSession);
     procedure Invalidate(); virtual;
     procedure PushBuildEvent(const Sender: TObject); virtual;
-    function Update(): Boolean; virtual;
+    function Update(): Boolean; overload; virtual;
     property Valid: Boolean read GetValid;
   end;
 
@@ -654,6 +654,7 @@ type
     function GetValid(): Boolean; override;
     procedure ParseAlterTable(const SQL: string);
     procedure ParseCreateTable(const SQL: string);
+    procedure SetName(const AName: string); override;
     function SQLGetSource(): string; override;
     property MergeSourceTables: TSMergeSourceTables read FMergeSourceTables;
   public
@@ -776,6 +777,7 @@ type
     procedure AddTable(const NewTable: TSTable); virtual;
     procedure Invalidate(); override;
     function NameCmp(const Name1, Name2: string): Integer; override;
+    function Update(const Status: Boolean): Boolean; overload;
     property Table[Index: Integer]: TSTable read GetTable; default;
     property ValidStatus: Boolean read GetValidStatus;
   end;
@@ -1486,7 +1488,7 @@ type
   type
     TEvent = class(TObject)
     type
-      TEventType = (etItemsValid, etItemValid, etItemCreated, etItemDropped, etItemAltered, etDatabaseChanged, etBeforeExecuteSQL, etAfterExecuteSQL, etMonitor, etError);
+      TEventType = (etItemsValid, etItemValid, etItemCreated, etItemDropped, etItemReorder, etDatabaseChanged, etBeforeExecuteSQL, etAfterExecuteSQL, etMonitor, etError);
     public
       Session: TSSession;
       EventType: TEventType;
@@ -4436,7 +4438,7 @@ begin
         begin
           Field.Name := NewFieldName;
           Field.OriginalName := NewFieldName;
-          Session.SendEvent(etItemAltered, Self, Fields, Field);
+          Session.SendEvent(etItemReorder, Self, Fields, Field);
         end;
       end;
 
@@ -4658,7 +4660,7 @@ begin
             SQLParseValue(Parse);
 
       if (Moved) then
-        Session.SendEvent(etItemAltered, Self, FFields, Field);
+        Session.SendEvent(etItemReorder, Self, FFields, Field);
 
       Inc(Index);
       SQLParseChar(Parse, ',');
@@ -5070,6 +5072,18 @@ begin
         raise ERangeError.Create('Name: ' + FFields[I].Name + #13#10
           + SQL);
   end;
+end;
+
+procedure TSBaseTable.SetName(const AName: string);
+var
+  I: Integer;
+begin
+  if ((FName <> '') and (AName <> FName) and Assigned(Database.Triggers)) then
+    for I := 0 to Database.Triggers.Count - 1 do
+      if (Database.Tables.NameCmp(Database.Triggers[I].FTableName, FName) = 0) then
+        Database.Triggers[I].FTableName := AName;
+
+  inherited;
 end;
 
 function TSBaseTable.SQLGetSource(): string;
@@ -5843,6 +5857,16 @@ begin
     SQL := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('COLUMNS') + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ' AND ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ' IN (' + SQL + ') ORDER BY ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ',' + Session.Connection.EscapeIdentifier('ORDINAL_POSITION') + ';' + #13#10;
 
   Result := SQL;
+end;
+
+function TSTables.Update(const Status: Boolean): Boolean;
+var
+  Objects: TList;
+begin
+  Objects := TList.Create();
+  Objects.Add(Self);
+  Result := Session.Update(Objects, Status);
+  Objects.Free();
 end;
 
 { TSRoutineParameter **********************************************************}
@@ -10506,7 +10530,7 @@ begin
       Session.SendEvent(etItemValid, Session, Users, Self);
   end;
 
-  Result := DataSet.Connection.ErrorCode = ER_OPTION_PREVENTS_STATEMENT;
+  Result := Session.Connection.ErrorCode = ER_OPTION_PREVENTS_STATEMENT;
 end;
 
 function TSUser.SQLGetSource(): string;
@@ -12170,10 +12194,16 @@ begin
       end
       else if ((Connection.ErrorCode = 0) and not SQLParser.ParseSQL(SQL)) then
       begin
-        UnparsableSQL := UnparsableSQL
-          + '# MonitorExecutedStmts()' + #13#10
-          + '# Error: ' + SQLParser.ErrorMessage + #13#10
-          + Trim(SQL) + #13#10 + #13#10 + #13#10;
+        if (SQLParser.ErrorCode = PE_IncompleteToken) then
+          UnparsableSQL := UnparsableSQL
+            + '# MonitorExecutedStmts()' + #13#10
+            + '# Error: ' + SQLParser.ErrorMessage + #13#10
+            + Trim(Connection.DebugSyncThread.DebugSQL) + #13#10 + #13#10 + #13#10
+        else
+          UnparsableSQL := UnparsableSQL
+            + '# MonitorExecutedStmts()' + #13#10
+            + '# Error: ' + SQLParser.ErrorMessage + #13#10
+            + Trim(SQL) + #13#10 + #13#10 + #13#10;
       end;
       SQLParser.Clear();
     end;
@@ -12204,7 +12234,7 @@ begin
               else
               begin
                 Database.Invalidate();
-                SendEvent(etItemAltered, Self, Databases, Database);
+                SendEvent(etItemReorder, Self, Databases, Database);
               end;
             end;
           dtDrop:
@@ -12257,7 +12287,7 @@ begin
                           if (DDLStmt.NewDatabaseName <> DatabaseName) then
                             SendEvent(etItemDropped, Table.Database, Table.Tables, Table)
                           else
-                            SendEvent(etItemAltered, Database, Database.Tables, Table);
+                            SendEvent(etItemReorder, Database, Database.Tables, Table);
                         end;
                       end;
                     end;
@@ -12285,7 +12315,7 @@ begin
                         if (Databases.NameCmp(DDLStmt.NewDatabaseName, Database.Name) <> 0) then
                           SendEvent(etItemDropped, Table.Database, Table.Tables, Table)
                         else
-                          SendEvent(etItemAltered, Database, Database.Tables, Table);
+                          SendEvent(etItemReorder, Database, Database.Tables, Table);
                       end;
 
                       if ((Table.Database <> Database) and Table.Database.Valid) then
@@ -12360,7 +12390,7 @@ begin
                     else
                     begin
                       Routine.Invalidate();
-                      SendEvent(etItemAltered, Database, Database.Routines, Routine);
+                      SendEvent(etItemReorder, Database, Database.Routines, Routine);
                     end;
                   end;
                 dtDrop:
@@ -12411,7 +12441,7 @@ begin
                         Database.Invalidate()
                       else
                         Trigger.Invalidate();
-                      SendEvent(etItemAltered, Database, Database.Triggers, Trigger);
+                      SendEvent(etItemReorder, Database, Database.Triggers, Trigger);
                     end;
                   end;
                 dtDrop:
@@ -12459,7 +12489,7 @@ begin
                         Database.Invalidate()
                       else
                         Event.Invalidate();
-                      SendEvent(etItemAltered, Database, Database.Events, Event);
+                      SendEvent(etItemReorder, Database, Database.Events, Event);
                     end;
                   end;
                 dtDrop:
@@ -12505,7 +12535,7 @@ begin
           if (Assigned(Variable) and SQLParseChar(Parse, '=')) then
           begin
             Variable.FValue := SQLParseValue(Parse);
-            SendEvent(etItemAltered, Self, Variables, Variable);
+            SendEvent(etItemReorder, Self, Variables, Variable);
           end;
         end
         else
@@ -12522,7 +12552,7 @@ begin
             if (Assigned(Variable) and SQLParseChar(Parse, '=')) then
             begin
               Variable.FValue := SQLParseValue(Parse);
-              SendEvent(etItemAltered, Self, Variables, Variable);
+              SendEvent(etItemReorder, Self, Variables, Variable);
             end;
           end;
         end;
@@ -12585,7 +12615,7 @@ begin
           if (Assigned(User)) then
           begin
             User.Name := ObjectName;
-            SendEvent(etItemAltered, Self, Users, User);
+            SendEvent(etItemReorder, Self, Users, User);
           end;
         end;
       until (not SQLParseChar(Parse, ','))
@@ -12600,7 +12630,7 @@ begin
             if (Assigned(User)) then
             begin
               User.Invalidate();
-              SendEvent(etItemAltered, Self, Users, User);
+              SendEvent(etItemReorder, Self, Users, User);
             end;
             while (not SQLParseChar(Parse, ';') and not SQLParseEnd(Parse) and not SQLParseKeyword(Parse, 'REQUIRE', False) and not SQLParseKeyword(Parse, 'WITH', False) and not SQLParseChar(Parse, ',', False)) do
               SQLParseValue(Parse);
@@ -12617,7 +12647,7 @@ begin
             if (Assigned(User)) then
             begin
               User.Invalidate();
-              SendEvent(etItemAltered, Self, Users, User);
+              SendEvent(etItemReorder, Self, Users, User);
             end;
           until (not SQLParseChar(Parse, ','));
       end
@@ -13209,6 +13239,11 @@ begin
       begin
         if (not TSDatabase(List[I]).Tables.ValidStatus and not (TSDatabase(List[I]) is TSSystemDatabase)) then
           SQL := SQL + TSDatabase(List[I]).Tables.SQLGetStatus();
+      end
+      else if (TObject(List[I]) is TSTables) then
+      begin
+        if (not TSTables(List[I]).ValidStatus and not (TSTables(List[I]).Database is TSSystemDatabase)) then
+          SQL := SQL + TSTables(List[I]).SQLGetStatus();
       end;
 
   if (not Assigned(Objects) and Status and not Valid and (Connection.MySQLVersion >= 50002) and (Account.Connection.Database = '')) then
