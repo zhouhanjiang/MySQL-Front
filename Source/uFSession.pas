@@ -735,7 +735,7 @@ type
       procedure SetLimit(const Limit: Integer);
       procedure SetLimited(const ALimited: Boolean);
     public
-      procedure AddFilter(const AFilter: string);
+      procedure etItemResort(const AFilter: string);
       constructor Create(const AFSession: TFSession; const ATable: TSTable);
       function CreateDBGrid(): TMySQLDBGrid;
       function CreateListView(): TListView;
@@ -1567,7 +1567,7 @@ end;
 
 { TFSession.TTableDesktop *****************************************************}
 
-procedure TFSession.TTableDesktop.AddFilter(const AFilter: string);
+procedure TFSession.TTableDesktop.etItemResort(const AFilter: string);
 var
   FiltersXML: IXMLNode;
   I: Integer;
@@ -1641,7 +1641,7 @@ var
   I: Integer;
 begin
   if (Table.DataSet.FilterSQL <> '') then
-    AddFilter(Table.DataSet.FilterSQL);
+    etItemResort(Table.DataSet.FilterSQL);
   if (((Table.DataSet.Limit > 0) <> Limited) or (Limit <> Table.DataSet.Limit)) then
   begin
     Limited := Table.DataSet.Limit > 0;
@@ -9241,7 +9241,7 @@ begin
       FFilterEnabledClick(Sender);
       if (not (TObject(FNavigator.Selected.Data) is TSTable)) then
         raise ERangeError.Create(SRangeError);
-      Desktop(TSTable(FNavigator.Selected.Data)).AddFilter(Format(Filters[FilterIndex].Text, [Session.Connection.EscapeIdentifier(ActiveDBGrid.SelectedField.FieldName), Value]));
+      Desktop(TSTable(FNavigator.Selected.Data)).etItemResort(Format(Filters[FilterIndex].Text, [Session.Connection.EscapeIdentifier(ActiveDBGrid.SelectedField.FieldName), Value]));
     end
     else
     begin
@@ -10346,9 +10346,6 @@ var
     S2: string;
   begin
     Assert(Item.Data = Data);
-
-    if (ListView.Columns[0].Width < 0) then
-      SendToDeveloper('ClassType: ' + TObject(ListView.Tag).ClassName);
 
     ProfilingPoint(13);
 
