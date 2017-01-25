@@ -171,7 +171,8 @@ var
   {$IFDEF EurekaLog}
   Buffer: TEurekaDebugInfo;
   CallStack: TEurekaBaseStackList;
-  Filename: array[0 .. MAX_PATH] of Char;
+  Filename: string;
+  FilenameP: array[0 .. MAX_PATH] of Char;
   Index: Integer;
   Item: PEurekaDebugInfo;
   StackItem: Integer;
@@ -190,12 +191,15 @@ begin
     {$IFDEF EurekaLog}
     if (not DisableSource or (Trim(Text) = '')) then
     begin
+      SetString(Filename, PChar(@FilenameP[0]), GetModuleFileName(GetModuleHandle(nil), @FilenameP, Length(FilenameP)));
+
       CallStack := GetCurrentCallStack();
       Index := 0; StackItem := 0; Item := nil;
       while ((Index < CallStack.Count) and (StackItem < 2)) do
       begin
-        Item := CallStack.GetItem(1, Buffer); GetModuleFileName(GetModuleHandle(nil), @Filename, Length(Filename));
-        if ((Item^.Location.DebugDetail = ddSourceCode) and (StrIComp(PChar(Item^.Location.ModuleName), PChar(@Filename)) = 0)) then
+        Item := CallStack.GetItem(1, Buffer);
+        if ((Item^.Location.DebugDetail = ddSourceCode)
+          and ((Filename = '') or (StrIComp(PChar(Item^.Location.ModuleName), PChar(Filename)) = 0))) then
           Inc(StackItem);
         Inc(Index);
       end;
@@ -214,7 +218,7 @@ begin
         Body := Source + Body;
       end
       else
-        Body := 'StackItem: ' + IntToStr(StackItem) + ', Count: ' + IntToStr(CallStack.Count) + #13#10#13#10;
+        Body := Source + 'StackItem: ' + IntToStr(StackItem) + ', Index:' + IntToStr(Index) + ', Count: ' + IntToStr(CallStack.Count) + #13#10#13#10;
     end;
     {$ENDIF}
 
@@ -508,6 +512,10 @@ begin
   end;
 
   Result := Result
+    and (Item^.Location.UnitName <> 'EAppType')
+    and (Item^.Location.UnitName <> 'EAppVCL')
+    and (Item^.Location.UnitName <> 'EDialog')
+    and (Item^.Location.UnitName <> 'EDialogWinAPI')
     and (Item^.Location.UnitName <> 'EExceptionManager')
     and (Item^.Location.UnitName <> 'EThreadsManager');
 end;
@@ -551,7 +559,7 @@ begin
           FMaxProc := Length(S);
         if DI.Location.LineNumber <> 0 then
         begin
-          S := Format('%d[%d]', [DI.Location.LineNumber, DI.Location.OffsetFromProcName]); // Do Not Localize
+          S := Trim(Format('%d[%d]', [DI.Location.LineNumber, DI.Location.OffsetFromProcName])); // Do Not Localize
           if Length(S) > FMaxLine then
             FMaxLine := Length(S);
         end;

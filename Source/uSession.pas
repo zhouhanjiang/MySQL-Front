@@ -1506,7 +1506,6 @@ type
     TEventProc = procedure (const AEvent: TSSession.TEvent) of object;
     TUpdate = function (): Boolean of object;
   private
-    ConnectionEvent: SyncObjs.TEvent;
     EventProcs: array of TEventProc;
     FAccount: TPAccount;
     FCharsets: TSCharsets;
@@ -11576,7 +11575,6 @@ begin
   Sessions.Add(Self);
 
 
-  ConnectionEvent := SyncObjs.TEvent.Create(nil, False, False, '');
   SetLength(EventProcs, 0);
   FCurrentUser := '';
   FInformationSchema := nil;
@@ -11896,7 +11894,6 @@ begin
   end;
 
   FConnection.Free();
-  ConnectionEvent.Free();
 
   inherited;
 end;
@@ -12733,8 +12730,6 @@ end;
 
 function TSSession.SendSQL(const SQL: string; const OnResult: TMySQLConnection.TResultEvent = nil): Boolean;
 begin
-  Assert(ConnectionEvent.WaitFor(IGNORE) <> wrSignaled);
-
   if (GetCurrentThreadId() = MainThreadId) then
     Result := Connection.SendSQL(SQL, OnResult)
   else

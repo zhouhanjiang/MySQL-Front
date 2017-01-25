@@ -7548,6 +7548,7 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
       Item.mask := TVIF_PARAM;
       TreeView_GetItem(Handle, Item);
       // 1.4 seconds for 2 items
+      // 0.8 seconds for 665 items
     ProfilingPoint(9);
       Child := Child.getNextSibling();
 
@@ -10170,6 +10171,11 @@ begin
     else if (TObject(ListView.Tag) is TSQuickAccess) then
     begin
       ListView.Columns.Add();
+      ListView.Columns.Add();
+      ListView.Columns.Add();
+      ListView.Columns.Add();
+      ListView.Columns.Add();
+      ListView.Columns.Add();
       ListView.Columns.EndUpdate();
       SetColumnWidths(ListView, lkObjectSearch);
 
@@ -10262,6 +10268,15 @@ begin
     ListView.Columns[2].Caption := Preferences.LoadStr(935);
     ListView.Columns[3].Caption := Preferences.LoadStr(119);
     ListView.Columns[4].Caption := Preferences.LoadStr(111);
+  end
+  else if (TObject(ListView.Tag) is TSQuickAccess) then
+  begin
+    ListView.Columns[0].Caption := Preferences.LoadStr(35);
+    ListView.Columns[1].Caption := Preferences.LoadStr(69);
+    ListView.Columns[2].Caption := Preferences.LoadStr(38);
+    ListView.Columns[3].Caption := Preferences.LoadStr(67);
+    ListView.Columns[4].Caption := Preferences.LoadStr(119);
+    ListView.Columns[5].Caption := Preferences.LoadStr(111);
   end;
 end;
 
@@ -13801,6 +13816,9 @@ begin
 
     if (URI.Address = '') then
       raise ERangeError.Create('AAddress: ' + AAddress);
+    if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
+      raise ERangeError.Create('AAddress: ' + AAddress + #13#10
+        + 'URI.Address: ' + URI.Address);
 
     FCurrentAddress := URI.Address;
     Session.Account.Desktop.Addresses.Add(FCurrentAddress);

@@ -6774,7 +6774,7 @@ begin
           Dec(InternalPostResult.NewIndex);
       end;
 
-      if (InternalPostResult.NewIndex <> PExternRecordBuffer(ActiveBuffer())^.Index) then
+      if (ControlSQL <> '') and (InternalPostResult.NewIndex <> PExternRecordBuffer(ActiveBuffer())^.Index) then
       begin
         // Position in InternRecordBuffers change -> move it
 
