@@ -638,7 +638,7 @@ type
     procedure TreeViewMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
   type
-    TClassIndex = (ciUnknown, ciSession, ciDatabase, ciSystemDatabase, ciBaseTable, ciView, ciSystemView, ciProcedure, ciFunction, ciEvent, ciTrigger, ciProcesses, ciUsers, ciVariables);
+    TClassIndex = (ciUnknown, ciSession, ciDatabase, ciSystemDatabase, ciBaseTable, ciView, ciSystemView, ciProcedure, ciFunction, ciEvent, ciTrigger, ciProcesses, ciUsers, ciVariables, ciQuick);
     TListViewSortRec = record Kind: TPAccount.TDesktop.TListViewKind; ColumnIndex: Integer; Order: Integer; end;
     TListViewSortData = array [Low(TPAccount.TDesktop.TListViewKind) .. High(TPAccount.TDesktop.TListViewKind)] of TListViewSortRec;
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
@@ -1023,7 +1023,7 @@ type
     procedure SaveDiagram(Sender: TObject);
     procedure SaveSQLFile(Sender: TObject);
     procedure SendQuery(Sender: TObject; const SQL: string);
-    procedure SetAddress(const AAddress: string);
+    procedure SetCurrentAddress(const AAddress: string);
     procedure SetView(const AView: TView);
     procedure SetListViewGroupHeader(const ListView: TListView; const GroupID: Integer; const NewHeader: string);
     procedure SetPath(const APath: TFileName);
@@ -1081,7 +1081,7 @@ type
     procedure OpenDiagram();
     procedure OpenSQLFile(const AFilename: TFileName; const CodePage: Cardinal = 0; const Insert: Boolean = False);
     procedure StatusBarRefresh(const Immediately: Boolean = False);
-    property CurrentAddress: string read FCurrentAddress write SetAddress;
+    property CurrentAddress: string read FCurrentAddress write SetCurrentAddress;
     property CurrentClassIndex: TClassIndex read GetCurrentClassIndex;
     property CurrentData: TCustomData read GetCurrentData;
     property Path: TFileName read GetPath write SetPath;
@@ -2049,7 +2049,10 @@ begin
   if (AAddress <> FAddress) then
   begin
     Clear();
-    FAddress := AAddress;
+    if (not FSession.Session.Connection.InUse()) then
+      FSession.CurrentAddress := AAddress
+    else
+      FAddress := AAddress;
   end;
 end;
 
@@ -2456,6 +2459,12 @@ begin
     URI.Param['objecttype'] := 'trigger';
     URI.Param['object'] := TSTrigger(Data).Name;
   end
+  else if (TObject(Data) is TSProcesses) then
+    URI.Param['system'] := 'processes'
+  else if (TObject(Data) is TSUsers) then
+    URI.Param['system'] := 'users'
+  else if (TObject(Data) is TSVariables) then
+    URI.Param['system'] := 'variables'
   else if (not Assigned(Data)) then
     raise ERangeError.Create(SRangeError)
   else
@@ -2725,6 +2734,8 @@ begin
     else if (URI.Param['system'] = 'users') then
       Session.Update()
     else if (URI.Param['system'] = 'variables') then
+      Session.Update()
+    else if (URI.Param['system'] = 'quick') then
       Session.Update()
     else if (URI.Database = '') then
       Session.Update(nil, URI.Param['view'] = Null)
@@ -4392,7 +4403,15 @@ var
 begin
   URI := TUURI.Create(Address);
 
-  if (URI.Database = '') then
+  if (URI.Param['system'] = 'processes') then
+    Result := ciProcesses
+  else if (URI.Param['system'] = 'users') then
+    Result := ciUsers
+  else if (URI.Param['system'] = 'variables') then
+    Result := ciVariables
+  else if (URI.Param['system'] = 'quick') then
+    Result := ciQuick
+  else if (URI.Database = '') then
     Result := ciSession
   else if (URI.Param['objecttype'] = 'view') then
     Result := ciView
@@ -4413,12 +4432,6 @@ begin
     Result := ciSystemDatabase
   else if (URI.Database <> '') then
     Result := ciDatabase
-  else if (URI.Param['system'] = 'processes') then
-    Result := ciProcesses
-  else if (URI.Param['system'] = 'users') then
-    Result := ciUsers
-  else if (URI.Param['system'] = 'variables') then
-    Result := ciVariables
   else
     raise ERangeError.Create('Unknown ClassIndex for: ' + URI.Address);
 
@@ -4475,6 +4488,8 @@ begin
     Result := lkVariables
   else if (TObject(ListView.Tag) is TSItemSearch) then
     Result := lkObjectSearch
+  else if (TObject(ListView.Tag) is TSQuickAccess) then
+    Result := lkQuickAccess
   else
     raise ERangeError.Create(SRangeError);
 end;
@@ -5373,6 +5388,7 @@ begin
     ciProcesses: Result := Session.Processes;
     ciUsers: Result := Session.Users;
     ciVariables: Result := Session.Variables;
+    ciQuick: Result := Session.QuickAccess;
     else raise ERangeError.Create('Unknown ClassIndex for: ' + Address);
   end;
 
@@ -6739,6 +6755,11 @@ begin
 
   if (not Assigned(Node) or (Node.ImageIndex = iiServer)) then
     URI := TUURI.Create(Session.Account.ExpandAddress('/'))
+  else if (Node.ImageIndex = iiQuickAccess) then
+  begin
+    URI := TUURI.Create(Session.Account.ExpandAddress('/'));
+    URI.Param['system'] := 'quick';
+  end
   else if (TObject(Node.Data) is TPAccount.TFavorite) then
     URI := TUURI.Create(TPAccount.TFavorite(Node.Data).Address)
   else if (Node.ImageIndex = iiProcesses) then
@@ -6764,6 +6785,16 @@ begin
     raise ERangeError.Create(SRangeError);
 
   URI.Param['view'] := ViewToParam(View);
+
+  if ((ParamToView(URI.Param['view']) in [vBrowser]) and not (Node.ImageIndex in [iiBaseTable, iiView, iiSystemView])) then
+    URI.Param['view'] := Null;
+  if ((ParamToView(URI.Param['view']) in [vIDE]) and not (Node.ImageIndex in [iiView, iiProcedure, iiFunction, iiTrigger, iiEvent])) then
+    URI.Param['view'] := Null;
+  if ((ParamToView(URI.Param['view']) in [vBuilder, vDiagram]) and not (Node.ImageIndex in [iiDatabase, iiSystemDatabase])) then
+    URI.Param['view'] := Null;
+  if ((ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and not (Node.ImageIndex in [iiServer, iiDatabase, iiSystemDatabase])) then
+    URI.Param['view'] := Null;
+
   if ((URI.Param['view'] = Null) and (URI.Param['objecttype'] = 'procedure') or (URI.Param['objecttype'] = 'function') or (URI.Param['objecttype'] = 'trigger') or (URI.Param['objecttype'] = 'event')) then
     URI.Param['view'] := 'ide';
   if ((URI.Param['view'] = Null) and (URI.Table <> '')) then
@@ -7344,7 +7375,9 @@ begin
   while (Assigned(ServerNode) and (ServerNode.ImageIndex <> iiServer)) do
     ServerNode := ServerNode.getNextSibling();
 
-  if (URI.Param['system'] <> Null) then
+  if (URI.Param['system'] = 'quick') then
+    Result := FNavigator.Items.getFirstNode()
+  else if (URI.Param['system'] <> Null) then
   begin
     Child := ServerNode.getFirstChild();
     while (Assigned(Child) and not Assigned(Result)) do
@@ -9034,6 +9067,12 @@ begin
           end;
           Result := VariablesListView;
         end;
+      ciQuick:
+        begin
+          if (not Assigned(QuickAccessListView)) then
+            QuickAccessListView := CreateListView(Session.QuickAccess);
+          Result := QuickAccessListView;
+        end;
       else
         Result := nil;
     end;
@@ -10127,6 +10166,17 @@ begin
       ListView.Groups.Add().GroupID := giTriggers;
       ListView.Groups.Add().GroupID := giUsers;
       ListView.Groups.Add().GroupID := giVariables;
+    end
+    else if (TObject(ListView.Tag) is TSQuickAccess) then
+    begin
+      ListView.Columns.Add();
+      ListView.Columns.EndUpdate();
+      SetColumnWidths(ListView, lkObjectSearch);
+
+      ListView.Groups.Add().GroupID := giTables;
+      ListView.Groups.Add().GroupID := giRoutines;
+      ListView.Groups.Add().GroupID := giEvents;
+      ListView.Groups.Add().GroupID := giTriggers;
     end;
   end;
 
@@ -10379,14 +10429,6 @@ begin
       Column := TListView(Sender).Columns[I];
       Width := Column.Width;
       ListViewKind := ColumnWidthKindByListView(TListView(Sender));
-      if (not (ListViewKind in [lkServer .. lkObjectSearch])) then
-        raise ERangeError.Create(SRangeError + '(' + IntToStr(Ord(ListViewKind)) + ')');
-      if (Length(Session.Account.Desktop.ColumnWidths) < 1 + Ord(ListViewKind)) then
-        raise ERangeError.Create(SRangeError + ' ' + IntToStr(1 + Ord(ListViewKind)));
-      if (I < 0) then
-        raise ERangeError.Create(SRangeError);
-      if (I >= Length(Session.Account.Desktop.ColumnWidths[lkServer])) then
-        raise ERangeError.Create(SRangeError);
       Session.Account.Desktop.ColumnWidths[ListViewKind, I] := Width;
     end;
   end;
@@ -11254,11 +11296,11 @@ begin
     end
     else if ((Kind in [lkServer, lkObjectSearch]) and (Event.Items is TSDatabases)) then
       UpdateGroup(Kind, giDatabases, Event.Items)
-    else if ((Kind in [lkDatabase, lkObjectSearch]) and (Event.Items is TSTables)) then
+    else if ((Kind in [lkDatabase, lkObjectSearch, lkQuickAccess]) and (Event.Items is TSTables)) then
       UpdateGroup(Kind, giTables, Event.Items)
-    else if ((Kind in [lkDatabase, lkObjectSearch]) and (Event.Items is TSRoutines)) then
+    else if ((Kind in [lkDatabase, lkObjectSearch, lkQuickAccess]) and (Event.Items is TSRoutines)) then
       UpdateGroup(Kind, giRoutines, Event.Items)
-    else if ((Kind in [lkDatabase, lkObjectSearch]) and (Event.Items is TSEvents)) then
+    else if ((Kind in [lkDatabase, lkObjectSearch, lkQuickAccess]) and (Event.Items is TSEvents)) then
       UpdateGroup(Kind, giEvents, Event.Items)
     else if ((Kind in [lkTable, lkObjectSearch]) and (Event.Sender is TSTable)) then
     begin
@@ -11270,7 +11312,7 @@ begin
       if ((TObject(ListView.Tag) is TSBaseTable) and Assigned(TSBaseTable(ListView.Tag).Database.Triggers)) then
         UpdateGroup(Kind, giTriggers, TSBaseTable(ListView.Tag).Database.Triggers);
     end
-    else if ((Kind in [lkTable, lkObjectSearch]) and (Event.Items is TSTriggers)) then
+    else if ((Kind in [lkTable, lkObjectSearch, lkQuickAccess]) and (Event.Items is TSTriggers)) then
       UpdateGroup(Kind, giTriggers, Event.Items)
     else if ((Kind in [lkProcesses, lkObjectSearch]) and (Event.Items is TSProcesses)) then
       UpdateGroup(Kind, giProcesses, Event.Items)
@@ -13720,7 +13762,7 @@ begin
     Wanted.Update := Session.Update;
 end;
 
-procedure TFSession.SetAddress(const AAddress: string);
+procedure TFSession.SetCurrentAddress(const AAddress: string);
 var
   AllowChange: Boolean;
   ChangeEvent: TTVChangedEvent;
@@ -13773,11 +13815,6 @@ begin
       vBrowser:
         begin
           Table := Session.DatabaseByName(URI.Database).TableByName(URI.Table);
-
-          // Debug 2017-01-25
-          if (not Assigned(Table)) then
-            raise ERangeError.Create('Address: ' + URI.Address);
-
           FUDOffset.Position := 0;
           FUDLimit.Position := Desktop(Table).Limit;
           FLimitEnabled.Down := Desktop(Table).Limited;
@@ -15643,11 +15680,17 @@ begin
           Session.Variables.Update();
       end;
     vBrowser:
-      if ((TObject(CurrentData) is TSView and not TSView(CurrentData).Update())
-        or (TObject(CurrentData) is TSBaseTable and not TSBaseTable(CurrentData).Update(True))) then
-        Wanted.Update := UpdateAfterAddressChanged
-      else if (not TSTable(CurrentData).DataSet.Active) then
-        TableOpen(nil);
+      begin
+        // Debug 2017-01-25
+        if (not (TObject(CurrentData) is TSTable)) then
+          raise ERangeError.Create('Address: ' + CurrentAddress);
+
+        if ((TObject(CurrentData) is TSView and not TSView(CurrentData).Update())
+          or (TObject(CurrentData) is TSBaseTable and not TSBaseTable(CurrentData).Update(True))) then
+          Wanted.Update := UpdateAfterAddressChanged
+        else if (not TSTable(CurrentData).DataSet.Active) then
+          TableOpen(nil);
+      end;
     vIDE:
       TSDBObject(CurrentData).Update();
     vDiagram:

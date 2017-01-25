@@ -535,7 +535,7 @@ type
 
     TDesktop = class
     type
-      TListViewKind = (lkServer, lkDatabase, lkTable, lkProcesses, lkUsers, lkVariables, lkObjectSearch);
+      TListViewKind = (lkServer, lkDatabase, lkTable, lkProcesses, lkUsers, lkVariables, lkObjectSearch, lkQuickAccess);
     private
       FAccount: TPAccount;
       FAddresses: TAddresses;
@@ -550,7 +550,7 @@ type
       property Account: TPAccount read FAccount;
     public
       BlobHeight: Integer;
-      ColumnWidths: array [lkServer .. lkObjectSearch] of array [0..7] of Integer;
+      ColumnWidths: array [lkServer .. lkQuickAccess] of array [0..7] of Integer;
       DataHeight: Integer;
       EditorContent: array [ttEditor .. ttEditor3] of string;
       ExplorerVisible: Boolean;
@@ -3990,5 +3990,3 @@ initialization
 finalization
   CoUninitialize();
 end.
-
-

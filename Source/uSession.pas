@@ -1448,6 +1448,10 @@ type
     property Session: TSSession read FSession;
   end;
 
+  TSQuickAccess = class(TSItems)
+
+  end;
+
   TSItemSearch = class(TSItems)
   private
     FSession: TSSession;
@@ -1521,6 +1525,7 @@ type
     FPerformanceSchema: TSDatabase;
     FPlugins: TSPlugins;
     FProcesses: TSProcesses;
+    FQuickAccess: TSQuickAccess;
     FSQLMonitor: TMySQLMonitor;
     FStartTime: TDateTime;
     FSyntaxProvider: TacMYSQLSyntaxProvider;
@@ -1622,6 +1627,7 @@ type
     property PerformanceSchema: TSDatabase read FPerformanceSchema;
     property Plugins: TSPlugins read FPlugins;
     property Processes: TSProcesses read FProcesses;
+    property QuickAccess: TSQuickAccess read FQuickAccess;
     property StartTime: TDateTime read FStartTime;
     property SQLMonitor: TMySQLMonitor read FSQLMonitor;
     property SQLParser: TSQLParser read GetSQLParser;
@@ -11625,6 +11631,7 @@ begin
     FEngines := nil;
     FPlugins := nil;
     FProcesses := nil;
+    FQuickAccess := TSQuickAccess.Create(Self);
     FUsers := nil;
     FVariables := TSVariables.Create(Self);
   end;
@@ -11861,6 +11868,7 @@ begin
   if (Assigned(FItemSearches)) then FItemSearches.Free();
   if (Assigned(FPlugins)) then FPlugins.Free();
   if (Assigned(FProcesses)) then FProcesses.Free();
+  if (Assigned(FQuickAccess)) then FQuickAccess.Free();
   if (Assigned(FSQLMonitor)) then FSQLMonitor.Free();
   if (Assigned(FUsers)) then FUsers.Free();
   if (Assigned(FVariables)) then FVariables.Free();

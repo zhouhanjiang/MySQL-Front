@@ -2313,6 +2313,11 @@ begin
   SyncThread.State := ssConnect;
   repeat
     Sync(SyncThread);
+    if (SynchronCount > 0) then
+    begin
+      SyncThreadExecuted.WaitFor(INFINITE);
+      Sync(SyncThread);
+    end;
   until ((SynchronCount = 0) or not Assigned(SyncThread) or (SyncThread.State in [ssClose, ssReady]));
 end;
 
