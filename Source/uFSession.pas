@@ -11336,6 +11336,7 @@ begin
     // 5 seconds
     // 1 seconds, EventType: 1, FieldCount: 36
     // 19 seconds, EventType: 0, Count: 66
+    // 2.7 seconds, EventType: 0, Count: 0
     ProfilingPoint(29);
     ListView.OnChanging := ChangingEvent;
 
@@ -13797,6 +13798,9 @@ begin
     FNavigator.OnChange := ChangeEvent;
 
     URI := TUURI.Create(NewAddress);
+
+    if (URI.Address = '') then
+      raise ERangeError.Create('AAddress: ' + AAddress);
 
     FCurrentAddress := URI.Address;
     Session.Account.Desktop.Addresses.Add(FCurrentAddress);

@@ -191,10 +191,10 @@ asm
         JE QuotedL1                      // No!
         STOSW                            // Put character
       QuotedL1:
+        CMP ECX,1                        // Last character in SQL?
+        JE QuotedLE2                     // Yes!
         CMP AX,'\'                       // Character = Escaper?
         JNE QuotedLE                     // No!
-        CMP ECX,0                        // End of SQL?
-        JE Finish                        // Yes!
         MOV AX,[ESI]                     // Character after Escape
         CMP AX,''''                      // "'"?
         JE QuotedL2                      // Yes!
@@ -206,7 +206,9 @@ asm
         JNE QuotedLE2                    // Yes!
       QuotedLE:
         CMP AX,DX                        // End Quoter?
-        JE Finish
+        JNE QuotedLE2                    // No!
+        DEC ECX                          // End Quoter handled
+        JMP Finish
       QuotedLE2:
         LOOP QuotedL
 

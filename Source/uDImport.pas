@@ -539,34 +539,44 @@ end;
 
 procedure TDImport.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
-  if (Assigned(Import) and Import.Suspended) then
+  if (not Visible) then
+    SendToDeveloper('Visible: ' + BoolToStr(Visible, True) + #13#10
+      + 'fsModal: ' + BoolToStr(fsModal in FormState, True) + #13#10
+      + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
+      + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
+      + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
+      + 'Import.Terminated: ' + BoolToStr(Assigned(Import) and Import.Terminated, True))
+  else
   begin
-    Import.Free();
-    Import := nil;
-  end;
-
-  if (Assigned(FNavigator) and not Assigned(FNavigator^)
-    or not Visible) then
-    raise ERangeError.Create('Visible' + BoolToStr(Visible, True) + #13#10
+    if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
+      raise ERangeError.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
       + 'fsModal: ' + BoolToStr(fsModal in FormState, True) + #13#10
       + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
       + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
       + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
       + 'Import.Terminated: ' + BoolToStr(Assigned(Import) and Import.Terminated, True));
 
-  if (Assigned(Import)) then
-  begin
-    Import.Terminate();
-    CanClose := False;
-  end
-  else
-    CanClose := True;
+    if (Assigned(Import) and Import.Suspended) then
+    begin
+      Import.Free();
+      Import := nil;
+    end;
 
-  FBCancel.Enabled := CanClose;
-  if (FBCancel.Enabled) then
-    SetClassLong(Handle, GCL_STYLE, GetClassLong(Handle, GCL_STYLE) and not CS_NOCLOSE)
-  else
-    SetClassLong(Handle, GCL_STYLE, GetClassLong(Handle, GCL_STYLE) or CS_NOCLOSE);
+
+    if (Assigned(Import)) then
+    begin
+      Import.Terminate();
+      CanClose := False;
+    end
+    else
+      CanClose := True;
+
+    FBCancel.Enabled := CanClose;
+    if (FBCancel.Enabled) then
+      SetClassLong(Handle, GCL_STYLE, GetClassLong(Handle, GCL_STYLE) and not CS_NOCLOSE)
+    else
+      SetClassLong(Handle, GCL_STYLE, GetClassLong(Handle, GCL_STYLE) or CS_NOCLOSE);
+  end;
 end;
 
 procedure TDImport.FormCreate(Sender: TObject);
@@ -607,7 +617,7 @@ begin
   if (Assigned(FNavigator) and not Assigned(FNavigator^)
     or Visible
     or Assigned(Import)) then
-    raise ERangeError.Create('Visible' + BoolToStr(Visible, True) + #13#10
+    SendToDeveloper('Visible' + BoolToStr(Visible, True) + #13#10
       + 'fsModal: ' + BoolToStr(fsModal in FormState, True) + #13#10
       + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
       + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10

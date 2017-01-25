@@ -40,7 +40,7 @@ type
 
 function CheckOnlineVersion(const Stream: TStringStream; var VersionStr: string; var SetupProgramURI: string): Boolean;
 function CompileTime(): TDateTime;
-procedure SendToDeveloper(const Text: string; const Days: Integer = 7; const DisableSource: Boolean = False);
+procedure SendToDeveloper(const Text: string; const Days: Integer = 2; const DisableSource: Boolean = False);
 
 var
   OnlineVersion: Integer;
@@ -166,7 +166,7 @@ begin
   Result := PImageNtHeaders(HInstance + Cardinal(PImageDosHeader(HInstance)^._lfanew))^.FileHeader.TimeDateStamp / SecsPerDay + UnixDateDelta;
 end;
 
-procedure SendToDeveloper(const Text: string; const Days: Integer = 7; const DisableSource: Boolean = False);
+procedure SendToDeveloper(const Text: string; const Days: Integer = 2; const DisableSource: Boolean = False);
 var
   {$IFDEF EurekaLog}
   Buffer: TEurekaDebugInfo;
@@ -850,7 +850,7 @@ begin
       Result := Result + Sessions[I].Connection.DebugMonitor.CacheText + #13#10;
     end;
 
-  if (OnlineVersion <= 0) then
+//  if (OnlineVersion <= 0) then
   begin
     Result := Result + #13#10;
     Result := Result + 'OnlineVersion: ' + IntToStr(OnlineVersion) + #13#10;
