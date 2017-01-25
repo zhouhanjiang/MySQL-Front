@@ -236,7 +236,7 @@ begin
 
     Result := True;
     if (Assigned(FSession)) then
-      FSession.Address := URI.Address
+      FSession.CurrentAddress := URI.Address
     else
       Result := Boolean(SendMessage(Application.MainForm.Handle, UM_ADDTAB, 0, LPARAM(URI.Address)));
 

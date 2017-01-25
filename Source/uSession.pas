@@ -6544,10 +6544,6 @@ function TSTrigger.GetInputDataSet(): TMySQLDataSet;
 begin
   if (not Assigned(FInputDataSet)) then
   begin
-    // Debug 2016-11-18
-    if (FTableName = '') then
-      raise ERangeError.Create(SRangeError);
-
     FInputDataSet := TMySQLDataSet.Create(nil);
     FInputDataSet.Connection := Session.Connection;
     FInputDataSet.CommandText := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(FTableName) + ' LIMIT 0';
@@ -11888,7 +11884,7 @@ begin
         '# MySQL: ' + Self.Connection.ServerVersionStr + #13#10
         + #13#10
         + UnparsableSQL;
-    SendToDeveloper(UnparsableSQL, 0, True);
+    SendToDeveloper(UnparsableSQL, 7, True);
   end;
 
   FConnection.Free();
@@ -12198,7 +12194,7 @@ begin
           UnparsableSQL := UnparsableSQL
             + '# MonitorExecutedStmts()' + #13#10
             + '# Error: ' + SQLParser.ErrorMessage + #13#10
-            + Trim(Connection.DebugSyncThread.DebugSQL) + #13#10 + #13#10 + #13#10
+            + Trim(SQL) + #13#10 + #13#10 + #13#10
         else
           UnparsableSQL := UnparsableSQL
             + '# MonitorExecutedStmts()' + #13#10
@@ -12735,9 +12731,9 @@ begin
     Result := Connection.SendSQL(SQL, OnResult)
   else
   begin
-    Connection.SendSQL(SQL, OnResult, ConnectionEvent);
-    ConnectionEvent.WaitFor(INFINITE);
-    Result := Connection.ErrorCode = 0;
+    Connection.BeginSynchron();
+    Result := Connection.SendSQL(SQL, OnResult);
+    Connection.EndSynchron();
   end;
 end;
 

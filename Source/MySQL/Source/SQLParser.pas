@@ -15203,7 +15203,7 @@ begin
   else
     Nodes.DatabaseTag := ParseTag(kiSCHEMA);
 
-  if (TokenPtr(CurrentToken)^.TokenType in ttIdents) then
+  if (not ErrorFound) then
     Nodes.Ident := ParseDatabaseIdent();
 
   if (not ErrorFound) then

@@ -183,7 +183,7 @@ var
   Size: Integer;
   Stream: TMemoryStream;
 begin
-  if ((Days = 0) or (Now() < IncDay(CompileTime(), Days + 1))) then
+  if (Now() < IncDay(CompileTime(), Days + 1)) then
   begin
     Body := Text;
 
@@ -212,7 +212,9 @@ begin
         Source := ExtractFileName(Item^.Location.ModuleName) + '|' + Item^.Location.UnitName + '|' + Source + '|' + IntToStr(Item^.Location.LineNumber) + '[' + IntToStr(Item^.Location.ProcOffsetLine) + ']' + #13#10#13#10;
 
         Body := Source + Body;
-      end;
+      end
+      else
+        Body := 'StackItem: ' + IntToStr(StackItem) + ', Count: ' + IntToStr(CallStack.Count) + #13#10#13#10;
     end;
     {$ENDIF}
 
@@ -504,6 +506,10 @@ begin
     if (Result and (Item^.Location.DebugDetail = ddNone)) then
       Result := Item^.Location.Address <> Item^.ReturnAddr;
   end;
+
+  Result := Result
+    and (Item^.Location.UnitName <> 'EExceptionManager')
+    and (Item^.Location.UnitName <> 'EThreadsManager');
 end;
 
 procedure TStackFormatter.CalculateLengths();

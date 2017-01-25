@@ -534,6 +534,7 @@ type
       TListViewKind = (lkServer, lkDatabase, lkTable, lkProcesses, lkUsers, lkVariables, lkObjectSearch);
     private
       FAccount: TPAccount;
+      FAddresses: TPPreferences.TMRUList;
       FFiles: TFiles;
       FPath: string;
       function GetAddress(): string;
@@ -559,6 +560,7 @@ type
       constructor Create(const AAccount: TPAccount); overload; virtual;
       destructor Destroy(); override;
       property Address: string read GetAddress write SetAddress;
+      property Addresses: TPPreferences.TMRUList read FAddresses;
       property Files: TFiles read FFiles;
     end;
 
@@ -2994,11 +2996,13 @@ begin
   SidebarWitdth := Round(150 * Screen.PixelsPerInch / USER_DEFAULT_SCREEN_DPI);
   SQLHistoryVisible := False;
 
+  FAddresses := TPPreferences.TMRUList.Create(200);
   FFiles := TFiles.Create(Self, 10);
 end;
 
 destructor TPAccount.TDesktop.Destroy();
 begin
+  FAddresses.Free();
   FFiles.Free();
 
   inherited;

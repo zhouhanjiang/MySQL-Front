@@ -158,7 +158,7 @@ procedure MoveString();
 // ECX will be decremened of the string length
 // ZF if no string copied
 label
-  Quoted, Quoted1, QuotedL, QuotedL1, QuotedL2, QuotedLE,
+  Quoted, Quoted1, QuotedL, QuotedL1, QuotedL2, QuotedLE, QuotedLE2,
   Finish;
 asm
         PUSH EAX
@@ -191,24 +191,23 @@ asm
         JE QuotedL1                      // No!
         STOSW                            // Put character
       QuotedL1:
-
         CMP AX,'\'                       // Character = Escaper?
-        JNE QuotedL2                     // No!
-        DEC ECX                          // Escaper handled
-        JZ Finish                        // End of SQL!
-        LODSW
-        CMP EDI,0                        // Store the string somewhere?
-        JE QuotedL2                      // No!
-        STOSW                            // Put character
-        JMP QuotedL2
-
-      QuotedL2:
-        CMP AX,DX                        // End of Quoted?
         JNE QuotedLE                     // No!
-        DEC ECX                          // Ignore Quoter
-        JMP Finish
-
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
+        MOV AX,[ESI]                     // Character after Escape
+        CMP AX,''''                      // "'"?
+        JE QuotedL2                      // Yes!
+        CMP AX,'"'                       // '"'?
+        JE QuotedL2                      // Yes!
+        JMP QuotedLE
+      QuotedL2:
+        CMP AX,DX                        // Escaped Quoter?
+        JNE QuotedLE2                    // Yes!
       QuotedLE:
+        CMP AX,DX                        // End Quoter?
+        JE Finish
+      QuotedLE2:
         LOOP QuotedL
 
       Finish:

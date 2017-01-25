@@ -33,11 +33,6 @@ const
   sbSummarize = 2;
 
 type
-  TSynMemoBeforeDrag = record SelStart: Integer; SelLength: Integer; end;
-  TListViewSortRec = record Kind: TPAccount.TDesktop.TListViewKind; ColumnIndex: Integer; Order: Integer; end;
-  TListViewSortData = array [Low(TPAccount.TDesktop.TListViewKind) .. High(TPAccount.TDesktop.TListViewKind)] of TListViewSortRec;
-
-type
   TFSession = class (TFrame)
     ActionList: TActionList;
     aDCreate: TAction;
@@ -643,9 +638,13 @@ type
     procedure TreeViewMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
   type
+    TClassIndex = (ciUnknown, ciSession, ciDatabase, ciSystemDatabase, ciBaseTable, ciView, ciSystemView, ciProcedure, ciFunction, ciEvent, ciTrigger, ciProcesses, ciUsers, ciVariables);
+    TListViewSortRec = record Kind: TPAccount.TDesktop.TListViewKind; ColumnIndex: Integer; Order: Integer; end;
+    TListViewSortData = array [Low(TPAccount.TDesktop.TListViewKind) .. High(TPAccount.TDesktop.TListViewKind)] of TListViewSortRec;
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
     TTabState = set of (fsLoading, fsActive);
     TView = (vObjects, vBrowser, vIDE, vBuilder, vDiagram, vEditor, vEditor2, vEditor3, vObjectSearch);
+    TSynMemoBeforeDrag = record SelStart: Integer; SelLength: Integer; end;
     TToolBarData = record
       Caption: string;
       tbPropertiesAction: TBasicAction;
@@ -844,8 +843,7 @@ type
     CloseButtonHot: TPicture;
     CloseButtonNormal: TPicture;
     CloseButtonPushed: TPicture;
-    FAddress: string;
-    FAddresses: TStringList;
+    FCurrentAddress: string;
     FFiles: TJamShellList;
     FFolders: TJamShellTree;
     FHTML: TWebBrowser;
@@ -862,7 +860,6 @@ type
     FSQLEditorSynMemo2: TSynMemo;
     FSQLEditorSynMemo3: TSynMemo;
     FSQLHistoryMenuNode: TTreeNode;
-    FView: TView;
     GIFImage: TGIFImage;
     JPEGImage: TJPEGImage;
     LastFNavigatorSelected: TTreeNode;
@@ -906,6 +903,7 @@ type
     VariablesListView: TListView;
     Wanted: TWanted;
     procedure aDCancelExecute(Sender: TObject);
+    function AddressByData(const Data: TCustomData): string;
     procedure AddressChanged(Sender: TObject);
     procedure AddressChanging(const Sender: TObject; const NewAddress: String; var AllowChange: Boolean);
     procedure aDPostObjectExecute(Sender: TObject);
@@ -933,6 +931,8 @@ type
     procedure BeforeExecuteSQL(Sender: TObject);
     procedure BeginEditLabel(Sender: TObject);
     procedure SessionUpdate(const Event: TSSession.TEvent);
+    function ClassIndexByAddress(const Address: string): TClassIndex;
+    function ClassIndexByData(const Data: TCustomData): TClassIndex;
     function ColumnWidthKindByListView(const ListView: TListView): TPAccount.TDesktop.TListViewKind;
     procedure CMSysFontChanged(var Msg: TMessage); message CM_SYSFONTCHANGED;
     function CreateDesktop(const CObject: TSObject): TSObject.TDesktop;
@@ -943,6 +943,7 @@ type
     function CreateSynMemo(SObject: TSObject): TSynMemo;
     function CreateTCResult(const PDBGrid: TPanel_Ext): TTabControl;
     function CreateWorkbench(const ADatabase: TSDatabase): TWWorkbench;
+    function DataByAddress(const Address: string): TCustomData;
     procedure DataSetAfterCancel(DataSet: TDataSet);
     procedure DataSetAfterClose(DataSet: TDataSet);
     procedure DataSetAfterOpen(const DBGrid: TMySQLDBGrid; const DataSet: TDataSet);
@@ -991,13 +992,15 @@ type
     function GetActiveListView(): TListView;
     function GetActiveSynMemo(): TSynMemo;
     function GetActiveWorkbench(): TWWorkbench;
+    function GetCurrentClassIndex(): TClassIndex; inline;
+    function GetCurrentData(): TCustomData; inline;
     function GetEditorField(): TField;
     function GetFocusedSItem(): TSItem;
     function GetMenuDatabase(): TSDatabase;
     function GetPath(): TFileName; inline;
     function GetSelectedDatabase(): string;
-    function GetSelectedImageIndex(): Integer;
     function GetSQLEditors(View: TView): TSQLEditor;
+    function GetView(): TView;
     function GetWindow(): TForm_Ext;
     procedure gmFilterClearClick(Sender: TObject);
     procedure gmFilterIntoFilterClick(Sender: TObject);
@@ -1007,7 +1010,6 @@ type
     procedure ListViewEmpty(Sender: TObject);
     procedure ListViewInitialize(const ListView: TListView);
     procedure ListViewUpdate(const Event: TSSession.TEvent; const ListView: TListView; const Data: TCustomData = nil);
-    function NavigatorNodeToAddress(const Node: TTreeNode): string;
     function ObjectSearchFinish(): Boolean;
     function ObjectSearchStep2(): Boolean;
     procedure OnConvertError(Sender: TObject; Text: string);
@@ -1024,7 +1026,6 @@ type
     procedure SetView(const AView: TView);
     procedure SetListViewGroupHeader(const ListView: TListView; const GroupID: Integer; const NewHeader: string);
     procedure SetPath(const APath: TFileName);
-    function SItemToAddress(const Item: TSItem): string;
     procedure SQLError(DataSet: TDataSet; E: EDatabaseError; var Action: TDataAction);
     procedure SynMemoApplyPreferences(const SynMemo: TSynMemo);
     procedure TableOpen(Sender: TObject);
@@ -1061,7 +1062,6 @@ type
     property EditorField: TField read GetEditorField;
     property FocusedSItem: TSItem read GetFocusedSItem;
     property MenuDatabase: TSDatabase read GetMenuDatabase;
-    property SelectedImageIndex: Integer read GetSelectedImageIndex;
     property SQLEditors[View: TView]: TSQLEditor read GetSQLEditors;
   protected
     procedure CreateParams(var Params: TCreateParams); override;
@@ -1080,10 +1080,12 @@ type
     procedure OpenDiagram();
     procedure OpenSQLFile(const AFilename: TFileName; const CodePage: Cardinal = 0; const Insert: Boolean = False);
     procedure StatusBarRefresh(const Immediately: Boolean = False);
-    property Address: string read FAddress write SetAddress;
+    property CurrentAddress: string read FCurrentAddress write SetAddress;
+    property CurrentClassIndex: TClassIndex read GetCurrentClassIndex;
+    property CurrentData: TCustomData read GetCurrentData;
     property Path: TFileName read GetPath write SetPath;
     property SelectedDatabase: string read GetSelectedDatabase;
-    property View: TView read FView write SetView;
+    property View: TView read GetView write SetView;
     property Window: TForm_Ext read GetWindow;
   end;
 
@@ -1362,7 +1364,7 @@ begin
     begin
       if (FSession.Session.Databases.NameCmp(FSession.Session.Connection.DatabaseName, FSession.SelectedDatabase) <> 0) then
       begin
-        URI := TUURI.Create(FSession.Address);
+        URI := TUURI.Create(FSession.CurrentAddress);
         URI.Database := FSession.Session.Connection.DatabaseName;
         FSession.Wanted.Address := URI.Address;
         URI.Free();
@@ -2075,10 +2077,10 @@ begin
   begin
     TempAddress := Address;
     Clear();
-    FSession.Address := TempAddress;
+    FSession.CurrentAddress := TempAddress;
 
-    if ((FSession.Address <> TempAddress) and not FSession.Session.Connection.InUse()) then
-      FSession.Address := FSession.Session.Account.ExpandAddress('/');
+    if ((FSession.CurrentAddress <> TempAddress) and not FSession.Session.Connection.InUse()) then
+      FSession.CurrentAddress := FSession.Session.Account.ExpandAddress('/');
   end
   else if (Assigned(Update)) then
   begin
@@ -2214,7 +2216,7 @@ procedure TFSession.aDCreateTableExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  if ((Window.ActiveControl = ActiveWorkbench) and Assigned(ActiveWorkbench) and (FNavigator.Selected.ImageIndex = iiDatabase) and (View = vDiagram)) then
+  if ((Window.ActiveControl = ActiveWorkbench) and Assigned(ActiveWorkbench) and (CurrentClassIndex = ciDatabase) and (View = vDiagram)) then
     ActiveWorkbench.CreateNewTable(0, 0)
   else if (FocusedSItem is TSDatabase) then
   begin
@@ -2409,6 +2411,60 @@ begin
   end;
 end;
 
+function TFSession.AddressByData(const Data: TCustomData): string;
+var
+  URI: TUURI;
+begin
+  URI := TUURI.Create(Session.Account.ExpandAddress('/'));
+
+  if (TObject(Data) is TSSession) then
+    // nothing to do...
+  else if (TObject(Data) is TSDatabase) then
+    URI.Database := TSDatabase(Data).Name
+  else if (TObject(Data) is TSTable) then
+  begin
+    URI.Database := TSTable(Data).Database.Name;
+    URI.Table := TSTable(Data).Name;
+    if (TSTable(Data) is TSView) then
+      URI.Param['objecttype'] := 'view'
+    else if (TSTable(Data) is TSSystemView) then
+      URI.Param['objecttype'] := 'systemview';
+  end
+  else if (TObject(Data) is TSProcedure) then
+  begin
+    URI.Database := TSProcedure(Data).Database.Name;
+    URI.Param['objecttype'] := 'procedure';
+    URI.Param['object'] := TSProcedure(Data).Name;
+  end
+  else if (TObject(Data) is TSFunction) then
+  begin
+    URI.Database := TSFunction(Data).Database.Name;
+    URI.Param['objecttype'] := 'function';
+    URI.Param['object'] := TSFunction(Data).Name;
+  end
+  else if (TObject(Data) is TSEvent) then
+  begin
+    URI.Database := TSEvent(Data).Database.Name;
+    URI.Param['objecttype'] := 'event';
+    URI.Param['object'] := TSEvent(Data).Name;
+  end
+  else if (TObject(Data) is TSTrigger) then
+  begin
+    URI.Database := TSTrigger(Data).Database.Name;
+    URI.Table := TSTrigger(Data).TableName;
+    URI.Param['objecttype'] := 'trigger';
+    URI.Param['object'] := TSTrigger(Data).Name;
+  end
+  else if (not Assigned(Data)) then
+    raise ERangeError.Create(SRangeError)
+  else
+    raise ERangeError.Create('ClassType: ' + TObject(Data).ClassName);
+
+  Result := URI.Address;
+
+  URI.Free();
+end;
+
 procedure TFSession.AddressChanged(Sender: TObject);
 var
   Control: TWinControl;
@@ -2428,13 +2484,11 @@ begin
   if (not (csDestroying in ComponentState)) then
   begin
     OldAddressURI := TUURI.Create(OldAddress);
-    NewAddressURI := TUURI.Create(Address);
+    NewAddressURI := TUURI.Create(CurrentAddress);
 
     if (NewAddressURI.Param['view'] <> OldAddressURI.Param['view']) then
       if (NewAddressURI.Param['view'] <> 'objectsearch') then
-        ViewChanged(nil)
-      else
-        FView := vObjectSearch;
+        ViewChanged(nil);
 
     NewAddressURI.Free();
     OldAddressURI.Free();
@@ -2484,7 +2538,7 @@ begin
       vObjectSearch: if (not (ttObjectSearch in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttObjectSearch); PostMessage(Window.Handle, UM_CHANGEPREFERENCES, 0, 0); end;
     end;
 
-    ToolBarData.Caption := AddressToCaption(Address);
+    ToolBarData.Caption := AddressToCaption(CurrentAddress);
     ToolBarData.View := View;
     Window.Perform(UM_UPDATETOOLBAR, 0, LPARAM(Self));
 
@@ -2510,9 +2564,9 @@ begin
       if ((fsActive in FrameState) and not (fsLoading in FrameState) and Wanted.Nothing) then
         PlaySound(PChar(Preferences.SoundFileNavigating), Handle, SND_FILENAME or SND_ASYNC);
 
-      if ((View = vBrowser) and (FNavigator.Selected.ImageIndex in [iiBaseTable, iiView, iiSystemView])) then
+      if ((View = vBrowser) and (CurrentClassIndex in [ciBaseTable, ciView, ciSystemView])) then
       begin
-        Table := TSTable(FNavigator.Selected.Data);
+        Table := TSTable(CurrentData);
 
         if (not (Table.DataSet is TSTable.TDataSet) or not Assigned(Table.DataSet) or not Table.DataSet.Active or (TSTable.TDataSet(Table.DataSet).Limit < 1)) then
         begin
@@ -2543,19 +2597,15 @@ begin
       if (Window.ActiveControl = FNavigator) then
         FNavigatorChanged(FNavigator, FNavigator.Selected);
 
-      FNavigator.AutoExpand := not (FNavigator.Selected.ImageIndex in [iiBaseTable, iiView, iiSystemView]) and not CheckWin32Version(6);
+      FNavigator.AutoExpand := not (CurrentClassIndex in [ciBaseTable, ciView, ciSystemView]) and not CheckWin32Version(6);
 
       TreeViewExpanded(FNavigator, FNavigator.Selected);
     end;
 
-    FAddresses.Add(Address);
-    if (FAddresses.Count > 1000) then
-      FAddresses.Delete(FAddresses.Count - 1);
-
     LastFNavigatorSelected := FNavigator.Selected;
-    if (SelectedImageIndex in [iiBaseTable, iiView, iiSystemView]) then
+    if (CurrentClassIndex in [ciBaseTable, ciView, ciSystemView]) then
       LastTableView := View;
-    URI := TUURI.Create(Address);
+    URI := TUURI.Create(CurrentAddress);
     if (URI.Database <> '') then
       LastSelectedDatabase := URI.Address;
     if (URI.Table <> '') then
@@ -2572,8 +2622,8 @@ begin
     MainAction('aFSave').Enabled := (View = vDiagram) or (View in [vEditor, vEditor2, vEditor3]) and not Empty and ((SQLEditors[View].Filename = '') or ActiveSynMemo.Modified);
     MainAction('aFSaveAs').Enabled := (View = vDiagram) or (View in [vEditor, vEditor2, vEditor3]) and not Empty;
     MainAction('aVObjects').Enabled := True;
-    MainAction('aVBrowser').Enabled := (SelectedImageIndex in [iiBaseTable, iiView, iiSystemView, iiTrigger]) or (LastSelectedTable <> '');
-    MainAction('aVIDE').Enabled := (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]) or (LastSelectedObjectIDE <> '');
+    MainAction('aVBrowser').Enabled := (CurrentClassIndex in [ciBaseTable, ciView, ciSystemView, ciTrigger]) or (LastSelectedTable <> '');
+    MainAction('aVIDE').Enabled := (CurrentClassIndex in [ciView, ciProcedure, ciFunction, ciEvent, ciTrigger]) or (LastSelectedObjectIDE <> '');
     MainAction('aVBuilder').Enabled := LastSelectedDatabase <> '';
     MainAction('aVSQLEditor').Enabled := True;
     MainAction('aVSQLEditor2').Enabled := True;
@@ -2582,12 +2632,12 @@ begin
     MainAction('aDRun').Enabled :=
       ((View in [vEditor, vEditor2, vEditor3])
       or ((View = vBuilder) and FQueryBuilder.Visible)
-      or ((View = vIDE) and SQLSingleStmt(SQL) and (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent]))) and not Empty;
+      or ((View = vIDE) and SQLSingleStmt(SQL) and (CurrentClassIndex in [ciView, ciProcedure, ciFunction, ciEvent]))) and not Empty;
     MainAction('aDRunSelection').Enabled := (((View in [vEditor, vEditor2, vEditor3]) and not Empty) or Assigned(ActiveSynMemo) and (Trim(ActiveSynMemo.SelText) <> ''));
     MainAction('aDPostObject').Enabled := (View = vIDE) and Assigned(ActiveSynMemo) and ActiveSynMemo.Modified and SQLSingleStmt(SQL)
-      and ((SelectedImageIndex in [iiView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
-        or (SelectedImageIndex in [iiProcedure, iiFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
-        or (SelectedImageIndex in [iiEvent, iiTrigger]));
+      and ((CurrentClassIndex in [ciView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
+        or (CurrentClassIndex in [ciProcedure, ciFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
+        or (CurrentClassIndex in [ciEvent, ciTrigger]));
     MainAction('aEFormatSQL').Enabled := not Empty;
 
     if (View <> vObjectSearch) then
@@ -2625,7 +2675,7 @@ begin
       Exclude(FrameState, fsLoading);
     end;
 
-    OldAddress := Address;
+    OldAddress := CurrentAddress;
 
     KillTimer(Handle, tiShowSynCompletion);
   end;
@@ -2800,7 +2850,7 @@ var
 begin
   Wanted.Clear();
 
-  if ((Window.ActiveControl = ActiveListView) and (SelectedImageIndex in [iiDatabase, iiSystemDatabase]) and (ActiveListView.SelCount > 1)) then
+  if ((Window.ActiveControl = ActiveListView) and (CurrentClassIndex in [ciDatabase, ciSystemDatabase]) and (ActiveListView.SelCount > 1)) then
   begin
     DTables.Tables := TList.Create();
     for I := 0 to ActiveListView.Items.Count - 1 do
@@ -2944,29 +2994,29 @@ begin
   SQL := '';
   if (View in [vBuilder, vEditor, vEditor2, vEditor3]) then
     SQL := Trim(ActiveSynMemo.Text)
-  else if ((View = vIDE) and (SelectedImageIndex = iiView)) then
+  else if ((View = vIDE) and (CurrentClassIndex = ciView)) then
   begin
     if (not ActiveSynMemo.Modified or PostObject(Sender)) then
       View := vBrowser;
   end
-  else if ((View = vIDE) and (SelectedImageIndex = iiProcedure)) then
+  else if ((View = vIDE) and (CurrentClassIndex = ciProcedure)) then
   begin
     if (Assigned(FObjectIDEGrid.DataSource.DataSet)) then
       FObjectIDEGrid.DataSource.DataSet.CheckBrowseMode();
     if (not ActiveSynMemo.Modified or PostObject(Sender)) then
-      SQL := TSProcedure(FNavigator.Selected.Data).SQLRun();
+      SQL := TSProcedure(CurrentData).SQLRun();
   end
-  else if ((View = vIDE) and (SelectedImageIndex = iiFunction)) then
+  else if ((View = vIDE) and (CurrentClassIndex = ciFunction)) then
   begin
     if (Assigned(FObjectIDEGrid.DataSource.DataSet)) then
       FObjectIDEGrid.DataSource.DataSet.CheckBrowseMode();
     if (not ActiveSynMemo.Modified or PostObject(Sender)) then
-      SQL := TSFunction(FNavigator.Selected.Data).SQLRun();
+      SQL := TSFunction(CurrentData).SQLRun();
   end
-  else if ((View = vIDE) and (SelectedImageIndex = iiEvent)) then
+  else if ((View = vIDE) and (CurrentClassIndex = ciEvent)) then
   begin
     if (not ActiveSynMemo.Modified or PostObject(Sender)) then
-      SQL := TSEvent(FNavigator.Selected.Data).SQLRun();
+      SQL := TSEvent(CurrentData).SQLRun();
   end;
 
   if (SQL <> '') then
@@ -3038,10 +3088,10 @@ end;
 
 procedure TFSession.aECopyExecute(Sender: TObject);
 var
+  ClassIndex: TClassIndex;
   ClipboardData: HGLOBAL;
   Data: string;
   I: Integer;
-  ImageIndex: Integer;
   Opened: Boolean;
   Retry: Integer;
   S: string;
@@ -3071,10 +3121,10 @@ begin
   else if (Window.ActiveControl = FNavigator) then
   begin
     if (not (TObject(FNavigatorMenuNode.Data) is TSItem)) then
-      ImageIndex := -1
+      ClassIndex := ciUnknown
     else
     begin
-      ImageIndex := FNavigatorMenuNode.Parent.ImageIndex;
+      ClassIndex := ClassIndexByData(FNavigatorMenuNode.Parent.Data);
       case (FNavigatorMenuNode.ImageIndex) of
         iiDatabase:   Data := Data + 'Database='    + FNavigatorMenuNode.Text + #13#10;
         iiBaseTable:  Data := Data + 'Table='       + FNavigatorMenuNode.Text + #13#10;
@@ -3092,12 +3142,12 @@ begin
         iiUser:       Data := Data + 'User='        + FNavigatorMenuNode.Text + #13#10;
       end;
       if (Data <> '') then
-        Data := 'Address=' + NavigatorNodeToAddress(FNavigatorMenuNode.Parent) + #13#10 + Data;
+        Data := 'Address=' + AddressByData(FNavigatorMenuNode.Parent.Data) + #13#10 + Data;
     end;
   end
   else if (Window.ActiveControl = ActiveListView) then
   begin
-    ImageIndex := SelectedImageIndex;
+    ClassIndex := CurrentClassIndex;
     for I := 0 to ActiveListView.Items.Count - 1 do
       if (ActiveListView.Items[I].Selected) then
         case (ActiveListView.Items[I].ImageIndex) of
@@ -3122,11 +3172,11 @@ begin
           iiUser:       Data := Data + 'User='       + ActiveListView.Items[I].Caption + #13#10;
         end;
     if (Data <> '') then
-      Data := 'Address=' + NavigatorNodeToAddress(FNavigator.Selected) + #13#10 + Data;
+      Data := 'Address=' + CurrentAddress + #13#10 + Data;
   end
   else if (Window.ActiveControl = ActiveDBGrid) then
   begin
-    ImageIndex := -1;
+    ClassIndex := ciUnknown;
     if (not Assigned(EditorField)) then
       ActiveDBGrid.CopyToClipboard()
     else if (FText.Visible) then
@@ -3156,10 +3206,10 @@ begin
     end
     else
     begin
-      ImageIndex := SelectedImageIndex;
+      ClassIndex := CurrentClassIndex;
       if (Assigned(ActiveWorkbench)) then
       begin
-        Data := 'Address=' + NavigatorNodeToAddress(FNavigator.Selected);
+        Data := '';
         if (not Assigned(ActiveWorkbench.Selected)) then
           Data := Data + 'Database='   + ActiveWorkbench.Database.Name + #13#10
         else if (ActiveWorkbench.Selected is TWTable) then
@@ -3167,7 +3217,7 @@ begin
         else if (ActiveWorkbench.Selected is TWForeignKey) then
           Data := Data + 'ForeignKey=' + TWForeignKey(ActiveWorkbench.Selected).BaseForeignKey.Name + #13#10;
         if (Data <> '') then
-          Data := 'Address=' + NavigatorNodeToAddress(FNavigator.Selected) + #13#10 + Data;
+          Data := 'Address=' + CurrentAddress + #13#10 + Data;
       end;
     end;
   end
@@ -3227,15 +3277,12 @@ begin
 
       ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(Char) * (Length(Data) + 1));
       StrPCopy(GlobalLock(ClipboardData), Data);
-      case (ImageIndex) of
-        iiServer: SetClipboardData(CF_MYSQLSERVER, ClipboardData);
-        iiDatabase,
-        iiSystemDatabase: SetClipboardData(CF_MYSQLDATABASE, ClipboardData);
-        iiTable,
-        iiBaseTable,
-        iiSystemView: SetClipboardData(CF_MYSQLTABLE, ClipboardData);
-        iiView: SetClipboardData(CF_MYSQLVIEW, ClipboardData);
-        iiUsers: SetClipboardData(CF_MYSQLUSERS, ClipboardData);
+      case (ClassIndex) of
+        ciSession: SetClipboardData(CF_MYSQLSERVER, ClipboardData);
+        ciDatabase: SetClipboardData(CF_MYSQLDATABASE, ClipboardData);
+        ciBaseTable: SetClipboardData(CF_MYSQLTABLE, ClipboardData);
+        ciView: SetClipboardData(CF_MYSQLVIEW, ClipboardData);
+        ciUsers: SetClipboardData(CF_MYSQLUSERS, ClipboardData);
       end;
       GlobalUnlock(ClipboardData);
 
@@ -3272,9 +3319,7 @@ end;
 
 procedure TFSession.aEPasteExecute(Sender: TObject);
 var
-  B: Boolean;
   ClipboardData: HGLOBAL;
-  I: Integer;
   Node: TTreeNode;
   Opened: Boolean;
   Retry: Integer;
@@ -3318,17 +3363,13 @@ begin
   begin
     if (Window.ActiveControl = FNavigator) then
       Node := FNavigatorMenuNode
-    else if ((Window.ActiveControl = ActiveListView) and Assigned(ActiveListView.Selected)) then
-    begin
-      Node := nil;
-      FNavigatorExpanding(Sender, FNavigator.Selected, B);
-      for I := 0 to FNavigator.Selected.Count - 1 do
-        if ((FNavigator.Selected[I].ImageIndex = ActiveListView.Selected.ImageIndex)
-          and (FNavigator.Selected[I].Text = ActiveListView.Selected.Caption)) then
-          Node := FNavigator.Selected[I];
-    end
+    else if (Window.ActiveControl = ActiveListView) then
+      if (Assigned(ActiveListView.Selected)) then
+        Node := FNavigatorNodeByAddress(AddressByData(ActiveListView.Selected))
+      else
+        Node := FNavigatorNodeByAddress(AddressByData(TObject(ActiveListView.Tag)))
     else
-      Node := FNavigator.Selected;
+      Node := FNavigatorNodeByAddress(CurrentAddress);
 
     if (not Assigned(Node)) then
       MessageBeep(MB_ICONERROR)
@@ -3512,7 +3553,7 @@ end;
 procedure TFSession.aESelectAllExecute(Sender: TObject);
 begin
   if (not Assigned(ActiveListView)) then
-    raise ERangeError.Create('Address: ' + Address + #13#10
+    raise ERangeError.Create('Address: ' + CurrentAddress + #13#10
       + 'Assigned: ' + BoolToStr(Assigned(GetActiveListView())));
 
   ActiveListView.SelectAll();
@@ -3577,7 +3618,7 @@ begin
     DExport.DBGrid := ActiveDBGrid
   else if (Window.ActiveControl = ActiveWorkbench) then
   begin
-    Database := TSDatabase(FNavigator.Selected.Data);
+    Database := TSDatabase(CurrentData);
     if (((Session.Databases.NameCmp(Database.Name, 'mysql') <> 0) and (Session.Databases.NameCmp(Database.Name, 'sys') <> 0) and (Session.Connection.MySQLVersion >= 50707)) and not (Database is TSSystemDatabase)) then
       for I := 0 to ActiveWorkbench.Tables.Count - 1 do
         if (not Assigned(ActiveWorkbench.Selected) or ActiveWorkbench.Tables[I].Selected) then
@@ -3585,8 +3626,8 @@ begin
   end
   else if ((Window.ActiveControl = ActiveListView) and (ActiveListView.SelCount > 0)) then
   begin
-    case (SelectedImageIndex) of
-      iiServer:
+    case (CurrentClassIndex) of
+      ciSession:
         for I := 0 to ActiveListView.Items.Count - 1 do
           if (ActiveListView.Items[I].Selected) then
           begin
@@ -3595,17 +3636,17 @@ begin
               DExport.DBObjects.Add(Database);
           end;
 
-      iiDatabase:
+      ciDatabase:
         begin
-          Database := TSDatabase(FNavigator.Selected.Data);
+          Database := TSDatabase(CurrentData);
           if (not (Database is TSSystemDatabase)) then
             for I := 0 to ActiveListView.Items.Count - 1 do
               if (ActiveListView.Items[I].Selected) then
                 DExport.DBObjects.Add(TSDBObject(ActiveListView.Items[I].Data));
         end;
-      iiBaseTable:
+      ciBaseTable:
         begin
-          Database := TSDatabase(FNavigator.Selected.Parent.Data);
+          Database := TSTable(CurrentData).Database;
           if (not (Database is TSSystemDatabase)) then
             for I := 0 to ActiveListView.Items.Count - 1 do
               if (ActiveListView.Items[I].Selected and (ActiveListView.Items[I].ImageIndex = iiTrigger)) then
@@ -3713,6 +3754,8 @@ begin
     DImport.CodePage := CP_ACP;
     DImport.Window := Window;
     DImport.ImportType := ImportType;
+
+    DImport.FNavigator := @FNavigator;
 
     DImport.Execute();
 
@@ -3827,10 +3870,10 @@ begin
   else
   begin
     SQL := ActiveSynMemo.Text;
-    case (SelectedImageIndex) of
-      iiTrigger:
+    case (CurrentClassIndex) of
+      ciTrigger:
         SQL := TriggerPrefix + SQL;
-      iiEvent:
+      ciEvent:
         SQL := EventPrefix + SQL;
     end;
   end;
@@ -3845,13 +3888,13 @@ begin
       ActiveSynMemo.SelText := SQL
     else
     begin
-      case (SelectedImageIndex) of
-        iiTrigger:
+      case (CurrentClassIndex) of
+        ciTrigger:
           begin
             Delete(SQL, 1, Pos('FOR EACH ROW', SQL) + Length('FOR EACH ROW'));
             SQL := Trim(SQL);
           end;
-        iiEvent:
+        ciEvent:
           begin
             Delete(SQL, 1, Pos('DO', SQL) + Length('DO'));
             SQL := Trim(SQL);
@@ -3950,7 +3993,7 @@ procedure TFSession.aPObjectBrowserTableExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  Address := LastSelectedTable;
+  CurrentAddress := LastSelectedTable;
 end;
 
 procedure TFSession.aPResultExecute(Sender: TObject);
@@ -4029,87 +4072,74 @@ var
   Control: TWinControl; // Debug 2016-12-12
   NewView: TView;
 begin
-  if (not (fsLoading in FrameState)) then
-  begin
-    // Debug 2017-01-23
-    if (Address = '') then
-    begin
-      if (Assigned(FNavigator.Selected)) then
-        raise ERangeError.Create('ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
-          + 'Text: ' + FNavigator.Selected.Text);
+  if (Sender = MainAction('aVObjects')) then
+    NewView := vObjects
+  else if (Sender = MainAction('aVBrowser')) then
+    NewView := vBrowser
+  else if (Sender = MainAction('aVIDE')) then
+    NewView := vIDE
+  else if (Sender = MainAction('aVBuilder')) then
+    NewView := vBuilder
+  else if (Sender = MainAction('aVDiagram')) then
+    NewView := vDiagram
+  else if (Sender = MainAction('aVSQLEditor')) then
+    NewView := vEditor
+  else if (Sender = MainAction('aVSQLEditor2')) then
+    NewView := vEditor2
+  else if (Sender = MainAction('aVSQLEditor3')) then
+    NewView := vEditor3
+  else
+    raise ERangeError.Create(SRangeError);
+
+  AllowChange := True;
+  if (AllowChange and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then
+    try
+      if ((Window.ActiveControl = FText) or (Window.ActiveControl = FRTF) or (Window.ActiveControl = FHexEditor)) then
+        Window.ActiveControl := ActiveDBGrid;
+      ActiveDBGrid.DataSource.DataSet.CheckBrowseMode();
+    except
+      AllowChange := False;
     end;
 
-    Assert(Address <> '');
+  if (AllowChange) then
+  begin
+    View := NewView;
 
-    if (Sender = MainAction('aVObjects')) then
-      NewView := vObjects
-    else if (Sender = MainAction('aVBrowser')) then
-      NewView := vBrowser
-    else if (Sender = MainAction('aVIDE')) then
-      NewView := vIDE
-    else if (Sender = MainAction('aVBuilder')) then
-      NewView := vBuilder
-    else if (Sender = MainAction('aVDiagram')) then
-      NewView := vDiagram
-    else if (Sender = MainAction('aVSQLEditor')) then
-      NewView := vEditor
-    else if (Sender = MainAction('aVSQLEditor2')) then
-      NewView := vEditor2
-    else if (Sender = MainAction('aVSQLEditor3')) then
-      NewView := vEditor3
-    else
-      raise ERangeError.Create(SRangeError);
+    case (View) of
+      vObjects: if (PListView.Visible) then Window.ActiveControl := ActiveListView;
+      vBrowser: if (PResult.Visible and Assigned(ActiveDBGrid)) then Window.ActiveControl := ActiveDBGrid;
+      vIDE: if (PSynMemo.Visible and Assigned(ActiveSynMemo)) then Window.ActiveControl := ActiveSynMemo;
+      vBuilder: if (PQueryBuilder.Visible) then
+        if (FQueryBuilder.Visible and Assigned(FQueryBuilderActiveWorkArea())) then
+        begin
+          // Debug 2016-12-05
+          if (not FQueryBuilderActiveWorkArea().Visible) then
+            raise ERangeError.Create(SRangeError);
+          // Debug 2016-12-08
+          if (not FQueryBuilderActiveWorkArea().Enabled) then
+            raise ERangeError.Create(SRangeError);
 
-    AllowChange := True;
-    if (AllowChange and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then
-      try
-        if ((Window.ActiveControl = FText) or (Window.ActiveControl = FRTF) or (Window.ActiveControl = FHexEditor)) then
-          Window.ActiveControl := ActiveDBGrid;
-        ActiveDBGrid.DataSource.DataSet.CheckBrowseMode();
-      except
-        AllowChange := False;
-      end;
+          // Debug 2016-12-12
+          Control := FQueryBuilderActiveWorkArea();
+          repeat
+            if (not Control.Enabled) then
+              raise ERangeError.Create('Control is not enabled: ' + Control.Name + ' / ' + Control.ClassName);
+            if (not Control.Visible) then
+              raise ERangeError.Create('Control is not visible: ' + Control.Name + ' / ' + Control.ClassName);
+            if (not Assigned(Control.Parent)) then
+              raise ERangeError.Create('Control has no parent: ' + Control.Name + ' / ' + Control.ClassName);
+            Control := Control.Parent;
+          until (not Assigned(Control) or (Control = Window));
 
-    if (AllowChange) then
-    begin
-      View := NewView;
-
-      case (View) of
-        vObjects: if (PListView.Visible) then Window.ActiveControl := ActiveListView;
-        vBrowser: if (PResult.Visible and Assigned(ActiveDBGrid)) then Window.ActiveControl := ActiveDBGrid;
-        vIDE: if (PSynMemo.Visible and Assigned(ActiveSynMemo)) then Window.ActiveControl := ActiveSynMemo;
-        vBuilder: if (PQueryBuilder.Visible) then
-          if (FQueryBuilder.Visible and Assigned(FQueryBuilderActiveWorkArea())) then
-          begin
-            // Debug 2016-12-05
-            if (not FQueryBuilderActiveWorkArea().Visible) then
-              raise ERangeError.Create(SRangeError);
-            // Debug 2016-12-08
-            if (not FQueryBuilderActiveWorkArea().Enabled) then
-              raise ERangeError.Create(SRangeError);
-
-            // Debug 2016-12-12
-            Control := FQueryBuilderActiveWorkArea();
-            repeat
-              if (not Control.Enabled) then
-                raise ERangeError.Create('Control is not enabled: ' + Control.Name + ' / ' + Control.ClassName);
-              if (not Control.Visible) then
-                raise ERangeError.Create('Control is not visible: ' + Control.Name + ' / ' + Control.ClassName);
-              if (not Assigned(Control.Parent)) then
-                raise ERangeError.Create('Control has no parent: ' + Control.Name + ' / ' + Control.ClassName);
-              Control := Control.Parent;
-            until (not Assigned(Control) or (Control = Window));
-
-            Window.ActiveControl := FQueryBuilderActiveWorkArea()
-          end
-          else
-            Window.ActiveControl := FQueryBuilderSynMemo;
-        vDiagram: if (PWorkbench.Visible) then Window.ActiveControl := ActiveWorkbench;
-        vEditor,
-        vEditor2,
-        vEditor3: if (PSynMemo.Visible) then Window.ActiveControl := ActiveSynMemo;
-        vObjectSearch: if (PListView.Visible) then Window.ActiveControl := ObjectSearchListView;
-      end;
+          Window.ActiveControl := FQueryBuilderActiveWorkArea()
+        end
+        else
+          Window.ActiveControl := FQueryBuilderSynMemo;
+      vDiagram: if (PWorkbench.Visible) then Window.ActiveControl := ActiveWorkbench;
+      vEditor,
+      vEditor2,
+      vEditor3: if (PSynMemo.Visible) then Window.ActiveControl := ActiveSynMemo;
+      vObjectSearch: if (PListView.Visible) then Window.ActiveControl := ObjectSearchListView;
     end;
   end;
 end;
@@ -4121,7 +4151,7 @@ begin
 
   Session.Invalidate();
 
-  Address := Address;
+  CurrentAddress := CurrentAddress;
 end;
 
 procedure TFSession.aVRefreshExecute(Sender: TObject);
@@ -4139,39 +4169,30 @@ begin
       vObjects,
       vIDE:
         begin
-          case (SelectedImageIndex) of
-            iiServer: Session.Invalidate();
-            iiDatabase,
-            iiSystemDatabase: TSDatabase(FNavigator.Selected.Data).Invalidate();
-            iiBaseTable,
-            iiView,
-            iiSystemView:
+          case (CurrentClassIndex) of
+            ciSession: Session.Invalidate();
+            ciDatabase,
+            ciSystemDatabase: TSDatabase(CurrentData).Invalidate();
+            ciBaseTable,
+            ciView,
+            CiSystemView:
               begin
-                TSTable(FNavigator.Selected.Data).Invalidate();
+                TSTable(CurrentData).Invalidate();
 
-                if ((TSTable(FNavigator.Selected.Data) is TSBaseTable) and
-                  Assigned(TSBaseTable(FNavigator.Selected.Data).Database.Triggers)) then
-                  TSBaseTable(FNavigator.Selected.Data).Database.Triggers.Invalidate();
+                if ((TSTable(CurrentData) is TSBaseTable) and
+                  Assigned(TSBaseTable(CurrentData).Database.Triggers)) then
+                  TSBaseTable(CurrentData).Database.Triggers.Invalidate();
               end;
-            iiProcedure: TSProcedure(FNavigator.Selected.Data).Invalidate();
-            iiFunction: TSFunction(FNavigator.Selected.Data).Invalidate();
-            iiEvent: TSEvent(FNavigator.Selected.Data).Invalidate();
-            iiTrigger: TSTrigger(FNavigator.Selected.Data).Invalidate();
-            iiProcesses: Session.Processes.Invalidate();
-            iiUsers: Session.Users.Invalidate();
-            iiVariables: Session.Variables.Invalidate();
+            ciProcedure: TSProcedure(CurrentData).Invalidate();
+            ciFunction: TSFunction(CurrentData).Invalidate();
+            ciEvent: TSEvent(CurrentData).Invalidate();
+            ciTrigger: TSTrigger(CurrentData).Invalidate();
+            ciProcesses: Session.Processes.Invalidate();
+            ciUsers: Session.Users.Invalidate();
+            CiVariables: Session.Variables.Invalidate();
           end;
 
-          // Debug 2017-01-24
-          if (Address = '') then
-            if (not Assigned(FNavigator.Selected)) then
-              raise ERangeError.Create(SRangeError)
-            else
-              raise ERangeError.Create('ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
-                + 'Text: ' + FNavigator.Selected.Text + #13#10
-                + 'View: ' + IntToStr(Ord(View)));
-
-          Address := Address;
+          CurrentAddress := CurrentAddress;
         end;
       vBrowser,
       vBuilder,
@@ -4210,14 +4231,9 @@ begin
         end;
       vDiagram:
         begin
-          // Debug 2017-01-18
-          if (not (TObject(FNavigator.Selected.Data) is TSDatabase)) then
-            raise ERangeError.Create('Address: ' + Address + #13#10
-              + 'Assigned: ' + BoolToStr(Assigned(FNavigator.Selected.Data), True));
-
-          TSDatabase(FNavigator.Selected.Data).Tables.Invalidate();
+          TSDatabase(CurrentData).Tables.Invalidate();
           List := TList.Create();
-          List.Add(TSDatabase(FNavigator.Selected.Data).Tables);
+          List.Add(TSDatabase(CurrentData).Tables);
           Session.Update(List);
           List.Free();
         end;
@@ -4347,8 +4363,8 @@ begin
   Wanted.Clear();
 
   Trigger := nil;
-  if (TObject(FNavigator.Selected.Data) is TSTrigger) then
-    Trigger := TSTrigger(FNavigator.Selected.Data);
+  if (TObject(CurrentData) is TSTrigger) then
+    Trigger := TSTrigger(CurrentData);
 
   if (Assigned(Trigger) and (not ActiveSynMemo.Modified or PostObject(Sender))) then
   begin
@@ -4367,6 +4383,79 @@ begin
 
     Session.Connection.SendSQL(SQL);
   end;
+end;
+
+function TFSession.ClassIndexByAddress(const Address: string): TClassIndex;
+var
+  URI: TUURI;
+begin
+  URI := TUURI.Create(Address);
+
+  if (URI.Database = '') then
+    Result := ciSession
+  else if (URI.Param['objecttype'] = 'view') then
+    Result := ciView
+  else if (URI.Param['objecttype'] = 'systemview') then
+    Result := ciSystemView
+  else if (URI.Param['objecttype'] = 'procedure') then
+    Result := ciProcedure
+  else if (URI.Param['objecttype'] = 'function') then
+    Result := ciFunction
+  else if (URI.Param['objecttype'] = 'trigger') then
+    Result := ciTrigger
+  else if (URI.Param['objecttype'] = 'event') then
+    Result := ciEvent
+  else if (URI.Table <> '') then
+    Result := ciBaseTable
+  else if (Assigned(Session.InformationSchema) and (Session.Databases.NameCmp(URI.Database, Session.InformationSchema.Name) = 0)
+    or Assigned(Session.PerformanceSchema) and (Session.Databases.NameCmp(URI.Database, Session.PerformanceSchema.Name) = 0)) then
+    Result := ciSystemDatabase
+  else if (URI.Database <> '') then
+    Result := ciDatabase
+  else if (URI.Param['system'] = 'processes') then
+    Result := ciProcesses
+  else if (URI.Param['system'] = 'users') then
+    Result := ciUsers
+  else if (URI.Param['system'] = 'variables') then
+    Result := ciVariables
+  else
+    raise ERangeError.Create('Unknown ClassIndex for: ' + URI.Address);
+
+  URI.Free();
+end;
+
+function TFSession.ClassIndexByData(const Data: TCustomData): TClassIndex;
+begin
+  if (not Assigned(Data)) then
+    raise ERangeError.Create(SRangeError)
+  else if (TObject(Data) is TSSession) then
+    Result := ciSession
+  else if (TObject(Data) is TSSystemDatabase) then
+    Result := ciSystemDatabase
+  else if (TObject(Data) is TSDatabase) then
+    Result := ciDatabase
+  else if (TObject(Data) is TSBaseTable) then
+    Result := ciBaseTable
+  else if (TObject(Data) is TSView) then
+    Result := ciView
+  else if (TObject(Data) is TSSystemView) then
+    Result := ciSystemView
+  else if (TObject(Data) is TSProcedure) then
+    Result := ciProcedure
+  else if (TObject(Data) is TSFunction) then
+    Result := ciFunction
+  else if (TObject(Data) is TSTrigger) then
+    Result := ciTrigger
+  else if (TObject(Data) is TSEvent) then
+    Result := ciEvent
+  else if (TObject(Data) is TSProcesses) then
+    Result := ciProcesses
+  else if (TObject(Data) is TSUsers) then
+    Result := ciUsers
+  else if (TObject(Data) is TSVariables) then
+    Result := ciVariables
+  else
+    raise ERangeError.Create('ClassType: ' + TObject(Data).ClassName);
 end;
 
 function TFSession.ColumnWidthKindByListView(const ListView: TListView): TPAccount.TDesktop.TListViewKind;
@@ -4437,8 +4526,7 @@ begin
   CloseButtonNormal := nil;
   CloseButtonPushed := nil;
   CloseButtonHot := nil;
-  FAddress := '';
-  FAddresses := TStringList.Create();
+  FCurrentAddress := '';
   ObjectSearch := nil;
   ObjectSearchListView := nil;
   ProcessesListView := nil;
@@ -5194,7 +5282,6 @@ begin
   Result.Perform(CM_PARENTFONTCHANGED, 0, 0);
   Result.Perform(CM_PARENTSHOWHINTCHANGED, 0, 0);
   Result.Perform(CM_PARENTBIDIMODECHANGED, 0, 0);
-  Result.Perform(CM_PARENTDOUBLEBUFFEREDCHANGED, 0, 0);
   Result.Perform(CM_PARENTTABLETOPTIONSCHANGED, 0, 0);
 
   NonClientMetrics.cbSize := SizeOf(NonClientMetrics);
@@ -5262,6 +5349,32 @@ begin
   Result.Perform(CM_PARENTBIDIMODECHANGED, 0, 0);
   Result.Perform(CM_PARENTDOUBLEBUFFEREDCHANGED, 0, 0);
   Result.Perform(CM_PARENTTABLETOPTIONSCHANGED, 0, 0);
+end;
+
+function TFSession.DataByAddress(const Address: string): TCustomData;
+var
+  URI: TUURI;
+begin
+  URI := TUURI.Create(Address);
+
+  case (ClassIndexByAddress(URI.Address)) of
+    ciSession: Result := Session;
+    ciDatabase,
+    ciSystemDatabase: Result := Session.DatabaseByName(URI.Database);
+    ciBaseTable,
+    ciView,
+    ciSystemView: Result := Session.DatabaseByName(URI.Database).TableByName(URI.Table);
+    ciProcedure: Result := Session.DatabaseByName(URI.Database).ProcedureByName(URI.Param['object']);
+    ciFunction: Result := Session.DatabaseByName(URI.Database).FunctionByName(URI.Param['object']);
+    ciEvent: Result := Session.DatabaseByName(URI.Database).EventByName(URI.Param['object']);
+    ciTrigger: Result := Session.DatabaseByName(URI.Database).TriggerByName(URI.Param['object']);
+    ciProcesses: Result := Session.Processes;
+    ciUsers: Result := Session.Users;
+    ciVariables: Result := Session.Variables;
+    else raise ERangeError.Create('Unknown ClassIndex for: ' + Address);
+  end;
+
+  URI.Free();
 end;
 
 procedure TFSession.DataSetAfterCancel(DataSet: TDataSet);
@@ -5454,9 +5567,9 @@ begin
   MainAction('aDEditRecord').Enabled := False;
   MainAction('aDEmpty').Enabled := False;
 
-  if ((Sender = FObjectIDEGrid) and (SelectedImageIndex = iiTrigger) and (TMySQLDBGrid(Sender).DataSource.DataSet is TMySQLDataSet)) then
+  if ((Sender = FObjectIDEGrid) and (CurrentClassIndex = ciTrigger) and (TMySQLDBGrid(Sender).DataSource.DataSet is TMySQLDataSet)) then
   begin
-    Trigger := TSTrigger(FNavigator.Selected.Data);
+    Trigger := TSTrigger(CurrentData);
 
     BINSERT.Enabled := Trigger.SQLInsert() <> '';
     BREPLACE.Enabled := Trigger.SQLReplace() <> '';
@@ -6073,7 +6186,7 @@ begin
   Session.CreateDesktop := nil;
 
   if (TimeMonitor.CacheText <> '') then
-    SendToDeveloper(TimeMonitor.CacheText, 2);
+    SendToDeveloper(TimeMonitor.CacheText);
   TimeMonitor.Free();
 
   FNavigatorChanging(nil, nil, TempB);
@@ -6106,9 +6219,9 @@ begin
   Session.Account.Desktop.SidebarWitdth := PSideBar.Width;
   Session.Account.Desktop.LogVisible := PLog.Visible;
   Session.Account.Desktop.LogHeight := PLog.Height;
-  if (Address <> '') then
+  if (CurrentAddress <> '') then
   begin
-    URI := TUURI.Create(Address);
+    URI := TUURI.Create(CurrentAddress);
     URI.Param['file'] := Null;
     URI.Param['cp'] := Null;
     Session.Account.Desktop.Address := URI.Address;
@@ -6153,7 +6266,6 @@ begin
   except
   end;
 
-  FAddresses.Free();
   FLog.Lines.Clear();
 
   FreeAndNil(CloseButtonNormal);
@@ -6183,8 +6295,8 @@ var
 begin
   FNavigator.Items.BeginUpdate();
   for I := 0 to Objects.Count - 1 do
-    if (Session.Account.Favorites.IndexOf(SItemToAddress(TSItem(Objects[I]))) < 0) then
-      Session.Account.Favorites.Add(SItemToAddress(TSItem(Objects[I])));
+    if (Session.Account.Favorites.IndexOf(AddressByData(Objects[I])) < 0) then
+      Session.Account.Favorites.Add(AddressByData(Objects[I]));
   FNavigator.Items.EndUpdate();
 end;
 
@@ -6229,9 +6341,19 @@ begin
         ImageIndex := iiTrigger;
         Text := URI.Param['object'];
       end
+      else if (URI.Param['objecttype'] = 'view') then
+      begin
+        ImageIndex := iiView;
+        Text := URI.Table;
+      end
+      else if (URI.Param['objecttype'] = 'systemview') then
+      begin
+        ImageIndex := iiSystemView;
+        Text := URI.Table;
+      end
       else if (URI.Table <> '') then
       begin
-        ImageIndex := iiTable;
+        ImageIndex := iiBaseTable;
         Text := URI.Table;
       end
       else if (URI.Database <> '') then
@@ -6631,32 +6753,22 @@ begin
     URI.Param['system'] := 'variables';
   end
   else if (TObject(Node.Data) is TSItem) then
-    URI := TUURI.Create(SItemToAddress(TSItem(Node.Data)))
+    URI := TUURI.Create(AddressByData(Node.Data))
   else if (Assigned(Node.Data)) then
     raise ERangeError.Create('ClassType: ' + TObject(Node.Data).ClassName)
   else
     raise ERangeError.Create(SRangeError);
 
-  case (View) of
-    vObjects:
-      if (URI.Param['object'] = Null) then
-        URI.Param['view'] := Null;
-    vBrowser:
-      if ((URI.Database <> '') and (URI.Table <> '') and (URI.Param['object'] = Null)) then
-        URI.Param['view'] := ViewToParam(View);
-    vBuilder,
-    vDiagram,
-    vEditor,
-    vEditor2,
-    vEditor3:
-      if ((URI.Database <> '') and (URI.Table = '') and (URI.Param['object'] = Null)) then
-        URI.Param['view'] := ViewToParam(View);
-  end;
+  URI.Param['view'] := ViewToParam(View);
+  if ((URI.Param['view'] = Null) and (URI.Param['objecttype'] = 'procedure') or (URI.Param['objecttype'] = 'function') or (URI.Param['objecttype'] = 'trigger') or (URI.Param['objecttype'] = 'event')) then
+    URI.Param['view'] := 'ide';
+  if ((URI.Param['view'] = Null) and (URI.Table <> '')) then
+    URI.Param['view'] := ViewToParam(LastTableView);
 
   LockWindowUpdate(FNavigator.Handle);
   ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);
   ScrollPos.Vert := GetScrollPos(FNavigator.Handle, SB_VERT);
-  Address := URI.Address;
+  CurrentAddress := URI.Address;
   SetScrollPos(FNavigator.Handle, SB_HORZ, ScrollPos.Horz, TRUE);
   SetScrollPos(FNavigator.Handle, SB_VERT, ScrollPos.Vert, TRUE);
   LockWindowUpdate(0);
@@ -6718,12 +6830,12 @@ begin
         else
           Session.Account.Favorites.Move(SourceNode.Index, Index - 1)
       else
-        Session.Account.Favorites.Insert(Index, SItemToAddress(SourceNode.Data));
+        Session.Account.Favorites.Insert(Index, AddressByData(SourceNode.Data));
     end
     else if ((Source is TListView) and (TListView(Source).Parent = PListView)) then
       for I := TListView(Source).Items.Count - 1 downto 0 do
         if (TListView(Source).Items[I].Selected) then
-          Session.Account.Favorites.Insert(Index, SItemToAddress(TListView(Source).Items[I].Data));
+          Session.Account.Favorites.Insert(Index, AddressByData(TListView(Source).Items[I].Data));
   end
   else
   begin
@@ -6747,11 +6859,11 @@ begin
         iiUser:       Objects := Objects + 'User='        + SourceNode.Text + #13#10;
       end;
       if (Objects <> '') then
-        Objects := 'Address=' + NavigatorNodeToAddress(SourceNode) + #13#10 + Objects;
+        Objects := 'Address=' + AddressByData(SourceNode.Data) + #13#10 + Objects;
     end
-    else if ((Source is TListView) and (TListView(Source).Parent.Name = 'PListView')) then
+    else if ((Source is TListView) and (TListView(Source).Parent.Name = PListView.Name)) then
     begin
-      SourceNode := TFSession(TComponent(TListView(Source).Owner)).FNavigator.Selected;
+      SourceNode := TFSession(TComponent(TListView(Source).Owner)).FNavigatorNodeByAddress(TFSession(TComponent(TListView(Source).Owner)).CurrentAddress);
 
       for I := 0 to TListView(Source).Items.Count - 1 do
         if (TListView(Source).Items[I].Selected) then
@@ -6771,7 +6883,7 @@ begin
             iiUser:       Objects := Objects + 'User='       + TListView(Source).Items[I].Caption + #13#10;
           end;
       if (Objects <> '') then
-        Objects := 'Address=' + NavigatorNodeToAddress(SourceNode) + #13#10 + Objects;
+        Objects := 'Address=' + AddressByData(SourceNode.Data) + #13#10 + Objects;
     end;
 
     if (Objects <> '') then
@@ -6860,26 +6972,38 @@ begin
         if ((TargetNode <> SourceNode)
           and (TObject(SourceNode.Data) is TSItem)) then
           case (SourceNode.ImageIndex) of
-            iiDatabase: Accept := (TObject(TargetNode.Data) is TSSession) and (TargetNode <> SourceNode.Parent);
+            iiDatabase:
+              Accept := (TObject(TargetNode.Data) is TSSession)
+                and (TargetNode <> SourceNode.Parent);
             iiBaseTable,
             iiView,
             iiProcedure,
-            iiFunction: Accept := (TObject(TargetNode.Data) is TSDatabase) and (TargetNode <> SourceNode.Parent);
+            iiFunction:
+              Accept := (TObject(TargetNode.Data) is TSDatabase)
+                and (TargetNode <> SourceNode.Parent);
             iiBaseField,
-            iiVirtualField: Accept := (TObject(TargetNode.Data) is TSBaseTable) and (TargetNode <> SourceNode.Parent);
+            iiVirtualField:
+              Accept := (TObject(TargetNode.Data) is TSBaseTable)
+                and (TargetNode <> SourceNode.Parent);
           end;
       end
       else if (Assigned(SourceItem)) then
       begin
         if (TObject(SourceItem.Data) is TSItem) then
           case (SourceItem.ImageIndex) of
-            iiDatabase: Accept := (TObject(TargetNode.Data) is TSSession) and (TargetNode <> TFSession(TListView(Source).Owner).FNavigator.Selected);
+            iiDatabase:
+              Accept := (TObject(TargetNode.Data) is TSSession)
+                and (TargetNode <> TFSession(TListView(Source).Owner).FNavigatorNodeByAddress(TFSession(TListView(Source).Owner).CurrentAddress));
             iiBaseTable,
             iiView,
             iiProcedure,
-            iiFunction: Accept := (TObject(TargetNode.Data) is TSDatabase) and (TargetNode <> TFSession(TListView(Source).Owner).FNavigator.Selected);
+            iiFunction:
+              Accept := (TObject(TargetNode.Data) is TSDatabase)
+                and (TargetNode <> TFSession(TListView(Source).Owner).FNavigatorNodeByAddress(TFSession(TListView(Source).Owner).CurrentAddress));
             iiBaseField,
-            iiVirtualField: Accept := (TObject(TargetNode.Data) is TSBaseTable) and (TargetNode <> TFSession(TListView(Source).Owner).FNavigator.Selected);
+            iiVirtualField:
+              Accept := (TObject(TargetNode.Data) is TSBaseTable)
+                and (TargetNode <> TFSession(TListView(Source).Owner).FNavigatorNodeByAddress(TFSession(TListView(Source).Owner).CurrentAddress));
           end;
       end;
   end;
@@ -6933,7 +7057,7 @@ begin
     begin
       Table.Empty();
 
-      if ((View = vBrowser) and (FNavigator.Selected.Data = Table)) then
+      if ((View = vBrowser) and (FNavigatorMenuNode.Data = Table)) then
         Wanted.Update := UpdateAfterAddressChanged;
     end;
   end
@@ -6949,7 +7073,7 @@ begin
       Table.Update();
       List.Free();
 
-      if ((View = vBrowser) and (FNavigator.Selected.Data = Table)) then
+      if ((View = vBrowser) and (FNavigatorMenuNode.Data = Table)) then
         Wanted.Update := UpdateAfterAddressChanged;
     end;
   end;
@@ -7250,7 +7374,7 @@ begin
       end;
 
       Child := DatabaseNode.getFirstChild();
-      if ((URI.Table <> '') or (URI.Param['objecttype'] = 'trigger') and (URI.Param['object'] <> Null)) then
+      if (URI.Table <> '') then
       begin
         if (URI.Table <> '') then
           TableName := URI.Table
@@ -7363,37 +7487,38 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
     Text: string;
     Wnd: HWND;
   begin
-    ProfilingPoint(1);
+    ProfilingPoint(3);
 
     Node := TTreeNode.Create(Parent.Owner);
     Node.Data := Data;
     Node.ImageIndex := ImageIndexByData(Data);
     Node.Text := TSItem(Data).Caption;
 
-    ProfilingPoint(2);
+    ProfilingPoint(4);
 
     Child := Parent.getFirstChild();
     while (Assigned(Child)) do
     begin
-    ProfilingPoint(3);
+    ProfilingPoint(5);
       if (Compare(Child, Node) >= 0) then
         break;
-    ProfilingPoint(4);
+    ProfilingPoint(6);
       Wnd := FNavigator.Handle;
       ItemId := Child.ItemId;
-    ProfilingPoint(5);
+    ProfilingPoint(7);
       TreeView_GetNextSibling(Wnd, ItemId);
-    ProfilingPoint(6);
+    ProfilingPoint(8);
       Item.hItem := ItemId;
       Item.mask := TVIF_PARAM;
       TreeView_GetItem(Handle, Item);
-    ProfilingPoint(7);
+      // 1.4 seconds for 2 items
+    ProfilingPoint(9);
       Child := Child.getNextSibling();
 
-    ProfilingPoint(8);
+    ProfilingPoint(10);
     end;
 
-    ProfilingPoint(9);
+    ProfilingPoint(11);
 
     Node.Free();
 
@@ -7408,7 +7533,7 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
     else
       raise ERangeError.Create(SRangeError);
 
-    ProfilingPoint(10);
+    ProfilingPoint(12);
 
     if (not Assigned(Child)) then
     begin
@@ -7428,12 +7553,12 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
     if (Added and (Child.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView])) then
       Child.HasChildren := True;
 
-    ProfilingPoint(11);
+    ProfilingPoint(13);
 
     if (Assigned(Child)) then
       SetNodeBoldState(Child, (Child.ImageIndex = iiKey) and TSKey(Child.Data).PrimaryKey or (Child.ImageIndex in [iiBaseField, iiVirtualField]) and TSTableField(Child.Data).InPrimaryKey);
 
-    ProfilingPoint(12);
+    ProfilingPoint(14);
   end;
 
   procedure AddChild(const Parent: TTreeNode; const Data: TObject);
@@ -7452,11 +7577,11 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
     else
       raise ERangeError.Create(SRangeError);
 
-    ProfilingPoint(13);
+    ProfilingPoint(15);
 
     Child := FNavigator.Items.AddChild(Parent, Text);
 
-    ProfilingPoint(14);
+    ProfilingPoint(16);
 
     Child.Data := Data;
     Child.ImageIndex := ImageIndexByData(Data);
@@ -7464,19 +7589,19 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
     if (Child.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView]) then
       Child.HasChildren := True;
 
-    ProfilingPoint(15);
+    ProfilingPoint(17);
 
     if (Assigned(Child)) then
       SetNodeBoldState(Child, (Child.ImageIndex = iiKey) and TSKey(Child.Data).PrimaryKey or (Child.ImageIndex in [iiBaseField, iiVirtualField]) and TSTableField(Child.Data).InPrimaryKey);
 
-    ProfilingPoint(16);
+    ProfilingPoint(18);
   end;
 
   procedure DeleteChild(const Child: TTreeNode);
   var
     Node: TTreeNode;
   begin
-    ProfilingPoint(17);
+    ProfilingPoint(19);
 
     Node := FNavigatorNodeToExpand;
     while (Assigned(Node)) do
@@ -7489,7 +7614,7 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
     Child.Data := nil;
     Child.Delete();
 
-    ProfilingPoint(18);
+    ProfilingPoint(20);
   end;
 
   procedure UpdateGroup(const Parent: TTreeNode; const GroupID: Integer; const Items: TSItems);
@@ -7503,6 +7628,8 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
     case (Event.EventType) of
       etItemsValid:
         begin
+          ProfilingPoint(1);
+
           Child := Parent.getFirstChild();
           while (Assigned(Child)) do
             if ((GroupIDByImageIndex(Child.ImageIndex) <> GroupID) or (Items.IndexOf(Child.Data) >= 0)) then
@@ -7515,6 +7642,8 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
               Child := Child.getNextSibling();
               DeleteChild(Node);
             end;
+
+          ProfilingPoint(2);
 
           Add := not Assigned(Parent.getFirstChild());
           for I := 0 to Items.Count - 1 do
@@ -7530,6 +7659,8 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
               else
                 AddChild(Parent, Items[I]);
             end;
+
+          ProfilingPoint(21);
         end;
       etItemCreated:
         if (GroupIDByImageIndex(ImageIndexByData(Event.Item)) = GroupID) then
@@ -7563,27 +7694,26 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
       etItemDropped:
         if (GroupIDByImageIndex(ImageIndexByData(Event.Item)) = GroupID) then
         begin
-          Child := Parent.getFirstChild();
-          while (Assigned(Child)) do
-            if (Child.Data <> Event.Item) then
-              Child := Child.getNextSibling()
-            else
-            begin
-              if ((Child = FNavigatorNodeToExpand) or (Child.Parent = FNavigatorNodeToExpand)) then
-                FNavigatorNodeToExpand := nil;
-              Node := FNavigator.Selected;
-              while (Assigned(Node)) do
-              begin
-                if (Child = Node) then
-                  NavigatorElapse := 1; // We're inside a Monitor callback - but the related Address change has to be outside the callback
+          Child := FNavigatorNodeByAddress(AddressByData(Event.Item));
+
+          if (Assigned(Child)) then
+          begin
+            Node := FNavigatorNodeToExpand;
+            while (Assigned(Node)) do
+              if (Node = Child) then
+                FNavigatorNodeToExpand := nil
+              else
                 Node := Node.Parent;
-              end;
-              Node := Child;
-              Child := Child.getNextSibling();
-              DeleteChild(Node);
-              if (not Assigned(FNavigator.Selected)) then
-                FNavigator.Selected := Parent;
-            end;
+
+            Node := Child.getNextSibling();
+            if (not Assigned(Node)) then
+              Node := Child.Parent;
+
+            DeleteChild(Child);
+
+            if (not Assigned(FNavigator.Selected) and Assigned(Node)) then
+              Wanted.Address := AddressByData(Node.Data);
+          end;
         end;
     end;
   end;
@@ -7708,7 +7838,7 @@ begin
   FNavigator.OnChange := ChangeEvent;
 
   if (FNavigator.Selected <> OldSelected) then
-    SetTimer(Self.Handle, tiNavigator, 1, nil);
+    SetTimer(Self.Handle, tiNavigator, 1, nil); // We're inside a Monitor call. So we can't call FNavigatorNodeChange2 directly
 
   if (Assigned(FNavigatorNodeToExpand) and (FNavigatorNodeToExpand.Count > 0)) then
   begin
@@ -7731,7 +7861,7 @@ begin
       if (Event.Item is TSTable) then
         S := S
           + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
-      S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000) + ' s' + #13#10;
+      S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s' + #13#10;
       S := S + ProfilingReport() + #13#10;
       TimeMonitor.Append(S, ttDebug);
     end;
@@ -7884,7 +8014,7 @@ begin
 
     if (Assigned(PObjectSearch) and not PObjectSearch.Visible) then
     begin
-      Node := FNavigator.Selected;
+      Node := FNavigatorNodeByAddress(CurrentAddress);
       while (Assigned(Node) and not (Node.ImageIndex in [iiServer, iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView])) do
         Node := Node.Parent;
       if (not Assigned(Node)) then
@@ -7893,7 +8023,7 @@ begin
         PObjectSearch.Location := Node.Data;
       PObjectSearch.Left := ClientToScreen(Point(FObjectSearch.Left + FObjectSearch.Width - PObjectSearch.Width, 0)).X;
       PObjectSearch.Top := ClientToScreen(Point(0, FObjectSearch.Top + FObjectSearch.Height)).Y;
-      PObjectSearch.Visible := not (SelectedImageIndex in [iiProcesses, iiUsers, iiVariables]);
+      PObjectSearch.Visible := not (CurrentClassIndex in [ciProcesses, ciUsers, ciVariables]);
     end;
   end;
 end;
@@ -7914,7 +8044,7 @@ begin
   PObjectSearch.Hide();
   FObjectSearch.SelectAll();
 
-  URI := TUURI.Create(Address);
+  URI := TUURI.Create(CurrentAddress);
   URI.Param['view'] := 'objectsearch';
   if (URI.Param['system'] = Null) then
   begin
@@ -7967,7 +8097,7 @@ begin
   LockWindowUpdate(FNavigator.Handle);
   ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);
   ScrollPos.Vert := GetScrollPos(FNavigator.Handle, SB_VERT);
-  Address := URI.Address;
+  CurrentAddress := URI.Address;
   SetScrollPos(FNavigator.Handle, SB_HORZ, ScrollPos.Horz, TRUE);
   SetScrollPos(FNavigator.Handle, SB_VERT, ScrollPos.Vert, TRUE);
   LockWindowUpdate(0);
@@ -8325,12 +8455,12 @@ begin
         APopupMenu.Items[I].Caption := Preferences.LoadStr(383);
         APopupMenu.Items[I].OnClick := nil;
 
-        for J := 0 to TSDatabase(FNavigator.Selected.Data).Tables.Count - 1 do
+        for J := 0 to TSDatabase(CurrentData).Tables.Count - 1 do
         begin
           MenuItem := TMenuItem.Create(Self);
-          MenuItem.Caption := TSDatabase(FNavigator.Selected.Data).Tables[J].Name;
+          MenuItem.Caption := TSDatabase(CurrentData).Tables[J].Name;
           MenuItem.OnClick := FQueryBuilderAddTable;
-          MenuItem.Tag := Integer(TSDatabase(FNavigator.Selected.Data).Tables[J]);
+          MenuItem.Tag := Integer(TSDatabase(CurrentData).Tables[J]);
           APopupMenu.Items[I].Add(MenuItem);
         end;
       end;
@@ -8546,9 +8676,7 @@ begin
   TreeView := TTreeView(Sender);
 
   if (not TreeView.IsEditing()) then
-    if ((Sender = ActiveListView) and (Ord(Key) = VK_BACK)) then
-      FNavigator.Selected := FNavigator.Selected.Parent
-    else if (Key = #3) then
+    if (Key = #3) then
       Key := #0
     else if (Ord(Key) = VK_RETURN) then
       if (Assigned(TreeView.Selected)) then
@@ -8754,35 +8882,19 @@ function TFSession.GetActiveDBGrid(): TMySQLDBGrid;
 var
   I: Integer;
 begin
-  Assert(Assigned(FNavigator.Selected));
-
   case (View) of
     vBrowser:
       begin
-        // Debug 2017-01-19
-        if (not Assigned(FNavigator.Selected.Data)) then
-          raise ERangeError.Create('ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
-            + 'Text: ' + FNavigator.Selected.Text);
-
-        Result := Desktop(TSTable(FNavigator.Selected.Data)).CreateDBGrid();
+        Result := Desktop(TSTable(CurrentData)).CreateDBGrid();
       end;
     vIDE:
-      case (FNavigator.Selected.ImageIndex) of
-        iiProcedure,
-        iiFunction: Result := Desktop(TSRoutine(FNavigator.Selected.Data)).ActiveDBGrid;
+      case (CurrentClassIndex) of
+        ciProcedure,
+        ciFunction: Result := Desktop(TSRoutine(CurrentData)).ActiveDBGrid;
         else Result := nil;
       end;
     vBuilder:
-      begin
-        // Debug 2016-11-25
-        if (not (TObject(FNavigator.Selected.Data) is TSDatabase)) then
-          try
-            raise ERangeError.Create(SRangeError + #13#10 + 'ClassType: ' + TObject(FNavigator.Selected.Data).ClassName + #13#10 + 'Address: ' + Address);
-          except
-            raise ERangeError.Create(SRangeError + #13#10 + 'Address: ' + Address);
-          end;
-        Result := Desktop(TSDatabase(FNavigator.Selected.Data)).BuilderDBGrid;
-      end;
+      Result := Desktop(TSDatabase(CurrentData)).BuilderDBGrid;
     vEditor,
     vEditor2,
     vEditor3:
@@ -8816,11 +8928,11 @@ var
   J: Integer;
   Routine: TSRoutine;
 begin
-  case (SelectedImageIndex) of
-    iiProcedure,
-    iiFunction:
+  case (CurrentClassIndex) of
+    ciProcedure,
+    ciFunction:
       begin
-        Routine := TSRoutine(FNavigator.Selected.Data);
+        Routine := TSRoutine(CurrentData);
 
         FObjectIDEGrid.DataSource.DataSet := Routine.InputDataSet;
         FObjectIDEGrid.DataSource.Enabled := Assigned(FObjectIDEGrid.DataSource.DataSet);
@@ -8833,9 +8945,9 @@ begin
               FObjectIDEGrid.Columns[I].PickList.Add(Routine.Parameter[I].Items[J]);
         end;
       end;
-    iiTrigger:
+    ciTrigger:
       if (not Session.Connection.InUse()) then
-        FObjectIDEGrid.DataSource.DataSet := TSTrigger(FNavigator.Selected.Data).InputDataSet;
+        FObjectIDEGrid.DataSource.DataSet := TSTrigger(CurrentData).InputDataSet;
     else
       FObjectIDEGrid.DataSource.DataSet := nil;
   end;
@@ -8855,7 +8967,7 @@ begin
   if (Assigned(FObjectIDEGrid.DataSource.DataSet) and not FObjectIDEGrid.DataSource.Enabled) then
     DBGridColEnter(FObjectIDEGrid);
 
-  PObjectIDETrigger.Visible := (SelectedImageIndex = iiTrigger);
+  PObjectIDETrigger.Visible := (CurrentClassIndex = ciTrigger);
   if (PObjectIDETrigger.Visible) then
     DBGridColExit(FObjectIDEGrid);
 
@@ -8874,11 +8986,9 @@ begin
       ObjectSearchListView := CreateListView(ObjectSearch);
     Result := ObjectSearchListView;
   end
-  else if (not Assigned(FNavigator.Selected)) then
-    Result := nil
   else
-    case (FNavigator.Selected.ImageIndex) of
-      iiServer:
+    case (CurrentClassIndex) of
+      ciSession:
         begin
           if (not Assigned(ServerListView)) then
           begin
@@ -8887,14 +8997,14 @@ begin
           end;
           Result := ServerListView;
         end;
-      iiDatabase,
-      iiSystemDatabase:
-        Result := Desktop(TSDatabase(FNavigator.Selected.Data)).CreateListView();
-      iiBaseTable,
-      iiView,
-      iiSystemView:
-        Result := Desktop(TSTable(FNavigator.Selected.Data)).CreateListView();
-      iiProcesses:
+      ciDatabase,
+      ciSystemDatabase:
+        Result := Desktop(TSDatabase(CurrentData)).CreateListView();
+      ciBaseTable,
+      ciView,
+      ciSystemView:
+        Result := Desktop(TSTable(CurrentData)).CreateListView();
+      ciProcesses:
         begin
           if (not Assigned(ProcessesListView)) then
           begin
@@ -8903,7 +9013,7 @@ begin
           end;
           Result := ProcessesListView;
         end;
-      iiUsers:
+      ciUsers:
         begin
           if (not Assigned(UsersListView)) then
           begin
@@ -8912,7 +9022,7 @@ begin
           end;
           Result := UsersListView;
         end;
-      iiVariables:
+      ciVariables:
         begin
           if (not Assigned(VariablesListView)) then
           begin
@@ -8936,12 +9046,12 @@ begin
   case (View) of
     vIDE:
       begin
-        case (SelectedImageIndex) of
-          iiView: Result := Desktop(TSView(FNavigator.Selected.Data)).CreateSynMemo();
-          iiProcedure,
-          iiFunction: Result := Desktop(TSRoutine(FNavigator.Selected.Data)).CreateSynMemo();
-          iiTrigger: Result := Desktop(TSTrigger(FNavigator.Selected.Data)).CreateSynMemo();
-          iiEvent: Result := Desktop(TSEvent(FNavigator.Selected.Data)).CreateSynMemo();
+        case (CurrentClassIndex) of
+          ciView: Result := Desktop(TSView(CurrentData)).CreateSynMemo();
+          ciProcedure,
+          ciFunction: Result := Desktop(TSRoutine(CurrentData)).CreateSynMemo();
+          ciTrigger: Result := Desktop(TSTrigger(CurrentData)).CreateSynMemo();
+          ciEvent: Result := Desktop(TSEvent(CurrentData)).CreateSynMemo();
           else Result := nil;
         end;
       end;
@@ -8979,21 +9089,9 @@ begin
       Result := nil;
   end;
 
-  // Debug 2016-12-17
-  if (not Assigned(PSynMemo)) then
-    if (csDestroying in ComponentState) then
-      raise ERangeError.Create('csDestroying')
-    else
-      raise ERangeError.Create('Error Message')
-  else if (not (PSynMemo is TWinControl)) then
-    try
-      raise ERangeError.Create('ClassType: ' + PSynMemo.ClassName);
-    except
-      raise ERangeError.Create(SRangeError);
-    end;
-
   for I := 0 to PSynMemo.ControlCount - 1 do
-    PSynMemo.Controls[I].Visible := PSynMemo.Controls[I] = Result;
+    if (PSynMemo.Controls[I] <> Result) then
+      PSynMemo.Controls[I].Visible := False;
 end;
 
 function TFSession.GetActiveWorkbench(): TWWorkbench;
@@ -9002,7 +9100,7 @@ var
 begin
   case (View) of
     vDiagram:
-      Result := Desktop(TSDatabase(FNavigator.Selected.Data)).Workbench;
+      Result := Desktop(TSDatabase(CurrentData)).Workbench;
     else
       Result := nil;
   end;
@@ -9010,6 +9108,16 @@ begin
   if (Assigned(Result)) then
     for I := 0 to PWorkbench.ControlCount - 1 do
       PWorkbench.Controls[I].Visible := PWorkbench.Controls[I] = Result;
+end;
+
+function TFSession.GetCurrentClassIndex(): TClassIndex;
+begin
+  Result := ClassIndexByAddress(CurrentAddress);
+end;
+
+function TFSession.GetCurrentData(): TCustomData;
+begin
+  Result := DataByAddress(CurrentAddress);
 end;
 
 function TFSession.GetEditorField(): TField;
@@ -9046,18 +9154,18 @@ begin
     Result := nil
   else if ((Window.ActiveControl = FNavigator) and Assigned(FNavigatorMenuNode) and (TObject(FNavigatorMenuNode.Data) is TSItem)) then
     Result := TSItem(FNavigatorMenuNode.Data)
-  else if ((Window.ActiveControl = FNavigator) and Assigned(FNavigator.Selected) and (TObject(FNavigator.Selected.Data) is TSItem)) then
-    Result := TSItem(FNavigator.Selected.Data)
+  else if ((Window.ActiveControl = FNavigator) and (TObject(CurrentData) is TSItem)) then
+    Result := TSItem(CurrentData)
   else if ((Window.ActiveControl = ActiveListView) and Assigned(ActiveListView.Selected) and (TSObject(ActiveListView.Selected.Data) is TSItem)) then
     Result := TSItem(ActiveListView.Selected.Data)
   else if ((Window.ActiveControl = ActiveWorkbench) and (ActiveWorkbench.Selected is TWTable)) then
     Result := TWTable(ActiveWorkbench.Selected).BaseTable
   else if ((Window.ActiveControl = ActiveWorkbench) and (ActiveWorkbench.Selected is TWForeignKey)) then
     Result := TWForeignKey(ActiveWorkbench.Selected).BaseForeignKey
-  else if ((Window.ActiveControl = ActiveListView) and not Assigned(ActiveListView.Selected) and (TObject(FNavigator.Selected.Data) is TSItem)) then
-    Result := TSItem(FNavigator.Selected.Data)
-  else if ((Window.ActiveControl = ActiveWorkbench) and not Assigned(ActiveWorkbench.Selected) and (TObject(FNavigator.Selected.Data) is TSItem)) then
-    Result := TSItem(FNavigator.Selected.Data)
+  else if ((Window.ActiveControl = ActiveListView) and not Assigned(ActiveListView.Selected) and (TObject(CurrentData) is TSItem)) then
+    Result := TSItem(CurrentData)
+  else if ((Window.ActiveControl = ActiveWorkbench) and not Assigned(ActiveWorkbench.Selected) and (TObject(CurrentData) is TSItem)) then
+    Result := TSItem(CurrentData)
   else
     Result := nil;
 
@@ -9085,19 +9193,24 @@ end;
 function TFSession.GetMenuDatabase(): TSDatabase;
 var
   Node: TTreeNode;
+  URI: TUURI;
 begin
   if (Window.ActiveControl = FNavigator) then
-    Node := FNavigatorMenuNode
+  begin
+    Node := FNavigatorMenuNode;
+    while (Assigned(Node) and not (Node.ImageIndex in [iiDatabase, iiSystemDatabase])) do
+      Node := Node.Parent;
+    if (Assigned(Node)) then
+      Result := TSDatabase(Node.Data)
+    else
+      Result := nil;
+  end
   else
-    Node := FNavigator.Selected;
-
-  while (Assigned(Node) and Assigned(Node.Parent) and Assigned(Node.Parent.Parent)) do
-    Node := Node.Parent;
-
-  if (Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiSystemDatabase])) then
-    Result := TSDatabase(Node.Data)
-  else
-    Result := nil;
+  begin
+    URI := TUURI.Create(CurrentAddress);
+    Result := Session.DatabaseByName(URI.Database);
+    URI.Free();
+  end;
 end;
 
 function TFSession.GetPath(): TFileName;
@@ -9109,17 +9222,9 @@ function TFSession.GetSelectedDatabase(): string;
 var
   URI: TUURI;
 begin
-  URI := TUURI.Create(Address);
+  URI := TUURI.Create(CurrentAddress);
   Result := URI.Database;
   URI.Free();
-end;
-
-function TFSession.GetSelectedImageIndex(): Integer;
-begin
-  if (not Assigned(FNavigator.Selected)) then
-    Result := -1
-  else
-    Result := FNavigator.Selected.ImageIndex;
 end;
 
 function TFSession.GetSQLEditors(View: TView): TSQLEditor;
@@ -9130,6 +9235,15 @@ begin
     vEditor3: Result := SQLEditor3;
     else raise ERangeError.Create(SRangeError + ' (' + IntToStr(Ord(View)) +  ')');
   end;
+end;
+
+function TFSession.GetView(): TView;
+var
+  URI: TUURI;
+begin
+  URI := TUURI.Create(CurrentAddress);
+  Result := ParamToView(URI.Param['view']);
+  URI.Free();
 end;
 
 function TFSession.GetWindow(): TForm_Ext;
@@ -9239,9 +9353,7 @@ begin
       FFilterEnabled.Enabled := True;
       FFilterEnabled.Down := True;
       FFilterEnabledClick(Sender);
-      if (not (TObject(FNavigator.Selected.Data) is TSTable)) then
-        raise ERangeError.Create(SRangeError);
-      Desktop(TSTable(FNavigator.Selected.Data)).etItemResort(Format(Filters[FilterIndex].Text, [Session.Connection.EscapeIdentifier(ActiveDBGrid.SelectedField.FieldName), Value]));
+      Desktop(TSTable(CurrentData)).etItemResort(Format(Filters[FilterIndex].Text, [Session.Connection.EscapeIdentifier(ActiveDBGrid.SelectedField.FieldName), Value]));
     end
     else
     begin
@@ -9798,9 +9910,9 @@ begin
         iiProcedure,
         iiFunction,
         iiBaseField,
-        iiVirtualField: Accept := (SourceNode.Parent.ImageIndex = SelectedImageIndex) and (SourceNode.Parent <> FNavigator.Selected);
+        iiVirtualField: Accept := (ClassIndexByData(SourceNode.Parent.Data) = CurrentClassIndex) and (SourceNode.Parent <> FNavigatorNodeByAddress(CurrentAddress));
       end
-    else if (((TargetItem.Caption <> SourceNode.Text) or (SourceNode.Parent <> FNavigator.Selected)) and (SourceNode.Parent.Text <> TargetItem.Caption)) then
+    else if (((TargetItem.Caption <> SourceNode.Text) or (SourceNode.Parent <> FNavigatorNodeByAddress(CurrentAddress))) and (SourceNode.Parent.Text <> TargetItem.Caption)) then
       case (TargetItem.ImageIndex) of
         iiDatabase: Accept := (SourceNode.ImageIndex in [iiDatabase, iiBaseTable, iiProcedure, iiFunction]);
         iiBaseTable: Accept := SourceNode.ImageIndex in [iiBaseField, iiVirtualField];
@@ -9816,15 +9928,15 @@ begin
       case (SourceItem.ImageIndex) of
         iiBaseTable,
         iiProcedure,
-        iiFunction: Accept := (SelectedImageIndex = iiDatabase) and (not Assigned(TargetItem) and (Session.DatabaseByName(SelectedDatabase) <> SourceDatabase));
+        iiFunction: Accept := (CurrentClassIndex = ciDatabase) and (not Assigned(TargetItem) and (Session.DatabaseByName(SelectedDatabase) <> SourceDatabase));
       end
     else if ((TargetItem <> SourceItem) and (TargetItem.ImageIndex = SourceItem.ImageIndex)) then
       case (SourceItem.ImageIndex) of
-        iiBaseTable: Accept := (SelectedImageIndex = iiDatabase);
+        iiBaseTable: Accept := (CurrentClassIndex = ciDatabase);
       end
     else if ((TargetItem <> SourceItem) and (SourceSession <> Session)) then
       case (SourceItem.ImageIndex) of
-        iiBaseTable: Accept := (SelectedImageIndex = iiServer);
+        iiBaseTable: Accept := (CurrentClassIndex = ciSession);
       end;
   end;
 end;
@@ -10139,8 +10251,11 @@ var
   MenuItem: TMenuItem;
 begin
   if (not TListView(Sender).IsEditing()) then
-    if ((Sender = ActiveListView) and (Key = VK_BACK) and Assigned(FNavigator.Selected.Parent)) then
-      FNavigator.Selected := FNavigator.Selected.Parent
+    if ((Sender = ActiveListView) and (Key = VK_BACK)) then
+      if (TObject(TListView(Sender).Tag) is TSTable) then
+        CurrentAddress := AddressByData(TSTable(TListView(Sender).Tag).Database)
+      else
+        CurrentAddress := AddressByData(Session)
     else if ((Key = Ord('A')) and (Shift = [ssCtrl])) then
       MainAction('aESelectAll').Execute()
     else if ((Key = Ord('C')) and (Shift = [ssCtrl]) or (Key = VK_INSERT) and (Shift = [ssCtrl])) then
@@ -10171,8 +10286,8 @@ begin
   else if (Sender is TAction) then
   begin
     List := TList.Create();
-    case (SelectedImageIndex) of
-      iiServer:
+    case (CurrentClassIndex) of
+      ciSession:
         begin
           for I := 0 to ActiveListView.Items.Count - 1 do
             if (ActiveListView.Items[I].Selected and (ActiveListView.Items[I].ImageIndex in [iiDatabase, iiSystemDatabase])) then
@@ -10182,7 +10297,7 @@ begin
           else if (MsgBox(Preferences.LoadStr(405), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES) then
             Session.EmptyDatabases(List);
         end;
-      iiDatabase:
+      ciDatabase:
         begin
           for I := 0 to ActiveListView.Items.Count - 1 do
             if (ActiveListView.Items[I].Selected and (ActiveListView.Items[I].ImageIndex in [iiBaseTable])) then
@@ -10192,13 +10307,13 @@ begin
           else if (MsgBox(Preferences.LoadStr(406), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES) then
             Session.DatabaseByName(SelectedDatabase).EmptyTables(List);
         end;
-      iiBaseTable:
+      ciBaseTable:
         if (MsgBox(Preferences.LoadStr(407), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES) then
         begin
           for I := 0 to ActiveListView.Items.Count - 1 do
             if (ActiveListView.Items[I].Selected and (ActiveListView.Items[I].ImageIndex in [iiBaseField, iiVirtualField])) then
               List.Add(ActiveListView.Items[I].Data);
-          TSBaseTable(FNavigator.Selected.Data).EmptyFields(List);
+          TSBaseTable(CurrentData).EmptyFields(List);
         end;
     end;
     List.Free();
@@ -10752,6 +10867,7 @@ var
         break;
       end;
 
+    // 3.8 s for 1545 items
     ProfilingPoint(8);
 
     if ((Count > 0) and (Index < 0)) then
@@ -11174,6 +11290,7 @@ begin
     ListView.Columns.EndUpdate();
     // 5 seconds
     // 1 seconds, EventType: 1, FieldCount: 36
+    // 19 seconds, EventType: 0, Count: 66
     ProfilingPoint(29);
     ListView.OnChanging := ChangingEvent;
 
@@ -11196,7 +11313,7 @@ begin
         if (Event.Item is TSTable) then
           S := S
             + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
-        S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000) + ' s' + #13#10;
+        S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s' + #13#10;
         S := S + ProfilingReport() + #13#10;
         TimeMonitor.Append(S, ttDebug);
       end;
@@ -11383,30 +11500,23 @@ begin
           aDDelete.Enabled := aDDelete.Enabled and (ListView.Items[I].ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiTrigger, iiEvent, iiKey, iiBaseField, iiVirtualField, iiForeignKey]);
         end;
     end
-    else if ((View = vObjects) and Assigned(FNavigator.Selected)) then
+    else if (View = vObjects) then
     begin
-      FNavigatorChanged(FNavigator, FNavigator.Selected);
+      FNavigatorChanged(FNavigator, FNavigatorNodeByAddress(CurrentAddress));
 
       MainAction('aECopy').Enabled := False;
       MainAction('aERename').Enabled := False;
       MainAction('aDEmpty').Enabled := False;
       aDDelete.Enabled := False;
 
-      case (FNavigator.Selected.ImageIndex) of
-        iiDatabase: mlEProperties.Action := MainAction('aDEditDatabase');
-        iiBaseTable: mlEProperties.Action := MainAction('aDEditTable');
-        iiView: mlEProperties.Action := MainAction('aDEditView');
-        iiProcedure,
-        iiFunction: mlEProperties.Action := MainAction('aDEditRoutine');
-        iiTrigger: mlEProperties.Action := MainAction('aDEditTrigger');
-        iiEvent: mlEProperties.Action := MainAction('aDEditEvent');
-        iiKey: mlEProperties.Action := MainAction('aDEditKey');
-        iiBaseField,
-        iiVirtualField: mlEProperties.Action := MainAction('aDEditField');
-        iiForeignKey: mlEProperties.Action := MainAction('aDEditForeignKey');
-        iiProcess: mlEProperties.Action := MainAction('aDEditProcess');
-        iiUser: mlEProperties.Action := MainAction('aDEditUser');
-        iiVariable: mlEProperties.Action := MainAction('aDEditVariable');
+      case (CurrentClassIndex) of
+        ciDatabase: mlEProperties.Action := MainAction('aDEditDatabase');
+        ciBaseTable: mlEProperties.Action := MainAction('aDEditTable');
+        ciView: mlEProperties.Action := MainAction('aDEditView');
+        ciProcedure,
+        ciFunction: mlEProperties.Action := MainAction('aDEditRoutine');
+        ciTrigger: mlEProperties.Action := MainAction('aDEditTrigger');
+        ciEvent: mlEProperties.Action := MainAction('aDEditEvent');
         else mlEProperties.Action := nil;
       end;
     end;
@@ -11755,7 +11865,7 @@ var
   List: TList;
 begin
   List := TList.Create();
-  List.Add(FNavigator.Selected.Data);
+  List.Add(CurrentData);
   FavoritesAdd(List);
   List.Free();
 end;
@@ -11793,38 +11903,22 @@ end;
 
 procedure TFSession.mlOpenClick(Sender: TObject);
 var
-  Child: TTreeNode;
-  ForeignKey: TSForeignKey;
-  NewNode: TTreeNode;
   URI: TUURI;
 begin
   Wanted.Clear();
 
+  URI := TUURI.Create(CurrentAddress);
   case (ActiveListView.Selected.ImageIndex) of
     iiForeignKey:
       begin
-        ForeignKey := TSForeignKey(ActiveListView.Selected.Data);
-        URI := TUURI.Create(Address);
-        URI.Database := ForeignKey.Parent.DatabaseName;
-        URI.Table := ForeignKey.Parent.TableName;
-        Address := URI.Address;
-        URI.Free();
+        URI.Database := TSForeignKey(ActiveListView.Selected.Data).Parent.DatabaseName;
+        URI.Table := TSForeignKey(ActiveListView.Selected.Data).Parent.TableName;
       end;
     else
-      begin
-        NewNode := nil;
-        FNavigator.Selected.Expand(False);
-        Child := FNavigator.Selected.getFirstChild();
-        while (Assigned(Child)) do
-        begin
-          if (lstrcmpi(PChar(Child.Text), PChar(ActiveListView.Selected.Caption)) = 0) then
-            NewNode := Child;
-          Child := FNavigator.Selected.getNextChild(Child);
-        end;
-        if (Assigned(NewNode)) then
-          FNavigator.Selected := NewNode;
-      end;
+      URI.Address := AddressByData(ActiveListView.Selected.Data);
   end;
+  CurrentAddress := URI.Address;
+  URI.Free();
 end;
 
 procedure TFSession.MNavigatorPopup(Sender: TObject);
@@ -11836,9 +11930,6 @@ begin
   KillTimer(Handle, tiStatusBar);
   KillTimer(Handle, tiNavigator);
 
-  AllowChange := True;
-  FNavigatorChanging(Sender, FNavigator.Selected, AllowChange);
-
   if (Sender = FNavigator.PopupMenu) then
   begin
     // On click to the whitespace, FNavigator.Selected is set to the last selected node. :-/
@@ -11846,14 +11937,17 @@ begin
     FNavigatorMenuNode := FNavigator.GetNodeAt(MNavigator.PopupPoint.X - P.x - (PSideBar.Left + PNavigator.Left + FNavigator.Left), MNavigator.PopupPoint.y - P.y - (PSideBar.Top + PNavigator.Top + FNavigator.Top));
   end
   else
-    FNavigatorMenuNode := FNavigator.Selected;
+    FNavigatorMenuNode := FNavigatorNodeByAddress(CurrentAddress);
+
+  AllowChange := True;
+  FNavigatorChanging(Sender, FNavigatorMenuNode, AllowChange);
 
   aPExpand.Enabled := Assigned(FNavigatorMenuNode) and not FNavigatorMenuNode.Expanded and FNavigatorMenuNode.HasChildren;
   aPCollapse.Enabled := Assigned(FNavigatorMenuNode) and FNavigatorMenuNode.Expanded and Assigned(FNavigatorMenuNode.Parent);
 
   FNavigatorChanged(Sender, FNavigatorMenuNode);
 
-  URI := TUURI.Create(Address);
+  URI := TUURI.Create(CurrentAddress);
 
   miNFavoriteAdd.Enabled := Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex = iiQuickAccess) and (URI.Database <> '');
   miNFavoriteOpen.Enabled := Assigned(FNavigatorMenuNode) and Assigned(FNavigatorMenuNode.Parent) and (FNavigatorMenuNode.Parent.ImageIndex = iiQuickAccess);
@@ -11883,7 +11977,7 @@ var
 begin
   // Debug 2017-01-05
   if (not Assigned(ActiveSynMemo)) then
-    raise ERangeError.Create('Address: ' + Address + #13#10
+    raise ERangeError.Create('Address: ' + CurrentAddress + #13#10
       + 'Assigned: ' + BoolToStr(Assigned(GetActiveSynMemo()), True));
 
   SynMemoStatusChange(Sender, []);
@@ -11900,7 +11994,7 @@ var
 begin
   if (Sender = FSQLHistory.PopupMenu) then
   begin
-    // Bei einem Click auf den WhiteSpace: FNavigator.Selected zeigt den zuletzt selektierten Node an :-(
+    // On click to the whitespace, FSQLHistory.Selected is set to the last selected node. :-/
     Point := GetClientOrigin();
     FSQLHistoryMenuNode := FSQLHistory.GetNodeAt(MSQLHistory.PopupPoint.x - Point.x - (PSideBar.Left + PSQLHistory.Left + FSQLHistory.Left), MSQLHistory.PopupPoint.y - Point.y - (PSideBar.Top + PSQLHistory.Top + FSQLHistory.Top));
   end
@@ -12078,172 +12172,6 @@ begin
   ShowEnabledItems(MWorkbench.Items);
 end;
 
-function TFSession.NavigatorNodeToAddress(const Node: TTreeNode): string;
-var
-  URI: TUURI;
-begin
-  URI := TUURI.Create('');
-
-  URI.Scheme := 'mysql';
-  URI.Host := Session.Connection.Host;
-  if (Session.Connection.Port <> MYSQL_PORT) then
-    URI.Port := Session.Connection.Port;
-
-  if (Assigned(Node)) then
-  begin
-    if (not (Node.ImageIndex in [iiProcesses, iiUsers, iiVariables])) then
-      URI.Param['view'] := ViewToParam(View);
-
-    case (Node.ImageIndex) of
-      iiServer:
-        begin
-          if ((URI.Param['view'] <> Null) and not (ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3])) then URI.Param['view'] := Null;
-        end;
-      iiDatabase,
-      iiSystemDatabase:
-        begin
-          if ((URI.Param['view'] <> Null) and not (ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and (URI.Param['view'] <> 'builder') and (URI.Param['view'] <> 'diagram')) then URI.Param['view'] := Null;
-          URI.Database := TSDatabase(Node.Data).Name;
-        end;
-      iiBaseTable,
-      iiSystemView:
-        begin
-          if ((URI.Param['view'] <> Null) and (URI.Param['view'] <> 'browser')) then URI.Param['view'] := Null;
-          URI.Database := TSTable(Node.Data).Database.Name;
-          URI.Table := TSTable(Node.Data).Name;
-        end;
-      iiView:
-        begin
-          if ((URI.Param['view'] <> Null) and (URI.Param['view'] <> 'browser') and (URI.Param['view'] <> 'ide')) then URI.Param['view'] := ViewToParam(LastTableView);
-          URI.Database := TSTable(Node.Data).Database.Name;
-          URI.Table := TSTable(Node.Data).Name;
-        end;
-      iiProcedure:
-        begin
-          URI.Param['view'] := 'ide';
-          URI.Database := TSTable(Node.Data).Database.Name;
-          URI.Param['objecttype'] := 'procedure';
-          URI.Param['object'] := Node.Text;
-        end;
-      iiFunction:
-        begin
-          URI.Param['view'] := 'ide';
-          URI.Database := TSTable(Node.Data).Database.Name;
-          URI.Param['objecttype'] := 'function';
-          URI.Param['object'] := Node.Text;
-        end;
-      iiEvent:
-        begin
-          URI.Param['view'] := 'ide';
-          URI.Database := TSTable(Node.Data).Database.Name;
-          URI.Param['objecttype'] := 'event';
-          URI.Param['object'] := Node.Text;
-        end;
-      iiBaseField,
-      iiViewField:
-        begin
-          URI.Param['view'] := Null;
-          URI.Database := TSTableField(Node.Data).Table.Database.Name;
-          URI.Table := TSTableField(Node.Data).Table.Name;
-        end;
-      iiTrigger:
-        begin
-          URI.Param['view'] := 'ide';
-          URI.Database := TSTrigger(Node.Data).Database.Name;
-          URI.Table := TSTrigger(Node.Data).Table.Name;
-          URI.Param['objecttype'] := 'trigger';
-          URI.Param['object'] := Node.Text;
-        end;
-      iiProcesses:
-        URI.Param['system'] := 'processes';
-      iiUsers:
-        URI.Param['system'] := 'users';
-      iiVariables:
-        URI.Param['system'] := 'variables';
-    end;
-
-    if (URI.Param['view'] <> 'browser') then
-    begin
-      URI.Param['offset'] := Null;
-      URI.Param['filter'] := Null;
-      URI.Param['search'] := Null;
-    end;
-    if (URI.Param['view'] <> 'ide') then
-    begin
-      URI.Param['objecttype'] := Null;
-      URI.Param['object'] := Null;
-    end;
-    if (not (ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3])) then
-    begin
-      URI.Param['file'] := Null;
-      URI.Param['cp'] := Null;
-    end;
-    if (URI.Param['view'] <> 'objectsearch') then
-    begin
-      URI.Param['text'] := Null;
-      URI.Param['databases'] := Null;
-      URI.Param['tables'] := Null;
-      URI.Param['routines'] := Null;
-      URI.Param['events'] := Null;
-      URI.Param['fields'] := Null;
-      URI.Param['triggers'] := Null;
-      URI.Param['name'] := Null;
-      URI.Param['comment'] := Null;
-    end;
-
-    if (Node = FNavigator.Selected) then
-    begin
-      if (URI.Param['view'] = 'browser') then
-      begin
-        // Debug 2016-11-23
-        if (not (FNavigator.Selected.ImageIndex in [iiBaseTable, iiView, iiSystemView])) then
-          raise ERangeError.Create(SRangeError);
-        if (not Assigned(FNavigator.Selected.Data)) then
-          raise ERangeError.Create(SRangeError);
-        // Debug 2016-11-27
-        if (not (TObject(FNavigator.Selected.Data) is TSTable)) then
-          raise ERangeError.Create(SRangeError);
-
-        if (TSTable(FNavigator.Selected.Data).ValidData) then
-        begin
-           if (Desktop(TSTable(FNavigator.Selected.Data)).Table.DataSet.Offset > 0) then
-            URI.Param['offset'] := IntToStr(Desktop(TSTable(FNavigator.Selected.Data)).Table.DataSet.Offset);
-          if (Desktop(TSTable(FNavigator.Selected.Data)).Table.DataSet.FilterSQL <> '') then
-            URI.Param['filter'] := Desktop(TSTable(FNavigator.Selected.Data)).Table.DataSet.FilterSQL;
-          if (Desktop(TSTable(FNavigator.Selected.Data)).Table.DataSet.QuickSearch <> '') then
-            URI.Param['search'] := Desktop(TSTable(FNavigator.Selected.Data)).Table.DataSet.QuickSearch;
-        end;
-      end
-      else if (ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) then
-      begin
-        if (SQLEditors[ParamToView(URI.Param['view'])].Filename = '') then
-        begin
-          URI.Param['file'] := Null;
-          URI.Param['cp'] := Null;
-        end
-        else
-        begin
-          URI.Param['file'] := EscapeURL(SQLEditors[ParamToView(URI.Param['view'])].Filename);
-          if (SQLEditors[ParamToView(URI.Param['view'])].FileCodePage = 0) then
-            URI.Param['cp'] := Null
-          else
-            URI.Param['cp'] := IntToStr(SQLEditors[ParamToView(URI.Param['view'])].FileCodePage);
-        end;
-      end;
-    end;
-  end;
-
-  // Debug 2017-01-02
-  if ((URI.Param['view'] = 'ide') and (URI.Database = '')) then
-    raise ERangeError.Create('Address: ' + URI.Address + #13#10
-      + 'ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
-      + 'Text: ' + FNavigator.Selected.Text);
-
-  Result := URI.Address;
-
-  URI.Free();
-end;
-
 function TFSession.ObjectSearchFinish(): Boolean;
 begin
   if (Assigned(ObjectSearch) and (ObjectSearch.Count = 0)) then
@@ -12365,13 +12293,13 @@ begin
           ActiveSynMemo.Text := Text;
           SQLEditors[View].Filename := Import.Filename;
           SQLEditors[View].FileCodePage := Import.CodePage;
-          URI := TUURI.Create(Address);
+          URI := TUURI.Create(CurrentAddress);
           URI.Param['file'] := EscapeURL(SQLEditors[View].Filename);
           if (SQLEditors[View].FileCodePage = 0) then
             URI.Param['cp'] := Null
           else
             URI.Param['cp'] := IntToStr(SQLEditors[View].FileCodePage);
-          FAddress := URI.Address;
+          FCurrentAddress := URI.Address;
           AddressChanged(nil);
           URI.Free();
           Session.Account.Desktop.Files.Add(SQLEditors[View].Filename, SQLEditors[View].FileCodePage);
@@ -12462,8 +12390,8 @@ begin
         SResult.Visible := False;
         PResult.Visible := False;
         case (View) of
-          vIDE: if (FNavigator.Selected.ImageIndex in [iiProcedure, iiFunction]) then Desktop(TSRoutine(FNavigator.Selected.Data)).CloseIDEResult();
-          vBuilder: Desktop(TSDatabase(FNavigator.Selected.Data)).CloseBuilderResult();
+          vIDE: if (CurrentClassIndex in [ciProcedure, ciFunction]) then Desktop(TSRoutine(CurrentData)).CloseIDEResult();
+          vBuilder: Desktop(TSDatabase(CurrentData)).CloseBuilderResult();
           vEditor,
           vEditor2,
           vEditor3: SQLEditors[View].CloseResult();
@@ -12971,11 +12899,11 @@ begin
     if (View in [vBrowser, vIDE, vBuilder, vEditor, vEditor2, vEditor3]) then ActiveDBGrid := GetActiveDBGrid() else ActiveDBGrid := nil;
     if (View in [vDiagram]) then ActiveWorkbench := GetActiveWorkbench() else ActiveWorkbench := nil;
 
-    if ((View = vBrowser) and Assigned(FNavigator.Selected) and (TObject(FNavigator.Selected.Data) is TSTable)) then
+    if ((View = vBrowser) and (TObject(CurrentData) is TSTable)) then
     begin
       FUDOffset.Position := 0;
-      FUDLimit.Position := Desktop(TSTable(FNavigator.Selected.Data)).Limit;
-      FLimitEnabled.Down := Desktop(TSTable(FNavigator.Selected.Data)).Limited;
+      FUDLimit.Position := Desktop(TSTable(CurrentData)).Limit;
+      FLimitEnabled.Down := Desktop(TSTable(CurrentData)).Limited;
 
       PDataBrowser.Top := 0;
       PDataBrowser.Align := alTop;
@@ -12986,7 +12914,7 @@ begin
 
     if (Assigned(ActiveIDEInputDataSet)) then
     begin
-      PObjectIDETrigger.Visible := (SelectedImageIndex = iiTrigger);
+      PObjectIDETrigger.Visible := (CurrentClassIndex = ciTrigger);
       PObjectIDEResize(Sender);
 
       PObjectIDE.Top := 0;
@@ -12996,21 +12924,21 @@ begin
     else
       PObjectIDE.Visible := False;
 
-    if (not Assigned(FNavigator.Selected)) then
+    if (not Assigned(CurrentData)) then
       PResultVisible := True
     else
       case (View) of
         vBrowser:
           PResultVisible := True;
         vIDE:
-          case (FNavigator.Selected.ImageIndex) of
-            iiProcedure,
-            iiFunction:
-              PResultVisible := Assigned(Desktop(TSRoutine(FNavigator.Selected.Data)).ActiveDBGrid);
+          case (CurrentClassIndex) of
+            ciProcedure,
+            ciFunction:
+              PResultVisible := Assigned(Desktop(TSRoutine(CurrentData)).ActiveDBGrid);
             else PResultVisible := False;
           end;
         vBuilder:
-          PResultVisible := Assigned(Desktop(TSDatabase(FNavigator.Selected.Data)).BuilderDBGrid);
+          PResultVisible := Assigned(Desktop(TSDatabase(CurrentData)).BuilderDBGrid);
         vEditor,
         vEditor2,
         vEditor3:
@@ -13105,7 +13033,7 @@ begin
     else
       PWorkbench.Visible := False;
 
-    if ((View = vBuilder) and (SelectedImageIndex in [iiServer, iiDatabase, iiSystemDatabase])) then
+    if ((View = vBuilder) and (CurrentClassIndex in [ciSession, ciDatabase, ciSystemDatabase])) then
     begin
       PQueryBuilder.Align := alClient;
       PQueryBuilder.Visible := True;
@@ -13113,18 +13041,19 @@ begin
     else
       PQueryBuilder.Visible := False;
 
-    if ((View in [vEditor, vEditor2, vEditor3]) and (SelectedImageIndex in [iiServer, iiDatabase, iiSystemDatabase])
-      or (View = vIDE) and (SelectedImageIndex in [iiView, iiFunction, iiProcedure, iiEvent, iiTrigger])) then
+    if (Assigned(ActiveSynMemo)
+      and ((View in [vEditor, vEditor2, vEditor3]) and (CurrentClassIndex in [ciSession, ciDatabase, ciSystemDatabase])
+        or (View = vIDE) and (CurrentClassIndex in [ciView, ciFunction, ciProcedure, ciEvent, ciTrigger]))) then
     begin
-      if (Assigned(ActiveSynMemo)) then ActiveSynMemo.BringToFront();
+      ActiveSynMemo.Visible := True;
       PSynMemo.Align := alClient;
       PSynMemo.Visible := True;
     end
     else
       PSynMemo.Visible := False;
 
-    if ((View = vObjects) and not (SelectedImageIndex in [iiKey, iiBaseField, iiVirtualField, iiForeignKey])
-      or ((View = vBrowser) and (SelectedImageIndex = iiServer))
+    if ((View = vObjects)
+      or ((View = vBrowser) and (CurrentClassIndex = ciSession))
       or (View = vObjectSearch)) then
     begin
       PListView.Align := alClient;
@@ -13196,7 +13125,7 @@ begin
   {$IFDEF Debug}
   FObjectSearch.Visible := (ttObjectSearch in Preferences.ToolbarTabs)
     and (Session.Connection.MySQLVersion >= 50002)
-    and (not Assigned(FNavigator.Selected) or (FNavigator.Selected.ImageIndex <> iiUsers) or (Session.Connection.MySQLVersion >= 50107))
+    and ((CurrentClassIndex <> ciUsers) or (Session.Connection.MySQLVersion >= 50107))
     and (FObjectSearch.Left > Toolbar.Left + Toolbar.Width + GetSystemMetrics(SM_CXFIXEDFRAME));
   TBObjectSearch.Visible := FObjectSearch.Visible;
   if (not FObjectSearch.Visible and Assigned(PObjectSearch)) then
@@ -13332,10 +13261,10 @@ var
 begin
   Database := Session.DatabaseByName(SelectedDatabase);
 
-  case (SelectedImageIndex) of
-    iiView:
+  case (CurrentClassIndex) of
+    ciView:
       begin
-        View := TSView(FNavigator.Selected.Data);
+        View := TSView(CurrentData);
 
         NewView := TSView.Create(Database.Tables);
         NewView.Assign(View);
@@ -13346,12 +13275,12 @@ begin
 
         NewView.Free();
       end;
-    iiProcedure,
-    iiFunction:
+    ciProcedure,
+    ciFunction:
       begin
-        Routine := TSRoutine(FNavigator.Selected.Data);
+        Routine := TSRoutine(CurrentData);
 
-        if (SelectedImageIndex = iiProcedure) then
+        if (CurrentClassIndex = ciProcedure) then
           NewRoutine := TSProcedure.Create(Routine.Database.Routines)
         else
           NewRoutine := TSFunction.Create(Routine.Database.Routines);
@@ -13362,9 +13291,9 @@ begin
 
         NewRoutine.Free();
       end;
-    iiEvent:
+    ciEvent:
       begin
-        Event := TSEvent(FNavigator.Selected.Data);
+        Event := TSEvent(CurrentData);
 
         NewEvent := TSEvent.Create(Database.Events);
         NewEvent.Assign(Event);
@@ -13375,9 +13304,9 @@ begin
 
         NewEvent.Free();
       end;
-    iiTrigger:
+    ciTrigger:
       begin
-        Trigger := TSTrigger(FNavigator.Selected.Data);
+        Trigger := TSTrigger(CurrentData);
 
         NewTrigger := TSTrigger.Create(Database.Triggers);
         NewTrigger.Assign(Trigger);
@@ -13609,13 +13538,13 @@ begin
       begin
         if ((Sender = MainAction('aFSave')) or (Sender = MainAction('aFSaveAs'))) then
           ActiveSynMemo.Modified := False;
-        URI := TUURI.Create(Address);
+        URI := TUURI.Create(CurrentAddress);
         URI.Param['file'] := EscapeURL(SQLEditors[View].Filename);
         if (SQLEditors[View].FileCodePage = 0) then
           URI.Param['cp'] := Null
         else
           URI.Param['cp'] := IntToStr(SQLEditors[View].FileCodePage);
-        FAddress := URI.Address;
+        FCurrentAddress := URI.Address;
         AddressChanged(nil);
         URI.Free();
         Session.Account.Desktop.Files.Add(SQLEditors[View].Filename, SQLEditors[View].FileCodePage);
@@ -13636,25 +13565,25 @@ procedure TFSession.SendQuery(Sender: TObject; const SQL: string);
 begin
   case (View) of
     vIDE:
-      case (FNavigator.Selected.ImageIndex) of
-        iiProcedure,
-        iiFunction:
+      case (CurrentClassIndex) of
+        ciProcedure,
+        ciFunction:
           begin
-            Desktop(TSRoutine(FNavigator.Selected.Data)).CloseIDEResult();
+            Desktop(TSRoutine(CurrentData)).CloseIDEResult();
             PContentChange(Sender);
-            Session.Connection.SendSQL(SQL, Desktop(TSRoutine(FNavigator.Selected.Data)).IDEResultEvent);
+            Session.Connection.SendSQL(SQL, Desktop(TSRoutine(CurrentData)).IDEResultEvent);
           end;
-        iiEvent:
+        ciEvent:
           Session.Connection.SendSQL(SQL);
       end;
     vBuilder:
-      case (FNavigator.Selected.ImageIndex) of
-        iiDatabase,
-        iiSystemDatabase:
+      case (CurrentClassIndex) of
+        ciDatabase,
+        ciSystemDatabase:
           begin
-            Desktop(TSDatabase(FNavigator.Selected.Data)).CloseBuilderResult();
+            Desktop(TSDatabase(CurrentData)).CloseBuilderResult();
             PContentChange(Sender);
-            Session.Connection.SendSQL(SQL, Desktop(TSDatabase(FNavigator.Selected.Data)).BuilderResultEvent);
+            Session.Connection.SendSQL(SQL, Desktop(TSDatabase(CurrentData)).BuilderResultEvent);
           end;
       end;
     vEditor,
@@ -13762,8 +13691,7 @@ begin
 
       if (Event.EventType = etItemValid) then
       begin
-        if ((View = vBrowser)
-          and Assigned(FNavigator.Selected) and (Event.Item = FNavigator.Selected.Data)) then
+        if ((View = vBrowser) and (Event.Item = CurrentData)) then
           Wanted.Update := UpdateAfterAddressChanged;
         if ((View = vIDE) and ((Event.Item is TSView) or (Event.Item is TSFunction))) then
           PContentChange(nil);
@@ -13817,10 +13745,6 @@ begin
   end;
   if (AllowChange) then
   begin
-    // Debug 2017-01-18
-    if (NewAddress = '') then
-      raise ERangeError.Create('AAddress: ' + AAddress);
-
     ChangingEvent := FNavigator.OnChanging; FNavigator.OnChanging := nil;
     ChangeEvent := FNavigator.OnChange; FNavigator.OnChange := nil;
     FNavigator.Selected := Node;
@@ -13829,32 +13753,9 @@ begin
 
     URI := TUURI.Create(NewAddress);
 
-    if ((URI.Param['view'] = Null) and ((URI.Param['objecttype'] = 'procedure') or (URI.Param['objecttype'] = 'function') or (URI.Param['objecttype'] = 'trigger') or (URI.Param['objecttype'] = 'event'))) then
-      URI.Param['view'] := 'ide';
+    FCurrentAddress := URI.Address;
 
-    NewAddress := URI.Address;
-
-    FAddress := NewAddress;
-
-    if ((URI.Param['view'] = 'browser') and (Node.ImageIndex in [iiBaseTable, iiView, iiSystemView])) then
-      NewView := vBrowser
-    else if ((URI.Param['view'] = 'ide') and (Node.ImageIndex in [iiView, iiProcedure, iiFunction, iiTrigger, iiEvent])) then
-      NewView := vIDE
-    else if ((URI.Param['view'] = 'builder') and (Node.ImageIndex in [iiDatabase, iiSystemDatabase])) then
-      NewView := vBuilder
-    else if ((URI.Param['view'] = 'diagram') and (Node.ImageIndex in [iiDatabase, iiSystemDatabase])) then
-      NewView := vDiagram
-    else if (URI.Param['view'] = 'editor') then
-      NewView := vEditor
-    else if (URI.Param['view'] = 'editor2') then
-      NewView := vEditor2
-    else if (URI.Param['view'] = 'editor3') then
-      NewView := vEditor3
-    else if (URI.Param['view'] = 'objectsearch') then
-      NewView := vObjectSearch
-    else
-      NewView := vObjects;
-
+    NewView := ParamToView(URI.Param['view']);
     MainAction('aVObjects').Checked := NewView = vObjects;
     MainAction('aVBrowser').Checked := NewView = vBrowser;
     MainAction('aVIDE').Checked := NewView = vIDE;
@@ -13934,13 +13835,14 @@ var
   end;
   URI: TUURI;
 begin
-  if (FNavigator.Selected.ImageIndex = iiServer) then
+  if (CurrentAddress <> '') then
+    URI := TUURI.Create(CurrentAddress)
+  else if (CurrentClassIndex = ciSession) then
     URI := TUURI.Create(Session.Account.ExpandAddress('/'))
-  else if (TObject(FNavigator.Selected.Data) is TSItem) then
-    URI := TUURI.Create(SItemToAddress(TSItem(FNavigator.Selected.Data)))
+  else if (TObject(CurrentData) is TSItem) then
+    URI := TUURI.Create(AddressByData(CurrentData))
   else
-    raise ERangeError.Create('ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
-      + 'Text: ' + FNavigator.Selected.Text);
+    raise ERangeError.Create(SRangeError);
 
   case (AView) of
     vObjects:
@@ -13951,11 +13853,6 @@ begin
       begin
         if ((URI.Table = '') and (LastSelectedTable <> '')) then
           URI.Address := LastSelectedTable;
-
-        if (URI.Table = '') then
-          raise ERangeError.Create('Address: ' + Address + #13#10
-            + 'AView: ' + IntToStr(Ord(AView)) + #13#10
-            + 'LastSelectedTable: ' + LastSelectedTable);
 
         URI.Param['view'] := 'browser';
       end;
@@ -14047,7 +13944,7 @@ begin
   LockWindowUpdate(FNavigator.Handle);
   ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);
   ScrollPos.Vert := GetScrollPos(FNavigator.Handle, SB_VERT);
-  Address := URI.Address;
+  CurrentAddress := URI.Address;
   SetScrollPos(FNavigator.Handle, SB_HORZ, ScrollPos.Horz, TRUE);
   SetScrollPos(FNavigator.Handle, SB_VERT, ScrollPos.Vert, TRUE);
   LockWindowUpdate(0);
@@ -14077,51 +13974,6 @@ begin
     if (Assigned(FFolders) and (APath <> FFolders.SelectedFolder)) then
       FFolders.SelectedFolder := APath;
   end;
-end;
-
-function TFSession.SItemToAddress(const Item: TSItem): string;
-var
-  URI: TUURI;
-begin
-  URI := TUURI.Create(Session.Account.ExpandAddress('/'));
-
-  if (Item is TSDatabase) then
-    URI.Database := Item.Name
-  else if (Item is TSTable) then
-  begin
-    URI.Database := TSTable(Item).Database.Name;
-    URI.Table := TSTable(Item).Name;
-  end
-  else if (Item is TSProcedure) then
-  begin
-    URI.Database := TSProcedure(Item).Database.Name;
-    URI.Param['objecttype'] := 'procedure';
-    URI.Param['object'] := TSProcedure(Item).Name;
-  end
-  else if (Item is TSFunction) then
-  begin
-    URI.Database := TSFunction(Item).Database.Name;
-    URI.Param['objecttype'] := 'function';
-    URI.Param['object'] := TSFunction(Item).Name;
-  end
-  else if (Item is TSEvent) then
-  begin
-    URI.Database := TSEvent(Item).Database.Name;
-    URI.Param['objecttype'] := 'event';
-    URI.Param['object'] := TSEvent(Item).Name;
-  end
-  else if (Item is TSTrigger) then
-  begin
-    URI.Database := TSTrigger(Item).Database.Name;
-    URI.Param['objecttype'] := 'trigger';
-    URI.Param['object'] := TSTrigger(Item).Name;
-  end
-  else
-    raise ERangeError.Create('ClassType: ' + Item.ClassName);
-
-  Result := URI.Address;
-
-  URI.Free();
 end;
 
 procedure TFSession.SLogCanResize(Sender: TObject; var NewSize: Integer;
@@ -14294,8 +14146,8 @@ begin
     begin
       if (SelCount > 0) then
         StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(888, IntToStr(SelCount))
-      else if ((View = vBrowser) and (SelectedImageIndex in [iiBaseTable]) and not Session.Connection.InUse() and TSBaseTable(FNavigator.Selected.Data).ValidData and TSBaseTable(FNavigator.Selected.Data).DataSet.LimitedDataReceived and (TSBaseTable(FNavigator.Selected.Data).RecordCount >= 0)) then
-        StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(889, FormatFloat('#,##0', Count, LocaleFormatSettings), FormatFloat('#,##0', TSBaseTable(FNavigator.Selected.Data).RecordCount, LocaleFormatSettings))
+      else if ((View = vBrowser) and (CurrentClassIndex in [ciBaseTable]) and not Session.Connection.InUse() and TSBaseTable(CurrentData).ValidData and TSBaseTable(CurrentData).DataSet.LimitedDataReceived and (TSBaseTable(CurrentData).RecordCount >= 0)) then
+        StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(889, FormatFloat('#,##0', Count, LocaleFormatSettings), FormatFloat('#,##0', TSBaseTable(CurrentData).RecordCount, LocaleFormatSettings))
       else if (Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet)) then
         StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(887, FormatFloat('#,##0', ActiveDBGrid.DataSource.DataSet.RecordCount, LocaleFormatSettings));
     end
@@ -14811,12 +14663,12 @@ begin
       MainAction('aDRun').Enabled :=
         ((View in [vEditor, vEditor2, vEditor3])
         or ((View = vBuilder) and FQueryBuilder.Visible)
-        or ((View = vIDE) and SQLSingleStmt(SQL) and (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent]))) and not Empty;
+        or ((View = vIDE) and SQLSingleStmt(SQL) and (CurrentClassIndex in [ciView, ciProcedure, ciFunction, ciEvent]))) and not Empty;
       MainAction('aDRunSelection').Enabled := (((View in [vEditor, vEditor2, vEditor3]) and not Empty) or Assigned(ActiveSynMemo) and (Trim(ActiveSynMemo.SelText) <> ''));
       MainAction('aDPostObject').Enabled := (View = vIDE) and ActiveSynMemo.Modified and SQLSingleStmt(SQL)
-        and ((SelectedImageIndex in [iiView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
-          or (SelectedImageIndex in [iiProcedure, iiFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
-          or (SelectedImageIndex in [iiEvent, iiTrigger]));
+        and ((CurrentClassIndex in [ciView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
+          or (CurrentClassIndex in [ciProcedure, ciFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
+          or (CurrentClassIndex in [ciEvent, ciTrigger]));
       MainAction('aEFormatSQL').Enabled := not Empty;
     end;
 
@@ -14833,7 +14685,7 @@ var
   SortDef: TIndexDef;
   Table: TSTable;
 begin
-  Table := TSTable(FNavigator.Selected.Data);
+  Table := TSTable(CurrentData);
 
   if (not FLimitEnabled.Down) then
   begin
@@ -15382,7 +15234,7 @@ begin
             for J := 0 to FNavigator.Items.Count - 1 do
               if (FNavigator.Items[J].Data = SObject) then
               begin
-                Address := NavigatorNodeToAddress(FNavigator.Items[J]);
+                CurrentAddress := AddressByData(FNavigator.Items[J].Data);
                 if (SynMemo = SQLEditors[vEditor].SynMemo) then Self.View := vEditor
                 else if (Assigned(SQLEditor2) and (SynMemo = SQLEditor2.SynMemo)) then Self.View := vEditor2
                 else if (Assigned(SQLEditor3) and (SynMemo = SQLEditor3.SynMemo)) then Self.View := vEditor3;
@@ -15541,8 +15393,8 @@ begin
 
 
     MainAction('aVObjects').Enabled := True;
-    MainAction('aVBrowser').Enabled := (SelectedImageIndex in [iiBaseTable, iiView, iiSystemView, iiTrigger]) or (LastSelectedTable <> '');
-    MainAction('aVIDE').Enabled := (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]) or (LastSelectedObjectIDE <> '');
+    MainAction('aVBrowser').Enabled := (CurrentClassIndex in [ciBaseTable, ciView, ciSystemView, ciTrigger]) or (LastSelectedTable <> '');
+    MainAction('aVIDE').Enabled := (CurrentClassIndex in [ciView, ciProcedure, ciFunction, ciEvent, ciTrigger]) or (LastSelectedObjectIDE <> '');
     MainAction('aVBuilder').Enabled := LastSelectedDatabase <> '';
     MainAction('aVSQLEditor').Enabled := True;
     MainAction('aVSQLEditor2').Enabled := True;
@@ -15707,7 +15559,7 @@ begin
     URI.Param['offset'] := Null;
     URI.Param['file'] := EscapeURL(Param);
     URI.Param['cp'] := Null;
-    Address := URI.Address;
+    CurrentAddress := URI.Address;
     URI.Free();
   end
   else
@@ -15750,8 +15602,8 @@ begin
 
   case (View) of
     vObjects:
-      case (SelectedImageIndex) of
-        iiServer:
+      case (CurrentClassIndex) of
+        ciSession:
           if (Session.Connection.MySQLVersion < 50002) then
           begin
             List := TList.Create();
@@ -15762,45 +15614,38 @@ begin
           end
           else
             Session.Update(nil, True);
-        iiDatabase,
-        iiSystemDatabase:
+        ciDatabase,
+        ciSystemDatabase:
           begin
-            Database := TSDatabase(FNavigator.Selected.Data);
+            Database := TSDatabase(CurrentData);
             if (not Database.Tables.Update(True)) then
               Wanted.Update := UpdateAfterAddressChanged
             else if (Session.Connection.MySQLVersion < 50002) then
               Database.Update(True);
           end;
-        iiBaseTable,
-        iiView,
-        iiSystemView:
-          begin
-            // Debug 2017-01-17
-            if (not Assigned(FNavigator.Selected.Data)) then
-              raise ERangeError.Create('ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
-                + 'Text: ' + FNavigator.Selected.Text + #13#10
-                + 'Present: ' + BoolToStr(Assigned(TSDatabase(FNavigator.Selected.Parent.Data).TableByName(FNavigator.Selected.Text)), True));
-            TSTable(FNavigator.Selected.Data).Update();
-          end;
-        iiProcesses:
+        ciBaseTable,
+        ciView,
+        ciSystemView:
+          TSTable(CurrentData).Update();
+        ciProcesses:
           Session.Processes.Update();
-        iiUsers:
+        ciUsers:
           Session.Users.Update();
-        iiVariables:
+        ciVariables:
           Session.Variables.Update();
       end;
     vBrowser:
-      if ((TObject(FNavigator.Selected.Data) is TSView and not TSView(FNavigator.Selected.Data).Update())
-        or (TObject(FNavigator.Selected.Data) is TSBaseTable and not TSBaseTable(FNavigator.Selected.Data).Update(True))) then
+      if ((TObject(CurrentData) is TSView and not TSView(CurrentData).Update())
+        or (TObject(CurrentData) is TSBaseTable and not TSBaseTable(CurrentData).Update(True))) then
         Wanted.Update := UpdateAfterAddressChanged
-      else if (not TSTable(FNavigator.Selected.Data).DataSet.Active) then
+      else if (not TSTable(CurrentData).DataSet.Active) then
         TableOpen(nil);
     vIDE:
-      TSDBObject(FNavigator.Selected.Data).Update();
+      TSDBObject(CurrentData).Update();
     vDiagram:
-      if (not Assigned(ActiveWorkbench) and Assigned(FNavigator.Selected)) then
+      if (not Assigned(ActiveWorkbench) and Assigned(CurrentData)) then
       begin
-        Desktop(TSDatabase(FNavigator.Selected.Data)).CreateWorkbench();
+        Desktop(TSDatabase(CurrentData)).CreateWorkbench();
         ActiveWorkbench := GetActiveWorkbench();
         if (FileExists(Session.Account.DataPath + ActiveWorkbench.Database.Name + PathDelim + 'Diagram.xml')) then
           ActiveWorkbench.LoadFromFile(Session.Account.DataPath + ActiveWorkbench.Database.Name + PathDelim + 'Diagram.xml');
@@ -15809,7 +15654,7 @@ begin
       begin
         if (not Assigned(ObjectSearch)) then
         begin
-          URI := TUURI.Create(Address);
+          URI := TUURI.Create(CurrentAddress);
           ObjectSearch := TSItemSearch.Create(Session);
           if (URI.Param['system'] = 'processes') then
             ObjectSearch.Location := Session.Processes
@@ -15855,25 +15700,6 @@ begin
   tbEditor.Down := MainAction('aVSQLEditor').Checked;
   tbEditor2.Down := MainAction('aVSQLEditor2').Checked;
   tbEditor3.Down := MainAction('aVSQLEditor3').Checked;
-
-  if (tbObjects.Down) then
-    FView := vObjects
-  else if (tbBrowser.Down) then
-    FView := vBrowser
-  else if (tbIDE.Down) then
-    FView := vIDE
-  else if (tbBuilder.Down) then
-    FView := vBuilder
-  else if (tbDiagram.Down) then
-    FView := vDiagram
-  else if (tbEditor.Down) then
-    FView := vEditor
-  else if (tbEditor2.Down) then
-    FView := vEditor2
-  else if (tbEditor3.Down) then
-    FView := vEditor3
-  else
-    FView := vObjects;
 
   if ((View <> vObjectSearch) and Assigned(ObjectSearch)) then
   begin
@@ -16105,7 +15931,7 @@ end;
 procedure TFSession.WorkbenchDragDrop(Sender, Source: TObject; X, Y: Integer);
 begin
   if (Assigned(MouseDownNode) and (MouseDownNode.TreeView = Source) and (Source = FNavigator)
-    and (FNavigator.Selected = MouseDownNode.Parent) and (MouseDownNode.ImageIndex = iiBaseTable)) then
+    and (FNavigatorNodeByAddress(CurrentAddress) = MouseDownNode.Parent) and (MouseDownNode.ImageIndex = iiBaseTable)) then
   begin
     ActiveWorkbench.AddExistingTable(X, Y, TSBaseTable(MouseDownNode.Data));
     Window.ActiveControl := ActiveWorkbench;
@@ -16120,7 +15946,7 @@ begin
   Accept := False;
 
   if (Assigned(MouseDownNode) and (MouseDownNode.TreeView = Source) and (Source = FNavigator)
-    and (FNavigator.Selected = MouseDownNode.Parent) and (MouseDownNode.ImageIndex = iiBaseTable)) then
+    and (FNavigatorNodeByAddress(CurrentAddress) = MouseDownNode.Parent) and (MouseDownNode.ImageIndex = iiBaseTable)) then
   begin
     BaseTable := TSBaseTable(MouseDownNode.Data);
     Accept := Assigned(BaseTable) and not Assigned(ActiveWorkbench.TableByBaseTable(BaseTable));

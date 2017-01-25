@@ -206,8 +206,6 @@ type
       constructor Create(const AConnection: TMySQLConnection);
       destructor Destroy(); override;
       property Connection: TMySQLConnection read FConnection;
-
-      property DebugSQL: string read SQL; // Debug 2017-01-24
     end;
 
     TTerminatedThreads = class(TList)
@@ -395,7 +393,6 @@ type
     property SuccessfullExecutedSQLLength: Integer read FSuccessfullExecutedSQLLength;
     property ThreadId: my_uint read FThreadId;
     property WarningCount: Integer read FWarningCount;
-    property DebugSyncThread: TSyncThread read FSyncThread; // Debug 2017-01-24
   published
     property Asynchron: Boolean read FAsynchron write FAsynchron default False;
     property AfterExecuteSQL: TNotifyEvent read FAfterExecuteSQL write FAfterExecuteSQL;
@@ -2028,7 +2025,8 @@ begin
         Connection.TerminateCS.Enter();
         RunExecute.ResetEvent();
         if (not Terminated) then
-          if ((Connection.SynchronCount > 0) and not (State in [ssExecutingFirst, ssExecutingNext, ssReceivingResult])) then
+          if ((Connection.SynchronCount > 0)
+            and ((Mode = smSQL) or (State <> ssReceivingResult))) then
             Connection.SyncThreadExecuted.SetEvent()
           else
             MySQLConnectionOnSynchronize(Self);
@@ -2356,6 +2354,7 @@ begin
     SyncThread.RequestThreadID := GetCurrentThreadId();
     SyncThread.State := ssDisconnect;
     Sync(SyncThread);
+    SyncThreadExecuted.WaitFor(INFINITE);
     if (SyncThread.State = ssDisconnecting) then
       Sync(SyncThread);
     EndSynchron();
@@ -2649,10 +2648,9 @@ begin
       if (GetCurrentThreadId() = MainThreadId) then
         Sync(SyncThread)
       else
-      begin
         MySQLConnectionOnSynchronize(SyncThread);
+      if ((Mode = smSQL) or (SyncThread.State <> ssReceivingResult)) then
         SyncThreadExecuted.WaitFor(INFINITE);
-      end;
     until (not Assigned(SyncThread) or (SyncThread.State in [ssClose, ssResult, ssReady]) or (Mode = smDataSet) and (SyncThread.State = ssReceivingResult));
     Result := SyncThread.ErrorCode = 0;
   end
@@ -2891,11 +2889,6 @@ end;
 
 procedure TMySQLConnection.RunExecute(const SyncThread: TSyncThread);
 begin
-  if (SynchronCount = 0) then
-    SyncThread.Executed := nil
-  else
-    SyncThread.Executed := SyncThreadExecuted;
-
   case (SyncThread.State) of
     ssConnecting,
     ssExecutingFirst,
@@ -2905,12 +2898,6 @@ begin
       SyncThread.RunExecute.SetEvent();
     else
       raise Exception.CreateFMT(SOutOfSync + ' (State: %d)', [Ord(SyncThread.State)]);
-  end;
-
-  if (Assigned(SyncThread.Executed) and (SyncThread.RequestThreadID = MainThreadID)) then
-  begin
-    SyncThread.Executed.WaitFor(INFINITE);
-    SyncThread.Executed := nil;
   end;
 end;
 
@@ -3067,7 +3054,7 @@ begin
           begin
             if (SyncThread.State in [ssFirst, ssNext]) then
               Sync(SyncThread)
-            else if (SynchronCount > 0) then
+            else if ((SyncThread.State = ssReady) and (SynchronCount > 0)) then
               SyncThreadExecuted.SetEvent();
           end
           else
@@ -6397,7 +6384,8 @@ end;
 procedure TMySQLDataSet.InternalEdit();
 begin
   // Debug 2017-01-24
-  if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData)) then
+  if (not CachedUpdates
+    and not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData)) then
     raise ERangeError.Create('Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
       + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)) + #13#10
       + 'State: ' + IntToStr(Ord(State)));

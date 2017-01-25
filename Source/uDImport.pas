@@ -180,6 +180,8 @@ type
   public
     CodePage: Cardinal;
     Filename: TFileName;
+    FNavigator: PPointer; // Debug 2017-01-25
+    Progress: string; // Debug 2017-01-25
     ImportType: TImportType;
     Session: TSSession;
     SObject: TSObject;
@@ -537,16 +539,20 @@ end;
 
 procedure TDImport.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
-  if (not Visible) then
-    SendToDeveloper('Form not visible' + #13#10
-      + 'fsModal: ' + BoolToStr(fsModal in FormState, True) + #13#10
-      + 'ModalResult: ' + IntToStr(Ord(ModalResult)), 2);
-
   if (Assigned(Import) and Import.Suspended) then
   begin
     Import.Free();
     Import := nil;
   end;
+
+  if (Assigned(FNavigator) and not Assigned(FNavigator^)
+    or not Visible) then
+    raise ERangeError.Create('Visible' + BoolToStr(Visible, True) + #13#10
+      + 'fsModal: ' + BoolToStr(fsModal in FormState, True) + #13#10
+      + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
+      + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
+      + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
+      + 'Import.Terminated: ' + BoolToStr(Assigned(Import) and Import.Terminated, True));
 
   if (Assigned(Import)) then
   begin
@@ -598,75 +604,78 @@ end;
 
 procedure TDImport.FormHide(Sender: TObject);
 begin
-  if (Visible) then
-    SendToDeveloper('Form not visible' + #13#10
+  if (Assigned(FNavigator) and not Assigned(FNavigator^)
+    or Visible
+    or Assigned(Import)) then
+    raise ERangeError.Create('Visible' + BoolToStr(Visible, True) + #13#10
       + 'fsModal: ' + BoolToStr(fsModal in FormState, True) + #13#10
-      + 'ModalResult: ' + IntToStr(Ord(ModalResult)))
-  else
+      + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
+      + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
+      + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
+      + 'Import.Terminated: ' + BoolToStr(Assigned(Import) and Import.Terminated, True));
+
+  Session.UnRegisterEventProc(FormSessionEvent);
+
+  Preferences.Import.Width := Width;
+  Preferences.Import.Height := Height;
+
+  if (ModalResult = mrOk) then
   begin
-    Session.UnRegisterEventProc(FormSessionEvent);
-
-    Preferences.Import.Width := Width;
-    Preferences.Import.Height := Height;
-
-    if (ModalResult = mrOk) then
-    begin
-      case (ImportType) of
-        itTextFile:
-          begin
-            Preferences.Import.CSV.Headline := FCSVHeadline.Checked;
-            if (FDelimiterTab.Checked) then
-              Preferences.Import.CSV.DelimiterType := dtTab
-            else if (FDelimiterChar.Checked) then
-              Preferences.Import.CSV.DelimiterType := dtChar;
-            Preferences.Import.CSV.Delimiter := FDelimiter.Text;
-            Preferences.Import.CSV.QuoteChar := FQuoteChar.Text;
-            if (FQuoteNothing.Checked) then
-              Preferences.Import.CSV.Quote := qtNone
-            else
-              Preferences.Import.CSV.Quote := qtStrings;
-          end;
-        itODBC:
-          begin
-            Preferences.Import.Structure := FStructure.Checked;
-            Preferences.Import.Data := FData.Checked;
-          end;
-      end;
-
-      if (FReplace.Checked) then
-        Preferences.Import.StmtType := stReplace
-      else if (FUpdate.Checked) then
-        Preferences.Import.StmtType := stUpdate
-      else if (FInsertOrUpdate.Checked) then
-        Preferences.Import.StmtType := stInsertOrUpdate
-      else
-        Preferences.Import.StmtType := stInsert;
+    case (ImportType) of
+      itTextFile:
+        begin
+          Preferences.Import.CSV.Headline := FCSVHeadline.Checked;
+          if (FDelimiterTab.Checked) then
+            Preferences.Import.CSV.DelimiterType := dtTab
+          else if (FDelimiterChar.Checked) then
+            Preferences.Import.CSV.DelimiterType := dtChar;
+          Preferences.Import.CSV.Delimiter := FDelimiter.Text;
+          Preferences.Import.CSV.QuoteChar := FQuoteChar.Text;
+          if (FQuoteNothing.Checked) then
+            Preferences.Import.CSV.Quote := qtNone
+          else
+            Preferences.Import.CSV.Quote := qtStrings;
+        end;
+      itODBC:
+        begin
+          Preferences.Import.Structure := FStructure.Checked;
+          Preferences.Import.Data := FData.Checked;
+        end;
     end;
 
-    FTables.Items.BeginUpdate();
-    FTables.Items.Clear();
-    FTables.Items.EndUpdate();
-    ClearTSFields(Sender);
-
-    FCSVPreview.Items.BeginUpdate();
-    FCSVPreview.Items.Clear();
-    FCSVPreview.Columns.Clear();
-    FCSVPreview.Items.EndUpdate();
-
-    FEngine.Items.BeginUpdate();
-    FEngine.Items.Clear();
-    FEngine.Items.EndUpdate();
-    FCharset.Items.BeginUpdate();
-    FCharset.Items.Clear();
-    FCharset.Items.EndUpdate();
-    FCollation.Items.BeginUpdate();
-    FCollation.Items.Clear();
-    FCollation.Items.EndUpdate();
-
-    TableNames.Free();
-
-    PageControl.ActivePage := nil;
+    if (FReplace.Checked) then
+      Preferences.Import.StmtType := stReplace
+    else if (FUpdate.Checked) then
+      Preferences.Import.StmtType := stUpdate
+    else if (FInsertOrUpdate.Checked) then
+      Preferences.Import.StmtType := stInsertOrUpdate
+    else
+      Preferences.Import.StmtType := stInsert;
   end;
+
+  FTables.Items.BeginUpdate();
+  FTables.Items.Clear();
+  FTables.Items.EndUpdate();
+  ClearTSFields(Sender);
+
+  FCSVPreview.Items.BeginUpdate();
+  FCSVPreview.Items.Clear();
+  FCSVPreview.Columns.Clear();
+  FCSVPreview.Items.EndUpdate();
+
+  FEngine.Items.BeginUpdate();
+  FEngine.Items.Clear();
+  FEngine.Items.EndUpdate();
+  FCharset.Items.BeginUpdate();
+  FCharset.Items.Clear();
+  FCharset.Items.EndUpdate();
+  FCollation.Items.BeginUpdate();
+  FCollation.Items.Clear();
+  FCollation.Items.EndUpdate();
+
+  TableNames.Free();
+
+  PageControl.ActivePage := nil;
 end;
 
 procedure TDImport.FormSessionEvent(const Event: TSSession.TEvent);
