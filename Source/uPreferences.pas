@@ -55,12 +55,12 @@ type
     private
       FMaxCount: Integer;
       FValues: array of string;
+      function Get(Index: Integer): string;
       function GetCount(): Integer;
-      function GetValue(Index: Integer): string;
     public
       property Count: Integer read GetCount;
+      property Items[Index: Integer]: string read Get; default;
       property MaxCount: Integer read FMaxCount;
-      property Values[Index: Integer]: string read GetValue; default;
       procedure Add(const Value: string); virtual;
       procedure Assign(const Source: TMRUList); virtual;
       procedure Clear(); virtual;
@@ -462,6 +462,10 @@ type
     TFiles = class;
     TDesktop = class;
 
+    TAddresses = class(TPPreferences.TMRUList)
+
+    end;
+
     TFavorite = class
     private
       FAddress: string;
@@ -534,7 +538,7 @@ type
       TListViewKind = (lkServer, lkDatabase, lkTable, lkProcesses, lkUsers, lkVariables, lkObjectSearch);
     private
       FAccount: TPAccount;
-      FAddresses: TPPreferences.TMRUList;
+      FAddresses: TAddresses;
       FFiles: TFiles;
       FPath: string;
       function GetAddress(): string;
@@ -560,7 +564,7 @@ type
       constructor Create(const AAccount: TPAccount); overload; virtual;
       destructor Destroy(); override;
       property Address: string read GetAddress write SetAddress;
-      property Addresses: TPPreferences.TMRUList read FAddresses;
+      property Addresses: TAddresses read FAddresses;
       property Files: TFiles read FFiles;
     end;
 
@@ -1250,7 +1254,7 @@ begin
   begin
     FMaxCount := Source.MaxCount;
     for I := Source.Count - 1 downto 0 do
-      Add(Source.Values[I]);
+      Add(Source[I]);
   end;
 end;
 
@@ -1285,14 +1289,14 @@ begin
   inherited;
 end;
 
+function TPPreferences.TMRUList.Get(Index: Integer): string;
+begin
+  Result := FValues[Index];
+end;
+
 function TPPreferences.TMRUList.GetCount(): Integer;
 begin
   Result := Length(FValues);
-end;
-
-function TPPreferences.TMRUList.GetValue(Index: Integer): string;
-begin
-  Result := FValues[Index];
 end;
 
 function TPPreferences.TMRUList.IndexOf(const Value: string): Integer;
@@ -1328,7 +1332,7 @@ begin
     if (XML.ChildNodes[I].NodeName = NodeName) then
       XML.ChildNodes.Delete(I);
   for I := 0 to Count - 1 do
-    XML.AddChild(NodeName).Text := Values[I];
+    XML.AddChild(NodeName).Text := Items[I];
 end;
 
 { TPPreferences.TWindow *******************************************************}
@@ -1555,7 +1559,7 @@ begin
 
   XMLNode(XML, 'findtext/mru').ChildNodes.Clear();
   for I := 0 to FindTextMRU.Count - 1 do
-    XMLNode(XML, 'findtext/mru').AddChild('text').Text := FindTextMRU.Values[I];
+    XMLNode(XML, 'findtext/mru').AddChild('text').Text := FindTextMRU[I];
   XMLNode(XML, 'options').Text := FindOptionsToStr(Options);
 end;
 
@@ -1715,11 +1719,11 @@ begin
 
   XMLNode(XML, 'findtext/mru').ChildNodes.Clear();
   for I := 0 to FindTextMRU.Count - 1 do
-    XMLNode(XML, 'findtext/mru').AddChild('text').Text := FindTextMRU.Values[I];
+    XMLNode(XML, 'findtext/mru').AddChild('text').Text := FindTextMRU[I];
   XMLNode(XML, 'options').Text := ReplaceOptionsToStr(Options);
   XMLNode(XML, 'replacetext/mru').ChildNodes.Clear();
   for I := 0 to ReplaceTextMRU.Count - 1 do
-    XMLNode(XML, 'replacetext/mru').AddChild('text').Text := ReplaceTextMRU.Values[I];
+    XMLNode(XML, 'replacetext/mru').AddChild('text').Text := ReplaceTextMRU[I];
 end;
 
 { TPPreferences.TServer *******************************************************}
@@ -2996,7 +3000,7 @@ begin
   SidebarWitdth := Round(150 * Screen.PixelsPerInch / USER_DEFAULT_SCREEN_DPI);
   SQLHistoryVisible := False;
 
-  FAddresses := TPPreferences.TMRUList.Create(200);
+  FAddresses := TAddresses.Create(200);
   FFiles := TFiles.Create(Self, 10);
 end;
 
@@ -3075,7 +3079,8 @@ begin
     SQLHistoryVisible := not NavigatorVisible and not ExplorerVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'SQL HISTORY');
   end;
 
-  if Assigned(XMLNode(XML, 'editor/files')) then Files.LoadFromXML(XMLNode(XML, 'editor/files'));
+  if (Assigned(XMLNode(XML, 'history'))) then Addresses.LoadFromXML(XMLNode(XML, 'history'), 'address');
+  if (Assigned(XMLNode(XML, 'editor/files'))) then Files.LoadFromXML(XMLNode(XML, 'editor/files'));
 end;
 
 procedure TPAccount.TDesktop.SaveToXML(const XML: IXMLNode);
@@ -3149,6 +3154,9 @@ begin
   else
     XMLNode(XML, 'sidebar/visible').Text := BoolToStr(False, True);
 
+  {$IFDEF Debug}
+  Addresses.SaveToXML(XMLNode(XML, 'history', True), 'address');
+  {$ENDIF}
   Files.SaveToXML(XMLNode(XML, 'editor/files', True));
 
   XML.OwnerDocument.Options := XML.OwnerDocument.Options - [doNodeAutoCreate];

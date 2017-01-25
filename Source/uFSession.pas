@@ -884,6 +884,7 @@ type
     PObjectSearch: TPObjectSearch;
     PResultHeight: Integer;
     ProcessesListView: TListView;
+    QuickAccessListView: TListView;
     ServerListView: TListView;
     ShellLink: TJamShellLink;
     SplitColor: TColor;
@@ -4530,6 +4531,7 @@ begin
   ObjectSearch := nil;
   ObjectSearchListView := nil;
   ProcessesListView := nil;
+  QuickAccessListView := nil;
   ServerListView := nil;
   UsersListView := nil;
   VariablesListView := nil;
@@ -6248,6 +6250,7 @@ begin
   if (Assigned(ObjectSearch)) then
     ObjectSearch.Free();
 
+  if (Assigned(QuickAccessListView)) then FreeListView(QuickAccessListView);
   if (Assigned(ServerListView)) then FreeListView(ServerListView);
   if (Assigned(ProcessesListView)) then FreeListView(ProcessesListView);
   if (Assigned(UsersListView)) then FreeListView(UsersListView);
@@ -6257,6 +6260,7 @@ begin
   if (Assigned(SQLEditor3)) then SQLEditor3.Free();
   if (Assigned(FSQLEditorSynMemo2)) then FSQLEditorSynMemo2.Free();
   if (Assigned(FSQLEditorSynMemo3)) then FSQLEditorSynMemo3.Free();
+
 
   try
     FreeAndNil(JPEGImage);
@@ -6397,7 +6401,7 @@ var
 begin
   FFilter.Items.Clear();
   for I := FilterMRU.Count - 1 downto 0 do
-    FFilter.Items.Add(FilterMRU.Values[I]);
+    FFilter.Items.Add(FilterMRU[I]);
 end;
 
 procedure TFSession.FFilterEnabledClick(Sender: TObject);
@@ -6781,7 +6785,6 @@ procedure TFSession.FNavigatorChanging(Sender: TObject; Node: TTreeNode;
 begin
   AllowChange := Assigned(Node)
     and (Node.ImageIndex >= 0) and (Node.Text <> '')
-    and not (Node.ImageIndex in [iiQuickAccess])
     and not Dragging(Sender)
     and not (Node.ImageIndex in [iiKey, iiBaseField, iiVirtualField, iiSystemViewField, iiViewField, iiForeignKey]);
 
@@ -13754,6 +13757,7 @@ begin
     URI := TUURI.Create(NewAddress);
 
     FCurrentAddress := URI.Address;
+    Session.Account.Desktop.Addresses.Add(FCurrentAddress);
 
     NewView := ParamToView(URI.Param['view']);
     MainAction('aVObjects').Checked := NewView = vObjects;
@@ -13769,6 +13773,10 @@ begin
       vBrowser:
         begin
           Table := Session.DatabaseByName(URI.Database).TableByName(URI.Table);
+
+          // Debug 2017-01-25
+          if (not Assigned(Table)) then
+            raise ERangeError.Create('Address: ' + URI.Address);
 
           FUDOffset.Position := 0;
           FUDLimit.Position := Desktop(Table).Limit;

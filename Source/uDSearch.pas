@@ -307,7 +307,7 @@ begin
 
   FFFindText.Items.Clear();
   for I := Preferences.Find.FindTextMRU.Count - 1 downto 0 do
-    FFFindText.Items.Add(Preferences.Find.FindTextMRU.Values[I]);
+    FFFindText.Items.Add(Preferences.Find.FindTextMRU[I]);
   FFFindText.Text := '';
 
   FFMatchCase.Checked := foMatchCase in Preferences.Find.Options;
@@ -317,11 +317,11 @@ begin
 
   FRFindText.Items.Clear();
   for I := Preferences.Replace.FindTextMRU.Count - 1 downto 0 do
-    FRFindText.Items.Add(Preferences.Replace.FindTextMRU.Values[I]);
+    FRFindText.Items.Add(Preferences.Replace.FindTextMRU[I]);
   FRFindText.Text := '';
   FReplaceText.Items.Clear();
   for I := Preferences.Replace.ReplaceTextMRU.Count - 1 downto 0 do
-    FReplaceText.Items.Add(Preferences.Replace.ReplaceTextMRU.Values[I]);
+    FReplaceText.Items.Add(Preferences.Replace.ReplaceTextMRU[I]);
   FReplaceText.Text := '';
 
   FRMatchCase.Checked := roMatchCase in Preferences.Replace.Options;
