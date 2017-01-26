@@ -2045,10 +2045,21 @@ begin
 end;
 
 procedure TFSession.TWanted.SetAddress(const AAddress: string);
+var
+  URI: TUURI;
 begin
   if (AAddress <> FAddress) then
   begin
     Clear();
+
+    URI := TUURI.Create(AAddress);
+    if (URI.Address = '') then
+      raise ERangeError.Create('AAddress: ' + AAddress);
+    if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
+      raise ERangeError.Create('AAddress: ' + AAddress + #13#10
+        + 'URI.Address: ' + URI.Address);
+    URI.Free();
+
     if (not FSession.Session.Connection.InUse()) then
       FSession.CurrentAddress := AAddress
     else
@@ -8932,6 +8943,12 @@ begin
   case (View) of
     vBrowser:
       begin
+        // Debug 2017-01-26
+        if (not (TObject(CurrentData) is TSTable)) then
+          raise ERangeError.Create('CurrentAddress: ' + CurrentAddress + #13#10
+            + 'CurrentClassIndex: ' + IntToStr(Ord(CurrentClassIndex)) + #13#10
+            + 'CurrentData Class: ' + TObject(CurrentData).ClassName);
+
         Result := Desktop(TSTable(CurrentData)).CreateDBGrid();
       end;
     vIDE:
@@ -14235,6 +14252,12 @@ begin
 
     if (((View = vBrowser) or (Window.ActiveControl = ActiveDBGrid)) and Assigned(ActiveDBGrid)) then
     begin
+      // Debug 2017-01-26
+      if ((View = vBrowser) and (CurrentClassIndex in [ciBaseTable]) and not (TObject(CurrentData) is TSTable)) then
+        raise ERangeError.Create('CurrentAddress: ' + CurrentAddress + #13#10
+          + 'CurrentClassIndex: ' + IntToStr(Ord(CurrentClassIndex)) + #13#10
+          + 'CurrentData Class: ' + TObject(CurrentData).ClassName);
+
       if (SelCount > 0) then
         StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(888, IntToStr(SelCount))
       else if ((View = vBrowser) and (CurrentClassIndex in [ciBaseTable]) and not Session.Connection.InUse() and TSBaseTable(CurrentData).ValidData and TSBaseTable(CurrentData).DataSet.LimitedDataReceived and (TSBaseTable(CurrentData).RecordCount >= 0)) then

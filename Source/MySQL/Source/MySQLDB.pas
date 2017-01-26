@@ -6566,13 +6566,19 @@ begin
     Pos := 1;
     while (Pos <= Length(SortDef.Fields)) do
     begin
-      Field := FieldByName(ExtractFieldName(SortDef.Fields, Pos));
-      if (not Update or (Field.NewValue <> Field.OldValue)) then
+      FieldName := FieldName;
+      if (FieldName <> '') then
       begin
-        CheckPosition := True;
-        if ((Field.DataType in TextDataTypes)
-          or (Field.AutoGenerateValue = arDefault)) then
-          ControlPosition := True;
+        Field := FindField(FieldName);
+        if (not Assigned(Field)) then
+          raise ERangeError.CreateFMT(SFieldNotFound, [FieldName]);
+        if (not Update or (Field.NewValue <> Field.OldValue)) then
+        begin
+          CheckPosition := True;
+          if ((Field.DataType in TextDataTypes)
+            or (Field.AutoGenerateValue = arDefault)) then
+            ControlPosition := True;
+        end;
       end;
     end;
 
@@ -6605,9 +6611,9 @@ begin
           FieldName := ExtractFieldName(SortDef.Fields, Pos);
           if (FieldName <> '') then
           begin
-            Field := FieldByName(FieldName);
+            Field := FindField(FieldName);
             if (not Assigned(Field)) then
-              raise ERangeError.Create(SRangeError);
+              raise ERangeError.CreateFMT(SFieldNotFound, [FieldName]);
             SetLength(WhereFields, Length(WhereFields) + 1);
             WhereFields[Length(WhereFields) - 1] := Field;
           end;
