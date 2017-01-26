@@ -2468,9 +2468,12 @@ begin
   else if (not Assigned(Data)) then
     raise ERangeError.Create(SRangeError)
   else
-    raise ERangeError.Create('ClassType: ' + TObject(Data).ClassName);
+    FreeAndNil(URI);
 
-  Result := URI.Address;
+  if (not Assigned(URI)) then
+    Result := ''
+  else
+    Result := URI.Address;
 
   URI.Free();
 end;
@@ -3004,7 +3007,9 @@ begin
 
   aDRunExecuteSelStart := 0;
   SQL := '';
-  if (View in [vBuilder, vEditor, vEditor2, vEditor3]) then
+  if (View in [vBuilder]) then
+    SQL := Trim(ActiveSynMemo.Text)
+  else if (View in [vEditor, vEditor2, vEditor3]) then
     SQL := Trim(ActiveSynMemo.Text)
   else if ((View = vIDE) and (CurrentClassIndex = ciView)) then
   begin
@@ -3031,7 +3036,9 @@ begin
       SQL := TSEvent(CurrentData).SQLRun();
   end;
 
-  if (SQL <> '') then
+  if (SQL = '') then
+    MessageBeep(MB_ICONERROR)
+  else
   begin
     if ((SelectedDatabase <> '') and (SelectedDatabase <> Session.Connection.DatabaseName)) then
     begin
@@ -7367,102 +7374,105 @@ var
   TableNode: TTreeNode;
   URI: TUURI;
 begin
-  URI := TUURI.Create(Address);
-
   Result := nil;
 
-  ServerNode := FNavigator.Items.getFirstNode();
-  while (Assigned(ServerNode) and (ServerNode.ImageIndex <> iiServer)) do
-    ServerNode := ServerNode.getNextSibling();
-
-  if (URI.Param['system'] = 'quick') then
-    Result := FNavigator.Items.getFirstNode()
-  else if (URI.Param['system'] <> Null) then
+  if (Address <> '') then
   begin
-    Child := ServerNode.getFirstChild();
-    while (Assigned(Child) and not Assigned(Result)) do
-      if ((URI.Param['system'] = 'processes') and (Child.ImageIndex = iiProcesses)
-        or (URI.Param['system'] = 'users') and (Child.ImageIndex = iiUsers)
-        or (URI.Param['system'] = 'variables') and (Child.ImageIndex = iiVariables)) then
-        Result := Child
-      else
-        Child := Child.getNextSibling();
-  end
-  else if (URI.Database <> '') then
-  begin
-    Child := ServerNode.getFirstChild(); DatabaseNode := nil;
-    while (Assigned(Child) and not Assigned(DatabaseNode)) do
-      if ((Child.ImageIndex in [iiDatabase, iiSystemDatabase]) and (Session.Databases.NameCmp(URI.Database, Child.Text) = 0)) then
-        DatabaseNode := Child
-      else
-        Child := Child.getNextSibling();
+    URI := TUURI.Create(Address);
 
-    if (not Assigned(DatabaseNode)) then
-      Result := nil
-    else if ((URI.Table = '') and ((URI.Param['objecttype'] = Null) or (URI.Param['object'] = Null))) then
-      Result := DatabaseNode
-    else
+    ServerNode := FNavigator.Items.getFirstNode();
+    while (Assigned(ServerNode) and (ServerNode.ImageIndex <> iiServer)) do
+      ServerNode := ServerNode.getNextSibling();
+
+    if (URI.Param['system'] = 'quick') then
+      Result := FNavigator.Items.getFirstNode()
+    else if (URI.Param['system'] <> Null) then
     begin
-      if (DatabaseNode.HasChildren and not Assigned(DatabaseNode.getFirstChild())) then
-      begin
-        AllowExpansion := True;
-        FNavigatorExpanding(nil, DatabaseNode, AllowExpansion);
-      end;
+      Child := ServerNode.getFirstChild();
+      while (Assigned(Child) and not Assigned(Result)) do
+        if ((URI.Param['system'] = 'processes') and (Child.ImageIndex = iiProcesses)
+          or (URI.Param['system'] = 'users') and (Child.ImageIndex = iiUsers)
+          or (URI.Param['system'] = 'variables') and (Child.ImageIndex = iiVariables)) then
+          Result := Child
+        else
+          Child := Child.getNextSibling();
+    end
+    else if (URI.Database <> '') then
+    begin
+      Child := ServerNode.getFirstChild(); DatabaseNode := nil;
+      while (Assigned(Child) and not Assigned(DatabaseNode)) do
+        if ((Child.ImageIndex in [iiDatabase, iiSystemDatabase]) and (Session.Databases.NameCmp(URI.Database, Child.Text) = 0)) then
+          DatabaseNode := Child
+        else
+          Child := Child.getNextSibling();
 
-      Child := DatabaseNode.getFirstChild();
-      if (URI.Table <> '') then
+      if (not Assigned(DatabaseNode)) then
+        Result := nil
+      else if ((URI.Table = '') and ((URI.Param['objecttype'] = Null) or (URI.Param['object'] = Null))) then
+        Result := DatabaseNode
+      else
       begin
-        if (URI.Table <> '') then
-          TableName := URI.Table
-        else
-          TableName := TSDatabase(DatabaseNode.Data).TriggerByName(URI.Param['object']).TableName;
-        TableNode := nil;
-        while (Assigned(Child) and not Assigned(TableNode)) do
-          if ((Child.ImageIndex in [iiBaseTable, iiView, iiSystemView]) and (TSDatabase(DatabaseNode.Data).Tables.NameCmp(TableName, Child.Text) = 0)) then
-            TableNode := Child
-          else
-            Child := Child.getNextSibling();
-        if ((URI.Param['view'] <> 'ide') or (URI.Param['objecttype'] <> 'trigger') or (URI.Param['object'] = Null)) then
-          Result := TableNode
-        else
+        if (DatabaseNode.HasChildren and not Assigned(DatabaseNode.getFirstChild())) then
         begin
-          if (TableNode.HasChildren and not Assigned(TableNode.getFirstChild())) then
-          begin
-            AllowExpansion := True;
-            FNavigatorExpanding(nil, TableNode, AllowExpansion);
-          end;
-          Child := TableNode.getFirstChild();
-          while (Assigned(Child) and not Assigned(Result)) do
-            if ((Child.ImageIndex in [iiTrigger]) and (TSDatabase(DatabaseNode.Data).Triggers.NameCmp(URI.Param['object'], Child.Text) = 0)) then
-              Result := Child
+          AllowExpansion := True;
+          FNavigatorExpanding(nil, DatabaseNode, AllowExpansion);
+        end;
+
+        Child := DatabaseNode.getFirstChild();
+        if (URI.Table <> '') then
+        begin
+          if (URI.Table <> '') then
+            TableName := URI.Table
+          else
+            TableName := TSDatabase(DatabaseNode.Data).TriggerByName(URI.Param['object']).TableName;
+          TableNode := nil;
+          while (Assigned(Child) and not Assigned(TableNode)) do
+            if ((Child.ImageIndex in [iiBaseTable, iiView, iiSystemView]) and (TSDatabase(DatabaseNode.Data).Tables.NameCmp(TableName, Child.Text) = 0)) then
+              TableNode := Child
             else
               Child := Child.getNextSibling();
-        end;
-      end
-      else if (URI.Param['objecttype'] = 'procedure') then
-        while (Assigned(Child) and not Assigned(Result)) do
-          if ((Child.ImageIndex = iiProcedure) and (TSDatabase(DatabaseNode.Data).Routines.NameCmp(Child.Text, URI.Param['object']) = 0)) then
-            Result := Child
+          if ((URI.Param['view'] <> 'ide') or (URI.Param['objecttype'] <> 'trigger') or (URI.Param['object'] = Null)) then
+            Result := TableNode
           else
-            Child := Child.getNextSibling()
-      else if (URI.Param['objecttype'] = 'function') then
-        while (Assigned(Child) and not Assigned(Result)) do
-          if ((Child.ImageIndex = iiFunction) and (TSDatabase(DatabaseNode.Data).Routines.NameCmp(Child.Text, URI.Param['object']) = 0)) then
-            Result := Child
-          else
-            Child := Child.getNextSibling()
-      else if (URI.Param['objecttype'] = 'event') then
-        while (Assigned(Child) and not Assigned(Result)) do
-          if ((Child.ImageIndex = iiEvent) and (TSDatabase(DatabaseNode.Data).Events.NameCmp(Child.Text, URI.Param['object']) = 0)) then
-            Result := Child
-          else
-            Child := Child.getNextSibling()
-    end;
-  end
-  else
-    Result := ServerNode;
+          begin
+            if (TableNode.HasChildren and not Assigned(TableNode.getFirstChild())) then
+            begin
+              AllowExpansion := True;
+              FNavigatorExpanding(nil, TableNode, AllowExpansion);
+            end;
+            Child := TableNode.getFirstChild();
+            while (Assigned(Child) and not Assigned(Result)) do
+              if ((Child.ImageIndex in [iiTrigger]) and (TSDatabase(DatabaseNode.Data).Triggers.NameCmp(URI.Param['object'], Child.Text) = 0)) then
+                Result := Child
+              else
+                Child := Child.getNextSibling();
+          end;
+        end
+        else if (URI.Param['objecttype'] = 'procedure') then
+          while (Assigned(Child) and not Assigned(Result)) do
+            if ((Child.ImageIndex = iiProcedure) and (TSDatabase(DatabaseNode.Data).Routines.NameCmp(Child.Text, URI.Param['object']) = 0)) then
+              Result := Child
+            else
+              Child := Child.getNextSibling()
+        else if (URI.Param['objecttype'] = 'function') then
+          while (Assigned(Child) and not Assigned(Result)) do
+            if ((Child.ImageIndex = iiFunction) and (TSDatabase(DatabaseNode.Data).Routines.NameCmp(Child.Text, URI.Param['object']) = 0)) then
+              Result := Child
+            else
+              Child := Child.getNextSibling()
+        else if (URI.Param['objecttype'] = 'event') then
+          while (Assigned(Child) and not Assigned(Result)) do
+            if ((Child.ImageIndex = iiEvent) and (TSDatabase(DatabaseNode.Data).Events.NameCmp(Child.Text, URI.Param['object']) = 0)) then
+              Result := Child
+            else
+              Child := Child.getNextSibling()
+      end;
+    end
+    else
+      Result := ServerNode;
 
-  URI.Free();
+    URI.Free();
+  end;
 end;
 
 procedure TFSession.FNavigatorRemoveFavorites();
@@ -10522,18 +10532,23 @@ var
   begin
     Assert(Item.Data = Data);
 
-    ProfilingPoint(13);
+    ProfilingPoint(14);
 
     Item.SubItems.BeginUpdate();
-    ProfilingPoint(14);
-    Item.SubItems.Clear();
     ProfilingPoint(15);
+    Item.SubItems.Clear();
+    ProfilingPoint(16);
 
     Item.GroupID := GroupID;
-    ProfilingPoint(16);
-    Item.ImageIndex := ImageIndexByData(Data);
+
+    // 3.2 seconds for 329 items
 
     ProfilingPoint(17);
+    Item.ImageIndex := ImageIndexByData(Data);
+
+    // 3.8 seconds for 329 items
+
+    ProfilingPoint(18);
 
     if ((TObject(ListView.Tag) is TSItemSearch)
       and not (Data is TSProcess)
@@ -10897,11 +10912,14 @@ var
       end;
     end;
 
-    ProfilingPoint(18);
+    // 2.3 seconds for 301 items
+    // 7.0 seconds for 329 items
+
+    ProfilingPoint(19);
 
     Item.SubItems.EndUpdate();
 
-    ProfilingPoint(19);
+    ProfilingPoint(20);
 
     RefreshHeader := True;
   end;
@@ -10985,8 +11003,12 @@ var
   begin
     ProfilingPoint(11);
     Result := ListView.Items.Add();
-    Result.Data := Data;
+
     ProfilingPoint(12);
+
+    Result.Data := Data;
+
+    ProfilingPoint(13);
 
     UpdateItem(Result, GroupID, Data);
   end;
@@ -11165,15 +11187,15 @@ var
       etItemDropped:
         if (GroupID = GroupIDByImageIndex(ImageIndexByData(Event.Item))) then
         begin
-          ProfilingPoint(20);
+          ProfilingPoint(21);
           for I := ListView.Items.Count - 1 downto 0 do
             if (ListView.Items[I].Data = Event.Item) then
               ListView.Items.Delete(I);
-          ProfilingPoint(21);
+          ProfilingPoint(22);
         end;
     end;
 
-    ProfilingPoint(22);
+    ProfilingPoint(23);
 
     if ((ReorderGroupIndex >= 0) and ListView.GroupView) then
     begin
@@ -11188,7 +11210,7 @@ var
         end;
     end;
 
-    ProfilingPoint(23);
+    ProfilingPoint(24);
 
     if (Event.EventType in [etItemsValid, etItemCreated, etItemDropped]) then
       if (TObject(ListView.Tag) is TSItemSearch) then
@@ -11238,7 +11260,7 @@ var
             SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(22) + ' (' + IntToStr(Session.Variables.Count) + ')');
         end;
 
-    ProfilingPoint(24);
+    ProfilingPoint(25);
   end;
 
 var
@@ -11336,31 +11358,31 @@ begin
     else if ((Kind in [lkVariables, lkObjectSearch]) and (Event.Items is TSVariables)) then
       UpdateGroup(Kind, giVariables, Event.Items);
 
-    ProfilingPoint(25);
+    ProfilingPoint(26);
 
     if ((Window.ActiveControl = ListView) and Assigned(ListView.OnSelectItem)) then
       ListView.OnSelectItem(nil, ListView.Selected, Assigned(ListView.Selected));
 
-    ProfilingPoint(26);
+    ProfilingPoint(27);
 
     ListView.EnableAlign();
-    ProfilingPoint(27);
-    ListView.Items.EndUpdate();
     ProfilingPoint(28);
+    ListView.Items.EndUpdate();
+    ProfilingPoint(29);
     ListView.Columns.EndUpdate();
     // 5 seconds
     // 1 seconds, EventType: 1, FieldCount: 36
     // 19 seconds, EventType: 0, Count: 66
     // 2.7 seconds, EventType: 0, Count: 0
-    ProfilingPoint(29);
+    ProfilingPoint(30);
     ListView.OnChanging := ChangingEvent;
 
-    ProfilingPoint(30);
+    ProfilingPoint(31);
 
     if (RefreshHeader) then
       ListViewHeaderUpdate(ListView);
 
-    ProfilingPoint(31);
+    ProfilingPoint(32);
 
     if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
       if ((Finish - Start) div Frequency > 1) then
@@ -12945,6 +12967,8 @@ begin
       // 2017-01-10: SBlob <> SBlobDebug ... even, SBlob was moved in the TFSession declaration, DROP TABLE (generated by MF) was the last stmt
       // 2017-01-10: SBlob <> SBlobDebug ... DROP TABLE (generated by MF) was the last stmt
       // 2017-01-11: SBlob <> SBlobDebug ... DROP TABLE (generated by MF) was the last stmt
+      // 2017-01-26: SBlob <> SBlobDebug ... DROP TABLE (generated by MF) was the last stmt
+      // 2017-01-26: SBlob <> SBlobDebug ... DROP DATABASE was in the log, but not the last stmt
 
     SBlob.Align := alNone;
     PBlob.Align := alNone;
@@ -13821,7 +13845,7 @@ begin
         + 'URI.Address: ' + URI.Address);
 
     FCurrentAddress := URI.Address;
-    Session.Account.Desktop.Addresses.Add(FCurrentAddress);
+    Session.Account.Desktop.Addresses.Add(AddressByData(DataByAddress(FCurrentAddress)));
 
     NewView := ParamToView(URI.Param['view']);
     MainAction('aVObjects').Checked := NewView = vObjects;

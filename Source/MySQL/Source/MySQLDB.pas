@@ -531,7 +531,7 @@ type
       procedure Delete(Index: Integer);
       destructor Destroy(); override;
       function IndexOf(const Bookmark: TBookmark): Integer; overload; inline;
-      function IndexOf(const Data: TMySQLQuery.TRecordBufferData): Integer; overload;
+      function IndexOf(const Data: TMySQLQuery.TRecordBufferData; const IgnoreIndex: Integer = -1): Integer; overload;
       procedure Insert(Index: Integer; Item: Pointer);
       property Buffers[Index: Integer]: PInternRecordBuffer read Get write Put; default;
       property DataSet: TMySQLDataSet read FDataSet;
@@ -3059,7 +3059,7 @@ begin
           begin
             if (SyncThread.State in [ssFirst, ssNext]) then
               Sync(SyncThread)
-            else if ((SyncThread.State = ssReady) and (SynchronCount > 0)) then
+            else if ((SyncThread.State in [ssResult, ssReady]) and (SynchronCount > 0)) then
               SyncThreadExecuted.SetEvent();
           end
           else
@@ -5754,11 +5754,12 @@ begin
     Result := IndexOf(PInternRecordBuffer(PPointer(@Bookmark[0])^))
 end;
 
-function TMySQLDataSet.TInternRecordBuffers.IndexOf(const Data: TMySQLQuery.TRecordBufferData): Integer;
+function TMySQLDataSet.TInternRecordBuffers.IndexOf(const Data: TMySQLQuery.TRecordBufferData; const IgnoreIndex: Integer = -1): Integer;
 var
+  Comp: Integer;
   FieldName: string;
-  Left: Integer;
   I: Integer;
+  Left: Integer;
   Mid: Integer;
   Pos: Integer;
   Right: Integer;
@@ -5791,12 +5792,27 @@ begin
   begin
     Mid := (Right - Left) div 2 + Left;
 
-    case (DataSet.RecordCompare(CompareDefs, Buffers[Mid]^.NewData, @Data)) of
+    if (Mid <> IgnoreIndex) then
+      Comp := DataSet.RecordCompare(CompareDefs, Buffers[Mid]^.NewData, @Data)
+    else if (Left < Mid) then
+      Comp := DataSet.RecordCompare(CompareDefs, Buffers[Mid - 1]^.NewData, @Data)
+    else if (Right > Mid) then
+      Comp := DataSet.RecordCompare(CompareDefs, Buffers[Mid + 1]^.NewData, @Data)
+    else
+    begin
+      Comp := 0; // ... to avoid compiler warnings
+      Left := Mid + 1 + Comp;
+      break;
+    end;
+    case (Comp) of
       -1: Left := Mid + 1;
       0: begin Result := Mid; break; end;
       1: Right := Mid - 1;
     end;
   end;
+
+  if ((Result < 0) and (IgnoreIndex >= 0)) then
+    Result := Left;
 end;
 
 procedure TMySQLDataSet.TInternRecordBuffers.Insert(Index: Integer; Item: Pointer);
@@ -6294,7 +6310,8 @@ var
   Index: Integer;
 begin
   case (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag) of
-    bfBOF:
+    bfBOF,
+    bfEOF:
       begin
         FreeInternRecordBuffer(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
         InternalInitRecord(ActiveBuffer());
@@ -6305,14 +6322,7 @@ begin
         FreeMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData);
         PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData;
       end;
-    bfInserted,
-    bfEOF:
-      if (InternRecordBuffers.Count = 0) then
-      begin
-        FreeInternRecordBuffer(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
-        InternalInitRecord(ActiveBuffer());
-      end
-      else
+    bfInserted:
       begin
         Index := PExternRecordBuffer(ActiveBuffer())^.Index;
         FreeInternRecordBuffer(InternRecordBuffers[Index]);
@@ -6453,7 +6463,8 @@ var
   RBS: RawByteString;
 begin
   case (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag) of
-    bfBOF:
+    bfBOF,
+    bfEOF:
       begin
         PExternRecordBuffer(ActiveBuffer())^.Index := -1;
         PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := AllocInternRecordBuffer();
@@ -6465,18 +6476,6 @@ begin
         PExternRecordBuffer(ActiveBuffer())^.Index := Index;
         PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := InternRecordBuffers[Index];
       end;
-    bfEOF:
-      if (InternRecordBuffers.Count = 0) then
-      begin
-        PExternRecordBuffer(ActiveBuffer())^.Index := -1;
-        PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := AllocInternRecordBuffer();
-      end
-      else
-      begin
-        Index := InternRecordBuffers.Add(AllocInternRecordBuffer());
-        PExternRecordBuffer(ActiveBuffer())^.Index := Index;
-        PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := InternRecordBuffers[Index];
-      end
     else
       raise ERangeError.Create(SRangeError);
   end;
@@ -6767,23 +6766,17 @@ begin
 
       if ((ControlSQL = '') and CheckPosition) then
       begin
-        InternalPostResult.NewIndex := InternRecordBuffers.IndexOf(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData);
+        InternalPostResult.NewIndex := InternRecordBuffers.IndexOf(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^, PExternRecordBuffer(ActiveBuffer())^.Index);
         if (InternalPostResult.NewIndex < 0) then
           InternalPostResult.NewIndex := InternRecordBuffers.Count - 1
         else if (InternalPostResult.NewIndex > PExternRecordBuffer(ActiveBuffer())^.Index) then
           Dec(InternalPostResult.NewIndex);
       end;
 
-      if (ControlSQL <> '') and (InternalPostResult.NewIndex <> PExternRecordBuffer(ActiveBuffer())^.Index) then
+      if ((InternalPostResult.NewIndex >= 0)
+        and (PExternRecordBuffer(ActiveBuffer())^.Index < 0) or (PExternRecordBuffer(ActiveBuffer())^.Index <> InternalPostResult.NewIndex)) then
       begin
-        // Position in InternRecordBuffers change -> move it
-
-        // Debug 2017-01-24
-        if ((PExternRecordBuffer(ActiveBuffer())^.Index < 0) or (InternalPostResult.NewIndex < 0)) then
-          raise ERangeError.Create('ActiveBuffer.Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
-            + 'InternalPostResult.NewIndex: ' + IntToStr(InternalPostResult.NewIndex) + #13#10
-            + 'ControlSQL: ' + ControlSQL);
-
+        // Position in InternRecordBuffers changed -> move it
         InternRecordBuffers.Move(PExternRecordBuffer(ActiveBuffer())^.Index, InternalPostResult.NewIndex);
         InternRecordBuffers.Index := InternalPostResult.NewIndex;
         PExternRecordBuffer(ActiveBuffer())^.Index := InternRecordBuffers.Index;
@@ -6824,10 +6817,10 @@ begin
             if ((Fields[I].AutoGenerateValue = arAutoInc) and (Fields[I].IsNull or (Fields[I].AsLargeInt = 0)) and (Connection.InsertId > 0)) then
               Fields[I].AsLargeInt := Connection.InsertId;
 
-        if (InternRecordBuffers.Count = 0) then
+        if (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag in [bfBOF, bfEOF]) then
         begin
           InternRecordBuffers.Add(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
-          PExternRecordBuffer(ActiveBuffer())^.Index := 0;
+          PExternRecordBuffer(ActiveBuffer())^.Index := InternRecordBuffers.Count - 1;
         end;
 
         if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData) then
@@ -6894,7 +6887,7 @@ begin
               RecordBufferData.LibLengths := DataSet.LibLengths;
               RecordBufferData.LibRow := DataSet.LibRow;
 
-              InternalPostResult.NewIndex := InternRecordBuffers.IndexOf(RecordBufferData);
+              InternalPostResult.NewIndex := InternRecordBuffers.IndexOf(RecordBufferData, PExternRecordBuffer(ActiveBuffer())^.Index);
               if (InternalPostResult.NewIndex < 0) then
                 InternalPostResult.NewIndex := InternRecordBuffers.Count - 1
               else if (InternalPostResult.NewIndex > PExternRecordBuffer(ActiveBuffer())^.Index) then
@@ -6936,7 +6929,6 @@ begin
   if (SQL <> '') then
   begin
     Connection.BeginSynchron();
-    Connection.DebugMonitor.Append('InternalRefresh', ttDebug);
     Success := Connection.InternExecuteSQL(smDataSet, SQL);
     Connection.EndSynchron();
     if (Success) then

@@ -6551,7 +6551,7 @@ begin
   begin
     FInputDataSet := TMySQLDataSet.Create(nil);
     FInputDataSet.Connection := Session.Connection;
-    FInputDataSet.CommandText := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(FTableName) + ' LIMIT 0';
+    FInputDataSet.CommandText := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(FTableName) + ' LIMIT 0;' + #13#10;
     FInputDataSet.Open();
     if (not FInputDataSet.Active) then
       FreeAndNil(FInputDataSet)

@@ -22182,7 +22182,7 @@ begin
             Nodes.Having.Expr := ParseExpr();
         end;
 
-      if (not ErrorFound and not UnionSelect) then
+      if (not ErrorFound and (not UnionSelect or (Nodes.OpenBracket > 0))) then
         if (IsTag(kiORDER, kiBY, kiNULL)) then
           Nodes.OrderBy.Tag := ParseTag(kiORDER, kiBY, kiNULL)
         else if (IsTag(kiORDER, kiBY)) then
@@ -22193,7 +22193,7 @@ begin
             Nodes.OrderBy.List := ParseList(False, ParseSelectStmtOrderBy);
         end;
 
-      if (not ErrorFound and not UnionSelect) then
+      if (not ErrorFound and (not UnionSelect or (Nodes.OpenBracket > 0))) then
         if (IsTag(kiLIMIT)) then
         begin
           Nodes.Limit.Tag := ParseTag(kiLIMIT);
