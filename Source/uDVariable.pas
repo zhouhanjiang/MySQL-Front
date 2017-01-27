@@ -106,7 +106,7 @@ begin
   begin
     SessionState := ssValid;
   end
-  else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemReorder]) and (Event.Item = Variable)) then
+  else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemRenamed]) and (Event.Item = Variable)) then
     ModalResult := mrOk;
 
   if (SessionState = ssValid) then

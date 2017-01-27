@@ -2776,6 +2776,7 @@ begin
       BodyChar:
         MOV Pos,ESI
         CALL Trim                        // Empty characters?
+        JE BodyCharE                     // Yes!
         CMP ECX,0                        // All characters handled?
         JZ Finish                        // Yes!
         CALL MoveString                  // Quoted string?
@@ -2789,7 +2790,7 @@ begin
         CMP WORD PTR [EBX],0             // All terminators checked?
         JE BodyChar                      // Yes!
         CMP AX,[EBX]                     // Charcter in SQL = Terminator?
-        JE BodyCharE                    // Yes!
+        JE BodyCharE                     // Yes!
         ADD EBX,2                        // Next terminator
         JMP BodyCharTL
       BodyCharE:

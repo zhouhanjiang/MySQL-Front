@@ -158,7 +158,9 @@ type
         ntAlterServerStmt,
         ntAlterTablespaceStmt,
         ntAlterTableStmt,
-        ntAlterTableStmtAlterColumn,
+        ntAlterTableStmtAddField,
+        ntAlterTableStmtAddFields,
+        ntAlterTableStmtAlterField,
         ntAlterTableStmtConvertTo,
         ntAlterTableStmtDropObject,
         ntAlterTableStmtExchangePartition,
@@ -668,7 +670,9 @@ type
         'ntAlterServerStmt',
         'ntAlterTablespaceStmt',
         'ntAlterTableStmt',
-        'ntAlterTableStmtAlterColumn',
+        'ntAlterTableStmtAddField',
+        'ntAlterTableStmtAddFields',
+        'ntAlterTableStmtAlterField',
         'ntAlterTableStmtConvertTo',
         'ntAlterTableStmtDropObject',
         'ntAlterTableStmtExchangePartition',
@@ -1886,8 +1890,45 @@ type
       TAlterTableStmt = packed record
       private type
 
-        PAlterColumn = ^TAlterColumn;
-        TAlterColumn = packed record
+        PAddField = ^TAddField;
+        TAddField = packed record
+        private type
+          TNodes = packed record
+            AddTag: TOffset;
+            ColumnTag: TOffset;
+            OldIdent: TOffset;
+            Ident: TOffset;
+            Definition: TOffset;
+            Position: TOffset;
+          end;
+        private
+          Heritage: TRange;
+        private
+          Nodes: TNodes;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
+        public
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
+        end;
+
+        PAddFields = ^TAddFields;
+        TAddFields = packed record
+        private type
+          TNodes = packed record
+            AddTag: TOffset;
+            ColumnTag: TOffset;
+            DefinitionList: TOffset;
+          end;
+        private
+          Heritage: TRange;
+        private
+          Nodes: TNodes;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
+        public
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
+        end;
+
+        PAlterField = ^TAlterField;
+        TAlterField = packed record
         private type
           TNodes = packed record
             AlterTag: TOffset;
@@ -2596,9 +2637,6 @@ type
         private type
 
           TNodes = packed record
-            AddTag: TOffset;
-            ColumnTag: TOffset;
-            OldIdent: TOffset;
             Ident: TOffset;
             Datatype: TOffset;
             Real: packed record
@@ -2621,7 +2659,6 @@ type
             NullTag: TOffset;
             KeyTag: TOffset;
             CommentValue: TOffset;
-            Position: TOffset;
           end;
         private
           Heritage: TRange;
@@ -6687,7 +6724,7 @@ type
     procedure FormatAlterRoutineStmt(const Nodes: TAlterRoutineStmt.TNodes);
     procedure FormatAlterTablespaceStmt(const Nodes: TAlterTablespaceStmt.TNodes);
     procedure FormatAlterTableStmt(const Nodes: TAlterTableStmt.TNodes);
-    procedure FormatAlterTableStmtAlterColumn(const Nodes: TAlterTableStmt.TAlterColumn.TNodes);
+    procedure FormatAlterTableStmtAlterField(const Nodes: TAlterTableStmt.TAlterField.TNodes);
     procedure FormatAlterViewStmt(const Nodes: TAlterViewStmt.TNodes);
     procedure FormatBeginLabel(const Nodes: TBeginLabel.TNodes);
     procedure FormatCallStmt(const Nodes: TCallStmt.TNodes);
@@ -6807,7 +6844,9 @@ type
     function ParseAlterStmt(): TOffset;
     function ParseAlterTablespaceStmt(const AlterTag: TOffset): TOffset;
     function ParseAlterTableStmt(const AlterTag, IgnoreTag: TOffset): TOffset;
-    function ParseAlterTableStmtAlterColumn(): TOffset;
+    function ParseAlterTableStmtAddField(const AddType: TCreateTableStmt.TFieldAddType; const AddTag: TOffset): TOffset;
+    function ParseAlterTableStmtAddFields(): TOffset;
+    function ParseAlterTableStmtAlterField(): TOffset;
     function ParseAlterTableStmtConvertTo(): TOffset;
     function ParseAlterTableStmtDropItem(): TOffset;
     function ParseAlterTableStmtExchangePartition(): TOffset;
@@ -6845,7 +6884,7 @@ type
     function ParseCreateTablespaceStmt(const CreateTag: TOffset): TOffset;
     function ParseCreateTableStmt(const CreateTag, OrReplaceTag, TemporaryTag: TOffset): TOffset;
     function ParseCreateTableStmtCheck(): TOffset;
-    function ParseCreateTableStmtField(const AddType: TCreateTableStmt.TFieldAddType; const AddTag: TOffset): TOffset;
+    function ParseCreateTableStmtField(): TOffset;
     function ParseCreateTableStmtDefinition(): TOffset; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseCreateTableStmtDefinition(const AlterTableStmt: Boolean): TOffset; overload;
     function ParseCreateTableStmtDefinitionPartitionNames(): TOffset;
@@ -8692,13 +8731,41 @@ begin
   end;
 end;
 
-{ TSQLParser.TAlterTableStmt.TAlterColumn *************************************}
+{ TSQLParser.TAlterTableStmt.TAddField **************************************}
 
-class function TSQLParser.TAlterTableStmt.TAlterColumn.Create(const AParser: TSQLParser; const ANodes: TAlterColumn.TNodes): TOffset;
+class function TSQLParser.TAlterTableStmt.TAddField.Create(const AParser: TSQLParser; const ANodes: TAddField.TNodes): TOffset;
 begin
-  Result := TRange.Create(AParser, ntAlterTableStmtAlterColumn);
+  Result := TRange.Create(AParser, ntAlterTableStmtAddField);
 
-  with PAlterColumn(AParser.NodePtr(Result))^ do
+  with PAddField(AParser.NodePtr(Result))^ do
+  begin
+    Nodes := ANodes;
+
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
+  end;
+end;
+
+{ TSQLParser.TAlterTableStmt.TAddFields ***************************************}
+
+class function TSQLParser.TAlterTableStmt.TAddFields.Create(const AParser: TSQLParser; const ANodes: TAddFields.TNodes): TOffset;
+begin
+  Result := TRange.Create(AParser, ntAlterTableStmtAddFields);
+
+  with PAddFields(AParser.NodePtr(Result))^ do
+  begin
+    Nodes := ANodes;
+
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
+  end;
+end;
+
+{ TSQLParser.TAlterTableStmt.TAlterField **************************************}
+
+class function TSQLParser.TAlterTableStmt.TAlterField.Create(const AParser: TSQLParser; const ANodes: TAlterField.TNodes): TOffset;
+begin
+  Result := TRange.Create(AParser, ntAlterTableStmtAlterField);
+
+  with PAlterField(AParser.NodePtr(Result))^ do
   begin
     Nodes := ANodes;
 
@@ -12168,7 +12235,7 @@ begin
   FormatNode(Nodes.PartitionOptions, stReturnBefore);
 end;
 
-procedure TSQLParser.FormatAlterTableStmtAlterColumn(const Nodes: TAlterTableStmt.TAlterColumn.TNodes);
+procedure TSQLParser.FormatAlterTableStmtAlterField(const Nodes: TAlterTableStmt.TAlterField.TNodes);
 begin
   FormatNode(Nodes.AlterTag);
   FormatNode(Nodes.ColumnTag, stSpaceBefore);
@@ -12490,13 +12557,7 @@ end;
 
 procedure TSQLParser.FormatCreateTableStmtField(const Nodes: TCreateTableStmt.TField.TNodes);
 begin
-  if (Nodes.AddTag > 0) then
-  begin
-    FormatNode(Nodes.AddTag, stSpaceAfter);
-    FormatNode(Nodes.ColumnTag);
-  end;
-  FormatNode(Nodes.OldIdent, stSpaceBefore);
-  FormatNode(Nodes.Ident, stSpaceBefore);
+  FormatNode(Nodes.Ident);
   FormatNode(Nodes.Datatype, stSpaceBefore);
   if (Nodes.Virtual.AsTag = 0) then
   begin // Real field
@@ -12520,7 +12581,6 @@ begin
     FormatNode(Nodes.CommentValue, stSpaceBefore);
     FormatNode(Nodes.NullTag, stSpaceBefore);
   end;
-  FormatNode(Nodes.Position, stSpaceBefore);
 end;
 
 procedure TSQLParser.FormatCreateTableStmtKey(const Nodes: TCreateTableStmt.TKey.TNodes);
@@ -13391,7 +13451,9 @@ begin
       ntAlterServerStmt: DefaultFormatNode(@PAlterServerStmt(Node)^.Nodes, SizeOf(TAlterServerStmt.TNodes));
       ntAlterTablespaceStmt: FormatAlterTablespaceStmt(PAlterTablespaceStmt(Node)^.Nodes);
       ntAlterTableStmt: FormatAlterTableStmt(PAlterTableStmt(Node)^.Nodes);
-      ntAlterTableStmtAlterColumn: FormatAlterTableStmtAlterColumn(TAlterTableStmt.PAlterColumn(Node)^.Nodes);
+      ntAlterTableStmtAddField: DefaultFormatNode(@TAlterTableStmt.PAddField(Node)^.Nodes, SizeOf(TAlterTableStmt.TAddField.TNodes));
+      ntAlterTableStmtAddFields: DefaultFormatNode(@TAlterTableStmt.PAddFields(Node)^.Nodes, SizeOf(TAlterTableStmt.TAddFields.TNodes));
+      ntAlterTableStmtAlterField: FormatAlterTableStmtAlterField(TAlterTableStmt.PAlterField(Node)^.Nodes);
       ntAlterTableStmtConvertTo: DefaultFormatNode(@TAlterTableStmt.PConvertTo(Node)^.Nodes, SizeOf(TAlterTableStmt.TConvertTo.TNodes));
       ntAlterTableStmtDropObject: DefaultFormatNode(@TAlterTableStmt.PDropObject(Node)^.Nodes, SizeOf(TAlterTableStmt.TDropObject.TNodes));
       ntAlterTableStmtExchangePartition: DefaultFormatNode(@TAlterTableStmt.PExchangePartition(Node)^.Nodes, SizeOf(TAlterTableStmt.TExchangePartition.TNodes));
@@ -14919,7 +14981,9 @@ begin
     ntAlterServerStmt: Result := SizeOf(TAlterServerStmt);
     ntAlterTablespaceStmt: Result := SizeOf(TAlterTablespaceStmt);
     ntAlterTableStmt: Result := SizeOf(TAlterTableStmt);
-    ntAlterTableStmtAlterColumn: Result := SizeOf(TAlterTableStmt.TAlterColumn);
+    ntAlterTableStmtAddField: Result := SizeOf(TAlterTableStmt.TAddField);
+    ntAlterTableStmtAddFields: Result := SizeOf(TAlterTableStmt.TAddFields);
+    ntAlterTableStmtAlterField: Result := SizeOf(TAlterTableStmt.TAlterField);
     ntAlterTableStmtConvertTo: Result := SizeOf(TAlterTableStmt.TConvertTo);
     ntAlterTableStmtDropObject: Result := SizeOf(TAlterTableStmt.TDropObject);
     ntAlterTableStmtExchangePartition: Result := SizeOf(TAlterTableStmt.TExchangePartition);
@@ -15705,15 +15769,18 @@ begin
       // Do nothing
 
     else if (IsTag(kiADD)) then
-      Specifications.Add(ParseCreateTableStmtDefinition(True))
+      if (not IsNextSymbol(1, ttOpenBracket)) then
+        Specifications.Add(ParseCreateTableStmtDefinition(True))
+      else
+        Specifications.Add(ParseAlterTableStmtAddFields())
     else if (IsTag(kiALTER)) then
-      Specifications.Add(ParseAlterTableStmtAlterColumn())
+      Specifications.Add(ParseAlterTableStmtAlterField())
     else if (IsTag(kiCHANGE)) then
-      Specifications.Add(ParseCreateTableStmtField(fatChange, ParseTag(kiCHANGE)))
+      Specifications.Add(ParseAlterTableStmtAddField(fatChange, ParseTag(kiCHANGE)))
     else if (IsTag(kiDROP)) then
       Specifications.Add(ParseAlterTableStmtDropItem())
     else if (IsTag(kiMODIFY)) then
-      Specifications.Add(ParseCreateTableStmtField(fatModify, ParseTag(kiMODIFY)))
+      Specifications.Add(ParseAlterTableStmtAddField(fatModify, ParseTag(kiMODIFY)))
 
 
     else if ((Nodes.AlgorithmValue = 0) and IsTag(kiALGORITHM)) then
@@ -15833,9 +15900,57 @@ begin
   Result := TAlterTableStmt.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseAlterTableStmtAlterColumn(): TOffset;
+function TSQLParser.ParseAlterTableStmtAddField(const AddType: TCreateTableStmt.TFieldAddType; const AddTag: TOffset): TOffset;
 var
-  Nodes: TAlterTableStmt.TAlterColumn.TNodes;
+  Nodes: TAlterTableStmt.TAddField.TNodes;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
+  Nodes.AddTag := AddTag;
+
+  if (not ErrorFound and (AddType <> fatNone)) then
+    if (IsTag(kiCOLUMN)) then
+      Nodes.ColumnTag := ParseTag(kiCOLUMN);
+
+  if (not ErrorFound and (AddType in [fatChange, fatModify])) then
+    Nodes.OldIdent := ParseFieldIdent();
+
+  if (not ErrorFound and (AddType in [fatNone, fatAdd, fatChange])) then
+    Nodes.Ident := ParseFieldIdent();
+
+  if (not ErrorFound) then
+    Nodes.Definition := ParseCreateTableStmtField();
+
+  if (not ErrorFound and (AddType <> fatNone)) then
+    if (IsTag(kiFIRST)) then
+      Nodes.Position := ParseTag(kiFIRST)
+    else if (IsTag(kiAFTER)) then
+      Nodes.Position := ParseValue(kiAFTER, vaNo, ParseFieldIdent);
+
+  Result := TAlterTableStmt.TAddField.Create(Self, Nodes);
+end;
+
+function TSQLParser.ParseAlterTableStmtAddFields(): TOffset;
+var
+  Nodes: TAlterTableStmt.TAddFields.TNodes;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
+  Nodes.AddTag := ParseTag(kiADD);
+
+  if (not ErrorFound) then
+    if (IsTag(kiCOLUMN)) then
+      Nodes.ColumnTag := ParseTag(kiCOLUMN);
+
+  if (not ErrorFound) then
+    Nodes.DefinitionList := ParseList(True, ParseCreateTableStmtField, ttComma, False);
+
+  Result := TAlterTableStmt.TAddFields.Create(Self, Nodes);
+end;
+
+function TSQLParser.ParseAlterTableStmtAlterField(): TOffset;
+var
+  Nodes: TAlterTableStmt.TAlterField.TNodes;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
@@ -15855,7 +15970,7 @@ begin
     else
       Nodes.DropDefaultTag := ParseTag(kiDROP, kiDEFAULT);
 
-  Result := TAlterTableStmt.TAlterColumn.Create(Self, Nodes);
+  Result := TAlterTableStmt.TAlterField.Create(Self, Nodes);
 end;
 
 function TSQLParser.ParseAlterTableStmtConvertTo(): TOffset;
@@ -17483,7 +17598,7 @@ begin
   Result := TCreateTableStmt.TCheck.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseCreateTableStmtField(const AddType: TCreateTableStmt.TFieldAddType; const AddTag: TOffset): TOffset;
+function TSQLParser.ParseCreateTableStmtField(): TOffset;
 var
   DatatypeIndex: Integer;
   Found: Boolean;
@@ -17491,17 +17606,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.AddTag := AddTag;
-
-  if (not ErrorFound and (AddType <> fatNone)) then
-    if (IsTag(kiCOLUMN)) then
-      Nodes.ColumnTag := ParseTag(kiCOLUMN);
-
-  if (not ErrorFound and (AddType in [fatChange, fatModify])) then
-    Nodes.OldIdent := ParseFieldIdent();
-
-  if (not ErrorFound and (AddType in [fatNone, fatAdd, fatChange])) then
-    Nodes.Ident := ParseFieldIdent();
+  Nodes.Ident := ParseFieldIdent();
 
   if (not ErrorFound) then
     Nodes.Datatype := ParseDatatype(DatatypeIndex);
@@ -17610,12 +17715,6 @@ begin
   else
     SetError(PE_UnexpectedToken);
 
-  if (not ErrorFound and (AddType <> fatNone)) then
-    if (IsTag(kiFIRST)) then
-      Nodes.Position := ParseTag(kiFIRST)
-    else if (IsTag(kiAFTER)) then
-      Nodes.Position := ParseValue(kiAFTER, vaNo, ParseFieldIdent);
-
   Result := TCreateTableStmt.TField.Create(Self, Nodes);
 end;
 
@@ -17662,10 +17761,7 @@ begin
   else if ((ConstraintTag = 0) and IsTag(kiPARTITION)) then
     Result := ParseCreateTableStmtPartition(AddTag)
   else if (ConstraintTag = 0) then
-    if (not AlterTableStmt) then
-      Result := ParseCreateTableStmtField(fatNone, AddTag)
-    else
-      Result := ParseCreateTableStmtField(fatAdd, AddTag)
+    Result := ParseCreateTableStmtField()
   else if (EndOfStmt(CurrentToken)) then
   begin
     SetError(PE_IncompleteStmt);

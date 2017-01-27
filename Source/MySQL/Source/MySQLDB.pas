@@ -2621,7 +2621,7 @@ begin
   begin
     // The MySQL server answers sometimes about a problem "near ''", if a
     // statement is not terminated by ";". A ";" attached to the last statement
-    // avoids this.
+    // avoids this...
     if (SQLIndex < SQLLength) then
       SyncThread.SQL[SQLIndex] := ';'
     else
@@ -5216,7 +5216,11 @@ begin
                 begin TWordField(Field).MinValue := 1901; TWordField(Field).MaxValue := 2155; end
           end;
 
-          Field.FieldName := Connection.LibDecode(LibField.name);
+          try
+            Field.FieldName := Connection.LibDecode(LibField.name);
+          except
+            Field.FieldName := Connection.LibUnpack(LibField.name);
+          end;
 
           // Debug 2017-01-23
           if (Field.FieldName = '') then
@@ -8365,18 +8369,18 @@ end;
 
 {******************************************************************************}
 
-//var
-//  Hex: string;
-//  Len: Integer;
-//  RBS: RawByteString;
-//  SQL: string;
+var
+  Hex: string;
+  Len: Integer;
+  RBS: RawByteString;
+  SQL: string;
 initialization
-//  Hex := '';
-//  SetLength(RBS, Length(Hex) div 2);
-//  HexToBin(PChar(Hex), PAnsiChar(RBS), Length(RBS));
-//  SetLength(SQL, Length(RBS));
-//  Len := AnsiCharToWideChar(65001, PAnsiChar(RBS), Length(RBS), PChar(SQL), Length(SQL));
-//  SetLength(SQL, Len);
+  Hex := '5365F16F72';
+  SetLength(RBS, Length(Hex) div 2);
+  HexToBin(PChar(Hex), PAnsiChar(RBS), Length(RBS));
+  SetLength(SQL, Length(RBS));
+  Len := AnsiCharToWideChar(65001, PAnsiChar(RBS), Length(RBS), PChar(SQL), Length(SQL));
+  SetLength(SQL, Len);
 
   MySQLConnectionOnSynchronize := nil;
 

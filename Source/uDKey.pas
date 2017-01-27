@@ -148,7 +148,11 @@ begin
         if ((Key.Columns.Column[J].Field = Table.Fields[I])) then
           Found := True;
     if (not Found and ((Table.Fields[I].FieldKind <> mkVirtual) or (Table.Fields[I].Stored = msStored))) then
-      FAvailableFields.Items.Add().Caption := Table.Fields[I].Name;
+    begin
+      Item := FAvailableFields.Items.Add();
+      Item.Caption := Table.Fields[I].Name;
+      Item.Data := Table.Fields[I];
+    end;
   end;
   FAvailableFields.Items.EndUpdate();
   if (FAvailableFields.Items.Count > 0) then
@@ -504,7 +508,7 @@ begin
       SessionState := ssCreate
     else
       SessionState := ssValid
-  else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemReorder]) and (Event.Item = Table)) then
+  else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemRenamed]) and (Event.Item = Table)) then
     ModalResult := mrOk;
 
   if (SessionState = ssValid) then
@@ -631,6 +635,7 @@ begin
   begin
     Item := FIndexedFields.Items.Add();
     Item.Caption := FAvailableFields.Selected.Caption;
+    Item.Data := FAvailableFields.Selected.Data;
     FIndexedFields.Selected := Item;
 
     FAvailableFields.Selected.Delete();

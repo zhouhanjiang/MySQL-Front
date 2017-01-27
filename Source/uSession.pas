@@ -134,6 +134,7 @@ type
     function GetObjects(): TSObjects; inline;
   protected
     FDesktop: TDesktop;
+    FOriginalName: string;
     FSource: string;
     FValidSource: Boolean;
     function Build(const DataSet: TMySQLQuery): Boolean; overload; virtual; abstract;
@@ -152,6 +153,7 @@ type
     function Update(): Boolean; overload; virtual;
     property Desktop: TDesktop read GetDesktop;
     property Objects: TSObjects read GetObjects;
+    property OriginalName: string read FOriginalName;
     property Source: string read FSource;
     property Valid: Boolean read GetValid;
     property ValidSource: Boolean read GetValidSource;
@@ -285,10 +287,10 @@ type
   private
     Created: Boolean;
     FColumns: TSKeyColumns;
-    OriginalName: string;
     function GetKeys(): TSKeys; inline;
     function GetTable(): TSBaseTable;
   protected
+    FOriginalName: string;
     function GetCaption(): string; override;
     procedure SetName(const AName: string); override;
   public
@@ -309,6 +311,7 @@ type
     property Columns: TSKeyColumns read FColumns;
     property Index: Integer read GetIndex;
     property Keys: TSKeys read GetKeys;
+    property OriginalName: string read FOriginalName;
     property Table: TSBaseTable read GetTable;
   end;
 
@@ -408,16 +411,17 @@ type
   private
     function GetTable(): TSBaseTable;
   protected
+    FOriginalName: string;
     function GetIndex(): Integer; override;
     procedure SetName(const AName: string); override;
   public
     Moved: Boolean;
     OnUpdate: string;
     OnUpdateSize: Integer;
-    OriginalName: string;
     procedure Assign(const Source: TSField); override;
     procedure Clear(); override;
     constructor Create(const AFields: TSTableFields; const AName: string = ''); override;
+    property OriginalName: string read FOriginalName;
     property Table: TSBaseTable read GetTable;
   end;
 
@@ -467,7 +471,7 @@ type
     function GetTable(): TSBaseTable;
   protected
     Created: Boolean;
-    OriginalName: string;
+    FOriginalName: string;
     procedure SetName(const AName: string); override;
   public
     Fields: array of TSTableField;
@@ -487,6 +491,7 @@ type
     destructor Destroy(); override;
     property ForeignKeys: TSForeignKeys read GetForeignKeys;
     property Index: Integer read GetIndex;
+    property OriginalName: string read FOriginalName;
     property Table: TSBaseTable read GetTable;
   end;
 
@@ -571,7 +576,7 @@ type
   private
     FTable: TSBaseTable;
   protected
-    OriginalName: string;
+    FOriginalName: string;
     function DBTypeStr(): string; virtual;
   public
     Comment: string;
@@ -583,6 +588,7 @@ type
     procedure Clear(); virtual;
     constructor Create(const ASItems: TSItems; const ATable: TSBaseTable); reintroduce; virtual;
     function Equal(const Second: TSPartition): Boolean; reintroduce; virtual;
+    property OriginalName: string read FOriginalName;
     property Table: TSBaseTable read FTable;
   end;
 
@@ -1505,7 +1511,7 @@ type
   type
     TEvent = class(TObject)
     type
-      TEventType = (etItemsValid, etItemValid, etItemCreated, etItemDropped, etItemReorder, etDatabaseChanged, etBeforeExecuteSQL, etAfterExecuteSQL, etMonitor, etError);
+      TEventType = (etItemsValid, etItemValid, etItemCreated, etItemDropped, etItemRenamed, etDatabaseChanged, etBeforeExecuteSQL, etAfterExecuteSQL, etMonitor, etError);
     public
       Session: TSSession;
       EventType: TEventType;
@@ -2114,6 +2120,8 @@ constructor TSObject.Create(const AItems: TSItems; const AName: string = '');
 begin
   inherited;
 
+  FOriginalName := AName;
+
   FSource := '';
   FValidSource := False;
 
@@ -2704,7 +2712,7 @@ var
 begin
   inherited Assign(Source);
 
-  OriginalName := Source.OriginalName;
+  FOriginalName := Source.OriginalName;
 
   BlockSize := Source.BlockSize;
   Created := Source.Created;
@@ -2747,7 +2755,7 @@ begin
   FColumns := TSKeyColumns.Create(Self);
   Clear();
 
-  OriginalName := Name;
+  FOriginalName := Name;
 end;
 
 procedure TSKey.Clear();
@@ -3252,7 +3260,7 @@ begin
     OnUpdateSize := TSBaseField(TSTableField(Source)).OnUpdateSize;
   end;
 
-  OriginalName := TSBaseField(TSTableField(Source)).OriginalName;
+  FOriginalName := TSBaseField(TSTableField(Source)).OriginalName;
   Moved := TSBaseField(TSTableField(Source)).Moved;
 end;
 
@@ -3269,7 +3277,7 @@ constructor TSBaseField.Create(const AFields: TSTableFields; const AName: string
 begin
   inherited;
 
-  OriginalName := AName;
+  FOriginalName := AName;
 end;
 
 function TSBaseField.GetIndex(): Integer;
@@ -3309,7 +3317,10 @@ begin
     Index := NewField.FieldBefore.Index + 1;
 
   if (NewField is TSBaseField) then
-    Insert(Index, TSBaseField.Create(TSBaseTableFields(Self)))
+  begin
+    Insert(Index, TSBaseField.Create(TSBaseTableFields(Self)));
+    TSBaseField(Field[Index]).FOriginalName := '';
+  end
   else if (NewField is TSViewField) then
     Insert(Index, TSViewField.Create(Self))
   else
@@ -3464,7 +3475,7 @@ var
 begin
   inherited Assign(Source);
 
-  OriginalName := Source.OriginalName;
+  FOriginalName := Source.OriginalName;
 
   Created := Source.Created;
   SetLength(Fields, Length(Source.Fields));
@@ -3499,7 +3510,7 @@ begin
 
   Clear();
 
-  OriginalName := AName;
+  FOriginalName := AName;
 end;
 
 function TSForeignKey.DBTypeStr(): string;
@@ -3896,7 +3907,7 @@ begin
 
   Comment := Source.Comment;
   Engine := Source.Engine;
-  OriginalName := Source.OriginalName;
+  FOriginalName := Source.OriginalName;
   MaxRows := Source.MaxRows;
   MinRows := Source.MinRows;
   ValuesExpr := Source.ValuesExpr;
@@ -4455,8 +4466,8 @@ begin
         if (Assigned(Field) and (NewFieldName <> OldFieldName)) then
         begin
           Field.Name := NewFieldName;
-          Field.OriginalName := NewFieldName;
-          Session.SendEvent(etItemReorder, Self, Fields, Field);
+          Session.SendEvent(etItemRenamed, Self, Fields, Field);
+          Field.FOriginalName := NewFieldName;
         end;
       end;
 
@@ -4678,7 +4689,7 @@ begin
             SQLParseValue(Parse);
 
       if (Moved) then
-        Session.SendEvent(etItemReorder, Self, FFields, Field);
+        Session.SendEvent(etItemRenamed, Self, FFields, Field);
 
       Inc(Index);
       SQLParseChar(Parse, ',');
@@ -4991,7 +5002,7 @@ begin
                 if (SQLParseKeyword(Parse, 'PARTITION')) then
                 begin
                   NewPartition.FName := SQLParseValue(Parse);
-                  NewPartition.OriginalName := NewPartition.Name;
+                  NewPartition.FOriginalName := NewPartition.Name;
                 end
                 else if (SQLParseKeyword(Parse, 'VALUES')) then
                 begin
@@ -12412,7 +12423,12 @@ begin
               else
               begin
                 Database.Invalidate();
-                SendEvent(etItemReorder, Self, Databases, Database);
+                Database.Name := DDLStmt.NewDatabaseName;
+                if (DDLStmt.DefinitionType in [dtRename, dtAlterRename]) then
+                begin
+                  SendEvent(etItemRenamed, Self, Databases, Database);
+                  Database.FOriginalName := DDLStmt.NewDatabaseName;
+                end;
               end;
             end;
           dtDrop:
@@ -12463,9 +12479,12 @@ begin
                           Table.SetDatabase(DatabaseByName(DDLStmt.NewDatabaseName));
                           Table.Name := DDLStmt.NewObjectName;
                           if (DDLStmt.NewDatabaseName <> DatabaseName) then
-                            SendEvent(etItemDropped, Table.Database, Table.Tables, Table)
+                            Database.Tables.Delete(Table)
                           else
-                            SendEvent(etItemReorder, Database, Database.Tables, Table);
+                          begin
+                            SendEvent(etItemRenamed, Database, Database.Tables, Table);
+                            Table.FOriginalName := Table.Name;
+                          end;
                         end;
                       end;
                     end;
@@ -12491,9 +12510,16 @@ begin
                         Table.SetDatabase(Database);
                         Table.Name := DDLStmt.NewObjectName;
                         if (Databases.NameCmp(DDLStmt.NewDatabaseName, Database.Name) <> 0) then
-                          SendEvent(etItemDropped, Table.Database, Table.Tables, Table)
+                        begin
+                          Database.Tables.Delete(Table);
+                          if (Assigned(DatabaseByName(DDLStmt.NewDatabaseName))) then
+                            DatabaseByName(DDLStmt.NewDatabaseName).Tables.Invalidate();
+                        end
                         else
-                          SendEvent(etItemReorder, Database, Database.Tables, Table);
+                        begin
+                          SendEvent(etItemRenamed, Database, Database.Tables, Table);
+                          Table.FOriginalName := Table.Name
+                        end;
                       end;
 
                       if ((Table.Database <> Database) and Table.Database.Valid) then
@@ -12565,10 +12591,21 @@ begin
                         Database.Routines.Add(TSRoutine.Create(Database.Routines, DDLStmt.ObjectName))
                       else
                         Database.Routines.Add(TSFunction.Create(Database.Routines, DDLStmt.ObjectName))
+                    else if (Databases.NameCmp(DDLStmt.NewDatabaseName, Database.Name) <> 0) then
+                    begin
+                      Database.Routines.Delete(Routine);
+                      if (Assigned(DatabaseByName(DDLStmt.NewDatabaseName))) then
+                        DatabaseByName(DDLStmt.NewDatabaseName).Routines.Invalidate();
+                    end
                     else
                     begin
                       Routine.Invalidate();
-                      SendEvent(etItemReorder, Database, Database.Routines, Routine);
+                      Routine.Name := DDLStmt.NewObjectName;
+                      if (DDLStmt.DefinitionType in [dtRename, dtAlterRename]) then
+                      begin
+                        SendEvent(etItemRenamed, Database, Database.Routines, Routine);
+                        Routine.FOriginalName := Routine.Name;
+                      end;
                     end;
                   end;
                 dtDrop:
@@ -12613,13 +12650,20 @@ begin
                     end;
                     if (not Assigned(Trigger)) then
                       Database.Triggers.Add(TSTrigger.Create(Database.Triggers, DDLStmt.ObjectName))
+                    else if (Databases.NameCmp(DDLStmt.NewDatabaseName, Database.Name) <> 0) then
+                    begin
+                      Database.Triggers.Delete(Trigger);
+                      if (Assigned(DatabaseByName(DDLStmt.NewDatabaseName))) then
+                        DatabaseByName(DDLStmt.NewDatabaseName).Triggers.Invalidate();
+                    end
                     else
                     begin
-                      if (Trigger.Database <> Database) then
-                        Database.Invalidate()
-                      else
-                        Trigger.Invalidate();
-                      SendEvent(etItemReorder, Database, Database.Triggers, Trigger);
+                      Trigger.Invalidate();
+                      if (DDLStmt.DefinitionType = dtAlterRename) then
+                      begin
+                        SendEvent(etItemRenamed, Database, Database.Triggers, Trigger);
+                        Trigger.FOriginalName := DDLStmt.NewObjectName;
+                      end;
                     end;
                   end;
                 dtDrop:
@@ -12661,13 +12705,20 @@ begin
                     end;
                     if (not Assigned(Event)) then
                       Database.Events.Add(TSEvent.Create(Database.Events, DDLStmt.ObjectName))
+                    else if (Databases.NameCmp(DDLStmt.NewDatabaseName, Database.Name) <> 0) then
+                    begin
+                      Database.Events.Delete(Event);
+                      if (Assigned(DatabaseByName(DDLStmt.NewDatabaseName))) then
+                        DatabaseByName(DDLStmt.NewDatabaseName).Events.Invalidate();
+                    end
                     else
                     begin
-                      if (Event.Database <> Database) then
-                        Database.Invalidate()
-                      else
-                        Event.Invalidate();
-                      SendEvent(etItemReorder, Database, Database.Events, Event);
+                      Event.Invalidate();
+                      if (DDLStmt.DefinitionType in [dtRename, dtAlterRename]) then
+                      begin
+                        SendEvent(etItemRenamed, Database, Database.Events, Event);
+                        Event.FOriginalName := Event.Name;
+                      end;
                     end;
                   end;
                 dtDrop:
@@ -12713,7 +12764,7 @@ begin
           if (Assigned(Variable) and SQLParseChar(Parse, '=')) then
           begin
             Variable.FValue := SQLParseValue(Parse);
-            SendEvent(etItemReorder, Self, Variables, Variable);
+            SendEvent(etItemValid, Self, Variables, Variable);
           end;
         end
         else
@@ -12730,7 +12781,7 @@ begin
             if (Assigned(Variable) and SQLParseChar(Parse, '=')) then
             begin
               Variable.FValue := SQLParseValue(Parse);
-              SendEvent(etItemReorder, Self, Variables, Variable);
+              SendEvent(etItemValid, Self, Variables, Variable);
             end;
           end;
         end;
@@ -12793,7 +12844,7 @@ begin
           if (Assigned(User)) then
           begin
             User.Name := ObjectName;
-            SendEvent(etItemReorder, Self, Users, User);
+            SendEvent(etItemRenamed, Self, Users, User);
           end;
         end;
       until (not SQLParseChar(Parse, ','))
@@ -12808,7 +12859,7 @@ begin
             if (Assigned(User)) then
             begin
               User.Invalidate();
-              SendEvent(etItemReorder, Self, Users, User);
+              SendEvent(etItemRenamed, Self, Users, User);
             end;
             while (not SQLParseChar(Parse, ';') and not SQLParseEnd(Parse) and not SQLParseKeyword(Parse, 'REQUIRE', False) and not SQLParseKeyword(Parse, 'WITH', False) and not SQLParseChar(Parse, ',', False)) do
               SQLParseValue(Parse);
@@ -12825,7 +12876,7 @@ begin
             if (Assigned(User)) then
             begin
               User.Invalidate();
-              SendEvent(etItemReorder, Self, Users, User);
+              SendEvent(etItemValid, Self, Users, User);
             end;
           until (not SQLParseChar(Parse, ','));
       end

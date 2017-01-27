@@ -76,7 +76,6 @@ Source: "{BuildLanguagesPath}\*.ini"; DestDir: "{app}\Languages"; Flags: compare
 
 [Icons]
 Name: "{group}\{BuildName}"; Filename: "{app}\{BuildName}.exe";
-Name: "{group}\Help"; Filename: "{app}\{BuildName}.chm";
 Name: "{userdesktop}\{BuildName}"; Filename: "{app}\{BuildName}.exe"; Tasks: DesktopIcon;
 
 [Run]

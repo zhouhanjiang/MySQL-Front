@@ -54,13 +54,11 @@ type
     TMRUList = class
     private
       FMaxCount: Integer;
-      FValues: array of string;
-      function Get(Index: Integer): string;
       function GetCount(): Integer;
+    protected
+      FValues: array of string;
+      function Get(Index: Integer): string; inline;
     public
-      property Count: Integer read GetCount;
-      property Items[Index: Integer]: string read Get; default;
-      property MaxCount: Integer read FMaxCount;
       procedure Add(const Value: string); virtual;
       procedure Assign(const Source: TMRUList); virtual;
       procedure Clear(); virtual;
@@ -70,6 +68,9 @@ type
       function IndexOf(const Value: string): Integer; virtual;
       procedure LoadFromXML(const XML: IXMLNode; const NodeName: string); virtual;
       procedure SaveToXML(const XML: IXMLNode; const NodeName: string); virtual;
+      property Count: Integer read GetCount;
+      property Items[Index: Integer]: string read Get; default;
+      property MaxCount: Integer read FMaxCount;
     end;
 
     TWindow = class(TItem)
@@ -463,7 +464,10 @@ type
     TDesktop = class;
 
     TAddresses = class(TPPreferences.TMRUList)
-
+    private
+      procedure Put(Index: Integer; Address: string); inline;
+    public
+      property Addresses[Index: Integer]: string read Get write Put; default;
     end;
 
     TFavorite = class
@@ -2678,6 +2682,13 @@ begin
       XML.OwnerDocument.SaveToFile(Filename);
     except
     end;
+end;
+
+{ TPAccount.TAddresses ********************************************************}
+
+procedure TPAccount.TAddresses.Put(Index: Integer; Address: string);
+begin
+  FValues[Index] := Address;
 end;
 
 { TPAccount.TFavorite *********************************************************}

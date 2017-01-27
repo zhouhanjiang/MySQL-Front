@@ -638,7 +638,7 @@ type
     procedure TreeViewMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
   type
-    TClassIndex = (ciUnknown, ciSession, ciDatabase, ciSystemDatabase, ciBaseTable, ciView, ciSystemView, ciProcedure, ciFunction, ciEvent, ciTrigger, ciProcesses, ciUsers, ciVariables, ciQuickAccess);
+    TClassIndex = (ciUnknown, ciSession, ciDatabase, ciSystemDatabase, ciBaseTable, ciView, ciSystemView, ciProcedure, ciFunction, ciTrigger, ciEvent, ciProcesses, ciUsers, ciVariables, ciQuickAccess);
     TListViewSortRec = record Kind: TPAccount.TDesktop.TListViewKind; ColumnIndex: Integer; Order: Integer; end;
     TListViewSortData = array [Low(TPAccount.TDesktop.TListViewKind) .. High(TPAccount.TDesktop.TListViewKind)] of TListViewSortRec;
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
@@ -1134,8 +1134,8 @@ const
   giProcesses = 10;
   giUsers = 12;
   giVariables = 13;
-  giMostFrequentlyUsed = 14;
-  giMostRecentlyUsed = 15;
+  giFrequentObjects = 14;
+  giRecentObjects = 15;
 
 const
   Filters: array[0 .. 12 - 1] of
@@ -1158,8 +1158,8 @@ const
     (ttObjects, ttBrowser, ttIDE, ttBuilder, ttDiagram, ttEditor, ttEditor2, ttEditor3);
 
 const
-  QuickAccessItemCount = 2;
-  QuickAccessListEscaper = 'QuickAccessMFU';
+  QuickAccessItemCount = 10;
+  QuickAccessListEscaper = 'QuickAccessEscaper';
 
 var
   SBlobDebug: Pointer; // Debug 2016-12-28
@@ -1236,7 +1236,7 @@ begin
   end;
 end;
 
-function QuickAccessMostFrequentlyUsedCompare(List: TStringList; Index1, Index2: Integer): Integer;
+function QuickAccessFrequentObjectsCompare(List: TStringList; Index1, Index2: Integer): Integer;
 var
   Int1: Integer;
   Int2: Integer;
@@ -1662,7 +1662,7 @@ var
   FiltersXML: IXMLNode;
   I: Integer;
 begin
-  if (AFilter <> '') then
+  if ((AFilter <> '') and ValidXMLText(AFilter)) then
   begin
     FiltersXML := XMLNode(XML, 'filters', True);
     for I := FiltersXML.ChildNodes.Count - 1 downto 0 do
@@ -4545,7 +4545,7 @@ end;
 function TFSession.ClassIndexByData(const Data: TCustomData): TClassIndex;
 begin
   if (not Assigned(Data)) then
-    raise ERangeError.Create(SRangeError)
+    Result := ciUnknown
   else if (TObject(Data) is TSSession) then
     Result := ciSession
   else if (TObject(Data) is TSSystemDatabase) then
@@ -6948,17 +6948,15 @@ var
   SourceNode: TTreeNode;
   TargetNode: TTreeNode;
 begin
-  // Debug 2017-01-26
-  if (not (Sender is TTreeView)) then
-    raise ERangeError.Create('Sender: ' + Sender.ClassName);
+  if (Sender is TTreeView) then
+    TargetNode := TTreeView(Sender).GetNodeAt(X, Y)
+  else
+    TargetNode := FNavigatorNodeByAddress(CurrentAddress);
 
-  Assert(Sender is TTreeView);
-
-  TargetNode := TTreeView(Sender).GetNodeAt(X, Y);
-
-  if ((TargetNode.ImageIndex = iiQuickAccess)
-    or (TObject(TargetNode.Data) is TPAccount.TFavorite)
-    or (Assigned(TargetNode.GetPrevVisible()) and (TObject(TargetNode.GetPrevVisible().Data) is TPAccount.TFavorite)) and (Y < TargetNode.DisplayRect(False).Top + GetSystemMetrics(SM_CYFIXEDFRAME))) then
+  if ((Sender is TTreeView)
+    and ((TargetNode.ImageIndex = iiQuickAccess)
+      or (TObject(TargetNode.Data) is TPAccount.TFavorite)
+      or (Assigned(TargetNode.GetPrevVisible()) and (TObject(TargetNode.GetPrevVisible().Data) is TPAccount.TFavorite)) and (Y < TargetNode.DisplayRect(False).Top + GetSystemMetrics(SM_CYFIXEDFRAME)))) then
   begin
     if ((TargetNode.ImageIndex = iiQuickAccess) and (Y >= TargetNode.DisplayRect(False).Bottom - GetSystemMetrics(SM_CYFIXEDFRAME))) then
       Index := 0
@@ -7811,7 +7809,7 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
         if (GroupIDByImageIndex(ImageIndexByData(Event.Item)) = GroupID) then
           if (not (Event.Item is TSTrigger) or (Parent.Count > 0)) then
             InsertOrUpdateChild(Parent, Event.Item);
-      etItemReorder:
+      etItemRenamed:
         if (GroupIDByImageIndex(ImageIndexByData(Event.Item)) = GroupID) then
         begin
           Child := Parent.getFirstChild();
@@ -8304,7 +8302,7 @@ begin
       etItemsValid,
       etItemValid,
       etItemCreated,
-      etItemReorder,
+      etItemRenamed,
       etItemDropped:
         SessionUpdate(Event);
       etMonitor:
@@ -9246,8 +9244,7 @@ begin
   end;
 
   for I := 0 to PSynMemo.ControlCount - 1 do
-    if (PSynMemo.Controls[I] <> Result) then
-      PSynMemo.Controls[I].Visible := False;
+    PSynMemo.Controls[I].Visible := PSynMemo.Controls[I] <> Result;
 end;
 
 function TFSession.GetActiveWorkbench(): TWWorkbench;
@@ -10298,13 +10295,13 @@ begin
       ListView.Columns.EndUpdate();
       SetColumnWidths(ListView, lkQuickAccess);
 
-      ListView.Groups.Add().GroupID := giMostFrequentlyUsed;
+      ListView.Groups.Add().GroupID := giFrequentObjects;
       ListView.Groups[ListView.Groups.Count - 1].State := ListView.Groups[ListView.Groups.Count - 1].State + [lgsCollapsible];
       if (Session.Account.Desktop.QuickAccessMFUVisible) then
         ListView.Groups[ListView.Groups.Count - 1].State := ListView.Groups[ListView.Groups.Count - 1].State - [lgsCollapsed]
       else
         ListView.Groups[ListView.Groups.Count - 1].State := ListView.Groups[ListView.Groups.Count - 1].State + [lgsCollapsed];
-      ListView.Groups.Add().GroupID := giMostRecentlyUsed;
+      ListView.Groups.Add().GroupID := giRecentObjects;
       ListView.Groups[ListView.Groups.Count - 1].State := ListView.Groups[ListView.Groups.Count - 1].State + [lgsCollapsible];
       if (Session.Account.Desktop.QuickAccessMRUVisible) then
         ListView.Groups[ListView.Groups.Count - 1].State := ListView.Groups[ListView.Groups.Count - 1].State - [lgsCollapsed]
@@ -10747,13 +10744,15 @@ var
           teDelete: S := S + 'delete';
         end;
         Item.SubItems.Add(S);
-        Item.SubItems.Add(TSTrigger(Data).Table.Database.Name + '.' + TSTrigger(Data).Table.Name);
+        Item.SubItems.Add(TSTrigger(Data).DatabaseName + '.' + TSTrigger(Data).TableName);
         if (TSTrigger(Data).Created = 0) then
           Item.SubItems.Add('')
         else
           Item.SubItems.Add(SysUtils.DateTimeToStr(TSTrigger(Data).Created, LocaleFormatSettings));
         Item.SubItems.Add('');
-      end;
+      end
+      else
+        raise ERangeError.Create('Invalid ClassType: ' + TObject(Data).ClassName);
     end
     else
     begin
@@ -11057,7 +11056,8 @@ var
         break;
       end;
 
-    // 3.8 s for 1545 items
+    // 3.8 seconds for 1545 items
+    // 2.0 seconds for 740 items
     ProfilingPoint(8);
 
     if ((Count > 0) and (Index < 0)) then
@@ -11277,7 +11277,7 @@ var
             Item.Focused := True;
           end;
         end;
-      etItemReorder:
+      etItemRenamed:
         if (GroupID = GroupIDByImageIndex(ImageIndexByData(Event.Item))) then
         begin
           Index := -1;
@@ -11305,6 +11305,7 @@ var
               ListView.Items.Delete(I);
 
           // 12.7 seconds on 31 items
+          // 2.8 seconds on 27 items
 
           ProfilingPoint(22);
         end;
@@ -11382,19 +11383,19 @@ var
   var
     Count: Integer;
     Data: TCustomData;
-    FirstIndex: Integer;
     I: Integer;
-    MostFrequentlyUsed: TStringList;
-    MostRecentlyUsed: TStringList;
+    ItemCount: Integer;
+    FrequentObjects: TStringList;
+    RecentObjects: TStringList;
     URI1: TUURI;
     URI2: TUURI;
   begin
-    MostFrequentlyUsed := TStringList.Create();
-    MostRecentlyUsed := TStringList.Create();
+    FrequentObjects := TStringList.Create();
+    RecentObjects := TStringList.Create();
     URI1 := TUURI.Create();
     URI2 := TUURI.Create();
 
-    for I := 0 to Session.Account.Desktop.Addresses.Count - 1 do
+    for I := Session.Account.Desktop.Addresses.Count - 1 downto 0 do
     begin
       URI1.Address := Session.Account.Desktop.Addresses[I];
 
@@ -11406,46 +11407,55 @@ var
 
       if ((URI2.Table <> '') or (URI2.Param['object'] <> Null)) then
       begin
-        if (not TryStrToInt(MostFrequentlyUsed.Values[ReplaceStr(URI2.Address, '=', QuickAccessListEscaper)], Count)) then
+        if (not TryStrToInt(FrequentObjects.Values[ReplaceStr(URI2.Address, '=', QuickAccessListEscaper)], Count)) then
           Count := 0;
-        MostFrequentlyUsed.Values[ReplaceStr(URI2.Address, '=', QuickAccessListEscaper)] := IntToStr(Count + 1);
+        FrequentObjects.Values[ReplaceStr(URI2.Address, '=', QuickAccessListEscaper)] := IntToStr(Count + 1);
 
-        if (MostRecentlyUsed.IndexOf(URI2.Address) < 0) then
-          MostRecentlyUsed.Add(URI2.Address);
+        if (RecentObjects.IndexOf(URI2.Address) < 0) then
+          RecentObjects.Insert(0, URI2.Address);
       end;
     end;
 
-    if (MostFrequentlyUsed.Count > 0) then
+    if (FrequentObjects.Count > 0) then
     begin
-      MostFrequentlyUsed.CustomSort(QuickAccessMostFrequentlyUsedCompare);
-      FirstIndex := Max(0, MostFrequentlyUsed.Count - QuickAccessItemCount);
-      for I := FirstIndex to Min(FirstIndex + QuickAccessItemCount, MostFrequentlyUsed.Count) - 1 do
-      begin
-        Data := DataByAddress(ReplaceStr(MostFrequentlyUsed.Names[I], QuickAccessListEscaper, '='));
+      FrequentObjects.CustomSort(QuickAccessFrequentObjectsCompare);
 
-        if (Assigned(Data)) then
-          AddItem(giMostFrequentlyUsed, Data);
-      end;
+      ItemCount := 0;
+      for I := 0 to FrequentObjects.Count - 1 do
+      if (ItemCount < QuickAccessItemCount) then
+        begin
+          Data := DataByAddress(ReplaceStr(FrequentObjects.Names[I], QuickAccessListEscaper, '='));
 
-      SetListViewGroupHeader(ListView, giMostFrequentlyUsed, Preferences.LoadStr(940));
+          if (ClassIndexByData(Data) in [ciBaseTable, ciView, ciProcedure, ciFunction, ciTrigger, ciEvent]) then
+          begin
+            AddItem(giFrequentObjects, Data);
+            Inc(ItemCount);
+          end;
+        end;
+
+      SetListViewGroupHeader(ListView, giFrequentObjects, Preferences.LoadStr(940));
     end;
 
-    if (MostRecentlyUsed.Count > 0) then
+    if (RecentObjects.Count > 0) then
     begin
-      FirstIndex := Max(0, MostRecentlyUsed.Count - QuickAccessItemCount);
-      for I := FirstIndex to Min(FirstIndex + QuickAccessItemCount, MostRecentlyUsed.Count) - 1 do
-      begin
-        Data := DataByAddress(MostRecentlyUsed[I]);
+      ItemCount := 0;
+      for I := 0 to RecentObjects.Count - 1 do
+        if (ItemCount < QuickAccessItemCount) then
+        begin
+          Data := DataByAddress(RecentObjects[I]);
 
-        if (Assigned(Data)) then
-          AddItem(giMostRecentlyUsed, Data);
-      end;
+          if (ClassIndexByData(Data) in [ciBaseTable, ciView, ciProcedure, ciFunction, ciTrigger, ciEvent]) then
+          begin
+            AddItem(giRecentObjects, Data);
+            Inc(ItemCount);
+          end;
+        end;
 
-      SetListViewGroupHeader(ListView, giMostRecentlyUsed, Preferences.LoadStr(941));
+      SetListViewGroupHeader(ListView, giRecentObjects, Preferences.LoadStr(941));
     end;
 
-    MostFrequentlyUsed.Free();
-    MostRecentlyUsed.Free();
+    FrequentObjects.Free();
+    RecentObjects.Free();
     URI1.Free();
     URI2.Free();
 
@@ -11567,8 +11577,16 @@ begin
     // 19 seconds, EventType: 0, Count: 66
     // 2.7 seconds, EventType: 0, Count: 0
     // 0.9 seconds, EventType: 0, Count: 39
+    // 0.4 seconds, EventType: 0, Count: 740
+    // 2.7 seconds, EventType: 0, Count: 36
 
     ProfilingPoint(30);
+
+    {$IFDEF Debug}
+    for I := 0 to ListView.Columns.Count - 1 do
+      ListView_SetColumnWidth(ListView.Handle, I, ListView.Columns[I].WidthType);
+    {$ENDIF}
+
     ListView.OnChanging := ChangingEvent;
 
     ProfilingPoint(31);
@@ -12982,7 +13000,6 @@ begin
                         begin
                           NewField := TSBaseField.Create(NewTable.Fields);
                           NewField.Assign(SourceField);
-                          TSBaseField(NewField).OriginalName := '';
                           NewField.Name := Name;
                           NewField.FieldBefore := NewTable.Fields[NewTable.Fields.Count - 1];
                           NewTable.Fields.AddField(NewField);
@@ -13627,15 +13644,15 @@ var
   Count: Integer;
   FirstIndex: Integer;
   I: Integer;
-  MostFrequentlyUsed: TStringList;
-  MostRecentlyUsed: TStringList;
+  FrequentObjects: TStringList;
+  RecentObjects: TStringList;
   Items: array of TSQuickAccess.TItem;
   URI1: TUURI;
   URI2: TUURI;
 begin
   Addresses := TStringList.Create();
-  MostFrequentlyUsed := TStringList.Create();
-  MostRecentlyUsed := TStringList.Create();
+  FrequentObjects := TStringList.Create();
+  RecentObjects := TStringList.Create();
   URI1 := TUURI.Create();
   URI2 := TUURI.Create();
 
@@ -13651,34 +13668,34 @@ begin
 
     if ((URI2.Table <> '') and (URI2.Param['objecttype'] <> 'systemview') or (URI2.Param['object'] <> Null)) then
     begin
-      if ((MostFrequentlyUsed.Count = 0) or (MostFrequentlyUsed.Names[MostFrequentlyUsed.Count - 1] <> ReplaceStr(URI2.Address, '=', QuickAccessListEscaper))) then
+      if ((FrequentObjects.Count = 0) or (FrequentObjects.Names[FrequentObjects.Count - 1] <> ReplaceStr(URI2.Address, '=', QuickAccessListEscaper))) then
       begin
-        if (not TryStrToInt(MostFrequentlyUsed.Values[ReplaceStr(URI2.Address, '=', QuickAccessListEscaper)], Count)) then
+        if (not TryStrToInt(FrequentObjects.Values[ReplaceStr(URI2.Address, '=', QuickAccessListEscaper)], Count)) then
           Count := 0;
-        MostFrequentlyUsed.Values[ReplaceStr(URI2.Address, '=', QuickAccessListEscaper)] := IntToStr(Count + 1);
+        FrequentObjects.Values[ReplaceStr(URI2.Address, '=', QuickAccessListEscaper)] := IntToStr(Count + 1);
       end;
 
-      if (MostRecentlyUsed.IndexOf(URI2.Address) < 0) then
-        MostRecentlyUsed.Add(URI2.Address);
+      if (RecentObjects.IndexOf(URI2.Address) < 0) then
+        RecentObjects.Add(URI2.Address);
     end;
   end;
 
-  FirstIndex := Max(0, MostRecentlyUsed.Count - QuickAccessItemCount);
-  for I := FirstIndex to Min(FirstIndex + QuickAccessItemCount, MostRecentlyUsed.Count) - 1 do
-    Addresses.Add(MostRecentlyUsed[I]);
+  FirstIndex := Max(0, RecentObjects.Count - QuickAccessItemCount);
+  for I := FirstIndex to Min(FirstIndex + QuickAccessItemCount, RecentObjects.Count) - 1 do
+    Addresses.Add(RecentObjects[I]);
 
-  MostFrequentlyUsed.CustomSort(QuickAccessMostFrequentlyUsedCompare);
-  FirstIndex := Max(0, MostFrequentlyUsed.Count - QuickAccessItemCount);
-  for I := FirstIndex to Min(FirstIndex + QuickAccessItemCount, MostFrequentlyUsed.Count) - 1 do
-    if (Addresses.IndexOf(MostFrequentlyUsed.Names[I]) < 0) then
-      Addresses.Add(ReplaceStr(MostFrequentlyUsed.Names[I], QuickAccessListEscaper, '='));
+  FrequentObjects.CustomSort(QuickAccessFrequentObjectsCompare);
+  FirstIndex := Max(0, FrequentObjects.Count - QuickAccessItemCount);
+  for I := FirstIndex to Min(FirstIndex + QuickAccessItemCount, FrequentObjects.Count) - 1 do
+    if (Addresses.IndexOf(FrequentObjects.Names[I]) < 0) then
+      Addresses.Add(ReplaceStr(FrequentObjects.Names[I], QuickAccessListEscaper, '='));
 
-  if (MostRecentlyUsed.Count > 0) then
+  if (RecentObjects.Count > 0) then
   begin
-    FirstIndex := Max(0, MostRecentlyUsed.Count - QuickAccessItemCount);
-    for I := FirstIndex to Min(FirstIndex + QuickAccessItemCount, MostRecentlyUsed.Count) - 1 do
+    FirstIndex := Max(0, RecentObjects.Count - QuickAccessItemCount);
+    for I := FirstIndex to Min(FirstIndex + QuickAccessItemCount, RecentObjects.Count) - 1 do
     begin
-      URI1.Address := MostRecentlyUsed[I];
+      URI1.Address := RecentObjects[I];
 
       SetLength(Items, Length(Items) + 1);
       Items[Length(Items) - 1].DatabaseName := URI1.Database;
@@ -13712,8 +13729,8 @@ begin
   end;
 
   Addresses.Free();
-  MostFrequentlyUsed.Free();
-  MostRecentlyUsed.Free();
+  FrequentObjects.Free();
+  RecentObjects.Free();
   URI1.Free();
   URI2.Free();
 
@@ -13983,29 +14000,126 @@ begin
 end;
 
 procedure TFSession.SessionUpdate(const Event: TSSession.TEvent);
+
+  function ApplyObjectRenameInAddress(const ClassIndex: TClassIndex; var URI: TUURI): Boolean;
+  var
+    Database: TSDatabase;
+  begin
+    Result := False;
+
+    Database := TSDatabase(DataByAddress(URI.Address));
+    if (Assigned(Database)) then
+      case (ClassIndex) of
+        ciDatabase:
+          if (Session.Databases.NameCmp(URI.Database, Database.OriginalName) = 0) then
+          begin
+            URI.Database := Event.Item.Name;
+            Result := True;
+          end;
+        ciBaseTable:
+          if ((URI.Table <> '') and (URI.Param['objecttype'] = Null) and (URI.Param['object'] = Null)
+            and (Session.Databases.NameCmp(URI.Database, Database.Name) = 0)
+            and (Database.Tables.NameCmp(URI.Table, TSBaseTable(Event.Item).OriginalName) = 0)) then
+          begin
+            URI.Table := Event.Item.Name;
+            Result := True;
+          end;
+        ciView:
+          if ((URI.Table <> '') and (URI.Param['objecttype'] = 'view')
+            and (Session.Databases.NameCmp(URI.Database, Database.Name) = 0)
+            and (Database.Tables.NameCmp(URI.Table, TSView(Event.Item).OriginalName) = 0)) then
+          begin
+            URI.Table := Event.Item.Name;
+            Result := True;
+          end;
+        ciProcedure:
+          if ((URI.Param['objecttype'] = 'procedure')
+            and (Session.Databases.NameCmp(URI.Database, Database.Name) = 0)
+            and (Database.Routines.NameCmp(URI.Param['object'], TSProcedure(Event.Item).OriginalName) = 0)) then
+          begin
+            URI.Param['object'] := Event.Item.Name;
+            Result := True;
+          end;
+        ciFunction:
+          if ((URI.Param['objecttype'] = 'function')
+            and (Session.Databases.NameCmp(URI.Database, Database.Name) = 0)
+            and (Database.Routines.NameCmp(URI.Param['object'], TSFunction(Event.Item).OriginalName) = 0)) then
+          begin
+            URI.Param['object'] := Event.Item.Name;
+            Result := True;
+          end;
+        ciTrigger:
+          if ((URI.Param['objecttype'] = 'trigger')
+            and (Session.Databases.NameCmp(URI.Database, Database.Name) = 0)
+            and (Database.Triggers.NameCmp(URI.Param['object'], TSTrigger(Event.Item).OriginalName) = 0)) then
+          begin
+            URI.Param['object'] := Event.Item.Name;
+            Result := True;
+          end;
+        ciEvent:
+          if ((URI.Param['objecttype'] = 'event')
+            and (Session.Databases.NameCmp(URI.Database, Database.Name) = 0)
+            and (Database.Events.NameCmp(URI.Param['object'], TSEvent(Event.Item).OriginalName) = 0)) then
+          begin
+            URI.Param['object'] := Event.Item.Name;
+            Result := True;
+          end;
+      end;
+  end;
+
 var
+  ClassIndex: TClassIndex;
   Control: TWinControl;
+  Database: TSDatabase;
   I: Integer;
   S1: string;
   S2: string;
   Table: TSTable;
   TempActiveControl: TWinControl;
+  URI: TUURI;
 begin
   LeftMousePressed := False;
 
   TempActiveControl := Window.ActiveControl;
 
   if (Assigned(Event)) then
+  begin
+    if (Event.EventType = etItemRenamed) then
+    begin
+      ClassIndex := ClassIndexByData(Event.Item);
+      if (ClassIndex in [ciDatabase, ciBaseTable, ciView, ciProcedure, ciFunction, ciTrigger, ciEvent]) then
+      begin
+        URI := TUURI.Create();
+
+        for I := 0 to Session.Account.Desktop.Addresses.Count - 1 do
+          if (ClassIndexByAddress(Session.Account.Desktop.Addresses[I]) = ClassIndex) then
+          begin
+            URI.Address := Session.Account.Desktop.Addresses[I];
+            if (ApplyObjectRenameInAddress(ClassIndex, URI)) then
+              Session.Account.Desktop.Addresses[I] := URI.Address;
+          end;
+
+        URI.Address := FCurrentAddress;
+        if (ApplyObjectRenameInAddress(ClassIndex, URI)) then
+        begin
+          FCurrentAddress := URI.Address;
+          AddressChanged(nil);
+        end;
+
+        URI.Free();
+      end;
+    end;
+
     if (Event.Items is TSItemSearch) then
       ListViewUpdate(Event, ObjectSearchListView)
     else if (Event.Items is TSQuickAccess) then
       ListViewUpdate(Event, QuickAccessListView)
     else
     begin
-      if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemReorder, etItemDropped]) then
+      if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemRenamed, etItemDropped]) then
         FNavigatorUpdate(Event);
 
-      if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemReorder, etItemDropped]) then
+      if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemRenamed, etItemDropped]) then
       begin
         if (Event.Items is TSDatabases) then
         begin
@@ -14052,7 +14166,7 @@ begin
 
         if (Assigned(ObjectSearchListView) and (TObject(ObjectSearchListView.Tag) is TSItemSearch)
           and ((Event.Items = TObject(ObjectSearchListView.Tag))
-            or (Event.EventType in [etItemValid, etItemReorder, etItemDropped]) and (TSItemSearch(ObjectSearchListView.Tag).IndexOf(Event.Item) >= 0))) then
+            or (Event.EventType in [etItemValid, etItemRenamed, etItemDropped]) and (TSItemSearch(ObjectSearchListView.Tag).IndexOf(Event.Item) >= 0))) then
           ListViewUpdate(Event, ObjectSearchListView);
       end;
 
@@ -14084,6 +14198,7 @@ begin
           PContentChange(nil);
       end;
     end;
+  end;
 
   if (PContent.Visible and Assigned(TempActiveControl) and TempActiveControl.Visible) then
   begin
@@ -14097,7 +14212,7 @@ begin
   PostMessage(Handle, UM_STATUS_BAR_REFRESH, 0, 0);
 
   if (Assigned(Event)
-    and ((Event.EventType in [etItemCreated, etItemReorder])
+    and ((Event.EventType in [etItemCreated, etItemRenamed])
       or (Event.EventType in [etItemValid]) and (Event.Item is TSObject) and not TSObject(Event.Item).Valid)
     and (Screen.ActiveForm = Window)
     and Wanted.Nothing) then
@@ -14547,19 +14662,9 @@ begin
 
     if (((View = vBrowser) or (Window.ActiveControl = ActiveDBGrid)) and Assigned(ActiveDBGrid)) then
     begin
-      // Debug 2017-01-26
-      if ((View = vBrowser) and (CurrentClassIndex in [ciBaseTable]) and not (TObject(CurrentData) is TSTable)) then
-        if (not Assigned(CurrentData)) then
-          raise ERangeError.Create('CurrentAddress: ' + CurrentAddress + #13#10
-            + 'CurrentClassIndex: ' + IntToStr(Ord(CurrentClassIndex)))
-        else
-          raise ERangeError.Create('CurrentAddress: ' + CurrentAddress + #13#10
-            + 'CurrentClassIndex: ' + IntToStr(Ord(CurrentClassIndex)) + #13#10
-            + 'CurrentData Class: ' + TObject(CurrentData).ClassName);
-
       if (SelCount > 0) then
         StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(888, IntToStr(SelCount))
-      else if ((View = vBrowser) and (CurrentClassIndex in [ciBaseTable]) and not Session.Connection.InUse() and TSBaseTable(CurrentData).ValidData and TSBaseTable(CurrentData).DataSet.LimitedDataReceived and (TSBaseTable(CurrentData).RecordCount >= 0)) then
+      else if ((View = vBrowser) and (CurrentClassIndex in [ciBaseTable]) and Assigned(CurrentData) and not Session.Connection.InUse() and TSBaseTable(CurrentData).ValidData and TSBaseTable(CurrentData).DataSet.LimitedDataReceived and (TSBaseTable(CurrentData).RecordCount >= 0)) then
         StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(889, FormatFloat('#,##0', Count, LocaleFormatSettings), FormatFloat('#,##0', TSBaseTable(CurrentData).RecordCount, LocaleFormatSettings))
       else if (Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet)) then
         StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(887, FormatFloat('#,##0', ActiveDBGrid.DataSource.DataSet.RecordCount, LocaleFormatSettings));

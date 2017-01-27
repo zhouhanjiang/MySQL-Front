@@ -916,7 +916,7 @@ begin
       SessionState := ssCreate
     else
       SessionState := ssValid
-  else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemReorder]) and (Event.Item = Table)) then
+  else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemRenamed]) and (Event.Item = Table)) then
     ModalResult := mrOk;
 
   if (SessionState = ssValid) then
