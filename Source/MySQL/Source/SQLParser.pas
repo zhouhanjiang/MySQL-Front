@@ -25772,6 +25772,13 @@ begin
     if ((TokenType = ttUnknown) and (OperatorType <> otNone)) then
       TokenType := ttOperator;
 
+    // Debug 2017-01-27
+    if ((ErrorCode = PE_Success) and (TokenType = ttUnknown)) then
+    begin
+      SetString(S, SQL, TokenLength);
+      raise ERangeError.Create('Unknown TokenType for: ' + S);
+    end;
+
     Assert((ErrorCode <> PE_Success) or (TokenType <> ttUnknown));
 
     if (TokenType <> ttIdent) then

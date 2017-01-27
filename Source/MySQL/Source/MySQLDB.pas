@@ -531,7 +531,7 @@ type
       procedure Delete(Index: Integer);
       destructor Destroy(); override;
       function IndexOf(const Bookmark: TBookmark): Integer; overload; inline;
-      function IndexOf(const Data: TMySQLQuery.TRecordBufferData; const IgnoreIndex: Integer = -1): Integer; overload;
+      function IndexFor(const Data: TMySQLQuery.TRecordBufferData; const IgnoreIndex: Integer = -1): Integer; overload;
       procedure Insert(Index: Integer; Item: Pointer);
       property Buffers[Index: Integer]: PInternRecordBuffer read Get write Put; default;
       property DataSet: TMySQLDataSet read FDataSet;
@@ -2561,7 +2561,6 @@ var
   SQLLength: Integer;
   StmtIndex: Integer;
   StmtLength: Integer;
-  S: PChar; // Debug 2017-01-22
 begin
   Assert(SQL <> '');
   Assert(not Assigned(Done) or (Done.WaitFor(IGNORE) <> wrSignaled));
@@ -2607,13 +2606,8 @@ begin
   SQLIndex := 1;
   SQLLength := Length(SyncThread.SQL);
 
-  // Debug 2017-01-22
-  // In the while loop, there occurred and AV twice - but why???
-  S := PChar(SyncThread.SQL);
-  while ((SQLLength > 0) and CharInSet(S[SQLLength - 1], [#9, #10, #13, ' '])) do Dec(SQLLength);
-
-
-  while (SQLIndex < SQLLength) do
+  StmtLength := 1; // To make sure, the first SQLStmtLength will be executed
+  while ((SQLIndex < SQLLength) and (StmtLength > 0)) do
   begin
     try // Debug 2017-01-23
     StmtLength := SQLStmtLength(PChar(@SyncThread.SQL[SQLIndex]), SQLLength - (SQLIndex - 1));
@@ -2622,8 +2616,23 @@ begin
         raise ERangeError.Create(SyncThread.SQL + #13#10
           + E.Message);
     end;
-    SyncThread.StmtLengths.Add(Pointer(StmtLength));
-    Inc(SQLIndex, StmtLength);
+    if (StmtLength > 0) then
+    begin
+      SyncThread.StmtLengths.Add(Pointer(StmtLength));
+      Inc(SQLIndex, StmtLength);
+    end;
+  end;
+
+  if ((SyncThread.StmtLengths.Count > 0) and not CharInSet(SyncThread.SQL[SQLIndex - 1], [#10, #13, ';'])) then
+  begin
+    // The MySQL server answers sometimes about a problem "near ''", if a
+    // statement is not terminated by ";". So we attach a ";" to the last
+    // statement to avoid this.
+    if (SQLIndex < SQLLength) then
+      SyncThread.SQL[SQLIndex] := ';'
+    else
+      SyncThread.SQL := SyncThread.SQL + ';';
+    SyncThread.StmtLengths[SyncThread.StmtLengths.Count - 1] := Pointer(Integer(SyncThread.StmtLengths[SyncThread.StmtLengths.Count - 1]) + 1);
   end;
 
   SetLength(SyncThread.CLStmts, SyncThread.StmtLengths.Count);
@@ -5217,7 +5226,8 @@ begin
 
           // Debug 2017-01-23
           if (Field.FieldName = '') then
-            raise ERangeError.Create('LibField.name: ' + string(AnsiStrings.StrPas(LibField.name)));
+            raise ERangeError.Create('LibField.name: ' + string(AnsiStrings.StrPas(LibField.name)) + #13#10
+              + CommandText);
 
           if (Assigned(FindField(Field.FieldName))) then
           begin
@@ -5754,7 +5764,7 @@ begin
     Result := IndexOf(PInternRecordBuffer(PPointer(@Bookmark[0])^))
 end;
 
-function TMySQLDataSet.TInternRecordBuffers.IndexOf(const Data: TMySQLQuery.TRecordBufferData; const IgnoreIndex: Integer = -1): Integer;
+function TMySQLDataSet.TInternRecordBuffers.IndexFor(const Data: TMySQLQuery.TRecordBufferData; const IgnoreIndex: Integer = -1): Integer;
 var
   Comp: Integer;
   FieldName: string;
@@ -6566,7 +6576,7 @@ begin
     Pos := 1;
     while (Pos <= Length(SortDef.Fields)) do
     begin
-      FieldName := FieldName;
+      FieldName := ExtractFieldName(SortDef.Fields, Pos);
       if (FieldName <> '') then
       begin
         Field := FindField(FieldName);
@@ -6772,7 +6782,7 @@ begin
 
       if ((ControlSQL = '') and CheckPosition) then
       begin
-        InternalPostResult.NewIndex := InternRecordBuffers.IndexOf(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^, PExternRecordBuffer(ActiveBuffer())^.Index);
+        InternalPostResult.NewIndex := InternRecordBuffers.IndexFor(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData^, PExternRecordBuffer(ActiveBuffer())^.Index);
         if (InternalPostResult.NewIndex < 0) then
           InternalPostResult.NewIndex := InternRecordBuffers.Count - 1
         else if (InternalPostResult.NewIndex > PExternRecordBuffer(ActiveBuffer())^.Index) then
@@ -6893,7 +6903,7 @@ begin
               RecordBufferData.LibLengths := DataSet.LibLengths;
               RecordBufferData.LibRow := DataSet.LibRow;
 
-              InternalPostResult.NewIndex := InternRecordBuffers.IndexOf(RecordBufferData, PExternRecordBuffer(ActiveBuffer())^.Index);
+              InternalPostResult.NewIndex := InternRecordBuffers.IndexFor(RecordBufferData, PExternRecordBuffer(ActiveBuffer())^.Index);
               if (InternalPostResult.NewIndex < 0) then
                 InternalPostResult.NewIndex := InternRecordBuffers.Count - 1
               else if (InternalPostResult.NewIndex > PExternRecordBuffer(ActiveBuffer())^.Index) then

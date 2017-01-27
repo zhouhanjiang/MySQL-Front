@@ -117,6 +117,7 @@ procedure TDKey.Built();
 var
   Found: Boolean;
   I: Integer;
+  Item: TListItem;
   J: Integer;
 begin
   FPrimary.Enabled := Key.PrimaryKey or (Table.Keys.Count = 0) or not Table.Keys[0].PrimaryKey;
@@ -125,7 +126,11 @@ begin
   if (FOther.Checked) then FName.Text := Key.Name else FName.Text := '';
 
   for I := 0 to Key.Columns.Count - 1 do
-    FIndexedFields.Items.Add().Caption := Key.Columns.Column[I].Field.Name;
+  begin
+    Item := FIndexedFields.Items.Add();
+    Item.Caption := Key.Columns.Column[I].Field.Name;
+    Item.Data := Key.Columns.Column[I].Field;
+  end;
   FIndexedFields.Selected := FIndexedFields.Items[0];
 
   FComment.Text := Key.Comment;
@@ -262,7 +267,7 @@ end;
 procedure TDKey.FIndexedFieldsChange(Sender: TObject; Item: TListItem;
   Change: TItemChange);
 var
-  Field: TSBaseTableField;
+  Field: TSBaseField;
   I: Integer;
 begin
   if (Visible and Assigned(Item) and Assigned(Table.FieldByName(Item.Caption))) then
@@ -301,7 +306,7 @@ begin
   end;
 
   for I := 0 to FIndexedFields.Items.Count - 1 do
-    FFulltext.Enabled := FFulltext.Enabled and Assigned(Table) and (Table.FieldByName(FIndexedFields.Items[I].Caption).FieldType in [mfChar, mfVarChar, mfTinyText, mfText, mfMediumText, mfLongText]);
+    FFulltext.Enabled := FFulltext.Enabled and Assigned(Table) and (TSBaseField(FIndexedFields.Items[I].Data).FieldType in [mfChar, mfVarChar, mfTinyText, mfText, mfMediumText, mfLongText]);
   FFulltext.Checked := FFulltext.Enabled and FFulltext.Checked;
 
   tbUp.Enabled := Assigned(FIndexedFields.Selected) and (FIndexedFields.Items.IndexOf(Item) > 0);
@@ -336,7 +341,7 @@ end;
 procedure TDKey.FLengthExit(Sender: TObject);
 begin
   if (Assigned(FIndexedFields.Selected)) then
-    Lengths[Table.Fields.IndexOf(Table.FieldByName(FIndexedFields.Selected.Caption))] := FLengthUD.Position;
+    Lengths[Table.Fields.IndexOf(TSBaseField(FIndexedFields.Selected.Data))] := FLengthUD.Position;
 end;
 
 procedure TDKey.FNameChange(Sender: TObject);
@@ -382,7 +387,7 @@ begin
     for I := 0 to FIndexedFields.Items.Count - 1 do
     begin
       NewKeyColumn := TSKeyColumn.Create(NewKey.Columns);
-      NewKeyColumn.Field := Table.FieldByName(FIndexedFields.Items[I].Caption);
+      NewKeyColumn.Field := TSBaseField(FIndexedFields.Items[I].Data);
       NewKeyColumn.Length := Lengths[Table.Fields.IndexOf(NewKeyColumn.Field)];
       NewKey.Columns.AddColumn(NewKeyColumn);
       FreeAndNil(NewKeyColumn);
@@ -679,10 +684,13 @@ end;
 procedure TDKey.tbUpDownClick(Sender: TObject);
 var
   Index: Integer;
+  Item: TListItem;
   OldCaption: string;
+  OldData: TCustomData;
   OldIndex: Integer;
 begin
   OldCaption := FIndexedFields.Selected.Caption;
+  OldData := FIndexedFields.Selected.Data;
   OldIndex := FIndexedFields.Items.IndexOf(FIndexedFields.Selected);
   FIndexedFields.Items.Delete(OldIndex);
 
@@ -691,7 +699,9 @@ begin
   else
     Index := OldIndex + 1;
 
-  FIndexedFields.Items.Insert(Index).Caption := OldCaption;
+  Item := FIndexedFields.Items.Insert(Index);
+  Item.Caption := OldCaption;
+  Item.Data := OldData;
   FIndexedFields.Selected := FIndexedFields.Items[Index];
   FIndexedFields.ItemFocused := FIndexedFields.Selected;
 end;

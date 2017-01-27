@@ -559,6 +559,8 @@ type
       LogHeight: Integer;
       LogVisible: Boolean;
       NavigatorVisible: Boolean;
+      QuickAccessMFUVisible: Boolean;
+      QuickAccessMRUVisible: Boolean;
       SidebarWitdth: Integer;
       SQLHistoryVisible: Boolean;
       constructor Create(const AAccount: TPAccount); overload; virtual;
@@ -2969,6 +2971,8 @@ begin
   LogHeight := Source.LogHeight;
   LogVisible := Source.LogVisible;
   NavigatorVisible := Source.NavigatorVisible;
+  QuickAccessMFUVisible := Source.QuickAccessMFUVisible;
+  QuickAccessMRUVisible := Source.QuickAccessMRUVisible;
   SidebarWitdth := Source.SidebarWitdth;
   SQLHistoryVisible := Source.SQLHistoryVisible;
 end;
@@ -2997,6 +3001,8 @@ begin
   LogHeight := Round(80 * Screen.PixelsPerInch / USER_DEFAULT_SCREEN_DPI);
   LogVisible := False;
   FPath := '/';
+  QuickAccessMFUVisible := True;
+  QuickAccessMRUVisible := True;
   SidebarWitdth := Round(150 * Screen.PixelsPerInch / USER_DEFAULT_SCREEN_DPI);
   SQLHistoryVisible := False;
 
@@ -3068,6 +3074,13 @@ begin
   if (Assigned(XMLNode(XML, 'objects/objectsearch/widths/location')) and TryStrToInt(XMLNode(XML, 'objects/objectsearch/widths/location').Text, ColumnWidths[lkObjectSearch][2])) then ColumnWidths[lkObjectSearch][2] := Round(ColumnWidths[lkObjectSearch][2] * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'objects/objectsearch/widths/date')) and TryStrToInt(XMLNode(XML, 'objects/objectsearch/widths/date').Text, ColumnWidths[lkObjectSearch][3])) then ColumnWidths[lkObjectSearch][3] := Round(ColumnWidths[lkObjectSearch][3] * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'objects/objectsearch/widths/comment')) and TryStrToInt(XMLNode(XML, 'objects/objectsearch/widths/comment').Text, ColumnWidths[lkObjectSearch][4])) then ColumnWidths[lkObjectSearch][4] := Round(ColumnWidths[lkObjectSearch][4] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/quickaccess/mfu'))) then TryStrToBool(XMLNode(XML, 'objects/quickaccess/mfu').Attributes['visible'], QuickAccessMFUVisible);
+  if (Assigned(XMLNode(XML, 'objects/quickaccess/mru'))) then TryStrToBool(XMLNode(XML, 'objects/quickaccess/mru').Attributes['visible'], QuickAccessMRUVisible);
+  if (Assigned(XMLNode(XML, 'objects/quickaccess/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/quickaccess/widths/name').Text, ColumnWidths[lkQuickAccess][0])) then ColumnWidths[lkQuickAccess][0] := Round(ColumnWidths[lkQuickAccess][0] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/quickaccess/widths/type')) and TryStrToInt(XMLNode(XML, 'objects/quickaccess/widths/type').Text, ColumnWidths[lkQuickAccess][1])) then ColumnWidths[lkQuickAccess][1] := Round(ColumnWidths[lkQuickAccess][1] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/quickaccess/widths/location')) and TryStrToInt(XMLNode(XML, 'objects/quickaccess/widths/location').Text, ColumnWidths[lkQuickAccess][2])) then ColumnWidths[lkQuickAccess][2] := Round(ColumnWidths[lkQuickAccess][2] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/quickaccess/widths/date')) and TryStrToInt(XMLNode(XML, 'objects/quickaccess/widths/date').Text, ColumnWidths[lkQuickAccess][3])) then ColumnWidths[lkQuickAccess][3] := Round(ColumnWidths[lkQuickAccess][3] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/quickaccess/widths/comment')) and TryStrToInt(XMLNode(XML, 'objects/quickaccess/widths/comment').Text, ColumnWidths[lkQuickAccess][4])) then ColumnWidths[lkQuickAccess][4] := Round(ColumnWidths[lkQuickAccess][4] * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'path'))) then FPath := XMLNode(XML, 'path').Text;
   if (Assigned(XMLNode(XML, 'sidebar/explorer/folders/height')) and TryStrToInt(XMLNode(XML, 'sidebar/explorer/folders/height').Text, FoldersHeight)) then FoldersHeight := Round(FoldersHeight * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'sidebar/explorer/files/filter'))) then FilesFilter := XMLNode(XML, 'sidebar/explorer/files/filter').Text;
@@ -3141,6 +3154,13 @@ begin
   XMLNode(XML, 'objects/objectsearch/widths/location').Text := IntToStr(ColumnWidths[lkObjectSearch][2]);
   XMLNode(XML, 'objects/objectsearch/widths/date').Text := IntToStr(ColumnWidths[lkObjectSearch][3]);
   XMLNode(XML, 'objects/objectsearch/widths/comment').Text := IntToStr(ColumnWidths[lkObjectSearch][4]);
+  XMLNode(XML, 'objects/quickaccess/mfu').Attributes['visible'] := BoolToStr(QuickAccessMFUVisible, True);
+  XMLNode(XML, 'objects/quickaccess/mru').Attributes['visible'] := BoolToStr(QuickAccessMRUVisible, True);
+  XMLNode(XML, 'objects/quickaccess/widths/name').Text := IntToStr(ColumnWidths[lkQuickAccess][0]);
+  XMLNode(XML, 'objects/quickaccess/widths/type').Text := IntToStr(ColumnWidths[lkQuickAccess][1]);
+  XMLNode(XML, 'objects/quickaccess/widths/location').Text := IntToStr(ColumnWidths[lkQuickAccess][2]);
+  XMLNode(XML, 'objects/quickaccess/widths/date').Text := IntToStr(ColumnWidths[lkQuickAccess][3]);
+  XMLNode(XML, 'objects/quickaccess/widths/comment').Text := IntToStr(ColumnWidths[lkQuickAccess][4]);
   XMLNode(XML, 'path').Text := FPath;
   XMLNode(XML, 'sidebar/explorer/folders/height').Text := IntToStr(FoldersHeight);
   XMLNode(XML, 'sidebar/explorer/files/filter').Text := FilesFilter;
@@ -3990,3 +4010,4 @@ initialization
 finalization
   CoUninitialize();
 end.
+

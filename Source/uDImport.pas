@@ -154,6 +154,7 @@ type
     FLReferrers: array of TLabel;
     FSourceFields: array of TEdit;
     Import: TTImport;
+Progress: string; // Debug 2017-01-27
     ProgressInfos: TTool.TProgressInfos;
     Space: Integer;
     TableNames: TTableNames;
@@ -181,7 +182,6 @@ type
     CodePage: Cardinal;
     Filename: TFileName;
     FNavigator: PPointer; // Debug 2017-01-25
-    Progress: string; // Debug 2017-01-25
     ImportType: TImportType;
     Session: TSSession;
     SObject: TSObject;
@@ -350,6 +350,8 @@ end;
 
 function TDImport.Execute(): Boolean;
 begin
+  Progress := 'a';
+
   SObjectDebug := SObject;
 
   Imported := False;
@@ -366,12 +368,19 @@ begin
   if (ModalResult = mrCancel) then
     Result := False
   else
+  begin
+    Progress := Progress + 'b';
     Result := ShowModal() = mrOk;
+    Progress := Progress + 'c'
+  end;
 
   if (fsModal in FormState) then
     SendToDeveloper('Form is fsModal' + #13#10
       + 'Visible: ' + BoolToStr(Visible, True) + #13#10
-      + 'ModalResult: ' + IntToStr(Ord(ModalResult)), 2);
+      + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
+      + 'Progress: ' + Progress);
+
+  Progress := Progress + 'd';
 end;
 
 procedure TDImport.FBBackClick(Sender: TObject);
@@ -540,21 +549,28 @@ end;
 procedure TDImport.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   if (not Visible) then
+  begin
+    Progress := Progress + 'e';
     SendToDeveloper('Visible: ' + BoolToStr(Visible, True) + #13#10
       + 'fsModal: ' + BoolToStr(fsModal in FormState, True) + #13#10
       + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
       + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
       + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
-      + 'Import.Terminated: ' + BoolToStr(Assigned(Import) and Import.Terminated, True))
+      + 'Import.Terminated: ' + BoolToStr(Assigned(Import) and Import.Terminated, True) + #13#10
+      + 'Progress: ' + Progress);
+  end
   else
   begin
+    Progress := Progress + 'f';
+
     if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
       raise ERangeError.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
       + 'fsModal: ' + BoolToStr(fsModal in FormState, True) + #13#10
       + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
       + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
       + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
-      + 'Import.Terminated: ' + BoolToStr(Assigned(Import) and Import.Terminated, True));
+      + 'Import.Terminated: ' + BoolToStr(Assigned(Import) and Import.Terminated, True) + #13#10
+      + 'Progress: ' + Progress);
 
     if (Assigned(Import) and Import.Suspended) then
     begin
@@ -565,17 +581,23 @@ begin
 
     if (Assigned(Import)) then
     begin
+      Progress := Progress + 'g';
       Import.Terminate();
       CanClose := False;
     end
     else
+    begin
+      Progress := Progress + 'h';
       CanClose := True;
+    end;
 
     FBCancel.Enabled := CanClose;
     if (FBCancel.Enabled) then
       SetClassLong(Handle, GCL_STYLE, GetClassLong(Handle, GCL_STYLE) and not CS_NOCLOSE)
     else
       SetClassLong(Handle, GCL_STYLE, GetClassLong(Handle, GCL_STYLE) or CS_NOCLOSE);
+
+    Progress := Progress + 'i';
   end;
 end;
 
@@ -614,6 +636,8 @@ end;
 
 procedure TDImport.FormHide(Sender: TObject);
 begin
+  Progress := Progress + 'j';
+
   if (Assigned(FNavigator) and not Assigned(FNavigator^)
     or Visible
     or Assigned(Import)) then
@@ -622,7 +646,8 @@ begin
       + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
       + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
       + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
-      + 'Import.Terminated: ' + BoolToStr(Assigned(Import) and Import.Terminated, True));
+      + 'Import.Terminated: ' + BoolToStr(Assigned(Import) and Import.Terminated, True) + #13#10
+      + 'Progress: ' + Progress);
 
   Session.UnRegisterEventProc(FormSessionEvent);
 
@@ -936,11 +961,6 @@ var
 
   procedure ImportAdd(TableName: string; const SourceTableName: string = '');
   begin
-    // Debug 2016-12-16
-    if (not Assigned(Database)) then
-      raise ERangeError.Create('Database not assigned' + #13#10
-        + 'ImportType: ' + IntToStr(Ord(ImportType)));
-
     TableName := Session.ApplyIdentifierName(TableName);
     if ((Answer <> IDYESALL) and not (SObject is TSTable) and Assigned(Database.TableByName(TableName))) then
       Answer := MsgBox(Preferences.LoadStr(700, Database.Name + '.' + TableName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);

@@ -19,7 +19,7 @@ type
   TSKeyColumns = class;
   TSKey = class;
   TSTableField = class;
-  TSBaseTableField = class;
+  TSBaseField = class;
   TSKeys = class;
   TSTableFields = class;
   TSForeignKey = class;
@@ -259,7 +259,7 @@ type
     FKeyColumns: TSKeyColumns;
   public
     Ascending: Boolean;
-    Field: TSBaseTableField;
+    Field: TSBaseField;
     Length: Integer;
     procedure Assign(const Source: TSKeyColumn); virtual;
     constructor Create(const AKeyColumns: TSKeyColumns); virtual;
@@ -300,7 +300,7 @@ type
     Unique: Boolean;
     procedure Assign(const Source: TSKey); reintroduce; virtual;
     procedure Clear(); virtual;
-    function ColumnByField(const AField: TSBaseTableField): TSKeyColumn; virtual;
+    function ColumnByField(const AField: TSBaseField): TSKeyColumn; virtual;
     function ColumnByFieldName(const AFieldName: string): TSKeyColumn; virtual;
     constructor Create(const AKeys: TSKeys; const AName: string = ''); reintroduce; virtual;
     destructor Destroy(); override;
@@ -404,7 +404,7 @@ type
     property Table: TSTable read GetTable;
   end;
 
-  TSBaseTableField = class(TSTableField)
+  TSBaseField = class(TSTableField)
   private
     function GetTable(): TSBaseTable;
   protected
@@ -448,10 +448,10 @@ type
 
   TSBaseTableFields = class(TSTableFields)
   private
-    function GetField(Index: Integer): TSBaseTableField; inline;
+    function GetField(Index: Integer): TSBaseField; inline;
   public
     procedure MoveField(const AField: TSTableField; const NewFieldBefore: TSTableField); virtual;
-    property Field[Index: Integer]: TSBaseTableField read GetField; default;
+    property Field[Index: Integer]: TSBaseField read GetField; default;
   end;
 
   TSViewFields = class(TSTableFields)
@@ -640,7 +640,7 @@ type
     FTemporary: Boolean;
     FUnusedSize: Int64;
     FUpdated: TDateTime;
-    function GetAutoIncrementField(): TSBaseTableField;
+    function GetAutoIncrementField(): TSBaseField;
     function GetBaseTableFields(): TSBaseTableFields; inline;
     function GetPrimaryKey(): TSKey;
     function GetTriggers(Index: Integer): TSTrigger;
@@ -659,7 +659,7 @@ type
     property MergeSourceTables: TSMergeSourceTables read FMergeSourceTables;
   public
     procedure Assign(const Source: TSTable); override;
-    function FieldByName(const FieldName: string): TSBaseTableField; reintroduce; virtual;
+    function FieldByName(const FieldName: string): TSBaseField; reintroduce; virtual;
     function ForeignKeyByName(const ForeignKeyName: string): TSForeignKey; virtual;
     constructor Create(const ASDBObjects: TSDBObjects; const AName: string = ''; const ASystemTable: Boolean = False); reintroduce; virtual;
     destructor Destroy(); override;
@@ -675,7 +675,7 @@ type
     function PartitionByName(const PartitionName: string): TSPartition; virtual;
     function Update(const Status: Boolean): Boolean; reintroduce; overload; virtual;
     property AutoIncrement: Int64 read FAutoIncrement write FAutoIncrement;
-    property AutoIncrementField: TSBaseTableField read GetAutoIncrementField;
+    property AutoIncrementField: TSBaseField read GetAutoIncrementField;
     property AvgRowLength: LargeInt read FAvgRowLength;
     property BlockSize: Integer read FBlockSize write FBlockSize;
     property Checked: TDateTime read FChecked write FChecked;
@@ -880,6 +880,7 @@ type
     procedure ParseCreateTrigger(const SQL: string);
   protected
     FCreated: TDateTime;
+    FDatabaseName: string;
     FDefiner: string;
     FEvent: TEvent;
     FStmt: string;
@@ -901,6 +902,7 @@ type
     function SQLReplace(): string; virtual;
     function SQLUpdate(): string; virtual;
     property Created: TDateTime read FCreated;
+    property DatabaseName: string read FDatabaseName;
     property Definer: string read FDefiner;
     property Event: TEvent read FEvent write FEvent;
     property InputDataSet: TMySQLDataSet read GetInputDataSet;
@@ -1449,7 +1451,18 @@ type
   end;
 
   TSQuickAccess = class(TSItems)
-
+  type
+    TItem = record
+      ClassType: TClass;
+      DatabaseName: string;
+      Name: string;
+    end;
+  private
+    function SearchResult(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
+      const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
+  public
+    procedure PushBuildEvent(); virtual;
+    function Step1(const Items: array of TItem): Boolean;
   end;
 
   TSItemSearch = class(TSItems)
@@ -2705,7 +2718,7 @@ begin
   Unique := Source.Unique;
 end;
 
-function TSKey.ColumnByField(const AField: TSBaseTableField): TSKeyColumn;
+function TSKey.ColumnByField(const AField: TSBaseField): TSKeyColumn;
 var
   I: Integer;
 begin
@@ -2870,8 +2883,8 @@ var
 begin
   if (AKey.PrimaryKey) then
     for I := 0 to Table.Fields.Count - 1 do
-      if (Table.Fields[I] is TSBaseTableField) then
-        TSBaseTableField(Table.Fields[I]).AutoIncrement := False;
+      if (Table.Fields[I] is TSBaseField) then
+        TSBaseField(Table.Fields[I]).AutoIncrement := False;
 
   Delete(IndexOf(AKey));
 
@@ -3223,9 +3236,9 @@ end;
 
 { TSBaseTableField ************************************************************}
 
-procedure TSBaseTableField.Assign(const Source: TSField);
+procedure TSBaseField.Assign(const Source: TSField);
 begin
-  Assert(Source is TSBaseTableField);
+  Assert(Source is TSBaseField);
 
   inherited Assign(Source);
 
@@ -3235,15 +3248,15 @@ begin
     OnUpdate := ''
   else
   begin
-    OnUpdate := TSBaseTableField(TSTableField(Source)).OnUpdate;
-    OnUpdateSize := TSBaseTableField(TSTableField(Source)).OnUpdateSize;
+    OnUpdate := TSBaseField(TSTableField(Source)).OnUpdate;
+    OnUpdateSize := TSBaseField(TSTableField(Source)).OnUpdateSize;
   end;
 
-  OriginalName := TSBaseTableField(TSTableField(Source)).OriginalName;
-  Moved := TSBaseTableField(TSTableField(Source)).Moved;
+  OriginalName := TSBaseField(TSTableField(Source)).OriginalName;
+  Moved := TSBaseField(TSTableField(Source)).Moved;
 end;
 
-procedure TSBaseTableField.Clear();
+procedure TSBaseField.Clear();
 begin
   inherited;
 
@@ -3252,19 +3265,19 @@ begin
   Moved := False;
 end;
 
-constructor TSBaseTableField.Create(const AFields: TSTableFields; const AName: string = '');
+constructor TSBaseField.Create(const AFields: TSTableFields; const AName: string = '');
 begin
   inherited;
 
   OriginalName := AName;
 end;
 
-function TSBaseTableField.GetIndex(): Integer;
+function TSBaseField.GetIndex(): Integer;
 begin
   Result := Table.Fields.IndexOf(Self);
 end;
 
-function TSBaseTableField.GetTable(): TSBaseTable;
+function TSBaseField.GetTable(): TSBaseTable;
 begin
   Assert(Assigned(Fields));
   Assert(Fields.Table is TSBaseTable);
@@ -3272,7 +3285,7 @@ begin
   Result := TSBaseTable(Fields.Table);
 end;
 
-procedure TSBaseTableField.SetName(const AName: string);
+procedure TSBaseField.SetName(const AName: string);
 begin
   FName := AName;
 end;
@@ -3295,8 +3308,8 @@ begin
   else
     Index := NewField.FieldBefore.Index + 1;
 
-  if (NewField is TSBaseTableField) then
-    Insert(Index, TSBaseTableField.Create(TSBaseTableFields(Self)))
+  if (NewField is TSBaseField) then
+    Insert(Index, TSBaseField.Create(TSBaseTableFields(Self)))
   else if (NewField is TSViewField) then
     Insert(Index, TSViewField.Create(Self))
   else
@@ -3411,9 +3424,9 @@ end;
 
 { TSBaseTableFields ***********************************************************}
 
-function TSBaseTableFields.GetField(Index: Integer): TSBaseTableField;
+function TSBaseTableFields.GetField(Index: Integer): TSBaseField;
 begin
-  Result := TSBaseTableField(Items[Index]);
+  Result := TSBaseField(Items[Index]);
 end;
 
 procedure TSBaseTableFields.MoveField(const AField: TSTableField; const NewFieldBefore: TSTableField);
@@ -3433,7 +3446,7 @@ begin
 
     Move(Index, NewIndex);
 
-    TSBaseTableField(Field[NewIndex]).Moved := True;
+    TSBaseField(Field[NewIndex]).Moved := True;
 
     Field[0].FieldBefore := nil;
     for I := 1 to Count - 1 do
@@ -4223,8 +4236,8 @@ begin
   for I := 0 to Fields.Count - 1 do
   begin
     if (SQL <> '') then SQL := SQL + ',';
-    if (TSBaseTableField(Fields[I]).NullAllowed) then
-      SQL := SQL + Session.Connection.EscapeIdentifier(TSBaseTableField(Fields[I]).Name) + '=NULL';
+    if (TSBaseField(Fields[I]).NullAllowed) then
+      SQL := SQL + Session.Connection.EscapeIdentifier(TSBaseField(Fields[I]).Name) + '=NULL';
   end;
 
   SQL := 'UPDATE ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name) + ' SET ' + SQL + ';';
@@ -4237,15 +4250,15 @@ begin
   InvalidateData();
 end;
 
-function TSBaseTable.FieldByName(const FieldName: string): TSBaseTableField;
+function TSBaseTable.FieldByName(const FieldName: string): TSBaseField;
 var
   Field: TSField;
 begin
   Field := inherited FieldByName(FieldName);
-  if (not (Field is TSBaseTableField)) then
+  if (not (Field is TSBaseField)) then
     Result := nil
   else
-    Result := TSBaseTableField(Field);
+    Result := TSBaseField(Field);
 end;
 
 function TSBaseTable.ForeignKeyByName(const ForeignKeyName: string): TSForeignKey;
@@ -4259,7 +4272,7 @@ begin
     Result := ForeignKeys[Index];
 end;
 
-function TSBaseTable.GetAutoIncrementField(): TSBaseTableField;
+function TSBaseTable.GetAutoIncrementField(): TSBaseField;
 var
   I: Integer;
 begin
@@ -4267,7 +4280,7 @@ begin
 
   for I := 0 to Fields.Count - 1 do
     if (Fields[I].AutoIncrement) then
-      Result := TSBaseTableField(Fields[I]);
+      Result := TSBaseField(Fields[I]);
 end;
 
 function TSBaseTable.GetBaseTableFields(): TSBaseTableFields;
@@ -4403,7 +4416,7 @@ end;
 
 procedure TSBaseTable.ParseAlterTable(const SQL: string);
 var
-  Field: TSBaseTableField;
+  Field: TSBaseField;
   NewFieldName: string;
   OldFieldName: string;
   Parse: TSQLParse;
@@ -4456,7 +4469,7 @@ end;
 procedure TSBaseTable.ParseCreateTable(const SQL: string);
 var
   DeleteList: TList;
-  Field: TSBaseTableField;
+  Field: TSBaseField;
   FieldName: string;
   Fulltext: Boolean;
   I: Integer;
@@ -4528,25 +4541,25 @@ begin
 
       Moved := False;
       if (Index = FFields.Count) then
-        Index := FFields.Add(TSBaseTableField.Create(TSBaseTableFields(FFields), NewName))
+        Index := FFields.Add(TSBaseField.Create(TSBaseTableFields(FFields), NewName))
       else if (Index < FFields.IndexByName(NewName)) then
       begin
         FFields.Move(FFields.IndexByName(NewName), Index);
         DeleteList.Delete(DeleteList.IndexOf(FFields[Index]));
-        TSBaseTableField(FFields[Index]).Clear();
-        TSBaseTableField(FFields[Index]).FName := NewName;
+        TSBaseField(FFields[Index]).Clear();
+        TSBaseField(FFields[Index]).FName := NewName;
         Moved := True;
       end
       else if (Fields.NameCmp(NewName, FFields[Index].Name) <> 0) then
-        FFields.Insert(Index, TSBaseTableField.Create(TSBaseTableFields(FFields), NewName))
+        FFields.Insert(Index, TSBaseField.Create(TSBaseTableFields(FFields), NewName))
       else
       begin
         DeleteList.Delete(DeleteList.IndexOf(FFields[Index]));
-        TSBaseTableField(FFields[Index]).Clear();
-        TSBaseTableField(FFields[Index]).FName := NewName;
+        TSBaseField(FFields[Index]).Clear();
+        TSBaseField(FFields[Index]).FName := NewName;
       end;
 
-      Field := TSBaseTableField(FFields[Index]);
+      Field := TSBaseField(FFields[Index]);
 
       if (Index = 0) then
         Field.FieldBefore := nil
@@ -5046,15 +5059,15 @@ begin
     end;
 
     for I := 0 to FFields.Count - 1 do
-      if (FFields.Field[I] is TSBaseTableField) then
+      if (FFields.Field[I] is TSBaseField) then
       begin
-        TSBaseTableField(FFields.Field[I]).FInPrimaryKey := False;
-        TSBaseTableField(FFields.Field[I]).FInUniqueKey := False;
+        TSBaseField(FFields.Field[I]).FInPrimaryKey := False;
+        TSBaseField(FFields.Field[I]).FInUniqueKey := False;
         for J := 0 to FKeys.Count - 1 do
           if (J = 0) or (FKeys.Key[J].Unique) then
             for K := 0 to FKeys.Key[J].Columns.Count - 1 do
-              if (TSBaseTableField(FFields.Field[I]) = FKeys.Key[J].Columns.Column[K].Field) then
-                TSBaseTableField(FFields.Field[I]).FInUniqueKey := True;
+              if (TSBaseField(FFields.Field[I]) = FKeys.Key[J].Columns.Column[K].Field) then
+                TSBaseField(FFields.Field[I]).FInUniqueKey := True;
       end;
 
     if ((FKeys.Count >= 1) and (FKeys[0].PrimaryKey)) then
@@ -6501,6 +6514,7 @@ begin
 
   FEvent := Source.Event;
   FDatabase := Source.Database;
+  FDatabaseName := Source.FDatabaseName;
   FDefiner := Source.Definer;
   FStmt := Source.Stmt;
   FTableName := Source.FTableName;
@@ -6528,6 +6542,7 @@ begin
 
   FEvent := teInsert;
   FCreated := 0;
+  FDatabaseName := '';
   FDefiner := '';
   FStmt := '';
   FTiming := ttAfter;
@@ -6551,7 +6566,7 @@ begin
   begin
     FInputDataSet := TMySQLDataSet.Create(nil);
     FInputDataSet.Connection := Session.Connection;
-    FInputDataSet.CommandText := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(FTableName) + ' LIMIT 0;' + #13#10;
+    FInputDataSet.CommandText := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(FTableName) + ' LIMIT 0';
     FInputDataSet.Open();
     if (not FInputDataSet.Active) then
       FreeAndNil(FInputDataSet)
@@ -6586,7 +6601,7 @@ begin
       teDelete: SQL := SQL + 'DELETE';
     end;
     SQL := SQL + ' ON ';
-    SQL := SQL + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(FTableName) + #13#10;
+    SQL := SQL + Session.Connection.EscapeIdentifier(FDatabaseName) + '.' + Session.Connection.EscapeIdentifier(FTableName) + #13#10;
     SQL := SQL + '  FOR EACH ROW' + #13#10 + Stmt;
     if (RightStr(SQL, 1) <> ';') then SQL := SQL + ';';
     SQL := Trim(SQL) + #13#10;
@@ -6608,8 +6623,14 @@ begin
 end;
 
 function TSTrigger.GetTable(): TSBaseTable;
+var
+  Database: TSDatabase;
 begin
-  Result := Database.BaseTableByName(FTableName);
+  Database := Session.DatabaseByName(FDatabaseName);
+  if (not Assigned(Database)) then
+    Result := nil
+  else
+    Result := Database.BaseTableByName(FTableName);
 end;
 
 function TSTrigger.GetTriggers(): TSTriggers;
@@ -6628,7 +6649,6 @@ end;
 
 procedure TSTrigger.ParseCreateTrigger(const SQL: string);
 var
-  DatabaseName: string;
   Index: Integer;
   Parse: TSQLParse;
   RemovedLength: Integer;
@@ -6655,8 +6675,10 @@ begin
     if (not SQLParseKeyword(Parse, 'TRIGGER')) then
       raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
 
-    DatabaseName := Database.Name;
-    if (not SQLParseObjectName(Parse, DatabaseName, FName)) then
+    S := Database.Name;
+    if (not SQLParseObjectName(Parse, S, FName)) then
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
+    if (S <> Database.Name) then
       raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
 
     if (SQLParseKeyword(Parse, 'BEFORE')) then
@@ -6678,8 +6700,10 @@ begin
     if (not SQLParseKeyword(Parse, 'ON')) then
       raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
 
-    if (not SQLParseObjectName(Parse, DatabaseName, FTableName)) then
+    if (not SQLParseObjectName(Parse, FDatabaseName, FTableName)) then
       raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
+    if (FDatabaseName = '') then
+      FDatabaseName := Database.Name;
 
     if (not SQLParseKeyword(Parse, 'FOR EACH ROW')) then
       raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
@@ -6826,6 +6850,7 @@ begin
             Trigger[Index].FDefiner := DataSet.FieldByName('DEFINER').AsString;
           Trigger[Index].FStmt := DataSet.FieldByName('ACTION_STATEMENT').AsString;
           if (RightStr(Trigger[Index].FStmt, 1) <> ';') then Trigger[Index].FStmt := Trigger[Index].FStmt + ';';
+          Trigger[Index].FDatabaseName := DataSet.FieldByName('EVENT_OBJECT_SCHEMA').AsString;
           Trigger[Index].FTableName := DataSet.FieldByName('EVENT_OBJECT_TABLE').AsString;
           if (StrIComp(PChar(DataSet.FieldByName('ACTION_TIMING').AsString), 'BEFORE') = 0) then
             Trigger[Index].FTiming := ttBefore
@@ -7910,12 +7935,12 @@ var
   I: Integer;
   J: Integer;
   Modified: Boolean;
-  NewField: TSBaseTableField;
+  NewField: TSBaseField;
   NewForeignKey: TSForeignKey;
   NewKey: TSKey;
   NewKeyColumn: TSKeyColumn;
   NewPartition: TSPartition;
-  OldField: TSBaseTableField;
+  OldField: TSBaseField;
   OldForeignKey: TSForeignKey;
   OldKey: TSKey;
   OldPartition: TSPartition;
@@ -7925,7 +7950,7 @@ begin
   if (EncloseFields) then
     for I := 0 to NewTable.Fields.Count - 1 do
     begin
-      NewField := TSBaseTableField(NewTable.Fields.Field[I]);
+      NewField := TSBaseField(NewTable.Fields.Field[I]);
       if (not Assigned(Table) or (NewField.OriginalName = '')) then
         OldField := nil
       else
@@ -7989,7 +8014,7 @@ begin
         if (Assigned(Table) and (not Assigned(OldField) or (Session.Connection.MySQLVersion >= 40001))) then
           if (not Assigned(NewField.FieldBefore) and (not Assigned(OldField) or Assigned(OldField.FieldBefore))) then
             SQLPart := SQLPart + ' FIRST'
-          else if (Assigned(NewField.FieldBefore) and ((not Assigned(OldField) and Assigned(NewField.FieldBefore) and (NewField.FieldBefore.Index <> NewTable.Fields.Count - 2)) or (Assigned(OldField) and (not Assigned(OldField.FieldBefore) or (lstrcmpi(PChar(OldField.FieldBefore.Name), PChar(NewField.FieldBefore.Name)) <> 0) or (TSBaseTableField(NewField.FieldBefore).Moved))))) then
+          else if (Assigned(NewField.FieldBefore) and ((not Assigned(OldField) and Assigned(NewField.FieldBefore) and (NewField.FieldBefore.Index <> NewTable.Fields.Count - 2)) or (Assigned(OldField) and (not Assigned(OldField.FieldBefore) or (lstrcmpi(PChar(OldField.FieldBefore.Name), PChar(NewField.FieldBefore.Name)) <> 0) or (TSBaseField(NewField.FieldBefore).Moved))))) then
             SQLPart := SQLPart + ' AFTER ' + Session.Connection.EscapeIdentifier(NewField.FieldBefore.Name);
 
         SQL := SQL + SQLPart;
@@ -8107,11 +8132,11 @@ begin
   if (Assigned(Table)) then
     for I := 0 to Table.Fields.Count - 1 do
     begin
-      OldField := TSBaseTableField(Table.Fields[I]);
+      OldField := TSBaseField(Table.Fields[I]);
       Found := False;
       for J := 0 to NewTable.Fields.Count - 1 do
       begin
-        NewField := TSBaseTableField(NewTable.Fields[J]);
+        NewField := TSBaseField(NewTable.Fields[J]);
         if (lstrcmpi(PChar(NewField.OriginalName), PChar(OldField.Name)) = 0) then
           Found := True;
       end;
@@ -10783,6 +10808,158 @@ begin
   Result := inherited;
 end;
 
+{ TSQuickAccess ***************************************************************}
+
+function TSQuickAccess.SearchResult(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
+  const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
+var
+  DataSet: TMySQLQuery;
+  Parse: TSQLParse;
+begin
+  Result := False;
+
+  if (ErrorCode = 0) then
+  begin
+    DataSet := TMySQLQuery.Create(nil);
+    DataSet.Open(DataHandle);
+
+    if (SQLCreateParse(Parse, PChar(CommandText), Length(CommandText), Session.Connection.MySQLVersion)) then
+      if (SQLParseKeyword(Parse, 'SELECT')) then
+      begin
+        if (SQLParseChar(Parse, '*')
+          and SQLParseKeyword(Parse, 'FROM')
+          and SQLParseValue(Parse, INFORMATION_SCHEMA)
+          and SQLParseChar(Parse, '.')) then
+        begin
+          if (SQLParseValue(Parse, 'EVENTS')) then
+            Session.BuildEvents(DataSet, True)
+          else if (SQLParseValue(Parse, 'ROUTINES')) then
+            Session.BuildRoutines(DataSet, True)
+          else if (SQLParseValue(Parse, 'SCHEMATA')) then
+            Session.Databases.Build(DataSet, True, True)
+          else if (SQLParseValue(Parse, 'TABLES')) then
+            Session.BuildTables(DataSet, True)
+          else if (SQLParseValue(Parse, 'TRIGGERS')) then
+            Session.BuildTriggers(DataSet, True);
+        end;
+      end;
+
+    DataSet.Free();
+  end;
+end;
+
+procedure TSQuickAccess.PushBuildEvent();
+begin
+  Session.SendEvent(etItemsValid, Self, Self);
+end;
+
+function TSQuickAccess.Step1(const Items: array of TItem): Boolean;
+var
+  Database: TSDatabase;
+  DatabaseNames: TStringList;
+  EventsWhere: string;
+  I: Integer;
+  RoutinesWhere: string;
+  SQL: string;
+  TablesWhere: string;
+  TriggersWhere: string;
+begin
+  DatabaseNames := TStringList.Create();
+  EventsWhere := '';
+  RoutinesWhere := '';
+  SQL := '';
+  TablesWhere := '';
+  TriggersWhere := '';
+
+  for I := 0 to Length(Items) - 1 do
+  begin
+    Database := Session.DatabaseByName(Items[I].DatabaseName);
+
+    if (not Session.Databases.Valid or Assigned(Database)) then
+    begin
+      if ((not Assigned(Database) or not Database.Valid) and (DatabaseNames.IndexOf(Items[I].DatabaseName) < 0)) then
+        DatabaseNames.Add(Items[I].DatabaseName);
+
+      if (((Items[I].ClassType = TSBaseTable) or (Items[I].ClassType = TSView))
+        and (not Assigned(Database) or not Database.Tables.ValidStatus)) then
+      begin
+        if (TablesWhere <> '') then TablesWhere := TablesWhere + ',';
+        TablesWhere := TablesWhere + '(' + SQLEscape(Items[I].DatabaseName) + ',' + SQLEscape(Items[I].Name) + ')';
+      end;
+
+      if (((Items[I].ClassType = TSProcedure) or (Items[I].ClassType = TSFunction))
+        and (Session.Connection.MySQLVersion >= 50004)
+        and (not Assigned(Database) or not Database.Routines.Valid)) then
+      begin
+        if (RoutinesWhere <> '') then RoutinesWhere := RoutinesWhere + ',';
+        if (Items[I].ClassType = TSProcedure) then
+          RoutinesWhere := RoutinesWhere + '(' + SQLEscape(Items[I].DatabaseName) + ',' + SQLEscape(Items[I].Name) + ',' + SQLEscape('PROCEDURE') + ')'
+        else
+          RoutinesWhere := RoutinesWhere + '(' + SQLEscape(Items[I].DatabaseName) + ',' + SQLEscape(Items[I].Name) + ',' + SQLEscape('FUNCTION') + ')';
+      end;
+
+      if ((Items[I].ClassType = TSTrigger)
+        and (Session.Connection.MySQLVersion >= 50010)
+        and (not Assigned(Database) or not Database.Triggers.Valid)) then
+      begin
+        if (TriggersWhere <> '') then TriggersWhere := TriggersWhere + ',';
+        TriggersWhere := TriggersWhere + '(' + SQLEscape(Items[I].DatabaseName) + ',' + SQLEscape(Items[I].Name) + ')';
+      end;
+
+      if ((Items[I].ClassType = TSEvent)
+        and (Session.Connection.MySQLVersion >= 50106)
+        and (not Assigned(Database) or not Database.Events.Valid)) then
+      begin
+        if (EventsWhere <> '') then EventsWhere := EventsWhere + ',';
+        EventsWhere := EventsWhere + '(' + SQLEscape(Items[I].DatabaseName) + ',' + SQLEscape(Items[I].Name) + ')';
+      end;
+    end;
+  end;
+
+
+  if (DatabaseNames.Count > 0) then
+  begin
+    SQL := SQL + 'SELECT *'
+      + ' FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('SCHEMATA')
+      + ' WHERE ' + Session.Connection.EscapeIdentifier('SCHEMA_NAME') + ' IN (';
+    for I := 0 to DatabaseNames.Count - 1 do
+    begin
+      if (I > 0) then SQL := SQL + ',';
+      SQL := SQL
+        + SQLEscape(DatabaseNames[I]);
+    end;
+    SQL := SQL
+      + ')'
+      + ' ORDER BY ' + Session.Connection.EscapeIdentifier('SCHEMA_NAME') + ';' + #13#10;
+  end;
+  if (TablesWhere <> '') then
+    SQL := SQL + 'SELECT *'
+      + ' FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('TABLES')
+      + ' WHERE (' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + ',' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ') IN (' + TablesWhere + ')'
+      + ' ORDER BY ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + ',' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ';' + #13#10;
+  if (RoutinesWhere <> '') then
+    SQL := SQL + 'SELECT *'
+      + ' FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('ROUTINES')
+      + ' WHERE (' + Session.Connection.EscapeIdentifier('ROUTINE_SCHEMA') + ',' + Session.Connection.EscapeIdentifier('ROUTINE_NAME') + ',' + Session.Connection.EscapeIdentifier('ROUTINE_TYPE') + ') IN (' + RoutinesWhere + ')'
+      + ' ORDER BY ' + Session.Connection.EscapeIdentifier('ROUTINE_SCHEMA') + ',' + Session.Connection.EscapeIdentifier('ROUTINE_NAME') + ';' + #13#10;
+  if (TriggersWhere <> '') then
+    SQL := SQL + 'SELECT *'
+      + ' FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('TRIGGERS')
+      + ' WHERE (' + Session.Connection.EscapeIdentifier('TRIGGER_SCHEMA') + ',' + Session.Connection.EscapeIdentifier('TRIGGER_NAME') + ') IN (' + TriggersWhere + ')'
+      + ' ORDER BY ' + Session.Connection.EscapeIdentifier('TRIGGER_SCHEMA') + ',' + Session.Connection.EscapeIdentifier('TRIGGER_NAME') + ';' + #13#10;
+  if (EventsWhere <> '') then
+    SQL := SQL + 'SELECT *'
+      + ' FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('EVENTS')
+      + ' WHERE (' + Session.Connection.EscapeIdentifier('EVENT_SCHEMA') + ',' + Session.Connection.EscapeIdentifier('EVENT_NAME') + ') IN (' + EventsWhere + ')'
+      + ' ORDER BY ' + Session.Connection.EscapeIdentifier('EVENT_SCHEMA') + ',' + Session.Connection.EscapeIdentifier('EVENT_NAME') + ';' + #13#10;
+
+
+  DatabaseNames.Free();
+
+
+  Result := (SQL = '') or Session.SendSQL(SQL, SearchResult);
+end;
+
 { TSItemSearch ****************************************************************}
 
 procedure TSItemSearch.AddColumns(const DataSet: TMySQLQuery);
@@ -13294,7 +13471,7 @@ end;
 procedure TSSession.UpdateIndexDefs(const DataSet: TMySQLQuery; const IndexDefs: TIndexDefs);
 var
   Database: TSDatabase;
-  Field: TSBaseTableField;
+  Field: TSBaseField;
   FieldInfo: TFieldInfo;
   Found: Boolean;
   I: Integer;

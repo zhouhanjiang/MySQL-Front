@@ -150,13 +150,15 @@ end;
 
 procedure TUURI.Clear();
 begin
+  FDatabase := '';
+  FExtraInfos := '';
+  FHost := '';
+  FPath := '';
+  FTable := '';
+  Password := '';
+  Port := 0;
   Scheme := '';
   Username := '';
-  Password := '';
-  FHost := '';
-  Port := 0;
-  FPath := '';
-  FExtraInfos := '';
 end;
 
 constructor TUURI.Create(const AAddress: string = '');

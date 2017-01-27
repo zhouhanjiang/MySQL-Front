@@ -1430,7 +1430,7 @@ begin
       SendToDeveloper('Unknown ClassName');
 
     Inc(UniqueTabNameCounter);
-    FSession.Name := FSession.ClassName + '_' + IntToStr(UniqueTabNameCounter);
+    FSession.Name := FSession.ClassName + '_0_' + IntToStr(UniqueTabNameCounter);
 
     FSession.StatusBar := StatusBar;
 

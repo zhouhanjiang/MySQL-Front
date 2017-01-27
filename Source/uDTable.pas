@@ -438,7 +438,7 @@ end;
 procedure TDTable.aPEditFieldExecute(Sender: TObject);
 begin
   DField.Table := NewTable;
-  DField.Field := TSBaseTableField(NewTable.Fields[FFields.ItemIndex]);
+  DField.Field := TSBaseField(NewTable.Fields[FFields.ItemIndex]);
   DField.ModifyTableOnly := True;
   if (DField.Execute()) then
   begin
@@ -1159,7 +1159,7 @@ end;
 procedure TDTable.FormShow(Sender: TObject);
 var
   I: Integer;
-  NewField: TSBaseTableField;
+  NewField: TSBaseField;
   NewKey: TSKey;
   NewKeyColumn: TSKeyColumn;
   TableName: string;
@@ -1222,7 +1222,7 @@ begin
     NewTable.Collation := Database.Collation;
     NewTable.Engine := Database.Session.Engines.DefaultEngine;
 
-    NewField := TSBaseTableField.Create(NewTable.Fields);
+    NewField := TSBaseField.Create(NewTable.Fields);
     NewField.Name := 'Id';
     NewField.FieldKind := mkReal;
     NewField.FieldType := mfInt;
@@ -1237,7 +1237,7 @@ begin
     NewKey.PrimaryKey := True;
 
     NewKeyColumn := TSKeyColumn.Create(NewKey.Columns);
-    NewKeyColumn.Field := TSBaseTableField(NewTable.Fields[0]);
+    NewKeyColumn.Field := TSBaseField(NewTable.Fields[0]);
     NewKey.Columns.AddColumn(NewKeyColumn);
     FreeAndNil(NewKeyColumn);
 

@@ -571,7 +571,7 @@ begin
                 NewNode := TreeView.Items.AddChild(Node, Table.Fields[I].Name);
                 if (Table is TSView) then
                   NewNode.ImageIndex := iiViewField
-                else if (TSBaseTableField(Table.Fields[I]).FieldKind = mkVirtual) then
+                else if (TSBaseField(Table.Fields[I]).FieldKind = mkVirtual) then
                   NewNode.ImageIndex := iiVirtualField
                 else
                   NewNode.ImageIndex := iiBaseField;

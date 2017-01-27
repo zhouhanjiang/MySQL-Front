@@ -124,7 +124,7 @@ type
     function IsUnionType(): Boolean;
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
-    Field: TSBaseTableField;
+    Field: TSBaseField;
     ModifyTableOnly: Boolean;
     Table: TSBaseTable;
     function Execute(): Boolean;
@@ -668,7 +668,7 @@ var
   I: Integer;
   Index: Integer;
   NewColumn: TSKeyColumn;
-  NewField: TSBaseTableField;
+  NewField: TSBaseField;
   NewKey: TSKey;
   NewTable: TSBaseTable;
 begin
@@ -719,7 +719,7 @@ begin
 
     if (CanClose) then
     begin
-      NewField := TSBaseTableField.Create(NewTable.Fields);
+      NewField := TSBaseField.Create(NewTable.Fields);
       if (Assigned(Field)) then
         NewField.Assign(Field);
 

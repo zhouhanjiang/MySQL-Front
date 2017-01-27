@@ -2706,14 +2706,14 @@ end;
 procedure TTImportText.ExecuteTableStructure(const Item: TTImport.TItem);
 var
   I: Integer;
-  NewField: TSBaseTableField;
+  NewField: TSBaseField;
   NewTable: TSBaseTable;
 begin
   NewTable := TSBaseTable.Create(Database.Tables);
 
   for I := 0 to Length(FileFields) - 1 do
   begin
-    NewField := TSBaseTableField.Create(NewTable.Fields);
+    NewField := TSBaseField.Create(NewTable.Fields);
 
     NewField.Name := Session.ApplyIdentifierName(HeadlineNames[I]);
     NewField.FieldKind := mkReal;
@@ -3202,7 +3202,7 @@ var
   Len: SQLINTEGER;
   Name: string;
   NewKeyColumn: TSKeyColumn;
-  NewField: TSBaseTableField;
+  NewField: TSBaseField;
   NewTable: TSBaseTable;
   NonUnique: SQLSMALLINT;
   Nullable: SQLSMALLINT;
@@ -3266,7 +3266,7 @@ begin
           SetLength(SourceFieldNames, Length(SourceFieldNames) + 1);
           SourceFieldNames[Length(SourceFieldNames) - 1] := StrPas(PChar(@ColumnName[0]));
 
-          NewField := TSBaseTableField.Create(NewTable.Fields);
+          NewField := TSBaseField.Create(NewTable.Fields);
           NewField.Name := Session.ApplyIdentifierName(ColumnName);
           NewField.FieldKind := mkReal;
           if (NewTable.Fields.Count > 0) then
@@ -3423,7 +3423,7 @@ begin
         Key := NewTable.Keys[0];
 
         NewKeyColumn := TSKeyColumn.Create(Key.Columns);
-        NewKeyColumn.Field := TSBaseTableField(NewTable.Fields[I]);
+        NewKeyColumn.Field := TSBaseField(NewTable.Fields[I]);
         Key.Columns.AddColumn(NewKeyColumn);
         FreeAndNil(NewKeyColumn);
       end;
@@ -5691,8 +5691,8 @@ begin
         else
           Content := Content + '<td>&nbsp;</td>';
         if (Session.Connection.MySQLVersion >= 40100) then
-          if (TSBaseTableField(Table.Fields[I]).Comment <> '') then
-            Content := Content + '<td>' + HTMLEscape(TSBaseTableField(Table.Fields[I]).Comment) + '</td>'
+          if (TSBaseField(Table.Fields[I]).Comment <> '') then
+            Content := Content + '<td>' + HTMLEscape(TSBaseField(Table.Fields[I]).Comment) + '</td>'
           else
             Content := Content + '<td>&nbsp;</td>';
         Content := Content + #9 + '</tr>' + #13#10;
@@ -7323,7 +7323,7 @@ begin
         end;
         GridData[I][4].Text := S;
         if (Session.Connection.MySQLVersion >= 40100) then
-          GridData[I][5].Text := TSBaseTableField(Table.Fields[I]).Comment;
+          GridData[I][5].Text := TSBaseField(Table.Fields[I]).Comment;
       end;
 
       GridOut(GridData);

@@ -302,6 +302,10 @@ object DExport: TDExport
       Caption = 'TSXMLOptions'
       TabVisible = False
       OnShow = TSXMLOptionsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -806,6 +810,10 @@ object DExport: TDExport
       TabVisible = False
       OnResize = TSExecuteResize
       OnShow = TSExecuteShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
