@@ -8369,18 +8369,18 @@ end;
 
 {******************************************************************************}
 
-var
-  Hex: string;
-  Len: Integer;
-  RBS: RawByteString;
-  SQL: string;
+//var
+//  Hex: string;
+//  Len: Integer;
+//  RBS: RawByteString;
+//  SQL: string;
 initialization
-  Hex := '5365F16F72';
-  SetLength(RBS, Length(Hex) div 2);
-  HexToBin(PChar(Hex), PAnsiChar(RBS), Length(RBS));
-  SetLength(SQL, Length(RBS));
-  Len := AnsiCharToWideChar(65001, PAnsiChar(RBS), Length(RBS), PChar(SQL), Length(SQL));
-  SetLength(SQL, Len);
+//  Hex := '';
+//  SetLength(RBS, Length(Hex) div 2);
+//  HexToBin(PChar(Hex), PAnsiChar(RBS), Length(RBS));
+//  SetLength(SQL, Length(RBS));
+//  Len := AnsiCharToWideChar(65001, PAnsiChar(RBS), Length(RBS), PChar(SQL), Length(SQL));
+//  SetLength(SQL, Len);
 
   MySQLConnectionOnSynchronize := nil;
 
