@@ -7744,8 +7744,6 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
   var
     Node: TTreeNode;
   begin
-    ProfilingPoint(19);
-
     Node := FNavigatorNodeToExpand;
     while (Assigned(Node)) do
     begin
@@ -7756,8 +7754,6 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
 
     Child.Data := nil;
     Child.Delete();
-
-    ProfilingPoint(20);
   end;
 
   procedure UpdateGroup(const Parent: TTreeNode; const GroupID: Integer; const Items: TSItems);
@@ -9029,9 +9025,13 @@ begin
       begin
         // Debug 2017-01-26
         if (not (TObject(CurrentData) is TSTable)) then
-          raise ERangeError.Create('CurrentAddress: ' + CurrentAddress + #13#10
-            + 'CurrentClassIndex: ' + IntToStr(Ord(CurrentClassIndex)) + #13#10
-            + 'CurrentData Class: ' + TObject(CurrentData).ClassName);
+          if (not Assigned(CurrentData)) then
+            raise ERangeError.Create('CurrentAddress: ' + CurrentAddress + #13#10
+              + 'CurrentClassIndex: ' + IntToStr(Ord(CurrentClassIndex)))
+          else
+            raise ERangeError.Create('CurrentAddress: ' + CurrentAddress + #13#10
+              + 'CurrentClassIndex: ' + IntToStr(Ord(CurrentClassIndex)) + #13#10
+              + 'CurrentData Class: ' + TObject(CurrentData).ClassName);
 
         Result := Desktop(TSTable(CurrentData)).CreateDBGrid();
       end;
@@ -11302,16 +11302,17 @@ var
           ProfilingPoint(21);
           for I := ListView.Items.Count - 1 downto 0 do
             if (ListView.Items[I].Data = Event.Item) then
+            begin
+              ProfilingPoint(22);
               ListView.Items.Delete(I);
+              ProfilingPoint(23);
+            end;
 
-          // 12.7 seconds on 31 items
-          // 2.8 seconds on 27 items
-
-          ProfilingPoint(22);
+          ProfilingPoint(24);
         end;
     end;
 
-    ProfilingPoint(23);
+    ProfilingPoint(25);
 
     if ((ReorderGroupIndex >= 0) and ListView.GroupView) then
     begin
@@ -11326,7 +11327,7 @@ var
         end;
     end;
 
-    ProfilingPoint(24);
+    ProfilingPoint(26);
 
     if (Event.EventType in [etItemsValid, etItemCreated, etItemDropped]) then
       if (TObject(ListView.Tag) is TSItemSearch) then
@@ -11376,7 +11377,7 @@ var
             SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(22) + ' (' + IntToStr(Session.Variables.Count) + ')');
         end;
 
-    ProfilingPoint(25);
+    ProfilingPoint(27);
   end;
 
   procedure UpdateQuickAccess();
@@ -11559,17 +11560,17 @@ begin
     else if ((Kind in [lkVariables, lkObjectSearch]) and (Event.Items is TSVariables)) then
       UpdateGroup(Kind, giVariables, Event.Items);
 
-    ProfilingPoint(26);
+    ProfilingPoint(28);
 
     if ((Window.ActiveControl = ListView) and Assigned(ListView.OnSelectItem)) then
       ListView.OnSelectItem(nil, ListView.Selected, Assigned(ListView.Selected));
 
-    ProfilingPoint(27);
+    ProfilingPoint(29);
 
     ListView.EnableAlign();
-    ProfilingPoint(28);
+    ProfilingPoint(30);
     ListView.Items.EndUpdate();
-    ProfilingPoint(29);
+    ProfilingPoint(31);
     ListView.Columns.EndUpdate();
 
     // 5 seconds
@@ -11579,8 +11580,9 @@ begin
     // 0.9 seconds, EventType: 0, Count: 39
     // 0.4 seconds, EventType: 0, Count: 740
     // 2.7 seconds, EventType: 0, Count: 36
+    // 5.4 seconds, EventType: 0, Count: 46
 
-    ProfilingPoint(30);
+    ProfilingPoint(32);
 
     {$IFDEF Debug}
     for I := 0 to ListView.Columns.Count - 1 do
@@ -11589,12 +11591,12 @@ begin
 
     ListView.OnChanging := ChangingEvent;
 
-    ProfilingPoint(31);
+    ProfilingPoint(33);
 
     if (RefreshHeader) then
       ListViewHeaderUpdate(ListView);
 
-    ProfilingPoint(32);
+    ProfilingPoint(33);
 
     if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
       if ((Finish - Start) div Frequency > 1) then

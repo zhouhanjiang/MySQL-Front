@@ -896,21 +896,19 @@ var
 begin
   FirstValid := SessionState = ssInit;
 
-  if ((SessionState = ssTable) and (Event.EventType = etItemValid) and (Event.Item = Table)) then
+  if ((SessionState in [ssTable, ssInit]) and (Event.EventType = etItemValid) and (Event.Item = Table)) then
   begin
     BuiltTable();
     if (not Assigned(Field)) then
       SessionState := ssCreate
     else
+    begin
+      Built();
       SessionState := ssValid;
+    end;
   end
   else if ((SessionState = ssInit) and (Event.EventType = etError)) then
     ModalResult := mrCancel
-  else if ((SessionState in [ssInit]) and (Event.EventType = etItemValid) and (Event.Item = Table)) then
-  begin
-    Built();
-    SessionState := ssValid;
-  end
   else if ((SessionState = ssAlter) and (Event.EventType = etError)) then
     if (not Assigned(Field)) then
       SessionState := ssCreate
@@ -919,7 +917,7 @@ begin
   else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemRenamed]) and (Event.Item = Table)) then
     ModalResult := mrOk;
 
-  if (SessionState = ssValid) then
+  if (SessionState in [ssCreate, ssValid]) then
   begin
     if (not GBasics.Visible) then
     begin

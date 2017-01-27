@@ -125,6 +125,7 @@ begin
   FOther.Checked := not FPrimary.Checked;
   if (FOther.Checked) then FName.Text := Key.Name else FName.Text := '';
 
+  FIndexedFields.Items.BeginUpdate();
   for I := 0 to Key.Columns.Count - 1 do
   begin
     Item := FIndexedFields.Items.Add();
@@ -132,6 +133,7 @@ begin
     Item.Data := Key.Columns.Column[I].Field;
   end;
   FIndexedFields.Selected := FIndexedFields.Items[0];
+  FIndexedFields.Items.EndUpdate();
 
   FComment.Text := Key.Comment;
 
@@ -167,9 +169,14 @@ end;
 procedure TDKey.BuiltTable();
 var
   I: Integer;
+  Item: TListItem;
 begin
   for I := 0 to Table.Fields.Count - 1 do
-    FAvailableFields.Items.Add().Caption := Table.Fields[I].Name;
+  begin
+    Item := FAvailableFields.Items.Add();
+    Item.Caption := Table.Fields[I].Name;
+    Item.Data := Table.Fields[I];
+  end;
 
   SetLength(Lengths, Table.Fields.Count);
   for I := 0 to Length(Lengths) - 1 do
@@ -274,7 +281,7 @@ var
   Field: TSBaseField;
   I: Integer;
 begin
-  if (Visible and Assigned(Item) and Assigned(Table.FieldByName(Item.Caption))) then
+  if (Visible and Assigned(Item) and Assigned(Item.Data)) then
   begin
     FIndexedFields.Enabled := (FIndexedFields.Items.Count > 0);
     FLIndexedFields.Enabled := FIndexedFields.Enabled;
@@ -464,7 +471,12 @@ begin
   SetLength(Lengths, 0);
   Table := nil;
 
+  FIndexedFields.Items.BeginUpdate();
   FIndexedFields.Items.Clear();
+  FIndexedFields.Items.EndUpdate();
+  FAvailableFields.Items.BeginUpdate();
+  FAvailableFields.Items.Clear();
+  FAvailableFields.Items.EndUpdate();
 end;
 
 procedure TDKey.FormResize(Sender: TObject);
@@ -488,21 +500,19 @@ var
 begin
   FirstValid := SessionState = ssInit;
 
-  if ((SessionState = ssTable) and (Event.EventType = etItemValid) and (Event.Item = Table)) then
+  if ((SessionState in [ssTable, ssInit]) and (Event.EventType = etItemValid) and (Event.Item = Table)) then
   begin
     BuiltTable();
     if (not Assigned(Key)) then
       SessionState := ssCreate
     else
+    begin
+      Built();
       SessionState := ssValid;
+    end;
   end
   else if ((SessionState = ssInit) and (Event.EventType = etError)) then
     ModalResult := mrCancel
-  else if ((SessionState in [ssInit]) and (Event.EventType = etItemValid) and (Event.Item = Table)) then
-  begin
-    Built();
-    SessionState := ssValid;
-  end
   else if ((SessionState = ssAlter) and (Event.EventType = etError)) then
     if (not Assigned(Key)) then
       SessionState := ssCreate
@@ -511,7 +521,7 @@ begin
   else if ((SessionState = ssAlter) and (Event.EventType in [etItemValid, etItemRenamed]) and (Event.Item = Table)) then
     ModalResult := mrOk;
 
-  if (SessionState = ssValid) then
+  if (SessionState in [ssCreate, ssValid]) then
   begin
     if (not GBasics.Visible) then
     begin
@@ -682,6 +692,7 @@ begin
     else
       Item := FAvailableFields.Items.Add();
     Item.Caption := Field.Name;
+    Item.Data := Field;
     Item.Selected := True;
   end;
 end;
