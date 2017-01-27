@@ -2882,7 +2882,6 @@ begin
         SUB EAX,SQL
         SHR EAX,1                        // 2 bytes = 1 character
         MOV @Result,EAX
-        POP ESI
 
         POP EBX
         POP EDI

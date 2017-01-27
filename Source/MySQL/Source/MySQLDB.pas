@@ -2609,13 +2609,7 @@ begin
   StmtLength := 1; // To make sure, the first SQLStmtLength will be executed
   while ((SQLIndex < SQLLength) and (StmtLength > 0)) do
   begin
-    try // Debug 2017-01-23
     StmtLength := SQLStmtLength(PChar(@SyncThread.SQL[SQLIndex]), SQLLength - (SQLIndex - 1));
-    except
-      on E: Exception do
-        raise ERangeError.Create(SyncThread.SQL + #13#10
-          + E.Message);
-    end;
     if (StmtLength > 0) then
     begin
       SyncThread.StmtLengths.Add(Pointer(StmtLength));
@@ -2626,8 +2620,8 @@ begin
   if ((SyncThread.StmtLengths.Count > 0) and not CharInSet(SyncThread.SQL[SQLIndex - 1], [#10, #13, ';'])) then
   begin
     // The MySQL server answers sometimes about a problem "near ''", if a
-    // statement is not terminated by ";". So we attach a ";" to the last
-    // statement to avoid this.
+    // statement is not terminated by ";". A ";" attached to the last statement
+    // avoids this.
     if (SQLIndex < SQLLength) then
       SyncThread.SQL[SQLIndex] := ';'
     else
