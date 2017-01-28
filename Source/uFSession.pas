@@ -638,7 +638,7 @@ type
     procedure TreeViewMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
   type
-    TClassIndex = (ciUnknown, ciSession, ciDatabase, ciSystemDatabase, ciBaseTable, ciView, ciSystemView, ciProcedure, ciFunction, ciTrigger, ciEvent, ciProcesses, ciUsers, ciVariables, ciQuickAccess);
+    TClassIndex = (ciUnknown, ciSession, ciDatabase, ciSystemDatabase, ciBaseTable, ciView, ciSystemView, ciProcedure, ciFunction, ciTrigger, ciEvent, ciKey, ciBaseField, ciViewField, ciForeignKey, ciProcesses, ciProcess, ciUsers, ciUser, ciVariables, ciVariable, ciQuickAccess);
     TListViewSortRec = record Kind: TPAccount.TDesktop.TListViewKind; ColumnIndex: Integer; Order: Integer; end;
     TListViewSortData = array [Low(TPAccount.TDesktop.TListViewKind) .. High(TPAccount.TDesktop.TListViewKind)] of TListViewSortRec;
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
@@ -4566,12 +4566,26 @@ begin
     Result := ciTrigger
   else if (TObject(Data) is TSEvent) then
     Result := ciEvent
+  else if (TObject(Data) is TSKey) then
+    Result := ciKey
+  else if (TObject(Data) is TSBaseField) then
+    Result := ciBaseField
+  else if (TObject(Data) is TSViewField) then
+    Result := ciViewField
+  else if (TObject(Data) is TSForeignKey) then
+    Result := ciForeignKey
   else if (TObject(Data) is TSProcesses) then
     Result := ciProcesses
+  else if (TObject(Data) is TSProcess) then
+    Result := ciProcess
   else if (TObject(Data) is TSUsers) then
     Result := ciUsers
+  else if (TObject(Data) is TSUser) then
+    Result := ciUser
   else if (TObject(Data) is TSVariables) then
     Result := ciVariables
+  else if (TObject(Data) is TSVariable) then
+    Result := ciVariable
   else
     raise ERangeError.Create('ClassType: ' + TObject(Data).ClassName);
 end;
