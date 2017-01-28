@@ -346,6 +346,7 @@ type
     procedure aSSearchFindNotFound(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormCreate(Sender: TObject);
+    procedure FormDeactivate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormHide(Sender: TObject);
     procedure FormResize(Sender: TObject);
@@ -369,7 +370,6 @@ type
     procedure TabControlStartDrag(Sender: TObject;
       var DragObject: TDragObject);
     procedure tbPropertiesClick(Sender: TObject);
-    procedure FormDeactivate(Sender: TObject);
   const
     tiEmptyWorkingMem = 1;
     tiFormDeactivated = 2;

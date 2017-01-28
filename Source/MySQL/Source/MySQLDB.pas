@@ -3725,6 +3725,9 @@ end;
 
 procedure TMySQLConnection.SyncHandledResult(const SyncThread: TSyncThread);
 begin
+  if (not ((SyncThread.State in [ssReceivingResult, ssReady]) or (SyncThread.State = ssResult) and not Assigned(SyncThread.ResHandle))) then
+    Write;
+
   Assert((SyncThread.State in [ssReceivingResult, ssReady]) or (SyncThread.State = ssResult) and not Assigned(SyncThread.ResHandle));
 
   if (SyncThread.State = ssReceivingResult) then

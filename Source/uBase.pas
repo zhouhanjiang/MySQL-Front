@@ -826,9 +826,9 @@ begin
     CBTHook := SetWindowsHookEx(WH_CBT, CBTProc, 0, GetCurrentThreadId());
     {$ENDIF}
 
-    Result := Integer(MessageBoxIndirect(MsgBoxParams));
+    Result := MessageBoxIndirect(MsgBoxParams);
 
-    {$IFDEF Debug}
+    {$IFNDEF Debug}
     UnhookWindowsHookEx(CBTHook);
     {$ENDIF}
   end;

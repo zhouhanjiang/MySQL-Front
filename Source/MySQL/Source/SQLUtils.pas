@@ -200,6 +200,9 @@ asm
         JE QuotedL2                      // Yes!
         CMP AX,'"'                       // '"'?
         JE QuotedL2                      // Yes!
+        ADD ESI,2                        // Step over escaped character
+        DEC ECX                          // One character handled
+        JZ Finish                        // End of SQL!
         JMP QuotedLE
       QuotedL2:
         CMP AX,DX                        // Escaped Quoter?

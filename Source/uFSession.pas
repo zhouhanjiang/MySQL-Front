@@ -7390,7 +7390,10 @@ begin
   if (Key = #3) then
     Key := #0 // Why is threre a Beep on <Ctrl+C> without this?
   else if ((Key = #13) and CheckWin32Version(6, 1)) then
+  begin
+//    FNavigatorChange2(Sender, FNavigator.Selected);
     Key := #0;
+  end;
 end;
 
 procedure TFSession.FNavigatorKeyUp(Sender: TObject; var Key: Word;

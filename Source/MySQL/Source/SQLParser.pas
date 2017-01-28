@@ -1897,7 +1897,6 @@ type
             AddTag: TOffset;
             ColumnTag: TOffset;
             OldIdent: TOffset;
-            Ident: TOffset;
             Definition: TOffset;
             Position: TOffset;
           end;
@@ -15914,9 +15913,6 @@ begin
 
   if (not ErrorFound and (AddType in [fatChange, fatModify])) then
     Nodes.OldIdent := ParseFieldIdent();
-
-  if (not ErrorFound and (AddType in [fatNone, fatAdd, fatChange])) then
-    Nodes.Ident := ParseFieldIdent();
 
   if (not ErrorFound) then
     Nodes.Definition := ParseCreateTableStmtField();
