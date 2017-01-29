@@ -474,9 +474,10 @@ type
     private
       FAddress: string;
       FFavorites: TFavorites;
+      procedure SetAddress(AAddress: string);
     public
       constructor Create(const AFavorites: TFavorites; const AAddress: string);
-      property Address: string read FAddress;
+      property Address: string read FAddress write SetAddress;
       property Favorites: TFavorites read FFavorites;
     end;
 
@@ -707,7 +708,7 @@ implementation {***************************************************************}
 
 uses
   Consts, CommCtrl, SHFolder, WinInet, ShellAPI, ImgList, ShlObj, StrUtils,
-  Variants, Math, SysConst, ActiveX, RTLConsts, GDIPAPI, GDIPObj,
+  Variants, Math, SysConst, ActiveX, RTLConsts, GDIPAPI, GDIPObj, IOUtils,
   MySQLConsts,
   CSVUtils,
 uDeveloper, // Debug 2017-01-11
@@ -2009,14 +2010,10 @@ begin
   FInternetAgent := SysUtils.LoadStr(1000) + '/' + IntToStr(VerMajor) + '.' + IntToStr(VerMinor);
   SHGetFolderPath(0, CSIDL_PERSONAL, 0, 0, @Foldername);
   Path := IncludeTrailingPathDelimiter(PChar(@Foldername));
-  if ((FileExists(ExtractFilePath(Application.ExeName) + '\Desktop.xml')) or (SHGetFolderPath(0, CSIDL_APPDATA, 0, 0, @Foldername) <> S_OK)) then
-    FUserPath := IncludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName))
-  {$IFDEF Debug}
-  else if (SysUtils.LoadStr(1002) = '') then
-    FUserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(PChar(@Foldername)) + 'MySQL-Front')
-  {$ENDIF}
+  if (SysUtils.LoadStr(1002) = '') then
+    FUserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(TPath.GetHomePath()) + 'MySQL-Front')
   else
-    FUserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(PChar(@Foldername)) + SysUtils.LoadStr(1002));
+    FUserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(TPath.GetHomePath()) + SysUtils.LoadStr(1002));
 
   SoundFileNavigating := '';
   if (OpenKeyReadOnly('\AppEvents\Schemes\Apps\Explorer\Navigating\.Current')) then
@@ -2701,6 +2698,13 @@ begin
   FAddress := AAddress;
 end;
 
+procedure TPAccount.TFavorite.SetAddress(AAddress: string);
+begin
+  FAddress := AAddress;
+
+  Favorites.Changed();
+end;
+
 { TPAccount.TFavorites ********************************************************}
 
 procedure TPAccount.TFavorites.Add(const Address: string);
@@ -2740,6 +2744,8 @@ end;
 
 procedure TPAccount.TFavorites.Delete(Index: Integer);
 begin
+  Favorite[Index].Free();
+
   inherited;
 
   Changed();
@@ -4021,4 +4027,5 @@ initialization
 finalization
   CoUninitialize();
 end.
+
 

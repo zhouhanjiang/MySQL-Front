@@ -81,8 +81,6 @@ type
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
     procedure KeyPress(var Key: Char); override;
     procedure KeyUp(var Key: Word; Shift: TShiftState); override;
-    procedure MouseDown(Button: TMouseButton; Shift: TShiftState;
-      X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState;
       X, Y: Integer); override;
@@ -96,6 +94,8 @@ type
     destructor Destroy(); override;
     function ExecuteAction(Action: TBasicAction): Boolean; override;
     procedure LayoutChanged(); override;
+    procedure MouseDown(Button: TMouseButton; Shift: TShiftState;
+      X, Y: Integer); override;
     function PasteFromClipboard(): Boolean; virtual;
     procedure SelectAll(); virtual;
     function UpdateAction(Action: TBasicAction): Boolean; override;

@@ -190,18 +190,6 @@ var
   DefaultList: TStringList;
   I: Integer;
 begin
-  // Debug 2016-12-19
-  if (TableDebug <> Table) then
-    raise ERangeError.Create(SRangeError);
-  if (not Assigned(Table)) then
-    raise ERangeError.Create(SRangeError);
-  if (not (TObject(Table) is TSBaseTable)) then
-    try
-      raise ERangeError.Create('ClassType: ' + Table.ClassName);
-    except
-      raise ERangeError.Create(SRangeError);
-    end;
-
   if (Assigned(Field.FieldBefore)) then
     FPosition.ItemIndex := Table.Fields.IndexOf(Field.FieldBefore) + 1
   else
@@ -297,17 +285,11 @@ begin
   for I := 0 to Table.Fields.Count - 1 do
     if (not Assigned(Field) or (Table.Fields[I].Name <> Field.Name)) then
       FPosition.Items.Add(Preferences.LoadStr(96) + ' "' + Table.Fields[I].Name + '"');
+  FPosition.ItemIndex := FPosition.Items.Count - 1;
 end;
 
 function TDField.Execute(): Boolean;
 begin
-  if (not Assigned(Table)) then
-    // Debug 2016-12-08
-    raise ERangeError.Create(SRangeError)
-  else if (not (TObject(Table) is TSBaseTable)) then
-    // Debug 2016-12-08
-    raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Table).ClassName);
-
   ShowModal();
   Result := ModalResult = mrOk;
 end;

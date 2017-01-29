@@ -416,7 +416,6 @@ type
     procedure UMDeactivateTab(var Message: TMessage); message UM_DEACTIVATETAB;
     procedure UMMySQLClientSynchronize(var Message: TMessage); message UM_MYSQLCLIENT_SYNCHRONIZE;
     procedure UMOnlineUpdateFound(var Message: TMessage); message UM_ONLINE_UPDATE_FOUND;
-    procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMUpdateToolbar(var Message: TMessage); message UM_UPDATETOOLBAR;
     procedure WMDrawItem(var Message: TWMDrawItem); message WM_DRAWITEM;
     procedure WMHelp(var Message: TWMHelp); message WM_HELP;
@@ -1120,7 +1119,10 @@ end;
 
 procedure TWWindow.OnlineVersionChecked(Sender: TObject);
 begin
-  PostMessage(Handle, UM_TERMINATE, 0, 0);
+  CheckOnlineVersionThread.WaitFor();
+  CheckOnlineVersionThread.Free();
+  CheckOnlineVersionThread := nil;
+
   if ((OnlineRecommendedVersion > Preferences.Version)
     or (Preferences.ObsoleteVersion > 0) and (OnlineVersion > Preferences.ObsoleteVersion)) then
     PostMessage(Handle, UM_ONLINE_UPDATE_FOUND, 0, 0);
@@ -1758,13 +1760,6 @@ begin
     OnlineRecommendedUpdateFound := True
   else
     InformOnlineUpdateFound();
-end;
-
-procedure TWWindow.UMTerminate(var Message: TMessage);
-begin
-  CheckOnlineVersionThread.WaitFor();
-  CheckOnlineVersionThread.Free();
-  CheckOnlineVersionThread := nil;
 end;
 
 procedure TWWindow.UMUpdateToolbar(var Message: TMessage);

@@ -96,7 +96,7 @@ object DOptions: TDOptions
         end
         object FTabsVisible: TCheckBox
           Left = 144
-          Top = 16
+          Top = 18
           Width = 193
           Height = 17
           Caption = 'FTabsVisible'
@@ -119,7 +119,7 @@ object DOptions: TDOptions
         end
         object FQuickAccessVisible: TCheckBox
           Left = 144
-          Top = 16
+          Top = 18
           Width = 193
           Height = 17
           Caption = 'FQuickAccessVisible'
@@ -130,6 +130,10 @@ object DOptions: TDOptions
     object TSBrowser: TTabSheet
       Caption = 'TSBrowser'
       OnResize = TSBrowserResize
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GGrid: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -289,6 +293,10 @@ object DOptions: TDOptions
     object TSEditor: TTabSheet
       Caption = 'TSEditor'
       OnResize = TSEditorResize
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GEditor: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -378,7 +386,7 @@ object DOptions: TDOptions
           Width = 41
           Height = 21
           TabOrder = 6
-          Text = '1.000'
+          Text = '1000'
         end
         object FBEditorFont: TButton
           Left = 265
@@ -406,6 +414,10 @@ object DOptions: TDOptions
     object TSLog: TTabSheet
       Caption = 'TSLog'
       OnResize = TSLogResize
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GLog: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -515,6 +527,10 @@ object DOptions: TDOptions
     object TSHighlighter: TTabSheet
       Caption = 'TSHighlighter'
       OnShow = TSHighlighterShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GColors: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -667,6 +683,10 @@ object DOptions: TDOptions
     end
     object TSExtras: TTabSheet
       Caption = 'TSExtras'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GAssociate: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -693,6 +713,10 @@ object DOptions: TDOptions
     end
     object TSUpdates: TTabSheet
       Caption = 'TSUpdates'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GUpdates: TGroupBox_Ext
         Left = 4
         Top = 4

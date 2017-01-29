@@ -3080,13 +3080,13 @@ begin
             DoError(SyncThread.ErrorCode, SyncThread.ErrorMessage);
           SyncReleaseDataSet(SyncThread.DataSet);
           if (SyncThread.Mode in [smSQL, smDataSet]) then
+          begin
             if (SyncThread.State in [ssNext, ssFirst]) then
             begin
               SyncExecute(SyncThread);
               RunExecute(SyncThread);
-            end
-            else
-              SyncAfterExecuteSQL(SyncThread)
+            end;
+          end
           else
             SyncThreadExecuted.SetEvent();
         end;
@@ -3725,9 +3725,6 @@ end;
 
 procedure TMySQLConnection.SyncHandledResult(const SyncThread: TSyncThread);
 begin
-  if (not ((SyncThread.State in [ssReceivingResult, ssReady]) or (SyncThread.State = ssResult) and not Assigned(SyncThread.ResHandle))) then
-    Write;
-
   Assert((SyncThread.State in [ssReceivingResult, ssReady]) or (SyncThread.State = ssResult) and not Assigned(SyncThread.ResHandle));
 
   if (SyncThread.State = ssReceivingResult) then

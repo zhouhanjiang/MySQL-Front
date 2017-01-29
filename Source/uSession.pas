@@ -131,10 +131,10 @@ type
       property SObject: TSObject read FSObject;
     end;
   private
+    FOriginalName: string;
     function GetObjects(): TSObjects; inline;
   protected
     FDesktop: TDesktop;
-    FOriginalName: string;
     FSource: string;
     FValidSource: Boolean;
     function Build(const DataSet: TMySQLQuery): Boolean; overload; virtual; abstract;
@@ -2175,10 +2175,19 @@ end;
 
 procedure TSObject.SetName(const AName: string);
 begin
-  inherited;
+  if (AName <> FName) then
+  begin
+    inherited;
 
-  FValidSource := False;
-  FSource := '';
+    FValidSource := False;
+    FSource := '';
+
+    if (FOriginalName <> '') then
+    begin
+      Session.SendEvent(etItemRenamed, Self, Objects, Self);
+      FOriginalName := AName;
+    end;
+  end;
 end;
 
 procedure TSObject.SetSource(const ASource: string);
@@ -2531,7 +2540,7 @@ begin
       FItems := ADatabase.Triggers
     else
       raise ERangeError.Create(SRangeError);
-    Entities.Add(Self, True);
+    TSEntities(FItems).Add(Self, True);
   end;
 end;
 
@@ -2632,10 +2641,11 @@ procedure TSDBObjects.Delete(const AItem: TSItem);
 begin
   Assert(AItem is TSDBObject);
 
+  Session.SendEvent(etItemDropped, Database, Self, AItem);
+
   Delete(IndexOf(AItem));
 
   Session.SendEvent(etItemsValid, Session, Session.Databases);
-  Session.SendEvent(etItemDropped, Database, Self, AItem);
 
   AItem.Free();
 end;
@@ -2894,9 +2904,9 @@ begin
       if (Table.Fields[I] is TSBaseField) then
         TSBaseField(Table.Fields[I]).AutoIncrement := False;
 
-  Delete(IndexOf(AKey));
-
   Session.SendEvent(etItemDropped, Table, Self, AKey);
+
+  Delete(IndexOf(AKey));
 
   AKey.Free();
 end;
@@ -3296,6 +3306,9 @@ end;
 procedure TSBaseField.SetName(const AName: string);
 begin
   FName := AName;
+
+  Session.SendEvent(etItemRenamed, Self, Fields, Self);
+  FOriginalName := AName;
 end;
 
 { TSViewField *****************************************************************}
@@ -3375,9 +3388,9 @@ begin
     else
       Field[Index + 1].FieldBefore := Field[Index - 1];
 
-  Delete(Index);
-
   Session.SendEvent(etItemDropped, Table, Self, AField);
+
+  Delete(Index);
 
   AField.Free();
 end;
@@ -3636,9 +3649,9 @@ end;
 
 procedure TSForeignKeys.Delete(const AForeignKey: TSForeignKey);
 begin
-  Delete(IndexOf(AForeignKey));
-
   Session.SendEvent(etItemDropped, Table, Self, AForeignKey);
+
+  Delete(IndexOf(AForeignKey));
 
   AForeignKey.Free();
 end;
@@ -4464,11 +4477,7 @@ begin
 
         Field := FieldByName(OldFieldName);
         if (Assigned(Field) and (NewFieldName <> OldFieldName)) then
-        begin
           Field.Name := NewFieldName;
-          Session.SendEvent(etItemRenamed, Self, Fields, Field);
-          Field.FOriginalName := NewFieldName;
-        end;
       end;
 
       while (not SQLParseChar(Parse, ',') and not SQLParseEnd(Parse)) do
@@ -8211,48 +8220,48 @@ begin
   begin
     if (Assigned(Table) and (SQL <> '')) then SQL := SQL + ',' + #13#10;
     if ((Session.Connection.MySQLVersion < 40102) and Assigned(NewTable.FEngine)) then
-      SQL := SQL + ' TYPE=' + NewTable.FEngine.Name
+      SQL := SQL + '  TYPE=' + NewTable.FEngine.Name
     else
-      SQL := SQL + ' ENGINE=' + NewTable.FEngine.Name;
+      SQL := SQL + '  ENGINE=' + NewTable.FEngine.Name;
   end;
   if ((not Assigned(Table) or Assigned(Table) and (NewTable.FAutoIncrement <> Table.AutoIncrement)) and (NewTable.FAutoIncrement > 0)) then
   begin
     if (Assigned(Table) and (SQL <> '')) then SQL := SQL + ',' + #13#10;
-    SQL := SQL + ' AUTO_INCREMENT=' + IntToStr(NewTable.FAutoIncrement);
+    SQL := SQL + '  AUTO_INCREMENT=' + IntToStr(NewTable.FAutoIncrement);
   end;
   if ((not Assigned(Table) and NewTable.Checksum or Assigned(Table) and (NewTable.Checksum <> Table.Checksum))) then
   begin
     if (Assigned(Table) and (SQL <> '')) then SQL := SQL + ',' + #13#10;
     if (not NewTable.Checksum) then
-      SQL := SQL + ' CHECKSUM=0'
+      SQL := SQL + '  CHECKSUM=0'
     else
-      SQL := SQL + ' CHECKSUM=1';
+      SQL := SQL + '  CHECKSUM=1';
   end;
   if (not Assigned(Table) and (NewTable.FComment <> '') or Assigned(Table) and (NewTable.FComment <> Table.Comment) and (Session.Connection.MySQLVersion >= 40100)) then
   begin
     if (Assigned(Table) and (SQL <> '')) then SQL := SQL + ',' + #13#10;
-    SQL := SQL + ' COMMENT=' + SQLEscape(NewTable.FComment);
+    SQL := SQL + '  COMMENT=' + SQLEscape(NewTable.FComment);
   end;
   if (Session.Connection.MySQLVersion >= 40100) then
   begin
     if ((NewTable.Charset <> '') and (not Assigned(Table) or (NewTable.FCharset <> Table.Charset))) then
     begin
       if (Assigned(Table) and (SQL <> '')) then SQL := SQL + ',' + #13#10;
-      SQL := SQL + ' DEFAULT CHARSET=' + NewTable.Charset;
+      SQL := SQL + '  DEFAULT CHARSET=' + NewTable.Charset;
     end;
     if ((NewTable.Collation <> '') and (not Assigned(Table) or (NewTable.Collation <> Table.Collation))) then
     begin
       if (Assigned(Table) and (SQL <> '')) then SQL := SQL + ',' + #13#10;
-      SQL := SQL + ' COLLATE=' + NewTable.Collation;
+      SQL := SQL + '  COLLATE=' + NewTable.Collation;
     end;
   end;
   if ((not Assigned(Table) and NewTable.DelayKeyWrite or Assigned(Table) and (NewTable.DelayKeyWrite <> Table.DelayKeyWrite))) then
   begin
     if (Assigned(Table) and (SQL <> '')) then SQL := SQL + ',' + #13#10;
     if (not NewTable.DelayKeyWrite) then
-      SQL := SQL + ' DELAY_KEY_WRITE=0'
+      SQL := SQL + '  DELAY_KEY_WRITE=0'
     else
-      SQL := SQL + ' DELAY_KEY_WRITE=1';
+      SQL := SQL + '  DELAY_KEY_WRITE=1';
   end;
   if (((not Assigned(Table) and (NewTable.InsertMethod <> imNo) or Assigned(Table) and (NewTable.Checksum <> Table.Checksum))) and (Session.Connection.MySQLVersion >= 40000)) then
   begin
@@ -8266,41 +8275,41 @@ begin
   if (not Assigned(Table) and (NewTable.BlockSize > 0) or Assigned(Table) and (NewTable.BlockSize <> Table.BlockSize)) then
   begin
     if (Assigned(Table) and (SQL <> '')) then SQL := SQL + ',' + #13#10;
-    SQL := SQL + ' KEY_BLOCK_SIZE=' + IntToStr(NewTable.BlockSize);
+    SQL := SQL + '  KEY_BLOCK_SIZE=' + IntToStr(NewTable.BlockSize);
   end;
   if (not Assigned(Table) and (NewTable.MaxRows > 0) or Assigned(Table) and (NewTable.MaxRows <> Table.MaxRows)) then
   begin
     if (Assigned(Table) and (SQL <> '')) then SQL := SQL + ',' + #13#10;
-    SQL := SQL + ' MAX_ROWS=' + SQLEscape(IntToStr(NewTable.MaxRows));
+    SQL := SQL + '  MAX_ROWS=' + SQLEscape(IntToStr(NewTable.MaxRows));
   end;
   if (not Assigned(Table) and (NewTable.MinRows > 0) or Assigned(Table) and (NewTable.MinRows <> Table.MinRows)) then
   begin
     if (Assigned(Table) and (SQL <> '')) then SQL := SQL + ',' + #13#10;
-    SQL := SQL + ' MIN_ROWS=' + SQLEscape(IntToStr(NewTable.MinRows));
+    SQL := SQL + '  MIN_ROWS=' + SQLEscape(IntToStr(NewTable.MinRows));
   end;
   if (not Assigned(Table) and (NewTable.FPackKeys <> piDefault) or Assigned(Table) and (NewTable.FPackKeys <> Table.PackKeys)) then
   begin
     if (Assigned(Table) and (SQL <> '')) then SQL := SQL + ',' + #13#10;
     case (NewTable.FPackKeys) of
-      piUnpacked: SQL := SQL + ' PACK_KEYS=0';
-      piPacked: SQL := SQL + ' PACK_KEYS=1';
-      else {piDefault} SQL := SQL + ' PACK_KEYS=DEFAULT';
+      piUnpacked: SQL := SQL + '  PACK_KEYS=0';
+      piPacked: SQL := SQL + '  PACK_KEYS=1';
+      else {piDefault} SQL := SQL + '  PACK_KEYS=DEFAULT';
     end;
   end;
   if ((not Assigned(Table) and (NewTable.FRowType <> mrUnknown) or Assigned(Table) and (NewTable.FRowType <> Table.RowType)) and (NewTable.DBRowTypeStr() <> '')) then
   begin
     if (Assigned(Table) and (SQL <> '')) then SQL := SQL + ',' + #13#10;
-    SQL := SQL + ' ROW_FORMAT=' + NewTable.DBRowTypeStr();
+    SQL := SQL + '  ROW_FORMAT=' + NewTable.DBRowTypeStr();
   end;
 
   if (Assigned(Table) and Assigned(Table.Partitions) and (Table.Partitions.PartitionType <> ptNone) and (NewTable.Partitions.PartitionType = ptNone)) then
-    SQL := SQL + ' REMOVE PARTITIONING'
+    SQL := SQL + '  REMOVE PARTITIONING'
   else if (Assigned(NewTable.Partitions) and (NewTable.Partitions.PartitionType <> ptNone)) then
   begin
     if (not Assigned(Table) or (NewTable.Partitions.PartitionType <> Table.Partitions.PartitionType) or (NewTable.Partitions.Expression <> Table.Partitions.Expression) or (NewTable.Partitions.PartitionsNumber <> Table.Partitions.PartitionsNumber)) then
     begin
       if (Assigned(Table) and (SQL <> '')) then SQL := SQL + #13#10;
-      SQL := SQL + ' PARTITION BY ';
+      SQL := SQL + '  PARTITION BY ';
       if (NewTable.Partitions.Linear) then
         SQL := SQL + 'LINEAR ';
       case (NewTable.Partitions.PartitionType) of
@@ -8317,11 +8326,11 @@ begin
     begin
       if (not Assigned(Table) or (NewTable.Partitions.Count <> Table.Partitions.Count) and (NewTable.Partitions.Count > 0)) then
       begin
-//        if (Assigned(Table) and (SQL <> '')) then SQL := SQL + #13#10;
-//        if (Assigned(Table)) then
-//          SQL := SQL + ' PARTITIONS ' + IntToStr(NewTable.Partitions.Count)
-//        else
-//          SQL := SQL + ' COALESCE PARTITION ' + IntToStr(NewTable.Partitions.Count);
+        if (Assigned(Table) and (SQL <> '')) then SQL := SQL + #13#10;
+        if (Assigned(Table)) then
+          SQL := SQL + '  PARTITIONS ' + IntToStr(NewTable.Partitions.Count)
+        else
+          SQL := SQL + '  COALESCE PARTITION ' + IntToStr(NewTable.Partitions.Count);
       end;
     end
     else if (NewTable.Partitions.PartitionType in [ptRange, ptList]) then
@@ -8348,13 +8357,13 @@ begin
             OldPartition := Table.PartitionByName(NewPartition.OriginalName);
           Found := Found or not Assigned(OldPartition);
           if (Assigned(OldPartition) and not NewPartition.Equal(OldPartition)) then
-            SQL := SQL + ' REORGANIZE PARTITION ' + Session.Connection.EscapeIdentifier(OldPartition.Name) + ' INTO ' + NewPartition.DBTypeStr() + #13#10;
+            SQL := SQL + '  REORGANIZE PARTITION ' + Session.Connection.EscapeIdentifier(OldPartition.Name) + ' INTO ' + NewPartition.DBTypeStr() + #13#10;
         end;
 
         if (Found) then
         begin
           Found := False;
-          SQL := SQL + ' ADD PARTITION (';
+          SQL := SQL + '  ADD PARTITION (';
           for I := 0 to NewTable.Partitions.Count - 1 do
           begin
             NewPartition := NewTable.Partitions.Partition[I];
@@ -8393,7 +8402,7 @@ begin
           end;
         end;
         if (SQLPart <> '') then
-          SQL := ' DROP PARTITION ' + SQLPart;
+          SQL := '  DROP PARTITION ' + SQLPart;
       end;
     end;
   end;
@@ -8955,9 +8964,9 @@ begin
     end;
   end;
 
-  Delete(IndexOf(AItem));
-
   Session.SendEvent(etItemDropped, Session, Self, AItem);
+
+  Delete(IndexOf(AItem));
 
   AItem.Free();
 end;
@@ -9965,9 +9974,9 @@ end;
 
 procedure TSProcesses.Delete(const AProcess: TSProcess);
 begin
-  Delete(IndexOf(AProcess));
-
   Session.SendEvent(etItemDropped, Session, Self, AProcess);
+
+  Delete(IndexOf(AProcess));
 
   AProcess.Free();
 end;
@@ -10538,10 +10547,15 @@ end;
 
 procedure TSUser.SetName(const AName: string);
 begin
-  inherited;
+  if (AName <> FName) then
+  begin
+    inherited;
 
-  if ((Pos('@', FName) = 0) and (FName <> '')) then
-    Name := FName + '@%';
+    if ((Pos('@', FName) = 0) and (FName <> '')) then
+      Name := FName + '@%';
+
+    Session.SendEvent(etItemRenamed, nil, Users, Self);
+  end;
 end;
 
 function TSUser.Build(const DataSet: TMySQLQuery): Boolean;
@@ -10663,9 +10677,9 @@ begin
   if (AItem = Session.FUser) then
     Session.FUser := nil;
 
-  Delete(IndexOf(AItem));
-
   Session.SendEvent(etItemDropped, Session, Self, AItem);
+
+  Delete(IndexOf(AItem));
 
   AItem.Free();
 end;
@@ -12423,12 +12437,8 @@ begin
               else
               begin
                 Database.Invalidate();
-                Database.Name := DDLStmt.NewDatabaseName;
-                if (DDLStmt.DefinitionType in [dtRename, dtAlterRename]) then
-                begin
-                  SendEvent(etItemRenamed, Self, Databases, Database);
-                  Database.FOriginalName := DDLStmt.NewDatabaseName;
-                end;
+                if (DDLStmt.NewDatabaseName <> '') then
+                  Database.Name := DDLStmt.NewDatabaseName;
               end;
             end;
           dtDrop:
@@ -12472,19 +12482,12 @@ begin
                       if (SQLParseKeyword(Parse, 'TO') and SQLParseObjectName(Parse, DDLStmt.NewDatabaseName, DDLStmt.NewObjectName)) then
                       begin
                         Table := Database.TableByName(ObjectName);
-                        if (Assigned(Table)) then
+                        if (not Assigned(Table)) then
+                          Database.Tables.Add(TSBaseTable.Create(Database.Tables, ObjectName))
+                        else
                         begin
-                          if (DDLStmt.NewDatabaseName <> DatabaseName) then
-                            SendEvent(etItemDropped, Table.Database, Table.Tables, Table);
                           Table.SetDatabase(DatabaseByName(DDLStmt.NewDatabaseName));
                           Table.Name := DDLStmt.NewObjectName;
-                          if (DDLStmt.NewDatabaseName <> DatabaseName) then
-                            Database.Tables.Delete(Table)
-                          else
-                          begin
-                            SendEvent(etItemRenamed, Database, Database.Tables, Table);
-                            Table.FOriginalName := Table.Name;
-                          end;
                         end;
                       end;
                     end;
@@ -12497,35 +12500,17 @@ begin
                       Database.Tables.Add(TSBaseTable.Create(Database.Tables, DDLStmt.ObjectName))
                     else
                     begin
+                      Table.Invalidate();
                       if (Table is TSBaseTable) then
                       begin
                         SetString(SQL, Text, Len);
                         TSBaseTable(Table).ParseAlterTable(SQL);
                       end;
 
-                      if (DDLStmt.DefinitionType = dtAlterRename) then
-                      begin
-                        if (DatabaseByName(DDLStmt.NewDatabaseName) <> Database) then
-                          SendEvent(etItemDropped, Table.Database, Table.Tables, Table);
+                      if (DDLStmt.NewDatabaseName <> '') then
                         Table.SetDatabase(Database);
+                      if (DDLStmt.NewObjectName <> '') then
                         Table.Name := DDLStmt.NewObjectName;
-                        if (Databases.NameCmp(DDLStmt.NewDatabaseName, Database.Name) <> 0) then
-                        begin
-                          Database.Tables.Delete(Table);
-                          if (Assigned(DatabaseByName(DDLStmt.NewDatabaseName))) then
-                            DatabaseByName(DDLStmt.NewDatabaseName).Tables.Invalidate();
-                        end
-                        else
-                        begin
-                          SendEvent(etItemRenamed, Database, Database.Tables, Table);
-                          Table.FOriginalName := Table.Name
-                        end;
-                      end;
-
-                      if ((Table.Database <> Database) and Table.Database.Valid) then
-                        Table.Database.Invalidate()
-                      else
-                        Table.Invalidate();
                     end;
                   end;
                 dtDrop:
@@ -12591,21 +12576,13 @@ begin
                         Database.Routines.Add(TSRoutine.Create(Database.Routines, DDLStmt.ObjectName))
                       else
                         Database.Routines.Add(TSFunction.Create(Database.Routines, DDLStmt.ObjectName))
-                    else if (Databases.NameCmp(DDLStmt.NewDatabaseName, Database.Name) <> 0) then
-                    begin
-                      Database.Routines.Delete(Routine);
-                      if (Assigned(DatabaseByName(DDLStmt.NewDatabaseName))) then
-                        DatabaseByName(DDLStmt.NewDatabaseName).Routines.Invalidate();
-                    end
                     else
                     begin
                       Routine.Invalidate();
-                      Routine.Name := DDLStmt.NewObjectName;
-                      if (DDLStmt.DefinitionType in [dtRename, dtAlterRename]) then
-                      begin
-                        SendEvent(etItemRenamed, Database, Database.Routines, Routine);
-                        Routine.FOriginalName := Routine.Name;
-                      end;
+                      if (DDLStmt.NewDatabaseName <> '') then
+                        Routine.SetDatabase(DatabaseByName(DDLStmt.NewDatabaseName));
+                      if (DDLStmt.NewObjectName <> '') then
+                        Routine.Name := DDLStmt.NewObjectName;
                     end;
                   end;
                 dtDrop:
@@ -12641,29 +12618,15 @@ begin
                 dtAlterRename:
                   begin
                     Trigger := Database.TriggerByName(DDLStmt.ObjectName);
-                    if (DDLStmt.DefinitionType = dtAlterRename) then
-                    begin
-                      if (DatabaseByName(DDLStmt.NewDatabaseName) <> Database) then
-                        SendEvent(etItemDropped, Trigger.Database, Trigger.Triggers, Trigger);
-                      Trigger.SetDatabase(DatabaseByName(DDLStmt.NewDatabaseName));
-                      Trigger.Name := DDLStmt.NewObjectName;
-                    end;
                     if (not Assigned(Trigger)) then
                       Database.Triggers.Add(TSTrigger.Create(Database.Triggers, DDLStmt.ObjectName))
-                    else if (Databases.NameCmp(DDLStmt.NewDatabaseName, Database.Name) <> 0) then
-                    begin
-                      Database.Triggers.Delete(Trigger);
-                      if (Assigned(DatabaseByName(DDLStmt.NewDatabaseName))) then
-                        DatabaseByName(DDLStmt.NewDatabaseName).Triggers.Invalidate();
-                    end
                     else
                     begin
                       Trigger.Invalidate();
-                      if (DDLStmt.DefinitionType = dtAlterRename) then
-                      begin
-                        SendEvent(etItemRenamed, Database, Database.Triggers, Trigger);
-                        Trigger.FOriginalName := DDLStmt.NewObjectName;
-                      end;
+                      if (DDLStmt.NewDatabaseName <> '') then
+                        Trigger.SetDatabase(DatabaseByName(DDLStmt.NewDatabaseName));
+                      if (DDLStmt.NewObjectName <> '') then
+                        Trigger.Name := DDLStmt.NewObjectName;
                     end;
                   end;
                 dtDrop:
@@ -12696,29 +12659,15 @@ begin
                 dtAlterRename:
                   begin
                     Event := Database.EventByName(DDLStmt.ObjectName);
-                    if (DDLStmt.DefinitionType = dtAlterRename) then
-                    begin
-                      if (DatabaseByName(DDLStmt.NewDatabaseName) <> Database) then
-                        SendEvent(etItemDropped, Event.Database, Event.Events, Event);
-                      Event.SetDatabase(DatabaseByName(DDLStmt.NewDatabaseName));
-                      Event.Name := DDLStmt.NewObjectName;
-                    end;
                     if (not Assigned(Event)) then
                       Database.Events.Add(TSEvent.Create(Database.Events, DDLStmt.ObjectName))
-                    else if (Databases.NameCmp(DDLStmt.NewDatabaseName, Database.Name) <> 0) then
-                    begin
-                      Database.Events.Delete(Event);
-                      if (Assigned(DatabaseByName(DDLStmt.NewDatabaseName))) then
-                        DatabaseByName(DDLStmt.NewDatabaseName).Events.Invalidate();
-                    end
                     else
                     begin
                       Event.Invalidate();
-                      if (DDLStmt.DefinitionType in [dtRename, dtAlterRename]) then
-                      begin
-                        SendEvent(etItemRenamed, Database, Database.Events, Event);
-                        Event.FOriginalName := Event.Name;
-                      end;
+                      if (DDLStmt.NewDatabaseName <> '') then
+                        Event.SetDatabase(DatabaseByName(DDLStmt.NewDatabaseName));
+                      if (DDLStmt.NewObjectName <> '') then
+                        Event.Name := DDLStmt.NewObjectName;
                     end;
                   end;
                 dtDrop:
@@ -12842,10 +12791,7 @@ begin
           ObjectName := SQLParseValue(Parse);
           User := UserByName(OldObjectName);
           if (Assigned(User)) then
-          begin
             User.Name := ObjectName;
-            SendEvent(etItemRenamed, Self, Users, User);
-          end;
         end;
       until (not SQLParseChar(Parse, ','))
     else if (SQLParseKeyword(Parse, 'GRANT')) then

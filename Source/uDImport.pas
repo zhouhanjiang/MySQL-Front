@@ -174,7 +174,6 @@ Progress: string; // Debug 2017-01-27
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMPostAfterExecuteSQL(var Message: TMessage); message UM_POST_AFTEREXECUTESQL;
     procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
-    procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMToolError(var Message: TMessage); message UM_TOOL_ERROR;
     procedure UMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
     procedure WMHelp(var Message: TWMHelp); message WM_HELP;
@@ -902,8 +901,31 @@ begin
 end;
 
 procedure TDImport.OnTerminate(Sender: TObject);
+var
+  Success: Boolean;
 begin
-  PostMessage(Handle, UM_TERMINATE, WPARAM(not Import.Terminated), 0);
+  Success := not Import.Terminated;
+
+  Import.WaitFor();
+
+  if (Success and (Import.WarningCount > 0)) then
+    MsgBoxCheck(Preferences.LoadStr(932, IntToStr(Import.WarningCount)), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION,
+      ID_OK, '{3b9746df-b0d6-47e4-9fb2-b2e9dfd93596}');
+
+  Import.Free();
+  Import := nil;
+
+  if (not Application.Active) then
+    FlashWindow(Application.MainFormHandle, True);
+
+  FBBack.Enabled := True;
+  FBCancel.Enabled := True;
+  SetClassLong(Handle, GCL_STYLE, GetClassLong(Handle, GCL_STYLE) and not CS_NOCLOSE);
+  FBCancel.Caption := Preferences.LoadStr(231);
+  if (Success) then
+    FBCancel.ModalResult := mrOk
+  else
+    FBCancel.ModalResult := mrCancel;
 end;
 
 procedure TDImport.OnUpdate(const AProgressInfos: TTool.TProgressInfos);
@@ -1392,34 +1414,6 @@ procedure TDImport.UMPostShow(var Message: TMessage);
 begin
   TSExecute.Enabled := True;
   PageControl.ActivePage := TSExecute;
-end;
-
-procedure TDImport.UMTerminate(var Message: TMessage);
-var
-  Success: Boolean;
-begin
-  Success := Boolean(Message.WParam);
-
-  Import.WaitFor();
-
-  if (Success and (Import.WarningCount > 0)) then
-    MsgBoxCheck(Preferences.LoadStr(932, IntToStr(Import.WarningCount)), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION,
-      ID_OK, '{3b9746df-b0d6-47e4-9fb2-b2e9dfd93596}');
-
-  Import.Free();
-  Import := nil;
-
-  if (not Application.Active) then
-    FlashWindow(Application.MainFormHandle, True);
-
-  FBBack.Enabled := True;
-  FBCancel.Enabled := True;
-  SetClassLong(Handle, GCL_STYLE, GetClassLong(Handle, GCL_STYLE) and not CS_NOCLOSE);
-  FBCancel.Caption := Preferences.LoadStr(231);
-  if (Success) then
-    FBCancel.ModalResult := mrOk
-  else
-    FBCancel.ModalResult := mrCancel;
 end;
 
 procedure TDImport.UMToolError(var Message: TMessage);

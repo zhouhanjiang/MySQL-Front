@@ -3,7 +3,7 @@ unit uFSession;
 interface {********************************************************************}
 
 uses
-  Forms, Windows, Messages, SysUtils, Classes, Graphics, Controls,
+  Forms, Windows, Messages, SysUtils, Classes, Graphics, Controls, ActiveX,
   Dialogs, ActnList, ComCtrls, ExtCtrls, Menus, StdCtrls, DB, DBGrids, Grids,
   DBCtrls, DBActns, StdActns, ImgList, XMLIntf, Actions,
   ShDocVw, CommCtrl, PNGImage, GIFImg, Jpeg, ToolWin,
@@ -638,7 +638,7 @@ type
     procedure TreeViewMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
   type
-    TClassIndex = (ciUnknown, ciSession, ciDatabase, ciSystemDatabase, ciBaseTable, ciView, ciSystemView, ciProcedure, ciFunction, ciTrigger, ciEvent, ciKey, ciBaseField, ciViewField, ciForeignKey, ciProcesses, ciProcess, ciUsers, ciUser, ciVariables, ciVariable, ciQuickAccess);
+    TClassIndex = (ciUnknown, ciSession, ciDatabase, ciSystemDatabase, ciBaseTable, ciView, ciSystemView, ciProcedure, ciFunction, ciTrigger, ciEvent, ciKey, ciBaseField, ciViewField, ciForeignKey, ciProcesses, ciProcess, ciUsers, ciUser, ciVariables, ciVariable, ciObjectSearch, ciQuickAccess);
     TListViewSortRec = record Kind: TPAccount.TDesktop.TListViewKind; ColumnIndex: Integer; Order: Integer; end;
     TListViewSortData = array [Low(TPAccount.TDesktop.TListViewKind) .. High(TPAccount.TDesktop.TListViewKind)] of TListViewSortRec;
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
@@ -809,6 +809,73 @@ type
       property SynMemo: TSynMemo read FSynMemo;
     end;
 
+    TDBGridDropData = class(TInterfacedObject, IDataObject)
+    type
+      TEnumFormatEtc = class(TInterfacedObject, IEnumFORMATETC)
+      private
+        FDropData: TDBGridDropData;
+        Index: Integer;
+      protected
+        function Clone(out Enum: IEnumFormatEtc): HResult; stdcall;
+        function Next(celt: Longint; out elt; pceltFetched: PLongint): HResult; stdcall;
+        function Reset: HResult; stdcall;
+        function Skip(celt: Longint): HResult; stdcall;
+      public
+        constructor Create(const ADropData: TDBGridDropData);
+        property DropData: TDBGridDropData read FDropData;
+      end;
+    private
+      FDBGrid: TMySQLDBGrid;
+      FEnumFormatEtc: IEnumFORMATETC;
+      Text: string;
+    protected
+      function DAdvise(const formatetc: TFormatEtc; advf: Longint;
+        const advSink: IAdviseSink; out dwConnection: Longint): HResult; stdcall;
+      function DUnadvise(dwConnection: Longint): HResult; stdcall;
+      function EnumDAdvise(out enumAdvise: IEnumStatData): HResult;
+        stdcall;
+      function EnumFormatEtc(dwDirection: Longint; out enumFormatEtc:
+        IEnumFormatEtc): HResult; stdcall;
+      function GetCanonicalFormatEtc(const formatetc: TFormatEtc;
+        out formatetcOut: TFormatEtc): HResult; stdcall;
+      function GetData(const formatetcIn: TFormatEtc; out medium: TStgMedium):
+        HResult; stdcall;
+      function GetDataHere(const formatetc: TFormatEtc; out medium: TStgMedium):
+        HResult; stdcall;
+      function QueryGetData(const formatetc: TFormatEtc): HResult;
+        stdcall;
+      function SetData(const formatetc: TFormatEtc; var medium: TStgMedium;
+        fRelease: BOOL): HResult; stdcall;
+    public
+      constructor Create(const ADBGrid: TMySQLDBGrid; const Field: TField);
+      property DBGrid: TMySQLDBGrid read FDBGrid;
+    end;
+
+    TDBGridDropSource = class(TInterfacedObject, IDropSource)
+    private
+      FDBGrid: TMySQLDBGrid;
+    protected
+      function QueryContinueDrag(fEscapePressed: BOOL;
+        grfKeyState: Longint): HResult; stdcall;
+      function GiveFeedback(dwEffect: Longint): HResult; stdcall;
+    public
+      constructor Create(const ADBGrid: TMySQLDBGrid);
+      property DBGrid: TMySQLDBGrid read FDBGrid;
+    end;
+
+    TDBGridDropTarget = class(TInterfacedObject, IDropTarget)
+    private
+      FDBGrid: TMySQLDBGrid;
+    protected
+      function DragEnter(const dataObj: IDataObject; grfKeyState: Longint; pt: TPoint; var dwEffect: Longint): HResult; stdcall;
+      function DragLeave(): HResult; stdcall;
+      function DragOver(grfKeyState: Longint; pt: TPoint; var dwEffect: Longint): HResult; stdcall;
+      function Drop(const dataObj: IDataObject; grfKeyState: Longint; pt: TPoint; var dwEffect: Longint): HResult; stdcall;
+    public
+      constructor Create(const ADBGrid: TMySQLDBGrid);
+      property DBGrid: TMySQLDBGrid read FDBGrid;
+    end;
+
     TWanted = class
     private
       FAction: TAction;
@@ -952,6 +1019,8 @@ type
     procedure DataSetAfterScroll(DataSet: TDataSet);
     procedure DataSetBeforeCancel(DataSet: TDataSet);
     procedure DataSetBeforePost(DataSet: TDataSet);
+    procedure DBGridDragOver(Sender, Source: TObject; X, Y: Integer;
+      State: TDragState; var Accept: Boolean);
     procedure DBGridInitialize(const DBGrid: TMySQLDBGrid);
     function Desktop(const Database: TSDatabase): TDatabaseDesktop; overload; inline;
     function Desktop(const Event: TSEvent): TEventDesktop; overload; inline;
@@ -1429,6 +1498,7 @@ begin
     begin
       SQL := CommandText;
       Len := SQLStmtLength(PChar(SQL), Length(SQL));
+      if ((Len > 0) and (SQL[Len] = ';')) then Dec(Len);
       SQLTrimStmt(SQL, 1, Len, StartingCommentLength, EndingCommentLength);
       FSynMemo.SelStart := FSession.aDRunExecuteSelStart + FSession.Session.Connection.SuccessfullExecutedSQLLength + StartingCommentLength;
       FSynMemo.SelLength := Len - StartingCommentLength - EndingCommentLength;
@@ -2092,14 +2162,278 @@ begin
   inherited;
 end;
 
+{ TFSession.TDBGridDropData.TIEnumFORMATETC ***********************************}
+
+function TFSession.TDBGridDropData.TEnumFormatEtc.Clone(out Enum: IEnumFormatEtc): HResult;
+begin
+  Enum := TEnumFormatEtc.Create(DropData);
+  Result := S_OK;
+end;
+
+constructor TFSession.TDBGridDropData.TEnumFormatEtc.Create(const ADropData: TDBGridDropData);
+begin
+  inherited Create();
+
+  FDropData := ADropData;
+
+  Reset();
+end;
+
+function TFSession.TDBGridDropData.TEnumFormatEtc.Next(celt: Longint; out elt;
+  pceltFetched: PLongint): HResult;
+type
+  TFormatEtcArray2 = array [0 .. $FFFF] of FORMATETC;
+var
+  Formats: ^TFormatEtcArray2;
+begin
+  if ((Index = 0) and (celt > 0) and ((celt = 1) or Assigned(pceltFetched))) then
+  begin
+    Formats := @elt;
+
+    Formats^[0].cfFormat := CF_UNICODETEXT;
+    Formats^[0].ptd := nil;
+    Formats^[0].dwAspect := DVASPECT_CONTENT;
+    Formats^[0].lindex := -1;
+    Formats^[0].tymed := TYMED_HGLOBAL;
+
+    if (Assigned(pceltFetched)) then
+      pceltFetched^ := 1;
+
+    Inc(Index);
+
+    Result := S_OK;
+  end
+  else
+    Result := S_FALSE;
+end;
+
+function TFSession.TDBGridDropData.TEnumFormatEtc.Reset: HResult;
+begin
+  Index := 0;
+
+  Result := S_OK;
+end;
+
+function TFSession.TDBGridDropData.TEnumFormatEtc.Skip(celt: Longint): HResult;
+begin
+  Result := S_FALSE;
+end;
+
+{ TFSession.TDBGridDropData ***************************************************}
+
+constructor TFSession.TDBGridDropData.Create(const ADBGrid: TMySQLDBGrid;
+  const Field: TField);
+begin
+  inherited Create();
+
+  FDBGrid := ADBGrid;
+
+  FEnumFormatEtc := nil;
+
+  Text := Field.AsString;
+end;
+
+function TFSession.TDBGridDropData.DAdvise(const formatetc: TFormatEtc; advf: Longint;
+  const advSink: IAdviseSink; out dwConnection: Longint): HResult;
+begin
+  Result := OLE_E_ADVISENOTSUPPORTED;
+end;
+
+function TFSession.TDBGridDropData.DUnadvise(dwConnection: Longint): HResult;
+begin
+  Result := OLE_E_ADVISENOTSUPPORTED;
+end;
+
+function TFSession.TDBGridDropData.EnumDAdvise(out enumAdvise: IEnumStatData): HResult;
+begin
+  Result := OLE_E_ADVISENOTSUPPORTED;
+end;
+
+function TFSession.TDBGridDropData.EnumFormatEtc(dwDirection: Longint;
+  out enumFormatEtc: IEnumFormatEtc): HResult;
+begin
+  case (dwDirection) of
+    DATADIR_GET:
+      begin
+        if (not Assigned(FEnumFormatEtc)) then
+          FEnumFormatEtc := TEnumFormatEtc.Create(Self);
+        enumFormatEtc := FEnumFormatEtc;
+        Result := S_OK;
+      end;
+    else
+      raise ERangeError.Create(SRangeError);
+  end;
+end;
+
+function TFSession.TDBGridDropData.GetCanonicalFormatEtc(const formatetc: TFormatEtc;
+  out formatetcOut: TFormatEtc): HResult;
+begin
+  MoveMemory(@formatetcOut, @formatetc, SizeOf(formatetc));
+  formatetcOut.ptd := nil;
+  Result := DATA_S_SAMEFORMATETC;
+end;
+
+function TFSession.TDBGridDropData.GetData(const formatetcIn: TFormatEtc;
+  out medium: TStgMedium): HResult;
+begin
+  FillChar(medium, SizeOf(medium), 0);
+  medium.tymed := TYMED_HGLOBAL;
+  medium.hGlobal := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, SizeOf(Text[1]) * Length(Text));
+  MoveMemory(GlobalLock(medium.hGlobal), PChar(Text), Length(Text) * SizeOf(Text[1]));
+
+  Result := S_OK;
+end;
+
+function TFSession.TDBGridDropData.GetDataHere(const formatetc: TFormatEtc;
+  out medium: TStgMedium): HResult;
+begin
+  if (formatetc.lindex <> -1) then
+    Result := DV_E_LINDEX
+  else if (formatetc.tymed <> TYMED_HGLOBAL) then
+    Result := DV_E_TYMED
+  else if (GlobalSize(medium.hGlobal) < SIZE_T(Length(Text) * SizeOf(Text[1]))) then
+    Result := STG_E_MEDIUMFULL
+  else
+  begin
+    MoveMemory(GlobalLock(medium.hGlobal), PChar(Text), Length(Text) * SizeOf(Text[1]));
+    Result := S_OK;
+  end;
+end;
+
+function TFSession.TDBGridDropData.QueryGetData(const formatetc: TFormatEtc): HResult;
+begin
+  if (formatetc.cfFormat = CF_UNICODETEXT) then
+    Result := S_OK
+  else
+    Result := E_UNEXPECTED;
+end;
+
+function TFSession.TDBGridDropData.SetData(const formatetc: TFormatEtc;
+  var medium: TStgMedium; fRelease: BOOL): HResult;
+begin
+  Result := E_FAIL;
+end;
+
+{ TFSession.TDBGridDropSource *************************************************}
+
+constructor TFSession.TDBGridDropSource.Create(const ADBGrid: TMySQLDBGrid);
+begin
+  inherited Create();
+
+  FDBGrid := ADBGrid;
+end;
+
+function TFSession.TDBGridDropSource.GiveFeedback(dwEffect: Longint): HResult;
+begin
+  if (dwEffect = DROPEFFECT_COPY) then
+    DBGrid.Cursor := crDrag
+  else
+    DBGrid.Cursor := crNoDrop;
+  Result := S_OK;
+end;
+
+function TFSession.TDBGridDropSource.QueryContinueDrag(fEscapePressed: BOOL;
+  grfKeyState: Longint): HResult;
+begin
+  if (fEscapePressed) then
+    Result := DRAGDROP_S_CANCEL
+  else if (grfKeyState and MK_LBUTTON = 0) then
+    Result := DRAGDROP_S_DROP
+  else
+    Result := S_OK;
+end;
+
+{ TFSession.TDBGridDropTarget *************************************************}
+
+constructor TFSession.TDBGridDropTarget.Create(const ADBGrid: TMySQLDBGrid);
+begin
+  inherited Create();
+
+  FDBGrid := ADBGrid;
+end;
+
+function TFSession.TDBGridDropTarget.DragEnter(const dataObj: IDataObject;
+  grfKeyState: Longint; pt: TPoint; var dwEffect: Longint): HResult;
+var
+  Format: FORMATETC;
+begin
+  Format.cfFormat := CF_UNICODETEXT;
+  Format.ptd := nil;
+  Format.dwAspect := DVASPECT_CONTENT;
+  Format.lindex := -1;
+  Format.tymed := TYMED_HGLOBAL;
+
+  if (dataObj.QueryGetData(Format) <> S_OK) then
+  begin
+    dwEffect := DROPEFFECT_NONE;
+    Result := S_OK;
+  end
+  else
+    Result := DragOver(grfKeyState, pt, dwEffect);
+end;
+
+function TFSession.TDBGridDropTarget.DragLeave(): HResult;
+begin
+  Result := S_OK;
+end;
+
+function TFSession.TDBGridDropTarget.DragOver(grfKeyState: Longint;
+  pt: TPoint; var dwEffect: Longint): HResult;
+var
+  ClientCoord: TPoint;
+  GridCoord: TGridCoord;
+begin
+  ClientCoord := DBGrid.ScreenToClient(Point(pt.X, pt.Y));
+  GridCoord := DBGrid.MouseCoord(ClientCoord.X, ClientCoord.Y);
+
+  if ((GridCoord.X >= 0)
+    and not DBGrid.ReadOnly
+    and not DBGrid.Columns[GridCoord.X].ReadOnly) then
+    dwEffect := DROPEFFECT_COPY
+  else
+    dwEffect := DROPEFFECT_NONE;
+
+  Result := S_OK;
+end;
+
+function TFSession.TDBGridDropTarget.Drop(const dataObj: IDataObject;
+  grfKeyState: Longint; pt: TPoint; var dwEffect: Longint): HResult;
+var
+  ClientCoord: TPoint;
+  Text: string;
+  Format: FORMATETC;
+  Medium: STGMEDIUM;
+begin
+  Assert(Assigned(dataObj));
+
+  Format.cfFormat := CF_UNICODETEXT;
+  Format.ptd := nil;
+  Format.dwAspect := DVASPECT_CONTENT;
+  Format.lindex := -1;
+  Format.tymed := TYMED_HGLOBAL;
+
+  OleCheck(dataObj.GetData(Format, Medium));
+
+  SetString(Text, PChar(GlobalLock(Medium.hGlobal)), GlobalSize(Medium.hGlobal) div SizeOf(Text[1]));
+
+  if (not Assigned(Medium.unkForRelease)) then
+    ReleaseStgMedium(Medium)
+  else
+    IUnknown(Medium.unkForRelease)._Release();
+
+  ClientCoord := DBGrid.ScreenToClient(Point(pt.X, pt.Y));
+  DBGrid.MouseDown(mbLeft, [], ClientCoord.X, ClientCoord.Y);
+  DBGrid.DataSource.DataSet.Edit();
+  DBGrid.SelectedField.AsString := Text;
+
+  dwEffect := DROPEFFECT_COPY;
+  Result := S_OK;
+end;
+
 { TFSession.TWanted ***********************************************************}
 
 procedure TFSession.TWanted.Clear();
 begin
-  // Debug 2017-01-09
-  if (not Assigned(Self)) then
-    raise ERangeError.Create('Destroying: ' + BoolToStr(csDestroying in FSession.ComponentState, True));
-
   FAction := nil;
   FAddress := '';
   FUpdate := nil;
@@ -2132,21 +2466,10 @@ begin
 end;
 
 procedure TFSession.TWanted.SetAddress(const AAddress: string);
-var
-  URI: TUURI;
 begin
   if (AAddress <> FAddress) then
   begin
     Clear();
-
-    URI := TUURI.Create(AAddress);
-    if (URI.Address = '') then
-      raise ERangeError.Create('AAddress: ' + AAddress);
-    if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
-      raise ERangeError.Create('AAddress: ' + AAddress + #13#10
-        + 'URI.Address: ' + URI.Address);
-    URI.Free();
-
     if (not FSession.Session.Connection.InUse()) then
       FSession.CurrentAddress := AAddress
     else
@@ -2845,7 +3168,7 @@ begin
       Database := Session.DatabaseByName(URI.Database);
       if (not Assigned(Database)) then
         NotFound := True
-      else if (not (ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and not Database.Update((URI.Param['view'] = Null) and (URI.Table = '')) and ((URI.Table <> '') or (URI.Param['object'] <> Null))) then
+      else if (not (ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and not Database.Update(URI.Param['view'] = Null)) then
         AllowChange := False
       else if ((URI.Table <> '') or (URI.Param['object'] <> Null)) then
       begin
@@ -4586,6 +4909,8 @@ begin
     Result := ciVariables
   else if (TObject(Data) is TSVariable) then
     Result := ciVariable
+  else if (TObject(Data) is TSItemSearch) then
+    Result := ciObjectSearch
   else
     raise ERangeError.Create('ClassType: ' + TObject(Data).ClassName);
 end;
@@ -5218,6 +5543,7 @@ begin
   Result.Constraints.MinHeight := 30;
   Result.DataSource := FGridDataSource;
   Result.DefaultDrawing := False;
+  Result.DragMode := dmAutomatic;
   Result.HelpType := htContext;
   Result.HelpContext := 1036;
   Result.Options := [dgTitles, dgColumnResize, dgColLines, dgRowLines, dgTabs, dgAlwaysShowSelection, dgConfirmDelete, dgMultiSelect, dgTitleClick, dgTitleHotTrack];
@@ -5250,6 +5576,7 @@ begin
   Result.OnColExit := DBGridColExit;
   Result.OnDrawColumnCell := DBGridDrawColumnCell;
   Result.OnDblClick := DBGridDblClick;
+  Result.OnDragOver := DBGridDragOver;
   Result.OnEnter := DBGridEnter;
   Result.OnExit := DBGridExit;
   Result.OnKeyDown := DBGridKeyDown;
@@ -5258,12 +5585,10 @@ begin
 
   Result.DataSource := DataSource;
 
-try
   Result.Parent := PDBGrid;
-except
-  on E: Exception do
-    raise Exception.Create(E.Message + ' (Result.Parent := PDBGrid)');
-end;
+
+  Result.Tag := NativeInt(TDBGridDropTarget.Create(Result));
+  OleCheck(RegisterDragDrop(Result.Handle, TDBGridDropTarget(Result.Tag)));
 
   Result.Perform(CM_PARENTCOLORCHANGED, 0, 0);
   Result.Perform(CM_PARENTFONTCHANGED, 0, 0);
@@ -5934,10 +6259,42 @@ begin
     begin
       aVBlobHexEditor.Checked := True;
       aVBlobExecute(nil);
-      FHexEditor.SelStart := FHexEditor.DataSize - 1;
-      SendMessage(FHexEditor.Handle, WM_VSCROLL, SB_BOTTOM, 0);
+      if (FHexEditor.DataSize > 0) then
+      begin
+        FHexEditor.SelStart := FHexEditor.DataSize - 1;
+        SendMessage(FHexEditor.Handle, WM_VSCROLL, SB_BOTTOM, 0);
+      end;
       Window.ActiveControl := FHexEditor;
     end;
+end;
+
+procedure TFSession.DBGridDragOver(Sender, Source: TObject; X, Y: Integer;
+  State: TDragState; var Accept: Boolean);
+//var
+//  DataObj: IDataObject;
+//  DBGrid: TMySQLDBGrid;
+//  DropSource: IDropSource;
+//  Effect: Longint;
+//  GridCoord: TGridCoord;
+begin
+//  Assert(Sender is TDBGrid);
+//
+//  DBGrid := TMySQLDBGrid(Sender);
+//
+//  GridCoord := DBGrid.MouseCoord(X, Y);
+//
+//  if ((State = dsDragEnter) and (GridCoord.X >= 0)) then
+//  begin
+//    DBGrid.MouseDown(mbLeft, [], X, Y);
+//
+//    DataObj := TDBGridDropData.Create(DBGrid, DBGrid.Columns[GridCoord.X].Field);
+//    DropSource := TDBGridDropSource.Create(DBGrid);
+//    OleCheck(DoDragDrop(DataObj, DropSource, DROPEFFECT_COPY, Effect));
+//
+//    DBGrid.Cursor := crDefault;
+//  end;
+//
+  Accept := False;
 end;
 
 procedure TFSession.DBGridEditExecute(Sender: TObject);
@@ -6273,9 +6630,6 @@ begin
       DBGrid.Columns[I].Field.OnSetText := FieldSetText;
     end;
   DBGrid.Columns.EndUpdate();
-
-  DBGridColEnter(DBGrid);
-  DBGridColExit(DBGrid);
 
   SResult.Visible := PResult.Visible and (PQueryBuilder.Visible or PSynMemo.Visible);
 end;
@@ -7231,10 +7585,9 @@ begin
       List := TList.Create();
       List.Add(Field);
       Table.EmptyFields(List);
-      Table.Update();
       List.Free();
 
-      if ((View = vBrowser) and (FNavigatorMenuNode.Data = Table)) then
+      if ((View = vBrowser) and (TSBaseField(FNavigatorMenuNode.Data).Table = Table)) then
         Wanted.Update := UpdateAfterAddressChanged;
     end;
   end;
@@ -7402,12 +7755,9 @@ end;
 procedure TFSession.FNavigatorKeyPress(Sender: TObject; var Key: Char);
 begin
   if (Key = #3) then
-    Key := #0 // Why is threre a Beep on <Ctrl+C> without this?
+    Key := #0 // Why is there a Beep on <Ctrl+C> without this?
   else if ((Key = #13) and CheckWin32Version(6, 1)) then
-  begin
-//    FNavigatorChange2(Sender, FNavigator.Selected);
     Key := #0;
-  end;
 end;
 
 procedure TFSession.FNavigatorKeyUp(Sender: TObject; var Key: Word;
@@ -8048,7 +8398,7 @@ begin
   MainAction('aDCreateProcedure').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and Assigned(TSDatabase(Node.Data).Routines);
   MainAction('aDCreateFunction').Enabled := MainAction('aDCreateProcedure').Enabled;
   MainAction('aDCreateEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and Assigned(TSDatabase(Node.Data).Events);
-  MainAction('aDCreateTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable) and Assigned(TSDatabase(Node.Parent.Data).Triggers);
+  MainAction('aDCreateTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable) and Assigned(TSBaseTable(Node.Data).Database.Triggers);
   MainAction('aDCreateKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
   MainAction('aDCreateField').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
   MainAction('aDCreateForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseTable]);
@@ -8668,6 +9018,8 @@ begin
   if (DBGrid = ActiveDBGrid) then
     ActiveDBGrid := nil;
 
+  if (DBGrid.Tag <> 0) then
+    RevokeDragDrop(DBGrid.Handle);
   DBGrid.Free();
 end;
 
@@ -9260,8 +9612,14 @@ begin
       Result := nil;
   end;
 
+  if (Assigned(Result)) then
+  begin
+    Result.Visible := True;
+    Result.BringToFront();
+  end;
   for I := 0 to PSynMemo.ControlCount - 1 do
-    PSynMemo.Controls[I].Visible := PSynMemo.Controls[I] <> Result;
+    if (PSynMemo.Controls[I] <> Result) then
+      PSynMemo.Controls[I].Visible := False;
 end;
 
 function TFSession.GetActiveWorkbench(): TWWorkbench;
@@ -11408,74 +11766,88 @@ var
     URI1: TUURI;
     URI2: TUURI;
   begin
-    FrequentObjects := TStringList.Create();
-    RecentObjects := TStringList.Create();
-    URI1 := TUURI.Create();
-    URI2 := TUURI.Create();
-
-    for I := Session.Account.Desktop.Addresses.Count - 1 downto 0 do
-    begin
-      URI1.Address := Session.Account.Desktop.Addresses[I];
-
-      URI2.Address := Session.Account.ExpandAddress('/');
-      URI2.Database := URI1.Database;
-      URI2.Table := URI1.Table;
-      URI2.Param['objecttype'] := URI1.Param['objecttype'];
-      URI2.Param['object'] := URI1.Param['object'];
-
-      if ((URI2.Table <> '') or (URI2.Param['object'] <> Null)) then
-      begin
-        if (not TryStrToInt(FrequentObjects.Values[ReplaceStr(URI2.Address, '=', QuickAccessListEscaper)], Count)) then
-          Count := 0;
-        FrequentObjects.Values[ReplaceStr(URI2.Address, '=', QuickAccessListEscaper)] := IntToStr(Count + 1);
-
-        if (RecentObjects.IndexOf(URI2.Address) < 0) then
-          RecentObjects.Insert(0, URI2.Address);
-      end;
-    end;
-
-    if (FrequentObjects.Count > 0) then
-    begin
-      FrequentObjects.CustomSort(QuickAccessFrequentObjectsCompare);
-
-      ItemCount := 0;
-      for I := 0 to FrequentObjects.Count - 1 do
-      if (ItemCount < QuickAccessItemCount) then
+    case (Event.EventType) of
+      etItemsValid:
         begin
-          Data := DataByAddress(ReplaceStr(FrequentObjects.Names[I], QuickAccessListEscaper, '='));
+          FrequentObjects := TStringList.Create();
+          RecentObjects := TStringList.Create();
+          URI1 := TUURI.Create();
+          URI2 := TUURI.Create();
 
-          if (ClassIndexByData(Data) in [ciBaseTable, ciView, ciProcedure, ciFunction, ciTrigger, ciEvent]) then
+          for I := Session.Account.Desktop.Addresses.Count - 1 downto 0 do
           begin
-            AddItem(giFrequentObjects, Data);
-            Inc(ItemCount);
+            URI1.Address := Session.Account.Desktop.Addresses[I];
+
+            URI2.Address := Session.Account.ExpandAddress('/');
+            URI2.Database := URI1.Database;
+            URI2.Table := URI1.Table;
+            URI2.Param['objecttype'] := URI1.Param['objecttype'];
+            URI2.Param['object'] := URI1.Param['object'];
+
+            if ((URI2.Table <> '') or (URI2.Param['object'] <> Null)) then
+            begin
+              if (not TryStrToInt(FrequentObjects.Values[ReplaceStr(URI2.Address, '=', QuickAccessListEscaper)], Count)) then
+                Count := 0;
+              FrequentObjects.Values[ReplaceStr(URI2.Address, '=', QuickAccessListEscaper)] := IntToStr(Count + 1);
+
+              if (RecentObjects.IndexOf(URI2.Address) < 0) then
+                RecentObjects.Insert(0, URI2.Address);
+            end;
           end;
-        end;
 
-      SetListViewGroupHeader(ListView, giFrequentObjects, Preferences.LoadStr(940));
-    end;
-
-    if (RecentObjects.Count > 0) then
-    begin
-      ItemCount := 0;
-      for I := 0 to RecentObjects.Count - 1 do
-        if (ItemCount < QuickAccessItemCount) then
-        begin
-          Data := DataByAddress(RecentObjects[I]);
-
-          if (ClassIndexByData(Data) in [ciBaseTable, ciView, ciProcedure, ciFunction, ciTrigger, ciEvent]) then
+          if (FrequentObjects.Count > 0) then
           begin
-            AddItem(giRecentObjects, Data);
-            Inc(ItemCount);
+            FrequentObjects.CustomSort(QuickAccessFrequentObjectsCompare);
+
+            ItemCount := 0;
+            for I := 0 to FrequentObjects.Count - 1 do
+            if (ItemCount < QuickAccessItemCount) then
+              begin
+                Data := DataByAddress(ReplaceStr(FrequentObjects.Names[I], QuickAccessListEscaper, '='));
+
+                if (ClassIndexByData(Data) in [ciBaseTable, ciView, ciProcedure, ciFunction, ciTrigger, ciEvent]) then
+                begin
+                  AddItem(giFrequentObjects, Data);
+                  Inc(ItemCount);
+                end;
+              end;
+
+            SetListViewGroupHeader(ListView, giFrequentObjects, Preferences.LoadStr(940));
           end;
+
+          if (RecentObjects.Count > 0) then
+          begin
+            ItemCount := 0;
+            for I := 0 to RecentObjects.Count - 1 do
+              if (ItemCount < QuickAccessItemCount) then
+              begin
+                Data := DataByAddress(RecentObjects[I]);
+
+                if (ClassIndexByData(Data) in [ciBaseTable, ciView, ciProcedure, ciFunction, ciTrigger, ciEvent]) then
+                begin
+                  AddItem(giRecentObjects, Data);
+                  Inc(ItemCount);
+                end;
+              end;
+
+            SetListViewGroupHeader(ListView, giRecentObjects, Preferences.LoadStr(941));
+          end;
+
+          FrequentObjects.Free();
+          RecentObjects.Free();
+          URI1.Free();
+          URI2.Free();
         end;
-
-      SetListViewGroupHeader(ListView, giRecentObjects, Preferences.LoadStr(941));
+      etItemValid,
+      etItemRenamed:
+        for I := 0 to ListView.Items.Count - 1 do
+          if (ListView.Items[I].Data = Event.Item) then
+            UpdateItem(ListView.Items[I], ListView.Items[I].GroupID, Event.Item);
+      etItemDropped:
+        for I := ListView.Items.Count - 1 downto 0 do
+          if (ListView.Items[I].Data = Event.Item) then
+            ListView.Items.Delete(I);
     end;
-
-    FrequentObjects.Free();
-    RecentObjects.Free();
-    URI1.Free();
-    URI2.Free();
 
     RefreshHeader := False;
   end;
@@ -11542,15 +11914,7 @@ begin
       end;
     end;
 
-    if (Event.Items is TSItemSearch) then
-    begin
-      for I := ListView.Items.Count to Event.Items.Count - 1 do
-        AddItem(GroupIDByImageIndex(ImageIndexByData(Event.Items[I])), Event.Items[I]);
-      UpdateObjectSearchGroupHeaders();
-    end
-    else if (Event.Items is TSQuickAccess) then
-      UpdateQuickAccess()
-    else if ((Kind in [lkServer, lkObjectSearch]) and (Event.Items is TSDatabases)) then
+    if ((Kind in [lkServer, lkObjectSearch]) and (Event.Items is TSDatabases)) then
       UpdateGroup(Kind, giDatabases, Event.Items)
     else if ((Kind in [lkDatabase, lkObjectSearch, lkQuickAccess]) and (Event.Items is TSTables)) then
       UpdateGroup(Kind, giTables, Event.Items)
@@ -11575,7 +11939,15 @@ begin
     else if ((Kind in [lkUsers, lkObjectSearch]) and (Event.Items is TSUsers)) then
       UpdateGroup(Kind, giUsers, Event.Items)
     else if ((Kind in [lkVariables, lkObjectSearch]) and (Event.Items is TSVariables)) then
-      UpdateGroup(Kind, giVariables, Event.Items);
+      UpdateGroup(Kind, giVariables, Event.Items)
+    else if (Kind in [lkQuickAccess]) then
+      UpdateQuickAccess()
+    else if ((Kind in [lkObjectSearch]) and (Event.Items is TSItemSearch)) then
+    begin
+      for I := ListView.Items.Count to Event.Items.Count - 1 do
+        AddItem(GroupIDByImageIndex(ImageIndexByData(Event.Items[I])), Event.Items[I]);
+      UpdateObjectSearchGroupHeaders();
+    end;
 
     ProfilingPoint(28);
 
@@ -12189,7 +12561,6 @@ var
   Index: Integer;
 begin
   Index := Session.Account.Favorites.IndexOf(TPAccount.TFavorite(FNavigatorMenuNode.Data));
-  TPAccount.TFavorite(FNavigatorMenuNode.Data).Free();
   Session.Account.Favorites.Delete(Index);
 end;
 
@@ -12203,11 +12574,6 @@ var
   I: Integer;
   Rect: TRect;
 begin
-  // Debug 2016-11-17
-  if (not Assigned(ActiveListView)) then
-    raise ERangeError.Create(SRangeError);
-    // Occurred on 2017-01-05
-
   ListViewSelectItem(ActiveListView, ActiveListView.Selected, Assigned(ActiveListView.Selected));
 
   if (not BOOL(Header_GetItemRect(ListView_GetHeader(ActiveListView.Handle), 0, @Rect)) or (MList.PopupPoint.Y - ActiveListView.ClientOrigin.Y < Rect.Bottom)) then
@@ -14020,7 +14386,7 @@ end;
 
 procedure TFSession.SessionUpdate(const Event: TSSession.TEvent);
 
-  function ApplyObjectRenameInAddress(const ClassIndex: TClassIndex; var URI: TUURI): Boolean;
+  function ApplyObjectRenamed(const ClassIndex: TClassIndex; var URI: TUURI): Boolean;
   var
     Database: TSDatabase;
   begin
@@ -14103,26 +14469,52 @@ begin
 
   if (Assigned(Event)) then
   begin
-    if (Event.EventType = etItemRenamed) then
+    if (Event.EventType = etItemDropped) then
+    begin
+      if (Assigned(FNavigatorMenuNode) and (Event.Item = TObject(FNavigatorMenuNode.Data))) then
+        FNavigatorMenuNode := nil;
+      if (Assigned(FNavigatorNodeToExpand) and (Event.Item = TObject(FNavigatorNodeToExpand.Data))) then
+        FNavigatorNodeToExpand := nil;
+    end;
+
+    if (Event.EventType in [etItemDropped, etItemRenamed]) then
     begin
       ClassIndex := ClassIndexByData(Event.Item);
       if (ClassIndex in [ciDatabase, ciBaseTable, ciView, ciProcedure, ciFunction, ciTrigger, ciEvent]) then
       begin
         URI := TUURI.Create();
 
-        for I := 0 to Session.Account.Desktop.Addresses.Count - 1 do
-          if (ClassIndexByAddress(Session.Account.Desktop.Addresses[I]) = ClassIndex) then
+        for I := Session.Account.Desktop.Addresses.Count - 1 downto 0 do
+          if ((ClassIndexByAddress(Session.Account.Desktop.Addresses[I]) = ClassIndex)
+            and (DataByAddress(Session.Account.Desktop.Addresses[I]) = Event.Item)) then
           begin
             URI.Address := Session.Account.Desktop.Addresses[I];
-            if (ApplyObjectRenameInAddress(ClassIndex, URI)) then
-              Session.Account.Desktop.Addresses[I] := URI.Address;
+            case (Event.EventType) of
+              etItemDropped:
+                Session.Account.Desktop.Addresses.Delete(I);
+              etItemRenamed:
+                if (ApplyObjectRenamed(ClassIndex, URI)) then
+                  Session.Account.Desktop.Addresses[I] := URI.Address;
+            end;
           end;
 
-        URI.Address := FCurrentAddress;
-        if (ApplyObjectRenameInAddress(ClassIndex, URI)) then
+        for I := Session.Account.Favorites.Count - 1 downto 0 do
+          if (DataByAddress(Session.Account.Favorites[I].Address) = Event.Item) then
+            case (Event.EventType) of
+              etItemDropped:
+                Session.Account.Favorites.Delete(I);
+              etItemRenamed:
+                Session.Account.Favorites[I].Address := AddressByData(Event.Item);
+            end;
+
+        if (Event.EventType = etItemRenamed) then
         begin
-          FCurrentAddress := URI.Address;
-          AddressChanged(nil);
+          URI.Address := FCurrentAddress;
+          if (ApplyObjectRenamed(ClassIndex, URI)) then
+          begin
+            FCurrentAddress := URI.Address;
+            AddressChanged(nil);
+          end;
         end;
 
         URI.Free();
@@ -14183,7 +14575,10 @@ begin
           ListViewUpdate(Event, Desktop(Table).ListView);
         end;
 
-        if (Assigned(ObjectSearchListView) and (TObject(ObjectSearchListView.Tag) is TSItemSearch)
+        if (Assigned(QuickAccessListView) and (Event.EventType in [etItemValid, etItemRenamed, etItemDropped])) then
+          ListViewUpdate(Event, QuickAccessListView);
+
+        if (Assigned(ObjectSearchListView)
           and ((Event.Items = TObject(ObjectSearchListView.Tag))
             or (Event.EventType in [etItemValid, etItemRenamed, etItemDropped]) and (TSItemSearch(ObjectSearchListView.Tag).IndexOf(Event.Item) >= 0))) then
           ListViewUpdate(Event, ObjectSearchListView);
@@ -14273,12 +14668,6 @@ begin
     FNavigator.OnChange := ChangeEvent;
 
     URI := TUURI.Create(NewAddress);
-
-    if (URI.Address = '') then
-      raise ERangeError.Create('AAddress: ' + AAddress);
-    if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
-      raise ERangeError.Create('AAddress: ' + AAddress + #13#10
-        + 'URI.Address: ' + URI.Address);
 
     FCurrentAddress := URI.Address;
     if ((Session.Account.Desktop.Addresses.Count = 0)
@@ -16172,10 +16561,6 @@ begin
       end;
     vBrowser:
       begin
-        // Debug 2017-01-25
-        if (not (TObject(CurrentData) is TSTable)) then
-          raise ERangeError.Create('Address: ' + CurrentAddress);
-
         if ((TObject(CurrentData) is TSView and not TSView(CurrentData).Update())
           or (TObject(CurrentData) is TSBaseTable and not TSBaseTable(CurrentData).Update(True))) then
           Wanted.Update := UpdateAfterAddressChanged
@@ -16675,4 +17060,8 @@ begin
     Result := False;
 end;
 
+initialization
+  OleCheck(OleInitialize(nil));
+finalization
+  OleUninitialize();
 end.
