@@ -908,7 +908,7 @@ type
     function SQLReplace(): string; virtual;
     function SQLUpdate(): string; virtual;
     property Created: TDateTime read FCreated;
-    property DatabaseName: string read FDatabaseName;
+    property DatabaseName: string read FDatabaseName write FDatabaseName;
     property Definer: string read FDefiner;
     property Event: TEvent read FEvent write FEvent;
     property InputDataSet: TMySQLDataSet read GetInputDataSet;
@@ -6621,7 +6621,7 @@ begin
       teDelete: SQL := SQL + 'DELETE';
     end;
     SQL := SQL + ' ON ';
-    SQL := SQL + Session.Connection.EscapeIdentifier(FDatabaseName) + '.' + Session.Connection.EscapeIdentifier(FTableName) + #13#10;
+    SQL := SQL + Session.Connection.EscapeIdentifier(DatabaseName) + '.' + Session.Connection.EscapeIdentifier(TableName) + #13#10;
     SQL := SQL + '  FOR EACH ROW' + #13#10 + Stmt;
     if (RightStr(SQL, 1) <> ';') then SQL := SQL + ';';
     SQL := Trim(SQL) + #13#10;

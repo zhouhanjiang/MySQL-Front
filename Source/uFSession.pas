@@ -3409,6 +3409,8 @@ begin
       DVariable.Variable := TSVariable(SItem);
       DVariable.Execute();
     end;
+
+    UpdateAfterAddressChanged();
   end;
 end;
 
@@ -4663,7 +4665,7 @@ begin
               else
               begin
                 ActiveDBGrid.DataSource.DataSet.Close();
-                ActiveDBGrid.DataSource.DataSet.Open();
+                CurrentAddress := CurrentAddress;
               end;
             end;
           end;
@@ -5543,7 +5545,7 @@ begin
   Result.Constraints.MinHeight := 30;
   Result.DataSource := FGridDataSource;
   Result.DefaultDrawing := False;
-  Result.DragMode := dmAutomatic;
+//  Result.DragMode := dmAutomatic;
   Result.HelpType := htContext;
   Result.HelpContext := 1036;
   Result.Options := [dgTitles, dgColumnResize, dgColLines, dgRowLines, dgTabs, dgAlwaysShowSelection, dgConfirmDelete, dgMultiSelect, dgTitleClick, dgTitleHotTrack];
@@ -6270,30 +6272,30 @@ end;
 
 procedure TFSession.DBGridDragOver(Sender, Source: TObject; X, Y: Integer;
   State: TDragState; var Accept: Boolean);
-//var
-//  DataObj: IDataObject;
-//  DBGrid: TMySQLDBGrid;
-//  DropSource: IDropSource;
-//  Effect: Longint;
-//  GridCoord: TGridCoord;
+var
+  DataObj: IDataObject;
+  DBGrid: TMySQLDBGrid;
+  DropSource: IDropSource;
+  Effect: Longint;
+  GridCoord: TGridCoord;
 begin
-//  Assert(Sender is TDBGrid);
-//
-//  DBGrid := TMySQLDBGrid(Sender);
-//
-//  GridCoord := DBGrid.MouseCoord(X, Y);
-//
-//  if ((State = dsDragEnter) and (GridCoord.X >= 0)) then
-//  begin
-//    DBGrid.MouseDown(mbLeft, [], X, Y);
-//
-//    DataObj := TDBGridDropData.Create(DBGrid, DBGrid.Columns[GridCoord.X].Field);
-//    DropSource := TDBGridDropSource.Create(DBGrid);
-//    OleCheck(DoDragDrop(DataObj, DropSource, DROPEFFECT_COPY, Effect));
-//
-//    DBGrid.Cursor := crDefault;
-//  end;
-//
+  Assert(Sender is TDBGrid);
+
+  DBGrid := TMySQLDBGrid(Sender);
+
+  GridCoord := DBGrid.MouseCoord(X, Y);
+
+  if ((State = dsDragEnter) and (GridCoord.X >= 0)) then
+  begin
+    DBGrid.MouseDown(mbLeft, [], X, Y);
+
+    DataObj := TDBGridDropData.Create(DBGrid, DBGrid.Columns[GridCoord.X].Field);
+    DropSource := TDBGridDropSource.Create(DBGrid);
+    OleCheck(DoDragDrop(DataObj, DropSource, DROPEFFECT_COPY, Effect));
+
+    DBGrid.Cursor := crDefault;
+  end;
+
   Accept := False;
 end;
 
@@ -7273,8 +7275,6 @@ begin
   if ((ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and not (Node.ImageIndex in [iiServer, iiDatabase, iiSystemDatabase])) then
     URI.Param['view'] := Null;
 
-  if ((URI.Param['view'] = Null) and (URI.Param['objecttype'] = 'procedure') or (URI.Param['objecttype'] = 'function') or (URI.Param['objecttype'] = 'trigger') or (URI.Param['objecttype'] = 'event')) then
-    URI.Param['view'] := 'ide';
   if ((URI.Param['view'] = Null) and (URI.Table <> '')) then
     URI.Param['view'] := ViewToParam(LastTableView);
 
@@ -7904,7 +7904,7 @@ begin
               TableNode := Child
             else
               Child := Child.getNextSibling();
-          if ((URI.Param['view'] <> 'ide') or (URI.Param['objecttype'] <> 'trigger') or (URI.Param['object'] = Null)) then
+          if ((URI.Param['objecttype'] <> 'trigger') or (URI.Param['object'] = Null)) then
             Result := TableNode
           else
           begin
@@ -11655,18 +11655,18 @@ var
       etItemRenamed:
         if (GroupID = GroupIDByImageIndex(ImageIndexByData(Event.Item))) then
         begin
-          Index := -1;
+          Index := 0;
           Count := ListView.Items.Count; // Cache for speeding
-          if (Count > 0) then
-            repeat
-              Inc(Index);
-            until ((Index = Count) or (ListView.Items[Index].Data = Event.Item));
-          if (Index < 0) then
-            raise ERangeError.Create('Item not found: ' + Event.Item.Name + ' (ClassType: ' + Event.Item.ClassName + ')');
-
+          while (Index < Count) do
+          begin
+            if (ListView.Items[Index].Data = Event.Item) then
+              break;
+            Inc(Index);
+          end;
           ItemSelected := ListView.Items[Index].Selected;
           ItemFocused := ListView.Items[Index].Focused;
-          ListView.Items.Delete(Index);
+          if (Index < Count) then
+            ListView.Items.Delete(Index);
           Item := InsertOrUpdateItem(Kind, GroupID, Event.Item);
           Item.Selected := ItemSelected;
           Item.Focused := ItemFocused;
@@ -14668,6 +14668,9 @@ begin
     FNavigator.OnChange := ChangeEvent;
 
     URI := TUURI.Create(NewAddress);
+
+    if ((URI.Param['view'] = Null) and ((URI.Param['objecttype'] = 'procedure') or (URI.Param['objecttype'] = 'function') or (URI.Param['objecttype'] = 'trigger') or (URI.Param['objecttype'] = 'event'))) then
+      URI.Param['view'] := 'ide';
 
     FCurrentAddress := URI.Address;
     if ((Session.Account.Desktop.Addresses.Count = 0)

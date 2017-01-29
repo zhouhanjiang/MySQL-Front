@@ -39,6 +39,7 @@ type
     procedure UMChangePreferences(var Msg: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMPADFileReceived(var Msg: TMessage); message UM_PAD_FILE_RECEIVED;
     procedure UMSetupFileReceived(var Msg: TMessage); message UM_SETUP_FILE_RECEIVED;
+    procedure UMTerminate(var Msg: TMessage); message UM_TERMINATE;
     procedure UMUpdateProgressBar(var Msg: TMessage); message UM_UPDATE_PROGRESSBAR;
   public
     function Execute(): Boolean;
@@ -177,27 +178,7 @@ end;
 
 procedure TDUpdate.OnTerminate(Sender: TObject);
 begin
-  HTTPThread.WaitFor();
-
-  if ((INTERNET_ERROR_BASE <= HTTPThread.ErrorCode) and (HTTPThread.ErrorCode <= INTERNET_ERROR_LAST)) then
-    MsgBox(HTTPThread.ErrorMessage + ' (#' + IntToStr(HTTPThread.ErrorCode), Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
-  else if (HTTPThread.ErrorCode <> 0) then
-    RaiseLastOSError(HTTPThread.ErrorCode)
-  else if (HTTPThread.HTTPStatus <> HTTP_STATUS_OK) then
-    MsgBox(HTTPThread.HTTPMessage, Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
-  else if (Assigned(PADFileStream)) then
-    Perform(UM_PAD_FILE_RECEIVED, 0, 0)
-  else if (Assigned(SetupProgramStream)) then
-    Perform(UM_SETUP_FILE_RECEIVED, 0, 0)
-  else
-    raise ERangeError.Create(SRangeError);
-
-  HTTPThread.Free();
-  HTTPThread := nil;
-
-  FBCancel.Enabled := True;
-  if (not FBForward.Enabled) then
-    FBCancel.Caption := Preferences.LoadStr(231);
+  PostMessage(Handle, UM_TERMINATE, 0, 0);
 end;
 
 procedure TDUpdate.UMChangePreferences(var Msg: TMessage);
@@ -251,6 +232,31 @@ begin
   Preferences.SetupProgram := SetupPrgFilename;
 
   ModalResult := mrOk;
+end;
+
+procedure TDUpdate.UMTerminate(var Msg: TMessage);
+begin
+  HTTPThread.WaitFor();
+
+  if ((INTERNET_ERROR_BASE <= HTTPThread.ErrorCode) and (HTTPThread.ErrorCode <= INTERNET_ERROR_LAST)) then
+    MsgBox(HTTPThread.ErrorMessage + ' (#' + IntToStr(HTTPThread.ErrorCode), Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
+  else if (HTTPThread.ErrorCode <> 0) then
+    RaiseLastOSError(HTTPThread.ErrorCode)
+  else if (HTTPThread.HTTPStatus <> HTTP_STATUS_OK) then
+    MsgBox(HTTPThread.HTTPMessage, Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
+  else if (Assigned(PADFileStream)) then
+    Perform(UM_PAD_FILE_RECEIVED, 0, 0)
+  else if (Assigned(SetupProgramStream)) then
+    Perform(UM_SETUP_FILE_RECEIVED, 0, 0)
+  else
+    raise ERangeError.Create(SRangeError);
+
+  HTTPThread.Free();
+  HTTPThread := nil;
+
+  FBCancel.Enabled := True;
+  if (not FBForward.Enabled) then
+    FBCancel.Caption := Preferences.LoadStr(231);
 end;
 
 procedure TDUpdate.UMUpdateProgressBar(var Msg: TMessage);

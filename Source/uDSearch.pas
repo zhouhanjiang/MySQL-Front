@@ -110,6 +110,7 @@ type
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMPostAfterExecuteSQL(var Message: TMessage); message UM_POST_AFTEREXECUTESQL;
+    procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMToolError(var Message: TMessage); message UM_TOOL_ERROR;
     procedure UMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
   public
@@ -696,31 +697,8 @@ begin
 end;
 
 procedure TDSearch.OnTerminate(Sender: TObject);
-var
-  Success: Boolean;
 begin
-  Success := not Search.Terminated;
-
-  if (Success and SearchOnly and (FDBObjects.Items.Count = 0)) then
-    MsgBox(Preferences.LoadStr(533, Search.FindText), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
-
-  Search.WaitFor();
-  Search.Free();
-  Search := nil;
-
-  ReplaceSession.Free();
-
-  if (not Application.Active) then
-    FlashWindow(Application.MainFormHandle, True);
-
-  FBBack.Enabled := True;
-  FBCancel.Enabled := True;
-  SetClassLong(Handle, GCL_STYLE, GetClassLong(Handle, GCL_STYLE) and not CS_NOCLOSE);
-  FBCancel.Caption := Preferences.LoadStr(231);
-  if (Success) then
-    FBCancel.ModalResult := mrOk
-  else
-    FBCancel.ModalResult := mrCancel;
+  PostMessage(Handle, UM_TERMINATE, WPARAM(not Search.Terminated), 0);
 end;
 
 procedure TDSearch.OnUpdate(const AProgressInfos: TTool.TProgressInfos);
@@ -1020,6 +998,34 @@ begin
   begin
     Wanted.Page.OnShow(nil);
   end;
+end;
+
+procedure TDSearch.UMTerminate(var Message: TMessage);
+var
+  Success: Boolean;
+begin
+  Success := Boolean(Message.WParam);
+
+  if (Success and SearchOnly and (FDBObjects.Items.Count = 0)) then
+    MsgBox(Preferences.LoadStr(533, Search.FindText), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
+
+  Search.WaitFor();
+  Search.Free();
+  Search := nil;
+
+  ReplaceSession.Free();
+
+  if (not Application.Active) then
+    FlashWindow(Application.MainFormHandle, True);
+
+  FBBack.Enabled := True;
+  FBCancel.Enabled := True;
+  SetClassLong(Handle, GCL_STYLE, GetClassLong(Handle, GCL_STYLE) and not CS_NOCLOSE);
+  FBCancel.Caption := Preferences.LoadStr(231);
+  if (Success) then
+    FBCancel.ModalResult := mrOk
+  else
+    FBCancel.ModalResult := mrCancel;
 end;
 
 procedure TDSearch.UMToolError(var Message: TMessage);

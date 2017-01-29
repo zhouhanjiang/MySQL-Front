@@ -209,6 +209,7 @@ begin
       NewTrigger.Assign(Trigger);
 
     NewTrigger.Name := FName.Text;
+    NewTrigger.DatabaseName := Table.Database.Name;
     NewTrigger.TableName := Table.Name;
     if (FBefore.Checked) then NewTrigger.Timing := ttBefore;
     if (FAfter.Checked) then NewTrigger.Timing := ttAfter;

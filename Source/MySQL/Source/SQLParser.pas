@@ -6843,7 +6843,7 @@ type
     function ParseAlterStmt(): TOffset;
     function ParseAlterTablespaceStmt(const AlterTag: TOffset): TOffset;
     function ParseAlterTableStmt(const AlterTag, IgnoreTag: TOffset): TOffset;
-    function ParseAlterTableStmtAddField(const AddType: TCreateTableStmt.TFieldAddType): TOffset;
+    function ParseAlterTableStmtAddField(const AddType: TCreateTableStmt.TFieldAddType; const AddTag: TOffset): TOffset;
     function ParseAlterTableStmtAddFields(): TOffset;
     function ParseAlterTableStmtAlterField(): TOffset;
     function ParseAlterTableStmtConvertTo(): TOffset;
@@ -15769,17 +15769,17 @@ begin
 
     else if (IsTag(kiADD)) then
       if (not IsNextSymbol(1, ttOpenBracket)) then
-        Specifications.Add(ParseAlterTableStmtAddField(fatAdd))
+        Specifications.Add(ParseCreateTableStmtDefinition(True))
       else
         Specifications.Add(ParseAlterTableStmtAddFields())
     else if (IsTag(kiALTER)) then
       Specifications.Add(ParseAlterTableStmtAlterField())
     else if (IsTag(kiCHANGE)) then
-      Specifications.Add(ParseAlterTableStmtAddField(fatChange))
+      Specifications.Add(ParseAlterTableStmtAddField(fatChange, ParseTag(kiCHANGE)))
     else if (IsTag(kiDROP)) then
       Specifications.Add(ParseAlterTableStmtDropItem())
     else if (IsTag(kiMODIFY)) then
-      Specifications.Add(ParseAlterTableStmtAddField(fatModify))
+      Specifications.Add(ParseAlterTableStmtAddField(fatModify, ParseTag(kiMODIFY)))
 
 
     else if ((Nodes.AlgorithmValue = 0) and IsTag(kiALGORITHM)) then
@@ -15899,18 +15899,13 @@ begin
   Result := TAlterTableStmt.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseAlterTableStmtAddField(const AddType: TCreateTableStmt.TFieldAddType): TOffset;
+function TSQLParser.ParseAlterTableStmtAddField(const AddType: TCreateTableStmt.TFieldAddType; const AddTag: TOffset): TOffset;
 var
   Nodes: TAlterTableStmt.TAddField.TNodes;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  case (AddType) of
-    fatAdd: Nodes.AddTag := ParseTag(kiADD);
-    fatChange: Nodes.AddTag := ParseTag(kiCHANGE);
-    fatModify: Nodes.AddTag := ParseTag(kiMODIFY);
-    else raise ERangeError.Create(SRangeError);
-  end;
+  Nodes.AddTag := AddTag;
 
   if (not ErrorFound and (AddType <> fatNone)) then
     if (IsTag(kiCOLUMN)) then
@@ -17762,7 +17757,10 @@ begin
   else if ((ConstraintTag = 0) and IsTag(kiPARTITION)) then
     Result := ParseCreateTableStmtPartition(AddTag)
   else if (ConstraintTag = 0) then
-    Result := ParseCreateTableStmtField()
+    if (AlterTableStmt) then
+      Result := ParseAlterTableStmtAddField(fatAdd, AddTag)
+    else
+      Result := ParseCreateTableStmtField()
   else if (EndOfStmt(CurrentToken)) then
   begin
     SetError(PE_IncompleteStmt);

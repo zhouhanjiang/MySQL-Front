@@ -1116,7 +1116,6 @@ object WWindow: TWWindow
       Enabled = False
       HelpContext = 1064
       HelpType = htContext
-      ImageIndex = 17
     end
     object aEUndo: TEditUndo
       Category = 'Edit'

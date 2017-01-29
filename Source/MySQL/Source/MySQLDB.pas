@@ -3085,7 +3085,9 @@ begin
             begin
               SyncExecute(SyncThread);
               RunExecute(SyncThread);
-            end;
+            end
+            else if (SyncThread.State <> ssReceivingResult) then
+              SyncAfterExecuteSQL(SyncThread);
           end
           else
             SyncThreadExecuted.SetEvent();

@@ -90,6 +90,7 @@ type
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
     procedure UMChangePreferences(var Msg: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMPostAfterExecuteSQL(var Msg: TMessage); message UM_POST_AFTEREXECUTESQL;
+    procedure UMTerminate(var Msg: TMessage); message UM_TERMINATE;
     procedure UMToolError(var Msg: TMessage); message UM_TOOL_ERROR;
     procedure UMUpdateProgressInfo(var Msg: TMessage); message UM_UPDATEPROGRESSINFO;
   public
@@ -405,31 +406,8 @@ begin
 end;
 
 procedure TDTransfer.OnTerminate(Sender: TObject);
-var
-  Success: Boolean;
 begin
-  Success := not Transfer.Terminated;
-
-  Transfer.WaitFor();
-
-  if (Success and (Transfer.WarningCount > 0)) then
-    MsgBoxCheck(Preferences.LoadStr(932, IntToStr(Transfer.WarningCount)), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION,
-      ID_OK, '{3b9746df-b0d6-47e4-9fb2-b2e9dfd93596}');
-
-  Transfer.Free();
-  Transfer := nil;
-
-  if (not Application.Active) then
-    FlashWindow(Application.MainFormHandle, True);
-
-  FBBack.Enabled := True;
-  FBCancel.Enabled := True;
-  SetClassLong(Handle, GCL_STYLE, GetClassLong(Handle, GCL_STYLE) and not CS_NOCLOSE);
-  FBCancel.Caption := Preferences.LoadStr(231);
-  if (Success) then
-    FBCancel.ModalResult := mrOk
-  else
-    FBCancel.ModalResult := mrCancel;
+  PostMessage(Handle, UM_TERMINATE, WPARAM(not Transfer.Terminated), 0);
 end;
 
 procedure TDTransfer.OnUpdate(const AProgressInfos: TTool.TProgressInfos);
@@ -945,6 +923,34 @@ begin
   end
   else if (Assigned(Wanted.Page) and Assigned(Wanted.Page.OnShow)) then
     Wanted.Page.OnShow(nil);
+end;
+
+procedure TDTransfer.UMTerminate(var Msg: TMessage);
+var
+  Success: Boolean;
+begin
+  Success := Boolean(Msg.WParam);
+
+  Transfer.WaitFor();
+
+  if (Success and (Transfer.WarningCount > 0)) then
+    MsgBoxCheck(Preferences.LoadStr(932, IntToStr(Transfer.WarningCount)), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION,
+      ID_OK, '{3b9746df-b0d6-47e4-9fb2-b2e9dfd93596}');
+
+  Transfer.Free();
+  Transfer := nil;
+
+  if (not Application.Active) then
+    FlashWindow(Application.MainFormHandle, True);
+
+  FBBack.Enabled := True;
+  FBCancel.Enabled := True;
+  SetClassLong(Handle, GCL_STYLE, GetClassLong(Handle, GCL_STYLE) and not CS_NOCLOSE);
+  FBCancel.Caption := Preferences.LoadStr(231);
+  if (Success) then
+    FBCancel.ModalResult := mrOk
+  else
+    FBCancel.ModalResult := mrCancel;
 end;
 
 procedure TDTransfer.UMToolError(var Msg: TMessage);

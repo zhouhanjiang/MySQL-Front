@@ -292,7 +292,6 @@ object DView: TDView
     end
     object TSDependencies: TTabSheet
       Caption = 'TSDependencies'
-      ImageIndex = 4
       OnShow = TSDependenciesShow
       ExplicitLeft = 0
       ExplicitTop = 0

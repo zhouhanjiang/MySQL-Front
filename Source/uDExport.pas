@@ -185,6 +185,7 @@ type
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMPostAfterExecuteSQL(var Message: TMessage); message UM_POST_AFTEREXECUTESQL;
+    procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMToolError(var Message: TMessage); message UM_TOOL_ERROR;
     procedure UMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
   public
@@ -909,26 +910,8 @@ begin
 end;
 
 procedure TDExport.OnTerminate(Sender: TObject);
-var
-  Success: Boolean;
 begin
-  Success := not Export.Terminated;
-
-  Export.WaitFor();
-  Export.Free();
-  Export := nil;
-
-  if (not Application.Active) then
-    FlashWindow(Application.Handle, True);
-
-  FBBack.Enabled := True;
-  FBCancel.Enabled := True;
-  SetClassLong(Handle, GCL_STYLE, GetClassLong(Handle, GCL_STYLE) and not CS_NOCLOSE);
-  FBCancel.Caption := Preferences.LoadStr(231);
-  if (Success) then
-    FBCancel.ModalResult := mrOk
-  else
-    FBCancel.ModalResult := mrCancel;
+  PostMessage(Handle, UM_TERMINATE, WPARAM(not Export.Terminated), 0);
 end;
 
 procedure TDExport.OnUpdate(const AProgressInfos: TTool.TProgressInfos);
@@ -1521,6 +1504,29 @@ procedure TDExport.UMPostAfterExecuteSQL(var Message: TMessage);
 begin
   if (Assigned(Wanted.Page) and Assigned(Wanted.Page.OnShow)) then
     Wanted.Page.OnShow(nil);
+end;
+
+procedure TDExport.UMTerminate(var Message: TMessage);
+var
+  Success: Boolean;
+begin
+  Success := Boolean(Message.WParam);
+
+  Export.WaitFor();
+  Export.Free();
+  Export := nil;
+
+  if (not Application.Active) then
+    FlashWindow(Application.Handle, True);
+
+  FBBack.Enabled := True;
+  FBCancel.Enabled := True;
+  SetClassLong(Handle, GCL_STYLE, GetClassLong(Handle, GCL_STYLE) and not CS_NOCLOSE);
+  FBCancel.Caption := Preferences.LoadStr(231);
+  if (Success) then
+    FBCancel.ModalResult := mrOk
+  else
+    FBCancel.ModalResult := mrCancel;
 end;
 
 procedure TDExport.UMToolError(var Message: TMessage);
