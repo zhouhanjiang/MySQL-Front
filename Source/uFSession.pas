@@ -4965,7 +4965,7 @@ begin
   TimeMonitor.CacheSize := 2000;
 
   Parent := TWinControl(AParent);
-  OleCheck(RegisterDragDrop(Handle, Self));
+//  OleCheck(RegisterDragDrop(Handle, Self));
 
   Width := Window.ClientWidth;
   Height := Window.ClientHeight;
