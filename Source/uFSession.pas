@@ -4964,8 +4964,6 @@ begin
   Parent := TWinControl(AParent);
 //  OleCheck(RegisterDragDrop(Handle, Self));
 
-MoveMemory(Pointer(123), Pointer(456), 10);
-
 
   Width := Window.ClientWidth;
   Height := Window.ClientHeight;
