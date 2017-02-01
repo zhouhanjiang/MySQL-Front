@@ -4961,11 +4961,11 @@ begin
 
   ASession.Account.RegisterTab(Self);
 
-  TimeMonitor := TMySQLMonitor.Create(nil);
-  TimeMonitor.CacheSize := 2000;
-
   Parent := TWinControl(AParent);
 //  OleCheck(RegisterDragDrop(Handle, Self));
+
+MoveMemory(Pointer(123), Pointer(456), 10);
+
 
   Width := Window.ClientWidth;
   Height := Window.ClientHeight;
@@ -5011,6 +5011,9 @@ begin
   PanelMouseDownPoint := Point(-1, -1);
   SQueryBuilderSynMemoMoved := False;
   SynCompletionPending.Active := False;
+
+  TimeMonitor := TMySQLMonitor.Create(nil);
+  TimeMonitor.CacheSize := 2000;
 
 
   TBSideBar.Images := Preferences.Images;

@@ -85,6 +85,8 @@ uses
 var
   SetupProgram: TFileName;
   SetupProgramExecute: Boolean;
+  ExecError: DWORD;
+  ExecInfo: TShellExecuteInfo;
 begin
   Preferences := TPPreferences.Create();
 
@@ -99,7 +101,7 @@ begin
   begin
     Preferences.SetupProgramExecute := FindWindow(cWindowClassName, nil) = 0;
     if (not Preferences.SetupProgramExecute) then
-      MsgBox(Preferences.LoadStr(908, SysUtils.LoadStr(1000)), Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
+      MsgBox(Preferences.LoadStr(908, LoadStr(1000)), Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
   end;
 
   if (not Preferences.SetupProgramExecute) then
@@ -107,8 +109,8 @@ begin
     Application.Initialize();
     Application.Title := LoadStr(1000);
     Application.CreateForm(TWWindow, WWindow);
-    Application.CreateForm(TPDataBrowserDummy, PDataBrowserDummy);
-    Application.MainForm.Perform(UM_CHANGEPREFERENCES, 0, 0);
+  Application.CreateForm(TPDataBrowserDummy, PDataBrowserDummy);
+  Application.MainForm.Perform(UM_CHANGEPREFERENCES, 0, 0);
     Application.Run();
     if (Application.Handle <> 0) then
       ShowOwnedPopups(Application.Handle, False);
@@ -122,5 +124,25 @@ begin
   Preferences.Free();
 
   if (SetupProgramExecute) then
-    ShellExecute(0, 'open', PChar(SetupProgram), '/SILENT /NOICONS /TASKS=""', nil, SW_SHOWNORMAL);
+  begin
+    FillChar(ExecInfo, SizeOf(ExecInfo), 0);
+    ExecInfo.cbSize := SizeOf(ExecInfo);
+    ExecInfo.fMask := SEE_MASK_DEFAULT;
+    ExecInfo.lpVerb := 'open';
+    ExecInfo.lpFile := PChar(SetupProgram);
+    ExecInfo.lpParameters := '/SILENT /NOICONS /TASKS=""';
+    ExecInfo.nShow := SW_SHOWNORMAL;
+    if (not ShellExecuteEx(@ExecInfo)) then
+    begin
+      ExecError := GetLastError();
+
+      Preferences := TPPreferences.Create();
+      Preferences.SetupProgram := '';
+      Preferences.SetupProgramInstalled := False;
+      Preferences.Free();
+      Windows.DeleteFile(PChar(SetupProgram));
+
+      RaiseLastOSError(ExecError);
+    end;
+  end;
 end.

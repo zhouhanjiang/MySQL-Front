@@ -13211,11 +13211,6 @@ begin
     end;
 
   DataSet.Free();
-
-  if (not Result and (ErrorCode > 0)) then
-    SendToDeveloper('ErrorCode: ' + IntToStr(ErrorCode) + #13#10
-      + 'ErrorMessage: ' + ErrorMessage + #13#10
-      + CommandText);
 end;
 
 procedure TSSession.SetCreateDesktop(ACreateDesktop: TCreateDesktop);
