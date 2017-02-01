@@ -4962,7 +4962,7 @@ begin
   ASession.Account.RegisterTab(Self);
 
   Parent := TWinControl(AParent);
-//  OleCheck(RegisterDragDrop(Handle, Self));
+  OleCheck(RegisterDragDrop(Handle, Self));
 
 
   Width := Window.ClientWidth;
@@ -13924,7 +13924,8 @@ end;
 
 procedure TFSession.PHeaderCheckElements(Sender: TObject);
 begin
-  FObjectSearch.Visible := (ttObjectSearch in Preferences.ToolbarTabs)
+  FObjectSearch.Visible := Assigned(Session)
+    and (ttObjectSearch in Preferences.ToolbarTabs)
     and (Session.Connection.MySQLVersion >= 50002)
     and ((CurrentClassIndex <> ciUsers) or (Session.Connection.MySQLVersion >= 50107))
     and (FObjectSearch.Left > Toolbar.Left + Toolbar.Width + GetSystemMetrics(SM_CXFIXEDFRAME));
