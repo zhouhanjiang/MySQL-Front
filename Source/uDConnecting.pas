@@ -68,8 +68,7 @@ end;
 
 function TDConnecting.Execute(): Boolean;
 begin
-  ShowModal();
-  Result := ModalResult = mrOk;
+  Result := ShowModal() = mrOk;
 end;
 
 procedure TDConnecting.FormHide(Sender: TObject);

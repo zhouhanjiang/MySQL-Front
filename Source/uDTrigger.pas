@@ -123,8 +123,7 @@ end;
 
 function TDTrigger.Execute(): Boolean;
 begin
-  ShowModal();
-  Result := ModalResult = mrOk;
+  Result := ShowModal() = mrOk;
 end;
 
 procedure TDTrigger.FBHelpClick(Sender: TObject);

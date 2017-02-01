@@ -266,7 +266,9 @@ object FSession: TFSession
     Color = clWindow
     Constraints.MinHeight = 200
     Constraints.MinWidth = 200
+    DoubleBuffered = False
     ParentBackground = False
+    ParentDoubleBuffered = False
     TabOrder = 1
     OnResize = PContentResize
     object SResult: TSplitter_Ext
@@ -330,10 +332,12 @@ object FSession: TFSession
         Align = alClient
         BorderStyle = bsNone
         Columns = <>
+        DoubleBuffered = True
         DragMode = dmAutomatic
         HideSelection = False
         MultiSelect = True
         GroupView = True
+        ParentDoubleBuffered = False
         PopupMenu = MList
         TabOrder = 0
         ViewStyle = vsReport
@@ -684,11 +688,12 @@ object FSession: TFSession
       Top = 56
       Width = 467
       Height = 25
-      HelpContext = 1036
       Align = alTop
       BevelOuter = bvNone
       Constraints.MinWidth = 467
+      DoubleBuffered = False
       ParentBackground = False
+      ParentDoubleBuffered = False
       TabOrder = 0
       Visible = False
       OnResize = PDataBrowserResize
@@ -743,7 +748,7 @@ object FSession: TFSession
         Align = alNone
         Caption = 'TBLimitEnabled'
         TabOrder = 4
-        Transparent = False
+        Transparent = True
         object FLimitEnabled: TToolButton
           Left = 0
           Top = 0
@@ -772,7 +777,7 @@ object FSession: TFSession
         Align = alNone
         Caption = 'TBFilterEnabled'
         TabOrder = 6
-        Transparent = False
+        Transparent = True
         object FFilterEnabled: TToolButton
           Left = 0
           Top = 0
@@ -799,7 +804,7 @@ object FSession: TFSession
         Align = alNone
         AutoSize = True
         TabOrder = 8
-        Transparent = False
+        Transparent = True
         object FQuickSearchEnabled: TToolButton
           Left = 0
           Top = 0
@@ -1268,7 +1273,7 @@ object FSession: TFSession
       end
     end
     object FObjectSearch: TEdit
-      Left = 50528
+      Left = 77930
       Top = 0
       Width = 140
       Height = 22
@@ -1283,7 +1288,7 @@ object FSession: TFSession
       ExplicitLeft = 32752
     end
     object TBObjectSearch: TToolBar
-      Left = 50495
+      Left = 77847
       Top = 0
       Width = 23
       Height = 22
@@ -1982,7 +1987,7 @@ object FSession: TFSession
   object MSQLHistory: TPopupMenu
     OnPopup = MSQLHistoryPopup
     Left = 8
-    Top = 256
+    Top = 216
     object miHStatementIntoSQLEditor: TMenuItem
       Caption = 'miHStatementIntoSQLEditor'
       OnClick = miHStatementIntoSQLEditorClick

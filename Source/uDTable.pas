@@ -712,8 +712,7 @@ end;
 
 function TDTable.Execute(): Boolean;
 begin
-  ShowModal();
-  Result := ModalResult = mrOk;
+  Result := ShowModal() = mrOk;
 end;
 
 procedure TDTable.FAutoIncrementExit(Sender: TObject);

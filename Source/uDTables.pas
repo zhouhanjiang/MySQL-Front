@@ -149,8 +149,7 @@ end;
 
 function TDTables.Execute(): Boolean;
 begin
-  ShowModal();
-  Result := ModalResult = mrOk;
+  Result := ShowModal() = mrOk;
 end;
 
 procedure TDTables.FBCheckClick(Sender: TObject);

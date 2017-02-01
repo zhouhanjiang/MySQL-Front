@@ -290,8 +290,7 @@ end;
 
 function TDField.Execute(): Boolean;
 begin
-  ShowModal();
-  Result := ModalResult = mrOk;
+  Result := ShowModal() = mrOk;
 end;
 
 procedure TDField.FBHelpClick(Sender: TObject);

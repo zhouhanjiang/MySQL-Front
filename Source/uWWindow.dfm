@@ -2,15 +2,15 @@ object WWindow: TWWindow
   Left = 387
   Top = 161
   Caption = 'WWindow'
-  ClientHeight = 450
-  ClientWidth = 683
+  ClientHeight = 611
+  ClientWidth = 927
   Color = clBtnFace
-  Constraints.MinHeight = 485
-  Constraints.MinWidth = 560
+  Constraints.MinHeight = 658
+  Constraints.MinWidth = 760
   DoubleBuffered = True
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clBlack
-  Font.Height = -12
+  Font.Height = -16
   Font.Name = 'Tahoma'
   Font.Style = []
   KeyPreview = True
@@ -25,24 +25,34 @@ object WWindow: TWWindow
   OnHide = FormHide
   OnResize = FormResize
   OnShow = FormShow
-  PixelsPerInch = 106
-  TextHeight = 14
+  PixelsPerInch = 144
+  TextHeight = 19
   object PWorkSpace: TPanel_Ext
     Left = 0
-    Top = 80
-    Width = 683
-    Height = 349
+    Top = 90
+    Width = 927
+    Height = 492
+    Margins.Left = 4
+    Margins.Top = 4
+    Margins.Right = 4
+    Margins.Bottom = 4
     Align = alClient
     BevelOuter = bvNone
     Color = clAppWorkSpace
     ParentBackground = False
     TabOrder = 2
+    ExplicitTop = 109
+    ExplicitHeight = 473
   end
   object TabControl: TTabControl
     Left = 0
     Top = 52
-    Width = 683
-    Height = 28
+    Width = 927
+    Height = 38
+    Margins.Left = 4
+    Margins.Top = 4
+    Margins.Right = 4
+    Margins.Bottom = 4
     Align = alTop
     MultiLine = True
     PopupMenu = MTabControl
@@ -61,12 +71,17 @@ object WWindow: TWWindow
     OnMouseMove = TabControlMouseMove
     OnResize = TabControlResize
     OnStartDrag = TabControlStartDrag
+    ExplicitTop = 71
   end
   object StatusBar: TStatusBar
     Left = 0
-    Top = 429
-    Width = 683
-    Height = 21
+    Top = 582
+    Width = 927
+    Height = 29
+    Margins.Left = 4
+    Margins.Top = 4
+    Margins.Right = 4
+    Margins.Bottom = 4
     Panels = <
       item
         Text = 'sbMessage'
@@ -91,8 +106,12 @@ object WWindow: TWWindow
   object CToolBar: TCoolBar
     Left = 0
     Top = 0
-    Width = 683
+    Width = 927
     Height = 52
+    Margins.Left = 4
+    Margins.Top = 4
+    Margins.Right = 4
+    Margins.Bottom = 4
     AutoSize = True
     BandBorderStyle = bsNone
     BandMaximize = bmNone
@@ -103,16 +122,17 @@ object WWindow: TWWindow
         FixedSize = True
         ImageIndex = -1
         MinHeight = 52
-        Width = 691
+        Width = 927
       end>
     EdgeInner = esNone
     EdgeOuter = esNone
     object ToolBar: TToolBar
       Left = 0
       Top = 0
-      Width = 691
-      Height = 52
+      Width = 927
+      Height = 25
       AutoSize = True
+      ButtonHeight = 25
       TabOrder = 0
       Transparent = True
       object tbVRefresh: TToolButton
@@ -259,149 +279,148 @@ object WWindow: TWWindow
         OnClick = tbPropertiesClick
       end
       object ToolButton2: TToolButton
-        Left = 0
+        Left = 447
         Top = 0
         Width = 8
         Caption = 'ToolButton2'
         Enabled = False
-        Wrap = True
         Style = tbsSeparator
       end
       object tbOpen: TToolButton
-        Left = 0
-        Top = 30
+        Left = 455
+        Top = 0
         Action = aFOpen
       end
       object tbSave: TToolButton
-        Left = 23
-        Top = 30
+        Left = 478
+        Top = 0
         Action = aFSave
       end
       object ToolButton4: TToolButton
-        Left = 46
-        Top = 30
+        Left = 501
+        Top = 0
         Width = 8
         Caption = 'ToolButton4'
         Enabled = False
         Style = tbsSeparator
       end
       object tbUndo: TToolButton
-        Left = 54
-        Top = 30
+        Left = 509
+        Top = 0
         Action = aEUndo
         Enabled = False
       end
       object tbRedo: TToolButton
-        Left = 77
-        Top = 30
+        Left = 532
+        Top = 0
         Action = aERedo
       end
       object ToolButton7: TToolButton
-        Left = 100
-        Top = 30
+        Left = 555
+        Top = 0
         Width = 8
         Caption = 'ToolButton7'
         Enabled = False
         Style = tbsSeparator
       end
       object tbSearchFind: TToolButton
-        Left = 108
-        Top = 30
+        Left = 563
+        Top = 0
         Action = aSSearchFind
       end
       object tbSearchReplace: TToolButton
-        Left = 131
-        Top = 30
+        Left = 586
+        Top = 0
         Action = aSSearchReplace
       end
       object ToolButton10: TToolButton
-        Left = 154
-        Top = 30
+        Left = 609
+        Top = 0
         Width = 8
         Caption = 'ToolButton10'
         Enabled = False
         Style = tbsSeparator
       end
       object tbRun: TToolButton
-        Left = 162
-        Top = 30
+        Left = 617
+        Top = 0
         Action = aDRun
       end
       object tbRunSelection: TToolButton
-        Left = 185
-        Top = 30
+        Left = 640
+        Top = 0
         Action = aDRunSelection
       end
       object tbPostObject: TToolButton
-        Left = 208
-        Top = 30
+        Left = 663
+        Top = 0
         Action = aDPostObject
       end
       object ToolButton13: TToolButton
-        Left = 231
-        Top = 30
+        Left = 686
+        Top = 0
         Width = 8
         Caption = 'ToolButton13'
         Enabled = False
         Style = tbsSeparator
       end
       object tbDBFirst: TToolButton
-        Left = 239
-        Top = 30
+        Left = 694
+        Top = 0
         Enabled = False
       end
       object tbDBPrev: TToolButton
-        Left = 262
-        Top = 30
+        Left = 717
+        Top = 0
         Enabled = False
       end
       object tbDBNext: TToolButton
-        Left = 285
-        Top = 30
+        Left = 740
+        Top = 0
         Enabled = False
       end
       object tbDBLast: TToolButton
-        Left = 308
-        Top = 30
+        Left = 763
+        Top = 0
         Enabled = False
       end
       object tbDInsertRecord: TToolButton
-        Left = 331
-        Top = 30
+        Left = 786
+        Top = 0
         Action = aDInsertRecord
       end
       object tbDDeleteRecord: TToolButton
-        Left = 354
-        Top = 30
+        Left = 809
+        Top = 0
         Action = aDDeleteRecord
       end
       object ToolButton23: TToolButton
-        Left = 377
-        Top = 30
+        Left = 832
+        Top = 0
         Width = 8
         Caption = 'ToolButton23'
         Style = tbsSeparator
       end
       object tbPostRecord: TToolButton
-        Left = 385
-        Top = 30
+        Left = 840
+        Top = 0
         Enabled = False
       end
       object tbCancelRecord: TToolButton
-        Left = 408
-        Top = 30
+        Left = 863
+        Top = 0
         Enabled = False
       end
       object ToolButton1: TToolButton
-        Left = 431
-        Top = 30
+        Left = 886
+        Top = 0
         Width = 8
         Caption = 'ToolButton1'
         Style = tbsSeparator
       end
       object tbFormatSQL: TToolButton
-        Left = 439
-        Top = 30
+        Left = 894
+        Top = 0
         Action = aEFormatSQL
       end
     end
@@ -412,6 +431,7 @@ object WWindow: TWWindow
     Width = 561
     Height = 22
     Align = alNone
+    ButtonHeight = 25
     TabOrder = 0
     Transparent = False
     Visible = False
@@ -1704,6 +1724,7 @@ object WWindow: TWWindow
   end
   object SaveDialog: TSaveDialog_Ext
     Options = [ofOverwritePrompt, ofHideReadOnly, ofPathMustExist, ofEnableSizing]
+    OnCanClose = FormCloseQuery
     EncodingIndex = -1
     EncodingLabel = 'Encoding:'
     Left = 80

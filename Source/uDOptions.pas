@@ -188,8 +188,7 @@ end;
 
 function TDOptions.Execute(): Boolean;
 begin
-  ShowModal();
-  Result := ModalResult = mrOk;
+  Result := ShowModal() = mrOk;
 end;
 
 procedure TDOptions.FBackgroundClick(Sender: TObject);
@@ -717,8 +716,6 @@ begin
   GNavigator.Caption := Preferences.LoadStr(10);
   FLQuickAccessVisible.Caption := Preferences.LoadStr(527) + ':';
   FQuickAccessVisible.Caption := Preferences.LoadStr(939);
-
-  {$IFNDEF Debug} GNavigator.Visible := False; {$ENDIF}
 
   TSExtras.Caption := Preferences.LoadStr(73);
   GAssociate.Caption := Preferences.LoadStr(108);

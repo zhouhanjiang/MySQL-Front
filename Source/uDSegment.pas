@@ -58,8 +58,7 @@ end;
 
 function TDSegment.Execute(): Boolean;
 begin
-  ShowModal();
-  Result := ModalResult = mrOk;
+  Result := ShowModal() = mrOk;
 end;
 
 procedure TDSegment.FColorClick(Sender: TObject);

@@ -52,8 +52,7 @@ end;
 
 function TDPaste.Execute(): Boolean;
 begin
-  ShowModal();
-  Result := ModalResult = mrOk;
+  Result := ShowModal() = mrOk;
 end;
 
 procedure TDPaste.FormHide(Sender: TObject);

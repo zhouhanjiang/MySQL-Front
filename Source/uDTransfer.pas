@@ -167,8 +167,7 @@ end;
 
 function TDTransfer.Execute(): Boolean;
 begin
-  ShowModal();
-  Result := ModalResult = mrOk;
+  Result := ShowModal() = mrOk;
 end;
 
 procedure TDTransfer.FBBackClick(Sender: TObject);

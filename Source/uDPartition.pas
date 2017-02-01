@@ -67,8 +67,7 @@ end;
 
 function TDPartition.Execute(): Boolean;
 begin
-  ShowModal();
-  Result := ModalResult = mrOk;
+  Result := ShowModal() = mrOk;
 end;
 
 procedure TDPartition.FBOkCheckEnabled(Sender: TObject);

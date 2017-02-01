@@ -137,8 +137,7 @@ end;
 
 function TDForeignKey.Execute(): Boolean;
 begin
-  ShowModal();
-  Result := ModalResult = mrOk;
+  Result := ShowModal() = mrOk;
 end;
 
 procedure TDForeignKey.FBHelpClick(Sender: TObject);

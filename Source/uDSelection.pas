@@ -59,8 +59,7 @@ end;
 
 function TDSelection.Execute(): Boolean;
 begin
-  ShowModal();
-  Result := ModalResult = mrOk;
+  Result := ShowModal() = mrOk;
 end;
 
 procedure TDSelection.FormCreate(Sender: TObject);

@@ -3,7 +3,7 @@
 interface {********************************************************************}
 
 uses
-  Windows, Classes, WinInet;
+  Windows, Classes, SysUtils, WinInet;
 
 type
   THTTPThread = class(TThread)
@@ -42,6 +42,10 @@ function CheckOnlineVersion(const Stream: TStringStream; var VersionStr: string;
 function CompileTime(): TDateTime;
 procedure SendToDeveloper(const Text: string; const Days: Integer = 2; const DisableSource: Boolean = False);
 
+type
+  EImportEx = class(Exception)
+  end;
+
 var
   OnlineVersion: Integer;
   OnlineRecommendedVersion: Integer;
@@ -49,12 +53,12 @@ var
 implementation {***************************************************************}
 
 uses
-  XMLIntf, XMLDoc, ActiveX, SysUtils, SyncObjs, DateUtils,
+  XMLIntf, XMLDoc, ActiveX, SyncObjs, DateUtils,
   Forms,
   {$IFDEF EurekaLog}
   ExceptionLog7, EExceptionManager, ECallStack, EStackTracing, EClasses,
   ETypes, EException, ESysInfo, EInfoFormat, EThreadsManager, EConsts,
-  EWCTSupport, EEvents, ELogBuilder,
+  EEvents, ELogBuilder, EFreeze,
   {$ENDIF}
   MySQLDB,
   uPreferences, uSession,
@@ -448,6 +452,7 @@ end;
 type
   TStackFormatter = class(ECallStack.TEurekaStackFormatter)
   private
+    FExceptionClass: string;
     FHasEncryptedData: Boolean;
     FLineLen: Integer;
     FMaxLine: Integer;
@@ -463,7 +468,7 @@ type
     function GetItemText(const AIndex: Integer): String; override;
     function GetStrings(): TStrings; override;
   public
-    constructor Create(); override;
+    constructor Create(const AExceptionClass: string); reintroduce;
   end;
 
 function TStackFormatter.AcceptableCallStackItem(const AInd: Integer): Boolean;
@@ -500,6 +505,9 @@ begin
     and (Item^.Location.UnitName <> 'EDialogWinAPI')
     and (Item^.Location.UnitName <> 'EExceptionManager')
     and (Item^.Location.UnitName <> 'EThreadsManager');
+
+  if (FExceptionClass = 'EImportEx') then
+    Result := True;
 end;
 
 procedure TStackFormatter.CalculateLengths();
@@ -553,9 +561,11 @@ begin
   end;
 end;
 
-constructor TStackFormatter.Create();
+constructor TStackFormatter.Create(const AExceptionClass: string);
 begin
-  inherited;
+  inherited Create();
+
+  FExceptionClass := AExceptionClass;
 
   DebugDetails := [ddSourceCode];
 end;
@@ -813,18 +823,17 @@ begin
   Result := ExceptionInfo.ExceptionClass + ':' + #13#10;
   Result := Result + ExceptionMessage + #13#10#13#10;
 
-  if (ExceptionInfo.ExceptionClass = 'EOutOfMemory') then
+  if (ExceptionInfo.ExceptionClass = 'EFrozenApplication') then
+    Result := Result + 'FreezeTimeout: ' + IntToStr(CurrentEurekaLogOptions.FreezeTimeout) + ' Seconds' + #13#10#13#10
+  else if (ExceptionInfo.ExceptionClass = 'EOutOfMemory') then
   begin
     Result := Result + 'Free Memory: ' + IntToStr(GetFreeMemory()) + #13#10;
     Result := Result + 'Total Memory: ' + IntToStr(GetMemPhysicalInstalled()) + #13#10#13#10;
   end;
 
-  if (ExceptionInfo.ExceptionClass = 'EFrozenApplication') then
-    Result := Result + 'FreezeTimeout: ' + IntToStr(CurrentEurekaLogOptions.FreezeTimeout) + ' Seconds' + #13#10#13#10;
-
   if (Assigned(ExceptionInfo.CallStack)) then
   begin
-    ExceptionInfo.CallStack.Formatter := TStackFormatter.Create();
+    ExceptionInfo.CallStack.Formatter := TStackFormatter.Create(ExceptionInfo.ExceptionClass);
     Result := Result + ExceptionInfo.CallStack.ToString + #13#10;
   end;
 
@@ -891,7 +900,14 @@ begin
   else
     PostMessage(Application.MainFormHandle, UM_CRASH_RESCUE, 0, 0);
 
-  ShowDialog := (Preferences.Version >= OnlineVersion);
+  if (ExceptionInfo.ExceptionClass = 'EFrozenApplication') then
+  begin
+    ShowDialog := False;
+
+    SendToDeveloper(BuildBugReport(ExceptionInfo), 0, True);
+  end
+  else
+    ShowDialog := (Preferences.Version >= OnlineVersion);
 
   if (not ShowDialog) then
   begin
@@ -917,8 +933,14 @@ end;
 initialization
   {$IFDEF EurekaLog}
   LogBuilderClass := TLogBuilder;
+
   RegisterEventExceptionNotify(nil, ExceptionNotify);
   RegisterEventCustomButtonClick(nil, CustomButtonClick);
+
+  FreezeThreadClass := TMainThreadFreezeDetectionThread;
+  CurrentEurekaLogOptions.FreezeTimeout := 15; {seconds}
+  if (Now() < IncDay(CompileTime(), 2 + 1)) then
+    InitCheckFreeze();
   {$ENDIF}
 
   SendThreads := TList.Create();
@@ -933,6 +955,8 @@ finalization
   SendThreads.Free();
 
   {$IFDEF EurekaLog}
+  DoneCheckFreeze();
+
   UnRegisterEventCustomButtonClick(nil, CustomButtonClick);
   UnRegisterEventExceptionNotify(nil, ExceptionNotify);
   {$ENDIF}

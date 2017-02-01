@@ -179,18 +179,17 @@ end;
 
 function TDSearch.Execute(): Boolean;
 begin
-  ShowModal();
-  Result := ModalResult = mrOk;
+  Result := ShowModal() = mrOk;
 end;
 
 procedure TDSearch.FBBackClick(Sender: TObject);
 var
   PageIndex: Integer;
 begin
-  for PageIndex := PageControl.ActivePage.PageIndex - 1 downto 0 do
+  for PageIndex := PageControl.ActivePageIndex - 1 downto 0 do
     if (PageControl.Pages[PageIndex].Enabled) then
     begin
-      PageControl.ActivePage.PageIndex := PageIndex;
+      PageControl.ActivePageIndex := PageIndex;
       exit;
     end;
 end;
@@ -199,10 +198,10 @@ procedure TDSearch.FBForwardClick(Sender: TObject);
 var
   PageIndex: Integer;
 begin
-  for PageIndex := PageControl.ActivePage.PageIndex + 1 to PageControl.PageCount - 1 do
+  for PageIndex := PageControl.ActivePageIndex + 1 to PageControl.PageCount - 1 do
     if (PageControl.Pages[PageIndex].Enabled) then
     begin
-      PageControl.ActivePage.PageIndex := PageIndex;
+      PageControl.ActivePageIndex := PageIndex;
       exit;
     end;
 end;
@@ -489,7 +488,10 @@ begin
   if ((ModalResult = mrNone) and Assigned(Node)) then
     FSelect.MultiSelect := Assigned(Node.Parent);
 
-  FBForward.Enabled := Assigned(FSelect.Selected);
+  TSFOptions.Enabled := SearchOnly and Assigned(Node);
+  TSROptions.Enabled := not SearchOnly and Assigned(Node);
+
+  CheckActivePageChange(TSSelect);
 end;
 
 procedure TDSearch.FSelectExpanding(Sender: TObject; Node: TTreeNode;

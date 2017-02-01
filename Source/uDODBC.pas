@@ -93,8 +93,7 @@ end;
 
 function TDODBC.Execute(): Boolean;
 begin
-  ShowModal();
-  Result := ModalResult = mrOk;
+  Result := ShowModal() = mrOk;
 end;
 
 procedure TDODBC.FBManageClick(Sender: TObject);

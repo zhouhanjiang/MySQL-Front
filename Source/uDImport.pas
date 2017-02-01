@@ -207,7 +207,6 @@ const
 
 var
   FDImport: TDImport;
-  SObjectDebug: TSObject; // Debug 2017-01-08
 
 function DImport(): TDImport;
 begin
@@ -307,22 +306,13 @@ var
   I: Integer;
 begin
   for I := 0 to Length(FSourceFields) - 1 do
-  begin
     FSourceFields[I].Free();
-    FSourceFields[I] := nil;
-  end;
   SetLength(FSourceFields, 0);
   for I := 0 to Length(FLReferrers) - 1 do
-  begin
     FLReferrers[I].Free();
-    FLReferrers[I] := nil;
-  end;
   SetLength(FLReferrers, 0);
   for I := 0 to Length(FDestinationFields) - 1 do
-  begin
     FDestinationFields[I].Free();
-    FDestinationFields[I] := nil;
-  end;
   SetLength(FDestinationFields, 0);
 end;
 
@@ -344,17 +334,13 @@ begin
     itAccessFile: Import := TTImportAccess.Create(Session, Database, Filename);
     itExcelFile: Import := TTImportExcel.Create(Session, Database, Filename);
     itODBC: Import := TTImportODBC.Create(Session, Database, DODBC.DataSource, DODBC.Username, DODBC.Password);
-    else Import := nil;
+    else raise ERangeError.Create('ImportType: ' + IntToStr(Ord(ImportType)));
   end;
 end;
 
 function TDImport.Execute(): Boolean;
 begin
   Progress := 'a';
-
-  SObjectDebug := SObject;
-
-  Imported := False;
 
   ModalResult := mrNone;
 
@@ -373,12 +359,6 @@ begin
     Result := ShowModal() = mrOk;
     Progress := Progress + 'c'
   end;
-
-  if (fsModal in FormState) then
-    SendToDeveloper('Form is fsModal' + #13#10
-      + 'Visible: ' + BoolToStr(Visible, True) + #13#10
-      + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
-      + 'Progress: ' + Progress);
 
   Progress := Progress + 'd';
 end;
@@ -537,7 +517,7 @@ var
   I: Integer;
 begin
   for I := 0 to Length(FDestinationFields) - 1 do
-    if ((Sender is TComboBox_Ext) and (FDestinationFields[I] <> Sender) and (FDestinationFields[I].ItemIndex = TComboBox_Ext(Sender).ItemIndex)) then
+    if ((Sender is TComboBox) and (FDestinationFields[I] <> Sender) and (FDestinationFields[I].ItemIndex = TComboBox(Sender).ItemIndex)) then
       FDestinationFields[I].ItemIndex := 0;
 end;
 
@@ -551,21 +531,20 @@ begin
   if (not Visible) then
   begin
     Progress := Progress + 'e';
-    SendToDeveloper('Visible: ' + BoolToStr(Visible, True) + #13#10
-      + 'fsModal: ' + BoolToStr(fsModal in FormState, True) + #13#10
+    raise EImportEx.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
       + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
       + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
       + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
       + 'Import.Terminated: ' + BoolToStr(Assigned(Import) and Import.Terminated, True) + #13#10
-      + 'Progress: ' + Progress);
+      + 'Progress: ' + Progress + #13#10
+      + 'Sessions.Count: ' + IntToStr(Sessions.Count));
   end
   else
   begin
     Progress := Progress + 'f';
 
     if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-      raise ERangeError.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
-      + 'fsModal: ' + BoolToStr(fsModal in FormState, True) + #13#10
+      raise EImportEx.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
       + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
       + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
       + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
@@ -641,8 +620,7 @@ begin
   if (Assigned(FNavigator) and not Assigned(FNavigator^)
     or Visible
     or Assigned(Import)) then
-    SendToDeveloper('Visible' + BoolToStr(Visible, True) + #13#10
-      + 'fsModal: ' + BoolToStr(fsModal in FormState, True) + #13#10
+    raise EImportEx.Create('Visible' + BoolToStr(Visible, True) + #13#10
       + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
       + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
       + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
@@ -749,7 +727,7 @@ begin
     itAccessFile: HelpContext := 1013;
     itExcelFile: HelpContext := 1106;
     itODBC: HelpContext := 1012;
-    else HelpContext := -1;
+    else raise ERangeError.Create('ImportType: ' + IntToStr(Ord(ImportType)));
   end;
   FBHelp.Visible := HelpContext >= 0;
 
@@ -1079,7 +1057,6 @@ begin
     Import.OnError := OnError;
     Import.OnTerminate := OnTerminate;
     Import.OnUpdate := OnUpdate;
-    Imported := True;
     Import.Start();
   end;
 

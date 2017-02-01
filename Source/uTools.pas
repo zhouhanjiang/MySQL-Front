@@ -749,10 +749,6 @@ var
   ODBCEnv: SQLHENV;
   ODBCDrivers: set of (odAccess, odAccess2003, odExcel, odExcel2003);
 
-var
-  Imported: Boolean;
-  ImportCodePage: Cardinal; // Debug 2016-12-13
-
 implementation {***************************************************************}
 
 uses
@@ -2633,9 +2629,6 @@ begin
 
   if (not Assigned(Text)) then
     AfterExecute();
-
-  // Debug 2016-12-13
-  ImportCodePage := CodePage;
 
   {$IFDEF EurekaLog}
   except

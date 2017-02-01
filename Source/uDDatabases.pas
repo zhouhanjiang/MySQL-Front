@@ -102,8 +102,7 @@ end;
 
 function TDDatabases.Execute(): Boolean;
 begin
-  ShowModal();
-  Result := ModalResult = mrOk;
+  Result := ShowModal() = mrOk;
 end;
 
 procedure TDDatabases.FBOkCheckEnabled(Sender: TObject);

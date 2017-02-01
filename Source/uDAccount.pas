@@ -160,8 +160,7 @@ end;
 
 function TDAccount.Execute(): Boolean;
 begin
-  ShowModal();
-  Result := ModalResult = mrOk;
+  Result := ShowModal() = mrOk;
 end;
 
 procedure TDAccount.FBDatabaseClick(Sender: TObject);

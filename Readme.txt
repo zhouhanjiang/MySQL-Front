@@ -1,7 +1,7 @@
 ﻿Development Enviroment:
 =======================
 
-Embarcadero Delphi XE2:
+Embarcadero Delphi XE4:
 http://www.embarcadero.com/products/delphi/
 
 
@@ -23,7 +23,7 @@ http://www.jam-software.de/shellbrowser_delphi/
 Synopse PDF:
 http://synopse.info/fossil/wiki?name=PDF+Engine
 
-Unicode SynEdit:
+SynEdit:
 https://github.com/SynEdit/SynEdit/
 
 

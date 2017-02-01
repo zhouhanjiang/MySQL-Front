@@ -244,8 +244,7 @@ end;
 
 function TDView.Execute(): Boolean;
 begin
-  ShowModal();
-  Result := ModalResult = mrOk;
+  Result := ShowModal() = mrOk;
 end;
 
 procedure TDView.FAlgorithmSelect(Sender: TObject);

@@ -1061,7 +1061,6 @@ type
     function EventByName(const EventName: string): TSEvent; virtual;
     function FlushTables(const Tables: TList): Boolean; virtual;
     function FunctionByName(const FunctionName: string): TSFunction; virtual;
-    procedure Invalidate(); override;
     function OptimizeTables(const Tables: TList): Boolean; virtual;
     procedure PushBuildEvents(); virtual;
     function ProcedureByName(const ProcedureName: string): TSProcedure;
@@ -1511,7 +1510,7 @@ type
   type
     TEvent = class(TObject)
     type
-      TEventType = (etItemsValid, etItemValid, etItemCreated, etItemDropped, etItemRenamed, etDatabaseChanged, etBeforeExecuteSQL, etAfterExecuteSQL, etMonitor, etError);
+      TEventType = (etItemsValid, etItemValid, etItemCreated, etItemRenamed, etItemDropped, etDatabaseChanged, etBeforeExecuteSQL, etAfterExecuteSQL, etMonitor, etError);
     public
       Session: TSSession;
       EventType: TEventType;
@@ -6747,7 +6746,10 @@ end;
 
 function TSTrigger.SQLGetSource(): string;
 begin
-  Result := 'SHOW CREATE TRIGGER ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10
+  if (Session.Connection.MySQLVersion < 50121) then
+    Result := ''
+  else
+    Result := 'SHOW CREATE TRIGGER ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10
 end;
 
 function TSTrigger.SQLInsert(): string;
@@ -7817,16 +7819,6 @@ begin
     for I := 0 to Events.Count - 1 do
       Result := Result and Events[I].ValidSource;
   end;
-end;
-
-procedure TSDatabase.Invalidate();
-begin
-  inherited;
-
-  Tables.Invalidate();
-  if (Assigned(Routines)) then Routines.Invalidate();
-  if (Assigned(Triggers)) then Triggers.Invalidate();
-  if (Assigned(Events)) then Events.Invalidate();
 end;
 
 function TSDatabase.OptimizeTables(const Tables: TList): Boolean;
@@ -13219,6 +13211,11 @@ begin
     end;
 
   DataSet.Free();
+
+  if (not Result and (ErrorCode > 0)) then
+    SendToDeveloper('ErrorCode: ' + IntToStr(ErrorCode) + #13#10
+      + 'ErrorMessage: ' + ErrorMessage + #13#10
+      + CommandText);
 end;
 
 procedure TSSession.SetCreateDesktop(ACreateDesktop: TCreateDesktop);

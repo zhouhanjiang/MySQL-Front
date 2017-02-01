@@ -50,8 +50,7 @@ end;
 
 function TDQuickFilter.Execute(): Boolean;
 begin
-  ShowModal();
-  Result := ModalResult = mrOk;
+  Result := ShowModal() = mrOk;
 end;
 
 procedure TDQuickFilter.FormShow(Sender: TObject);

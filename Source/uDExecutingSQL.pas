@@ -62,8 +62,7 @@ end;
 
 function TDExecutingSQL.Execute(): Boolean;
 begin
-  ShowModal();
-  Result := ModalResult = mrOk;
+  Result := ShowModal() = mrOk;
 end;
 
 procedure TDExecutingSQL.FormHide(Sender: TObject);

@@ -6415,6 +6415,11 @@ begin
       + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)) + #13#10
       + 'State: ' + IntToStr(Ord(State)));
 
+  // 2017-01-31 was in the log:
+  // DELETE FROM `bcbsgame_gamedata`.`users` WHERE `id` IS NULL;
+  // DELETE FROM `bcbsgame_gamedata`.`users` WHERE `id` IS NULL;
+
+
   inherited;
 end;
 
@@ -6790,7 +6795,7 @@ begin
       end;
 
       if ((InternalPostResult.NewIndex >= 0)
-        and (PExternRecordBuffer(ActiveBuffer())^.Index < 0) or (PExternRecordBuffer(ActiveBuffer())^.Index <> InternalPostResult.NewIndex)) then
+        and ((PExternRecordBuffer(ActiveBuffer())^.Index < 0) or (PExternRecordBuffer(ActiveBuffer())^.Index <> InternalPostResult.NewIndex))) then
       begin
         // Position in InternRecordBuffers changed -> move it
         InternRecordBuffers.Move(PExternRecordBuffer(ActiveBuffer())^.Index, InternalPostResult.NewIndex);

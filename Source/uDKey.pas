@@ -216,8 +216,7 @@ end;
 
 function TDKey.Execute(): Boolean;
 begin
-  ShowModal();
-  Result := ModalResult = mrOk;
+  Result := ShowModal() = mrOk;
 end;
 
 procedure TDKey.FAvailableFieldsChange(Sender: TObject; Item: TListItem;

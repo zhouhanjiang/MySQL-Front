@@ -15911,7 +15911,7 @@ begin
     if (IsTag(kiCOLUMN)) then
       Nodes.ColumnTag := ParseTag(kiCOLUMN);
 
-  if (not ErrorFound and (AddType in [fatChange, fatModify])) then
+  if (not ErrorFound and (AddType in [fatChange])) then
     Nodes.OldIdent := ParseFieldIdent();
 
   if (not ErrorFound) then
@@ -18653,7 +18653,7 @@ function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
         and (QualifiedIdentifier
           or (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0)
           or (ADbIdentType = ditCharset) and (StrLIComp(TokenPtr(CurrentToken)^.FText, 'binary', 6) = 0)
-          or (ADbIdentType in [ditVariable,ditConstante]))
+          or (ADbIdentType in [ditUnknown, ditVariable, ditConstante]))
       or (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent) and not (ADbIdentType in [ditCharset, ditCollation])
       or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and (AnsiQuotes or (ADbIdentType in [ditUser, ditHost, ditConstraint, ditColumnAlias, ditCharset, ditCollation]))
       or (TokenPtr(CurrentToken)^.TokenType = ttString) and (ADbIdentType in [ditUser, ditHost, ditConstraint, ditColumnAlias, ditCharset, ditCollation])

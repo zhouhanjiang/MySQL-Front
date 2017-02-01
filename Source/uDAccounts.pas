@@ -161,8 +161,7 @@ end;
 
 function TDAccounts.Execute(): Boolean;
 begin
-  ShowModal();
-  Result := ModalResult = mrOk;
+  Result := ShowModal() = mrOk;
 
   // Debug 2016-12-23
   // This is a helper for a problem in TWWindow.UMUpdateToolbar
@@ -219,6 +218,7 @@ begin
     Accounts.Default := Accounts.AccountByName(FAccounts.Selected.Caption);
 
   Preferences.Accounts.Height := Height;
+  Preferences.Accounts.Width := Width;
   if (FAccounts.Columns[FAccounts.Tag] = TListColumn(miHName.Tag)) then
     Preferences.Accounts.Sort.Column := acName
   else if (FAccounts.Columns[FAccounts.Tag] = TListColumn(miHHost.Tag)) then

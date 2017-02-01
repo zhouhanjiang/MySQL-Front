@@ -5,12 +5,12 @@ object DAccounts: TDAccounts
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'DAccounts'
-  ClientHeight = 273
-  ClientWidth = 337
+  ClientHeight = 420
+  ClientWidth = 518
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
-  Font.Height = -12
+  Font.Height = -16
   Font.Name = 'MS Sans Serif'
   Font.Style = []
   OldCreateOrder = False
@@ -21,53 +21,73 @@ object DAccounts: TDAccounts
   OnHide = FormHide
   OnShow = FormShow
   DesignSize = (
-    337
-    273)
-  PixelsPerInch = 106
-  TextHeight = 13
+    518
+    420)
+  PixelsPerInch = 144
+  TextHeight = 20
   object GAccounts: TGroupBox_Ext
-    Left = 8
-    Top = 8
-    Width = 322
-    Height = 216
+    Left = 12
+    Top = 12
+    Width = 496
+    Height = 333
+    Margins.Left = 5
+    Margins.Top = 5
+    Margins.Right = 5
+    Margins.Bottom = 5
     Anchors = [akLeft, akTop, akRight, akBottom]
     Caption = 'GAccounts'
     TabOrder = 0
     DesignSize = (
-      322
-      216)
+      496
+      333)
     object FBNew: TButton
-      Left = 8
-      Top = 178
-      Width = 93
-      Height = 25
+      Left = 12
+      Top = 274
+      Width = 143
+      Height = 38
+      Margins.Left = 5
+      Margins.Top = 5
+      Margins.Right = 5
+      Margins.Bottom = 5
       Action = aNew
       Anchors = [akLeft, akBottom]
       TabOrder = 1
     end
     object FBDelete: TButton
-      Left = 110
-      Top = 178
-      Width = 93
-      Height = 25
+      Left = 169
+      Top = 274
+      Width = 143
+      Height = 38
+      Margins.Left = 5
+      Margins.Top = 5
+      Margins.Right = 5
+      Margins.Bottom = 5
       Action = aDelete
       Anchors = [akLeft, akBottom]
       TabOrder = 2
     end
     object FBEdit: TButton
-      Left = 213
-      Top = 178
-      Width = 93
-      Height = 25
+      Left = 328
+      Top = 274
+      Width = 143
+      Height = 38
+      Margins.Left = 5
+      Margins.Top = 5
+      Margins.Right = 5
+      Margins.Bottom = 5
       Action = aEdit
       Anchors = [akLeft, akBottom]
       TabOrder = 3
     end
     object PAccounts: TPanel_Ext
-      Left = 8
-      Top = 16
-      Width = 306
-      Height = 149
+      Left = 12
+      Top = 25
+      Width = 471
+      Height = 229
+      Margins.Left = 5
+      Margins.Top = 5
+      Margins.Right = 5
+      Margins.Bottom = 5
       Anchors = [akLeft, akTop, akRight, akBottom]
       BevelInner = bvRaised
       BevelOuter = bvLowered
@@ -77,18 +97,22 @@ object DAccounts: TDAccounts
       object FAccounts: TListView_Ext
         Left = 2
         Top = 2
-        Width = 302
-        Height = 145
+        Width = 467
+        Height = 225
+        Margins.Left = 5
+        Margins.Top = 5
+        Margins.Right = 5
+        Margins.Bottom = 5
         Align = alClient
         BorderStyle = bsNone
         Columns = <
           item
             Caption = 'Account'
-            Width = 150
+            Width = 231
           end
           item
             Caption = 'LastLogin'
-            Width = 150
+            Width = 231
           end>
         HideSelection = False
         ReadOnly = True
@@ -105,10 +129,14 @@ object DAccounts: TDAccounts
     end
   end
   object FBOk: TButton
-    Left = 166
-    Top = 240
-    Width = 75
-    Height = 25
+    Left = 255
+    Top = 369
+    Width = 116
+    Height = 39
+    Margins.Left = 5
+    Margins.Top = 5
+    Margins.Right = 5
+    Margins.Bottom = 5
     Anchors = [akRight, akBottom]
     Caption = 'FBOk'
     Default = True
@@ -116,10 +144,14 @@ object DAccounts: TDAccounts
     TabOrder = 1
   end
   object FBCancel: TButton
-    Left = 254
-    Top = 240
-    Width = 75
-    Height = 25
+    Left = 391
+    Top = 369
+    Width = 115
+    Height = 39
+    Margins.Left = 5
+    Margins.Top = 5
+    Margins.Right = 5
+    Margins.Bottom = 5
     Anchors = [akRight, akBottom]
     Cancel = True
     Caption = 'FBCancel'

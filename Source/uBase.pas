@@ -12,7 +12,6 @@ const
   iiBaseField = 27;
   iiBaseTable = 25;
   iiCalendar = 81;
-  iiClock = 84;
   iiDatabase = 24;
   iiEvent = 85;
   iiExport = 104;

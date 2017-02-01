@@ -66,8 +66,7 @@ end;
 
 function TDInfo.Execute(): Boolean;
 begin
-  ShowModal();
-  Result := ModalResult = mrOk;
+  Result := ShowModal() = mrOk;
 end;
 
 procedure TDInfo.FormCreate(Sender: TObject);

@@ -416,6 +416,7 @@ type
     procedure UMDeactivateTab(var Message: TMessage); message UM_DEACTIVATETAB;
     procedure UMMySQLClientSynchronize(var Message: TMessage); message UM_MYSQLCLIENT_SYNCHRONIZE;
     procedure UMOnlineUpdateFound(var Message: TMessage); message UM_ONLINE_UPDATE_FOUND;
+    procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
     procedure UMUpdateToolbar(var Message: TMessage); message UM_UPDATETOOLBAR;
     procedure WMDrawItem(var Message: TWMDrawItem); message WM_DRAWITEM;
     procedure WMHelp(var Message: TWMHelp); message WM_HELP;
@@ -908,16 +909,15 @@ begin
 end;
 
 procedure TWWindow.EmptyWorkingMem();
-//var
-//  Process: THandle;
+var
+  Process: THandle;
 begin
-  // Disabled 2017-01-22
-//  Process := OpenProcess(PROCESS_ALL_ACCESS, FALSE, GetCurrentProcessId());
-//  if (Process <> 0) then
-//  begin
-//    SetProcessWorkingSetSize(Process, Size_T(-1), Size_T(-1));
-//    CloseHandle(Process);
-//  end;
+  Process := OpenProcess(PROCESS_ALL_ACCESS, FALSE, GetCurrentProcessId());
+  if (Process <> 0) then
+  begin
+    SetProcessWorkingSetSize(Process, Size_T(-1), Size_T(-1));
+    CloseHandle(Process);
+  end;
 end;
 
 procedure TWWindow.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
@@ -1119,10 +1119,7 @@ end;
 
 procedure TWWindow.OnlineVersionChecked(Sender: TObject);
 begin
-  CheckOnlineVersionThread.WaitFor();
-  CheckOnlineVersionThread.Free();
-  CheckOnlineVersionThread := nil;
-
+  PostMessage(Handle, UM_TERMINATE, 0, 0);
   if ((OnlineRecommendedVersion > Preferences.Version)
     or (Preferences.ObsoleteVersion > 0) and (OnlineVersion > Preferences.ObsoleteVersion)) then
     PostMessage(Handle, UM_ONLINE_UPDATE_FOUND, 0, 0);
@@ -1762,6 +1759,13 @@ begin
     InformOnlineUpdateFound();
 end;
 
+procedure TWWindow.UMTerminate(var Message: TMessage);
+begin
+  CheckOnlineVersionThread.WaitFor();
+  CheckOnlineVersionThread.Free();
+  CheckOnlineVersionThread := nil;
+end;
+
 procedure TWWindow.UMUpdateToolbar(var Message: TMessage);
 var
   Found: Boolean;
@@ -1835,6 +1839,9 @@ begin
       ToolBar.Buttons[I].Visible := Found;
       Found := False;
     end;
+
+  // Recreate Toolbar, to apply correct ButtonWidth on higher DPI
+  Toolbar.Images := Toolbar.Images;
 
   while (miFReopen.Count > 1) do
     miFReopen.Delete(0);

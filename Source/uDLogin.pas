@@ -59,8 +59,7 @@ end;
 
 function TDLogin.Execute(): Boolean;
 begin
-  ShowModal();
-  Result := ModalResult = mrOk;
+  Result := ShowModal() = mrOk;
 end;
 
 procedure TDLogin.FBSettingsClick(Sender: TObject);

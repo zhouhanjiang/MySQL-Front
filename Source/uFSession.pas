@@ -33,7 +33,7 @@ const
   sbSummarize = 2;
 
 type
-  TFSession = class (TFrame)
+  TFSession = class (TFrame, IDropSource, IDropTarget)
     ActionList: TActionList;
     aDCreate: TAction;
     aDDelete: TAction;
@@ -644,7 +644,6 @@ type
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
     TTabState = set of (fsLoading, fsActive);
     TView = (vObjects, vBrowser, vIDE, vBuilder, vDiagram, vEditor, vEditor2, vEditor3, vObjectSearch);
-    TSynMemoBeforeDrag = record SelStart: Integer; SelLength: Integer; end;
     TToolBarData = record
       Caption: string;
       tbPropertiesAction: TBasicAction;
@@ -851,31 +850,6 @@ type
       property DBGrid: TMySQLDBGrid read FDBGrid;
     end;
 
-    TDBGridDropSource = class(TInterfacedObject, IDropSource)
-    private
-      FDBGrid: TMySQLDBGrid;
-    protected
-      function QueryContinueDrag(fEscapePressed: BOOL;
-        grfKeyState: Longint): HResult; stdcall;
-      function GiveFeedback(dwEffect: Longint): HResult; stdcall;
-    public
-      constructor Create(const ADBGrid: TMySQLDBGrid);
-      property DBGrid: TMySQLDBGrid read FDBGrid;
-    end;
-
-    TDBGridDropTarget = class(TInterfacedObject, IDropTarget)
-    private
-      FDBGrid: TMySQLDBGrid;
-    protected
-      function DragEnter(const dataObj: IDataObject; grfKeyState: Longint; pt: TPoint; var dwEffect: Longint): HResult; stdcall;
-      function DragLeave(): HResult; stdcall;
-      function DragOver(grfKeyState: Longint; pt: TPoint; var dwEffect: Longint): HResult; stdcall;
-      function Drop(const dataObj: IDataObject; grfKeyState: Longint; pt: TPoint; var dwEffect: Longint): HResult; stdcall;
-    public
-      constructor Create(const ADBGrid: TMySQLDBGrid);
-      property DBGrid: TMySQLDBGrid read FDBGrid;
-    end;
-
     TWanted = class
     private
       FAction: TAction;
@@ -959,7 +933,6 @@ type
     SQLEditor2: TSQLEditor;
     SQLEditor3: TSQLEditor;
     SQueryBuilderSynMemoMoved: Boolean;
-    SynMemoBeforeDrag: TSynMemoBeforeDrag;
     SynCompletionPending: record
       Active: Boolean;
       CurrentInput: string;
@@ -1001,6 +974,7 @@ type
     procedure SessionUpdate(const Event: TSSession.TEvent);
     function ClassIndexByAddress(const Address: string): TClassIndex;
     function ClassIndexByData(const Data: TCustomData): TClassIndex;
+    function ChangeCurrentAddress(const AAddress: string): Boolean;
     function ColumnWidthKindByListView(const ListView: TListView): TPAccount.TDesktop.TListViewKind;
     procedure CMSysFontChanged(var Msg: TMessage); message CM_SYSFONTCHANGED;
     function CreateDesktop(const CObject: TSObject): TSObject.TDesktop;
@@ -1094,7 +1068,7 @@ type
     procedure SaveDiagram(Sender: TObject);
     procedure SaveSQLFile(Sender: TObject);
     procedure SendQuery(Sender: TObject; const SQL: string);
-    procedure SetCurrentAddress(const AAddress: string);
+    procedure SetCurrentAddress(const AAddress: string); inline;
     procedure SetView(const AView: TView);
     procedure SetListViewGroupHeader(const ListView: TListView; const GroupID: Integer; const NewHeader: string);
     procedure SetPath(const APath: TFileName);
@@ -1137,6 +1111,14 @@ type
     property SQLEditors[View: TView]: TSQLEditor read GetSQLEditors;
   protected
     procedure CreateParams(var Params: TCreateParams); override;
+    function DragEnter(const dataObj: IDataObject; grfKeyState: Longint;
+      pt: TPoint; var dwEffect: Longint): HResult; stdcall;
+    function DragLeave(): HResult; stdcall;
+    function DragOver(grfKeyState: Longint; pt: TPoint; var dwEffect: Longint): HResult; reintroduce; stdcall;
+    function Drop(const dataObj: IDataObject; grfKeyState: Longint; pt: TPoint;
+      var dwEffect: Longint): HResult; stdcall;
+    function GiveFeedback(dwEffect: Longint): HResult; stdcall;
+    function QueryContinueDrag(fEscapePressed: BOOL; grfKeyState: Longint): HResult; stdcall;
   public
     Session: TSSession;
     StatusBar: TStatusBar;
@@ -2314,122 +2296,6 @@ begin
   Result := E_FAIL;
 end;
 
-{ TFSession.TDBGridDropSource *************************************************}
-
-constructor TFSession.TDBGridDropSource.Create(const ADBGrid: TMySQLDBGrid);
-begin
-  inherited Create();
-
-  FDBGrid := ADBGrid;
-end;
-
-function TFSession.TDBGridDropSource.GiveFeedback(dwEffect: Longint): HResult;
-begin
-  if (dwEffect = DROPEFFECT_COPY) then
-    DBGrid.Cursor := crDrag
-  else
-    DBGrid.Cursor := crNoDrop;
-  Result := S_OK;
-end;
-
-function TFSession.TDBGridDropSource.QueryContinueDrag(fEscapePressed: BOOL;
-  grfKeyState: Longint): HResult;
-begin
-  if (fEscapePressed) then
-    Result := DRAGDROP_S_CANCEL
-  else if (grfKeyState and MK_LBUTTON = 0) then
-    Result := DRAGDROP_S_DROP
-  else
-    Result := S_OK;
-end;
-
-{ TFSession.TDBGridDropTarget *************************************************}
-
-constructor TFSession.TDBGridDropTarget.Create(const ADBGrid: TMySQLDBGrid);
-begin
-  inherited Create();
-
-  FDBGrid := ADBGrid;
-end;
-
-function TFSession.TDBGridDropTarget.DragEnter(const dataObj: IDataObject;
-  grfKeyState: Longint; pt: TPoint; var dwEffect: Longint): HResult;
-var
-  Format: FORMATETC;
-begin
-  Format.cfFormat := CF_UNICODETEXT;
-  Format.ptd := nil;
-  Format.dwAspect := DVASPECT_CONTENT;
-  Format.lindex := -1;
-  Format.tymed := TYMED_HGLOBAL;
-
-  if (dataObj.QueryGetData(Format) <> S_OK) then
-  begin
-    dwEffect := DROPEFFECT_NONE;
-    Result := S_OK;
-  end
-  else
-    Result := DragOver(grfKeyState, pt, dwEffect);
-end;
-
-function TFSession.TDBGridDropTarget.DragLeave(): HResult;
-begin
-  Result := S_OK;
-end;
-
-function TFSession.TDBGridDropTarget.DragOver(grfKeyState: Longint;
-  pt: TPoint; var dwEffect: Longint): HResult;
-var
-  ClientCoord: TPoint;
-  GridCoord: TGridCoord;
-begin
-  ClientCoord := DBGrid.ScreenToClient(Point(pt.X, pt.Y));
-  GridCoord := DBGrid.MouseCoord(ClientCoord.X, ClientCoord.Y);
-
-  if ((GridCoord.X >= 0)
-    and not DBGrid.ReadOnly
-    and not DBGrid.Columns[GridCoord.X].ReadOnly) then
-    dwEffect := DROPEFFECT_COPY
-  else
-    dwEffect := DROPEFFECT_NONE;
-
-  Result := S_OK;
-end;
-
-function TFSession.TDBGridDropTarget.Drop(const dataObj: IDataObject;
-  grfKeyState: Longint; pt: TPoint; var dwEffect: Longint): HResult;
-var
-  ClientCoord: TPoint;
-  Text: string;
-  Format: FORMATETC;
-  Medium: STGMEDIUM;
-begin
-  Assert(Assigned(dataObj));
-
-  Format.cfFormat := CF_UNICODETEXT;
-  Format.ptd := nil;
-  Format.dwAspect := DVASPECT_CONTENT;
-  Format.lindex := -1;
-  Format.tymed := TYMED_HGLOBAL;
-
-  OleCheck(dataObj.GetData(Format, Medium));
-
-  SetString(Text, PChar(GlobalLock(Medium.hGlobal)), GlobalSize(Medium.hGlobal) div SizeOf(Text[1]));
-
-  if (not Assigned(Medium.unkForRelease)) then
-    ReleaseStgMedium(Medium)
-  else
-    IUnknown(Medium.unkForRelease)._Release();
-
-  ClientCoord := DBGrid.ScreenToClient(Point(pt.X, pt.Y));
-  DBGrid.MouseDown(mbLeft, [], ClientCoord.X, ClientCoord.Y);
-  DBGrid.DataSource.DataSet.Edit();
-  DBGrid.SelectedField.AsString := Text;
-
-  dwEffect := DROPEFFECT_COPY;
-  Result := S_OK;
-end;
-
 { TFSession.TWanted ***********************************************************}
 
 procedure TFSession.TWanted.Clear();
@@ -2502,10 +2368,8 @@ begin
   begin
     TempAddress := Address;
     Clear();
-    FSession.CurrentAddress := TempAddress;
-
-    if ((FSession.CurrentAddress <> TempAddress) and not FSession.Session.Connection.InUse()) then
-      FSession.CurrentAddress := FSession.Session.Account.ExpandAddress('/');
+    if (not FSession.ChangeCurrentAddress(TempAddress) and not FSession.Session.Connection.InUse()) then
+      FSession.ChangeCurrentAddress(FSession.Session.Account.ExpandAddress('/'));
   end
   else if (Assigned(Update)) then
   begin
@@ -4354,7 +4218,7 @@ procedure TFSession.aHRunClick(Sender: TObject);
 var
   SQL: string;
 begin
-  if (Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery, iiClock])) then
+  if (Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery])) then
   begin
     Wanted.Clear();
 
@@ -4380,7 +4244,7 @@ var
 begin
   Wanted.Clear();
 
-  if (Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery, iiClock])) then
+  if (Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery])) then
   begin
     if (not (View in [vEditor, vEditor2, vEditor3])) then
       View := vEditor;
@@ -4917,6 +4781,138 @@ begin
     raise ERangeError.Create('ClassType: ' + TObject(Data).ClassName);
 end;
 
+function TFSession.ChangeCurrentAddress(const AAddress: string): Boolean;
+var
+  ChangeEvent: TTVChangedEvent;
+  ChangingEvent: TTVChangingEvent;
+  CodePage: Integer;
+  FileName: string;
+  NewView: TView;
+  NewAddress: string;
+  Node: TTreeNode;
+  Position: Integer;
+  Table: TSTable;
+  URI: TUURI;
+begin
+  Assert(AAddress <> '');
+
+  NewAddress := AAddress;
+  Result := True; Node := nil;
+  AddressChanging(nil, NewAddress, Result);
+  if (Result) then
+  begin
+    Node := FNavigatorNodeByAddress(NewAddress);
+    Result := Assigned(Node);
+    if (not Result) then
+      Wanted.Address := Session.Account.ExpandAddress('/');
+  end;
+  if (Result) then
+  begin
+    ChangingEvent := FNavigator.OnChanging; FNavigator.OnChanging := nil;
+    ChangeEvent := FNavigator.OnChange; FNavigator.OnChange := nil;
+    FNavigator.Selected := Node;
+    FNavigator.OnChanging := ChangingEvent;
+    FNavigator.OnChange := ChangeEvent;
+
+    URI := TUURI.Create(NewAddress);
+
+    if ((URI.Param['view'] = Null) and ((URI.Param['objecttype'] = 'procedure') or (URI.Param['objecttype'] = 'function') or (URI.Param['objecttype'] = 'trigger') or (URI.Param['objecttype'] = 'event'))) then
+      URI.Param['view'] := 'ide';
+
+    if ((ParamToView(URI.Param['view']) in [vBrowser]) and (URI.Table = '')) then
+      raise ERangeError.Create('AAddress: ' + AAddress + #13#10
+        + 'URI.Address: ' + URI.Address);
+
+    FCurrentAddress := URI.Address;
+    if ((Session.Account.Desktop.Addresses.Count = 0)
+      or (FCurrentAddress <> Session.Account.Desktop.Addresses[Session.Account.Desktop.Addresses.Count - 1])) then
+      Session.Account.Desktop.Addresses.Add(FCurrentAddress);
+
+    NewView := ParamToView(URI.Param['view']);
+    MainAction('aVObjects').Checked := NewView = vObjects;
+    MainAction('aVBrowser').Checked := NewView = vBrowser;
+    MainAction('aVIDE').Checked := NewView = vIDE;
+    MainAction('aVBuilder').Checked := NewView = vBuilder;
+    MainAction('aVDiagram').Checked := NewView = vDiagram;
+    MainAction('aVSQLEditor').Checked := NewView = vEditor;
+    MainAction('aVSQLEditor2').Checked := NewView = vEditor2;
+    MainAction('aVSQLEditor3').Checked := NewView = vEditor3;
+
+    case (NewView) of
+      vBrowser:
+        begin
+          Table := Session.DatabaseByName(URI.Database).TableByName(URI.Table);
+
+          // Debug 2017-01-30
+          if (not Assigned(Table)) then
+            raise ERangeError.Create('Table: ' + URI.Table + #13#10
+              + 'URI.Address: ' + URI.Address + #13#10
+              + 'AAddress: ' + AAddress);
+
+          FUDOffset.Position := 0;
+          FUDLimit.Position := Desktop(Table).Limit;
+          FLimitEnabled.Down := Desktop(Table).Limited;
+
+          if (URI.Param['offset'] <> Null) then
+          begin
+            if (TryStrToInt(URI.Param['offset'], Position)) then FUDOffset.Position := Position else FUDOffset.Position := 0;
+            FLimitEnabled.Down := URI.Param['offset'] <> '';
+          end;
+          if (URI.Param['filter'] = Null) then
+          begin
+            FFilter.Text := '';
+            FFilterEnabled.Down := False;
+            FFilterEnabled.Enabled := FFilterEnabled.Down;
+          end
+          else
+          begin
+            FFilter.Text := URI.Param['filter'];
+            FFilterEnabled.Down := URI.Param['filter'] <> '';
+            FFilterEnabled.Enabled := FFilterEnabled.Down;
+          end;
+          if (URI.Param['search'] = Null) then
+          begin
+            FQuickSearch.Text := '';
+            FQuickSearchEnabled.Down := False;
+            FQuickSearchEnabled.Enabled := FQuickSearchEnabled.Down;
+          end
+          else
+          begin
+            FQuickSearch.Text := URI.Param['search'];
+            FQuickSearchEnabled.Down := URI.Param['search'] <> '';
+            FQuickSearchEnabled.Enabled := FQuickSearchEnabled.Down;
+          end;
+        end;
+      vEditor,
+      vEditor2,
+      vEditor3:
+        if (URI.Param['file'] <> Null) then
+        begin
+          FileName := UnescapeURL(URI.Param['file']);
+          if (ExtractFilePath(FileName) = '') then
+            FileName := ExpandFilename(FileName);
+          if (Assigned(SQLEditors[NewView]) and (FileName <> SQLEditors[NewView].Filename) and FileExists(FileName)) then
+            if ((URI.Param['cp'] = Null) or not TryStrToInt(URI.Param['cp'], CodePage)) then
+              OpenSQLFile(FileName)
+            else
+              OpenSQLFile(FileName, CodePage);
+        end;
+    end;
+
+    if (Assigned(QuickAccessListView) and (URI.Param['view'] <> 'quick')) then
+    begin
+      Session.Account.Desktop.QuickAccessMFUVisible := not (lgsCollapsed in QuickAccessListView.Groups[0].State);
+      Session.Account.Desktop.QuickAccessMRUVisible := not (lgsCollapsed in QuickAccessListView.Groups[1].State);
+      FreeListView(QuickAccessListView);
+      QuickAccessListView := nil;
+    end;
+
+    URI.Free();
+
+    AddressChanged(nil);
+  end;
+end;
+
 function TFSession.ColumnWidthKindByListView(const ListView: TListView): TPAccount.TDesktop.TListViewKind;
 begin
   if (TObject(ListView.Tag) is TSSession) then
@@ -4969,6 +4965,7 @@ begin
   TimeMonitor.CacheSize := 2000;
 
   Parent := TWinControl(AParent);
+  OleCheck(RegisterDragDrop(Handle, Self));
 
   Width := Window.ClientWidth;
   Height := Window.ClientHeight;
@@ -5348,9 +5345,15 @@ begin
 
   PHeader.ClientHeight := ToolBar.Height + PHeader.Canvas.Pen.Width;
   if (not StyleServices.Enabled or not StyleServices.GetElementColor(StyleServices.GetElementDetails(ttTopTabItemSelected), ecGlowColor, Color)) then
-    PHeader.Color := clBtnFace
+  begin
+    PHeader.Color := clBtnFace;
+    PDataBrowser.Color := clBtnFace;
+  end
   else
+  begin
     PHeader.Color := Color;
+    PDataBrowser.Color := Color;
+  end;
 
   if (not StyleServices.Enabled or not StyleServices.GetElementColor(StyleServices.GetElementDetails(tebNormalGroupHead),
     ecGradientColor2, Color)) then
@@ -5384,6 +5387,12 @@ begin
 
   PDataBrowserSpacer.Top := FFilter.Height;
   PDataBrowser.ClientHeight := FFilter.Height + PDataBrowserSpacer.Height;
+  TBLimitEnabled.ButtonHeight := FUDLimit.Height;
+  TBLimitEnabled.Height := TBLimitEnabled.ButtonHeight;
+  TBFilterEnabled.ButtonHeight := FFilter.Height;
+  TBFilterEnabled.Height := TBFilterEnabled.ButtonHeight;
+  TBQuickSearchEnabled.ButtonHeight := FQuickSearch.Height;
+  TBQuickSearchEnabled.Height := TBQuickSearchEnabled.ButtonHeight;
 
   FSQLEditorSynMemo.Font.Name := Preferences.SQLFontName;
   FSQLEditorSynMemo.Font.Style := Preferences.SQLFontStyle;
@@ -5542,10 +5551,9 @@ begin
   Result.Width := PDBGrid.ClientWidth;
   Result.Height := PDBGrid.ClientHeight;
   Result.Align := alClient;
-  Result.Constraints.MinHeight := 30;
   Result.DataSource := FGridDataSource;
   Result.DefaultDrawing := False;
-//  Result.DragMode := dmAutomatic;
+  Result.DragMode := dmAutomatic;
   Result.HelpType := htContext;
   Result.HelpContext := 1036;
   Result.Options := [dgTitles, dgColumnResize, dgColLines, dgRowLines, dgTabs, dgAlwaysShowSelection, dgConfirmDelete, dgMultiSelect, dgTitleClick, dgTitleHotTrack];
@@ -5589,8 +5597,7 @@ begin
 
   Result.Parent := PDBGrid;
 
-  Result.Tag := NativeInt(TDBGridDropTarget.Create(Result));
-  OleCheck(RegisterDragDrop(Result.Handle, TDBGridDropTarget(Result.Tag)));
+  Result.Constraints.MinHeight := 3 * Result.Canvas.TextHeight('I');
 
   Result.Perform(CM_PARENTCOLORCHANGED, 0, 0);
   Result.Perform(CM_PARENTFONTCHANGED, 0, 0);
@@ -5616,6 +5623,7 @@ begin
   Result.Height := PListView.ClientHeight;
   Result.Align := alClient;
   Result.BorderStyle := FListView.BorderStyle;
+  Result.DoubleBuffered := FListView.DoubleBuffered;
   Result.DragMode := FListView.DragMode;
   Result.HelpType := htContext;
   Result.HelpContext := FListView.HelpContext;
@@ -6273,10 +6281,9 @@ end;
 procedure TFSession.DBGridDragOver(Sender, Source: TObject; X, Y: Integer;
   State: TDragState; var Accept: Boolean);
 var
-  DataObj: IDataObject;
   DBGrid: TMySQLDBGrid;
-  DropSource: IDropSource;
-  Effect: Longint;
+//  Effect: Longint;
+//  Field: TField;
   GridCoord: TGridCoord;
 begin
   Assert(Sender is TDBGrid);
@@ -6284,18 +6291,14 @@ begin
   DBGrid := TMySQLDBGrid(Sender);
 
   GridCoord := DBGrid.MouseCoord(X, Y);
+//  if ((State = dsDragEnter) and (GridCoord.X >= 0)) then
+//  begin
+//    Field := DBGrid.Columns[GridCoord.X].Field;
+//    if (Field.AsString <> '') then
+//      OleCheck(DoDragDrop(TDBGridDropData.Create(DBGrid, Field), Self, DROPEFFECT_COPY, Effect));
+//  end;
 
-  if ((State = dsDragEnter) and (GridCoord.X >= 0)) then
-  begin
-    DBGrid.MouseDown(mbLeft, [], X, Y);
-
-    DataObj := TDBGridDropData.Create(DBGrid, DBGrid.Columns[GridCoord.X].Field);
-    DropSource := TDBGridDropSource.Create(DBGrid);
-    OleCheck(DoDragDrop(DataObj, DropSource, DROPEFFECT_COPY, Effect));
-
-    DBGrid.Cursor := crDefault;
-  end;
-
+  DBGrid.EndDrag(False);
   Accept := False;
 end;
 
@@ -6772,15 +6775,128 @@ begin
   FreeAndNil(CloseButtonHot);
   FreeAndNil(CloseButtonPushed);
 
+  RevokeDragDrop(Handle);
+
   FreeAndNil(FilterMRU);
   FreeAndNil(Wanted);
 
   inherited;
 end;
 
+function TFSession.DragEnter(const dataObj: IDataObject;
+  grfKeyState: Longint; pt: TPoint; var dwEffect: Longint): HResult;
+var
+  Format: FORMATETC;
+begin
+  Format.cfFormat := CF_UNICODETEXT;
+  Format.ptd := nil;
+  Format.dwAspect := DVASPECT_CONTENT;
+  Format.lindex := -1;
+  Format.tymed := TYMED_HGLOBAL;
+
+  if (dataObj.QueryGetData(Format) <> S_OK) then
+  begin
+    dwEffect := DROPEFFECT_NONE;
+    Result := S_OK;
+  end
+  else
+    Result := DragOver(grfKeyState, pt, dwEffect);
+end;
+
 function TFSession.Dragging(const Sender: TObject): Boolean;
 begin
   Result := LeftMousePressed and (Window.ActiveControl = FNavigator) and ((Window.ActiveControl as TTreeView).Selected <> MouseDownNode);
+end;
+
+function TFSession.DragLeave(): HResult;
+begin
+  Result := S_OK;
+end;
+
+function TFSession.DragOver(grfKeyState: Longint; pt: TPoint;
+  var dwEffect: Longint): HResult;
+var
+  ClientCoord: TPoint;
+  Control: TWinControl;
+  DBGrid: TMySQLDBGrid;
+  GridCoord: TGridCoord;
+  SynMemo: TSynMemo;
+begin
+  Control := FindVCLWindow(pt);
+  ClientCoord := Control.ScreenToClient(Point(pt.X, pt.Y));
+
+  if (Control is TSynMemo) then
+  begin
+    SynMemo := TSynMemo(Control);
+    if (not SynMemo.Gutter.Visible) then
+      SynMemo.CaretX := (ClientCoord.X) div SynMemo.CharWidth + 1
+    else
+      SynMemo.CaretX := (ClientCoord.X - SynMemo.Gutter.RealGutterWidth(SynMemo.CharWidth)) div SynMemo.CharWidth + 1;
+    SynMemo.CaretY := (ClientCoord.Y div SynMemo.LineHeight) + 1;
+  end
+  else if (Control is TMySQLDBGrid) then
+  begin
+    DBGrid := TMySQLDBGrid(Control);
+
+    GridCoord := DBGrid.MouseCoord(ClientCoord.X, ClientCoord.Y);
+
+    if ((GridCoord.X >= 0)
+      and not DBGrid.ReadOnly
+      and not DBGrid.Columns[GridCoord.X].ReadOnly) then
+      dwEffect := DROPEFFECT_COPY
+    else
+      dwEffect := DROPEFFECT_NONE;
+  end
+  else
+    dwEffect := DROPEFFECT_NONE;
+
+  Result := S_OK;
+end;
+
+function TFSession.Drop(const dataObj: IDataObject;
+  grfKeyState: Longint; pt: TPoint; var dwEffect: Longint): HResult;
+var
+  ClientCoord: TPoint;
+  Control: TControl;
+  DBGrid: TMySQLDBGrid;
+  Text: string;
+  Format: FORMATETC;
+  Medium: STGMEDIUM;
+begin
+  Assert(Assigned(dataObj));
+
+  Format.cfFormat := CF_UNICODETEXT;
+  Format.ptd := nil;
+  Format.dwAspect := DVASPECT_CONTENT;
+  Format.lindex := -1;
+  Format.tymed := TYMED_HGLOBAL;
+
+  OleCheck(dataObj.GetData(Format, Medium));
+
+  SetString(Text, PChar(GlobalLock(Medium.hGlobal)), GlobalSize(Medium.hGlobal) div SizeOf(Text[1]));
+
+  if (not Assigned(Medium.unkForRelease)) then
+    ReleaseStgMedium(Medium)
+  else
+    IUnknown(Medium.unkForRelease)._Release();
+
+  Control := FindVCLWindow(pt);
+
+  if (Control is TMySQLDBGrid) then
+  begin
+    DBGrid := TMySQLDBGrid(Control);
+
+    ClientCoord := DBGrid.ScreenToClient(Point(pt.X, pt.Y));
+    DBGrid.MouseDown(mbLeft, [], ClientCoord.X, ClientCoord.Y);
+    DBGrid.DataSource.DataSet.Edit();
+    DBGrid.SelectedField.AsString := Text;
+
+    dwEffect := DROPEFFECT_COPY;
+  end
+  else
+    dwEffect := DROPEFFECT_NONE;
+
+  Result := S_OK;
 end;
 
 procedure TFSession.EndEditLabel(Sender: TObject);
@@ -7275,7 +7391,7 @@ begin
   if ((ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and not (Node.ImageIndex in [iiServer, iiDatabase, iiSystemDatabase])) then
     URI.Param['view'] := Null;
 
-  if ((URI.Param['view'] = Null) and (URI.Table <> '')) then
+  if ((URI.Param['view'] = Null) and (URI.Table <> '') and (URI.Param['objecttype'] <> 'trigger')) then
     URI.Param['view'] := ViewToParam(LastTableView);
 
   LockWindowUpdate(FNavigator.Handle);
@@ -9018,8 +9134,6 @@ begin
   if (DBGrid = ActiveDBGrid) then
     ActiveDBGrid := nil;
 
-  if (DBGrid.Tag <> 0) then
-    RevokeDragDrop(DBGrid.Handle);
   DBGrid.Free();
 end;
 
@@ -9821,6 +9935,11 @@ begin
 
     ActiveDBGrid.SelectedIndex := Item.Parent.IndexOf(Item);
   end;
+end;
+
+function TFSession.GiveFeedback(dwEffect: Longint): HResult;
+begin
+  Result := DRAGDROP_S_USEDEFAULTCURSORS;
 end;
 
 procedure TFSession.gmFilterClearClick(Sender: TObject);
@@ -11400,6 +11519,7 @@ var
     // 7.0 seconds for 329 items
     // 1.2 seconds for 7 items
     // 2.4 seconds for 39 items
+    // 1.4 seconds for 17 items
 
     ProfilingPoint(19);
 
@@ -11433,6 +11553,7 @@ var
 
     // 3.8 seconds for 1545 items
     // 2.0 seconds for 740 items
+    // 1.7 seconds for 738 items
     ProfilingPoint(8);
 
     if ((Count > 0) and (Index < 0)) then
@@ -11663,8 +11784,8 @@ var
               break;
             Inc(Index);
           end;
-          ItemSelected := ListView.Items[Index].Selected;
-          ItemFocused := ListView.Items[Index].Focused;
+          ItemSelected := (Index < Count) and ListView.Items[Index].Selected;
+          ItemFocused := (Index < Count) and ListView.Items[Index].Focused;
           if (Index < Count) then
             ListView.Items.Delete(Index);
           Item := InsertOrUpdateItem(Kind, GroupID, Event.Item);
@@ -11970,6 +12091,7 @@ begin
     // 0.4 seconds, EventType: 0, Count: 740
     // 2.7 seconds, EventType: 0, Count: 36
     // 5.4 seconds, EventType: 0, Count: 46
+    // 4.4 seconds, EventType: 0, Count: 0
 
     ProfilingPoint(32);
 
@@ -12471,7 +12593,7 @@ procedure TFSession.miHOpenClick(Sender: TObject);
 begin
   Wanted.Clear();
 
-  if (Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery, iiClock])
+  if (Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery])
     and Boolean(Perform(UM_CLOSE_TAB_QUERY, 0, 0))) then
   begin
     if (not (View in [vEditor, vEditor2, vEditor3])) then
@@ -12528,7 +12650,7 @@ var
 begin
   Wanted.Clear();
 
-  if (Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery, iiClock])) then
+  if (Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery])) then
   begin
     if (not (View in [vEditor, vEditor2, vEditor3])) then
       View := vEditor;
@@ -12638,15 +12760,15 @@ begin
   miNExpand.Default := miNExpand.Visible;
   miNCollapse.Default := miNCollapse.Visible;
 
-  miNImport.Visible := Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex <> iiQuickAccess) and (not Assigned(FNavigatorMenuNode.Parent) or (FNavigatorMenuNode.Parent.ImageIndex <> iiQuickAccess));
-  miNExport.Visible := Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex <> iiQuickAccess) and (not Assigned(FNavigatorMenuNode.Parent) or (FNavigatorMenuNode.Parent.ImageIndex <> iiQuickAccess));
-  miNCopy.Visible := Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex <> iiQuickAccess) and (not Assigned(FNavigatorMenuNode.Parent) or (FNavigatorMenuNode.Parent.ImageIndex <> iiQuickAccess));
-  miNPaste.Visible := Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex <> iiQuickAccess) and (not Assigned(FNavigatorMenuNode.Parent) or (FNavigatorMenuNode.Parent.ImageIndex <> iiQuickAccess));
-  miNCreate.Visible := Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex <> iiQuickAccess) and (not Assigned(FNavigatorMenuNode.Parent) or (FNavigatorMenuNode.Parent.ImageIndex <> iiQuickAccess));
-  miNDelete.Visible := Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex <> iiQuickAccess) and (not Assigned(FNavigatorMenuNode.Parent) or (FNavigatorMenuNode.Parent.ImageIndex <> iiQuickAccess));
-  miNEmpty.Visible := Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex <> iiQuickAccess) and (not Assigned(FNavigatorMenuNode.Parent) or (FNavigatorMenuNode.Parent.ImageIndex <> iiQuickAccess));
-  miNRename.Visible := Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex <> iiQuickAccess) and (not Assigned(FNavigatorMenuNode.Parent) or (FNavigatorMenuNode.Parent.ImageIndex <> iiQuickAccess));
-  miNProperties.Visible := Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex <> iiQuickAccess) and (not Assigned(FNavigatorMenuNode.Parent) or (FNavigatorMenuNode.Parent.ImageIndex <> iiQuickAccess));
+  miNImport.Visible := miNImport.Enabled and Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex <> iiQuickAccess) and (not Assigned(FNavigatorMenuNode.Parent) or (FNavigatorMenuNode.Parent.ImageIndex <> iiQuickAccess));
+  miNExport.Visible := miNExport.Enabled and Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex <> iiQuickAccess) and (not Assigned(FNavigatorMenuNode.Parent) or (FNavigatorMenuNode.Parent.ImageIndex <> iiQuickAccess));
+  miNCopy.Visible := miNCopy.Enabled and Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex <> iiQuickAccess) and (not Assigned(FNavigatorMenuNode.Parent) or (FNavigatorMenuNode.Parent.ImageIndex <> iiQuickAccess));
+  miNPaste.Visible := miNPaste.Enabled and Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex <> iiQuickAccess) and (not Assigned(FNavigatorMenuNode.Parent) or (FNavigatorMenuNode.Parent.ImageIndex <> iiQuickAccess));
+  miNCreate.Visible := miNCreate.Enabled and Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex <> iiQuickAccess) and (not Assigned(FNavigatorMenuNode.Parent) or (FNavigatorMenuNode.Parent.ImageIndex <> iiQuickAccess));
+  miNDelete.Visible := miNDelete.Enabled and Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex <> iiQuickAccess) and (not Assigned(FNavigatorMenuNode.Parent) or (FNavigatorMenuNode.Parent.ImageIndex <> iiQuickAccess));
+  miNEmpty.Visible := miNEmpty.Enabled and Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex <> iiQuickAccess) and (not Assigned(FNavigatorMenuNode.Parent) or (FNavigatorMenuNode.Parent.ImageIndex <> iiQuickAccess));
+  miNRename.Visible := miNRename.Enabled and Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex <> iiQuickAccess) and (not Assigned(FNavigatorMenuNode.Parent) or (FNavigatorMenuNode.Parent.ImageIndex <> iiQuickAccess));
+  miNProperties.Visible := miNProperties.Enabled and Assigned(FNavigatorMenuNode) and (FNavigatorMenuNode.ImageIndex <> iiQuickAccess) and (not Assigned(FNavigatorMenuNode.Parent) or (FNavigatorMenuNode.Parent.ImageIndex <> iiQuickAccess));
 
   URI.Free();
 end;
@@ -12683,12 +12805,12 @@ begin
 
   MainAction('aECopy').Enabled := Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery]);
 
-  miHStatementIntoSQLEditor.Enabled := Assigned(FSQLHistoryMenuNode) and (View in [vEditor, vEditor2, vEditor3]) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery, iiClock]);
+  miHStatementIntoSQLEditor.Enabled := Assigned(FSQLHistoryMenuNode) and (View in [vEditor, vEditor2, vEditor3]) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery]);
   aPExpand.Enabled := Assigned(FSQLHistoryMenuNode) and not FSQLHistoryMenuNode.Expanded and FSQLHistoryMenuNode.HasChildren;
   aPCollapse.Enabled := Assigned(FSQLHistoryMenuNode) and FSQLHistoryMenuNode.Expanded;
-  miHOpen.Enabled := Assigned(FSQLHistoryMenuNode) and (View in [vEditor, vEditor2, vEditor3]) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery, iiClock]);
-  miHRun.Enabled := Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery, iiClock]);
-  miHProperties.Enabled := Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery, iiClock]) and not FSQLHistoryMenuNode.HasChildren;
+  miHOpen.Enabled := Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery]);
+  miHRun.Enabled := Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery]);
+  miHProperties.Enabled := Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery]) and not FSQLHistoryMenuNode.HasChildren;
 
   miHExpand.Default := aPExpand.Enabled;
   miHCollapse.Default := aPCollapse.Enabled;
@@ -13709,7 +13831,6 @@ begin
     begin
       PWorkbench.Align := alClient;
       PWorkbench.Visible := True;
-      PWorkbench.BringToFront();
     end
     else
       PWorkbench.Visible := False;
@@ -13726,7 +13847,6 @@ begin
       and ((View in [vEditor, vEditor2, vEditor3]) and (CurrentClassIndex in [ciSession, ciDatabase, ciSystemDatabase])
         or (View = vIDE) and (CurrentClassIndex in [ciView, ciFunction, ciProcedure, ciEvent, ciTrigger]))) then
     begin
-      ActiveSynMemo.Visible := True;
       PSynMemo.Align := alClient;
       PSynMemo.Visible := True;
     end
@@ -13803,7 +13923,6 @@ end;
 
 procedure TFSession.PHeaderCheckElements(Sender: TObject);
 begin
-  {$IFDEF Debug}
   FObjectSearch.Visible := (ttObjectSearch in Preferences.ToolbarTabs)
     and (Session.Connection.MySQLVersion >= 50002)
     and ((CurrentClassIndex <> ciUsers) or (Session.Connection.MySQLVersion >= 50107))
@@ -13814,7 +13933,6 @@ begin
     PObjectSearch.Hide();
     FObjectSearch.SelectAll();
   end;
-  {$ENDIF}
 end;
 
 procedure TFSession.PHeaderMouseMove(Sender: TObject; Shift: TShiftState; X,
@@ -14021,6 +14139,17 @@ begin
     TBBlob.Height := TBBlob.ButtonHeight;
     PToolBarBlob.ClientHeight := TBBlob.Height;
   end;
+end;
+
+function TFSession.QueryContinueDrag(fEscapePressed: BOOL;
+  grfKeyState: Longint): HResult;
+begin
+  if (fEscapePressed) then
+    Result := DRAGDROP_S_CANCEL
+  else if (grfKeyState and MK_LBUTTON = 0) then
+    Result := DRAGDROP_S_DROP
+  else
+    Result := S_OK;
 end;
 
 function TFSession.QuickAccessStep1(): Boolean;
@@ -14392,7 +14521,7 @@ procedure TFSession.SessionUpdate(const Event: TSSession.TEvent);
   begin
     Result := False;
 
-    Database := TSDatabase(DataByAddress(URI.Address));
+    Database := Session.DatabaseByName(URI.Database);
     if (Assigned(Database)) then
       case (ClassIndex) of
         ciDatabase:
@@ -14456,9 +14585,13 @@ var
   ClassIndex: TClassIndex;
   Control: TWinControl;
   Database: TSDatabase;
+  Finish: Int64;
+  Frequency: Int64;
   I: Integer;
+  S: string;
   S1: string;
   S2: string;
+  Start: Int64;
   Table: TSTable;
   TempActiveControl: TWinControl;
   URI: TUURI;
@@ -14585,6 +14718,10 @@ begin
       end;
 
       if ((Event.EventType = etItemValid)) then
+      begin
+        ProfilingReset();
+        if (not QueryPerformanceCounter(Start)) then Start := 0;
+
         if ((Event.Item is TSView) and Assigned(Desktop(TSView(Event.Item)).SynMemo)) then
           Desktop(TSView(Event.Item)).SynMemo.Text := TSView(Event.Item).Stmt + #13#10
         else if ((Event.Item is TSRoutine) and Assigned(Desktop(TSRoutine(Event.Item)).CreateSynMemo())) then
@@ -14604,12 +14741,33 @@ begin
           PContentChange(nil);
         end;
 
-      if (Event.EventType = etItemValid) then
-      begin
+        ProfilingPoint(1);
+
         if ((View = vBrowser) and (Event.Item = CurrentData)) then
           Wanted.Update := UpdateAfterAddressChanged;
+
+        ProfilingPoint(2);
+
         if ((View = vIDE) and ((Event.Item is TSView) or (Event.Item is TSFunction))) then
           PContentChange(nil);
+
+        if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
+          if ((Finish - Start) div Frequency > 1) then
+          begin
+            S := 'SessionUpdate - '
+              + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
+            if (Assigned(Event.Items)) then
+              S := S
+                + 'ClassType: ' + Event.Items.ClassName + ', '
+                + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
+            if (Event.Item is TSTable) then
+              S := S
+                + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
+            S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s' + #13#10;
+            S := S + ProfilingReport() + #13#10;
+            TimeMonitor.Append(S, ttDebug);
+          end;
+        ProfilingReset();
       end;
     end;
   end;
@@ -14634,126 +14792,8 @@ begin
 end;
 
 procedure TFSession.SetCurrentAddress(const AAddress: string);
-var
-  AllowChange: Boolean;
-  ChangeEvent: TTVChangedEvent;
-  ChangingEvent: TTVChangingEvent;
-  CodePage: Integer;
-  FileName: string;
-  NewView: TView;
-  NewAddress: string;
-  Node: TTreeNode;
-  Position: Integer;
-  Table: TSTable;
-  URI: TUURI;
 begin
-  Assert(AAddress <> '');
-
-  NewAddress := AAddress;
-  AllowChange := True; Node := nil;
-  AddressChanging(nil, NewAddress, AllowChange);
-  if (AllowChange) then
-  begin
-    Node := FNavigatorNodeByAddress(NewAddress);
-    AllowChange := Assigned(Node);
-    if (not AllowChange) then
-      Wanted.Address := Session.Account.ExpandAddress('/');
-  end;
-  if (AllowChange) then
-  begin
-    ChangingEvent := FNavigator.OnChanging; FNavigator.OnChanging := nil;
-    ChangeEvent := FNavigator.OnChange; FNavigator.OnChange := nil;
-    FNavigator.Selected := Node;
-    FNavigator.OnChanging := ChangingEvent;
-    FNavigator.OnChange := ChangeEvent;
-
-    URI := TUURI.Create(NewAddress);
-
-    if ((URI.Param['view'] = Null) and ((URI.Param['objecttype'] = 'procedure') or (URI.Param['objecttype'] = 'function') or (URI.Param['objecttype'] = 'trigger') or (URI.Param['objecttype'] = 'event'))) then
-      URI.Param['view'] := 'ide';
-
-    FCurrentAddress := URI.Address;
-    if ((Session.Account.Desktop.Addresses.Count = 0)
-      or (FCurrentAddress <> Session.Account.Desktop.Addresses[Session.Account.Desktop.Addresses.Count - 1])) then
-      Session.Account.Desktop.Addresses.Add(FCurrentAddress);
-
-    NewView := ParamToView(URI.Param['view']);
-    MainAction('aVObjects').Checked := NewView = vObjects;
-    MainAction('aVBrowser').Checked := NewView = vBrowser;
-    MainAction('aVIDE').Checked := NewView = vIDE;
-    MainAction('aVBuilder').Checked := NewView = vBuilder;
-    MainAction('aVDiagram').Checked := NewView = vDiagram;
-    MainAction('aVSQLEditor').Checked := NewView = vEditor;
-    MainAction('aVSQLEditor2').Checked := NewView = vEditor2;
-    MainAction('aVSQLEditor3').Checked := NewView = vEditor3;
-
-    case (NewView) of
-      vBrowser:
-        begin
-          Table := Session.DatabaseByName(URI.Database).TableByName(URI.Table);
-          FUDOffset.Position := 0;
-          FUDLimit.Position := Desktop(Table).Limit;
-          FLimitEnabled.Down := Desktop(Table).Limited;
-
-          if (URI.Param['offset'] <> Null) then
-          begin
-            if (TryStrToInt(URI.Param['offset'], Position)) then FUDOffset.Position := Position else FUDOffset.Position := 0;
-            FLimitEnabled.Down := URI.Param['offset'] <> '';
-          end;
-          if (URI.Param['filter'] = Null) then
-          begin
-            FFilter.Text := '';
-            FFilterEnabled.Down := False;
-            FFilterEnabled.Enabled := FFilterEnabled.Down;
-          end
-          else
-          begin
-            FFilter.Text := URI.Param['filter'];
-            FFilterEnabled.Down := URI.Param['filter'] <> '';
-            FFilterEnabled.Enabled := FFilterEnabled.Down;
-          end;
-          if (URI.Param['search'] = Null) then
-          begin
-            FQuickSearch.Text := '';
-            FQuickSearchEnabled.Down := False;
-            FQuickSearchEnabled.Enabled := FQuickSearchEnabled.Down;
-          end
-          else
-          begin
-            FQuickSearch.Text := URI.Param['search'];
-            FQuickSearchEnabled.Down := URI.Param['search'] <> '';
-            FQuickSearchEnabled.Enabled := FQuickSearchEnabled.Down;
-          end;
-        end;
-      vEditor,
-      vEditor2,
-      vEditor3:
-        if (URI.Param['file'] <> Null) then
-        begin
-          FileName := UnescapeURL(URI.Param['file']);
-          if (ExtractFilePath(FileName) = '') then
-            FileName := ExpandFilename(FileName);
-          if (Assigned(SQLEditors[NewView]) and (FileName <> SQLEditors[NewView].Filename) and FileExists(FileName)) then
-            if ((URI.Param['cp'] = Null) or not TryStrToInt(URI.Param['cp'], CodePage)) then
-              OpenSQLFile(FileName)
-            else
-              OpenSQLFile(FileName, CodePage);
-        end;
-    end;
-
-    if (Assigned(QuickAccessListView) and (URI.Param['view'] <> 'quick')) then
-    begin
-      Session.Account.Desktop.QuickAccessMFUVisible := not (lgsCollapsed in QuickAccessListView.Groups[0].State);
-      Session.Account.Desktop.QuickAccessMRUVisible := not (lgsCollapsed in QuickAccessListView.Groups[1].State);
-      FreeListView(QuickAccessListView);
-      QuickAccessListView := nil;
-    end;
-
-    URI.Free();
-
-    if (AllowChange) then
-      AddressChanged(nil);
-  end;
+  ChangeCurrentAddress(AAddress);
 end;
 
 procedure TFSession.SetView(const AView: TView);
@@ -15511,7 +15551,7 @@ begin
   if (Source = FNavigator) then
     Accept := MouseDownNode.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiKey, iiBaseField, iiVirtualField, iiSystemViewField, iiViewField, iiForeignKey]
   else if (Source = FSQLHistory) then
-    Accept := MouseDownNode.ImageIndex in [iiStatement, iiQuery, iiClock]
+    Accept := MouseDownNode.ImageIndex in [iiStatement, iiQuery]
   else if (Source = ActiveDBGrid) then
     Accept := Assigned(ActiveDBGrid.SelectedField)
       and not ActiveDBGrid.SelectedField.IsNull
@@ -15522,11 +15562,7 @@ begin
   if (Accept) then
   begin
     if ((Sender = ActiveSynMemo) and not ActiveSynMemo.AlwaysShowCaret) then
-    begin
-      SynMemoBeforeDrag.SelStart := ActiveSynMemo.SelStart;
-      SynMemoBeforeDrag.SelLength := ActiveSynMemo.SelLength;
       ActiveSynMemo.AlwaysShowCaret := True;
-    end;
 
     if (not ActiveSynMemo.Gutter.Visible) then
       ActiveSynMemo.CaretX := (X) div ActiveSynMemo.CharWidth + 1
@@ -15565,11 +15601,12 @@ end;
 
 procedure TFSession.SynMemoStatusChange(Sender: TObject; Changes: TSynStatusChanges);
 var
+  ClassIndex: TClassIndex; // Cache for speeding
   DDLStmt: TSQLDDLStmt;
-  Empty: Boolean;
+  Empty: Boolean; // Cache for speeding
   Parse: TSQLParse;
-  SelSQL: string;
-  SQL: string;
+  SelSQL: string; // Cache for speeding
+  SQL: string; // Cache for speeding
 begin
   if (not (csDestroying in ComponentState)) then
   begin
@@ -15579,25 +15616,36 @@ begin
     begin
       SynCompletionPending.Active := False;
 
-      SelSQL := ActiveSynMemo.SelText; // Cache, da Abfrage bei vielen Zeilen Zeit benötigt
-      if (View = vIDE) then SQL := ActiveSynMemo.Text;
-
-      Empty := ((ActiveSynMemo.Lines.Count <= 1) and (ActiveSynMemo.Text = '')); // Benötigt bei vielen Zeilen Zeit
+      SelSQL := ActiveSynMemo.SelText; // Cache for speeding
+      if (View <> vIDE) then
+      begin
+        SQL := '';
+        ClassIndex := ciUnknown;
+      end
+      else
+      begin
+        SQL := ActiveSynMemo.Text; // Cache for speeding
+        ClassIndex := CurrentClassIndex; // Cache for speeding
+      end;
+      Empty := ((ActiveSynMemo.Lines.Count <= 1) and (ActiveSynMemo.Text = '')); // Cache for speeding
 
       MainAction('aFSave').Enabled := not Empty and (View in [vEditor, vEditor2, vEditor3]) and (SQLEditors[View].Filename = '');
       MainAction('aFSaveAs').Enabled := not Empty and (View in [vEditor, vEditor2, vEditor3]);
       MainAction('aERedo').Enabled := ActiveSynMemo.CanRedo;
       MainAction('aECopyToFile').Enabled := (SelSQL <> '');
       MainAction('aEPasteFromFile').Enabled := (View in [vEditor, vEditor2, vEditor3]);
+      MainAction('aDPostObject').Enabled := (View = vIDE)
+        and ActiveSynMemo.Modified
+        and SQLSingleStmt(SQL)
+        and ((ClassIndex in [ciView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
+          or (ClassIndex in [ciProcedure, ciFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
+          or (ClassIndex in [ciEvent, ciTrigger]));
       MainAction('aDRun').Enabled :=
-        ((View in [vEditor, vEditor2, vEditor3])
-        or ((View = vBuilder) and FQueryBuilder.Visible)
-        or ((View = vIDE) and SQLSingleStmt(SQL) and (CurrentClassIndex in [ciView, ciProcedure, ciFunction, ciEvent]))) and not Empty;
-      MainAction('aDRunSelection').Enabled := (((View in [vEditor, vEditor2, vEditor3]) and not Empty) or Assigned(ActiveSynMemo) and (Trim(ActiveSynMemo.SelText) <> ''));
-      MainAction('aDPostObject').Enabled := (View = vIDE) and ActiveSynMemo.Modified and SQLSingleStmt(SQL)
-        and ((CurrentClassIndex in [ciView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.Connection.MySQLVersion) and (SQLParseKeyword(Parse, 'SELECT'))
-          or (CurrentClassIndex in [ciProcedure, ciFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.MySQLVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
-          or (CurrentClassIndex in [ciEvent, ciTrigger]));
+        ((View in [vEditor, vEditor2, vEditor3]) and not Empty
+        or (View in [vBuilder]) and FQueryBuilder.Visible
+        or (View in [vIDE]) and MainAction('aDPostObject').Enabled);
+      MainAction('aDRunSelection').Enabled :=
+        ((View in [vEditor, vEditor2, vEditor3]) and not Empty);
       MainAction('aEFormatSQL').Enabled := not Empty;
     end;
 
@@ -15822,12 +15870,8 @@ end;
 
 procedure TFSession.TreeViewEndDrag(Sender, Target: TObject; X, Y: Integer);
 begin
-  if (Assigned(ActiveSynMemo) and (ActiveSynMemo.AlwaysShowCaret)) then
-  begin
-    ActiveSynMemo.SelStart := SynMemoBeforeDrag.SelStart;
-    ActiveSynMemo.SelLength := SynMemoBeforeDrag.SelLength;
+  if (Assigned(ActiveSynMemo)) then
     ActiveSynMemo.AlwaysShowCaret := False;
-  end;
 end;
 
 procedure TFSession.TreeViewExpanded(Sender: TObject; Node: TTreeNode);
@@ -15888,10 +15932,8 @@ end;
 procedure TFSession.UMChangePreferences(var Msg: TMessage);
 var
   I: Integer;
-{$IFDEF Debug}
   ItemEx: TTVItemEx;
   Node: TTreeNode;
-{$ENDIF}
 begin
   if (not CheckWin32Version(6) or TStyleManager.Enabled and (TStyleManager.ActiveStyle <> TStyleManager.SystemStyle)) then
   begin
@@ -15999,9 +16041,6 @@ begin
   mtEditor2.Caption := tbEditor2.Caption;
   mtEditor3.Caption := tbEditor3.Caption;
   mtObjectSearch.Caption := Preferences.LoadStr(934);
-  {$IFNDEF Debug}
-  mtObjectSearch.Visible := False;
-  {$ENDIF}
 
   tbObjects.Visible := ttObjects in Preferences.ToolbarTabs;
   tbBrowser.Visible := ttBrowser in Preferences.ToolbarTabs;
@@ -16022,7 +16061,6 @@ begin
   end
   else if (Preferences.QuickAccessVisible and (not Assigned(FNavigator.Items.GetFirstNode()) or (FNavigator.Items.GetFirstNode().ImageIndex <> iiQuickAccess))) then
   begin
-{$IFDEF Debug}
     Node := FNavigator.Items.AddFirst(nil, '');
     Node.ImageIndex := -1;
     FillChar(ItemEx, SizeOf(ItemEx), 0);
@@ -16034,7 +16072,6 @@ begin
     Node := FNavigator.Items.AddFirst(nil, '');
     Node.ImageIndex := iiQuickAccess;
     FavoritesEvent(Session.Account.Favorites);
-{$ENDIF}
   end;
   if (Assigned(FNavigator.Items.GetFirstNode()) and (FNavigator.Items.GetFirstNode().ImageIndex = iiQuickAccess)) then
     FNavigator.Items.GetFirstNode().Text := Preferences.LoadStr(939);
@@ -16196,22 +16233,19 @@ begin
 
   for I := 0 to Session.Databases.Count - 1 do
     if (CanClose) then
+    begin
+      if (not Assigned(Session.Databases[I])) then
+        raise ERangeError.Create(SRangeError);
+      if (not Assigned(Desktop(Session.Databases[I]))) then
+        raise ERangeError.Create('Database: ' + Session.Databases[I].Name);
+
       Desktop(Session.Databases[I]).CloseQuery(nil, CanClose);
+    end;
 
   if (not CanClose) then
     Msg.Result := 0
   else
     Msg.Result := 1;
-
-  // Debug 2016-12-26
-  if (not Assigned(Session.Account)) then
-    raise ERangeError.Create(SRangeError);
-  if (not (TObject(Session.Account) is TPAccount)) then
-    try
-      raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Session.Account).ClassName)
-    except
-      raise ERangeError.Create(SRangeError); // Occured on 2016-12-25
-    end;
 end;
 
 procedure TFSession.UMFrameActivate(var Msg: TMessage);

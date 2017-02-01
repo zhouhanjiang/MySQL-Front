@@ -51,6 +51,7 @@ type
     TitleBoldFont: TFont;
     procedure ActivateHint();
     function CanvasTextWidth(const Text: string): Integer; inline;
+    procedure CMFontChanged(var Message); message CM_FONTCHANGED;
     function EditCopyExecute(): Boolean;
     function EditCutExecute(): Boolean;
     function EditDeleteExecute(): Boolean;
@@ -61,11 +62,10 @@ type
     procedure HeaderSectionDrag(Sender: TObject; FromSection, ToSection: THeaderSection; var AllowDrag: Boolean);
     procedure HeaderSectionResize(HeaderControl: THeaderControl; Section: THeaderSection);
     procedure SetHeaderColumnArrows();
-    procedure CMFontChanged(var Message); message CM_FONTCHANGED;
-    procedure WMNotify(var Message: TWMNotify); message WM_NOTIFY;
-    procedure WMTimer(var Message: TWMTimer); message WM_TIMER;
+    procedure WMNotify(var Msg: TWMNotify); message WM_NOTIFY;
+    procedure WMTimer(var Msg: TWMTimer); message WM_TIMER;
   protected
-    property IgnoreKeyPress: Boolean read FIgnoreKeyPress;
+    procedure BeginAutoDrag(); override;
     function CanEditShow(): Boolean; override;
     function CanGridAcceptKey(Key: Word; Shift: TShiftState): Boolean; override;
     procedure ColEnter(); override;
@@ -87,7 +87,9 @@ type
     procedure Resize(); override;
     procedure TitleClick(Column: TColumn); override;
     procedure TopLeftChanged(); override;
+    procedure WndProc(var Msg: TMessage); override;
     property HeaderControl: THeaderControl read FHeaderControl;
+    property IgnoreKeyPress: Boolean read FIgnoreKeyPress;
   public
     procedure CopyToClipboard(); virtual;
     constructor Create(AOwner: TComponent); override;
@@ -306,6 +308,11 @@ begin
       DataLink.ActiveRecord := OldActiveRecord;
     end;
   end;
+end;
+
+procedure TMySQLDBGrid.BeginAutoDrag();
+begin
+  BeginDrag(False);
 end;
 
 function TMySQLDBGrid.CanEditShow(): Boolean;
@@ -1215,7 +1222,7 @@ begin
   SetHeaderColumnArrows();
 end;
 
-procedure TMySQLDBGrid.WMNotify(var Message: TWMNotify);
+procedure TMySQLDBGrid.WMNotify(var Msg: TWMNotify);
 var
   Column: TColumn;
   HDItem: THDItem;
@@ -1224,7 +1231,7 @@ var
   LogFont: TLogFont;
   NewWidth: Integer;
 begin
-  HDNotify := PHDNotify(Message.NMHdr);
+  HDNotify := PHDNotify(Msg.NMHdr);
 
   // Debug 2016-12-11
   if (not Assigned(HDNotify)) then
@@ -1242,7 +1249,7 @@ begin
         begin
           Column := Columns[LeftCol + HDNotify^.Item];
           Column.Index := HDNotify^.PItem.iOrder + LeftCol;
-          Message.Result := LRESULT(TRUE);
+          Msg.Result := LRESULT(TRUE);
           Resize();
         end;
       HDN_DIVIDERDBLCLICK:
@@ -1275,7 +1282,7 @@ begin
           HDCustomDraw := PNMCustomDraw(HDNotify);
           case (HDCustomDraw^.dwDrawStage) of
             CDDS_PREPAINT:
-              Message.Result := CDRF_NOTIFYITEMDRAW;
+              Msg.Result := CDRF_NOTIFYITEMDRAW;
             CDDS_ITEMPREPAINT:
               if ((Columns.Count <= LeftCol + Integer(HDCustomDraw^.dwItemSpec)) or not Assigned(Columns[LeftCol + Integer(HDCustomDraw^.dwItemSpec)])) then
                 inherited
@@ -1292,12 +1299,12 @@ begin
                 end;
 
                 SelectObject(HDCustomDraw^.hdc, TitleBoldFont.Handle);
-                Message.Result := CDRF_NEWFONT;
+                Msg.Result := CDRF_NEWFONT;
               end
               else
               begin
                 SelectObject(HDCustomDraw^.hdc, TitleFont.Handle);
-                Message.Result := CDRF_NEWFONT;
+                Msg.Result := CDRF_NEWFONT;
               end;
             else
               inherited;
@@ -1308,24 +1315,32 @@ begin
     end;
 end;
 
-procedure TMySQLDBGrid.WMTimer(var Message: TWMTimer);
+procedure TMySQLDBGrid.WMTimer(var Msg: TWMTimer);
 begin
   inherited;
 
-  case (Message.TimerID) of
+  case (Msg.TimerID) of
     tiShowHint:
       begin
-        KillTimer(Handle, Message.TimerID);
+        KillTimer(Handle, Msg.TimerID);
         if (Visible) then
           ActivateHint();
       end;
     tiHideHint:
       begin
-        KillTimer(Handle, Message.TimerID);
+        KillTimer(Handle, Msg.TimerID);
         if (Assigned(FHintWindow)) then
           FreeAndNil(FHintWindow);
       end;
   end;
+end;
+
+procedure TMySQLDBGrid.WndProc(var Msg: TMessage);
+begin
+  if ((Msg.Msg = WM_LBUTTONDOWN) and (DragMode = dmAutomatic) and (TWMLButtonDown(Msg).Keys = MK_LBUTTON)) then
+    MouseDown(mbLeft, [], TWMLButtonDown(Msg).XPos, TWMLButtonDown(Msg).YPos);
+
+  inherited;
 end;
 
 end.

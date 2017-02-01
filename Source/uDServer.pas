@@ -101,8 +101,7 @@ end;
 
 function TDServer.Execute(): Boolean;
 begin
-  ShowModal();
-  Result := ModalResult = mrOk;
+  Result := ShowModal() = mrOk;
 end;
 
 procedure TDServer.FBHelpClick(Sender: TObject);

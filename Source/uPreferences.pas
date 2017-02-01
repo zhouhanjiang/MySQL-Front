@@ -3191,9 +3191,7 @@ begin
   else
     XMLNode(XML, 'sidebar/visible').Text := BoolToStr(False, True);
 
-  {$IFDEF Debug}
   Addresses.SaveToXML(XMLNode(XML, 'history', True), 'address');
-  {$ENDIF}
   Files.SaveToXML(XMLNode(XML, 'editor/files', True));
 
   XML.OwnerDocument.Options := XML.OwnerDocument.Options - [doNodeAutoCreate];
@@ -3605,9 +3603,7 @@ begin
     Connection.SaveToXML(XMLNode(XML, 'connection', True));
 
     Desktop.SaveToXML(DesktopXMLDocument.DocumentElement);
-    {$IFDEF Debug}
     Favorites.SaveToXML(XMLNode(XML, 'favorites', True));
-    {$ENDIF}
 
     if (ForceDirectories(DataPath)) then
     begin

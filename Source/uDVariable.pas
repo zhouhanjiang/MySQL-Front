@@ -74,8 +74,7 @@ end;
 
 function TDVariable.Execute(): Boolean;
 begin
-  ShowModal();
-  Result := ModalResult = mrOk;
+  Result := ShowModal() = mrOk;
 end;
 
 procedure TDVariable.FBOkButtonEnable(Sender: TObject);
