@@ -1088,7 +1088,7 @@ begin
     BeginDrag(False)
   else
   begin
-    if (SelectedRows.Count = 0) then
+    if ((Shift = [ssLeft]) and (SelectedRows.Count = 0)) then
       BeginDrag(False);
 
     inherited;
