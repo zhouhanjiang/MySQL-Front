@@ -2957,9 +2957,6 @@ begin
     // Maybe we're using Asynchron. So the Events should be called after
     // thread execution in SyncDisconncted.
   end;
-
-  if (Value and not Assigned(SQLParser)) then
-    FSQLParser := TSQLParser.Create(MySQLVersion);
 end;
 
 procedure TMySQLConnection.SetDatabaseName(const ADatabaseName: string);
@@ -3355,6 +3352,9 @@ begin
     SyncThread.State := ssClose
   else
     SyncThread.State := ssReady;
+
+  if (not Assigned(SQLParser)) then
+    FSQLParser := TSQLParser.Create(MySQLVersion);
 
   if (Connected) then
     SendConnectEvent(True);

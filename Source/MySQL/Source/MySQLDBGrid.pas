@@ -79,6 +79,7 @@ type
     procedure HeaderSectionDrag(Sender: TObject; FromSection, ToSection: THeaderSection; var AllowDrag: Boolean);
     procedure HeaderSectionResize(HeaderControl: THeaderControl; Section: THeaderSection);
     procedure SetHeaderColumnArrows();
+    procedure WMNCHitTest(var Msg: TWMNCHitTest); // message WM_NCHITTEST;
     procedure WMNotify(var Msg: TWMNotify); message WM_NOTIFY;
     procedure WMTimer(var Msg: TWMTimer); message WM_TIMER;
   protected
@@ -1456,6 +1457,25 @@ end;
 procedure TMySQLDBGrid.UpdateHeader();
 begin
   SetHeaderColumnArrows();
+end;
+
+procedure TMySQLDBGrid.WMNCHitTest(var Msg: TWMNCHitTest);
+var
+  I: Integer;
+  OnLine: Boolean;
+  Pos: Integer;
+begin
+  if (not (dgColLines in Options) or not (dgRowLines in Options)) then
+    inherited
+  else
+  begin
+    OnLine := Msg.XPos < 2 * GridLineWidth;
+    Pos := GridLineWidth;
+//    Self.
+//    for I := LeftCol to Columns.Count - 1 do
+//      if (Msg.XPos < ) then
+//
+  end;
 end;
 
 procedure TMySQLDBGrid.WMNotify(var Msg: TWMNotify);

@@ -12066,7 +12066,7 @@ begin
     Result := Result + ' near "' + Copy(S, 1, 20) + '"';
   end;
 
-  if ((Error.Code in [PE_IncompleteToken, PE_UnexpectedChar, PE_InvalidMySQLCond, PE_NestedMySQLCond, PE_IncompleteStmt, PE_UnexpectedToken, PE_ExtraToken])
+  if ((Error.Code in [PE_IncompleteToken, PE_UnexpectedChar, PE_InvalidMySQLCond, PE_NestedMySQLCond, PE_IncompleteStmt, PE_UnexpectedToken, PE_ExtraToken, PE_UnexpectedStmt])
     and (Error.Line > 0)) then
     Result := Result + ' in line ' + IntToStr(Error.Line);
 end;
