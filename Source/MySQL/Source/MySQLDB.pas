@@ -920,12 +920,7 @@ uses
   SQLUtils, CSVUtils, HTTPTunnel;
 
 resourcestring
-  SNoConnection = 'Database not connected';
-  SInUse = 'Connection in use';
-  SInvalidBuffer = 'Invalid buffer';
   SLibraryNotAvailable = 'Library can not be loaded ("%s")';
-  SOutOfSync = 'Thread synchronization error';
-  SWrongDataSet = 'Field doesn''t attached to a "%s" DataSet';
 
 const
   DATASET_ERRORS: array [0..2] of PChar = (
@@ -2019,7 +2014,7 @@ begin
           ssDisconnecting:
             Connection.SyncDisconnecting(Self);
           else
-            raise Exception.CreateFMT(SOutOfSync + ' (State: %d)', [Ord(State)]);
+            raise ERangeError.Create('State: ' + IntToStr(Ord(State)));
         end;
 
         Connection.TerminateCS.Enter();
@@ -2566,9 +2561,9 @@ begin
   Assert(not Assigned(Done) or (Done.WaitFor(IGNORE) <> wrSignaled));
 
   if (InOnResult) then
-    raise Exception.Create(SOutOfSync + ' (in OnResult): ' + SyncThread.CommandText + #10 + 'New query: ' + SQL);
+    raise Exception.Create('Thread synchronization error (in OnResult): ' + SyncThread.CommandText + #10 + 'New query: ' + SQL);
   if (InMonitor) then
-    raise Exception.Create(SOutOfSync + ' (in Monitor): ' + SyncThread.CommandText + #10 + 'New query: ' + SQL);
+    raise Exception.Create('Thread synchronization error (in Monitor): ' + SyncThread.CommandText + #10 + 'New query: ' + SQL);
 
   if (Assigned(SyncThread) and not (SyncThread.State in [ssClose, ssReady])) then
     Terminate();
@@ -2905,7 +2900,7 @@ begin
     ssDisconnecting:
       SyncThread.RunExecute.SetEvent();
     else
-      raise Exception.CreateFMT(SOutOfSync + ' (State: %d)', [Ord(SyncThread.State)]);
+      raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
   end;
 end;
 
@@ -3052,45 +3047,70 @@ begin
       ssExecutingNext:
         begin
           SyncExecuted(SyncThread);
-          if ((KillThreadId > 0) and (SyncThread.Mode = smResultHandle)) then
-          begin
-            SyncHandledResult(SyncThread);
-            KillThreadId := 0;
-            Sync(SyncThread);
-          end
-          else if (SyncThread.Mode in [smSQL, smDataSet]) then
-          begin
-            if (SyncThread.State in [ssFirst, ssNext]) then
-              Sync(SyncThread)
-            else if ((SyncThread.State in [ssResult, ssReady]) and (SynchronCount > 0)) then
-              SyncThreadExecuted.SetEvent();
-          end
-          else
-          begin
-            Assert(SynchronCount > 0);
-            SyncThreadExecuted.SetEvent();
+
+          case (SyncThread.Mode) of
+            smSQL,
+            smDataSet:
+              case (SyncThread.State) of
+                ssFirst,
+                ssNext:
+                  Sync(SyncThread);
+                ssResult,
+                ssReady:
+                  if (SynchronCount > 0) then
+                    SyncThreadExecuted.SetEvent();
+                {$IFDEF Debug}
+                ssReceivingResult: ;
+                else
+                  raise ERangeError.Create(SRangeError);
+                {$ENDIF}
+              end;
+            smResultHandle:
+              if (KillThreadId > 0) then
+              begin
+                SyncHandledResult(SyncThread);
+                KillThreadId := 0;
+                Sync(SyncThread);
+              end
+              else
+              begin
+                Assert(SynchronCount > 0);
+                SyncThreadExecuted.SetEvent();
+              end;
           end;
         end;
       ssResult: ; // Do nothing, also don't report a problem
 	    ssReceivingResult:
         begin
-          Assert(SyncThread.DataSet.SyncThread = SyncThread);
-
           if ((SyncThread.DataSet is TMySQLDataSet) and (SyncThread.ErrorCode <> 0)) then
             DoError(SyncThread.ErrorCode, SyncThread.ErrorMessage);
+
           SyncReleaseDataSet(SyncThread.DataSet);
-          if (SyncThread.Mode in [smSQL, smDataSet]) then
-          begin
-            if (SyncThread.State in [ssNext, ssFirst]) then
-            begin
-              SyncExecute(SyncThread);
-              RunExecute(SyncThread);
-            end
-            else if (SyncThread.State <> ssReceivingResult) then
-              SyncAfterExecuteSQL(SyncThread);
-          end
-          else
-            SyncThreadExecuted.SetEvent();
+
+          case (SyncThread.Mode) of
+            smSQL,
+            smDataSet:
+              case (SyncThread.State) of
+                ssNext,
+                ssFirst:
+                  begin
+                    SyncExecute(SyncThread);
+                    RunExecute(SyncThread);
+                  end;
+                ssReceivingResult: ;
+                {$IFNDEF Debug}
+                else
+                  SyncAfterExecuteSQL(SyncThread);
+                {$ELSE}
+                ssReady:
+                  SyncAfterExecuteSQL(SyncThread);
+                else
+                  raise ERangeError.Create(SRangeError);
+                {$ENDIF}
+              end;
+            smResultHandle:
+              SyncThreadExecuted.SetEvent();
+          end;
         end;
       ssDisconnect:
         begin
@@ -3105,7 +3125,7 @@ begin
           SyncThreadExecuted.SetEvent();
         end;
       else
-        raise Exception.CreateFMT(SOutOfSync + ' (State: %d)', [Ord(SyncThread.State)]);
+        raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
     end;
   end;
 end;
@@ -5000,8 +5020,14 @@ begin
     if (SyncThread.Mode in [smSQL, smDataSet]) then
       Connection.SyncReleaseDataSet(Self)
     else if (GetCurrentThreadId() = MainThreadID) then
-      // Should never occur, since ResultHandle can be used in TTool only.
-      Connection.Sync(SyncThread)
+    begin
+      // Should never occur, since smResultHandle can be used in TTool only.
+      {$IFDEF Debug}
+      // Debug 2017-02-02
+      raise ERangeError.Create(SRangeError);
+      {$ENDIF}
+      Connection.Sync(SyncThread);
+    end
     else
     begin
       MySQLConnectionOnSynchronize(SyncThread);

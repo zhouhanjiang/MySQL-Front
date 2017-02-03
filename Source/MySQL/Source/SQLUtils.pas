@@ -77,6 +77,37 @@ function StrToUInt64(const S: string): UInt64;
 function TryStrToUInt64(const S: string; out Value: UInt64): Boolean;
 function UInt64ToStr(const Value: UInt64): string;
 
+type
+  TSQLBuffer = class
+  private
+    Buffer: record
+      Mem: PChar;
+      MemSize: Integer;
+      Write: PChar;
+    end;
+    function GetData(): Pointer; inline;
+    function GetLength(): Integer; inline;
+    function GetSize(): Integer; inline;
+    function GetText(): PChar; inline;
+    procedure Reallocate(const NeededLength: Integer);
+  public
+    procedure Clear();
+    constructor Create(const InitialLength: Integer);
+    procedure Delete(const Start: Integer; const Length: Integer);
+    destructor Destroy(); override;
+    function Read(): string;
+    procedure Write(const Text: PChar; const Length: Integer); overload;
+    procedure Write(const Text: string); overload; inline;
+    procedure WriteChar(const Char: Char);
+    procedure WriteData(const Data: PAnsiChar; const Length: Integer; const Quote: Boolean = False; const Quoter: Char = ''''); overload;
+    function WriteExternal(const Length: Integer): PChar;
+    procedure WriteText(const Text: PChar; const Length: Integer);
+    property Data: Pointer read GetData;
+    property Length: Integer read GetLength;
+    property Size: Integer read GetSize;
+    property Text: PChar read GetText;
+  end;
+
 implementation {***************************************************************}
 
 uses
@@ -3587,6 +3618,184 @@ begin
   end;
 
   Result := StrPas(P);
+end;
+
+{ TSQLBuffer ******************************************************************}
+
+procedure TSQLBuffer.Clear();
+begin
+  Buffer.Write := Buffer.Mem;
+end;
+
+constructor TSQLBuffer.Create(const InitialLength: Integer);
+begin
+  Buffer.Mem := nil;
+  Buffer.MemSize := 0;
+  Buffer.Write := nil;
+
+  Reallocate(InitialLength);
+end;
+
+procedure TSQLBuffer.Delete(const Start: Integer; const Length: Integer);
+begin
+  Move(Buffer.Mem[Start + Length], Buffer.Mem[Start], Size - Length);
+  Buffer.Write := Pointer(Integer(Buffer.Write) - Length);
+end;
+
+destructor TSQLBuffer.Destroy();
+begin
+  FreeMem(Buffer.Mem);
+
+  inherited;
+end;
+
+function TSQLBuffer.GetData(): Pointer;
+begin
+  Result := Pointer(Buffer.Mem);
+end;
+
+function TSQLBuffer.GetLength(): Integer;
+begin
+  Result := (Integer(Buffer.Write) - Integer(Buffer.Mem)) div SizeOf(Buffer.Mem[0]);
+end;
+
+function TSQLBuffer.GetSize(): Integer;
+begin
+  Result := Integer(Buffer.Write) - Integer(Buffer.Mem);
+end;
+
+function TSQLBuffer.GetText(): PChar;
+begin
+  Result := Buffer.Mem;
+end;
+
+function TSQLBuffer.Read(): string;
+begin
+  SetString(Result, PChar(Buffer.Mem), Size div SizeOf(Result[1]));
+  Clear();
+end;
+
+procedure TSQLBuffer.Reallocate(const NeededLength: Integer);
+var
+  Index: Integer;
+begin
+  if (Buffer.MemSize = 0) then
+  begin
+    Buffer.MemSize := NeededLength * SizeOf(Buffer.Write[0]);
+    GetMem(Buffer.Mem, Buffer.MemSize);
+    Buffer.Write := Buffer.Mem;
+  end
+  else if (Size + NeededLength * SizeOf(Buffer.Mem[0]) > Buffer.MemSize) then
+  begin
+    Index := Size div SizeOf(Buffer.Write[0]);
+    Inc(Buffer.MemSize, 2 * (Size + NeededLength * SizeOf(Buffer.Mem[0]) - Buffer.MemSize));
+    ReallocMem(Buffer.Mem, Buffer.MemSize);
+    Buffer.Write := @Buffer.Mem[Index];
+  end;
+end;
+
+procedure TSQLBuffer.Write(const Text: PChar; const Length: Integer);
+begin
+  if (Length > 0) then
+  begin
+    Reallocate(Length);
+
+    Move(Text^, Buffer.Write^, Length * SizeOf(Buffer.Mem[0]));
+    Buffer.Write := @Buffer.Write[Length];
+  end;
+end;
+
+procedure TSQLBuffer.Write(const Text: string);
+begin
+  Write(PChar(Text), System.Length(Text));
+end;
+
+procedure TSQLBuffer.WriteChar(const Char: Char);
+begin
+  Reallocate(1);
+  Move(Char, Buffer.Write^, SizeOf(Char));
+  Buffer.Write := @Buffer.Write[1];
+end;
+
+procedure TSQLBuffer.WriteData(const Data: PAnsiChar; const Length: Integer; const Quote: Boolean = False; const Quoter: Char = '''');
+label
+  StringL, StringLE,
+  Finish;
+var
+  Len: Integer;
+  Write: PChar;
+begin
+  if (not Quote) then
+    Len := Length
+  else
+    Len := 1 + Length + 1;
+
+  Reallocate(Len);
+
+  Write := Buffer.Write;
+  asm
+        PUSH ES
+        PUSH ESI
+        PUSH EDI
+
+        PUSH DS                          // string operations uses ES
+        POP ES
+        CLD                              // string operations uses forward direction
+
+        MOV ESI,Data                     // Copy characters from Data
+        MOV EDI,Write                    //   to Write
+        MOV ECX,Length                   // Character count
+
+        MOV EAX,0                        // Clear EAX since AL will be loaded, but be AX used
+        CMP Quote,False                  // Quote Value?
+        JE StringL                       // No!
+        MOV AX,Quoter                    // Starting quoter
+        STOSW                            //   into Write
+
+      StringL:
+        CMP ECX,0                        // All characters handled?
+        JE StringLE                      // Yes!
+        LODSB                            // Load AnisChar from Data
+        STOSW                            // Store WideChar into Buffer.Mem
+        DEC ECX
+        JMP StringL                      // Repeat for all characters
+
+      StringLE:
+        CMP Quote,False                  // Quote Value?
+        JE Finish                        // No!
+        MOV AX,Quoter                    // Ending quoter
+        STOSW                            //   into Write
+
+      Finish:
+        POP EDI
+        POP ESI
+        POP ES
+    end;
+
+  Buffer.Write := @Buffer.Write[Len];
+end;
+
+function TSQLBuffer.WriteExternal(const Length: Integer): PChar;
+begin
+  if (Length = 0) then
+    Result := nil
+  else
+  begin
+    Reallocate(Length);
+
+    Result := Buffer.Write;
+
+    Buffer.Write := @Buffer.Write[Length];
+  end;
+end;
+
+procedure TSQLBuffer.WriteText(const Text: PChar; const Length: Integer);
+var
+  Len: Integer;
+begin
+  Len := SQLEscape(Text, Length, nil, 0);
+  if (Len > 0) then
+    SQLEscape(Text, Length, WriteExternal(Len), Len);
 end;
 
 end.

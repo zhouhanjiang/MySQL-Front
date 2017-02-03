@@ -1866,6 +1866,8 @@ procedure TSItem.SetName(const AName: string);
 var
   NewIndex: Integer;
 begin
+  Assert(AName <> '');
+
   if (AName <> FName) then
   begin
     if (Items.InsertIndex(AName, NewIndex) and (Index >= 0)) then
@@ -2764,7 +2766,7 @@ begin
   FColumns := TSKeyColumns.Create(Self);
   Clear();
 
-  FOriginalName := Name;
+  FOriginalName := AName;
 end;
 
 procedure TSKey.Clear();
@@ -3891,11 +3893,15 @@ begin
     Session.SendEvent(etItemValid, Database, Items, Self);
   end;
 
-  // Debug 2016-11-27
+  // Debug 2017-02-03
   if (not Assigned(Fields)) then
     raise ERangeError.Create(SRangeError);
   if (not (TObject(Fields) is TSTableFields)) then
-    raise ERangeError.Create(SRangeError);
+    try
+      raise ERangeError.Create('ClassType: ' + TObject(Fields).ClassName);
+    except
+      raise ERangeError.Create(SRangeError);
+    end;
 
   if (Fields.Count > 0) then
     Session.SendEvent(etItemsValid, Self, Fields);
@@ -5125,6 +5131,8 @@ end;
 
 function TSBaseTable.SQLGetSource(): string;
 begin
+  Assert(Name <> '');
+
   Result := 'SHOW CREATE TABLE ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10;
 end;
 
@@ -10538,15 +10546,17 @@ begin
 end;
 
 procedure TSUser.SetName(const AName: string);
+var
+  TempName: string;
 begin
   if (AName <> FName) then
   begin
-    inherited;
+    if ((Pos('@', AName) = 0) and (AName <> '')) then
+      TempName := AName + '@%'
+    else
+      TempName := AName;
 
-    if ((Pos('@', FName) = 0) and (FName <> '')) then
-      Name := FName + '@%';
-
-    Session.SendEvent(etItemRenamed, nil, Users, Self);
+    inherited SetName(TempName);
   end;
 end;
 
@@ -11688,6 +11698,7 @@ begin
   FUser := TSUser.Create(Users);
 
   Result := FUser.Build(DataSet);
+  FUser.FOriginalName := FUser.Name;
 
   if (not Users.InsertIndex(FUser.Name, Index)) then
   begin
@@ -12360,6 +12371,7 @@ var
   DMLStmt: TSQLDMLStmt;
   Event: TSEvent;
   First: Boolean;
+  NewUsername: string;
   NextDDLStmt: TSQLDDLStmt;
   NextSQL: string;
   ObjectName: string;
@@ -12693,6 +12705,20 @@ begin
               SendEvent(etItemValid, Database, Database.Tables, Table);
             end;
           end;
+        end;
+      end;
+    end
+    else if (SQLParseKeyword(Parse, 'RENAME') and SQLParseKeyword(Parse, 'USER')) then
+    begin
+      User := UserByName(SQLParseValue(Parse));
+      if (Assigned(User)) then
+      begin
+        User.Invalidate();
+        if (SQLParseKeyword(Parse, 'TO')) then
+        begin
+          NewUsername := SQLParseValue(Parse);
+          if (NewUsername <> '') then
+            User.Name := NewUsername;
         end;
       end;
     end

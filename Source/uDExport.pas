@@ -6,7 +6,7 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, RichEdit,
   Dialogs, ComCtrls, ExtCtrls, StdCtrls, DB, DBGrids,
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext, Dialogs_Ext,
-  MySQLDB,
+  MySQLDB, MySQLDBGrid,
   uSession, uPreferences, uTools,
   uBase;
 
@@ -189,7 +189,7 @@ type
     procedure UMToolError(var Message: TMessage); message UM_TOOL_ERROR;
     procedure UMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
   public
-    DBGrid: TDBGrid;
+    DBGrid: TMySQLDBGrid;
     ExportType: TExportType;
     Session: TSSession;
     Window: TForm;
@@ -1167,8 +1167,10 @@ begin
 
         if (Length(FSourceFields) = 0) then
         begin
-          for I := 0 to DBGrid.FieldCount - 1 do
-            if ((ExportType <> etSQLFile) or not DBGrid.Fields[I].ReadOnly) then
+          for I := 0 to DBGrid.Columns.Count - 1 do
+            if (((ExportType <> etSQLFile) or not DBGrid.Columns[I].Field.ReadOnly)
+              and DBGrid.Columns[I].Visible
+              and ((DBGrid.SelectedFields.Count = 0) or (DBGrid.SelectedFields.IndexOf(DBGrid.Fields[I]) >= 0))) then
             begin
               SetLength(Export.Fields, Length(Export.Fields) + 1);
               Export.Fields[Length(Export.Fields) - 1] := DBGrid.Fields[I];

@@ -121,7 +121,7 @@ begin
       else if (Action is TEditCopy) then
         TEditAction(Action).Enabled := SelText <> ''
       else if (Action is TEditPaste) then
-        TEditAction(Action).Enabled := not (Style in [csDropDownList]) and Clipboard.HasFormat(CF_UNICODETEXT)
+        TEditAction(Action).Enabled := not (Style in [csDropDownList]) and IsClipboardFormatAvailable(CF_UNICODETEXT)
       else if (Action is TEditDelete) then
         TEditAction(Action).Enabled := SelText <> ''
       else

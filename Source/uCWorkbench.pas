@@ -2712,6 +2712,13 @@ begin
   // Debug 2016-12-26
   if (not Assigned(BaseTable)) then
     raise ERangeError.Create(SRangeError);
+  if (BaseTable.Database <> Workbench.Database) then
+    try
+      raise ERangeError.Create('BaseTable.Database: ' + BaseTable.Database.Name + #13#10
+        + 'Workbench.Database: ' + Workbench.Database.Name);
+    except
+      raise ERangeError.Create(SRangeError);
+    end;
   if (Workbench.Database.Tables.IndexOf(BaseTable) < 0) then
     raise ERangeError.Create(SRangeError);
 

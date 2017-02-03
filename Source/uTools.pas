@@ -105,36 +105,6 @@ type
       property Size: Integer read GetSize;
     end;
 
-    TStringBuffer = class
-    private
-      Buffer: record
-        Mem: PChar;
-        MemSize: Integer;
-        Write: PChar;
-      end;
-      function GetData(): Pointer; inline;
-      function GetLength(): Integer; inline;
-      function GetSize(): Integer; inline;
-      function GetText(): PChar; inline;
-      procedure Reallocate(const NeededLength: Integer);
-    public
-      procedure Clear();
-      constructor Create(const InitialLength: Integer);
-      procedure Delete(const Start: Integer; const Length: Integer);
-      destructor Destroy(); override;
-      function Read(): string;
-      procedure Write(const Text: PChar; const Length: Integer); overload;
-      procedure Write(const Text: string); overload; inline;
-      procedure WriteChar(const Char: Char);
-      procedure WriteData(const Data: my_char; const Length: Integer; const Quote: Boolean = False; const Quoter: Char = ''''); overload;
-      function WriteExternal(const Length: Integer): PChar;
-      procedure WriteText(const Text: PChar; const Length: Integer);
-      property Data: Pointer read GetData;
-      property Length: Integer read GetLength;
-      property Size: Integer read GetSize;
-      property Text: PChar read GetText;
-    end;
-
   private
     FErrorCount: Integer;
     FItems: TItems;
@@ -192,7 +162,7 @@ type
     procedure DoUpdateGUI(); override;
     procedure ExecuteTableData(const Item: TItem; const Table: TSTable); virtual;
     procedure ExecuteTableStructure(const Item: TItem); virtual;
-    procedure GetValue(const Item: TItem; const Index: Integer; const Values: TTool.TStringBuffer; const Values2: TTool.TStringBuffer = nil); virtual;
+    procedure GetValue(const Item: TItem; const Index: Integer; const Values: TSQLBuffer; const Values2: TSQLBuffer = nil); virtual;
     procedure GetValues(const Item: TItem; const Values: TTool.TDataFileBuffer); virtual;
     function NextRecord(const Item: TItem): Boolean; virtual;
     procedure Open(); virtual;
@@ -280,7 +250,7 @@ type
     procedure AfterExecuteData(const Item: TTImport.TItem); override;
     procedure BeforeExecuteData(const Item: TTImport.TItem); override;
     procedure ExecuteTableStructure(const Item: TTImport.TItem); override;
-    procedure GetValue(const Item: TTImport.TItem; const Index: Integer; const Values: TTool.TStringBuffer; const Values2: TTool.TStringBuffer = nil); override;
+    procedure GetValue(const Item: TTImport.TItem; const Index: Integer; const Values: TSQLBuffer; const Values2: TSQLBuffer = nil); override;
     procedure GetValues(const Item: TTImport.TItem; const Values: TTool.TDataFileBuffer); override;
     function NextRecord(const Item: TTImport.TItem): Boolean; override;
     property CSVValueCount: Integer read FCSVValueCount;
@@ -319,7 +289,7 @@ type
     procedure BeforeExecute(); override;
     procedure BeforeExecuteData(const Item: TTImport.TItem); override;
     procedure ExecuteTableStructure(const Item: TTImport.TItem); override;
-    procedure GetValue(const Item: TTImport.TItem; const Index: Integer; const Values: TTool.TStringBuffer; const Values2: TTool.TStringBuffer = nil); override;
+    procedure GetValue(const Item: TTImport.TItem; const Index: Integer; const Values: TSQLBuffer; const Values2: TSQLBuffer = nil); override;
     procedure GetValues(const Item: TTImport.TItem; const Values: TTool.TDataFileBuffer); override;
     function NextRecord(const Item: TTImport.TItem): Boolean; override;
     function ODBCStmtException(const AStmt: SQLHSTMT): Exception;
@@ -401,7 +371,7 @@ type
 
   TTExportFile = class(TTExport)
   private
-    ContentBuffer: TTool.TStringBuffer;
+    ContentBuffer: TSQLBuffer;
     FCodePage: Cardinal;
     FileBuffer: record
       Mem: PAnsiChar;
@@ -413,7 +383,7 @@ type
       Mem: PChar;
       MemSize: Integer;
     end;
-    Values: TTool.TStringBuffer;
+    Values: TSQLBuffer;
     procedure Flush();
   protected
     procedure AfterExecute(); override;
@@ -1423,184 +1393,6 @@ begin
   Result := TItem(TList(Self).Items[Index]);
 end;
 
-{ TTool.TStringBuffer *********************************************************}
-
-procedure TTool.TStringBuffer.Clear();
-begin
-  Buffer.Write := Buffer.Mem;
-end;
-
-constructor TTool.TStringBuffer.Create(const InitialLength: Integer);
-begin
-  Buffer.Mem := nil;
-  Buffer.MemSize := 0;
-  Buffer.Write := nil;
-
-  Reallocate(InitialLength);
-end;
-
-procedure TTool.TStringBuffer.Delete(const Start: Integer; const Length: Integer);
-begin
-  MoveMemory(@Buffer.Mem[Start], @Buffer.Mem[Start + Length], Size - Length);
-  Buffer.Write := Pointer(Integer(Buffer.Write) - Length);
-end;
-
-destructor TTool.TStringBuffer.Destroy();
-begin
-  FreeMem(Buffer.Mem);
-
-  inherited;
-end;
-
-function TTool.TStringBuffer.GetData(): Pointer;
-begin
-  Result := Pointer(Buffer.Mem);
-end;
-
-function TTool.TStringBuffer.GetLength(): Integer;
-begin
-  Result := (Integer(Buffer.Write) - Integer(Buffer.Mem)) div SizeOf(Buffer.Mem[0]);
-end;
-
-function TTool.TStringBuffer.GetSize(): Integer;
-begin
-  Result := Integer(Buffer.Write) - Integer(Buffer.Mem);
-end;
-
-function TTool.TStringBuffer.GetText(): PChar;
-begin
-  Result := Buffer.Mem;
-end;
-
-function TTool.TStringBuffer.Read(): string;
-begin
-  SetString(Result, PChar(Buffer.Mem), Size div SizeOf(Result[1]));
-  Clear();
-end;
-
-procedure TTool.TStringBuffer.Reallocate(const NeededLength: Integer);
-var
-  Index: Integer;
-begin
-  if (Buffer.MemSize = 0) then
-  begin
-    Buffer.MemSize := NeededLength * SizeOf(Buffer.Write[0]);
-    GetMem(Buffer.Mem, Buffer.MemSize);
-    Buffer.Write := Buffer.Mem;
-  end
-  else if (Size + NeededLength * SizeOf(Buffer.Mem[0]) > Buffer.MemSize) then
-  begin
-    Index := Size div SizeOf(Buffer.Write[0]);
-    Inc(Buffer.MemSize, 2 * (Size + NeededLength * SizeOf(Buffer.Mem[0]) - Buffer.MemSize));
-    ReallocMem(Buffer.Mem, Buffer.MemSize);
-    Buffer.Write := @Buffer.Mem[Index];
-  end;
-end;
-
-procedure TTool.TStringBuffer.Write(const Text: PChar; const Length: Integer);
-begin
-  if (Length > 0) then
-  begin
-    Reallocate(Length);
-
-    MoveMemory(Buffer.Write, Text, Length * SizeOf(Buffer.Mem[0]));
-    Buffer.Write := @Buffer.Write[Length];
-  end;
-end;
-
-procedure TTool.TStringBuffer.Write(const Text: string);
-begin
-  Write(PChar(Text), System.Length(Text));
-end;
-
-procedure TTool.TStringBuffer.WriteChar(const Char: Char);
-begin
-  Reallocate(1);
-  MoveMemory(Buffer.Write, @Char, SizeOf(Char));
-  Buffer.Write := @Buffer.Write[1];
-end;
-
-procedure TTool.TStringBuffer.WriteData(const Data: my_char; const Length: Integer; const Quote: Boolean = False; const Quoter: Char = '''');
-label
-  StringL, StringLE,
-  Finish;
-var
-  Len: Integer;
-  Write: PChar;
-begin
-  if (not Quote) then
-    Len := Length
-  else
-    Len := 1 + Length + 1;
-
-  Reallocate(Len);
-
-  Write := Buffer.Write;
-  asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-        MOV ESI,Data                     // Copy characters from Data
-        MOV EDI,Write                    //   to Write
-        MOV ECX,Length                   // Character count
-
-        MOV EAX,0                        // Clear EAX since AL will be loaded, but be AX used
-        CMP Quote,False                  // Quote Value?
-        JE StringL                       // No!
-        MOV AX,Quoter                    // Starting quoter
-        STOSW                            //   into Write
-
-      StringL:
-        CMP ECX,0                        // All characters handled?
-        JE StringLE                      // Yes!
-        LODSB                            // Load AnisChar from Data
-        STOSW                            // Store WideChar into Buffer.Mem
-        DEC ECX
-        JMP StringL                      // Repeat for all characters
-
-      StringLE:
-        CMP Quote,False                  // Quote Value?
-        JE Finish                        // No!
-        MOV AX,Quoter                    // Ending quoter
-        STOSW                            //   into Write
-
-      Finish:
-        POP EDI
-        POP ESI
-        POP ES
-    end;
-
-  Buffer.Write := @Buffer.Write[Len];
-end;
-
-function TTool.TStringBuffer.WriteExternal(const Length: Integer): PChar;
-begin
-  if (Length = 0) then
-    Result := nil
-  else
-  begin
-    Reallocate(Length);
-
-    Result := Buffer.Write;
-
-    Buffer.Write := @Buffer.Write[Length];
-  end;
-end;
-
-procedure TTool.TStringBuffer.WriteText(const Text: PChar; const Length: Integer);
-var
-  Len: Integer;
-begin
-  Len := SQLEscape(Text, Length, nil, 0);
-  if (Len > 0) then
-    SQLEscape(Text, Length, WriteExternal(Len), Len);
-end;
-
 { TTool ***********************************************************************}
 
 procedure TTool.AfterExecute();
@@ -1955,8 +1747,8 @@ var
   SQLExecuted: TEvent;
   SQLStmtPrefix: string;
   SQLStmtDelimiter: string;
-  SQLStmt: TStringBuffer;
-  UpdateClause: TStringBuffer;
+  SQLStmt: TSQLBuffer;
+  UpdateClause: TSQLBuffer;
 begin
   BeforeExecuteData(Item);
 
@@ -2056,11 +1848,11 @@ begin
     end
     else
     begin
-      SQLStmt := TStringBuffer.Create(SQLPacketSize);
+      SQLStmt := TSQLBuffer.Create(SQLPacketSize);
       if (StmtType <> stInsertOrUpdate) then
         UpdateClause := nil
       else
-        UpdateClause := TStringBuffer.Create(SQLPacketSize);
+        UpdateClause := TSQLBuffer.Create(SQLPacketSize);
 
       case (StmtType) of
         stInsert,
@@ -2234,7 +2026,7 @@ procedure TTImport.ExecuteTableStructure(const Item: TItem);
 begin
 end;
 
-procedure TTImport.GetValue(const Item: TItem; const Index: Integer; const Values: TTool.TStringBuffer; const Values2: TTool.TStringBuffer = nil);
+procedure TTImport.GetValue(const Item: TItem; const Index: Integer; const Values: TSQLBuffer; const Values2: TSQLBuffer = nil);
 begin
 end;
 
@@ -2774,7 +2566,7 @@ begin
   end;
 end;
 
-procedure TTImportText.GetValue(const Item: TTImport.TItem; const Index: Integer; const Values: TTool.TStringBuffer; const Values2: TTool.TStringBuffer = nil);
+procedure TTImportText.GetValue(const Item: TTImport.TItem; const Index: Integer; const Values: TSQLBuffer; const Values2: TSQLBuffer = nil);
 var
   Len: Integer;
 begin
@@ -3572,7 +3364,7 @@ begin
     end;
 end;
 
-procedure TTImportBaseODBC.GetValue(const Item: TTImport.TItem; const Index: Integer; const Values: TTool.TStringBuffer; const Values2: TTool.TStringBuffer = nil);
+procedure TTImportBaseODBC.GetValue(const Item: TTImport.TItem; const Index: Integer; const Values: TSQLBuffer; const Values2: TSQLBuffer = nil);
 var
   cbData: SQLINTEGER;
   ReturnCode: SQLRETURN;
@@ -4569,7 +4361,7 @@ constructor TTExportFile.Create(const ASession: TSSession; const AFilename: TFil
 begin
   inherited Create(ASession);
 
-  ContentBuffer := TStringBuffer.Create(FilePacketSize);
+  ContentBuffer := TSQLBuffer.Create(FilePacketSize);
   FCodePage := ACodePage;
   if (CodePage = CP_UNICODE) then
   begin
@@ -4585,7 +4377,7 @@ begin
   Handle := INVALID_HANDLE_VALUE;
   ValueBuffer.Mem := nil;
   ValueBuffer.MemSize := 0;
-  Values := TStringBuffer.Create(SQLPacketSize);
+  Values := TSQLBuffer.Create(SQLPacketSize);
 end;
 
 destructor TTExportFile.Destroy();
@@ -8096,7 +7888,7 @@ end;
 
 procedure TTTransfer.ExecuteTableData(const Item: TItem; const ResultHandle: TMySQLConnection.TResultHandle);
 var
-  Buffer: TTool.TStringBuffer;
+  Buffer: TSQLBuffer;
   DataFileBuffer: TDataFileBuffer;
   DataSet: TMySQLQuery;
   DestinationDatabase: TSDatabase;
@@ -8132,7 +7924,7 @@ var
     Mem: PChar;
     MemSize: Integer;
   end;
-  ValuesBuffer: TTool.TStringBuffer;
+  ValuesBuffer: TSQLBuffer;
 begin
   SourceValues := ''; FilenameP[0] := #0;
   SourceTable := TSBaseTable(Item.DBObject);
@@ -8270,7 +8062,7 @@ begin
         SQL := ''; SQLExecuteLength := 0;
 
         ValueBuffer.Mem := nil; ValueBuffer.MemSize := 0;
-        ValuesBuffer := TStringBuffer.Create(SQLPacketSize);
+        ValuesBuffer := TSQLBuffer.Create(SQLPacketSize);
         SQLInsertLen := 0;
 
         EscapedTableName := Session.Connection.EscapeIdentifier(DestinationDatabase.Name) + '.' + DestinationSession.Connection.EscapeIdentifier(DestinationTable.Name);
@@ -8687,7 +8479,7 @@ end;
 
 procedure TTSearch.ExecuteTableDefault(const Item: TItem);
 var
-  Buffer: TStringBuffer;
+  Buffer: TSQLBuffer;
   DataSet: TMySQLQuery;
   Fields: array of TField;
   Found: Boolean;
@@ -8807,7 +8599,7 @@ begin
               DoError(DatabaseError(TTReplace(Self).ReplaceSession), Item, True, SQL);
           end;
 
-          Buffer := TStringBuffer.Create(SQLPacketSize);
+          Buffer := TSQLBuffer.Create(SQLPacketSize);
 
           if (Table.Database <> TTReplace(Self).ReplaceSession.DatabaseByName(TTReplace(Self).ReplaceSession.Connection.DatabaseName)) then
             Buffer.Write(Table.Database.SQLUse());

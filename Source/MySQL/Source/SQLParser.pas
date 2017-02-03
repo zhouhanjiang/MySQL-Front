@@ -1794,7 +1794,7 @@ type
           EnableTag: TOffset;
           CommentValue: TOffset;
           DoTag: TOffset;
-          Body: TOffset;
+          Stmt: TOffset;
         end;
       private
         Heritage: TStmt;
@@ -6666,6 +6666,7 @@ type
     kiYEAR_MONTH,
     kiZEROFILL: Integer;
 
+    AllowedDeclareStmts: set of (adsVariable, adsCondition, adsCursor, adsHandler);
     AllowedMySQLVersion: Integer;
     CharsetList: TWordList;
     Commands: TFormatBuffer;
@@ -6711,11 +6712,9 @@ type
     ttIdents: set of TTokenType;
     ttStrings: set of TTokenType;
     function ApplyCurrentToken(const AUsageType: TUsageType): TOffset;
-    procedure BeginCompound(); {$IFNDEF Debug} inline; {$ENDIF}
     procedure BeginPL_SQL(); {$IFNDEF Debug} inline; {$ENDIF}
     function EndOfStmt(const Token: PToken): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function EndOfStmt(const Token: TOffset): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
-    procedure EndCompound(); {$IFNDEF Debug} inline; {$ENDIF}
     procedure EndPL_SQL(); {$IFNDEF Debug} inline; {$ENDIF}
     procedure FormatAccount(const Nodes: TAccount.TNodes);
     procedure FormatAlterDatabaseStmt(const Nodes: TAlterDatabaseStmt.TNodes);
@@ -6814,6 +6813,7 @@ type
     function GetErrorFound(): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
     function GetErrorMessage(): string;
     function GetErrorPos(): Integer;
+    function GetErrorToken(): PToken;
     function GetFirstStmt(): PStmt;
     function GetFirstTokenAll(): PToken;
     function GetKeywords(): string;
@@ -6906,9 +6906,9 @@ type
     function ParseDbIdent(const ADbIdentType: TDbIdentType; const FullQualified: Boolean = True; const JokerAllowed: Boolean = False): TOffset; overload;
     function ParseDefinerValue(): TOffset;
     function ParseDeallocatePrepareStmt(): TOffset;
-    function ParseDeclareConditionStmt(const StmtTag: TOffset; const IdentList: TOffset): TOffset;
-    function ParseDeclareCursorStmt(const StmtTag: TOffset; const IdentList: TOffset): TOffset;
-    function ParseDeclareHandlerStmt(const StmtTag: TOffset): TOffset;
+    function ParseDeclareConditionStmt(const IdentList: TOffset): TOffset;
+    function ParseDeclareCursorStmt(const IdentList: TOffset): TOffset;
+    function ParseDeclareHandlerStmt(): TOffset;
     function ParseDeclareHandlerStmtCondition(): TOffset;
     function ParseDeclareStmt(): TOffset;
     function ParseDefaultFunc(): TOffset;
@@ -7104,7 +7104,7 @@ type
     procedure SaveToSQLFile(const Filename: string);
     procedure SetCharsets(ACharsets: string);
     procedure SetDatatypes(ADatatypes: string);
-    procedure SetError(const AErrorCode: Byte; const Node: TOffset = 0);
+    function SetError(const AErrorCode: Byte; const Node: TOffset = 0): TOffset;
     procedure SetKeywords(AKeywords: string);
     procedure SetReservedWords(AReservedWords: string);
     property ErrorFound: Boolean read GetErrorFound;
@@ -7156,6 +7156,7 @@ type
     property ErrorLine: Integer read FirstError.Line;
     property ErrorMessage: string read GetErrorMessage;
     property ErrorPos: Integer read GetErrorPos;
+    property ErrorToken: PToken read GetErrorToken;
     property FirstStmt: PStmt read GetFirstStmt;
     property FirstTokenAll: PToken read GetFirstTokenAll;
     property FunctionList: TWordList read FFunctionList;
@@ -7187,6 +7188,9 @@ const
   PE_IncompleteStmt = 6; // Incompleted statement
   PE_UnexpectedToken = 7; // Unexpected character
   PE_ExtraToken = 8; // Unexpected character
+
+  // Bugs in the order of Stmts
+  PE_UnexpectedStmt = 9; // Stmt not allowed here
 
 implementation {***************************************************************}
 
@@ -11911,11 +11915,6 @@ begin
   end;
 end;
 
-procedure TSQLParser.BeginCompound();
-begin
-  Inc(FInCompound);
-end;
-
 procedure TSQLParser.BeginPL_SQL();
 begin
   Inc(FInPL_SQL);
@@ -12044,6 +12043,8 @@ begin
         Result := 'Unexpected character'
       else
         Result := 'Unexpected string';
+    PE_UnexpectedStmt:
+      Result := 'Statement not allowed here';
     else
       raise ERangeError.Create(SRangeError);
   end;
@@ -12094,14 +12095,6 @@ end;
 function TSQLParser.EndOfStmt(const Token: TOffset): Boolean;
 begin
   Result := (Token = 0) or (TokenPtr(Token)^.TokenType = ttSemicolon);
-end;
-
-procedure TSQLParser.EndCompound();
-begin
-  Assert(FInPL_SQL > 0);
-
-  if (FInCompound > 0) then
-    Dec(FInCompound);
 end;
 
 procedure TSQLParser.EndPL_SQL();
@@ -12183,12 +12176,12 @@ begin
 
   if (Nodes.DoTag > 0) then
   begin
-    Assert(Nodes.Body > 0);
+    Assert(Nodes.Stmt > 0);
 
     Commands.IncreaseIndent();
     FormatNode(Nodes.DoTag, stReturnBefore);
     Commands.DecreaseIndent();
-    FormatNode(Nodes.Body, stReturnBefore);
+    FormatNode(Nodes.Stmt, stReturnBefore);
   end;
 end;
 
@@ -14623,6 +14616,14 @@ begin
   Result := FirstError.Pos - @Parse.SQL[1];
 end;
 
+function TSQLParser.GetErrorToken(): PToken;
+begin
+  if (not IsToken(FirstError.Token)) then
+    Result := nil
+  else
+    Result := TokenPtr(FirstError.Token);
+end;
+
 function TSQLParser.GetFirstStmt(): PStmt;
 begin
   if (FRoot = 0) then
@@ -15355,7 +15356,11 @@ begin
       Nodes.DoTag := ParseTag(kiDO);
 
       if (not ErrorFound) then
-        Nodes.Body := ParsePL_SQLStmt();
+      begin
+        Nodes.Stmt := ParsePL_SQLStmt();
+        if (not ErrorFound and (Nodes.Stmt = 0)) then
+          SetError(PE_IncompleteStmt);
+      end;
     end;
 
   Result := TAlterEventStmt.Create(Self, Nodes);
@@ -15526,15 +15531,9 @@ begin
     and IsTag(kiVIEW)) then
     Result := ParseAlterViewStmt(AlterTag, AlgorithmValue, DefinerValue, SQLSecurityTag)
   else if (EndOfStmt(CurrentToken)) then
-  begin
-    SetError(PE_IncompleteStmt);
-    Result := 0;
-  end
+    Result := SetError(PE_IncompleteStmt)
   else
-  begin
-    SetError(PE_UnexpectedToken);
-    Result := 0;
-  end;
+    Result := SetError(PE_UnexpectedToken);
 end;
 
 function TSQLParser.ParseAlterTablespaceStmt(const AlterTag: TOffset): TOffset;
@@ -15663,7 +15662,7 @@ begin
         TableOptions.DelayKeyWriteValue := ParseValue(kiDELAY_KEY_WRITE, vaAuto, ParseInteger);
         Specifications.Add(TableOptions.DelayKeyWriteValue);
       end
-      else if ((TableOptions.EngineIdent = 0) and IsTag(kiENGINE)) then
+      else if ((TableOptions.EngineIdent = 0) and IsTag(kiENGINE) and (MySQLVersion >= 40018)) then
       begin
         TableOptions.EngineIdent := ParseValue(kiENGINE, vaAuto, ParseEngineIdent);
         Specifications.Add(TableOptions.EngineIdent);
@@ -15748,7 +15747,7 @@ begin
         TableOptions.TransactionalInt := ParseValue(kiTRANSACTIONAL, vaAuto, ParseInteger);
         Specifications.Add(TableOptions.TransactionalInt);
       end
-      else if ((TableOptions.EngineIdent = 0) and IsTag(kiTYPE)) then
+      else if ((TableOptions.EngineIdent = 0) and IsTag(kiTYPE) and (MySQLVersion < 50500)) then
       begin
         TableOptions.EngineIdent := ParseValue(kiTYPE, vaAuto, ParseEngineIdent);
         Specifications.Add(TableOptions.EngineIdent);
@@ -16636,7 +16635,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  BeginCompound();
+  Inc(FInCompound);
 
   Nodes.BeginLabel := BeginLabel;
 
@@ -16644,8 +16643,12 @@ begin
     Nodes.BeginTag := ParseTag(kiBEGIN);
 
   if (not ErrorFound) then
+  begin
+    AllowedDeclareStmts := [adsVariable, adsCondition, adsCursor, adsHandler];
+
     if (not IsTag(kiEND)) then
       Nodes.StmtList := ParseList(False, ParsePL_SQLStmt, ttSemicolon);
+  end;
 
   if (not ErrorFound) then
     Nodes.EndTag := ParseTag(kiEND);
@@ -16658,7 +16661,7 @@ begin
     else
       Nodes.EndLabel := ParseEndLabel();
 
-  EndCompound();
+  Dec(FInCompound);
 
   Result := TCompoundStmt.Create(Self, Nodes);
 
@@ -16892,9 +16895,9 @@ begin
   begin
     Parse.InCreateEventStmt := True;
     Nodes.Stmt := ParsePL_SQLStmt();
+    Parse.InCreateEventStmt := False;
     if (not ErrorFound and (Nodes.Stmt = 0)) then
       SetError(PE_IncompleteStmt);
-    Parse.InCreateEventStmt := False;
   end;
 
   Result := TCreateEventStmt.Create(Self, Nodes);
@@ -17024,10 +17027,10 @@ begin
     Parse.InCreateProcedureStmt := ARoutineType = rtProcedure;
     Parse.InCreateFunctionStmt := ARoutineType = rtFunction;
     Nodes.Stmt := ParsePL_SQLStmt();
-    if (not ErrorFound and (Nodes.Stmt = 0)) then
-      SetError(PE_IncompleteStmt);
     Parse.InCreateFunctionStmt := False;
     Parse.InCreateProcedureStmt := False;
+    if (not ErrorFound and (Nodes.Stmt = 0)) then
+      SetError(PE_IncompleteStmt);
   end;
 
   Result := TCreateRoutineStmt.Create(Self, ARoutineType, Nodes);
@@ -17232,18 +17235,27 @@ begin
   else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0)
     and IsTag(kiDATABASE)) then
     Result := ParseCreateDatabaseStmt(CreateTag, OrReplaceTag)
-  else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0) and not (Parse.InCreateEventStmt or Parse.InCreateFunctionStmt or Parse.InCreateProcedureStmt or Parse.InCreateTriggerStmt)
+  else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0)
     and IsTag(kiEVENT)) then
-    Result := ParseCreateEventStmt(CreateTag, OrReplaceTag, DefinerValue)
-  else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0) and not (Parse.InCreateEventStmt or Parse.InCreateFunctionStmt or Parse.InCreateProcedureStmt or Parse.InCreateTriggerStmt)
+    if (Parse.InCreateEventStmt or Parse.InCreateFunctionStmt or Parse.InCreateProcedureStmt or Parse.InCreateTriggerStmt) then
+      Result := SetError(PE_UnexpectedStmt)
+    else
+      Result := ParseCreateEventStmt(CreateTag, OrReplaceTag, DefinerValue)
+  else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0)
     and IsTag(kiFUNCTION)) then
-    Result := ParseCreateRoutineStmt(rtFunction, CreateTag, OrReplaceTag, DefinerValue)
+    if (Parse.InCreateEventStmt or Parse.InCreateFunctionStmt or Parse.InCreateProcedureStmt or Parse.InCreateTriggerStmt) then
+      Result := SetError(PE_UnexpectedStmt)
+    else
+      Result := ParseCreateRoutineStmt(rtFunction, CreateTag, OrReplaceTag, DefinerValue)
   else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0)
     and IsTag(kiINDEX)) then
     Result := ParseCreateIndexStmt(CreateTag, OrReplaceTag, KindTag)
-  else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0) and not (Parse.InCreateEventStmt or Parse.InCreateFunctionStmt or Parse.InCreateProcedureStmt or Parse.InCreateTriggerStmt)
+  else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0)
     and IsTag(kiPROCEDURE)) then
-    Result := ParseCreateRoutineStmt(rtProcedure, CreateTag, OrReplaceTag, DefinerValue)
+    if (Parse.InCreateEventStmt or Parse.InCreateFunctionStmt or Parse.InCreateProcedureStmt or Parse.InCreateTriggerStmt) then
+      Result := SetError(PE_UnexpectedStmt)
+    else
+      Result := ParseCreateRoutineStmt(rtProcedure, CreateTag, OrReplaceTag, DefinerValue)
   else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0)
     and IsTag(kiSCHEMA)) then
     Result := ParseCreateDatabaseStmt(CreateTag, OrReplaceTag)
@@ -17256,9 +17268,12 @@ begin
   else if ((OrReplaceTag = 0) and (AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0)
     and IsTag(kiTABLESPACE)) then
     Result := ParseCreateTablespaceStmt(CreateTag)
-  else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0) and not (Parse.InCreateEventStmt or Parse.InCreateFunctionStmt or Parse.InCreateProcedureStmt or Parse.InCreateTriggerStmt)
+  else if ((AlgorithmValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0)
     and IsTag(kiTRIGGER)) then
-    Result := ParseCreateTriggerStmt(CreateTag, OrReplaceTag, DefinerValue)
+    if (Parse.InCreateEventStmt or Parse.InCreateFunctionStmt or Parse.InCreateProcedureStmt or Parse.InCreateTriggerStmt) then
+      Result := SetError(PE_UnexpectedStmt)
+    else
+      Result := ParseCreateTriggerStmt(CreateTag, OrReplaceTag, DefinerValue)
   else if ((AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0)
     and IsTag(kiUSER)) then
     Result := ParseCreateUserStmt(CreateTag, OrReplaceTag)
@@ -17267,15 +17282,9 @@ begin
     Result := ParseCreateViewStmt(CreateTag, OrReplaceTag, AlgorithmValue, DefinerValue, SQLSecurityTag)
   else if ((OrReplaceTag = 0) and (AlgorithmValue = 0) and (DefinerValue = 0) and (SQLSecurityTag = 0) and (TemporaryTag = 0) and (KindTag = 0)
     and EndOfStmt(CurrentToken)) then
-  begin
-    SetError(PE_IncompleteStmt);
-    Result := 0;
-  end
+    Result := SetError(PE_IncompleteStmt)
   else
-  begin
-    SetError(PE_UnexpectedToken);
-    Result := 0;
-  end;
+    Result := SetError(PE_UnexpectedToken);
 end;
 
 function TSQLParser.ParseCreateTablespaceStmt(const CreateTag: TOffset): TOffset;
@@ -17435,7 +17444,7 @@ begin
         TableOptions.DelayKeyWriteValue := ParseValue(kiDELAY_KEY_WRITE, vaAuto, ParseInteger);
         Options.Add(TableOptions.DelayKeyWriteValue);
       end
-      else if ((TableOptions.EngineIdent = 0) and IsTag(kiENGINE)) then
+      else if ((TableOptions.EngineIdent = 0) and IsTag(kiENGINE) and (MySQLVersion >= 40018)) then
       begin
         TableOptions.EngineIdent := ParseValue(kiENGINE, vaAuto, ParseEngineIdent);
         Options.Add(TableOptions.EngineIdent);
@@ -17520,7 +17529,7 @@ begin
         TableOptions.TransactionalInt := ParseValue(kiTRANSACTIONAL, vaAuto, ParseInteger);
         Options.Add(TableOptions.TransactionalInt);
       end
-      else if ((TableOptions.EngineIdent = 0) and IsTag(kiTYPE)) then
+      else if ((TableOptions.EngineIdent = 0) and IsTag(kiTYPE) and (MySQLVersion < 50500)) then
       begin
         TableOptions.EngineIdent := ParseValue(kiTYPE, vaAuto, ParseEngineIdent);
         Options.Add(TableOptions.EngineIdent);
@@ -17762,15 +17771,9 @@ begin
     else
       Result := ParseCreateTableStmtField()
   else if (EndOfStmt(CurrentToken)) then
-  begin
-    SetError(PE_IncompleteStmt);
-    Result := 0;
-  end
+    Result := SetError(PE_IncompleteStmt)
   else
-  begin
-    SetError(PE_UnexpectedToken);
-    Result := 0;
-  end;
+    Result := SetError(PE_UnexpectedToken);
 end;
 
 function TSQLParser.ParseCreateTableStmtDefinitionPartitionNames(): TOffset;
@@ -18260,6 +18263,8 @@ begin
     Parse.InCreateTriggerStmt := True;
     Nodes.Stmt := ParsePL_SQLStmt();
     Parse.InCreateTriggerStmt := False;
+    if (not ErrorFound and (Nodes.Stmt = 0)) then
+      SetError(PE_IncompleteStmt);
   end;
 
   Result := TCreateTriggerStmt.Create(Self, Nodes);
@@ -18645,15 +18650,12 @@ function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
   function ParseDbIdentToken(const QualifiedIdentifier: Boolean): TOffset;
   begin
     if (EndOfStmt(CurrentToken)) then
-    begin
-      SetError(PE_IncompleteStmt);
-      Result := 0;
-    end
+      Result := SetError(PE_IncompleteStmt)
     else if ((TokenPtr(CurrentToken)^.TokenType = ttIdent)
         and (QualifiedIdentifier
           or (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0)
           or (ADbIdentType = ditCharset) and (StrLIComp(TokenPtr(CurrentToken)^.FText, 'binary', 6) = 0)
-          or (ADbIdentType in [ditUnknown, ditVariable, ditConstante]))
+          or (ADbIdentType in [ditVariable, ditConstante]))
       or (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent) and not (ADbIdentType in [ditCharset, ditCollation])
       or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and (AnsiQuotes or (ADbIdentType in [ditUser, ditHost, ditConstraint, ditColumnAlias, ditCharset, ditCollation]))
       or (TokenPtr(CurrentToken)^.TokenType = ttString) and (ADbIdentType in [ditUser, ditHost, ditConstraint, ditColumnAlias, ditCharset, ditCollation])
@@ -18667,10 +18669,7 @@ function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType;
     else if ((ADbIdentType = ditUnknown) and (ReservedWordList.IndexOf(TokenPtr(CurrentToken)^.FText, TokenPtr(CurrentToken)^.FLength) < 0)) then
       Result := ApplyCurrentToken(utDbIdent)
     else
-    begin
-      SetError(PE_UnexpectedToken);
-      Result := 0;
-    end;
+      Result := SetError(PE_UnexpectedToken);
   end;
 
 var
@@ -18746,8 +18745,7 @@ begin
           begin
             CompletionList.AddList(ditTable, TokenPtr(Nodes.TableIdent)^.AsString);
             CompletionList.AddList(ADbIdentType, '', TokenPtr(Nodes.TableIdent)^.AsString);
-            SetError(PE_IncompleteStmt);
-            Nodes.Ident := 0;
+            Nodes.Ident := SetError(PE_IncompleteStmt);
           end
           else
           begin
@@ -18770,8 +18768,7 @@ begin
               if (EndOfStmt(CurrentToken)) then
               begin
                 CompletionList.AddList(ADbIdentType, TokenPtr(Nodes.DatabaseIdent)^.AsString, TokenPtr(Nodes.TableIdent)^.AsString);
-                SetError(PE_IncompleteStmt);
-                Nodes.Ident := 0;
+                Nodes.Ident := SetError(PE_IncompleteStmt);
               end
               else if (TokenPtr(CurrentToken)^.TokenType = ttInteger) then
                 Nodes.Ident := ApplyCurrentToken(utDbIdent)
@@ -18822,13 +18819,13 @@ begin
   Result := TDeallocatePrepareStmt.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseDeclareConditionStmt(const StmtTag: TOffset; const IdentList: TOffset): TOffset;
+function TSQLParser.ParseDeclareConditionStmt(const IdentList: TOffset): TOffset;
 var
   Nodes: TDeclareConditionStmt.TNodes;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.StmtTag := StmtTag;
+  Nodes.StmtTag := ParseTag(kiDECLARE);
 
   Nodes.IdentList := IdentList;
 
@@ -18865,13 +18862,16 @@ begin
   Result := TDeclareConditionStmt.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseDeclareCursorStmt(const StmtTag: TOffset; const IdentList: TOffset): TOffset;
+function TSQLParser.ParseDeclareCursorStmt(const IdentList: TOffset): TOffset;
 var
   Nodes: TDeclareCursorStmt.TNodes;
 begin
+  Exclude(AllowedDeclareStmts, adsVariable);
+  Exclude(AllowedDeclareStmts, adsCondition);
+
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.StmtTag := StmtTag;
+  Nodes.StmtTag := ParseTag(kiDECLARE);
 
   Nodes.IdentList := IdentList;
 
@@ -18893,13 +18893,17 @@ begin
   Result := TDeclareCursorStmt.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseDeclareHandlerStmt(const StmtTag: TOffset): TOffset;
+function TSQLParser.ParseDeclareHandlerStmt(): TOffset;
 var
   Nodes: TDeclareHandlerStmt.TNodes;
 begin
+  Exclude(AllowedDeclareStmts, adsVariable);
+  Exclude(AllowedDeclareStmts, adsCondition);
+  Exclude(AllowedDeclareStmts, adsCursor);
+
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.StmtTag := StmtTag;
+  Nodes.StmtTag := ParseTag(kiDECLARE);
 
   if (not ErrorFound) then
     if (IsTag(kiCONTINUE)) then
@@ -18923,7 +18927,11 @@ begin
     Nodes.ConditionsList := ParseList(False, ParseDeclareHandlerStmtCondition);
 
   if (not ErrorFound) then
+  begin
     Nodes.Stmt := ParsePL_SQLStmt();
+    if (not ErrorFound and (Nodes.Stmt = 0)) then
+      SetError(PE_IncompleteStmt);
+  end;
 
   Result := TDeclareHandlerStmt.Create(Self, Nodes);
 end;
@@ -18955,33 +18963,26 @@ function TSQLParser.ParseDeclareStmt(): TOffset;
 var
   Nodes: TDeclareStmt.TNodes;
   IdentList: TOffset;
-  StmtTag: TOffset;
   Token: PToken;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  StmtTag := ParseTag(kiDECLARE);
-
-  if (ErrorFound) then
-  begin
-    SetError(PE_Unknown);
-    Result := 0;
-  end
-  else if (IsTag(kiCONTINUE, kiHANDLER)
-    or IsTag(kiEXIT, kiHANDLER)
-    or IsTag(kiUNDO, kiHANDLER)) then
-    Result := ParseDeclareHandlerStmt(StmtTag)
+  if ((adsHandler in AllowedDeclareStmts)
+    and (IsTag(kiDECLARE, kiCONTINUE, kiHANDLER)
+      or IsTag(kiDECLARE, kiEXIT, kiHANDLER)
+      or IsTag(kiDECLARE, kiUNDO, kiHANDLER))) then
+    Result := ParseDeclareHandlerStmt()
   else
   begin
     IdentList := ParseList(False, ParseDbIdent);
 
-    if (not ErrorFound and IsTag(kiCONDITION, kiFOR)) then
-      Result := ParseDeclareConditionStmt(StmtTag, IdentList)
-    else if (not ErrorFound and IsTag(kiCURSOR, kiFOR)) then
-      Result := ParseDeclareCursorStmt(StmtTag, IdentList)
-    else
+    if (not ErrorFound and (adsCondition in AllowedDeclareStmts) and IsTag(kiCONDITION, kiFOR)) then
+      Result := ParseDeclareConditionStmt(IdentList)
+    else if (not ErrorFound and (adsCursor in AllowedDeclareStmts) and IsTag(kiCURSOR, kiFOR)) then
+      Result := ParseDeclareCursorStmt(IdentList)
+    else if (adsVariable in AllowedDeclareStmts) then
     begin
-      Nodes.StmtTag := StmtTag;
+      Nodes.StmtTag := ParseTag(kiDECLARE);
 
       Nodes.IdentList := IdentList;
 
@@ -19011,7 +19012,9 @@ begin
             Token := Token^.NextToken;
         end;
       end;
-    end;
+    end
+    else
+      Result := SetError(PE_UnexpectedStmt);
   end;
 end;
 
@@ -21022,15 +21025,9 @@ begin
   else if (IsTag(kiYEAR_MONTH)) then
     Result := ParseTag(kiYEAR_MONTH)
   else if (EndOfStmt(CurrentToken)) then
-  begin
-    SetError(PE_IncompleteStmt);
-    Result := 0;
-  end
+    Result := SetError(PE_IncompleteStmt)
   else
-  begin
-    SetError(PE_UnexpectedToken);
-    Result := 0;
-  end;
+    Result := SetError(PE_UnexpectedToken);
 end;
 
 function TSQLParser.ParseIterateStmt(): TOffset;
@@ -22733,14 +22730,10 @@ function TSQLParser.ParseSelectStmtTableReference(): TOffset;
     begin
       CompletionList.AddList(ditDatabase);
       CompletionList.AddList(ditTable);
-      SetError(PE_IncompleteStmt);
-      Result := 0;
+      Result := SetError(PE_IncompleteStmt);
     end
     else
-    begin
-      SetError(PE_UnexpectedToken);
-      Result := 0;
-    end;
+      Result := SetError(PE_UnexpectedToken);
   end;
 
 var
@@ -23657,15 +23650,9 @@ begin
   else if (IsTag(kiSWAPS)) then
     Result := ParseTag(kiSWAPS)
   else if (EndOfStmt(CurrentToken)) then
-  begin
-    SetError(PE_IncompleteStmt);
-    Result := 0;
-  end
+    Result := SetError(PE_IncompleteStmt)
   else
-  begin
-    SetError(PE_UnexpectedToken);
-    Result := 0;
-  end;
+    Result := SetError(PE_UnexpectedToken);
 end;
 
 function TSQLParser.ParseShowRelaylogEventsStmt(): TOffset;
@@ -24094,312 +24081,348 @@ begin
   else
     BeginLabel := ParseBeginLabel();
 
-  if (InPL_SQL and IsTag(kiBEGIN)) then
-    Result := ParseCompoundStmt(BeginLabel)
-  else if (InPL_SQL and IsTag(kiLOOP)) then
-    Result := ParseLoopStmt(BeginLabel)
-  else if (InPL_SQL and IsTag(kiREPEAT)) then
-    Result := ParseRepeatStmt(BeginLabel)
-  else if (InPL_SQL and IsTag(kiWHILE)) then
-    Result := ParseWhileStmt(BeginLabel)
-  else if (BeginLabel > 0) then
-    if (EndOfStmt(CurrentToken)) then
-    begin
-      SetError(PE_IncompleteStmt);
-      Result := 0;
-    end
-    else
-    begin
-      SetError(PE_UnexpectedToken);
-      Result := 0;
-    end
-
-  else if (IsTag(kiALTER)) then
-    Result := ParseAlterStmt()
-  else if (IsTag(kiANALYZE, kiTABLE)) then
-    Result := ParseAnalyzeTableStmt()
-  else if (IsTag(kiBEGIN)) then
-    if (not InPL_SQL) then
-      Result := ParseBeginStmt()
-    else
-      Result := ParseCompoundStmt(0)
-  else if (IsTag(kiCALL)) then
-    Result := ParseCallStmt()
-  else if (InPL_SQL and IsTag(kiCASE)) then
-    Result := ParseCaseStmt()
-  else if (IsTag(kiCHANGE)) then
-    Result := ParseChangeMasterStmt()
-  else if (IsTag(kiCHECK, kiTABLE)) then
-    Result := ParseCheckTableStmt()
-  else if (IsTag(kiCHECKSUM, kiTABLE)) then
-    Result := ParseChecksumTableStmt()
-  else if (InPL_SQL and (IsTag(kiCLOSE))) then
-    Result := ParseCloseStmt()
-  else if (IsTag(kiCOMMIT)) then
-    Result := ParseCommitStmt()
-  else if (IsTag(kiCREATE)) then
-    Result := ParseCreateStmt()
-  else if (IsTag(kiDEALLOCATE)) then
-    Result := ParseDeallocatePrepareStmt()
-  else if (InCompound and IsTag(kiDECLARE)) then
+  if (InCompound and IsTag(kiDECLARE)) then
     Result := ParseDeclareStmt()
-  else if (IsTag(kiDELETE)) then
-    Result := ParseDeleteStmt()
-  else if (IsTag(kiDESC)) then
-    Result := ParseExplainStmt()
-  else if (IsTag(kiDESCRIBE)) then
-    Result := ParseExplainStmt()
-  else if (IsTag(kiDO)) then
-    Result := ParseDoStmt()
-  else if (IsTag(kiDROP, kiDATABASE)) then
-    Result := ParseDropDatabaseStmt()
-  else if (IsTag(kiDROP, kiEVENT)) then
-    Result := ParseDropEventStmt()
-  else if (IsTag(kiDROP, kiFUNCTION)) then
-    Result := ParseDropRoutineStmt(rtFunction)
-  else if (IsTag(kiDROP, kiINDEX)) then
-    Result := ParseDropIndexStmt()
-  else if (IsTag(kiDROP, kiPREPARE)) then
-    Result := ParseDeallocatePrepareStmt()
-  else if (IsTag(kiDROP, kiPROCEDURE)) then
-    Result := ParseDropRoutineStmt(rtProcedure)
-  else if (IsTag(kiDROP, kiSCHEMA)) then
-    Result := ParseDropDatabaseStmt()
-  else if (IsTag(kiDROP, kiSERVER)) then
-    Result := ParseDropServerStmt()
-  else if (IsTag(kiDROP, kiTEMPORARY, kiTABLE)
-    or IsTag(kiDROP, kiTABLE)) then
-    Result := ParseDropTableStmt()
-  else if (IsTag(kiDROP, kiTABLESPACE)) then
-    Result := ParseDropTablespaceStmt()
-  else if (IsTag(kiDROP, kiTRIGGER)) then
-    Result := ParseDropTriggerStmt()
-  else if (IsTag(kiDROP, kiUSER)) then
-    Result := ParseDropUserStmt()
-  else if (IsTag(kiDROP, kiVIEW)) then
-    Result := ParseDropViewStmt()
-  else if (IsTag(kiEXECUTE)) then
-    Result := ParseExecuteStmt()
-  else if (IsTag(kiEXPLAIN)) then
-    Result := ParseExplainStmt()
-  else if (InPL_SQL and IsTag(kiFETCH)) then
-    Result := ParseFetchStmt()
-  else if (IsTag(kiFLUSH)) then
-    Result := ParseFlushStmt()
-  else if (IsTag(kiGET, kiCURRENT, kiDIAGNOSTICS)
-    or IsTag(kiGET, kiSTACKED, kiDIAGNOSTICS)
-    or IsTag(kiGET, kiDIAGNOSTICS)) then
-    Result := ParseGetDiagnosticsStmt()
-  else if (IsTag(kiGRANT)) then
-    Result := ParseGrantStmt()
-  else if (IsTag(kiHELP)) then
-    Result := ParseHelpStmt()
-  else if (InPL_SQL and IsTag(kiIF)) then
-    Result := ParseIfStmt()
-  else if (IsTag(kiINSERT)) then
-    Result := ParseInsertStmt()
-  else if (IsTag(kiINSTALL, kiPLUGIN)) then
-    Result := ParseInstallPluginStmt()
-  else if (InPL_SQL and IsTag(kiITERATE)) then
-    Result := ParseIterateStmt()
-  else if (IsTag(kiKILL)) then
-    Result := ParseKillStmt()
-  else if (InPL_SQL and IsTag(kiLEAVE)) then
-    Result := ParseLeaveStmt()
-  else if (IsTag(kiLOAD)) then
-    Result := ParseLoadStmt()
-  else if (IsTag(kiLOCK, kiTABLES)) then
-    Result := ParseLockTableStmt()
-  else if (IsTag(kiPREPARE)) then
-    Result := ParsePrepareStmt()
-  else if (IsTag(kiPURGE)) then
-    Result := ParsePurgeStmt()
-  else if (InPL_SQL and IsTag(kiOPEN)) then
-    Result := ParseOpenStmt()
-  else if (IsTag(kiOPTIMIZE, kiNO_WRITE_TO_BINLOG, kiTABLE)
-    or IsTag(kiOPTIMIZE, kiLOCAL, kiTABLE)
-    or IsTag(kiOPTIMIZE, kiTABLE)) then
-    Result := ParseOptimizeTableStmt()
-  else if (IsTag(kiRENAME)) then
-    Result := ParseRenameStmt()
-  else if (IsTag(kiREPAIR, kiTABLE)) then
-    Result := ParseRepairTableStmt()
-  else if (IsTag(kiRELEASE)) then
-    Result := ParseReleaseStmt()
-  else if (IsTag(kiREPLACE)) then
-    Result := ParseInsertStmt()
-  else if (IsTag(kiRESET)) then
-    Result := ParseResetStmt()
-  else if (IsTag(kiRESIGNAL)) then
-    Result := ParseSignalStmt()
-  else if (InPL_SQL and Parse.InCreateFunctionStmt and IsTag(kiRETURN)) then
-    Result := ParseReturnStmt()
-  else if (IsTag(kiREVOKE)) then
-    Result := ParseRevokeStmt()
-  else if (IsTag(kiROLLBACK)) then
-    Result := ParseRollbackStmt()
-  else if (IsTag(kiSAVEPOINT)) then
-    Result := ParseSavepointStmt()
-  else if (IsTag(kiSELECT)) then
-    Result := ParseSelectStmt(False)
-  else if (IsTag(kiSET, kiNAMES)) then
-    Result := ParseSetNamesStmt()
-  else if (IsTag(kiSET, kiCHARACTER)
-    or IsTag(kiSET, kiCHARSET)) then
-    Result := ParseSetNamesStmt()
-  else if (IsTag(kiSET, kiPASSWORD)) then
-    Result := ParseSetPasswordStmt()
-  else if (IsTag(kiSET, kiGLOBAL, kiTRANSACTION)
-    or IsTag(kiSET, kiSESSION, kiTRANSACTION)
-    or IsTag(kiSET, kiTRANSACTION)) then
-    Result := ParseSetTransactionStmt()
-  else if (IsTag(kiSET)) then
-    Result := ParseSetStmt()
-  else
-  {$IFDEF Debug}
-    Continue := True; // This "Hack" is needed to use <Ctrl+LeftClick>
-  if (Continue) then  // the Delphi XE4 IDE. But why???
-  {$ENDIF}
-  if (IsTag(kiSHOW, kiBINARY, kiLOGS)) then
-    Result := ParseShowBinaryLogsStmt()
-  else if (IsTag(kiSHOW, kiMASTER, kiLOGS)) then
-    Result := ParseShowBinaryLogsStmt()
-  else if (IsTag(kiSHOW, kiBINLOG, kiEVENTS)) then
-    Result := ParseShowBinlogEventsStmt()
-  else if (IsTag(kiSHOW, kiCHARACTER, kiSET)) then
-    Result := ParseShowCharacterSetStmt()
-  else if (IsTag(kiSHOW, kiCOLLATION)) then
-    Result := ParseShowCollationStmt()
-  else if (IsTag(kiSHOW, kiCOLUMNS)) then
-    Result := ParseShowColumnsStmt()
-  else if (IsTag(kiSHOW) and not EndOfStmt(NextToken[1]) and (StrLIComp(PChar(TokenPtr(NextToken[1])^.Text), 'COUNT', 5) = 0)) then
-    Result := ParseShowCountStmt()
-  else if (IsTag(kiSHOW, kiFIELDS)) then
-    Result := ParseShowColumnsStmt()
-  else if (IsTag(kiSHOW, kiCREATE, kiDATABASE)) then
-    Result := ParseShowCreateDatabaseStmt()
-  else if (IsTag(kiSHOW, kiCREATE, kiEVENT)) then
-    Result := ParseShowCreateEventStmt()
-  else if (IsTag(kiSHOW, kiCREATE, kiFUNCTION)) then
-    Result := ParseShowCreateFunctionStmt()
-  else if (IsTag(kiSHOW, kiCREATE, kiPROCEDURE)) then
-    Result := ParseShowCreateProcedureStmt()
-  else if (IsTag(kiSHOW, kiCREATE, kiSCHEMA)) then
-    Result := ParseShowCreateDatabaseStmt()
-  else if (IsTag(kiSHOW, kiCREATE, kiPROCEDURE)) then
-    Result := ParseShowCreateProcedureStmt()
-  else if (IsTag(kiSHOW, kiCREATE, kiTABLE)) then
-    Result := ParseShowCreateTableStmt()
-  else if (IsTag(kiSHOW, kiCREATE, kiTRIGGER)) then
-    Result := ParseShowCreateTriggerStmt()
-  else if (IsTag(kiSHOW, kiCREATE, kiUSER)) then
-    Result := ParseShowCreateUserStmt()
-  else if (IsTag(kiSHOW, kiCREATE, kiVIEW)) then
-    Result := ParseShowCreateViewStmt()
-  else if (IsTag(kiSHOW, kiDATABASES)) then
-    Result := ParseShowDatabasesStmt()
-  else if (IsTag(kiSHOW, kiENGINE)) then
-    Result := ParseShowEngineStmt()
-  else if (IsTag(kiSHOW, kiENGINES)) then
-    Result := ParseShowEnginesStmt()
-  else if (IsTag(kiSHOW, kiERRORS)) then
-    Result := ParseShowErrorsStmt()
-  else if (IsTag(kiSHOW, kiEVENTS)) then
-    Result := ParseShowEventsStmt()
-  else if (IsTag(kiSHOW, kiFULL, kiCOLUMNS)) then
-    Result := ParseShowColumnsStmt()
-  else if (IsTag(kiSHOW, kiFULL, kiFIELDS)) then
-    Result := ParseShowColumnsStmt()
-  else if (IsTag(kiSHOW, kiFULL, kiTABLES)) then
-    Result := ParseShowTablesStmt()
-  else if (IsTag(kiSHOW, kiFULL, kiPROCESSLIST)) then
-    Result := ParseShowProcessListStmt()
-  else if (IsTag(kiSHOW, kiFUNCTION, kiCODE)) then
-    Result := ParseShowRoutineCodeStmt()
-  else if (IsTag(kiSHOW, kiFUNCTION, kiSTATUS)) then
-    Result := ParseShowFunctionStatusStmt()
-  else if (IsTag(kiSHOW, kiGRANTS)) then
-    Result := ParseShowGrantsStmt()
-  else if (IsTag(kiSHOW, kiINDEX)) then
-    Result := ParseShowIndexStmt()
-  else if (IsTag(kiSHOW, kiINDEXES)) then
-    Result := ParseShowIndexStmt()
-  else if (IsTag(kiSHOW, kiKEYS)) then
-    Result := ParseShowIndexStmt()
-  else if (IsTag(kiSHOW, kiMASTER, kiSTATUS)) then
-    Result := ParseShowMasterStatusStmt()
-  else if (IsTag(kiSHOW, kiOPEN, kiTABLES)) then
-    Result := ParseShowOpenTablesStmt()
-  else if (IsTag(kiSHOW, kiPLUGINS)) then
-    Result := ParseShowPluginsStmt()
-  else if (IsTag(kiSHOW, kiPRIVILEGES)) then
-    Result := ParseShowPrivilegesStmt()
-  else if (IsTag(kiSHOW, kiPROCEDURE, kiCODE)) then
-    Result := ParseShowRoutineCodeStmt()
-  else if (IsTag(kiSHOW, kiPROCEDURE, kiSTATUS)) then
-    Result := ParseShowProcedureStatusStmt()
-  else if (IsTag(kiSHOW, kiPROCESSLIST)) then
-    Result := ParseShowProcessListStmt()
-  else if (IsTag(kiSHOW, kiPROFILE)) then
-    Result := ParseShowProfileStmt()
-  else if (IsTag(kiSHOW, kiPROFILES)) then
-    Result := ParseShowProfilesStmt()
-  else if (IsTag(kiSHOW, kiRELAYLOG, kiEVENTS)) then
-    Result := ParseShowRelaylogEventsStmt()
-  else if (IsTag(kiSHOW, kiSCHEMA)) then
-    Result := ParseShowDatabasesStmt()
-  else if (IsTag(kiSHOW, kiSLAVE, kiHOSTS)) then
-    Result := ParseShowSlaveHostsStmt()
-  else if (IsTag(kiSHOW, kiSLAVE, kiSTATUS)) then
-    Result := ParseShowSlaveStatusStmt()
-  else if (IsTag(kiSHOW, kiGLOBAL, kiSTATUS)
-    or IsTag(kiSHOW, kiSESSION, kiSTATUS)
-    or IsTag(kiSHOW, kiSTATUS)) then
-    Result := ParseShowStatusStmt()
-  else if (IsTag(kiSHOW, kiTABLE, kiSTATUS)) then
-    Result := ParseShowTableStatusStmt()
-  else if (IsTag(kiSHOW, kiTABLES)) then
-    Result := ParseShowTablesStmt()
-  else if (IsTag(kiSHOW, kiTRIGGERS)) then
-    Result := ParseShowTriggersStmt()
-  else if (IsTag(kiSHOW, kiGLOBAL, kiVARIABLES)
-    or IsTag(kiSHOW, kiSESSION, kiVARIABLES)
-    or IsTag(kiSHOW, kiVARIABLES)) then
-    Result := ParseShowVariablesStmt()
-  else if (IsTag(kiSHOW, kiWARNINGS)) then
-    Result := ParseShowWarningsStmt()
-  else if (IsTag(kiSHOW, kiSTORAGE, kiENGINES)) then
-    Result := ParseShowEnginesStmt()
-  else if (IsTag(kiSHUTDOWN)) then
-    Result := ParseShutdownStmt()
-  else if (IsTag(kiSIGNAL)) then
-    Result := ParseSignalStmt()
-  else if (IsTag(kiSTART, kiSLAVE)) then
-    Result := ParseStartSlaveStmt()
-  else if (IsTag(kiSTART, kiTRANSACTION)) then
-    Result := ParseStartTransactionStmt()
-  else if (IsTag(kiSTOP, kiSLAVE)) then
-    Result := ParseStopSlaveStmt()
-  else if (IsTag(kiTRUNCATE)) then
-    Result := ParseTruncateTableStmt()
-  else if (IsTag(kiUNINSTALL, kiPLUGIN)) then
-    Result := ParseUninstallPluginStmt()
-  else if (IsTag(kiUNLOCK, kiTABLES)) then
-    Result := ParseUnlockTablesStmt()
-  else if (IsTag(kiUPDATE)) then
-    Result := ParseUpdateStmt()
-  else if (IsTag(kiUSE)) then
-    Result := ParseUseStmt()
-  else if (IsTag(kiXA)) then
-    Result := ParseXAStmt()
-  else if (IsSymbol(ttOpenBracket) and IsNextTag(1, kiSELECT)) then
-    Result := ParseSelectStmt(False)
-  else if (EndOfStmt(CurrentToken)) then
-    Result := 0
   else
   begin
-    SetError(PE_UnexpectedToken);
-    Result := 0;
+    Exclude(AllowedDeclareStmts, adsVariable);
+    Exclude(AllowedDeclareStmts, adsCondition);
+    Exclude(AllowedDeclareStmts, adsCursor);
+    Exclude(AllowedDeclareStmts, adsHandler);
+
+    if (IsTag(kiBEGIN)) then
+      if (not InPL_SQL) then
+        Result := SetError(PE_UnexpectedStmt)
+      else
+        Result := ParseCompoundStmt(BeginLabel)
+    else if (IsTag(kiLOOP)) then
+      if (not InPL_SQL) then
+        Result := SetError(PE_UnexpectedStmt)
+      else
+        Result := ParseLoopStmt(BeginLabel)
+    else if (IsTag(kiREPEAT)) then
+      if (not InPL_SQL) then
+        Result := SetError(PE_UnexpectedStmt)
+      else
+        Result := ParseRepeatStmt(BeginLabel)
+    else if (IsTag(kiWHILE)) then
+      if (not InPL_SQL) then
+        Result := SetError(PE_UnexpectedStmt)
+      else
+        Result := ParseWhileStmt(BeginLabel)
+    else if (BeginLabel > 0) then
+      if (EndOfStmt(CurrentToken)) then
+        Result := SetError(PE_IncompleteStmt)
+      else
+        Result := SetError(PE_UnexpectedToken)
+
+    else if (IsTag(kiALTER)) then
+      Result := ParseAlterStmt()
+    else if (IsTag(kiANALYZE, kiTABLE)) then
+      Result := ParseAnalyzeTableStmt()
+    else if (IsTag(kiBEGIN)) then
+      if (not InPL_SQL) then
+        Result := ParseBeginStmt()
+      else
+        Result := ParseCompoundStmt(0)
+    else if (IsTag(kiCALL)) then
+      Result := ParseCallStmt()
+    else if (IsTag(kiCASE)) then
+      if (not InPL_SQL) then
+        Result := SetError(PE_UnexpectedStmt)
+      else
+        Result := ParseCaseStmt()
+    else if (IsTag(kiCHANGE)) then
+      Result := ParseChangeMasterStmt()
+    else if (IsTag(kiCHECK, kiTABLE)) then
+      Result := ParseCheckTableStmt()
+    else if (IsTag(kiCHECKSUM, kiTABLE)) then
+      Result := ParseChecksumTableStmt()
+    else if (IsTag(kiCLOSE)) then
+      if (not InPL_SQL) then
+        Result := SetError(PE_UnexpectedStmt)
+      else
+        Result := ParseCloseStmt()
+    else if (IsTag(kiCOMMIT)) then
+      Result := ParseCommitStmt()
+    else if (IsTag(kiCREATE)) then
+      Result := ParseCreateStmt()
+    else if (IsTag(kiDEALLOCATE)) then
+      Result := ParseDeallocatePrepareStmt()
+    else if (IsTag(kiDELETE)) then
+      Result := ParseDeleteStmt()
+    else if (IsTag(kiDESC)) then
+      Result := ParseExplainStmt()
+    else if (IsTag(kiDESCRIBE)) then
+      Result := ParseExplainStmt()
+    else if (IsTag(kiDO)) then
+      Result := ParseDoStmt()
+    else if (IsTag(kiDROP, kiDATABASE)) then
+      Result := ParseDropDatabaseStmt()
+    else if (IsTag(kiDROP, kiEVENT)) then
+      Result := ParseDropEventStmt()
+    else if (IsTag(kiDROP, kiFUNCTION)) then
+      Result := ParseDropRoutineStmt(rtFunction)
+    else if (IsTag(kiDROP, kiINDEX)) then
+      Result := ParseDropIndexStmt()
+    else if (IsTag(kiDROP, kiPREPARE)) then
+      Result := ParseDeallocatePrepareStmt()
+    else if (IsTag(kiDROP, kiPROCEDURE)) then
+      Result := ParseDropRoutineStmt(rtProcedure)
+    else if (IsTag(kiDROP, kiSCHEMA)) then
+      Result := ParseDropDatabaseStmt()
+    else if (IsTag(kiDROP, kiSERVER)) then
+      Result := ParseDropServerStmt()
+    else if (IsTag(kiDROP, kiTEMPORARY, kiTABLE)
+      or IsTag(kiDROP, kiTABLE)) then
+      Result := ParseDropTableStmt()
+    else if (IsTag(kiDROP, kiTABLESPACE)) then
+      Result := ParseDropTablespaceStmt()
+    else if (IsTag(kiDROP, kiTRIGGER)) then
+      Result := ParseDropTriggerStmt()
+    else if (IsTag(kiDROP, kiUSER)) then
+      Result := ParseDropUserStmt()
+    else if (IsTag(kiDROP, kiVIEW)) then
+      Result := ParseDropViewStmt()
+    else if (IsTag(kiEXECUTE)) then
+      Result := ParseExecuteStmt()
+    else if (IsTag(kiEXPLAIN)) then
+      Result := ParseExplainStmt()
+    else if (IsTag(kiFETCH)) then
+      if (not InPL_SQL) then
+        Result := SetError(PE_UnexpectedStmt)
+      else
+        Result := ParseFetchStmt()
+    else if (IsTag(kiFLUSH)) then
+      Result := ParseFlushStmt()
+    else if (IsTag(kiGET, kiCURRENT, kiDIAGNOSTICS)
+      or IsTag(kiGET, kiSTACKED, kiDIAGNOSTICS)
+      or IsTag(kiGET, kiDIAGNOSTICS)) then
+      Result := ParseGetDiagnosticsStmt()
+    else if (IsTag(kiGRANT)) then
+      Result := ParseGrantStmt()
+    else if (IsTag(kiHELP)) then
+      Result := ParseHelpStmt()
+    else if (IsTag(kiIF)) then
+      if (not InPL_SQL) then
+        Result := SetError(PE_UnexpectedStmt)
+      else
+        Result := ParseIfStmt()
+    else if (IsTag(kiINSERT)) then
+      Result := ParseInsertStmt()
+    else if (IsTag(kiINSTALL, kiPLUGIN)) then
+      Result := ParseInstallPluginStmt()
+    else if (IsTag(kiITERATE)) then
+      if (not InPL_SQL) then
+        Result := SetError(PE_UnexpectedStmt)
+      else
+        Result := ParseIterateStmt()
+    else if (IsTag(kiKILL)) then
+      Result := ParseKillStmt()
+    else if (IsTag(kiLEAVE)) then
+      if (not InPL_SQL) then
+        Result := SetError(PE_UnexpectedStmt)
+      else
+        Result := ParseLeaveStmt()
+    else if (IsTag(kiLOAD)) then
+      Result := ParseLoadStmt()
+    else if (IsTag(kiLOCK, kiTABLES)) then
+      Result := ParseLockTableStmt()
+    else if (IsTag(kiPREPARE)) then
+      Result := ParsePrepareStmt()
+    else if (IsTag(kiPURGE)) then
+      Result := ParsePurgeStmt()
+    else if (IsTag(kiOPEN)) then
+      if (not InPL_SQL) then
+        Result := SetError(PE_UnexpectedStmt)
+      else
+        Result := ParseOpenStmt()
+    else if (IsTag(kiOPTIMIZE, kiNO_WRITE_TO_BINLOG, kiTABLE)
+      or IsTag(kiOPTIMIZE, kiLOCAL, kiTABLE)
+      or IsTag(kiOPTIMIZE, kiTABLE)) then
+      Result := ParseOptimizeTableStmt()
+    else if (IsTag(kiRENAME)) then
+      Result := ParseRenameStmt()
+    else if (IsTag(kiREPAIR, kiTABLE)) then
+      Result := ParseRepairTableStmt()
+    else if (IsTag(kiRELEASE)) then
+      Result := ParseReleaseStmt()
+    else if (IsTag(kiREPLACE)) then
+      Result := ParseInsertStmt()
+    else if (IsTag(kiRESET)) then
+      Result := ParseResetStmt()
+    else if (IsTag(kiRESIGNAL)) then
+      Result := ParseSignalStmt()
+    else if (IsTag(kiRETURN)) then
+      if (not InPL_SQL
+        or not Parse.InCreateFunctionStmt) then
+        Result := SetError(PE_UnexpectedStmt)
+      else
+        Result := ParseReturnStmt()
+    else if (IsTag(kiREVOKE)) then
+      Result := ParseRevokeStmt()
+    else if (IsTag(kiROLLBACK)) then
+      Result := ParseRollbackStmt()
+    else if (IsTag(kiSAVEPOINT)) then
+      Result := ParseSavepointStmt()
+    else if (IsTag(kiSELECT)) then
+      Result := ParseSelectStmt(False)
+    else if (IsTag(kiSET, kiNAMES)) then
+      Result := ParseSetNamesStmt()
+    else if (IsTag(kiSET, kiCHARACTER)
+      or IsTag(kiSET, kiCHARSET)) then
+      Result := ParseSetNamesStmt()
+    else if (IsTag(kiSET, kiPASSWORD)) then
+      Result := ParseSetPasswordStmt()
+    else if (IsTag(kiSET, kiGLOBAL, kiTRANSACTION)
+      or IsTag(kiSET, kiSESSION, kiTRANSACTION)
+      or IsTag(kiSET, kiTRANSACTION)) then
+      Result := ParseSetTransactionStmt()
+    else if (IsTag(kiSET)) then
+      Result := ParseSetStmt()
+    else
+    {$IFDEF Debug}
+      Continue := True; // This "Hack" is needed to use <Ctrl+LeftClick>
+    if (Continue) then  // the Delphi XE4 IDE. But why???
+    {$ENDIF}
+    if (IsTag(kiSHOW, kiBINARY, kiLOGS)) then
+      Result := ParseShowBinaryLogsStmt()
+    else if (IsTag(kiSHOW, kiMASTER, kiLOGS)) then
+      Result := ParseShowBinaryLogsStmt()
+    else if (IsTag(kiSHOW, kiBINLOG, kiEVENTS)) then
+      Result := ParseShowBinlogEventsStmt()
+    else if (IsTag(kiSHOW, kiCHARACTER, kiSET)) then
+      Result := ParseShowCharacterSetStmt()
+    else if (IsTag(kiSHOW, kiCOLLATION)) then
+      Result := ParseShowCollationStmt()
+    else if (IsTag(kiSHOW, kiCOLUMNS)) then
+      Result := ParseShowColumnsStmt()
+    else if (IsTag(kiSHOW) and not EndOfStmt(NextToken[1]) and (StrLIComp(PChar(TokenPtr(NextToken[1])^.Text), 'COUNT', 5) = 0)) then
+      Result := ParseShowCountStmt()
+    else if (IsTag(kiSHOW, kiFIELDS)) then
+      Result := ParseShowColumnsStmt()
+    else if (IsTag(kiSHOW, kiCREATE, kiDATABASE)) then
+      Result := ParseShowCreateDatabaseStmt()
+    else if (IsTag(kiSHOW, kiCREATE, kiEVENT)) then
+      Result := ParseShowCreateEventStmt()
+    else if (IsTag(kiSHOW, kiCREATE, kiFUNCTION)) then
+      Result := ParseShowCreateFunctionStmt()
+    else if (IsTag(kiSHOW, kiCREATE, kiPROCEDURE)) then
+      Result := ParseShowCreateProcedureStmt()
+    else if (IsTag(kiSHOW, kiCREATE, kiSCHEMA)) then
+      Result := ParseShowCreateDatabaseStmt()
+    else if (IsTag(kiSHOW, kiCREATE, kiPROCEDURE)) then
+      Result := ParseShowCreateProcedureStmt()
+    else if (IsTag(kiSHOW, kiCREATE, kiTABLE)) then
+      Result := ParseShowCreateTableStmt()
+    else if (IsTag(kiSHOW, kiCREATE, kiTRIGGER)) then
+      Result := ParseShowCreateTriggerStmt()
+    else if (IsTag(kiSHOW, kiCREATE, kiUSER)) then
+      Result := ParseShowCreateUserStmt()
+    else if (IsTag(kiSHOW, kiCREATE, kiVIEW)) then
+      Result := ParseShowCreateViewStmt()
+    else if (IsTag(kiSHOW, kiDATABASES)) then
+      Result := ParseShowDatabasesStmt()
+    else if (IsTag(kiSHOW, kiENGINE)) then
+      Result := ParseShowEngineStmt()
+    else if (IsTag(kiSHOW, kiENGINES)) then
+      Result := ParseShowEnginesStmt()
+    else if (IsTag(kiSHOW, kiERRORS)) then
+      Result := ParseShowErrorsStmt()
+    else if (IsTag(kiSHOW, kiEVENTS)) then
+      Result := ParseShowEventsStmt()
+    else if (IsTag(kiSHOW, kiFULL, kiCOLUMNS)) then
+      Result := ParseShowColumnsStmt()
+    else if (IsTag(kiSHOW, kiFULL, kiFIELDS)) then
+      Result := ParseShowColumnsStmt()
+    else if (IsTag(kiSHOW, kiFULL, kiTABLES)) then
+      Result := ParseShowTablesStmt()
+    else if (IsTag(kiSHOW, kiFULL, kiPROCESSLIST)) then
+      Result := ParseShowProcessListStmt()
+    else if (IsTag(kiSHOW, kiFUNCTION, kiCODE)) then
+      Result := ParseShowRoutineCodeStmt()
+    else if (IsTag(kiSHOW, kiFUNCTION, kiSTATUS)) then
+      Result := ParseShowFunctionStatusStmt()
+    else if (IsTag(kiSHOW, kiGRANTS)) then
+      Result := ParseShowGrantsStmt()
+    else if (IsTag(kiSHOW, kiINDEX)) then
+      Result := ParseShowIndexStmt()
+    else if (IsTag(kiSHOW, kiINDEXES)) then
+      Result := ParseShowIndexStmt()
+    else if (IsTag(kiSHOW, kiKEYS)) then
+      Result := ParseShowIndexStmt()
+    else if (IsTag(kiSHOW, kiMASTER, kiSTATUS)) then
+      Result := ParseShowMasterStatusStmt()
+    else if (IsTag(kiSHOW, kiOPEN, kiTABLES)) then
+      Result := ParseShowOpenTablesStmt()
+    else if (IsTag(kiSHOW, kiPLUGINS)) then
+      Result := ParseShowPluginsStmt()
+    else if (IsTag(kiSHOW, kiPRIVILEGES)) then
+      Result := ParseShowPrivilegesStmt()
+    else if (IsTag(kiSHOW, kiPROCEDURE, kiCODE)) then
+      Result := ParseShowRoutineCodeStmt()
+    else if (IsTag(kiSHOW, kiPROCEDURE, kiSTATUS)) then
+      Result := ParseShowProcedureStatusStmt()
+    else if (IsTag(kiSHOW, kiPROCESSLIST)) then
+      Result := ParseShowProcessListStmt()
+    else if (IsTag(kiSHOW, kiPROFILE)) then
+      Result := ParseShowProfileStmt()
+    else if (IsTag(kiSHOW, kiPROFILES)) then
+      Result := ParseShowProfilesStmt()
+    else if (IsTag(kiSHOW, kiRELAYLOG, kiEVENTS)) then
+      Result := ParseShowRelaylogEventsStmt()
+    else if (IsTag(kiSHOW, kiSCHEMA)) then
+      Result := ParseShowDatabasesStmt()
+    else if (IsTag(kiSHOW, kiSLAVE, kiHOSTS)) then
+      Result := ParseShowSlaveHostsStmt()
+    else if (IsTag(kiSHOW, kiSLAVE, kiSTATUS)) then
+      Result := ParseShowSlaveStatusStmt()
+    else if (IsTag(kiSHOW, kiGLOBAL, kiSTATUS)
+      or IsTag(kiSHOW, kiSESSION, kiSTATUS)
+      or IsTag(kiSHOW, kiSTATUS)) then
+      Result := ParseShowStatusStmt()
+    else if (IsTag(kiSHOW, kiTABLE, kiSTATUS)) then
+      Result := ParseShowTableStatusStmt()
+    else if (IsTag(kiSHOW, kiTABLES)) then
+      Result := ParseShowTablesStmt()
+    else if (IsTag(kiSHOW, kiTRIGGERS)) then
+      Result := ParseShowTriggersStmt()
+    else if (IsTag(kiSHOW, kiGLOBAL, kiVARIABLES)
+      or IsTag(kiSHOW, kiSESSION, kiVARIABLES)
+      or IsTag(kiSHOW, kiVARIABLES)) then
+      Result := ParseShowVariablesStmt()
+    else if (IsTag(kiSHOW, kiWARNINGS)) then
+      Result := ParseShowWarningsStmt()
+    else if (IsTag(kiSHOW, kiSTORAGE, kiENGINES)) then
+      Result := ParseShowEnginesStmt()
+    else if (IsTag(kiSHUTDOWN)) then
+      Result := ParseShutdownStmt()
+    else if (IsTag(kiSIGNAL)) then
+      Result := ParseSignalStmt()
+    else if (IsTag(kiSTART, kiSLAVE)) then
+      Result := ParseStartSlaveStmt()
+    else if (IsTag(kiSTART, kiTRANSACTION)) then
+      Result := ParseStartTransactionStmt()
+    else if (IsTag(kiSTOP, kiSLAVE)) then
+      Result := ParseStopSlaveStmt()
+    else if (IsTag(kiTRUNCATE)) then
+      Result := ParseTruncateTableStmt()
+    else if (IsTag(kiUNINSTALL, kiPLUGIN)) then
+      Result := ParseUninstallPluginStmt()
+    else if (IsTag(kiUNLOCK, kiTABLES)) then
+      Result := ParseUnlockTablesStmt()
+    else if (IsTag(kiUPDATE)) then
+      Result := ParseUpdateStmt()
+    else if (IsTag(kiUSE)) then
+      Result := ParseUseStmt()
+    else if (IsTag(kiXA)) then
+      Result := ParseXAStmt()
+    else if (IsSymbol(ttOpenBracket) and IsNextTag(1, kiSELECT)) then
+      Result := ParseSelectStmt(False)
+    else if (EndOfStmt(CurrentToken)) then
+      Result := 0
+    else
+      Result := SetError(PE_UnexpectedToken);
   end;
 
   if ((Result = 0) and not EndOfStmt(FirstToken)) then
@@ -27010,7 +27033,7 @@ begin
   end;
 end;
 
-procedure TSQLParser.SetError(const AErrorCode: Byte; const Node: TOffset = 0);
+function TSQLParser.SetError(const AErrorCode: Byte; const Node: TOffset = 0): TOffset;
 const
   EmptyIndices: TWordList.TIndices = (-1, -1, -1, -1, -1, -1, -1);
 var
@@ -27102,6 +27125,8 @@ begin
 
   if (FirstError.Code = PE_Success) then
     FirstError := Error;
+
+  Result := 0;
 end;
 
 procedure TSQLParser.SetKeywords(AKeywords: string);

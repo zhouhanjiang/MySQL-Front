@@ -16,7 +16,20 @@ type
       procedure Update(Item: TCollectionItem); override;
     end;
 
-    TDBMySQLInplaceEdit = class(TInplaceEditList)
+    TMySQLDBGridDataLink = class(TGridDataLink)
+    protected
+      procedure DataSetChanged(); override;
+    end;
+
+    TMySQLDBGridFieldList = class(TList)
+    private
+      FGrid: TMySQLDBGrid;
+    public
+      constructor Create(const AGrid: TMySQLDBGrid);
+      property Grid: TMySQLDBGrid read FGrid;
+    end;
+
+    TMySQLDBGridInplaceEdit = class(TInplaceEditList)
     private
       DoNotRemove: Integer; // Why is this needed???
       // Without this, there is Access Violation while freeing TMySQLDBGrid,
@@ -34,22 +47,25 @@ type
   const
     tiShowHint = 1;
     tiHideHint = 2;
-    CF_MYSQLRECORD = CF_PRIVATEFIRST + 80;
   private
-    FIgnoreKeyPress: Boolean;
+    FAltDownCol: Longint;
     FHeaderControl: THeaderControl;
     FHintWindow: THintWindow;
-    FKeyDownShiftState: TShiftState;
+    FIgnoreKeyPress: Boolean;
     FListView: HWND;
+    FMouseDownCol: Longint;
     FMouseDownShiftState: TShiftState;
     FMouseDownPoint: TPoint;
     FMouseMoveCell: TGridCoord;
     FOnCanEditShow: TNotifyEvent;
     FOnCanEditShowExecuted: Boolean;
     FOnSelect: TNotifyEvent;
+    FSelectedFields: TMySQLDBGridFieldList;
     IgnoreTitleClick: Boolean;
     TitleBoldFont: TFont;
     procedure ActivateHint();
+    function CalcSelText(): string;
+    function CalcSQLData(): string;
     function CanvasTextWidth(const Text: string): Integer; inline;
     procedure CMFontChanged(var Message); message CM_FONTCHANGED;
     function EditCopyExecute(): Boolean;
@@ -57,6 +73,7 @@ type
     function EditDeleteExecute(): Boolean;
     function GetCurrentRow(): Boolean;
     function GetHeader(): HWND;
+    function GetSelSQLData: string;
     procedure HeaderMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
     procedure HeaderSectionClick(HeaderControl: THeaderControl; Section: THeaderSection);
     procedure HeaderSectionDrag(Sender: TObject; FromSection, ToSection: THeaderSection; var AllowDrag: Boolean);
@@ -70,6 +87,7 @@ type
     function CanGridAcceptKey(Key: Word; Shift: TShiftState): Boolean; override;
     procedure ColEnter(); override;
     function CreateColumns(): TDBGridColumns; override;
+    function CreateDataLink(): TGridDataLink; override;
     function CreateEditor(): TInplaceEdit; override;
     procedure CreateWnd(); override;
     procedure DoEnter(); override;
@@ -98,14 +116,16 @@ type
     procedure LayoutChanged(); override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState;
       X, Y: Integer); override;
-    function PasteFromClipboard(): Boolean; virtual;
+    function PasteFromClipboard(): Boolean;
+    function PasteText(const Text: string): Boolean;
     procedure SelectAll(); virtual;
     function UpdateAction(Action: TBasicAction): Boolean; override;
     procedure UpdateHeader(); virtual;
     property CurrentRow: Boolean read GetCurrentRow;
     property Header: HWND read GetHeader;
-    property KeyDownShiftState: TShiftState read FKeyDownShiftState;
     property MouseDownShiftState: TShiftState read FMouseDownShiftState;
+    property SelectedFields: TMySQLDBGridFieldList read FSelectedFields;
+    property SelSQLData: string read GetSelSQLData;
     property SelText: string read GetSelText;
     property DefaultRowHeight;
     property GridLineWidth;
@@ -119,12 +139,15 @@ type
     property OnSelect: TNotifyEvent read FOnSelect write FOnSelect;
   end;
 
+const
+  CF_MYSQLSQLDATA = CF_PRIVATEFIRST + 1; // Is used in uBase.pas too
+
 implementation {***************************************************************}
 
 uses
   Forms, Themes, SysUtils, Clipbrd, Dialogs, Consts, CommCtrl, UITypes,
   DBActns, StrUtils, Math, Variants, SysConst,
-  MySQLDB, CSVUtils;
+  MySQLDB, CSVUtils, SQLUtils;
 
 { TMySQLDBGrid.TDBMySQLGridColumns ********************************************}
 
@@ -172,9 +195,27 @@ begin
   TMySQLDBGrid(Grid).Resize();
 end;
 
+{ TMySQLDBGrid.TMySQLDBGridDataLink ********************************************}
+
+procedure TMySQLDBGrid.TMySQLDBGridDataLink.DataSetChanged();
+begin
+  TMySQLDBGrid(Grid).SelectedFields.Clear();
+
+  inherited;
+end;
+
+{ TMySQLDBGrid.TMySQLDBGridFieldList ******************************************}
+
+constructor TMySQLDBGrid.TMySQLDBGridFieldList.Create(const AGrid: TMySQLDBGrid);
+begin
+  inherited Create();
+
+  FGrid := AGrid;
+end;
+
 { TMySQLDBGrid.TDBMySQLInplaceEdit ********************************************}
 
-procedure TMySQLDBGrid.TDBMySQLInplaceEdit.CloseUp(Accept: Boolean);
+procedure TMySQLDBGrid.TMySQLDBGridInplaceEdit.CloseUp(Accept: Boolean);
 begin
   inherited;
 
@@ -186,7 +227,7 @@ begin
   end;
 end;
 
-constructor TMySQLDBGrid.TDBMySQLInplaceEdit.Create(Owner: TComponent);
+constructor TMySQLDBGrid.TMySQLDBGridInplaceEdit.Create(Owner: TComponent);
 begin
   inherited;
 
@@ -195,14 +236,14 @@ begin
   Color := clWindow;
 end;
 
-procedure TMySQLDBGrid.TDBMySQLInplaceEdit.DoEditButtonClick();
+procedure TMySQLDBGrid.TMySQLDBGridInplaceEdit.DoEditButtonClick();
 begin
   inherited;
 
   TMySQLDBGrid(Grid).EditButtonClick();
 end;
 
-procedure TMySQLDBGrid.TDBMySQLInplaceEdit.DropDown();
+procedure TMySQLDBGrid.TMySQLDBGridInplaceEdit.DropDown();
 var
   Column: TColumn;
 begin
@@ -219,7 +260,7 @@ begin
   inherited;
 end;
 
-procedure TMySQLDBGrid.TDBMySQLInplaceEdit.KeyPress(var Key: Char);
+procedure TMySQLDBGrid.TMySQLDBGridInplaceEdit.KeyPress(var Key: Char);
 begin
   if (TMySQLDBGrid(Grid).IgnoreKeyPress) then
     Key := #0
@@ -312,7 +353,121 @@ end;
 
 procedure TMySQLDBGrid.BeginAutoDrag();
 begin
-  BeginDrag(False);
+  if (FMouseDownShiftState = []) then
+    BeginDrag(False);
+end;
+
+function TMySQLDBGrid.CalcSelText(): string;
+var
+  Buffer: TSQLBuffer;
+  FirstColumn: Boolean;
+  I: Integer;
+  J: Integer;
+  OldRecNo: Integer;
+begin
+  Buffer := TSQLBuffer.Create(10240);
+
+  if (SelectedRows.Count = 0) then
+  begin
+    FirstColumn := True;
+    for J := 0 to Columns.Count - 1 do
+      if (Columns[J].Visible and ((SelectedFields.Count = 0) or (SelectedFields.IndexOf(Columns[J].Field) >= 0))) then
+      begin
+        if (FirstColumn) then FirstColumn := False else Buffer.WriteChar(#9);
+        Buffer.Write(Columns[J].Field.AsString);
+      end;
+  end
+  else
+  begin
+    OldRecNo := DataLink.DataSet.RecNo;
+
+    for I := 0 to SelectedRows.Count - 1 do
+    begin
+      DataLink.DataSet.Bookmark := SelectedRows[I];
+      if (I > 0) then Buffer.Write(#13#10, 2);
+      FirstColumn := True;
+      for J := 0 to Columns.Count - 1 do
+        if (Columns[J].Visible and ((SelectedFields.Count = 0) or (SelectedFields.IndexOf(Columns[J].Field) >= 0))) then
+        begin
+          if (FirstColumn) then FirstColumn := False else Buffer.WriteChar(#9);
+          Buffer.Write(Columns[J].Field.AsString);
+        end;
+    end;
+
+    DataLink.DataSet.RecNo := OldRecNo;
+  end;
+
+  Result := Buffer.Read();
+  Buffer.Free();
+end;
+
+function TMySQLDBGrid.CalcSQLData(): string;
+var
+  Buffer: TSQLBuffer;
+  Field: TField;
+  FirstColumn: Boolean;
+  I: Integer;
+  J: Integer;
+  OldRecNo: Integer;
+begin
+  Buffer := TSQLBuffer.Create(10240);
+
+  if ((SelectedFields.Count = 0) and (Columns.Count = 1) or (SelectedFields.Count = 1)) then
+  begin
+    if (SelectedFields.Count = 1) then
+      Field := TField(SelectedFields[0])
+    else
+      Field := SelectedField;
+
+    if (SelectedRows.Count > 1) then Buffer.WriteChar('(');
+    if (SelectedRows.Count = 0) then
+      Buffer.Write(TMySQLQuery(DataLink.DataSet).SQLFieldValue(Field))
+    else
+      for I := 0 to SelectedRows.Count - 1 do
+      begin
+        DataLink.DataSet.Bookmark := SelectedRows[I];
+
+        if (I > 0) then Buffer.WriteChar(',');
+        Buffer.Write(TMySQLQuery(DataLink.DataSet).SQLFieldValue(Field));
+      end;
+    if (SelectedRows.Count > 1) then Buffer.WriteChar(')');
+  end
+  else if (SelectedRows.Count = 0) then
+  begin
+    Buffer.WriteChar('(');
+    FirstColumn := True;
+    for J := 0 to Columns.Count - 1 do
+      if (Columns[J].Visible and ((SelectedFields.Count = 0) or (SelectedFields.IndexOf(Columns[J].Field) >= 0))) then
+      begin
+        if (FirstColumn) then FirstColumn := False else Buffer.WriteChar(',');
+        Buffer.Write(TMySQLQuery(DataLink.DataSet).SQLFieldValue(Columns[J].Field));
+      end;
+    Buffer.WriteChar(')');
+  end
+  else
+  begin
+    OldRecNo := DataLink.DataSet.RecNo;
+
+    for I := 0 to SelectedRows.Count - 1 do
+    begin
+      DataLink.DataSet.Bookmark := SelectedRows[I];
+      if (I > 0) then Buffer.Write(',' + #13#10, 3);
+      Buffer.WriteChar('(');
+      FirstColumn := True;
+      for J := 0 to Columns.Count - 1 do
+        if (Columns[J].Visible and ((SelectedFields.Count = 0) or (SelectedFields.IndexOf(Columns[J].Field) >= 0))) then
+        begin
+          if (FirstColumn) then FirstColumn := False else Buffer.WriteChar(',');
+          Buffer.Write(TMySQLQuery(DataLink.DataSet).SQLFieldValue(Columns[J].Field));
+        end;
+      Buffer.WriteChar(')');
+    end;
+
+    DataLink.DataSet.RecNo := OldRecNo;
+  end;
+
+  Result := Buffer.Read();
+  Buffer.Free();
 end;
 
 function TMySQLDBGrid.CanEditShow(): Boolean;
@@ -363,91 +518,54 @@ procedure TMySQLDBGrid.CopyToClipboard();
 var
   ClipboardData: HGLOBAL;
   Content: string;
-  FirstContent: Boolean;
   FormatSettings: TFormatSettings;
-  I: Integer;
-  J: Integer;
   Len: Cardinal;
-  OldRecNo: Integer;
 begin
   FormatSettings := TFormatSettings.Create(LOCALE_USER_DEFAULT);
 
   if (Assigned(InplaceEditor) and InplaceEditor.Visible) then
     InplaceEditor.CopyToClipboard()
   else if (OpenClipboard(Handle)) then
-  begin
     try
       EmptyClipboard();
 
-      if (not Assigned(SelectedField) or (SelectedRows.Count = 0)) then
-      begin
-        Content := SelectedField.AsString;
+      DataLink.DataSet.DisableControls();
 
-        Len := Length(Content);
-        ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Len + 1) * SizeOf(Content[1]));
-        Move(PChar(Content)^, GlobalLock(ClipboardData)^, (Len + 1) * SizeOf(Content[1]));
-        SetClipboardData(CF_UNICODETEXT, ClipboardData);
-        GlobalUnlock(ClipboardData);
-      end
-      else if (DataLink.DataSet is TMySQLDataSet) then
-      begin
-        Content := SelText;
+      Content := CalcSelText();
 
-        ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Length(Content) + 1) * SizeOf(Char));
-        Move(PChar(Content)^, GlobalLock(ClipboardData)^, (Length(Content) + 1) * SizeOf(Char));
-        SetClipboardData(CF_UNICODETEXT, ClipboardData);
-        GlobalUnlock(ClipboardData);
+      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Length(Content) + 1) * SizeOf(Char));
+      Move(PChar(Content)^, GlobalLock(ClipboardData)^, (Length(Content) + 1) * SizeOf(Char));
+      SetClipboardData(CF_UNICODETEXT, ClipboardData);
+      GlobalUnlock(ClipboardData);
+
+      Len := WideCharToAnsiChar(CP_ACP, PChar(Content), Length(Content), nil, 0);
+      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Len + 1));
+      WideCharToAnsiChar(CP_ACP, PChar(Content), Length(Content), GlobalLock(ClipboardData), Len);
+      PAnsiChar(GlobalLock(ClipboardData))[Len] := #0;
+      SetClipboardData(CF_TEXT, ClipboardData);
+      GlobalUnlock(ClipboardData);
 
 
-        DataLink.DataSet.DisableControls();
-        OldRecNo := DataLink.DataSet.RecNo;
+      Content := CalcSQLData();
+      Len := Length(Content);
 
-        Content := SelText;
+      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, Len * SizeOf(Char));
+      SetClipboardData(CF_MYSQLSQLDATA, ClipboardData);
+      Move(PChar(Content)^, GlobalLock(ClipboardData)^, Len * SizeOf(Char));
+      GlobalUnlock(ClipboardData);
 
-        Len := WideCharToAnsiChar(CP_ACP, PChar(Content), Length(Content), nil, 0);
-        ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Len + 1));
-        WideCharToAnsiChar(CP_ACP, PChar(Content), Length(Content), GlobalLock(ClipboardData), Len);
-        PAnsiChar(GlobalLock(ClipboardData))[Len] := #0;
-        SetClipboardData(CF_DSPTEXT, ClipboardData);
-        GlobalUnlock(ClipboardData);
-
-
-        Content := '';
-        for I := 0 to SelectedRows.Count - 1 do
-        begin
-          DataLink.DataSet.Bookmark := SelectedRows.Items[I];
-          FirstContent := True;
-          for J := 0 to Columns.Count - 1 do
-            if (Columns[J].Visible) then
-            begin
-              if (FirstContent) then FirstContent := False else Content := Content + #9;
-              Content := Content + CSVEscape(Columns[J].Field.AsString);
-            end;
-          Content := Content + #13#10;
-        end;
-        Len := Length(Content);
-
-        ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, Len * SizeOf(Char));
-        SetClipboardData(CF_MYSQLRECORD, ClipboardData);
-        Move(PChar(Content)^, GlobalLock(ClipboardData)^, Len * SizeOf(Char));
-        GlobalUnlock(ClipboardData);
-
-        DataLink.DataSet.RecNo := OldRecNo;
-        DataLink.DataSet.EnableControls();
-      end;
-
+      DataLink.DataSet.EnableControls();
     finally
       CloseClipboard();
     end;
-  end;
 end;
 
 procedure TMySQLDBGrid.ColEnter();
 begin
   if (Assigned(InplaceEditor)) then
   begin
-    if (InplaceEditor is TDBMySQLInplaceEdit) then
-      TDBMySQLInplaceEdit(InplaceEditor).Font := Columns[SelectedIndex].Font;
+    if (InplaceEditor is TMySQLDBGridInplaceEdit) then
+      TMySQLDBGridInplaceEdit(InplaceEditor).Font := Columns[SelectedIndex].Font;
     if (Columns[SelectedIndex].Alignment <> taRightJustify) then
       SetWindowLong(InplaceEditor.Handle, GWL_STYLE, GetWindowLong(InplaceEditor.Handle, GWL_STYLE) and not ES_RIGHT)
     else
@@ -463,10 +581,12 @@ end;
 
 constructor TMySQLDBGrid.Create(AOwner: TComponent);
 begin
-  FIgnoreKeyPress := False;
+  FAltDownCol := -1;
   FHeaderControl := nil;
+  FIgnoreKeyPress := False;
   FListView := 0;
   FOnCanEditShowExecuted := False;
+  FSelectedFields := TMySQLDBGridFieldList.Create(Self);
   IgnoreTitleClick := False;
   TitleBoldFont := nil;
 
@@ -481,14 +601,19 @@ begin
   Result := TDBMySQLGridColumns.Create(Self, TColumn);
 end;
 
+function TMySQLDBGrid.CreateDataLink(): TGridDataLink;
+begin
+  Result := TMySQLDBGridDataLink.Create(Self);
+end;
+
 function TMySQLDBGrid.CreateEditor(): TInplaceEdit;
 begin
-  Result := TDBMySQLInplaceEdit.Create(Self);
+  Result := TMySQLDBGridInplaceEdit.Create(Self);
 
   if (Assigned(Result)) then
   begin
     Result.Parent := Self;
-    TDBMySQLInplaceEdit(Result).Font := Columns[SelectedIndex].Font;
+    TMySQLDBGridInplaceEdit(Result).Font := Columns[SelectedIndex].Font;
     if (Columns[SelectedIndex].Alignment <> taRightJustify) then
       SetWindowLong(Result.Handle, GWL_STYLE, GetWindowLong(Result.Handle, GWL_STYLE) and not ES_RIGHT)
     else
@@ -548,12 +673,15 @@ begin
     FHeaderControl.Free();
     FHeaderControl := nil;
   end;
+  FSelectedFields.Free();
 
   inherited;
 end;
 
 procedure TMySQLDBGrid.DoEnter();
 begin
+  InvalidateCell(Col, Row);
+
   inherited;
 
   if (Assigned(InplaceEditor)) then
@@ -712,7 +840,7 @@ begin
       FirstContent := True;
       DataLink.DataSet.Bookmark := SelectedRows.Items[I];
       for J := 0 to Columns.Count - 1 do
-        if (Columns[J].Visible) then
+        if (SelectedFields.IndexOf(Columns[J].Field) >= 0) then
         begin
           if (FirstContent) then FirstContent := False else Result := Result + #9;
           Result := Result + Columns[J].Field.AsString;
@@ -723,6 +851,19 @@ begin
     DataLink.DataSet.RecNo := OldRecNo;
     DataLink.DataSet.EnableControls();
   end;
+end;
+
+function TMySQLDBGrid.GetSelSQLData: string;
+var
+  OldRecNo: Integer;
+begin
+  DataLink.DataSet.DisableControls();
+  OldRecNo := DataLink.DataSet.RecNo;
+
+  Result := CalcSQLData();
+
+  DataLink.DataSet.RecNo := OldRecNo;
+  DataLink.DataSet.EnableControls();
 end;
 
 procedure TMySQLDBGrid.HeaderMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
@@ -777,10 +918,15 @@ begin
 end;
 
 procedure TMySQLDBGrid.KeyDown(var Key: Word; Shift: TShiftState);
+var
+  OldCol: Longint;
 begin
   if (Assigned(FHintWindow)) then
     FreeAndNil(FHintWindow);
 
+  if (ssAlt in Shift) then
+    FAltDownCol := Col;
+  FMouseDownCol := Col;
   FMouseDownShiftState := Shift + (FMouseDownShiftState - [ssShift, ssCtrl, ssAlt]);
 
   if ((Key = VK_UP) and (Shift = [ssCtrl]) and Assigned(DataLink.DataSet) and (DataLink.DataSet.State = dsBrowse)) then
@@ -824,11 +970,55 @@ begin
   else if ((Key = VK_DOWN) and (ssShift in Shift) and (DataLink.DataSet.RecNo = DataLink.DataSet.RecordCount - 1)) then
     // Do nothing - without this, an append will be executed
   else
+  begin
+    OldCol := Col;
+
     inherited;
+
+    if ((Key in [VK_LEFT, VK_RIGHT, VK_DOWN, VK_UP]) and (SsShift in Shift) and (ssAlt in Shift) and (FAltDownCol >= 0)) then
+    begin
+      SelectedRows.CurrentRowSelected := True;
+      if (SelectedFields.Count = 0) then
+      begin
+        SelectedFields.Add(Columns[FAltDownCol].Field);
+        InvalidateCol(FAltDownCol);
+      end;
+      if ((Col <> OldCol) and (Key in [VK_LEFT, VK_RIGHT])) then
+      begin
+        if (Key = VK_RIGHT) then
+          if (SelectedFields.IndexOf(Columns[Col].Field) < 0) then
+          begin
+            SelectedFields.Add(Columns[Col].Field);
+            InvalidateCol(Col);
+          end
+          else
+          begin
+            SelectedFields.Delete(SelectedFields.IndexOf(Columns[Col - 1].Field));
+            InvalidateCol(Col - 1);
+          end
+        else if (Key = VK_LEFT) then
+          if (SelectedFields.IndexOf(Columns[Col].Field) < 0) then
+          begin
+            SelectedFields.Add(Columns[Col].Field);
+            InvalidateCol(Col);
+          end
+          else
+          begin
+            SelectedFields.Delete(SelectedFields.IndexOf(Columns[Col + 1].Field));
+            InvalidateCol(Col + 1);
+          end;
+      end;
+    end
+    else if ((Key in [VK_LEFT, VK_RIGHT, VK_DOWN, VK_UP]) and (Shift = [])) then
+    begin
+      SelectedRows.Clear();
+      SelectedFields.Clear();
+    end;
+  end;
 end;
 
 procedure TMySQLDBGrid.KeyPress(var Key: Char);
-begin                                                                                
+begin
   if (IgnoreKeyPress) then
   begin
     Key := #0;
@@ -841,6 +1031,8 @@ end;
 
 procedure TMySQLDBGrid.KeyUp(var Key: Word; Shift: TShiftState);
 begin
+  if ((ssAlt in Shift) or (ssShift in Shift)) then
+    FAltDownCol := -1;
   FMouseDownShiftState := Shift + (FMouseDownShiftState - [ssShift, ssCtrl, ssAlt]);
 
   inherited;
@@ -858,75 +1050,119 @@ procedure TMySQLDBGrid.MouseDown(Button: TMouseButton; Shift: TShiftState;
 var
   Cell: TGridCoord;
   Coord: TGridCoord;
+  BeginDragSelectedRows: Boolean;
   I: Integer;
   NewBookmark: TBookmark;
   NewRecord: Integer;
   OldBookmark: TBookmark;
+  OldCol: Longint;
   OldRecord: Integer;
   OldSelectedRows: Integer;
 begin
   if (Assigned(FHintWindow)) then
     FreeAndNil(FHintWindow);
 
-  FMouseDownPoint.X := X; FMouseDownPoint.Y := Y;
+  FMouseDownCol := Col;
   FMouseDownShiftState := Shift + (FMouseDownShiftState - [ssLeft, ssRight, ssMiddle, ssDouble]);
+  FMouseDownPoint := Point(X, Y);
 
   Coord := MouseCoord(X, Y);
   if ((Coord.X = -1) and (Coord.Y = -1) and EditorMode) then
     try
-      SelectedField.AsString := TDBMySQLInplaceEdit(InplaceEditor).Text;
+      SelectedField.AsString := TMySQLDBGridInplaceEdit(InplaceEditor).Text;
     except
     end;
 
-  if (Y <= RowHeights[0]) then
+  if (Coord.Y < 1) then
     OldRecord := -1
   else
     OldRecord := DataLink.ActiveRecord;
   OldBookmark := DataLink.DataSet.Bookmark;
+  OldCol := Col;
   OldSelectedRows := SelectedRows.Count;
 
-  inherited;
-
-  if (Y <= RowHeights[0]) then
-    NewRecord := -1
-  else
-    NewRecord := DataLink.ActiveRecord;
-
-  Cell := MouseCoord(X, Y);
-  if (((Cell.X > 0) or not (dgIndicator in Options)) and (Cell.Y > 0) and (Button = mbLeft)) then
+  BeginDragSelectedRows := (Shift = [ssLeft]) and (SelectedRows.Count > 0) and (OldRecord > 0);
+  if (BeginDragSelectedRows) then
   begin
-    if (ssShift in Shift) then
+    if (Coord.Y <> Row) then
+      DataLink.ActiveRecord := OldRecord + Coord.Y - Row;
+    BeginDragSelectedRows := SelectedRows.CurrentRowSelected;
+    if (Coord.Y <> Row) then
+      DataLink.ActiveRecord := OldRecord;
+  end;
+
+  if (BeginDragSelectedRows) then
+    BeginDrag(False)
+  else
+  begin
+    if (SelectedRows.Count = 0) then
+      BeginDrag(False);
+
+    inherited;
+
+    if (Y <= RowHeights[0]) then
+      NewRecord := -1
+    else
+      NewRecord := DataLink.ActiveRecord;
+
+    Cell := MouseCoord(X, Y);
+    if (((Cell.X > 0) or not (dgIndicator in Options)) and (Cell.Y > 0) and (Button = mbLeft)) then
     begin
-      DataLink.DataSet.DisableControls();
-      SelectedRows.CurrentRowSelected := True;
-      if (NewRecord < OldRecord) then
-        for I := OldRecord downto NewRecord do
-        begin
-          DataLink.ActiveRecord := I;
-          SelectedRows.CurrentRowSelected := True;
-        end;
-      if (NewRecord > OldRecord) then
-        for I := OldRecord to NewRecord do
-        begin
-          DataLink.ActiveRecord := I;
-          SelectedRows.CurrentRowSelected := True;
-        end;
-      DataLink.DataSet.EnableControls();
-    end
-    else if (ssCtrl in Shift) then
-    begin
-      if (OldSelectedRows = 0) then
+      if ((ssShift in Shift) or (ssAlt in Shift)) then
       begin
         DataLink.DataSet.DisableControls();
-        NewBookmark := DataLink.DataSet.Bookmark;
-        DataLink.DataSet.Bookmark := OldBookmark;
         SelectedRows.CurrentRowSelected := True;
-        DataLink.DataSet.Bookmark := NewBookmark;
+        if (NewRecord < OldRecord) then
+          for I := OldRecord downto NewRecord do
+          begin
+            DataLink.ActiveRecord := I;
+            SelectedRows.CurrentRowSelected := True;
+          end;
+        if (NewRecord > OldRecord) then
+          for I := OldRecord to NewRecord do
+          begin
+            DataLink.ActiveRecord := I;
+            SelectedRows.CurrentRowSelected := True;
+          end;
         DataLink.DataSet.EnableControls();
+
+        if ((ssShift in Shift) and (ssAlt in Shift)) then
+          for I := 0 to Columns.Count - 1 do
+            if ((I < Min(OldCol, Col)) or (Max(OldCol, Col) < I)) then
+            begin
+              if (SelectedFields.IndexOf(Columns[I].Field) >= 0) then
+              begin
+                SelectedFields.Delete(SelectedFields.IndexOf(Columns[I].Field));
+                InvalidateCol(I);
+              end;
+            end
+            else
+            begin
+              if (SelectedFields.IndexOf(Columns[I].Field) < 0) then
+              begin
+                SelectedFields.Add(Columns[I].Field);
+                InvalidateCol(I);
+              end;
+            end;
+      end
+      else if (ssCtrl in Shift) then
+      begin
+        if (OldSelectedRows = 0) then
+        begin
+          DataLink.DataSet.DisableControls();
+          NewBookmark := DataLink.DataSet.Bookmark;
+          DataLink.DataSet.Bookmark := OldBookmark;
+          SelectedRows.CurrentRowSelected := True;
+          DataLink.DataSet.Bookmark := NewBookmark;
+          DataLink.DataSet.EnableControls();
+        end;
+      end
+      else
+      begin
+        SelectedRows.Clear();
+        SelectedFields.Clear();
       end;
-    end
-    else
-      SelectedRows.Clear();
+    end;
   end;
 end;
 
@@ -963,16 +1199,9 @@ end;
 
 function TMySQLDBGrid.PasteFromClipboard(): Boolean;
 var
-  Bookmarks: array of TBookmark;
   ClipboardData: HGLOBAL;
-  Content: string;
-  I: Integer;
-  Index: Integer;
-  RecNo: Integer;
-  S: AnsiString;
-  Start: Integer;
-  Value: Integer;
-  Values: TCSVValues;
+  RBS: RawByteString;
+  Text: string;
 begin
   Result := not ReadOnly;
 
@@ -982,117 +1211,124 @@ begin
       InplaceEditor.PasteFromClipboard();
       Result := True;
     end
-    else if ((DataLink.DataSet is TMySQLDataSet) and (Clipboard.HasFormat(CF_MYSQLRECORD) or Clipboard.HasFormat(CF_TEXT) or Clipboard.HasFormat(CF_UNICODETEXT))) then
+    else if ((DataLink.DataSet is TMySQLDataSet) and (IsClipboardFormatAvailable(CF_TEXT) or IsClipboardFormatAvailable(CF_UNICODETEXT))
+      and OpenClipboard(Handle)) then
     begin
-      if (OpenClipboard(Handle)) then
-        try
-          if (Clipboard.HasFormat(CF_MYSQLRECORD)) then
-          begin
-            ClipboardData := GetClipboardData(CF_MYSQLRECORD);
-            SetString(Content, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(Content[1]));
-            GlobalUnlock(ClipboardData);
-          end
-          else if (Clipboard.HasFormat(CF_UNICODETEXT)) then
-          begin
-            ClipboardData := GetClipboardData(CF_UNICODETEXT);
-            SetString(Content, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(Content[1]));
-            GlobalUnlock(ClipboardData);
-          end
-          else
-          begin
-            ClipboardData := GetClipboardData(CF_TEXT);
-            SetString(S, PAnsiChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(S[1]));
-            SetLength(Content, AnsiCharToWideChar(CP_ACP, PAnsiChar(S), Length(S), nil, 0));
-            if (Length(Content) > 0) then
-              SetLength(Content, AnsiCharToWideChar(CP_ACP, PAnsiChar(S), Length(S), PChar(Content), Length(Content)));
-            GlobalUnlock(ClipboardData);
-          end;
-        finally
-          CloseClipboard();
-        end;
-
-      Index := 1;
-      if (CSVSplitValues(Content, Index, #9, '"', Values) and ((Length(Values) > 1) or (Index <= Length(Content)))) then
-      begin
-        if (DataLink.DataSet.State <> dsInsert) then
-          DataLink.DataSet.CheckBrowseMode();
-        DataLink.DataSet.DisableControls();
-        try
-          if (SelectedRows.Count > 0) then
-          begin
-            SetLength(Bookmarks, SelectedRows.Count);
-            for I := 0 to Length(Bookmarks) - 1 do
-              Bookmarks[I] := SelectedRows.Items[I];
-            SelectedRows.Clear();
-            TMySQLDataSet(DataLink.DataSet).Delete(Bookmarks);
-            SetLength(Bookmarks, 0);
-          end;
-
-          RecNo := 0;
-          try
-            repeat
-              if (Length(Values) > 0) then
-              begin
-                if ((DataLink.DataSet.State = dsInsert) or (RecNo > 0) and (DataLink.DataSet.RecNo = DataLink.DataSet.RecordCount - 1)) then
-                  DataLink.DataSet.Append()
-                else
-                begin
-                  if (RecNo > 1) then DataLink.DataSet.Next();
-                  DataLink.DataSet.Insert();
-                end;
-
-                Value := 0; Start := 0;
-                for I := 0 to Columns.Count - 1 do
-                  if (Columns[I].Field = SelectedField) then
-                    Start := I;
-                for I := Start to Start + Min(Length(Values), Columns.Count - Start) - 1 do
-                begin
-                  if (Values[Value].Length = 0) then
-                    Columns[I].Field.Clear()
-                  else if (Columns[I].Field.AutoGenerateValue <> arAutoInc) then
-                    try
-                      Columns[I].Field.AsString := CSVUnescape(Values[Value].Text, Values[Value].Length);
-                    except
-                      MessageBeep(MB_ICONERROR);
-                      DataLink.DataSet.Fields[I].Clear();
-                    end;
-                  Inc(Value);
-                end;
-
-                if ((RecNo > 0) or (Index <= Length(Content))) then
-                  try
-                    DataLink.DataSet.Post();
-                  except
-                    on Error: EDatabaseError do
-                      begin
-                        DataLink.DataSet.Cancel();
-                        DataLink.DataSet.Prior();
-                      end;
-                  end;
-                Inc(RecNo);
-              end;
-            until (not CSVSplitValues(Content, Index, #9, '"', Values) or (Length(Values) = 0));
-          finally
-            SetLength(Values, 0);
-          end;
-        finally
-          DataLink.DataSet.EnableControls();
-        end;
-      end
-      else if (not SelectedField.ReadOnly) then
-      begin
-        ShowEditor();
-        if (EditorMode and Assigned(InplaceEditor)) then
-          InplaceEditor.PasteFromClipboard()
+      Text := '';
+      try
+        if (Clipboard.HasFormat(CF_UNICODETEXT)) then
+          Text := Clipboard.AsText
         else
         begin
-          DataLink.DataSet.Edit();
-          SelectedField.AsString := Content;
+          ClipboardData := GetClipboardData(CF_TEXT);
+          SetString(RBS, PAnsiChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(RBS[1]));
+          SetLength(Text, AnsiCharToWideChar(CP_ACP, PAnsiChar(RBS), Length(RBS), nil, 0));
+          if (Length(Text) > 0) then
+            SetLength(Text, AnsiCharToWideChar(CP_ACP, PAnsiChar(RBS), Length(RBS), PChar(Text), Length(Text)));
+          GlobalUnlock(ClipboardData);
         end;
+      finally
+        CloseClipboard();
+      end;
+      Result := (Text <> '') and PasteText(Text);
+    end;
+end;
+
+function TMySQLDBGrid.PasteText(const Text: string): Boolean;
+var
+  Bookmarks: array of TBookmark;
+  Content: string;
+  I: Integer;
+  Index: Integer;
+  RecNo: Integer;
+  Start: Integer;
+  Value: Integer;
+  Values: TCSVValues;
+begin
+  Result := not ReadOnly;
+
+  if (Result) then
+  begin
+    Index := 1;
+    if (CSVSplitValues(Content, Index, #9, '"', Values) and ((Length(Values) > 1) or (Index <= Length(Content)))) then
+    begin
+      if (DataLink.DataSet.State <> dsInsert) then
+        DataLink.DataSet.CheckBrowseMode();
+      DataLink.DataSet.DisableControls();
+      try
+        if (SelectedRows.Count > 0) then
+        begin
+          SetLength(Bookmarks, SelectedRows.Count);
+          for I := 0 to Length(Bookmarks) - 1 do
+            Bookmarks[I] := SelectedRows.Items[I];
+          SelectedRows.Clear();
+          TMySQLDataSet(DataLink.DataSet).Delete(Bookmarks);
+          SetLength(Bookmarks, 0);
+        end;
+
+        RecNo := 0;
+        try
+          repeat
+            if (Length(Values) > 0) then
+            begin
+              if ((DataLink.DataSet.State = dsInsert) or (RecNo > 0) and (DataLink.DataSet.RecNo = DataLink.DataSet.RecordCount - 1)) then
+                DataLink.DataSet.Append()
+              else
+              begin
+                if (RecNo > 1) then DataLink.DataSet.Next();
+                DataLink.DataSet.Insert();
+              end;
+
+              Value := 0; Start := 0;
+              for I := 0 to Columns.Count - 1 do
+                if (Columns[I].Field = SelectedField) then
+                  Start := I;
+              for I := Start to Start + Min(Length(Values), Columns.Count - Start) - 1 do
+              begin
+                if (Values[Value].Length = 0) then
+                  Columns[I].Field.Clear()
+                else if (Columns[I].Field.AutoGenerateValue <> arAutoInc) then
+                  try
+                    Columns[I].Field.AsString := CSVUnescape(Values[Value].Text, Values[Value].Length);
+                  except
+                    MessageBeep(MB_ICONERROR);
+                    DataLink.DataSet.Fields[I].Clear();
+                  end;
+                Inc(Value);
+              end;
+
+              if ((RecNo > 0) or (Index <= Length(Content))) then
+                try
+                  DataLink.DataSet.Post();
+                except
+                  on Error: EDatabaseError do
+                    begin
+                      DataLink.DataSet.Cancel();
+                      DataLink.DataSet.Prior();
+                    end;
+                end;
+              Inc(RecNo);
+            end;
+          until (not CSVSplitValues(Content, Index, #9, '"', Values) or (Length(Values) = 0));
+        finally
+          SetLength(Values, 0);
+        end;
+      finally
+        DataLink.DataSet.EnableControls();
       end;
     end
-    else
-      Result := False;
+    else if (not SelectedField.ReadOnly) then
+    begin
+      ShowEditor();
+      if (EditorMode and Assigned(InplaceEditor)) then
+        InplaceEditor.PasteFromClipboard()
+      else
+      begin
+        DataLink.DataSet.Edit();
+        SelectedField.AsString := Content;
+      end;
+    end;
+  end;
 end;
 
 procedure TMySQLDBGrid.Resize();
@@ -1205,7 +1441,7 @@ begin
       else if (Action is TEditCopy) then
         TEditCopy(Action).Enabled := EditorMode and Assigned(InplaceEditor) and (InplaceEditor.SelText <> '') or not EditorMode and (not SelectedRows.CurrentRowSelected and not SelectedField.IsNull or SelectedRows.CurrentRowSelected and (DataSource.DataSet is TMySQLDataSet) and (DataSource.DataSet.State <> dsInsert))
       else if (Action is TEditPaste) then
-        TEditPaste(Action).Enabled := not ReadOnly and SelectedField.CanModify and (EditorMode and Clipboard.HasFormat(CF_UNICODETEXT) or not EditorMode and Clipboard.HasFormat(CF_UNICODETEXT))
+        TEditPaste(Action).Enabled := not ReadOnly and SelectedField.CanModify and (EditorMode and IsClipboardFormatAvailable(CF_UNICODETEXT) or not EditorMode and IsClipboardFormatAvailable(CF_UNICODETEXT))
       else if (Action is TEditDelete) then
         TEditDelete(Action).Enabled := (SelectedRows.Count = 0) and not SelectedField.IsNull and not SelectedField.Required and SelectedField.CanModify and (not EditorMode or Assigned(InplaceEditor) and (InplaceEditor.SelText <> ''))
       else if (Action is TEditSelectAll) then
@@ -1337,10 +1573,10 @@ end;
 
 procedure TMySQLDBGrid.WndProc(var Msg: TMessage);
 begin
-  if ((Msg.Msg = WM_LBUTTONDOWN) and (DragMode = dmAutomatic) and (TWMLButtonDown(Msg).Keys = MK_LBUTTON)) then
-    MouseDown(mbLeft, [], TWMLButtonDown(Msg).XPos, TWMLButtonDown(Msg).YPos);
-
-  inherited;
+  if ((Msg.Msg = WM_LBUTTONDOWN) and (DragMode = dmAutomatic)) then
+    MouseDown(mbLeft, KeysToShiftState(TWMLButtonDown(Msg).Keys), TWMLButtonDown(Msg).XPos, TWMLButtonDown(Msg).YPos)
+  else
+    inherited;
 end;
 
 end.

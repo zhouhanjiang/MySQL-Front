@@ -907,25 +907,27 @@ begin
     SendToDeveloper(BuildBugReport(ExceptionInfo), 0, True);
   end
   else
+  begin
     ShowDialog := (Preferences.Version >= OnlineVersion);
 
-  if (not ShowDialog) then
-  begin
-    MessageBox(0, PChar('Internal Program Error:' + #10 + ExceptionInfo.ExceptionMessage), PChar(Preferences.LoadStr(45)), MB_OK + MB_ICONERROR);
+    if (not ShowDialog) then
+    begin
+      MessageBox(0, PChar('Internal Program Error:' + #10 + ExceptionInfo.ExceptionMessage), PChar(Preferences.LoadStr(45)), MB_OK + MB_ICONERROR);
 
-    if ((OnlineVersion > Preferences.Version) and (OnlineVersion > Preferences.ObsoleteVersion)) then
-      PostMessage(Application.MainFormHandle, UM_ONLINE_UPDATE_FOUND, 0, 0);
-    if (Preferences.ObsoleteVersion < Preferences.Version) then
-      Preferences.ObsoleteVersion := Preferences.Version;
-  end
-  else
-  begin
-    SendToDeveloper(BuildBugReport(ExceptionInfo), 0, True);
+      if ((OnlineVersion > Preferences.Version) and (OnlineVersion > Preferences.ObsoleteVersion)) then
+        PostMessage(Application.MainFormHandle, UM_ONLINE_UPDATE_FOUND, 0, 0);
+      if (Preferences.ObsoleteVersion < Preferences.Version) then
+        Preferences.ObsoleteVersion := Preferences.Version;
+    end
+    else
+    begin
+      SendToDeveloper(BuildBugReport(ExceptionInfo), 0, True);
 
-    ExceptionInfo.Options.EMailSubject
-      := SysUtils.LoadStr(1000) + ' ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor)
-      + ' (Build: ' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + ')'
-      + ' - Error Report';
+      ExceptionInfo.Options.EMailSubject
+        := SysUtils.LoadStr(1000) + ' ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor)
+        + ' (Build: ' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + ')'
+        + ' - Error Report';
+    end;
   end;
 end;
 {$ENDIF}
@@ -937,10 +939,13 @@ initialization
   RegisterEventExceptionNotify(nil, ExceptionNotify);
   RegisterEventCustomButtonClick(nil, CustomButtonClick);
 
-  FreezeThreadClass := TMainThreadFreezeDetectionThread;
-  CurrentEurekaLogOptions.FreezeTimeout := 15; {seconds}
   if (Now() < IncDay(CompileTime(), 2 + 1)) then
+  begin
+    FreezeThreadClass := TMainThreadFreezeDetectionThread;
+    CurrentEurekaLogOptions.FreezeTimeout := 15; {seconds}
+    CurrentEurekaLogOptions.FreezeActivate := True;
     InitCheckFreeze();
+  end;
   {$ENDIF}
 
   SendThreads := TList.Create();
@@ -955,8 +960,6 @@ finalization
   SendThreads.Free();
 
   {$IFDEF EurekaLog}
-  DoneCheckFreeze();
-
   UnRegisterEventCustomButtonClick(nil, CustomButtonClick);
   UnRegisterEventExceptionNotify(nil, ExceptionNotify);
   {$ENDIF}
