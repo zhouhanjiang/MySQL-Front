@@ -913,9 +913,8 @@ uses
   DBConsts, Forms, Variants,
   RTLConsts, Consts, SysConst, Math, StrUtils, AnsiStrings,
   {$IFDEF EurekaLog}
-  ExceptionLog7, EExceptionManager, EFreeze,
+  ExceptionLog7, EExceptionManager,
   {$ENDIF}
-//uDeveloper,
   MySQLClient,
   SQLUtils, CSVUtils, HTTPTunnel;
 

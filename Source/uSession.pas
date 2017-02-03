@@ -1970,7 +1970,14 @@ begin
   else
     strcmp := lstrcmpi;
 
-  if ((TList(Self).Count = 0) or (strcmp(PChar(Item[Count - 1].Name), PChar(Name)) < 0)) then
+  if (not (Self is TSKeys) and (Name = '')) then
+  begin
+    // Debug 2017-01-03
+    SendToDeveloper('Empty name for class: ' + ClassName);
+
+    Result := False;
+  end
+  else if ((TList(Self).Count = 0) or (strcmp(PChar(Item[Count - 1].Name), PChar(Name)) < 0)) then
     Index := TList(Self).Count
   else
   begin

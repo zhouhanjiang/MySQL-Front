@@ -58,7 +58,8 @@ uses
   {$IFDEF EurekaLog}
   ExceptionLog7, EExceptionManager, ECallStack, EStackTracing, EClasses,
   ETypes, EException, ESysInfo, EInfoFormat, EThreadsManager, EConsts,
-  EEvents, ELogBuilder, EFreeze,
+  EEvents, ELogBuilder,
+//  EFreeze,
   {$ENDIF}
   MySQLDB,
   uPreferences, uSession,
@@ -939,13 +940,13 @@ initialization
   RegisterEventExceptionNotify(nil, ExceptionNotify);
   RegisterEventCustomButtonClick(nil, CustomButtonClick);
 
-  if (Now() < IncDay(CompileTime(), 2 + 1)) then
-  begin
-    FreezeThreadClass := TMainThreadFreezeDetectionThread;
-    CurrentEurekaLogOptions.FreezeTimeout := 15; {seconds}
-    CurrentEurekaLogOptions.FreezeActivate := True;
-    InitCheckFreeze();
-  end;
+//  if (Now() < IncDay(CompileTime(), 2 + 1)) then
+//  begin
+//    FreezeThreadClass := TMainThreadFreezeDetectionThread;
+//    CurrentEurekaLogOptions.FreezeTimeout := 15; {seconds}
+//    CurrentEurekaLogOptions.FreezeActivate := True;
+//    InitCheckFreeze();
+//  end;
   {$ENDIF}
 
   SendThreads := TList.Create();

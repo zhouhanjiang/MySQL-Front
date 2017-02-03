@@ -6971,7 +6971,7 @@ begin
     GridCoord := DBGrid.MouseCoord(ClientCoord.X, ClientCoord.Y);
 
     if ((GridCoord.X >= 0)
-      and not DBGrid.ReadOnly
+      and DBGrid.DataSource.DataSet.CanModify
       and not DBGrid.Columns[GridCoord.X].ReadOnly) then
       dwEffect := DROPEFFECT_COPY
     else
@@ -7495,6 +7495,12 @@ begin
     raise ERangeError.Create(SRangeError);
 
   URI.Param['view'] := ViewToParam(View);
+
+  // Debug 2017-01-03
+  if ((URI.Scheme = 'http') or (URI.Scheme = '')) then
+    raise ERangeError.Create('ImageIndex: ' + IntToStr(Node.ImageIndex) + #13#10
+      + 'Text: ' + Node.Text + #13#10
+      + 'ClassIndex: ' + IntToStr(Ord(CurrentClassIndex)));
 
   if ((ParamToView(URI.Param['view']) in [vBrowser]) and not (Node.ImageIndex in [iiBaseTable, iiView, iiSystemView])) then
     URI.Param['view'] := Null;
@@ -14748,6 +14754,9 @@ begin
 
   if (Assigned(Event)) then
   begin
+    ProfilingReset();
+    if (not QueryPerformanceCounter(Start)) then Start := 0;
+
     if (Event.EventType = etItemDropped) then
     begin
       if (Assigned(FNavigatorMenuNode) and (Event.Item = TObject(FNavigatorMenuNode.Data))) then
@@ -14801,12 +14810,32 @@ begin
       end;
     end;
 
+    if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
+      if ((Finish - Start) div Frequency > 1) then
+      begin
+        S := 'SessionUpdate0 - '
+          + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
+        if (Assigned(Event.Items)) then
+          S := S
+            + 'ClassType: ' + Event.Items.ClassName + ', '
+            + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
+        if (Event.Item is TSTable) then
+          S := S
+            + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
+        S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s' + #13#10;
+        S := S + ProfilingReport() + #13#10;
+        TimeMonitor.Append(S, ttDebug);
+      end;
+    ProfilingReset();
+
     if (Event.Items is TSItemSearch) then
       ListViewUpdate(Event, ObjectSearchListView)
     else if (Event.Items is TSQuickAccess) then
       ListViewUpdate(Event, QuickAccessListView)
     else
     begin
+      if (not QueryPerformanceCounter(Start)) then Start := 0;
+
       if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemRenamed, etItemDropped]) then
         FNavigatorUpdate(Event);
 
@@ -14863,6 +14892,22 @@ begin
             or (Event.EventType in [etItemValid, etItemRenamed, etItemDropped]) and (TSItemSearch(ObjectSearchListView.Tag).IndexOf(Event.Item) >= 0))) then
           ListViewUpdate(Event, ObjectSearchListView);
       end;
+
+      if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
+        if ((Finish - Start) div Frequency > 1) then
+        begin
+          S := 'SessionUpdateA - '
+            + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
+          if (Assigned(Event.Items)) then
+            S := S
+              + 'ClassType: ' + Event.Items.ClassName + ', '
+              + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
+          if (Event.Item is TSTable) then
+            S := S
+              + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
+          S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s' + #13#10;
+          TimeMonitor.Append(S, ttDebug);
+        end;
 
       if ((Event.EventType = etItemValid)) then
       begin

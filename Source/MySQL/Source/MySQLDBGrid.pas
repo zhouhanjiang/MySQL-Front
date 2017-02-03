@@ -79,7 +79,6 @@ type
     procedure HeaderSectionDrag(Sender: TObject; FromSection, ToSection: THeaderSection; var AllowDrag: Boolean);
     procedure HeaderSectionResize(HeaderControl: THeaderControl; Section: THeaderSection);
     procedure SetHeaderColumnArrows();
-    procedure WMNCHitTest(var Msg: TWMNCHitTest); // message WM_NCHITTEST;
     procedure WMNotify(var Msg: TWMNotify); message WM_NOTIFY;
     procedure WMTimer(var Msg: TWMTimer); message WM_TIMER;
   protected
@@ -537,13 +536,6 @@ begin
       ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Length(Content) + 1) * SizeOf(Char));
       Move(PChar(Content)^, GlobalLock(ClipboardData)^, (Length(Content) + 1) * SizeOf(Char));
       SetClipboardData(CF_UNICODETEXT, ClipboardData);
-      GlobalUnlock(ClipboardData);
-
-      Len := WideCharToAnsiChar(CP_ACP, PChar(Content), Length(Content), nil, 0);
-      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Len + 1));
-      WideCharToAnsiChar(CP_ACP, PChar(Content), Length(Content), GlobalLock(ClipboardData), Len);
-      PAnsiChar(GlobalLock(ClipboardData))[Len] := #0;
-      SetClipboardData(CF_TEXT, ClipboardData);
       GlobalUnlock(ClipboardData);
 
 
@@ -1201,7 +1193,6 @@ end;
 function TMySQLDBGrid.PasteFromClipboard(): Boolean;
 var
   ClipboardData: HGLOBAL;
-  RBS: RawByteString;
   Text: string;
 begin
   Result := not ReadOnly;
@@ -1212,22 +1203,14 @@ begin
       InplaceEditor.PasteFromClipboard();
       Result := True;
     end
-    else if ((DataLink.DataSet is TMySQLDataSet) and (IsClipboardFormatAvailable(CF_TEXT) or IsClipboardFormatAvailable(CF_UNICODETEXT))
+    else if ((DataLink.DataSet is TMySQLDataSet) and (IsClipboardFormatAvailable(CF_UNICODETEXT))
       and OpenClipboard(Handle)) then
     begin
       Text := '';
       try
-        if (Clipboard.HasFormat(CF_UNICODETEXT)) then
-          Text := Clipboard.AsText
-        else
-        begin
-          ClipboardData := GetClipboardData(CF_TEXT);
-          SetString(RBS, PAnsiChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(RBS[1]));
-          SetLength(Text, AnsiCharToWideChar(CP_ACP, PAnsiChar(RBS), Length(RBS), nil, 0));
-          if (Length(Text) > 0) then
-            SetLength(Text, AnsiCharToWideChar(CP_ACP, PAnsiChar(RBS), Length(RBS), PChar(Text), Length(Text)));
-          GlobalUnlock(ClipboardData);
-        end;
+        ClipboardData := GetClipboardData(CF_UNICODETEXT);
+        SetString(Text, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(Text[1]));
+        GlobalUnlock(ClipboardData);
       finally
         CloseClipboard();
       end;
@@ -1457,25 +1440,6 @@ end;
 procedure TMySQLDBGrid.UpdateHeader();
 begin
   SetHeaderColumnArrows();
-end;
-
-procedure TMySQLDBGrid.WMNCHitTest(var Msg: TWMNCHitTest);
-var
-  I: Integer;
-  OnLine: Boolean;
-  Pos: Integer;
-begin
-  if (not (dgColLines in Options) or not (dgRowLines in Options)) then
-    inherited
-  else
-  begin
-    OnLine := Msg.XPos < 2 * GridLineWidth;
-    Pos := GridLineWidth;
-//    Self.
-//    for I := LeftCol to Columns.Count - 1 do
-//      if (Msg.XPos < ) then
-//
-  end;
 end;
 
 procedure TMySQLDBGrid.WMNotify(var Msg: TWMNotify);
