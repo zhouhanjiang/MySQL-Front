@@ -529,16 +529,8 @@ end;
 procedure TDImport.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   if (not Visible) then
-  begin
-    Progress := Progress + 'e';
-    raise EImportEx.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
-      + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
-      + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
-      + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
-      + 'Import.Terminated: ' + BoolToStr(Assigned(Import) and Import.Terminated, True) + #13#10
-      + 'Progress: ' + Progress + #13#10
-      + 'Sessions.Count: ' + IntToStr(Sessions.Count));
-  end
+    // I can't find out, why this happens. Seems to be executed while closeing
+    // the application, but why???
   else
   begin
     Progress := Progress + 'f';

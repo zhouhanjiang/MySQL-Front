@@ -1510,7 +1510,7 @@ type
   type
     TEvent = class(TObject)
     type
-      TEventType = (etItemsValid, etItemValid, etItemCreated, etItemRenamed, etItemDropped, etDatabaseChanged, etBeforeExecuteSQL, etAfterExecuteSQL, etMonitor, etError);
+      TEventType = (etItemsValid, etItemValid, etItemCreated, etItemRenamed, etItemDeleted, etDatabaseChanged, etBeforeExecuteSQL, etAfterExecuteSQL, etMonitor, etError);
     public
       Session: TSSession;
       EventType: TEventType;
@@ -1973,7 +1973,8 @@ begin
   if (not (Self is TSKeys) and (Name = '')) then
   begin
     // Debug 2017-01-03
-    SendToDeveloper('Empty name for class: ' + ClassName);
+    SendToDeveloper('Empty name for class: ' + ClassName + #13#10
+      + 'Version: ' + Session.Connection.ServerVersionStr);
 
     Result := False;
   end
@@ -2649,7 +2650,7 @@ procedure TSDBObjects.Delete(const AItem: TSItem);
 begin
   Assert(AItem is TSDBObject);
 
-  Session.SendEvent(etItemDropped, Database, Self, AItem);
+  Session.SendEvent(etItemDeleted, Database, Self, AItem);
 
   Delete(IndexOf(AItem));
 
@@ -2912,7 +2913,7 @@ begin
       if (Table.Fields[I] is TSBaseField) then
         TSBaseField(Table.Fields[I]).AutoIncrement := False;
 
-  Session.SendEvent(etItemDropped, Table, Self, AKey);
+  Session.SendEvent(etItemDeleted, Table, Self, AKey);
 
   Delete(IndexOf(AKey));
 
@@ -3396,7 +3397,7 @@ begin
     else
       Field[Index + 1].FieldBefore := Field[Index - 1];
 
-  Session.SendEvent(etItemDropped, Table, Self, AField);
+  Session.SendEvent(etItemDeleted, Table, Self, AField);
 
   Delete(Index);
 
@@ -3657,7 +3658,7 @@ end;
 
 procedure TSForeignKeys.Delete(const AForeignKey: TSForeignKey);
 begin
-  Session.SendEvent(etItemDropped, Table, Self, AForeignKey);
+  Session.SendEvent(etItemDeleted, Table, Self, AForeignKey);
 
   Delete(IndexOf(AForeignKey));
 
@@ -4656,7 +4657,13 @@ begin
                 end;
               end
               else
-                Field.Default := SQLEscape(SQLParseValue(Parse));
+              begin
+                Field.Default := SQLParseValue(Parse);
+                if (not TryStrToInt(Field.Default, I)) then
+                  Field.Default := SQLEscape(Field.Default)
+                else if (SQLParseChar(Parse, '.')) then
+                  Field.Default := Field.Default + '.' + SQLParseValue(Parse);
+              end;
             end
             else if (SQLParseKeyword(Parse, 'AUTO_INCREMENT')) then
               Field.AutoIncrement := True
@@ -8971,7 +8978,7 @@ begin
     end;
   end;
 
-  Session.SendEvent(etItemDropped, Session, Self, AItem);
+  Session.SendEvent(etItemDeleted, Session, Self, AItem);
 
   Delete(IndexOf(AItem));
 
@@ -9981,7 +9988,7 @@ end;
 
 procedure TSProcesses.Delete(const AProcess: TSProcess);
 begin
-  Session.SendEvent(etItemDropped, Session, Self, AProcess);
+  Session.SendEvent(etItemDeleted, Session, Self, AProcess);
 
   Delete(IndexOf(AProcess));
 
@@ -10686,7 +10693,7 @@ begin
   if (AItem = Session.FUser) then
     Session.FUser := nil;
 
-  Session.SendEvent(etItemDropped, Session, Self, AItem);
+  Session.SendEvent(etItemDeleted, Session, Self, AItem);
 
   Delete(IndexOf(AItem));
 
@@ -12917,7 +12924,12 @@ end;
 procedure TSSession.SendEvent(const EventType: TSSession.TEvent.TEventType; const Sender: TObject; const Items: TSItems = nil; const Item: TSItem = nil);
 var
   Event: TEvent;
+  Start: Int64;
+  Finish: Int64;
+  Frequency: Int64;
 begin
+  if (not QueryPerformanceCounter(Start)) then Start := 0;
+
   Event := TEvent.Create(Self);
   Event.EventType := EventType;
   Event.Sender := Sender;
@@ -12925,6 +12937,12 @@ begin
   Event.Item := Item;
   DoSendEvent(Event);
   Event.Free();
+
+  if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)
+    and ((Finish - Start) div Frequency > 10)) then
+    SendToDeveloper('EventType: ' + IntToStr(Ord(EventType)) + ', '
+      + 'Sender: ' + Sender.ClassName + ', '
+      + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s');
 end;
 
 function TSSession.SendSQL(const SQL: string; const OnResult: TMySQLConnection.TResultEvent = nil): Boolean;

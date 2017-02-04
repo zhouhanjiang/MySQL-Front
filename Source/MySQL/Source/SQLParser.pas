@@ -195,6 +195,7 @@ type
         ntCreateTableStmt,
         ntCreateTableStmtCheck,
         ntCreateTableStmtField,
+        ntCreateTableStmtFieldOnUpdate,
         ntCreateTableStmtForeignKey,
         ntCreateTableStmtKey,
         ntCreateTableStmtKeyColumn,
@@ -707,6 +708,7 @@ type
         'ntCreateTableStmt',
         'ntCreateTableStmtCheck',
         'ntCreateTableStmtField',
+        'ntCreateTableStmtFieldOnUpdate',
         'ntCreateTableStmtForeignKey',
         'ntCreateTableStmtKey',
         'ntCreateTableStmtKeyColumn',
@@ -2634,6 +2636,22 @@ type
         PField = ^TField;
         TField = packed record
         private type
+
+          POnUpdate = ^TOnUpdate;
+          TOnUpdate = packed record
+          private type
+            TNodes = packed record
+              OnUpdateTag: TOffset;
+              Expr: TOffset;
+            end;
+          private
+            Heritage: TRange;
+          private
+            Nodes: TNodes;
+            class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
+          public
+            property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
+          end;
 
           TNodes = packed record
             Ident: TOffset;
@@ -6884,6 +6902,7 @@ type
     function ParseCreateTableStmt(const CreateTag, OrReplaceTag, TemporaryTag: TOffset): TOffset;
     function ParseCreateTableStmtCheck(): TOffset;
     function ParseCreateTableStmtField(): TOffset;
+    function ParseCreateTableStmtFieldOnUpdate(): TOffset;
     function ParseCreateTableStmtDefinition(): TOffset; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseCreateTableStmtDefinition(const AlterTableStmt: Boolean): TOffset; overload;
     function ParseCreateTableStmtDefinitionPartitionNames(): TOffset;
@@ -6906,8 +6925,8 @@ type
     function ParseDbIdent(const ADbIdentType: TDbIdentType; const FullQualified: Boolean = True; const JokerAllowed: Boolean = False): TOffset; overload;
     function ParseDefinerValue(): TOffset;
     function ParseDeallocatePrepareStmt(): TOffset;
-    function ParseDeclareConditionStmt(const IdentList: TOffset): TOffset;
-    function ParseDeclareCursorStmt(const IdentList: TOffset): TOffset;
+    function ParseDeclareConditionStmt(const StmtTag: TOffset; const IdentList: TOffset): TOffset;
+    function ParseDeclareCursorStmt(const StmtTag: TOffset; const IdentList: TOffset): TOffset;
     function ParseDeclareHandlerStmt(): TOffset;
     function ParseDeclareHandlerStmtCondition(): TOffset;
     function ParseDeclareStmt(): TOffset;
@@ -9268,6 +9287,20 @@ begin
   Result := TRange.Create(AParser, ntCreateTableStmtCheck);
 
   with PCheck(AParser.NodePtr(Result))^ do
+  begin
+    Nodes := ANodes;
+
+    Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
+  end;
+end;
+
+{ TSQLParser.TCreateTableStmt.TField.TOnUpdate ********************************}
+
+class function TSQLParser.TCreateTableStmt.TField.TOnUpdate.Create(const AParser: TSQLParser; const ANodes: TOnUpdate.TNodes): TOffset;
+begin
+  Result := TRange.Create(AParser, ntCreateTableStmtFieldOnUpdate);
+
+  with POnUpdate(AParser.NodePtr(Result))^ do
   begin
     Nodes := ANodes;
 
@@ -13479,6 +13512,7 @@ begin
       ntCreateTablespaceStmt: FormatCreateTablespaceStmt(PCreateTablespaceStmt(Node)^.Nodes);
       ntCreateTableStmt: FormatCreateTableStmt(PCreateTableStmt(Node)^.Nodes);
       ntCreateTableStmtField: FormatCreateTableStmtField(TCreateTableStmt.PField(Node)^.Nodes);
+      ntCreateTableStmtFieldOnUpdate: DefaultFormatNode(@TCreateTableStmt.TField.POnUpdate(Node)^.Nodes, SizeOf(TCreateTableStmt.TField.TOnUpdate.TNodes));
       ntCreateTableStmtForeignKey: DefaultFormatNode(@TCreateTableStmt.PForeignKey(Node)^.Nodes, SizeOf(TCreateTableStmt.TForeignKey.TNodes));
       ntCreateTableStmtKey: FormatCreateTableStmtKey(TCreateTableStmt.PKey(Node)^.Nodes);
       ntCreateTableStmtKeyColumn: FormatCreateTableStmtKeyColumn(TCreateTableStmt.PKeyColumn(Node)^.Nodes);
@@ -15018,6 +15052,7 @@ begin
     ntCreateTableStmt: Result := SizeOf(TCreateTableStmt);
     ntCreateTableStmtCheck: Result := SizeOf(TCreateTableStmt.TCheck);
     ntCreateTableStmtField: Result := SizeOf(TCreateTableStmt.TField);
+    ntCreateTableStmtFieldOnUpdate: Result := SizeOf(TCreateTableStmt.TField.TOnUpdate);
     ntCreateTableStmtForeignKey: Result := SizeOf(TCreateTableStmt.TForeignKey);
     ntCreateTableStmtKey: Result := SizeOf(TCreateTableStmt.TKey);
     ntCreateTableStmtKeyColumn: Result := SizeOf(TCreateTableStmt.TKeyColumn);
@@ -17634,21 +17669,8 @@ begin
           if (not ErrorFound) then
             Nodes.Real.Default.Expr := ParseExpr([eoIn]);
         end
-        else if ((DatatypeIndex in [diDatetime, diTimestamp]) and (Nodes.Real.OnUpdate = 0) and IsTag(kiON, kiUPDATE, kiCURRENT_DATE)) then
-          if (not IsNextSymbol(3, ttOpenBracket)) then
-            Nodes.Real.OnUpdate := ParseTag(kiON, kiUPDATE, kiCURRENT_DATE)
-          else
-            Nodes.Real.OnUpdate := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, ParseDefaultFunc)
-        else if ((DatatypeIndex in [diDatetime, diTimestamp]) and (Nodes.Real.OnUpdate = 0) and IsTag(kiON, kiUPDATE, kiCURRENT_TIME)) then
-          if (not IsNextSymbol(3, ttOpenBracket)) then
-            Nodes.Real.OnUpdate := ParseTag(kiON, kiUPDATE, kiCURRENT_TIME)
-          else
-            Nodes.Real.OnUpdate := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, ParseDefaultFunc)
-        else if ((DatatypeIndex in [diDatetime, diTimestamp]) and (Nodes.Real.OnUpdate = 0) and IsTag(kiON, kiUPDATE, kiCURRENT_TIMESTAMP)) then
-          if (not IsNextSymbol(3, ttOpenBracket)) then
-            Nodes.Real.OnUpdate := ParseTag(kiON, kiUPDATE, kiCURRENT_TIMESTAMP)
-          else
-            Nodes.Real.OnUpdate := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, ParseDefaultFunc)
+        else if ((DatatypeIndex in [diDatetime, diTimestamp]) and (Nodes.Real.OnUpdate = 0) and IsTag(kiON, kiUPDATE)) then
+          Nodes.Real.OnUpdate := ParseCreateTableStmtFieldOnUpdate()
         else if ((Nodes.Real.AutoIncrementTag = 0) and IsTag(kiAUTO_INCREMENT)) then
           Nodes.Real.AutoIncrementTag := ParseTag(kiAUTO_INCREMENT)
         else if ((Nodes.KeyTag = 0) and IsTag(kiUNIQUE, kiKEY)) then
@@ -17721,6 +17743,34 @@ begin
     SetError(PE_UnexpectedToken);
 
   Result := TCreateTableStmt.TField.Create(Self, Nodes);
+end;
+
+function TSQLParser.ParseCreateTableStmtFieldOnUpdate(): TOffset;
+var
+  Nodes: TCreateTableStmt.TField.TOnUpdate.TNodes;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
+  Nodes.OnUpdateTag := ParseTag(kiON, kiUPDATE);
+
+  if (not ErrorFound) then
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (IsNextSymbol(1, ttOpenBracket)
+      and ((TokenPtr(CurrentToken)^.FLength = 12) and (StrLIComp(TokenPtr(CurrentToken)^.FText, 'CURRENT_DATE', 12) = 0)
+        or (TokenPtr(CurrentToken)^.FLength = 12) and (StrLIComp(TokenPtr(CurrentToken)^.FText, 'CURRENT_TIME', 12) = 0)
+        or (TokenPtr(CurrentToken)^.FLength = 17) and (StrLIComp(TokenPtr(CurrentToken)^.FText, 'CURRENT_TIMESTAMP', 17) = 0)
+        or (TokenPtr(CurrentToken)^.FLength = 3) and (StrLIComp(TokenPtr(CurrentToken)^.FText, 'NOW', 3) = 0))) then
+      Nodes.Expr := ParseDefaultFunc()
+    else if ((TokenPtr(CurrentToken)^.FLength = 12) and (StrLIComp(TokenPtr(CurrentToken)^.FText, 'CURRENT_DATE', 12) = 0)
+        or (TokenPtr(CurrentToken)^.FLength = 12) and (StrLIComp(TokenPtr(CurrentToken)^.FText, 'CURRENT_TIME', 12) = 0)
+        or (TokenPtr(CurrentToken)^.FLength = 17) and (StrLIComp(TokenPtr(CurrentToken)^.FText, 'CURRENT_TIMESTAMP', 17) = 0)
+        or (TokenPtr(CurrentToken)^.FLength = 3) and (StrLIComp(TokenPtr(CurrentToken)^.FText, 'NOW', 3) = 0)) then
+      Nodes.Expr := ParseConstIdent()
+    else
+      SetError(PE_UnexpectedToken);
+
+  Result := TCreateTableStmt.TField.TOnUpdate.Create(Self, Nodes);
 end;
 
 function TSQLParser.ParseCreateTableStmtDefinition(): TOffset;
@@ -18819,13 +18869,13 @@ begin
   Result := TDeallocatePrepareStmt.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseDeclareConditionStmt(const IdentList: TOffset): TOffset;
+function TSQLParser.ParseDeclareConditionStmt(const StmtTag: TOffset; const IdentList: TOffset): TOffset;
 var
   Nodes: TDeclareConditionStmt.TNodes;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.StmtTag := ParseTag(kiDECLARE);
+  Nodes.StmtTag := StmtTag;
 
   Nodes.IdentList := IdentList;
 
@@ -18862,7 +18912,7 @@ begin
   Result := TDeclareConditionStmt.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseDeclareCursorStmt(const IdentList: TOffset): TOffset;
+function TSQLParser.ParseDeclareCursorStmt(const StmtTag: TOffset; const IdentList: TOffset): TOffset;
 var
   Nodes: TDeclareCursorStmt.TNodes;
 begin
@@ -18871,7 +18921,7 @@ begin
 
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.StmtTag := ParseTag(kiDECLARE);
+  Nodes.StmtTag := StmtTag;
 
   Nodes.IdentList := IdentList;
 
@@ -18963,6 +19013,7 @@ function TSQLParser.ParseDeclareStmt(): TOffset;
 var
   Nodes: TDeclareStmt.TNodes;
   IdentList: TOffset;
+  StmtTag: TOffset;
   Token: PToken;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
@@ -18974,15 +19025,20 @@ begin
     Result := ParseDeclareHandlerStmt()
   else
   begin
-    IdentList := ParseList(False, ParseDbIdent);
+    StmtTag := ParseTag(kiDECLARE);
+
+    if (not ErrorFound) then
+      IdentList := ParseList(False, ParseDbIdent)
+    else
+      IdentList := 0;
 
     if (not ErrorFound and (adsCondition in AllowedDeclareStmts) and IsTag(kiCONDITION, kiFOR)) then
-      Result := ParseDeclareConditionStmt(IdentList)
+      Result := ParseDeclareConditionStmt(StmtTag, IdentList)
     else if (not ErrorFound and (adsCursor in AllowedDeclareStmts) and IsTag(kiCURSOR, kiFOR)) then
-      Result := ParseDeclareCursorStmt(IdentList)
+      Result := ParseDeclareCursorStmt(StmtTag, IdentList)
     else if (adsVariable in AllowedDeclareStmts) then
     begin
-      Nodes.StmtTag := ParseTag(kiDECLARE);
+      Nodes.StmtTag := StmtTag;
 
       Nodes.IdentList := IdentList;
 
@@ -19014,7 +19070,7 @@ begin
       end;
     end
     else
-      Result := SetError(PE_UnexpectedStmt);
+      Result := SetError(PE_UnexpectedStmt, StmtTag);
   end;
 end;
 

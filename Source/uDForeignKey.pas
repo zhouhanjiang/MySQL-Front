@@ -383,7 +383,7 @@ begin
     SessionState := ssTable
   else if (not Assigned(ForeignKey)) then
     SessionState := ssCreate
-  else if (not Table.ForeignKeys.Valid and not Table.Update()) then
+  else if (not ModifyTableOnly and not Table.ForeignKeys.Valid and not Table.Update()) then
     SessionState := ssInit
   else
     SessionState := ssValid;

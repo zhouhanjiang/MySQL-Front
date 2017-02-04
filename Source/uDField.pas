@@ -958,7 +958,7 @@ begin
     SessionState := ssTable
   else if (not Assigned(Field)) then
     SessionState := ssCreate
-  else if (not Table.Fields.Valid and not Table.Update()) then
+  else if (not ModifyTableOnly and not Table.Fields.Valid and not Table.Update()) then
     SessionState := ssInit
   else
     SessionState := ssValid;

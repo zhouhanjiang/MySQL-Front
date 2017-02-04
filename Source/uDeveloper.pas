@@ -1,6 +1,8 @@
 ﻿unit uDeveloper;
 
-interface {********************************************************************}
+interface
+
+{ ******************************************************************** }
 
 uses
   Windows, Classes, SysUtils, WinInet;
@@ -8,7 +10,8 @@ uses
 type
   THTTPThread = class(TThread)
   public type
-    TProgressEvent = procedure (Sender: TObject; const Done, Size: Int64) of object;
+    TProgressEvent = procedure(Sender: TObject; const Done, Size: Int64)
+      of object;
   private
     FErrorCode: Integer;
     FErrorMessage: string;
@@ -21,8 +24,10 @@ type
   protected
     procedure Execute(); override;
   public
-    constructor Create(const AURI: string; const ASendStream, AReceiveStream: TStream);
-    property OnProgress: TProgressEvent read FOnProgress write FOnProgress default nil;
+    constructor Create(const AURI: string;
+      const ASendStream, AReceiveStream: TStream);
+    property OnProgress: TProgressEvent read FOnProgress write FOnProgress
+      default nil;
     property ErrorCode: Integer read FErrorCode;
     property ErrorMessage: string read FErrorMessage;
     property HTTPMessage: string read FHTTPMessage;
@@ -38,9 +43,11 @@ type
     procedure Execute(); override;
   end;
 
-function CheckOnlineVersion(const Stream: TStringStream; var VersionStr: string; var SetupProgramURI: string): Boolean;
+function CheckOnlineVersion(const Stream: TStringStream; var VersionStr: string;
+  var SetupProgramURI: string): Boolean;
 function CompileTime(): TDateTime;
-procedure SendToDeveloper(const Text: string; const Days: Integer = 2; const DisableSource: Boolean = False);
+procedure SendToDeveloper(const Text: string; const Days: Integer = 2;
+  const DisableSource: Boolean = False);
 
 type
   EImportEx = class(Exception)
@@ -50,17 +57,19 @@ var
   OnlineVersion: Integer;
   OnlineRecommendedVersion: Integer;
 
-implementation {***************************************************************}
+implementation
+
+{ *************************************************************** }
 
 uses
   XMLIntf, XMLDoc, ActiveX, SyncObjs, DateUtils,
   Forms,
-  {$IFDEF EurekaLog}
+{$IFDEF EurekaLog}
   ExceptionLog7, EExceptionManager, ECallStack, EStackTracing, EClasses,
   ETypes, EException, ESysInfo, EInfoFormat, EThreadsManager, EConsts,
-  EEvents, ELogBuilder,
-//  EFreeze,
-  {$ENDIF}
+  EEvents, ELogBuilder, EFreeze,
+  // EFreeze,
+{$ENDIF}
   MySQLDB,
   uPreferences, uSession,
   uBase;
@@ -68,9 +77,10 @@ uses
 var
   SendThreads: TList;
 
-{******************************************************************************}
+  { ****************************************************************************** }
 
-function CheckOnlineVersion(const Stream: TStringStream; var VersionStr: string; var SetupProgramURI: string): Boolean;
+function CheckOnlineVersion(const Stream: TStringStream; var VersionStr: string;
+  var SetupProgramURI: string): Boolean;
 var
   Build: Integer;
   Infos: IXMLNode;
@@ -94,7 +104,10 @@ begin
     PAD := XML.Node.ChildNodes.FindNode('XML_DIZ_INFO');
     if (Assigned(PAD)) then
     begin
-      Major := -1; Minor := -1; Patch := -1; Build := -1;
+      Major := -1;
+      Minor := -1;
+      Patch := -1;
+      Build := -1;
       Infos := PAD.ChildNodes.FindNode('Program_Info');
       if (Assigned(Infos)) then
       begin
@@ -114,10 +127,14 @@ begin
       if ((Major >= 0) and (Minor >= 0) and (Patch >= 0) and (Build >= 0)) then
       begin
         OnlineVersion := EncodeVersion(Major, Minor, Patch, Build);
-        VersionStr := IntToStr(Major) + '.' + IntToStr(Minor) + '  (Build ' + IntToStr(Patch) + '.' + IntToStr(Build) + ')';
+        VersionStr := IntToStr(Major) + '.' + IntToStr(Minor) + '  (Build ' +
+          IntToStr(Patch) + '.' + IntToStr(Build) + ')';
       end;
 
-      Major := -1; Minor := -1; Patch := -1; Build := -1;
+      Major := -1;
+      Minor := -1;
+      Patch := -1;
+      Build := -1;
       Infos := PAD.ChildNodes.FindNode('Recommended_Info');
       if (Assigned(Infos)) then
       begin
@@ -156,21 +173,23 @@ end;
 
 function CompileTime(): TDateTime;
 begin
-  Result := PImageNtHeaders(HInstance + Cardinal(PImageDosHeader(HInstance)^._lfanew))^.FileHeader.TimeDateStamp / SecsPerDay + UnixDateDelta;
+  Result := PImageNtHeaders(HInstance
+    + Cardinal(PImageDosHeader(HInstance)^._lfanew))^.FileHeader.TimeDateStamp / SecsPerDay + UnixDateDelta;
 end;
 
-procedure SendToDeveloper(const Text: string; const Days: Integer = 2; const DisableSource: Boolean = False);
+procedure SendToDeveloper(const Text: string; const Days: Integer = 2;
+  const DisableSource: Boolean = False);
 var
-  {$IFDEF EurekaLog}
+{$IFDEF EurekaLog}
   Buffer: TEurekaDebugInfo;
   CallStack: TEurekaBaseStackList;
   Filename: string;
-  FilenameP: array[0 .. MAX_PATH] of Char;
+  FilenameP: array [0 .. MAX_PATH] of Char;
   Index: Integer;
   Item: PEurekaDebugInfo;
   StackItem: Integer;
   Source: string;
-  {$ENDIF}
+{$ENDIF}
   Body: String;
   Flags: DWORD;
   Thread: THTTPThread;
@@ -181,46 +200,61 @@ begin
   begin
     Body := Text;
 
-    {$IFDEF EurekaLog}
+{$IFDEF EurekaLog}
     if (not DisableSource or (Trim(Text) = '')) then
     begin
-      SetString(Filename, PChar(@FilenameP[0]), GetModuleFileName(GetModuleHandle(nil), @FilenameP, Length(FilenameP)));
+      SetString(Filename, PChar(@FilenameP[0]),
+        GetModuleFileName(GetModuleHandle(nil), @FilenameP, Length(FilenameP)));
 
       CallStack := GetCurrentCallStack();
-      Index := 0; StackItem := 0; Item := nil;
+      Index := 0;
+      StackItem := 0;
+      Item := nil;
       while ((Index < CallStack.Count) and (StackItem < 2)) do
       begin
         Item := CallStack.GetItem(1, Buffer);
-        if ((Item^.Location.DebugDetail = ddSourceCode)
-          and ((Filename = '') or (StrIComp(PChar(Item^.Location.ModuleName), PChar(Filename)) = 0))) then
+        if ((Item^.Location.DebugDetail = ddSourceCode) and
+          ((Filename = '') or (StrIComp(PChar(Item^.Location.ModuleName),
+          PChar(Filename)) = 0))) then
           Inc(StackItem);
         Inc(Index);
       end;
       if (Assigned(Item) and (StackItem = 2)) then
       begin
-        if ((Item^.Location.ClassName <> '') and (Item^.Location.ProcedureName <> '')) then
-          Source := Item^.Location.ClassName + '.' + Item^.Location.ProcedureName
+        if ((Item^.Location.ClassName <> '') and
+          (Item^.Location.ProcedureName <> '')) then
+          Source := Item^.Location.ClassName + '.' +
+            Item^.Location.ProcedureName
         else if (Item^.Location.ClassName <> '') then
           Source := Item^.Location.ClassName
         else if (Item^.Location.ProcedureName <> '') then
           Source := Item^.Location.ProcedureName
         else
           Source := '';
-        Source := ExtractFileName(Item^.Location.ModuleName) + '|' + Item^.Location.UnitName + '|' + Source + '|' + IntToStr(Item^.Location.LineNumber) + '[' + IntToStr(Item^.Location.ProcOffsetLine) + ']' + #13#10#13#10;
+        Source := ExtractFileName(Item^.Location.ModuleName) + '|' +
+          Item^.Location.UnitName + '|' + Source + '|' +
+          IntToStr(Item^.Location.LineNumber) + '[' +
+          IntToStr(Item^.Location.ProcOffsetLine) + ']' + #13#10#13#10;
 
         Body := Source + Body;
       end
       else
-        Body := Source + 'StackItem: ' + IntToStr(StackItem) + ', Index:' + IntToStr(Index) + ', Count: ' + IntToStr(CallStack.Count) + #13#10#13#10;
+        Body := Source + 'StackItem: ' + IntToStr(StackItem) + ', Index:' +
+          IntToStr(Index) + ', Count: ' + IntToStr(CallStack.Count) +
+          #13#10#13#10;
     end;
-    {$ENDIF}
-
+{$ENDIF}
     Stream := TMemoryStream.Create();
 
-    if (not CheckWin32Version(6)) then Flags := 0 else Flags := WC_ERR_INVALID_CHARS;
-    Size := WideCharToMultiByte(CP_UTF8, Flags, PChar(Body), Length(Body), nil, 0, nil, nil);
+    if (not CheckWin32Version(6)) then
+      Flags := 0
+    else
+      Flags := WC_ERR_INVALID_CHARS;
+    Size := WideCharToMultiByte(CP_UTF8, Flags, PChar(Body), Length(Body), nil,
+      0, nil, nil);
     Stream.SetSize(Size);
-    WideCharToMultiByte(CP_UTF8, Flags, PChar(Body), Length(Body), PAnsiChar(Stream.Memory), Stream.Size, nil, nil);
+    WideCharToMultiByte(CP_UTF8, Flags, PChar(Body), Length(Body),
+      PAnsiChar(Stream.Memory), Stream.Size, nil, nil);
 
     Thread := THTTPThread.Create(LoadStr(1006), Stream, nil);
     SendThreads.Add(Thread);
@@ -228,9 +262,10 @@ begin
   end;
 end;
 
-{ THTTPThread *****************************************************************}
+{ THTTPThread ***************************************************************** }
 
-constructor THTTPThread.Create(const AURI: string; const ASendStream, AReceiveStream: TStream);
+constructor THTTPThread.Create(const AURI: string;
+  const ASendStream, AReceiveStream: TStream);
 begin
   inherited Create(True);
 
@@ -245,7 +280,7 @@ const
   POST: PChar = 'POST';
 var
   Body: RawByteString;
-  Buffer: array[0 .. 32768 - 1] of Byte;
+  Buffer: array [0 .. 32768 - 1] of Byte;
   Client: HInternet;
   FileSize: Int64;
   Headers: string;
@@ -256,7 +291,7 @@ var
   MessageBuffer: array [0 .. 2048 - 1] of Char;
   Method: PChar;
   QueryIndex: DWORD;
-  QueryInfo: array [0..2048] of Char;
+  QueryInfo: array [0 .. 2048] of Char;
   Request: HInternet;
   RequestTry: Integer;
   Size: Cardinal;
@@ -275,145 +310,170 @@ var
   lpOptional: Pointer;
   dwOptionalLength: DWORD;
 begin
-  {$IFDEF EurekaLog}
+{$IFDEF EurekaLog}
   try
     SetEurekaLogStateInThread(0, True);
-  {$ENDIF}
+{$ENDIF}
+    FErrorCode := 0;
+    FErrorMessage := '';
+    FHTTPStatus := HTTP_STATUS_OK;
+    FHTTPMessage := '';
+    RequestTry := 0;
 
-  FErrorCode := 0; FErrorMessage := '';
-  FHTTPStatus := HTTP_STATUS_OK; FHTTPMessage := '';
-  RequestTry := 0;
+    URLComponents.dwStructSize := SizeOf(URLComponents);
+    URLComponents.dwSchemeLength := Length(URLComponentsSchemeName);
+    URLComponents.dwHostNameLength := Length(URLComponentsHostName);
+    URLComponents.dwUserNameLength := Length(URLComponentsUserName);
+    URLComponents.dwPasswordLength := Length(URLComponentsPassword);
+    URLComponents.dwUrlPathLength := Length(URLComponentsPath);
+    URLComponents.dwExtraInfoLength := Length(URLComponentsExtraInfo);
+    URLComponents.lpszScheme := @URLComponentsSchemeName;
+    URLComponents.lpszHostName := @URLComponentsHostName;
+    URLComponents.lpszUserName := @URLComponentsUserName;
+    URLComponents.lpszPassword := @URLComponentsPassword;
+    URLComponents.lpszUrlPath := @URLComponentsPath;
+    URLComponents.lpszExtraInfo := @URLComponentsExtraInfo;
 
-  URLComponents.dwStructSize := SizeOf(URLComponents);
-  URLComponents.dwSchemeLength := Length(URLComponentsSchemeName);
-  URLComponents.dwHostNameLength := Length(URLComponentsHostName);
-  URLComponents.dwUserNameLength := Length(URLComponentsUserName);
-  URLComponents.dwPasswordLength := Length(URLComponentsPassword);
-  URLComponents.dwUrlPathLength := Length(URLComponentsPath);
-  URLComponents.dwExtraInfoLength := Length(URLComponentsExtraInfo);
-  URLComponents.lpszScheme := @URLComponentsSchemeName;
-  URLComponents.lpszHostName := @URLComponentsHostName;
-  URLComponents.lpszUserName := @URLComponentsUserName;
-  URLComponents.lpszPassword := @URLComponentsPassword;
-  URLComponents.lpszUrlPath := @URLComponentsPath;
-  URLComponents.lpszExtraInfo := @URLComponentsExtraInfo;
+    if (not InternetCrackUrl(PChar(URI), Length(URI), ICU_DECODE, URLComponents))
+    then
+      Internet := nil
+    else
+      Internet := InternetOpen(PChar(Preferences.InternetAgent),
+        INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);
 
-  if (not InternetCrackUrl(PChar(URI), Length(URI), ICU_DECODE, URLComponents)) then
-    Internet := nil
-  else
-    Internet := InternetOpen(PChar(Preferences.InternetAgent), INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);
-
-  if (not Assigned(Internet)) then
-    FErrorCode := GetLastError()
-  else
-  begin
-    L := 120000;
-    InternetSetOption(Internet, INTERNET_OPTION_SEND_TIMEOUT, @L, SizeOf(L));
-    InternetSetOption(Internet, INTERNET_OPTION_RECEIVE_TIMEOUT, @L, SizeOf(L));
-
-    Client := InternetConnect(Internet, URLComponents.lpszHostName, URLComponents.nPort, URLComponents.lpszUserName, URLComponents.lpszPassword, INTERNET_SERVICE_HTTP, 0, 0);
-
-    if (not Assigned(Client)) then
+    if (not Assigned(Internet)) then
       FErrorCode := GetLastError()
     else
     begin
-      if (not Assigned(SendStream)) then
-      begin
-        Method := GET;
-        Headers := '';
-        Body := '';
-      end
-      else
-      begin
-        Method := POST;
-        Headers := 'Content-Type: text/plain; charset=UTF-8' + #10
-          + 'Content-Transfer-Encoding: binary' + #10
-          + 'Program-Version: ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor) + '.' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + #10;
-        SetLength(Body, SendStream.Size);
-        SendStream.Seek(0, soBeginning);
-        SendStream.Read(PAnsiChar(Body)^, SendStream.Size);
-        SendStream.Free();
-      end;
+      L := 120000;
+      InternetSetOption(Internet, INTERNET_OPTION_SEND_TIMEOUT, @L, SizeOf(L));
+      InternetSetOption(Internet, INTERNET_OPTION_RECEIVE_TIMEOUT, @L,
+        SizeOf(L));
 
-      Request := HttpOpenRequest(Client, Method, PChar(StrPas(URLComponents.lpszUrlPath) + StrPas(URLComponents.lpszExtraInfo)), 'HTTP/1.1', nil, nil, INTERNET_FLAG_RELOAD + INTERNET_FLAG_NO_CACHE_WRITE, 0);
+      Client := InternetConnect(Internet, URLComponents.lpszHostName,
+        URLComponents.nPort, URLComponents.lpszUserName,
+        URLComponents.lpszPassword, INTERNET_SERVICE_HTTP, 0, 0);
 
-      if (not Assigned(Request)) then
+      if (not Assigned(Client)) then
         FErrorCode := GetLastError()
       else
       begin
-        repeat
-          FileSize := -1;
+        if (not Assigned(SendStream)) then
+        begin
+          Method := GET;
+          Headers := '';
+          Body := '';
+        end
+        else
+        begin
+          Method := POST;
+          Headers := 'Content-Type: text/plain; charset=UTF-8' + #10 +
+            'Content-Transfer-Encoding: binary' + #10 + 'Program-Version: ' +
+            IntToStr(Preferences.VerMajor) + '.' +
+            IntToStr(Preferences.VerMinor) + '.' +
+            IntToStr(Preferences.VerPatch) + '.' +
+            IntToStr(Preferences.VerBuild) + #10;
+          SetLength(Body, SendStream.Size);
+          SendStream.Seek(0, soBeginning);
+          SendStream.Read(PAnsiChar(Body)^, SendStream.Size);
+          SendStream.Free();
+        end;
 
-          // Debug 2017-01-23
-          lpszHeaders := PChar(Headers);
-          dwHeadersLength := Length(Headers);
-          lpOptional := PAnsiChar(Body);
-          dwOptionalLength := Length(Body);
-          // ... an AV occurred in the following line...
+        Request := HttpOpenRequest(Client, Method,
+          PChar(StrPas(URLComponents.lpszUrlPath) +
+          StrPas(URLComponents.lpszExtraInfo)), 'HTTP/1.1', nil, nil,
+          INTERNET_FLAG_RELOAD + INTERNET_FLAG_NO_CACHE_WRITE, 0);
 
-          if (not HttpSendRequest(Request, lpszHeaders, dwHeadersLength, lpOptional, dwOptionalLength)) then
-            FErrorCode := GetLastError()
-          else
-          begin
-            Size := SizeOf(Buffer); Index := 0;
-            if (HttpQueryInfo(Request, HTTP_QUERY_CONTENT_LENGTH, @Buffer, Size, Index)) then
-              FileSize := StrToInt(PChar(@Buffer));
+        if (not Assigned(Request)) then
+          FErrorCode := GetLastError()
+        else
+        begin
+          repeat
+            FileSize := -1;
 
-            if (Assigned(ReceiveStream)) then
-              repeat
-                Success := InternetReadFile(Request, @Buffer, SizeOf(Buffer), Size);
-                if (Success and (Size > 0)) then
-                  ReceiveStream.Write(Buffer, Size);
+            // Debug 2017-01-23
+            lpszHeaders := PChar(Headers);
+            dwHeadersLength := Length(Headers);
+            lpOptional := PAnsiChar(Body);
+            dwOptionalLength := Length(Body);
+            // ... an AV occurred in the following line...
 
-                if (not Terminated and Assigned(OnProgress) and (ReceiveStream.Size < FileSize)) then
-                  OnProgress(Self, ReceiveStream.Size, FileSize);
-              until (Terminated or (Success and (Size = 0)));
+            if (not HttpSendRequest(Request, lpszHeaders, dwHeadersLength,
+              lpOptional, dwOptionalLength)) then
+              FErrorCode := GetLastError()
+            else
+            begin
+              Size := SizeOf(Buffer);
+              Index := 0;
+              if (HttpQueryInfo(Request, HTTP_QUERY_CONTENT_LENGTH, @Buffer,
+                Size, Index)) then
+                FileSize := StrToInt(PChar(@Buffer));
 
-            Size := SizeOf(Buffer); Index := 0;
-            if (not Terminated) then
-              if (not HttpQueryInfo(Request, HTTP_QUERY_STATUS_CODE, @Buffer, Size, Index)) then
-                FErrorCode := GetLastError()
-              else
-              begin
-                FHTTPStatus := StrToInt(PChar(@Buffer));
-                QueryIndex := Length(QueryInfo);
-                if (HttpQueryInfo(Request, HTTP_QUERY_STATUS_TEXT, @QueryInfo, Size, Index)) then
-                  SetString(FHTTPMessage, PChar(@QueryInfo[0]), QueryIndex);
-              end;
-          end;
+              if (Assigned(ReceiveStream)) then
+                repeat
+                  Success := InternetReadFile(Request, @Buffer,
+                    SizeOf(Buffer), Size);
+                  if (Success and (Size > 0)) then
+                    ReceiveStream.Write(Buffer, Size);
 
-          Inc(RequestTry);
-        until (Terminated or (FErrorCode <> 0) or (FHTTPStatus = HTTP_STATUS_OK) or Assigned(ReceiveStream) and (ReceiveStream.Size = 0) or (RequestTry >= 3));
+                  if (not Terminated and Assigned(OnProgress) and
+                    (ReceiveStream.Size < FileSize)) then
+                    OnProgress(Self, ReceiveStream.Size, FileSize);
+                until (Terminated or (Success and (Size = 0)));
+
+              Size := SizeOf(Buffer);
+              Index := 0;
+              if (not Terminated) then
+                if (not HttpQueryInfo(Request, HTTP_QUERY_STATUS_CODE, @Buffer,
+                  Size, Index)) then
+                  FErrorCode := GetLastError()
+                else
+                begin
+                  FHTTPStatus := StrToInt(PChar(@Buffer));
+                  QueryIndex := Length(QueryInfo);
+                  if (HttpQueryInfo(Request, HTTP_QUERY_STATUS_TEXT, @QueryInfo,
+                    Size, Index)) then
+                    SetString(FHTTPMessage, PChar(@QueryInfo[0]), QueryIndex);
+                end;
+            end;
+
+            Inc(RequestTry);
+          until (Terminated or (FErrorCode <> 0) or
+            (FHTTPStatus = HTTP_STATUS_OK) or Assigned(ReceiveStream) and
+            (ReceiveStream.Size = 0) or (RequestTry >= 3));
+        end;
+        InternetCloseHandle(Request);
       end;
-      InternetCloseHandle(Request);
+
+      InternetCloseHandle(Internet);
     end;
 
-    InternetCloseHandle(Internet);
-  end;
+    if (FErrorCode <> 0) then
+      if ((INTERNET_ERROR_BASE <= FErrorCode) and
+        (FErrorCode <= INTERNET_ERROR_LAST)) then
+      begin
+        Len := FormatMessage(FORMAT_MESSAGE_FROM_HMODULE,
+          Pointer(GetModuleHandle('Wininet.dll')), FErrorCode, 0,
+          @MessageBuffer, Length(MessageBuffer), nil);
+        while (Len > 0) and (CharInSet(MessageBuffer[Len - 1], [#0 .. #32])) do
+          Dec(Len);
+        SetString(FErrorMessage, PChar(@MessageBuffer[0]), Len);
+      end
+      else
+        FErrorMessage := SysErrorMessage(FErrorCode);
 
-  if (FErrorCode <> 0) then
-    if ((INTERNET_ERROR_BASE <= FErrorCode) and (FErrorCode <= INTERNET_ERROR_LAST)) then
-    begin
-      Len := FormatMessage(FORMAT_MESSAGE_FROM_HMODULE,
-        Pointer(GetModuleHandle('Wininet.dll')), FErrorCode, 0, @MessageBuffer, Length(MessageBuffer), nil);
-      while (Len > 0) and (CharInSet(MessageBuffer[Len - 1], [#0..#32])) do Dec(Len);
-      SetString(FErrorMessage, PChar(@MessageBuffer[0]), Len);
-    end
-    else
-      FErrorMessage := SysErrorMessage(FErrorCode);
+    if (not Terminated and Assigned(OnProgress)) then
+      OnProgress(Self, ReceiveStream.Size, ReceiveStream.Size);
 
-  if (not Terminated and Assigned(OnProgress)) then
-    OnProgress(Self, ReceiveStream.Size, ReceiveStream.Size);
-
-  {$IFDEF EurekaLog}
+{$IFDEF EurekaLog}
   except
     on E: Exception do
       ExceptionManager.StandardEurekaNotify(E);
   end;
-  {$ENDIF}
+{$ENDIF}
 end;
 
-{ TCheckOnlineVersionThread ***************************************************}
+{ TCheckOnlineVersionThread *************************************************** }
 
 constructor TCheckOnlineVersionThread.Create();
 begin
@@ -447,8 +507,7 @@ begin
 end;
 
 {$IFDEF EurekaLog}
-
-{ TEurekaStackFormatter *******************************************************}
+{ TEurekaStackFormatter ******************************************************* }
 
 type
   TStackFormatter = class(ECallStack.TEurekaStackFormatter)
@@ -460,12 +519,17 @@ type
     FMaxModule: Integer;
     FMaxProc: Integer;
     FMaxUnit: Integer;
-    function FormatLine(const AMethods, ADetails, AStackAddress, AAddress, AName, AOffset, AUnit, AClass, AProcedure, ALine: String): String;
+    function FormatLine(const AMethods, ADetails, AStackAddress, AAddress,
+      AName, AOffset, AUnit, AClass, AProcedure, ALine: String): String;
   protected
     function AcceptableCallStackItem(const AInd: Integer): Boolean; override;
     procedure CalculateLengths; override;
-    function ContainEncryptedItems(const CallStack: TEurekaBaseStackList): Boolean; virtual;
-    function CreateThreadStr(const Index, No: Integer; const DebugInfo: TEurekaDebugInfo; const TextLog: Boolean; const Session: THandle; const ExternalWCTSession: Boolean = False): String; override;
+    function ContainEncryptedItems(const CallStack: TEurekaBaseStackList)
+      : Boolean; virtual;
+    function CreateThreadStr(const Index, No: Integer;
+      const DebugInfo: TEurekaDebugInfo; const TextLog: Boolean;
+      const Session: THandle; const ExternalWCTSession: Boolean = False)
+      : String; override;
     function GetItemText(const AIndex: Integer): String; override;
     function GetStrings(): TStrings; override;
   public
@@ -480,32 +544,29 @@ begin
   Item := CallStack.GetItem(AInd, Buffer);
 
   Result := Item^.ErrorLine // Is exception itself (a.k.a. FirstAddr)?
-    or not Assigned(Item^.StackAddr) and ((AInd = 0) or (Item^.ThreadID <> CallStack.Items[AInd - 1].ThreadID)); // always keep first line in any call stack
+    or not Assigned(Item^.StackAddr) and
+    ((AInd = 0) or (Item^.ThreadID <> CallStack.Items[AInd - 1].ThreadID));
+  // always keep first line in any call stack
 
   if (not Result) then
   begin
     // Second+ entries should be filtered upon details/methods
     Result := (Item^.Location.DebugDetail in DebugDetails) and
-              (
-                (Item^.Methods and TracerUndefinedMask <> 0) or
-                (
-                  ((Item^.Methods and AllowedMethods) <> 0) and
-                  ((Item^.Methods and DisabledMethods) = 0)
-                )
-              );
+      ((Item^.Methods and TracerUndefinedMask <> 0) or
+      (((Item^.Methods and AllowedMethods) <> 0) and
+      ((Item^.Methods and DisabledMethods) = 0)));
 
     // For pointers into dynamic code blocks (outside of any module) - use return addresses only
     if (Result and (Item^.Location.DebugDetail = ddNone)) then
       Result := Item^.Location.Address <> Item^.ReturnAddr;
   end;
 
-  Result := Result
-    and (Item^.Location.UnitName <> 'EAppType')
-    and (Item^.Location.UnitName <> 'EAppVCL')
-    and (Item^.Location.UnitName <> 'EDialog')
-    and (Item^.Location.UnitName <> 'EDialogWinAPI')
-    and (Item^.Location.UnitName <> 'EExceptionManager')
-    and (Item^.Location.UnitName <> 'EThreadsManager');
+  Result := Result and (Item^.Location.UnitName <> 'EAppType') and
+    (Item^.Location.UnitName <> 'EAppVCL') and
+    (Item^.Location.UnitName <> 'EDialog') and
+    (Item^.Location.UnitName <> 'EDialogWinAPI') and
+    (Item^.Location.UnitName <> 'EExceptionManager') and
+    (Item^.Location.UnitName <> 'EThreadsManager');
 
   if (FExceptionClass = 'EImportEx') then
     Result := True;
@@ -532,14 +593,16 @@ begin
       if AcceptableCallStackItem(I) then
       begin
         DI := CallStack.Item[I];
-        S := PrepareName(ExtractFileNameEx(DI.Location.ModuleName), DI^, FHasEncryptedData);
+        S := PrepareName(ExtractFileNameEx(DI.Location.ModuleName), DI^,
+          FHasEncryptedData);
         if Length(S) > FMaxModule then
           FMaxModule := Length(S);
         S := PrepareName(DI.Location.UnitName, DI^, FHasEncryptedData);
         if Length(S) > FMaxUnit then
           FMaxUnit := Length(S);
         ClassName := PrepareName(DI.Location.ClassName, DI^, FHasEncryptedData);
-        ProcName := PrepareName(DI.Location.ProcedureName, DI^, FHasEncryptedData);
+        ProcName := PrepareName(DI.Location.ProcedureName, DI^,
+          FHasEncryptedData);
         if ((ClassName <> '') and (ProcName <> '')) then
           S := ClassName + '.' + ProcName
         else if (ClassName <> '') then
@@ -550,7 +613,8 @@ begin
           FMaxProc := Length(S);
         if DI.Location.LineNumber <> 0 then
         begin
-          S := Trim(Format('%d[%d]', [DI.Location.LineNumber, DI.Location.OffsetFromProcName])); // Do Not Localize
+          S := Trim(Format('%d[%d]', [DI.Location.LineNumber,
+            DI.Location.OffsetFromProcName])); // Do Not Localize
           if Length(S) > FMaxLine then
             FMaxLine := Length(S);
         end;
@@ -571,7 +635,9 @@ begin
   DebugDetails := [ddSourceCode];
 end;
 
-function TStackFormatter.CreateThreadStr(const Index, No: Integer; const DebugInfo: TEurekaDebugInfo; const TextLog: Boolean; const Session: THandle; const ExternalWCTSession: Boolean = False): String;
+function TStackFormatter.CreateThreadStr(const Index, No: Integer;
+  const DebugInfo: TEurekaDebugInfo; const TextLog: Boolean;
+  const Session: THandle; const ExternalWCTSession: Boolean = False): String;
 var
   CallerAddress: Pointer;
   Line1: string;
@@ -588,20 +654,22 @@ begin
       Line1 := '*' + CaptionExceptionThread;
     if (DebugInfo.ThreadID = MainThreadId) then
     begin
-      if (Line1 <> '') then Line1 := Line1 + ', ';
+      if (Line1 <> '') then
+        Line1 := Line1 + ', ';
       Line1 := Line1 + 'Main Thread';
     end;
 
     if (DebugInfo.ThreadID > 0) then
     begin
-      if (Line1 <> '') then Line1 := Line1 + ', ';
+      if (Line1 <> '') then
+        Line1 := Line1 + ', ';
       Line1 := Line1 + CaptionThreadID + ': ' + IntToStr(DebugInfo.ThreadID);
     end;
 
-    GetThreadInfo(DebugInfo.ThreadID, ParentID, ThreadClassName, ThreadName, CallerAddress);
+    GetThreadInfo(DebugInfo.ThreadID, ParentID, ThreadClassName, ThreadName,
+      CallerAddress);
     if (ParentID > 0) then
       Line1 := Line1 + ', ' + CaptionParentID + ' ID: ' + IntToStr(ParentID);
-
 
     if (DebugInfo.ThreadClass = '') then
       Line2 := ''
@@ -634,14 +702,15 @@ begin
   end;
 end;
 
-function TStackFormatter.FormatLine(const AMethods, ADetails, AStackAddress, AAddress, AName, AOffset, AUnit, AClass, AProcedure, ALine: String): String;
+function TStackFormatter.FormatLine(const AMethods, ADetails, AStackAddress,
+  AAddress, AName, AOffset, AUnit, AClass, AProcedure, ALine: String): String;
 begin
   Assert(Calculated);
   Result := Format('|%s|%s|%s|%s|',
     [FmtStrForLog(FmtCompleteStr(AName, FMaxModule)),
-     FmtStrForLog(FmtCompleteStr(AUnit, FMaxUnit)),
-     FmtStrForLog(FmtCompleteStr(AProcedure, FMaxProc)),
-     FmtStrForLog(FmtCompleteStr(ALine, FMaxLine))]);
+    FmtStrForLog(FmtCompleteStr(AUnit, FMaxUnit)),
+    FmtStrForLog(FmtCompleteStr(AProcedure, FMaxProc)),
+    FmtStrForLog(FmtCompleteStr(ALine, FMaxLine))]);
 end;
 
 function TStackFormatter.GetItemText(const AIndex: Integer): String;
@@ -661,28 +730,32 @@ begin
   CalculateLengths;
   I := CallStack.Items[AIndex].Location.LineNumber;
   if I <> 0 then
-    L := Format('%d[%d]', [I, CallStack.Items[AIndex].Location.ProcOffsetLine]) // Do Not Localize
+    L := Format('%d[%d]', [I, CallStack.Items[AIndex].Location.ProcOffsetLine])
+    // Do Not Localize
   else
     L := '';
 
-  ClassName := PrepareName(CallStack.Items[AIndex].Location.ClassName, CallStack.Items[AIndex], FHasEncryptedData);
-  ProcName := PrepareName(CallStack.Items[AIndex].Location.ProcedureName, CallStack.Items[AIndex], FHasEncryptedData);
+  ClassName := PrepareName(CallStack.Items[AIndex].Location.ClassName,
+    CallStack.Items[AIndex], FHasEncryptedData);
+  ProcName := PrepareName(CallStack.Items[AIndex].Location.ProcedureName,
+    CallStack.Items[AIndex], FHasEncryptedData);
   if ((ClassName <> '') and (ProcName <> '')) then
     ProcName := ClassName + '.' + ProcName
   else if (ClassName <> '') then
     ProcName := ClassName;
 
   S := CallStack.Items[AIndex].Location.ModuleName;
-  Result := FormatLine(IntToHex(CallStack.Items[AIndex].Methods, (TracerMax div 8) * 2),
-                       DetailsToStr(CallStack.Items[AIndex].Location.DebugDetail),
-                       FmtPointerToStr(CallStack.Items[AIndex].StackAddr),
-                       FmtPointerToStr(CallStack.Items[AIndex].Location.Address),
-                       PrepareName(ExtractFileNameEx(S), CallStack.Items[AIndex], FHasEncryptedData),
-                       FmtPointerToStr(Pointer(PtrUInt(CallStack.Items[AIndex].Location.Address) - PtrUInt(CallStack.Items[AIndex].Location.Module))),
-                       PrepareName(CallStack.Items[AIndex].Location.UnitName, CallStack.Items[AIndex], FHasEncryptedData),
-                       '',
-                       ProcName,
-                       L);
+  Result := FormatLine(IntToHex(CallStack.Items[AIndex].Methods,
+    (TracerMax div 8) * 2),
+    DetailsToStr(CallStack.Items[AIndex].Location.DebugDetail),
+    FmtPointerToStr(CallStack.Items[AIndex].StackAddr),
+    FmtPointerToStr(CallStack.Items[AIndex].Location.Address),
+    PrepareName(ExtractFileNameEx(S), CallStack.Items[AIndex],
+    FHasEncryptedData),
+    FmtPointerToStr(Pointer(PtrUInt(CallStack.Items[AIndex].Location.Address) -
+    PtrUInt(CallStack.Items[AIndex].Location.Module))),
+    PrepareName(CallStack.Items[AIndex].Location.UnitName,
+    CallStack.Items[AIndex], FHasEncryptedData), '', ProcName, L);
 end;
 
 function TStackFormatter.GetStrings(): TStrings;
@@ -692,8 +765,8 @@ function TStackFormatter.GetStrings(): TStrings;
     S: String;
   begin
     S := FormatLine(CaptionMethods, CaptionDebugLevel, CaptionStackAddress,
-                    CaptionAddress, CaptionModule, CaptionOffset, CaptionUnit, CaptionClass,
-                    CaptionProcedure, CaptionLine);
+      CaptionAddress, CaptionModule, CaptionOffset, CaptionUnit, CaptionClass,
+      CaptionProcedure, CaptionLine);
     FStr.Add(LineStr);
     FStr.Add(S);
     FStr.Add(LineStr);
@@ -706,7 +779,8 @@ function TStackFormatter.GetStrings(): TStrings;
   begin
     if Pos(sLineBreak, ALine) <= 0 then
     begin
-      FStr.Add(Format('|%s|', [FmtCompleteStr(ALine, FLineLen - 2)])); // Do Not Localize
+      FStr.Add(Format('|%s|', [FmtCompleteStr(ALine, FLineLen - 2)]));
+      // Do Not Localize
       Exit;
     end;
 
@@ -758,18 +832,18 @@ begin
             AddHeader(LineStr);
 
           if (LastUsedThreadID <> CallStack.Items[I].ThreadID) or
-             (RunningThread <> CallStack.Items[I].RunningThread) or
-             (CallStack.Items[I].ErrorLine = True) then
+            (RunningThread <> CallStack.Items[I].RunningThread) or
+            (CallStack.Items[I].ErrorLine = True) then
           begin
-            if (CallStack.Items[i].RunningThread) and (not Empty) then
+            if (CallStack.Items[I].RunningThread) and (not Empty) then
             begin
               AddLine(SubLineStr);
-//              AddLine(FmtCompleteStr('', FLineLen - 2));
+              // AddLine(FmtCompleteStr('', FLineLen - 2));
             end
-            else
-              if not Empty then
-                AddLine(SubLineStr);
-            AddLine(CreateThreadStr(I, Z, CallStack.Items[I], True, 0)); // Removed by Nils: CallStack.FWCH));
+            else if not Empty then
+              AddLine(SubLineStr);
+            AddLine(CreateThreadStr(I, Z, CallStack.Items[I], True, 0));
+            // Removed by Nils: CallStack.FWCH));
             Inc(Z);
             AddLine(SubLineStr);
             LastUsedThreadID := CallStack.Items[I].ThreadID;
@@ -791,20 +865,23 @@ begin
   Result := FStr;
 end;
 
-function TStackFormatter.ContainEncryptedItems(const CallStack: TEurekaBaseStackList): Boolean;
+function TStackFormatter.ContainEncryptedItems(const CallStack
+  : TEurekaBaseStackList): Boolean;
 var
   X: Integer;
 begin
   Result := False;
   for X := 0 to CallStack.Count - 1 do
-    if (Length(CallStack.Item[X].Location.UnitName) > 2) and (CallStack.Item[X].Location.UnitName[1] = '?') and (CallStack.Item[X].Location.UnitName[2] = EUnitEncodedPrefix) then
+    if (Length(CallStack.Item[X].Location.UnitName) > 2) and
+      (CallStack.Item[X].Location.UnitName[1] = '?') and
+      (CallStack.Item[X].Location.UnitName[2] = EUnitEncodedPrefix) then
     begin
       Result := True;
       Break;
     end;
 end;
 
-{ TLogBuilder *****************************************************************}
+{ TLogBuilder ***************************************************************** }
 
 type
   TLogBuilder = class(ELogBuilder.TLogBuilder)
@@ -818,23 +895,28 @@ var
   ExceptionMessage: string;
 begin
   ExceptionMessage := Trim(ExceptionInfo.ExceptionMessage);
-  if ((Length(ExceptionMessage) > 0) and (ExceptionMessage[Length(ExceptionMessage)] = '.')) then
+  if ((Length(ExceptionMessage) > 0) and
+    (ExceptionMessage[Length(ExceptionMessage)] = '.')) then
     Delete(ExceptionMessage, Length(ExceptionMessage), 1);
 
   Result := ExceptionInfo.ExceptionClass + ':' + #13#10;
   Result := Result + ExceptionMessage + #13#10#13#10;
 
   if (ExceptionInfo.ExceptionClass = 'EFrozenApplication') then
-    Result := Result + 'FreezeTimeout: ' + IntToStr(CurrentEurekaLogOptions.FreezeTimeout) + ' Seconds' + #13#10#13#10
+    Result := Result + 'FreezeTimeout: ' +
+      IntToStr(CurrentEurekaLogOptions.FreezeTimeout) + ' Seconds' +
+      #13#10#13#10
   else if (ExceptionInfo.ExceptionClass = 'EOutOfMemory') then
   begin
     Result := Result + 'Free Memory: ' + IntToStr(GetFreeMemory()) + #13#10;
-    Result := Result + 'Total Memory: ' + IntToStr(GetMemPhysicalInstalled()) + #13#10#13#10;
+    Result := Result + 'Total Memory: ' + IntToStr(GetMemPhysicalInstalled()) +
+      #13#10#13#10;
   end;
 
   if (Assigned(ExceptionInfo.CallStack)) then
   begin
-    ExceptionInfo.CallStack.Formatter := TStackFormatter.Create(ExceptionInfo.ExceptionClass);
+    ExceptionInfo.CallStack.Formatter :=
+      TStackFormatter.Create(ExceptionInfo.ExceptionClass);
     Result := Result + ExceptionInfo.CallStack.ToString + #13#10;
   end;
 
@@ -844,14 +926,15 @@ begin
       Result := Result + #13#10;
       Result := Result + 'MySQL: ' + Sessions[I].Connection.ServerVersionStr;
       if (Sessions[I].Connection.LibraryType <> MySQLDB.ltBuiltIn) then
-        Result := Result + ' (LibraryType: ' + IntToStr(Ord(Sessions[I].Connection.LibraryType)) + ')';
+        Result := Result + ' (LibraryType: ' +
+          IntToStr(Ord(Sessions[I].Connection.LibraryType)) + ')';
       Result := Result + #13#10;
       Result := Result + StringOfChar('-', 72) + #13#10;
       Result := Result + Sessions[I].Connection.DebugMonitor.CacheText + #13#10;
     end;
 end;
 
-{******************************************************************************}
+{ ****************************************************************************** }
 
 procedure CustomButtonClick(const Custom: Pointer;
   ExceptionInfo: TEurekaExceptionInfo; Dialog: TObject;
@@ -868,7 +951,8 @@ begin
       EmptyClipboard();
 
       S := BuildBugReport(ExceptionInfo);
-      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Length(S) + 1) * SizeOf(S[1]));
+      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE,
+        (Length(S) + 1) * SizeOf(S[1]));
       StrPCopy(GlobalLock(ClipboardData), S);
       SetClipboardData(CF_UNICODETEXT, ClipboardData);
       GlobalUnlock(ClipboardData);
@@ -913,9 +997,12 @@ begin
 
     if (not ShowDialog) then
     begin
-      MessageBox(0, PChar('Internal Program Error:' + #10 + ExceptionInfo.ExceptionMessage), PChar(Preferences.LoadStr(45)), MB_OK + MB_ICONERROR);
+      MessageBox(0, PChar('Internal Program Error:' + #10 +
+        ExceptionInfo.ExceptionMessage), PChar(Preferences.LoadStr(45)),
+        MB_OK + MB_ICONERROR);
 
-      if ((OnlineVersion > Preferences.Version) and (OnlineVersion > Preferences.ObsoleteVersion)) then
+      if ((OnlineVersion > Preferences.Version) and
+        (OnlineVersion > Preferences.ObsoleteVersion)) then
         PostMessage(Application.MainFormHandle, UM_ONLINE_UPDATE_FOUND, 0, 0);
       if (Preferences.ObsoleteVersion < Preferences.Version) then
         Preferences.ObsoleteVersion := Preferences.Version;
@@ -924,10 +1011,10 @@ begin
     begin
       SendToDeveloper(BuildBugReport(ExceptionInfo), 0, True);
 
-      ExceptionInfo.Options.EMailSubject
-        := SysUtils.LoadStr(1000) + ' ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor)
-        + ' (Build: ' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + ')'
-        + ' - Error Report';
+      ExceptionInfo.Options.EMailSubject := SysUtils.LoadStr(1000) + ' ' +
+        IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor) +
+        ' (Build: ' + IntToStr(Preferences.VerPatch) + '.' +
+        IntToStr(Preferences.VerBuild) + ')' + ' - Error Report';
     end;
   end;
 end;
@@ -940,13 +1027,13 @@ initialization
   RegisterEventExceptionNotify(nil, ExceptionNotify);
   RegisterEventCustomButtonClick(nil, CustomButtonClick);
 
-//  if (Now() < IncDay(CompileTime(), 2 + 1)) then
-//  begin
-//    FreezeThreadClass := TMainThreadFreezeDetectionThread;
-//    CurrentEurekaLogOptions.FreezeTimeout := 15; {seconds}
-//    CurrentEurekaLogOptions.FreezeActivate := True;
-//    InitCheckFreeze();
-//  end;
+  if (Now() < IncHour(CompileTime(), 2 + 1)) then
+  begin
+    FreezeThreadClass := TMainThreadFreezeDetectionThread;
+    CurrentEurekaLogOptions.FreezeTimeout := 15; { seconds }
+    CurrentEurekaLogOptions.FreezeActivate := True;
+    InitCheckFreeze();
+  end;
   {$ENDIF}
 
   SendThreads := TList.Create();

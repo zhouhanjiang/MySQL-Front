@@ -562,7 +562,7 @@ begin
     SessionState := ssTable
   else if (not Assigned(Key)) then
     SessionState := ssCreate
-  else if (not Table.Keys.Valid and not Table.Update()) then
+  else if (not ModifyTableOnly and not Table.Keys.Valid and not Table.Update()) then
     SessionState := ssInit
   else
     SessionState := ssValid;

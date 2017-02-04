@@ -3910,7 +3910,7 @@ begin
           Link.ParentTable := TableByBaseTable(BaseTable);
         end;
   end
-  else if ((Event.EventType = etItemDropped) and (Event.Item is TSBaseTable)) then
+  else if ((Event.EventType = etItemDeleted) and (Event.Item is TSBaseTable)) then
   begin
     for I := Tables.Count - 1 downto 0 do
       if (Tables[I].BaseTable = Event.Item) then

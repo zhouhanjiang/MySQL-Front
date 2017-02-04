@@ -2597,6 +2597,10 @@ begin
   FSuccessfullExecutedSQLLength := 0; FExecutedStmts := 0;
   FRowsAffected := -1; FExecutionTime := 0;
 
+
+  // Debug 2017-02-04
+  Assert(Assigned(SyncThread.StmtLengths));
+
   SQLIndex := 1;
   SQLLength := Length(SyncThread.SQL);
 
@@ -7251,6 +7255,12 @@ begin
   if (ActiveBuffer() = 0) then
     raise ERangeError.Create('State: ' + IntToStr(Ord(State)) + #13#10
       + 'Count: ' + IntToStr(InternRecordBuffers.Count));
+  // Debug 2017-02-04
+  Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer),
+    'Field.Name: ' + Field.DisplayName + #13#10
+    + 'Field.DataType: ' + IntToStr(Ord(Field.DataType)) + #13#10
+    + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)) + #13#10
+    + 'State: ' + IntToStr(Ord(State)));
 
   OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
 

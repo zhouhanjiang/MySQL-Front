@@ -1209,6 +1209,7 @@ const
 
 var
   SBlobDebug: Pointer; // Debug 2016-12-28
+  ListViewUpdateCount: Integer; // Debug 2017-02-04
 
 // Debug 2016-12-07
 function GetControlByHandle(const Control: TWinControl; const Wnd: HWND): TWinControl;
@@ -4900,9 +4901,13 @@ begin
     if ((URI.Param['view'] = Null) and ((URI.Param['objecttype'] = 'procedure') or (URI.Param['objecttype'] = 'function') or (URI.Param['objecttype'] = 'trigger') or (URI.Param['objecttype'] = 'event'))) then
       URI.Param['view'] := 'ide';
 
+    // Debug 2017-02-03
     if ((ParamToView(URI.Param['view']) in [vBrowser]) and (URI.Table = '')) then
       raise ERangeError.Create('AAddress: ' + AAddress + #13#10
         + 'URI.Address: ' + URI.Address);
+    // Debug 2017-02-04
+    Assert((ParamToView(URI.Param['view']) <> vObjectSearch) or (URI.Param['text'] <> Null),
+      'URI.Address: ' + URI.Address);
 
     FCurrentAddress := URI.Address;
     if ((Session.Account.Desktop.Addresses.Count = 0)
@@ -5908,33 +5913,40 @@ end;
 
 function TFSession.DataByAddress(const Address: string): TCustomData;
 var
+  ClassIndex: TClassIndex;
   Database: TSDatabase;
   URI: TUURI;
 begin
   URI := TUURI.Create(Address);
 
-  case (ClassIndexByAddress(URI.Address)) of
+  ClassIndex := ClassIndexByAddress(URI.Address);
+  case (ClassIndex) of
     ciSession: Result := Session;
     ciDatabase,
     ciSystemDatabase: Result := Session.DatabaseByName(URI.Database);
     ciBaseTable,
     ciView,
-    ciSystemView:
+    ciSystemView,
+    ciProcedure,
+    ciFunction,
+    ciEvent,
+    ciTrigger:
       begin
         Database := Session.DatabaseByName(URI.Database);
-
-        // Debug 2017-02-02
         if (not Assigned(Database)) then
-          raise ERangeError.Create('Address: ' + Address + #13#10
-            + 'URI.Address: ' + URI.Address + #13#10
-            + 'URI.Database: ' + URI.Database);
-
-        Result := Database.TableByName(URI.Table);
+          Result := nil
+        else
+          case (ClassIndex) of
+            ciBaseTable,
+            ciView,
+            ciSystemView: Result := Database.TableByName(URI.Table);
+            ciProcedure: Result := Database.ProcedureByName(URI.Param['object']);
+            ciFunction: Result := Database.FunctionByName(URI.Param['object']);
+            ciEvent: Result := Database.EventByName(URI.Param['object']);
+            ciTrigger: Result := Database.TriggerByName(URI.Param['object']);
+            else raise ERangeError.Create('Unknown ClassIndex for: ' + Address);
+          end;
       end;
-    ciProcedure: Result := Session.DatabaseByName(URI.Database).ProcedureByName(URI.Param['object']);
-    ciFunction: Result := Session.DatabaseByName(URI.Database).FunctionByName(URI.Param['object']);
-    ciEvent: Result := Session.DatabaseByName(URI.Database).EventByName(URI.Param['object']);
-    ciTrigger: Result := Session.DatabaseByName(URI.Database).TriggerByName(URI.Param['object']);
     ciProcesses: Result := Session.Processes;
     ciUsers: Result := Session.Users;
     ciVariables: Result := Session.Variables;
@@ -7496,12 +7508,6 @@ begin
 
   URI.Param['view'] := ViewToParam(View);
 
-  // Debug 2017-01-03
-  if ((URI.Scheme = 'http') or (URI.Scheme = '')) then
-    raise ERangeError.Create('ImageIndex: ' + IntToStr(Node.ImageIndex) + #13#10
-      + 'Text: ' + Node.Text + #13#10
-      + 'ClassIndex: ' + IntToStr(Ord(CurrentClassIndex)));
-
   if ((ParamToView(URI.Param['view']) in [vBrowser]) and not (Node.ImageIndex in [iiBaseTable, iiView, iiSystemView])) then
     URI.Param['view'] := Null;
   if ((ParamToView(URI.Param['view']) in [vIDE]) and not (Node.ImageIndex in [iiView, iiProcedure, iiFunction, iiTrigger, iiEvent])) then
@@ -8454,7 +8460,7 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
           if (Assigned(Child)) then
             SetNodeBoldState(Child, (Child.ImageIndex = iiKey) and TSKey(Child.Data).PrimaryKey or (Child.ImageIndex in [iiBaseField, iiVirtualField]) and TSTableField(Child.Data).InPrimaryKey);
         end;
-      etItemDropped:
+      etItemDeleted:
         if (GroupIDByImageIndex(ImageIndexByData(Event.Item)) = GroupID) then
         begin
           Child := FNavigatorNodeByAddress(AddressByData(Event.Item));
@@ -8470,11 +8476,13 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
 
             Node := Child.getNextSibling();
             if (not Assigned(Node)) then
+              Node := Child.getPrevSibling();
+            if (not Assigned(Node) or (Node.ImageIndex in [iiKey, iiBaseField, iiSystemViewField, iiVirtualField, iiViewField, iiSystemViewField, iiForeignKey])) then
               Node := Child.Parent;
 
             DeleteChild(Child);
 
-            if (not Assigned(FNavigator.Selected) and Assigned(Node)) then
+            if (Assigned(Node)) then
               Wanted.Address := AddressByData(Node.Data);
           end;
         end;
@@ -8751,7 +8759,10 @@ procedure TFSession.FObjectSearchKeyPress(Sender: TObject; var Key: Char);
 begin
   if (Key = #13) then
   begin
-    FObjectSearchStart.Click();
+    if (Trim(FObjectSearch.Text) = '') then
+      MessageBeep(MB_ICONERROR)
+    else
+      FObjectSearchStart.Click();
     Key := #0;
   end
   else if (Key = #27) then
@@ -8935,7 +8946,7 @@ begin
       etItemValid,
       etItemCreated,
       etItemRenamed,
-      etItemDropped:
+      etItemDeleted:
         SessionUpdate(Event);
       etMonitor:
         FLogUpdate();
@@ -10321,6 +10332,14 @@ var
   SortRec: ^TListViewSortRec;
 begin
   SortRec := @TListViewSortRec(Pointer(Data)^);
+
+  // Debug 2017-02-04
+  Assert(Assigned(Item1.Data),
+    'ImageIndex: ' + IntToStr(Item1.ImageIndex) + #13#10
+    + 'Caption: ' + Item1.Caption);
+  Assert(Assigned(Item2.Data),
+    'ImageIndex: ' + IntToStr(Item2.ImageIndex) + #13#10
+    + 'Caption: ' + Item2.Caption);
 
   if (Item1.GroupID <> Item2.GroupID) then
     Compare := Sign(Item1.GroupID - Item2.GroupID)
@@ -11952,7 +11971,7 @@ var
           Item.Selected := ItemSelected;
           Item.Focused := ItemFocused;
         end;
-      etItemDropped:
+      etItemDeleted:
         if (GroupID = GroupIDByImageIndex(ImageIndexByData(Event.Item))) then
         begin
           ProfilingPoint(21);
@@ -11985,7 +12004,7 @@ var
 
     ProfilingPoint(26);
 
-    if (Event.EventType in [etItemsValid, etItemCreated, etItemDropped]) then
+    if (Event.EventType in [etItemsValid, etItemCreated, etItemDeleted]) then
       if (TObject(ListView.Tag) is TSItemSearch) then
         UpdateObjectSearchGroupHeaders()
       else
@@ -12124,7 +12143,7 @@ var
         for I := 0 to ListView.Items.Count - 1 do
           if (ListView.Items[I].Data = Event.Item) then
             UpdateItem(ListView.Items[I], ListView.Items[I].GroupID, Event.Item);
-      etItemDropped:
+      etItemDeleted:
         for I := ListView.Items.Count - 1 downto 0 do
           if (ListView.Items[I].Data = Event.Item) then
             ListView.Items.Delete(I);
@@ -12279,6 +12298,8 @@ begin
 
     ProfilingReset();
   end;
+
+  Inc(ListViewUpdateCount);
 end;
 
 procedure TFSession.ListViewSelectItem(Sender: TObject; Item: TListItem;
@@ -14757,7 +14778,7 @@ begin
     ProfilingReset();
     if (not QueryPerformanceCounter(Start)) then Start := 0;
 
-    if (Event.EventType = etItemDropped) then
+    if (Event.EventType = etItemDeleted) then
     begin
       if (Assigned(FNavigatorMenuNode) and (Event.Item = TObject(FNavigatorMenuNode.Data))) then
         FNavigatorMenuNode := nil;
@@ -14765,7 +14786,7 @@ begin
         FNavigatorNodeToExpand := nil;
     end;
 
-    if (Event.EventType in [etItemDropped, etItemRenamed]) then
+    if (Event.EventType in [etItemDeleted, etItemRenamed]) then
     begin
       ClassIndex := ClassIndexByData(Event.Item);
       if (ClassIndex in [ciDatabase, ciBaseTable, ciView, ciProcedure, ciFunction, ciTrigger, ciEvent]) then
@@ -14779,7 +14800,7 @@ begin
             if ((DataByAddress(URI.Address) = Event.Item)
               or ((Event.Item is TSDatabase) and (Session.Databases.NameCmp(URI.Database, Event.Item.Name) = 0))) then
               case (Event.EventType) of
-                etItemDropped:
+                etItemDeleted:
                   Session.Account.Desktop.Addresses.Delete(I);
                 etItemRenamed:
                   if (ApplyObjectRenamed(ClassIndex, URI)) then
@@ -14790,7 +14811,7 @@ begin
         for I := Session.Account.Favorites.Count - 1 downto 0 do
           if (DataByAddress(Session.Account.Favorites[I].Address) = Event.Item) then
             case (Event.EventType) of
-              etItemDropped:
+              etItemDeleted:
                 Session.Account.Favorites.Delete(I);
               etItemRenamed:
                 Session.Account.Favorites[I].Address := AddressByData(Event.Item);
@@ -14836,10 +14857,31 @@ begin
     begin
       if (not QueryPerformanceCounter(Start)) then Start := 0;
 
-      if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemRenamed, etItemDropped]) then
+      if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemRenamed, etItemDeleted]) then
         FNavigatorUpdate(Event);
 
-      if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemRenamed, etItemDropped]) then
+      if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
+        if ((Finish - Start) div Frequency > 1) then
+        begin
+          S := 'SessionUpdateA - '
+            + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
+          if (Assigned(Event.Items)) then
+            S := S
+              + 'Sender: ' + Event.Sender.ClassName + ', '
+              + 'ClassType: ' + Event.Items.ClassName + ', '
+              + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
+          if (Event.Item is TSTable) then
+            S := S
+              + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
+          S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s' + #13#10;
+          TimeMonitor.Append(S, ttDebug);
+        end;
+
+
+      if (not QueryPerformanceCounter(Start)) then Start := 0;
+      ListViewUpdateCount := 0;
+
+      if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemRenamed, etItemDeleted]) then
       begin
         if (Event.Items is TSDatabases) then
         begin
@@ -14865,9 +14907,10 @@ begin
         else if ((Event.Sender is TSDatabase) and not (Event.Items is TSTriggers)) then
         begin
           ListViewUpdate(Event, ServerListView);
+
           if (not (Event.Items is TSTriggers)) then
             ListViewUpdate(Event, Desktop(TSDatabase(Event.Sender)).ListView)
-          else if (Event.EventType = etItemDropped) then
+          else if (Event.EventType = etItemDeleted) then
             ListViewUpdate(Event, Desktop(TSTrigger(Event.Item).Table).ListView)
           else
             for I := 0 to TSTriggers(Event.Items).Count - 1 do
@@ -14884,22 +14927,24 @@ begin
           ListViewUpdate(Event, Desktop(Table).ListView);
         end;
 
-        if (Assigned(QuickAccessListView) and (Event.EventType in [etItemValid, etItemRenamed, etItemDropped])) then
+        if (Assigned(QuickAccessListView) and (Event.EventType in [etItemValid, etItemRenamed, etItemDeleted])) then
           ListViewUpdate(Event, QuickAccessListView);
 
         if (Assigned(ObjectSearchListView)
           and ((Event.Items = TObject(ObjectSearchListView.Tag))
-            or (Event.EventType in [etItemValid, etItemRenamed, etItemDropped]) and (TSItemSearch(ObjectSearchListView.Tag).IndexOf(Event.Item) >= 0))) then
+            or (Event.EventType in [etItemValid, etItemRenamed, etItemDeleted]) and (TSItemSearch(ObjectSearchListView.Tag).IndexOf(Event.Item) >= 0))) then
           ListViewUpdate(Event, ObjectSearchListView);
       end;
 
       if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
         if ((Finish - Start) div Frequency > 1) then
         begin
-          S := 'SessionUpdateA - '
-            + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
+          S := 'SessionUpdateB - '
+            + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', '
+            + 'ListViewUpdateCount: ' + IntToStr(ListViewUpdateCount) + ', ';
           if (Assigned(Event.Items)) then
             S := S
+              + 'Sender: ' + Event.Sender.ClassName + ', '
               + 'ClassType: ' + Event.Items.ClassName + ', '
               + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
           if (Event.Item is TSTable) then
@@ -16197,8 +16242,11 @@ end;
 
 procedure TFSession.UMActivateDBGrid(var Msg: TMessage);
 begin
-  Window.ActiveControl := TWinControl(Msg.LParam);
-  ActiveDBGrid.EditorMode := False;
+  if (TWinControl(Msg.LParam) = ActiveDBGrid) then
+  begin
+    Window.ActiveControl := TWinControl(Msg.LParam);
+    ActiveDBGrid.EditorMode := False;
+  end;
 end;
 
 procedure TFSession.UMActivateFText(var Msg: TMessage);
