@@ -144,8 +144,6 @@ uses
 var
   FDField: TDField;
 
-  TableDebug: TSBaseTable;
-
 function DField(): TDField;
 begin
   if (not Assigned(FDField)) then
@@ -653,190 +651,168 @@ var
   NewKey: TSKey;
   NewTable: TSBaseTable;
 begin
-  if ((ModalResult = mrOk) and GBasics.Visible) then
-  begin
-    // Debug 2017-01-22
-    if (not Visible) then
-      raise ERangeError.Create(SRangeError);
-    if (TableDebug <> Table) then
-      raise ERangeError.Create(SRangeError);
-    // Debug 2016-12-20
-    if (not (TObject(Table) is TSBaseTable)) then
-      try
-        raise ERangeError.Create('ClassType: ' + Table.ClassName);
-      except
-        raise ERangeError.Create(SRangeError);
-      end;
-
-    if (ModifyTableOnly) then
-      NewTable := Table
-    else
+  if (Visible) then
+    if ((ModalResult = mrOk) and GBasics.Visible) then
     begin
-      NewTable := TSBaseTable.Create(Table.Tables);
-      NewTable.Assign(Table);
-    end;
-
-    if (TableDebug <> Table) then
-      raise ERangeError.Create(SRangeError);
-    // Debug 2016-12-20
-    if (not (TObject(Table) is TSBaseTable)) then
-      try
-        raise ERangeError.Create('ClassType: ' + Table.ClassName);
-      except
-        raise ERangeError.Create(SRangeError);
-      end;
-
-    if (IsIntType() or (GetType() = mfTimestamp)) then
-      for I := 1 to Length(FDefault.Text) do
-        if (not CharInSet(FDefault.Text[I], ['0'..'9', FormatSettings.DecimalSeparator]) and (FDefault.Text[I] = '-') and FFlagUnsigned.Checked) then
-          begin MessageBeep(MB_ICONERROR); ActiveControl := FDefault; CanClose := False; end;
-    if (IsFloatType()) then
-      for I := 1 to Length(FDefault.Text) do
-        if (not CharInSet(FDefault.Text[I], ['0'..'9', FormatSettings.ThousandSeparator, FormatSettings.DecimalSeparator]) and (FDefault.Text[I] = '-') and FFlagUnsigned.Checked) then
-          begin MessageBeep(MB_ICONERROR); ActiveControl := FDefault; CanClose := False; end;
-    if (GetType() = mfVarChar) then
-      if (FUDFormatSize.Position = 0) then
-        begin MessageBeep(MB_ICONERROR); ActiveControl := FFormatSize; CanClose := False; end;
-
-    if (CanClose) then
-    begin
-      NewField := TSBaseField.Create(NewTable.Fields);
-      if (Assigned(Field)) then
-        NewField.Assign(Field);
-
-      if (FKindReal.Checked) then
-        NewField.FieldKind := mkReal
-      else if (FKindVirtual.Checked) then
-        NewField.FieldKind := mkVirtual;
-
-      NewField.Name := Trim(FName.Text);
-      NewField.FieldType := GetType();
-      if ((GetType() = mfBit) or IsIntType() or IsFloatType() or IsCharType() or IsBinaryType()) then
-        if (FUDFormatSize.Position = 0) then NewField.Size := -1 else NewField.Size := FUDFormatSize.Position
-      else if ((NewField.FieldType = mfTimeStamp) and (Table.Session.Connection.MySQLVersion < 50604)) then NewField.Size := Length(FFormatTimestamp.Text)
-      else if ((NewField.FieldType in [mfTime, mfDateTime, mfTimeStamp]) and (Table.Session.Connection.MySQLVersion >= 50604)) then NewField.Size := FUDFormatSize.Position
-      else if (NewField.FieldType = mfYear) then NewField.Size := Length(FFormatYear.Text)
-      else NewField.Size := 0;
-      if (IsFloatType()) then NewField.Decimals := FUDFormatDecimals.Position else NewField.Decimals := 0;
-
-      SetLength(NewField.Items, 0);
-      if (NewField.FieldType = mfEnum) then
+      if (ModifyTableOnly) then
+        NewTable := Table
+      else
       begin
-        if (FFlagNullAllowed.Checked) then
-          Index := 1
-        else
-          Index := 0;
-        for I := Index to FDefaultEnum.Items.Count - 1 do
-          begin SetLength(NewField.Items, Length(NewField.Items) + 1); NewField.Items[Length(NewField.Items) - 1] := FDefaultEnum.Items.Strings[I]; end;
+        NewTable := TSBaseTable.Create(Table.Tables);
+        NewTable.Assign(Table);
       end;
-      if (NewField.FieldType = mfSet) then
-        for I := 0 to FDefaultSet.Items.Count - 1 do
-          begin SetLength(NewField.Items, Length(NewField.Items) + 1); NewField.Items[Length(NewField.Items) - 1] := FDefaultSet.Items.Strings[I]; end;
 
-      NewField.Default := '';
-      if (NewField.FieldType = mfTimestamp) then
-        if (FRDefaultInsertTime.Checked) then
-          NewField.Default := 'CURRENT_TIMESTAMP'
-        else if (FRDefaultNull.Checked) then
-          NewField.Default := 'NULL'
-        else
+      if (IsIntType() or (GetType() = mfTimestamp)) then
+        for I := 1 to Length(FDefault.Text) do
+          if (not CharInSet(FDefault.Text[I], ['0'..'9', FormatSettings.DecimalSeparator]) and (FDefault.Text[I] = '-') and FFlagUnsigned.Checked) then
+            begin MessageBeep(MB_ICONERROR); ActiveControl := FDefault; CanClose := False; end;
+      if (IsFloatType()) then
+        for I := 1 to Length(FDefault.Text) do
+          if (not CharInSet(FDefault.Text[I], ['0'..'9', FormatSettings.ThousandSeparator, FormatSettings.DecimalSeparator]) and (FDefault.Text[I] = '-') and FFlagUnsigned.Checked) then
+            begin MessageBeep(MB_ICONERROR); ActiveControl := FDefault; CanClose := False; end;
+      if (GetType() = mfVarChar) then
+        if (FUDFormatSize.Position = 0) then
+          begin MessageBeep(MB_ICONERROR); ActiveControl := FFormatSize; CanClose := False; end;
+
+      if (CanClose) then
+      begin
+        NewField := TSBaseField.Create(NewTable.Fields);
+        if (Assigned(Field)) then
+          NewField.Assign(Field);
+
+        if (FKindReal.Checked) then
+          NewField.FieldKind := mkReal
+        else if (FKindVirtual.Checked) then
+          NewField.FieldKind := mkVirtual;
+
+        NewField.Name := Trim(FName.Text);
+        NewField.FieldType := GetType();
+        if ((GetType() = mfBit) or IsIntType() or IsFloatType() or IsCharType() or IsBinaryType()) then
+          if (FUDFormatSize.Position = 0) then NewField.Size := -1 else NewField.Size := FUDFormatSize.Position
+        else if ((NewField.FieldType = mfTimeStamp) and (Table.Session.Connection.MySQLVersion < 50604)) then NewField.Size := Length(FFormatTimestamp.Text)
+        else if ((NewField.FieldType in [mfTime, mfDateTime, mfTimeStamp]) and (Table.Session.Connection.MySQLVersion >= 50604)) then NewField.Size := FUDFormatSize.Position
+        else if (NewField.FieldType = mfYear) then NewField.Size := Length(FFormatYear.Text)
+        else NewField.Size := 0;
+        if (IsFloatType()) then NewField.Decimals := FUDFormatDecimals.Position else NewField.Decimals := 0;
+
+        SetLength(NewField.Items, 0);
+        if (NewField.FieldType = mfEnum) then
+        begin
+          if (FFlagNullAllowed.Checked) then
+            Index := 1
+          else
+            Index := 0;
+          for I := Index to FDefaultEnum.Items.Count - 1 do
+            begin SetLength(NewField.Items, Length(NewField.Items) + 1); NewField.Items[Length(NewField.Items) - 1] := FDefaultEnum.Items.Strings[I]; end;
+        end;
+        if (NewField.FieldType = mfSet) then
+          for I := 0 to FDefaultSet.Items.Count - 1 do
+            begin SetLength(NewField.Items, Length(NewField.Items) + 1); NewField.Items[Length(NewField.Items) - 1] := FDefaultSet.Items.Strings[I]; end;
+
+        NewField.Default := '';
+        if (NewField.FieldType = mfTimestamp) then
+          if (FRDefaultInsertTime.Checked) then
+            NewField.Default := 'CURRENT_TIMESTAMP'
+          else if (FRDefaultNull.Checked) then
+            NewField.Default := 'NULL'
+          else
+            NewField.Default := NewField.EscapeValue(Trim(FDefault.Text))
+        else if (((GetType() = mfBit) or IsIntType() or IsFloatType() or IsCharType() or IsBinaryType() or IsDateType()) and (FDefault.Visible) and not FRDefaultNull.Checked) then
           NewField.Default := NewField.EscapeValue(Trim(FDefault.Text))
-      else if (((GetType() = mfBit) or IsIntType() or IsFloatType() or IsCharType() or IsBinaryType() or IsDateType()) and (FDefault.Visible) and not FRDefaultNull.Checked) then
-        NewField.Default := NewField.EscapeValue(Trim(FDefault.Text))
-      else if ((NewField.FieldType = mfEnum) and (not FFlagNullAllowed.Checked or (FDefaultENum.ItemIndex > 0))) then
-        NewField.Default := NewField.EscapeValue(FDefaultENum.Text)
-      else if (NewField.FieldType = mfSet) then
-      begin
-        for I := 0 to FDefaultSet.Count - 1 do
-          if (FDefaultSet.Selected[I]) then
-          begin
-            if (NewField.Default <> '') then
-              NewField.Default := NewField.Default + ',';
-            NewField.Default := NewField.Default + FDefaultSet.Items.Strings[I];
-          end;
-        NewField.Default := NewField.EscapeValue(NewField.Default);
-      end
-      else if (FFlagNullAllowed.Checked) then
-        NewField.Default := 'NULL';
-      if (FUpdateTime.Checked) then
-        NewField.OnUpdate := 'CURRENT_TIMESTAMP'
-      else
-        NewField.OnUpdate := '';
+        else if ((NewField.FieldType = mfEnum) and (not FFlagNullAllowed.Checked or (FDefaultENum.ItemIndex > 0))) then
+          NewField.Default := NewField.EscapeValue(FDefaultENum.Text)
+        else if (NewField.FieldType = mfSet) then
+        begin
+          for I := 0 to FDefaultSet.Count - 1 do
+            if (FDefaultSet.Selected[I]) then
+            begin
+              if (NewField.Default <> '') then
+                NewField.Default := NewField.Default + ',';
+              NewField.Default := NewField.Default + FDefaultSet.Items.Strings[I];
+            end;
+          NewField.Default := NewField.EscapeValue(NewField.Default);
+        end
+        else if (FFlagNullAllowed.Checked) then
+          NewField.Default := 'NULL';
+        if (FUpdateTime.Checked) then
+          NewField.OnUpdate := 'CURRENT_TIMESTAMP'
+        else
+          NewField.OnUpdate := '';
 
-      NewField.Expression := Trim(FExpression.Text);
-      if (FStoredStored.Checked) then
-        NewField.Stored := msStored
-      else
-        NewField.Stored := msVirtual;
+        NewField.Expression := Trim(FExpression.Text);
+        if (FStoredStored.Checked) then
+          NewField.Stored := msStored
+        else
+          NewField.Stored := msVirtual;
 
-      NewField.NullAllowed := FFlagNullAllowed.Checked;
-      NewField.Unsigned := FFlagUnsigned.Checked and (IsIntType() or IsFloatType());
-      NewField.Zerofill := FFlagZerofill.Checked and (IsIntType() or IsFloatType());
-      NewField.Binary := FFlagBinary.Checked and IsCharType();
-      NewField.National := FFlagNational.Checked and IsCharType();
-      NewField.AutoIncrement := FRDefaultAutoIncrement.Checked and IsIntType();
-      NewField.Ascii := FFlagAscii.Checked and (GetType() = mfChar);
-      NewField.Unicode := FFlagUnicode.Checked and (GetType() = mfChar);
+        NewField.NullAllowed := FFlagNullAllowed.Checked;
+        NewField.Unsigned := FFlagUnsigned.Checked and (IsIntType() or IsFloatType());
+        NewField.Zerofill := FFlagZerofill.Checked and (IsIntType() or IsFloatType());
+        NewField.Binary := FFlagBinary.Checked and IsCharType();
+        NewField.National := FFlagNational.Checked and IsCharType();
+        NewField.AutoIncrement := FRDefaultAutoIncrement.Checked and IsIntType();
+        NewField.Ascii := FFlagAscii.Checked and (GetType() = mfChar);
+        NewField.Unicode := FFlagUnicode.Checked and (GetType() = mfChar);
 
-      NewField.Moved := NewField.Moved or (FPosition.ItemIndex <> NewTable.Fields.IndexOf(NewField.FieldBefore) + 1);
-      if (FPosition.ItemIndex = 0) then
-        NewField.FieldBefore := nil
-      else
-      begin
-        FieldName := FPosition.Text;
-        Delete(FieldName, 1, Pos('"', FieldName));
-        Delete(FieldName, Pos('"', FieldName), Length(FieldName) - Pos('"', FieldName) + 1);
-        NewField.FieldBefore := NewTable.FieldByName(FieldName);
+        NewField.Moved := NewField.Moved or (FPosition.ItemIndex <> NewTable.Fields.IndexOf(NewField.FieldBefore) + 1);
+        if (FPosition.ItemIndex = 0) then
+          NewField.FieldBefore := nil
+        else
+        begin
+          FieldName := FPosition.Text;
+          Delete(FieldName, 1, Pos('"', FieldName));
+          Delete(FieldName, Pos('"', FieldName), Length(FieldName) - Pos('"', FieldName) + 1);
+          NewField.FieldBefore := NewTable.FieldByName(FieldName);
+        end;
+
+        if (FCharset.Visible and FCharset.Enabled) then
+          NewField.Charset := FCharset.Text
+        else
+          NewField.Charset := '';
+        if (FCollation.Visible) then
+          NewField.Collation := FCollation.Text
+        else
+          NewField.Collation := '';
+        if (not Assigned(Field) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewField.Comment, Table.Session.Connection.MySQLVersion))) then
+          NewField.Comment := Trim(FComment.Text);
+
+        if (not Assigned(Field)) then
+          NewTable.Fields.AddField(NewField)
+        else
+        begin
+          NewTable.Fields[Field.Index].Assign(NewField);
+          TSBaseTableFields(NewTable.Fields).MoveField(NewTable.Fields[Field.Index], NewField.FieldBefore);
+        end;
+
+        if (NewField.AutoIncrement and Assigned(Table) and not Assigned(Table.PrimaryKey)) then
+        begin
+          NewKey := TSKey.Create(NewTable.Keys);
+          NewKey.PrimaryKey := True;
+          NewColumn := TSKeyColumn.Create(NewKey.Columns);
+          NewColumn.Field := NewField;
+          NewKey.Columns.AddColumn(NewColumn);
+          NewTable.Keys.AddKey(NewKey);
+          NewKey.Free();
+          NewColumn.Free();
+        end;
+
+        if (not ModifyTableOnly) then
+        begin
+          SessionState := ssAlter;
+
+          CanClose := Table.Database.UpdateBaseTable(Table, NewTable);
+
+          GBasics.Visible := False;
+          GAttributes.Visible := GBasics.Visible;
+          PSQLWait.Visible := not GBasics.Visible;
+          FBOk.Enabled := False;
+        end;
+
+        NewField.Free();
+        if (NewTable <> Table) then
+          NewTable.Free();
       end;
-
-      if (FCharset.Visible and FCharset.Enabled) then
-        NewField.Charset := FCharset.Text
-      else
-        NewField.Charset := '';
-      if (FCollation.Visible) then
-        NewField.Collation := FCollation.Text
-      else
-        NewField.Collation := '';
-      if (not Assigned(Field) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewField.Comment, Table.Session.Connection.MySQLVersion))) then
-        NewField.Comment := Trim(FComment.Text);
-
-      if (not Assigned(Field)) then
-        NewTable.Fields.AddField(NewField)
-      else
-      begin
-        NewTable.Fields[Field.Index].Assign(NewField);
-        TSBaseTableFields(NewTable.Fields).MoveField(NewTable.Fields[Field.Index], NewField.FieldBefore);
-      end;
-
-      if (NewField.AutoIncrement and Assigned(Table) and not Assigned(Table.PrimaryKey)) then
-      begin
-        NewKey := TSKey.Create(NewTable.Keys);
-        NewKey.PrimaryKey := True;
-        NewColumn := TSKeyColumn.Create(NewKey.Columns);
-        NewColumn.Field := NewField;
-        NewKey.Columns.AddColumn(NewColumn);
-        NewTable.Keys.AddKey(NewKey);
-        NewKey.Free();
-        NewColumn.Free();
-      end;
-
-      if (not ModifyTableOnly) then
-      begin
-        SessionState := ssAlter;
-
-        CanClose := Table.Database.UpdateBaseTable(Table, NewTable);
-
-        GBasics.Visible := False;
-        GAttributes.Visible := GBasics.Visible;
-        PSQLWait.Visible := not GBasics.Visible;
-        FBOk.Enabled := False;
-      end;
-
-      NewField.Free();
-      if (NewTable <> Table) then
-        NewTable.Free();
     end;
-  end;
 end;
 
 procedure TDField.FormCreate(Sender: TObject);
@@ -849,18 +825,6 @@ end;
 
 procedure TDField.FormHide(Sender: TObject);
 begin
-  // Debug 2016-12-19
-  if (TableDebug <> Table) then
-    raise ERangeError.Create(SRangeError);
-  if (not Assigned(Table)) then
-    raise ERangeError.Create(SRangeError);
-  if (not (TObject(Table) is TSBaseTable)) then
-    try
-      raise ERangeError.Create('ClassType: ' + Table.ClassName);
-    except
-      raise ERangeError.Create(SRangeError);
-    end;
-
   Table.Session.UnRegisterEventProc(FormSessionEvent);
 
   Preferences.Field.Width := Width;
@@ -918,8 +882,6 @@ var
   I: Integer;
   S: string;
 begin
-  TableDebug := Table;
-
   Table.Session.RegisterEventProc(FormSessionEvent);
 
   if ((Preferences.Field.Width >= Width) and (Preferences.Field.Height >= Height)) then
@@ -1135,20 +1097,6 @@ function TDField.GetType(): TSField.TFieldType;
 begin
   if (FFieldType.ItemIndex < 0) then
     Result := mfUnknown
-  else if (not Assigned(Table)) then
-    // Debug 2016-11-16
-    raise ERangeError.Create(SRangeError)
-  else if (Table <> TableDebug) then
-    raise ERangeError.Create(SRangeError)
-  else if (not (TObject(Table) is TSBaseTable)) then
-    // Debug 2016-11-30
-    raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Table).ClassName)
-  else if (not Assigned(Table.Session)) then
-    // Debug 2016-11-16
-    raise ERangeError.Create(SRangeError)
-  else if (not Assigned(Table.Session.FieldTypeByCaption(FFieldType.Text))) then
-    // Debug 2016-11-12
-    raise ERangeError.CreateFMT(SPropertyOutOfRange + ' ("%s")', ['FFieldType.Text', FFieldType.Text])
   else
     Result := Table.Session.FieldTypeByCaption(FFieldType.Text).MySQLFieldType;
 end;

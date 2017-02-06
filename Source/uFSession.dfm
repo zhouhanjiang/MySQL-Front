@@ -1272,7 +1272,7 @@ object FSession: TFSession
       end
     end
     object FObjectSearch: TEdit
-      Left = 149222
+      Left = 50528
       Top = 0
       Width = 140
       Height = 22
@@ -1287,7 +1287,7 @@ object FSession: TFSession
       ExplicitLeft = 32752
     end
     object TBObjectSearch: TToolBar
-      Left = 149009
+      Left = 50495
       Top = 0
       Width = 23
       Height = 22
@@ -1898,6 +1898,13 @@ object FSession: TFSession
     object ghmCopy: TMenuItem
       Caption = 'ghmCopy'
       OnClick = ghmCopyClick
+    end
+    object N5: TMenuItem
+      Caption = '-'
+    end
+    object ghmSelectAll: TMenuItem
+      Caption = 'ghmSelectAll'
+      OnClick = ghmSelectAllClick
     end
   end
   object MSideBar: TPopupMenu

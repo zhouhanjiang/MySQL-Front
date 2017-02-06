@@ -273,6 +273,7 @@ procedure TDTable.aPCreateKeyExecute(Sender: TObject);
 begin
   DKey.Table := NewTable;
   DKey.Key := nil;
+  DKey.ModifyTableOnly := True;
   if (DKey.Execute()) then
   begin
     FIndicesRefresh(Sender);

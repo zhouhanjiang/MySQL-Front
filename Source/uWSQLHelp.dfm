@@ -1,7 +1,7 @@
-object DSQLHelp: TDSQLHelp
+object WSQLHelp: TWSQLHelp
   Left = 603
   Top = 315
-  Caption = 'DSQLHelp'
+  Caption = 'WSQLHelp'
   ClientHeight = 567
   ClientWidth = 500
   Color = clWindow

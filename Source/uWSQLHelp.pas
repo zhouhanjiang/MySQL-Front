@@ -1,4 +1,4 @@
-unit uDSQLHelp;
+unit uWSQLHelp;
 
 interface {********************************************************************}
 
@@ -14,7 +14,7 @@ const
   UM_SEND_SQL = WM_USER + 301;
 
 type
-  TDSQLHelp = class(TForm_Ext)
+  TWSQLHelp = class(TForm_Ext)
     FBDescription: TButton;
     FBExample: TButton;
     FBManual: TButton;
@@ -55,7 +55,7 @@ type
     function Execute(): Boolean;
   end;
 
-function DSQLHelp(): TDSQLHelp;
+function WSQLHelp(): TWSQLHelp;
 
 implementation {***************************************************************}
 
@@ -69,22 +69,22 @@ uses
   uDSelection;
 
 var
-  FDSQLHelp: TDSQLHelp;
+  FWSQLHelp: TWSQLHelp;
 
-function DSQLHelp(): TDSQLHelp;
+function WSQLHelp(): TWSQLHelp;
 begin
-  if (not Assigned(FDSQLHelp)) then
+  if (not Assigned(FWSQLHelp)) then
   begin
-    Application.CreateForm(TDSQLHelp, FDSQLHelp);
-    FDSQLHelp.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    Application.CreateForm(TWSQLHelp, FWSQLHelp);
+    FWSQLHelp.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
-  Result := FDSQLHelp;
+  Result := FWSQLHelp;
 end;
 
-{ TDSQLHelp *******************************************************************}
+{ TWSQLHelp *******************************************************************}
 
-procedure TDSQLHelp.CMSysFontChanged(var Message: TMessage);
+procedure TWSQLHelp.CMSysFontChanged(var Message: TMessage);
 begin
   inherited;
 
@@ -99,7 +99,7 @@ begin
   Constraints.MinWidth := 2 * GetSystemMetrics(SM_CXFRAME) + FBDescription.Width + FBExample.Width + FBManual.Width + FQuickSearch.Width + TBQuickSearchEnabled.Width + 50;
 end;
 
-function TDSQLHelp.HelpResult(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
+function TWSQLHelp.HelpResult(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
   const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
 var
   DataSet: TMySQLQuery;
@@ -168,14 +168,14 @@ begin
   Result := False;
 end;
 
-procedure TDSQLHelp.CreateParams(var Params: TCreateParams);
+procedure TWSQLHelp.CreateParams(var Params: TCreateParams);
 begin
   inherited;
 
   Params.ExStyle   := Params.ExStyle or WS_EX_APPWINDOW;
 end;
 
-function TDSQLHelp.Execute(): Boolean;
+function TWSQLHelp.Execute(): Boolean;
 begin
   Show();
 
@@ -187,34 +187,34 @@ begin
   Result := False;
 end;
 
-procedure TDSQLHelp.FBContentClick(Sender: TObject);
+procedure TWSQLHelp.FBContentClick(Sender: TObject);
 begin
   Keyword := 'Contents';
   Perform(UM_SEND_SQL, 0, 0);
 end;
 
-procedure TDSQLHelp.FBDescriptionClick(Sender: TObject);
+procedure TWSQLHelp.FBDescriptionClick(Sender: TObject);
 begin
   FDescription.Visible := True;
   FExample.Visible := False;
   ActiveControl := nil;
 end;
 
-procedure TDSQLHelp.FBExampleClick(Sender: TObject);
+procedure TWSQLHelp.FBExampleClick(Sender: TObject);
 begin
   FDescription.Visible := False;
   FExample.Visible := True;
   ActiveControl := nil;
 end;
 
-procedure TDSQLHelp.FBManualClick(Sender: TObject);
+procedure TWSQLHelp.FBManualClick(Sender: TObject);
 begin
   ShellExecute(Handle, 'open', PChar(ManualURL), '', '', SW_SHOW);
 
   Close();
 end;
 
-procedure TDSQLHelp.FormCreate(Sender: TObject);
+procedure TWSQLHelp.FormCreate(Sender: TObject);
 begin
   ShowGripper := False;
 
@@ -224,7 +224,7 @@ begin
   SendMessage(FDescription.Handle, EM_AUTOURLDETECT, Integer(True), 0);
 end;
 
-procedure TDSQLHelp.FormHide(Sender: TObject);
+procedure TWSQLHelp.FormHide(Sender: TObject);
 begin
   FDescription.Lines.Clear();
   FExample.Lines.Clear();
@@ -235,13 +235,13 @@ begin
   Preferences.SQLHelp.Height := Height;
 end;
 
-procedure TDSQLHelp.FormKeyPress(Sender: TObject; var Key: Char);
+procedure TWSQLHelp.FormKeyPress(Sender: TObject; var Key: Char);
 begin
   if (Key = #27) then
     Hide();
 end;
 
-procedure TDSQLHelp.FormShow(Sender: TObject);
+procedure TWSQLHelp.FormShow(Sender: TObject);
 begin
   if ((Preferences.SQLHelp.Width >= Width) and (Preferences.SQLHelp.Height >= Height)) then
   begin
@@ -272,13 +272,13 @@ begin
   FDescription.BringToFront();
 end;
 
-procedure TDSQLHelp.FQuickSearchEnabledClick(Sender: TObject);
+procedure TWSQLHelp.FQuickSearchEnabledClick(Sender: TObject);
 begin
   Keyword := Trim(FQuickSearch.Text);
   Perform(UM_SEND_SQL, 0, 0);
 end;
 
-procedure TDSQLHelp.FQuickSearchKeyPress(Sender: TObject; var Key: Char);
+procedure TWSQLHelp.FQuickSearchKeyPress(Sender: TObject; var Key: Char);
 begin
   if (Key = Chr(VK_ESCAPE)) then
   begin
@@ -296,7 +296,7 @@ begin
   end;
 end;
 
-procedure TDSQLHelp.WMNotify(var Message: TWMNotify);
+procedure TWSQLHelp.WMNotify(var Message: TWMNotify);
 var
   ENLink: TENLink;
   SelStart: Integer;
@@ -318,7 +318,7 @@ begin
   end
 end;
 
-procedure TDSQLHelp.UMChangePreferences(var Message: TMessage);
+procedure TWSQLHelp.UMChangePreferences(var Message: TMessage);
 begin
   Preferences.Images.GetIcon(14, Icon);
 
@@ -348,11 +348,11 @@ begin
   Perform(CM_SYSFONTCHANGED, 0, 0);
 end;
 
-procedure TDSQLHelp.UMSendSQL(var Message: TMessage);
+procedure TWSQLHelp.UMSendSQL(var Message: TMessage);
 begin
   Session.Connection.SendSQL('HELP ' + SQLEscape(Keyword), HelpResult);
 end;
 
 initialization
-  FDSQLHelp := nil;
+  FWSQLHelp := nil;
 end.

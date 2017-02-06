@@ -16,11 +16,6 @@ type
       procedure Update(Item: TCollectionItem); override;
     end;
 
-    TMySQLDBGridDataLink = class(TGridDataLink)
-    protected
-      procedure DataSetChanged(); override;
-    end;
-
     TMySQLDBGridFieldList = class(TList)
     private
       FGrid: TMySQLDBGrid;
@@ -47,21 +42,35 @@ type
   const
     tiShowHint = 1;
     tiHideHint = 2;
+    tiMouseMove = 3;
   private
-    FAltDownCol: Longint;
+    AltDownAnchor: record
+      Col: Longint;
+    end;
     FHeaderControl: THeaderControl;
     FHintWindow: THintWindow;
     FIgnoreKeyPress: Boolean;
     FListView: HWND;
-    FMouseDownCol: Longint;
-    FMouseDownShiftState: TShiftState;
-    FMouseDownPoint: TPoint;
     FMouseMoveCell: TGridCoord;
     FOnCanEditShow: TNotifyEvent;
     FOnCanEditShowExecuted: Boolean;
     FOnSelect: TNotifyEvent;
     FSelectedFields: TMySQLDBGridFieldList;
     IgnoreTitleClick: Boolean;
+    LeftClickAnchor: record
+      Col: Longint;
+      Shift: TShiftState;
+      Rec: Integer;
+    end;
+    MouseMoveTimerData: record
+      HorzCounter: Integer;
+      Shift: TShiftState;
+      X: Integer;
+      Y: Integer;
+    end;
+    ShiftDownAnchor: record
+      Rec: Integer;
+    end;
     TitleBoldFont: TFont;
     procedure ActivateHint();
     function CalcSelText(): string;
@@ -87,7 +96,6 @@ type
     function CanGridAcceptKey(Key: Word; Shift: TShiftState): Boolean; override;
     procedure ColEnter(); override;
     function CreateColumns(): TDBGridColumns; override;
-    function CreateDataLink(): TGridDataLink; override;
     function CreateEditor(): TInplaceEdit; override;
     procedure CreateWnd(); override;
     procedure DoEnter(); override;
@@ -123,7 +131,7 @@ type
     procedure UpdateHeader(); virtual;
     property CurrentRow: Boolean read GetCurrentRow;
     property Header: HWND read GetHeader;
-    property MouseDownShiftState: TShiftState read FMouseDownShiftState;
+    property MouseDownShiftState: TShiftState read LeftClickAnchor.Shift;
     property SelectedFields: TMySQLDBGridFieldList read FSelectedFields;
     property SelSQLData: string read GetSelSQLData;
     property SelText: string read GetSelText;
@@ -193,15 +201,6 @@ begin
 
   TMySQLDBGrid(Grid).SetHeaderColumnArrows();
   TMySQLDBGrid(Grid).Resize();
-end;
-
-{ TMySQLDBGrid.TMySQLDBGridDataLink ********************************************}
-
-procedure TMySQLDBGrid.TMySQLDBGridDataLink.DataSetChanged();
-begin
-  TMySQLDBGrid(Grid).SelectedFields.Clear();
-
-  inherited;
 end;
 
 { TMySQLDBGrid.TMySQLDBGridFieldList ******************************************}
@@ -353,7 +352,7 @@ end;
 
 procedure TMySQLDBGrid.BeginAutoDrag();
 begin
-  if (FMouseDownShiftState = []) then
+  if (LeftClickAnchor.Shift = []) then
     BeginDrag(False);
 end;
 
@@ -367,7 +366,9 @@ var
 begin
   Buffer := TSQLBuffer.Create(10240);
 
-  if (SelectedRows.Count = 0) then
+  if ((SelectedFields.Count = 0) and (SelectedRows.Count = 0)) then
+    Buffer.Write(SelectedField.AsString)
+  else if (SelectedRows.Count = 0) then
   begin
     FirstColumn := True;
     for J := 0 to Columns.Count - 1 do
@@ -412,7 +413,9 @@ var
 begin
   Buffer := TSQLBuffer.Create(10240);
 
-  if ((SelectedFields.Count = 0) and (Columns.Count = 1) or (SelectedFields.Count = 1)) then
+  if ((SelectedFields.Count = 0) and (SelectedRows.Count = 0)) then
+    Buffer.Write(TMySQLQuery(DataLink.DataSet).SQLFieldValue(SelectedField))
+  else if ((SelectedFields.Count = 0) and (Columns.Count = 1) or (SelectedFields.Count = 1)) then
   begin
     if (SelectedFields.Count = 1) then
       Field := TField(SelectedFields[0])
@@ -574,13 +577,17 @@ end;
 
 constructor TMySQLDBGrid.Create(AOwner: TComponent);
 begin
-  FAltDownCol := -1;
+  AltDownAnchor.Col := -1;
   FHeaderControl := nil;
   FIgnoreKeyPress := False;
   FListView := 0;
   FOnCanEditShowExecuted := False;
   FSelectedFields := TMySQLDBGridFieldList.Create(Self);
   IgnoreTitleClick := False;
+  LeftClickAnchor.Col := -1;
+  LeftClickAnchor.Shift := [];
+  LeftClickAnchor.Rec := -1;
+  ShiftDownAnchor.Rec := -1;
   TitleBoldFont := nil;
 
   FMouseMoveCell.X := -1;
@@ -592,11 +599,6 @@ end;
 function TMySQLDBGrid.CreateColumns(): TDBGridColumns;
 begin
   Result := TDBMySQLGridColumns.Create(Self, TColumn);
-end;
-
-function TMySQLDBGrid.CreateDataLink(): TGridDataLink;
-begin
-  Result := TMySQLDBGridDataLink.Create(Self);
 end;
 
 function TMySQLDBGrid.CreateEditor(): TInplaceEdit;
@@ -688,7 +690,7 @@ function TMySQLDBGrid.DoMouseWheel(Shift: TShiftState; WheelDelta: Integer;
   MousePos: TPoint): Boolean;
 begin
   Result := not TMySQLDataSet(DataLink.DataSet).CachedUpdates
-    and (not (ssShift in FMouseDownShiftState) and not (ssCtrl in FMouseDownShiftState))
+    and (not (ssShift in LeftClickAnchor.Shift) and not (ssCtrl in LeftClickAnchor.Shift))
     and not EditorMode;
 
   if (Result) then
@@ -813,11 +815,7 @@ end;
 
 function TMySQLDBGrid.GetSelText(): string;
 var
-  FirstContent: Boolean;
   FormatSettings: TFormatSettings;
-  I: Integer;
-  J: Integer;
-  OldRecNo: Integer;
 begin
   FormatSettings := TFormatSettings.Create(LOCALE_USER_DEFAULT);
 
@@ -826,22 +824,9 @@ begin
   else
   begin
     DataLink.DataSet.DisableControls();
-    OldRecNo := DataLink.DataSet.RecNo;
 
-    for I := 0 to SelectedRows.Count - 1 do
-    begin
-      FirstContent := True;
-      DataLink.DataSet.Bookmark := SelectedRows.Items[I];
-      for J := 0 to Columns.Count - 1 do
-        if (SelectedFields.IndexOf(Columns[J].Field) >= 0) then
-        begin
-          if (FirstContent) then FirstContent := False else Result := Result + #9;
-          Result := Result + Columns[J].Field.AsString;
-        end;
-      Result := Result + #13#10;
-    end;
+    Result := CalcSelText();
 
-    DataLink.DataSet.RecNo := OldRecNo;
     DataLink.DataSet.EnableControls();
   end;
 end;
@@ -913,16 +898,22 @@ end;
 procedure TMySQLDBGrid.KeyDown(var Key: Word; Shift: TShiftState);
 var
   OldCol: Longint;
+  OldRecNo: Integer;
 begin
   if (Assigned(FHintWindow)) then
     FreeAndNil(FHintWindow);
 
-  if (ssAlt in Shift) then
-    FAltDownCol := Col;
-  FMouseDownCol := Col;
-  FMouseDownShiftState := Shift + (FMouseDownShiftState - [ssShift, ssCtrl, ssAlt]);
+  if ((Key = VK_SHIFT) and (ShiftDownAnchor.Rec < 0)) then
+    ShiftDownAnchor.Rec := DataLink.ActiveRecord;
+  if ((Key = VK_SHIFT) and (AltDownAnchor.Col < 0)) then
+  begin
+    AltDownAnchor.Col := Col;
+    Cursor := crCross;
+    Perform(WM_SETCURSOR, Handle, HTCLIENT);
+    MouseCapture := True;
+  end;
 
-  if ((Key = VK_UP) and (Shift = [ssCtrl]) and Assigned(DataLink.DataSet) and (DataLink.DataSet.State = dsBrowse)) then
+  if ((Key = VK_UP) and (Shift = [ssCtrl]) and not EditorMode) then
   begin
     if (SelectedRows.Count = 0) then
       SelectedRows.CurrentRowSelected := True;
@@ -930,7 +921,7 @@ begin
       DataLink.DataSet.MoveBy(-1);
     FIgnoreKeyPress := True;
   end
-  else if ((Key = VK_DOWN) and (Shift = [ssCtrl]) and Assigned(DataLink.DataSet) and (DataLink.DataSet.State = dsBrowse)) then
+  else if ((Key = VK_DOWN) and (Shift = [ssCtrl]) and not EditorMode) then
   begin
     if (SelectedRows.Count = 0) then
       SelectedRows.CurrentRowSelected := True;
@@ -942,11 +933,68 @@ begin
     SelectedIndex := 0
   else if ((Key = VK_TAB) and (ssShift in Shift) and (SelectedIndex = 0) and DataSource.DataSet.FindPrior() and not TMySQLDataSet(DataSource.DataSet).CachedUpdates) then
     SelectedIndex := Columns.Count - 1
-  else if (((Key = VK_HOME) or (Key = VK_END) or (Key = VK_LEFT) or (Key = VK_RIGHT)) and (Shift = [ssShift]) and not EditorMode) then
-    SelectedRows.CurrentRowSelected := not SelectedRows.CurrentRowSelected
-  else if ((Key = VK_SPACE) and (Shift = [ssCtrl]) and Assigned(DataLink.DataSet) and (DataLink.DataSet.State = dsBrowse)) then
+  else if (((Key = VK_HOME) or (Key = VK_END)) and (ssShift in Shift) and not EditorMode) then
   begin
-    SelectedRows.CurrentRowSelected := not SelectedRows.CurrentRowSelected;
+    if ((Key = VK_HOME) and (ssCtrl in Shift) and (DataLink.DataSet.RecNo = DataLink.DataSet.RecordCount - 1)
+      or (Key = VK_END) and (ssCtrl in Shift) and (DataLink.DataSet.RecNo = 0)) then
+    begin
+      if (SelectedFields.IndexOf(SelectedField) < 0) then
+        SelectedFields.Add(SelectedField);
+      inherited;
+    end
+    else
+      SelectedRows.CurrentRowSelected := not SelectedRows.CurrentRowSelected;
+  end
+  else if (((Key = VK_HOME) or (Key = VK_END)) and (ssCtrl in Shift)) then
+  begin
+    Col := 0;
+    if (SelectedFields.Count > 0) then
+    begin
+      Invalidate();
+      SelectedFields.Clear();
+    end;
+    SelectedRows.Clear();
+    inherited;
+  end
+  else if ((Key = VK_LEFT) and (ssCtrl in Shift)) then
+  begin
+    if (Col > 0) then Col := Col - 1;
+  end
+  else if ((Key = VK_RIGHT) and (ssCtrl in Shift)) then
+  begin
+    if (Col < Columns.Count - 2) then Col := Col + 1;
+  end
+  else if ((Key = VK_SPACE) and (ssCtrl in Shift) and not EditorMode) then
+  begin
+    if ((SelectedRows.Count = 0) and (SelectedFields.Count > 0)) then
+    begin
+      if (SelectedFields.IndexOf(SelectedField) < 0) then
+        SelectedFields.Add(SelectedField)
+      else
+        SelectedFields.Delete(SelectedFields.IndexOf(SelectedField));
+      InvalidateCol(Col);
+    end
+    else if ((SelectedRows.Count > 0) or (SelectedFields.Count = 0)) then
+      SelectedRows.CurrentRowSelected := not SelectedRows.CurrentRowSelected
+    else
+    begin
+      DataLink.DataSet.DisableControls();
+      OldRecNo := DataLink.DataSet.RecNo;
+
+      if (DataLink.DataSet.FindFirst()) then
+        repeat
+          SelectedRows.CurrentRowSelected := True;
+        until (not DataLink.DataSet.FindNext());
+
+      DataLink.DataSet.RecNo := OldRecNo;
+      SelectedRows.CurrentRowSelected := False;
+      DataLink.DataSet.EnableControls();
+    end;
+    if ((SelectedFields.Count > 0) and (SelectedFields.IndexOf(SelectedField) < 0) and SelectedRows.CurrentRowSelected) then
+    begin
+      SelectedFields.Add(SelectedField);
+      InvalidateCol(Col);
+    end;
     FIgnoreKeyPress := True;
     Options := Options - [dgEditing];
   end
@@ -966,19 +1014,23 @@ begin
   begin
     OldCol := Col;
 
+    if (((Key = VK_UP) or (Key = VK_DOWN)) and (ssShift in Shift) and (ShiftDownAnchor.Rec = DataLink.DataSet.RecNo) and not EditorMode) then
+      SelectedRows.CurrentRowSelected := True;
+
     inherited;
 
-    if ((Key in [VK_LEFT, VK_RIGHT, VK_DOWN, VK_UP]) and (SsShift in Shift) and (ssAlt in Shift) and (FAltDownCol >= 0)) then
+    if (not EditorMode) then
     begin
-      SelectedRows.CurrentRowSelected := True;
-      if (SelectedFields.Count = 0) then
+      if ((Key in [VK_LEFT, VK_RIGHT, VK_DOWN, VK_UP]) and (ssShift in Shift) and (ssAlt in Shift) and (AltDownAnchor.Col >= 0)) then
       begin
-        SelectedFields.Add(Columns[FAltDownCol].Field);
-        InvalidateCol(FAltDownCol);
-      end;
-      if ((Col <> OldCol) and (Key in [VK_LEFT, VK_RIGHT])) then
-      begin
-        if (Key = VK_RIGHT) then
+        if ((SelectedRows.Count > 0) or (SelectedFields.Count = 0)) then
+          SelectedRows.CurrentRowSelected := True;
+        if (SelectedFields.IndexOf(SelectedField) < 0) then
+        begin
+          SelectedFields.Add(Columns[AltDownAnchor.Col].Field);
+          InvalidateCol(AltDownAnchor.Col);
+        end;
+        if ((Key = VK_RIGHT) and (Col <> OldCol)) then
           if (SelectedFields.IndexOf(Columns[Col].Field) < 0) then
           begin
             SelectedFields.Add(Columns[Col].Field);
@@ -989,8 +1041,8 @@ begin
             SelectedFields.Delete(SelectedFields.IndexOf(Columns[Col - 1].Field));
             InvalidateCol(Col - 1);
           end
-        else if (Key = VK_LEFT) then
-          if (SelectedFields.IndexOf(Columns[Col].Field) < 0) then
+        else if ((Key = VK_LEFT) and (Col <> OldCol)) then
+          if (SelectedFields.IndexOf(SelectedField) < 0) then
           begin
             SelectedFields.Add(Columns[Col].Field);
             InvalidateCol(Col);
@@ -1000,12 +1052,14 @@ begin
             SelectedFields.Delete(SelectedFields.IndexOf(Columns[Col + 1].Field));
             InvalidateCol(Col + 1);
           end;
+      end
+      else if ((Key in [VK_LEFT, VK_RIGHT, VK_DOWN, VK_UP, VK_HOME, VK_END]) and not (ssShift in Shift)) then
+      begin
+        if ((SelectedRows.Count = 0) and (SelectedFields.Count > 0)) then
+          Invalidate();
+        SelectedRows.Clear();
+        SelectedFields.Clear();
       end;
-    end
-    else if ((Key in [VK_LEFT, VK_RIGHT, VK_DOWN, VK_UP]) and (Shift = [])) then
-    begin
-      SelectedRows.Clear();
-      SelectedFields.Clear();
     end;
   end;
 end;
@@ -1024,9 +1078,16 @@ end;
 
 procedure TMySQLDBGrid.KeyUp(var Key: Word; Shift: TShiftState);
 begin
-  if ((ssAlt in Shift) or (ssShift in Shift)) then
-    FAltDownCol := -1;
-  FMouseDownShiftState := Shift + (FMouseDownShiftState - [ssShift, ssCtrl, ssAlt]);
+  if (Key = VK_SHIFT) then
+  begin
+    ShiftDownAnchor.Rec := -1;
+    AltDownAnchor.Col := -1;
+    LeftClickAnchor.Col := -1;
+    LeftClickAnchor.Rec := -1;
+    Cursor := crDefault;
+    Perform(WM_SETCURSOR, Handle, HTCLIENT);
+    MouseCapture := False;
+  end;
 
   inherited;
 end;
@@ -1042,144 +1103,191 @@ procedure TMySQLDBGrid.MouseDown(Button: TMouseButton; Shift: TShiftState;
   X, Y: Integer);
 var
   Cell: TGridCoord;
-  Coord: TGridCoord;
-  BeginDragSelectedRows: Boolean;
-  I: Integer;
-  NewBookmark: TBookmark;
-  NewRecord: Integer;
-  OldBookmark: TBookmark;
-  OldCol: Longint;
+  BeginDragSelected: Boolean;
   OldRecord: Integer;
-  OldSelectedRows: Integer;
+  I: Integer;
 begin
   if (Assigned(FHintWindow)) then
     FreeAndNil(FHintWindow);
 
-  FMouseDownCol := Col;
-  FMouseDownShiftState := Shift + (FMouseDownShiftState - [ssLeft, ssRight, ssMiddle, ssDouble]);
-  FMouseDownPoint := Point(X, Y);
+  Cell := MouseCoord(X, Y);
 
-  Coord := MouseCoord(X, Y);
-  if ((Coord.X = -1) and (Coord.Y = -1) and EditorMode) then
+  if (Button = mbLeft) then
+    LeftClickAnchor.Shift := Shift + LeftClickAnchor.Shift - [ssLeft, ssRight, ssMiddle, ssDouble];
+
+  if ((Cell.X = -1) and (Cell.Y = -1) and EditorMode) then
     try
       SelectedField.AsString := TMySQLDBGridInplaceEdit(InplaceEditor).Text;
     except
     end;
 
-  if (Coord.Y < 1) then
+  if (Cell.Y < 1) then
     OldRecord := -1
   else
     OldRecord := DataLink.ActiveRecord;
-  OldBookmark := DataLink.DataSet.Bookmark;
-  OldCol := Col;
-  OldSelectedRows := SelectedRows.Count;
 
-  BeginDragSelectedRows := (Shift = [ssLeft]) and (SelectedRows.Count > 0) and (OldRecord > 0);
-  if (BeginDragSelectedRows) then
+  BeginDragSelected := (Shift = [ssLeft])
+    and (SelectedRows.Count > 0)
+    and (OldRecord > 0)
+    and ((SelectedFields.Count = 0) or (SelectedFields.IndexOf(Columns[Cell.X].Field) >= 0));
+  if (BeginDragSelected) then
   begin
-    if (Coord.Y <> Row) then
-      DataLink.ActiveRecord := OldRecord + Coord.Y - Row;
-    BeginDragSelectedRows := SelectedRows.CurrentRowSelected;
-    if (Coord.Y <> Row) then
+    if (Cell.Y <> Row) then
+      DataLink.ActiveRecord := OldRecord + Cell.Y - Row;
+    BeginDragSelected := SelectedRows.CurrentRowSelected;
+    if (Cell.Y <> Row) then
       DataLink.ActiveRecord := OldRecord;
   end;
 
-  if (BeginDragSelectedRows) then
+  if (BeginDragSelected) then
     BeginDrag(False)
   else
   begin
     if ((Shift = [ssLeft]) and (SelectedRows.Count = 0)) then
+    begin
+      SelectedFields.Clear();
+      SelectedRows.Clear();
       BeginDrag(False);
+    end;
+
+    if (not (ssCtrl in Shift) and not (ssAlt in Shift)) then
+    begin
+      if (SelectedRows.Count = 0) then
+        for I := 0 to Columns.Count - 1 do
+          if (SelectedFields.IndexOf(Columns[I].Field) >= 0) then
+            InvalidateCol(I);
+      SelectedFields.Clear();
+      SelectedRows.Clear();
+    end;
 
     inherited;
 
-    if (Y <= RowHeights[0]) then
-      NewRecord := -1
-    else
-      NewRecord := DataLink.ActiveRecord;
-
-    Cell := MouseCoord(X, Y);
-    if (((Cell.X > 0) or not (dgIndicator in Options)) and (Cell.Y > 0) and (Button = mbLeft)) then
+    if (ssShift in Shift) then
     begin
-      if ((ssShift in Shift) or (ssAlt in Shift)) then
-      begin
-        DataLink.DataSet.DisableControls();
-        SelectedRows.CurrentRowSelected := True;
-        if (NewRecord < OldRecord) then
-          for I := OldRecord downto NewRecord do
-          begin
-            DataLink.ActiveRecord := I;
-            SelectedRows.CurrentRowSelected := True;
-          end;
-        if (NewRecord > OldRecord) then
-          for I := OldRecord to NewRecord do
-          begin
-            DataLink.ActiveRecord := I;
-            SelectedRows.CurrentRowSelected := True;
-          end;
-        DataLink.DataSet.EnableControls();
+      Cursor := crCross;
+      Perform(WM_SETCURSOR, Handle, HTCLIENT);
+      LeftClickAnchor.Col := Col;
+      LeftClickAnchor.Rec := DataLink.ActiveRecord;
 
-        if ((ssShift in Shift) and (ssAlt in Shift)) then
-          for I := 0 to Columns.Count - 1 do
-            if ((I < Min(OldCol, Col)) or (Max(OldCol, Col) < I)) then
-            begin
-              if (SelectedFields.IndexOf(Columns[I].Field) >= 0) then
-              begin
-                SelectedFields.Delete(SelectedFields.IndexOf(Columns[I].Field));
-                InvalidateCol(I);
-              end;
-            end
-            else
-            begin
-              if (SelectedFields.IndexOf(Columns[I].Field) < 0) then
-              begin
-                SelectedFields.Add(Columns[I].Field);
-                InvalidateCol(I);
-              end;
-            end;
-      end
-      else if (ssCtrl in Shift) then
+      if (ssAlt in Shift) then
       begin
-        if (OldSelectedRows = 0) then
-        begin
-          DataLink.DataSet.DisableControls();
-          NewBookmark := DataLink.DataSet.Bookmark;
-          DataLink.DataSet.Bookmark := OldBookmark;
-          SelectedRows.CurrentRowSelected := True;
-          DataLink.DataSet.Bookmark := NewBookmark;
-          DataLink.DataSet.EnableControls();
-        end;
-      end
-      else
-      begin
-        SelectedRows.Clear();
         SelectedFields.Clear();
+        SelectedFields.Add(Columns[Cell.X].Field);
       end;
     end;
+
+    if (not (ssCtrl in Shift) and not (ssAlt in Shift) and (dgMultiSelect in Options) and (SelectedRows.Count = 1)) then
+      SelectedRows.Clear();
   end;
 end;
 
 procedure TMySQLDBGrid.MouseMove(Shift: TShiftState; X, Y: Integer);
+const
+  TimerCount = 4;
 var
   Cell: TGridCoord;
+  Delay: Integer;
+  Distance: Integer;
+  UseTimer: Boolean;
 begin
+  KillTimer(Handle, tiMouseMove);
+
   inherited;
 
   Cell := MouseCoord(X, Y);
-  if (not ShowHint and not ParentShowHint or (Hint = '')) then
-    if (((FMouseMoveCell.X >= 0) or (FMouseMoveCell.Y >= 0)) and ((Cell.X <> FMouseMoveCell.X) or (Cell.Y <> FMouseMoveCell.Y))) then
+  if (LeftClickAnchor.Col < 0) then
+  begin
+    if (not ShowHint and not ParentShowHint or (Hint = '')) then
+      if (((FMouseMoveCell.X >= 0) or (FMouseMoveCell.Y >= 0)) and ((Cell.X <> FMouseMoveCell.X) or (Cell.Y <> FMouseMoveCell.Y))) then
+      begin
+        FMouseMoveCell.X := -1; FMouseMoveCell.Y := -1;
+        ReleaseCapture();
+        if (Assigned(FHintWindow)) then
+          FreeAndNil(FHintWindow);
+      end
+      else if ((Cell.X >= 0) and (Cell.Y >= 0) and ((Cell.X <> FMouseMoveCell.X) or (Cell.Y <> FMouseMoveCell.Y))) then
+      begin
+        FMouseMoveCell := Cell;
+        SetCapture(Handle);
+        SetTimer(Handle, tiShowHint, Application.HintPause, nil);
+      end;
+  end
+  else
+  begin
+    UseTimer := False;
+
+    if (ssAlt in Shift) then
     begin
-      FMouseMoveCell.X := -1; FMouseMoveCell.Y := -1;
-      ReleaseCapture();
-      if (Assigned(FHintWindow)) then
-        FreeAndNil(FHintWindow);
-    end
-    else if ((Cell.X >= 0) and (Cell.Y >= 0) and ((Cell.X <> FMouseMoveCell.X) or (Cell.Y <> FMouseMoveCell.Y))) then
-    begin
-      FMouseMoveCell := Cell;
-      SetCapture(Handle);
-      SetTimer(Handle, tiShowHint, Application.HintPause, nil);
+      if (Cell.X > LeftCol + VisibleColCount) then
+        Cell.X := -1;
+      if (Cell.X < 0) then
+      begin
+        if (X < 0) then
+          Cell.X := Col - 1
+        else if (Col < Columns.Count - 1) then
+          Cell.X := Col + 1;
+      end;
+      if ((Cell.X >= 0) and (MouseMoveTimerData.HorzCounter mod TimerCount = 0)) then
+      begin
+        while ((Cell.X < Col) and (LeftClickAnchor.Col < Col)
+          or (Cell.X > Col) and (LeftClickAnchor.Col > Col)) do
+        begin
+          SelectedFields.Delete(SelectedFields.IndexOf(Columns[Col].Field));
+          InvalidateCol(Col);
+          Col := Col + Sign(Cell.X - Col);
+        end;
+        while (Col <> Cell.X) do
+        begin
+          Col := Col + Sign(Cell.X - Col);
+          SelectedFields.Add(SelectedField);
+          InvalidateCol(Col);
+        end;
+      end;
+      UseTimer := (Cell.X < LeftCol - 1) or (Cell.X > LeftCol) and (Cell.X < Columns.Count - 1);
     end;
+
+    if (Cell.Y >= 0) then
+    begin
+      while ((Cell.Y < Row) and (LeftClickAnchor.Rec < DataLink.ActiveRecord)
+        or (Cell.Y > Row) and (LeftClickAnchor.Rec > DataLink.ActiveRecord)) do
+      begin
+        SelectedRows.CurrentRowSelected := False;
+        DataLink.DataSet.MoveBy(Sign(Cell.Y - Row));
+      end;
+      SelectedRows.CurrentRowSelected := True;
+      while ((Row <> Cell.Y)
+        and (DataLink.DataSet.MoveBy(Sign(Cell.Y - Row)) <> 0)) do
+        SelectedRows.CurrentRowSelected := True;
+    end
+    else
+    begin
+      if (X < 0) then
+        Distance := Y div DefaultRowHeight
+      else
+        Distance := (Y - (VisibleRowCount * DefaultRowHeight)) div DefaultRowHeight;
+      if (Distance <> 0) then
+      begin
+        while (DataLink.DataSet.MoveBy(Sign(Distance)) <> 0) do
+        begin
+          SelectedRows.CurrentRowSelected := True;
+          Dec(Distance, Sign(Distance));
+        end;
+        UseTimer := True;
+      end;
+    end;
+
+    if (UseTimer and SystemParametersInfo(SPI_GETKEYBOARDSPEED, 0, @Delay, 0)) then
+    begin
+      MouseMoveTimerData.Shift := Shift;
+      MouseMoveTimerData.X := X;
+      MouseMoveTimerData.Y := Y;
+      SetTimer(Handle, tiMouseMove, (31 - Delay) * 12 + 33, nil);
+    end;
+    if (not UseTimer) then
+      MouseMoveTimerData.HorzCounter := 0
+    else
+      MouseMoveTimerData.HorzCounter := (MouseMoveTimerData.HorzCounter + 1) mod TimerCount;
+  end;
 end;
 
 procedure TMySQLDBGrid.MouseUp(Button: TMouseButton; Shift: TShiftState;
@@ -1187,7 +1295,12 @@ procedure TMySQLDBGrid.MouseUp(Button: TMouseButton; Shift: TShiftState;
 begin
   inherited;
 
-  FMouseDownShiftState := Shift + (FMouseDownShiftState - [ssShift, ssCtrl, ssAlt]);
+  if (Button = mbLeft) then
+  begin
+    LeftClickAnchor.Col := -1;
+    LeftClickAnchor.Rec := -1;
+    LeftClickAnchor.Shift := [];
+  end;
 end;
 
 function TMySQLDBGrid.PasteFromClipboard(): Boolean;
@@ -1346,26 +1459,22 @@ end;
 
 procedure TMySQLDBGrid.SelectAll();
 var
-  OldRecNo: Integer;
+  I: Integer;
 begin
   DataLink.DataSet.CheckBrowseMode();
 
-  LockWindowUpdate(Handle);
-  OldRecNo := DataLink.DataSet.RecNo;
   DataLink.DataSet.DisableControls();
+
+  if ((SelectedRows.Count > 0) and (SelectedRows.Count <> DataLink.DataSet.RecordCount)) then
+    SelectedRows.Clear();
 
   if ((DataLink.DataSet is TMySQLTable) and TMySQLTable(DataLink.DataSet).LimitedDataReceived) then
     TMySQLTable(DataLink.DataSet).LoadNextRecords(True);
 
-  SelectedRows.Clear();
-  if (DataLink.DataSet.FindFirst()) then
-    repeat
-      SelectedRows.CurrentRowSelected := True;
-    until (not DataLink.DataSet.FindNext());
+  for I := 0 to Columns.Count - 1 do
+    SelectedFields.Add(Columns[I].Field);
 
-  DataLink.DataSet.RecNo := OldRecNo;
   DataLink.DataSet.EnableControls();
-  LockWindowUpdate(0);
 end;
 
 procedure TMySQLDBGrid.SetHeaderColumnArrows();
@@ -1377,7 +1486,7 @@ begin
   Index := 0;
   HDItem.Mask := HDI_FORMAT;
   if (DataLink.DataSet is TMySQLDataSet) then
-    for I := LeftCol to Columns.Count - 1 do
+    for I := LeftCol to LeftCol + VisibleColCount - 1 do
       if (Columns[I].Visible
         and Assigned(Columns[I].Field)
         and BOOL(SendMessage(Header, HDM_GETITEM, Index, LParam(@HDItem)))) then
@@ -1397,9 +1506,9 @@ procedure TMySQLDBGrid.TitleClick(Column: TColumn);
 begin
   if (not IgnoreTitleClick) then
   begin
-    FMouseDownShiftState := [ssLeft];
-    if (GetKeyState(VK_SHIFT) < 0) then FMouseDownShiftState := FMouseDownShiftState + [ssShift];
-    if (GetKeyState(VK_CONTROL) < 0) then FMouseDownShiftState := FMouseDownShiftState + [ssCtrl];
+    LeftClickAnchor.Shift := [ssLeft];
+    if (GetKeyState(VK_SHIFT) < 0) then LeftClickAnchor.Shift := LeftClickAnchor.Shift + [ssShift];
+    if (GetKeyState(VK_CONTROL) < 0) then LeftClickAnchor.Shift := LeftClickAnchor.Shift + [ssCtrl];
     inherited;
   end;
 
@@ -1551,6 +1660,11 @@ begin
         KillTimer(Handle, Msg.TimerID);
         if (Assigned(FHintWindow)) then
           FreeAndNil(FHintWindow);
+      end;
+    tiMouseMove:
+      begin
+        KillTimer(Handle, Msg.TimerID);
+        MouseMove(MouseMoveTimerData.Shift, MouseMoveTimerData.X, MouseMoveTimerData.Y);
       end;
   end;
 end;

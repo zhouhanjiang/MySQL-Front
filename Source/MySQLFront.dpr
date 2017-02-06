@@ -52,6 +52,7 @@ uses
   uDImport in 'uDImport.pas' {DImport},
   uDInfo in 'uDInfo.pas' {DInfo},
   uDKey in 'uDKey.pas' {DIndex},
+  uDLanguage in 'uDLanguage.pas' {DLanguage},
   uDLogin in 'uDLogin.pas' {DDBLogin},
   uDODBC in 'uDODBC.pas' {DDBODBC},
   uDOptions in 'uDOptions.pas' {DOptions},
@@ -63,7 +64,6 @@ uses
   uDSegment in 'uDSegment.pas' {DSegment},
   uDSelection in 'uDSelection.pas' {DSelection},
   uDServer in 'uDServer.pas' {DServer},
-  uDSQLHelp in 'uDSQLHelp.pas' {DSQLHelp},
   uDStatement in 'uDStatement.pas' {DStatement},
   uDTable in 'uDTable.pas' {DTable},
   uDTables in 'uDTables.pas' {DTables},
@@ -78,6 +78,7 @@ uses
   uFSession in 'uFSession.pas' {FSession},
   uPDataBrowserDummy in 'uPDataBrowserDummy.pas' {PDataBrowserDummy},
   uPObjectSearch in 'uPObjectSearch.pas' {PObjectSearch},
+  uWSQLHelp in 'uWSQLHelp.pas' {WSQLHelp},
   uWWindow in 'uWWindow.pas' {WWindow};
 
 {$R *.res}

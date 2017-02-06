@@ -27750,7 +27750,8 @@ end;
 
 function TSQLParser.TokenPtr(const Token: TOffset): PToken;
 begin
-  Assert((0 < Token) and (Token < Nodes.UsedSize) and (NodePtr(Token)^.NodeType = ntToken));
+  Assert((0 < Token) and (Token < Nodes.UsedSize) and (NodePtr(Token)^.NodeType = ntToken),
+    Parse.SQL);
 
   Result := PToken(@Nodes.Mem[Token]);
 end;

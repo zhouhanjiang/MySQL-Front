@@ -19,13 +19,13 @@ type
     FHTTPStatus: Integer;
     FOnProgress: TProgressEvent;
     SendStream: TStream;
+    Subject: string;
     ReceiveStream: TStream;
     URI: string;
-  protected
-    procedure Execute(); override;
   public
     constructor Create(const AURI: string;
-      const ASendStream, AReceiveStream: TStream);
+      const ASendStream, AReceiveStream: TStream; const ASubject: string = '');
+    procedure Execute(); override;
     property OnProgress: TProgressEvent read FOnProgress write FOnProgress
       default nil;
     property ErrorCode: Integer read FErrorCode;
@@ -77,7 +77,16 @@ uses
 var
   SendThreads: TList;
 
-  { ****************************************************************************** }
+{ ****************************************************************************** }
+
+procedure AssertErrorHandler(const Message, Filename: string; LineNumber: Integer;
+  ErrorAddr: Pointer);
+begin
+  if Message <> '' then
+    raise EAssertionFailed.Create(Message) at ErrorAddr
+  else
+    raise EAssertionFailed.Create('Assertion failed') at ErrorAddr;
+end;
 
 function CheckOnlineVersion(const Stream: TStringStream; var VersionStr: string;
   var SetupProgramURI: string): Boolean;
@@ -196,7 +205,7 @@ var
   Size: Integer;
   Stream: TMemoryStream;
 begin
-  if (Now() < IncDay(CompileTime(), Days + 1)) then
+  if ((Days = 0) or (Now() < IncDay(CompileTime(), Days + 1))) then
   begin
     Body := Text;
 
@@ -265,13 +274,14 @@ end;
 { THTTPThread ***************************************************************** }
 
 constructor THTTPThread.Create(const AURI: string;
-  const ASendStream, AReceiveStream: TStream);
+  const ASendStream, AReceiveStream: TStream; const ASubject: string = '');
 begin
   inherited Create(True);
 
   URI := AURI;
   SendStream := ASendStream;
   ReceiveStream := AReceiveStream;
+  Subject := ASubject;
 end;
 
 procedure THTTPThread.Execute();
@@ -367,12 +377,12 @@ begin
         else
         begin
           Method := POST;
-          Headers := 'Content-Type: text/plain; charset=UTF-8' + #10 +
-            'Content-Transfer-Encoding: binary' + #10 + 'Program-Version: ' +
-            IntToStr(Preferences.VerMajor) + '.' +
-            IntToStr(Preferences.VerMinor) + '.' +
-            IntToStr(Preferences.VerPatch) + '.' +
-            IntToStr(Preferences.VerBuild) + #10;
+          Headers := 'Content-Type: text/plain; charset=UTF-8' + #10
+            + 'Content-Transfer-Encoding: binary' + #10
+            + 'Program-Version: ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor) + '.' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + #10;
+          if (Subject <> '') then
+            Headers := Headers
+              + 'Subject: ' + Subject + #10;
           SetLength(Body, SendStream.Size);
           SendStream.Seek(0, soBeginning);
           SendStream.Read(PAnsiChar(Body)^, SendStream.Size);
@@ -904,7 +914,7 @@ begin
 
   if (ExceptionInfo.ExceptionClass = 'EFrozenApplication') then
     Result := Result + 'FreezeTimeout: ' +
-      IntToStr(CurrentEurekaLogOptions.FreezeTimeout) + ' Seconds' +
+      IntToStr(CurrentEurekaLogOptions().FreezeTimeout) + ' Seconds' +
       #13#10#13#10
   else if (ExceptionInfo.ExceptionClass = 'EOutOfMemory') then
   begin
@@ -1027,14 +1037,16 @@ initialization
   RegisterEventExceptionNotify(nil, ExceptionNotify);
   RegisterEventCustomButtonClick(nil, CustomButtonClick);
 
-  if (Now() < IncHour(CompileTime(), 2 + 1)) then
+  if (Now() < IncHour(CompileTime(), 6 + 1)) then
   begin
     FreezeThreadClass := TMainThreadFreezeDetectionThread;
-    CurrentEurekaLogOptions.FreezeTimeout := 15; { seconds }
-    CurrentEurekaLogOptions.FreezeActivate := True;
+    CurrentEurekaLogOptions().FreezeTimeout := 15; { seconds }
+    CurrentEurekaLogOptions().FreezeActivate := True;
     InitCheckFreeze();
   end;
   {$ENDIF}
+
+  AssertErrorProc := AssertErrorHandler;
 
   SendThreads := TList.Create();
   OnlineVersion := -1;

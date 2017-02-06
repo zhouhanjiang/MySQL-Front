@@ -26,6 +26,7 @@ type
     FBForeground: TButton;
     FBGridFont: TButton;
     FBHelp: TButton;
+    FBLanguage: TButton;
     FBOk: TButton;
     FBold: TCheckBox;
     FEditorCompletionEnabled: TCheckBox;
@@ -111,6 +112,8 @@ type
     procedure FBGridCurrRowBGColorClick(Sender: TObject);
     procedure FBGridFontClick(Sender: TObject);
     procedure FBHelpClick(Sender: TObject);
+    procedure FBLanguageClick(Sender: TObject);
+    procedure FBLanguageKeyPress(Sender: TObject; var Key: Char);
     procedure FBLogFontClick(Sender: TObject);
     procedure FBoldClick(Sender: TObject);
     procedure FEditorFontKeyPress(Sender: TObject; var Key: Char);
@@ -135,6 +138,8 @@ type
     procedure FBGridFontKeyPress(Sender: TObject; var Key: Char);
     procedure TSLogResize(Sender: TObject);
     procedure FBLogFontKeyPress(Sender: TObject; var Key: Char);
+    procedure TSViewResize(Sender: TObject);
+    procedure FLanguageChange(Sender: TObject);
   private
     LineNumbersAttri: TSynHighlighterAttributes;
     function Attribute(const Caption: string): TSynHighlighterAttributes;
@@ -153,7 +158,9 @@ implementation {***************************************************************}
 
 uses
   IniFiles, UITypes,
-  StrUtils;
+  StrUtils,
+  uDeveloper,
+  uDLanguage;
 
 var
   FDOptions: TDOptions;
@@ -294,6 +301,39 @@ begin
   Application.HelpContext(HelpContext);
 end;
 
+procedure TDOptions.FBLanguageClick(Sender: TObject);
+var
+  CheckOnlineVersionThread: TCheckOnlineVersionThread;
+  I: Integer;
+begin
+  if (OnlineVersion < 0)  then
+  begin
+    CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
+    CheckOnlineVersionThread.Execute();
+    CheckOnlineVersionThread.Free();
+  end;
+
+  if (OnlineVersion < 0) then
+    MsgBox('Can''t check, if you are using the latest update. Maybe an update of ' + LoadStr(1000) + ' is available.', Preferences.LoadStr(47), MB_OK + MB_ICONWARNING)
+  else if (OnlineVersion > Preferences.Version) then
+  begin
+    MsgBox('An update of ' + LoadStr(1000) + ' is available. Please install that update first.', Preferences.LoadStr(45), MB_OK or MB_ICONERROR);
+    exit;
+  end;
+
+  DLanguage.Filename := '';
+  for I := 0 to Length(Languages) - 1 do
+    if (Trim(FLanguage.Text) = Languages[I].Name) then
+      DLanguage.Filename := Languages[I].Filename;
+  if (DLanguage.Execute()) then
+    MsgBox('Please restart ' + LoadStr(1000) + ' to apply your changes.', Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
+end;
+
+procedure TDOptions.FBLanguageKeyPress(Sender: TObject; var Key: Char);
+begin
+  FBLanguageClick(Sender);
+end;
+
 procedure TDOptions.FBLogFontClick(Sender: TObject);
 begin
   FontDialog.Font := PLogFont.Font;
@@ -361,6 +401,30 @@ begin
     else
       Attri.Style := Attri.Style - [fsItalic];
     FPreviewRefresh();
+  end;
+end;
+
+procedure TDOptions.FLanguageChange(Sender: TObject);
+var
+  I: Integer;
+  Language: string;
+begin
+  if (FLanguage.ItemIndex = 0) then
+  begin
+    for I := 0 to Length(Languages) - 1 do
+      if (lstrcmpi(PChar(Preferences.LanguageFilename), PChar(Languages[I].Filename)) = 0) then
+        FLanguage.ItemIndex := FLanguage.Items.IndexOf(Languages[I].Name);
+
+    Language := Trim(InputBox('Add new translation', 'Language:', ''));
+    if (Language <> '') then
+      if (FileExists(Preferences.LanguagePath + Language + '.ini')) then
+        MsgBox('The language "' + Language + '" already exists!', Preferences.LoadStr(45), MB_OK or MB_ICONERROR)
+      else
+      begin
+        DLanguage.Filename := Language + '.ini';
+        if (DLanguage.Execute()) then
+          MsgBox('Please restart ' + LoadStr(1000) + ' to apply your changes.', Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
+      end;
   end;
 end;
 
@@ -500,6 +564,7 @@ begin
   for I := 0 to Length(Languages) - 1 do
     if (lstrcmpi(PChar(Preferences.LanguageFilename), PChar(Languages[I].Filename)) = 0) then
       FLanguage.ItemIndex := FLanguage.Items.IndexOf(Languages[I].Name);
+  FLanguage.Items.Add('Add new...');
 
 
   FTabsVisible.Checked := Preferences.TabsVisible;
@@ -698,6 +763,12 @@ procedure TDOptions.TSLogResize(Sender: TObject);
 begin
   FBLogFont.Left := FLogFont.Left + FLogFont.Width;
   FBLogFont.Height := FLogFont.Height;
+end;
+
+procedure TDOptions.TSViewResize(Sender: TObject);
+begin
+  FBLanguage.Left := FLanguage.Left + FLanguage.Width;
+  FBLanguage.Height := FLanguage.Height;
 end;
 
 procedure TDOptions.UMChangePreferences(var Message: TMessage);

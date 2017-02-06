@@ -96,13 +96,13 @@ end;
 
 function ValidHostName(const HostName: string; const Port: Integer): Boolean;
 const
-  IP4Addr = '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$';
-  IP6Addr = '^(?:[A-F0-9]{1,4}:){7}[A-F0-9]{1,4}$';
-  Domainname = '^(([a-z0-9\p{L}]|[a-z0-9\p{L}][a-z0-9\-\p{L}]*[a-z0-9\p{L}])\.)*([a-z0-9\p{L}]|[a-z0-9\p{L}][a-z0-9\-\p{L}]*[a-z0-9\p{L}])$';
+  IP4AddrPattern = '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$';
+  IP6AddrPattern = '^(?:[A-F0-9]{1,4}:){7}[A-F0-9]{1,4}$';
+  DomainnamePattern = '^(([a-z0-9\p{L}]|[a-z0-9\p{L}][a-z0-9\-\p{L}]*[a-z0-9\p{L}])\.)*([a-z0-9\p{L}]|[a-z0-9\p{L}][a-z0-9\-\p{L}]*[a-z0-9\p{L}])$';
 begin
-  Result := TRegEx.IsMatch(HostName, Domainname, [roSingleLine, roIgnoreCase])
-    or TRegEx.IsMatch(HostName, IP4Addr, [roSingleLine])
-    or TRegEx.IsMatch(HostName, IP6Addr, [roSingleLine]);
+  Result := TRegEx.IsMatch(HostName, DomainnamePattern, [roSingleLine, roIgnoreCase])
+    or TRegEx.IsMatch(HostName, IP4AddrPattern, [roSingleLine])
+    or TRegEx.IsMatch(HostName, IP6AddrPattern, [roSingleLine]);
 end;
 
 function ValidURL(const URL: string): Boolean;

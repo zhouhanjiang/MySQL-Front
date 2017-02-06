@@ -2599,7 +2599,7 @@ begin
 
 
   // Debug 2017-02-04
-  Assert(Assigned(SyncThread.StmtLengths));
+  Assert(Assigned(SyncThread.StmtLengths) and (TObject(SyncThread.StmtLengths) is TList));
 
   SQLIndex := 1;
   SQLLength := Length(SyncThread.SQL);

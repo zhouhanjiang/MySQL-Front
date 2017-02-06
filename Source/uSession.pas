@@ -1038,6 +1038,7 @@ type
     function GetCreated(): TDateTime; virtual;
     function GetValid(): Boolean; override;
     function GetValidSource(): Boolean; override;
+    procedure InvalidateSource(); inline;
     procedure SetName(const AName: string); override;
     function SQLAlterTable(const Table, NewTable: TSBaseTable; const EncloseFields: Boolean = True): string; virtual;
     function SQLGetSource(): string; virtual;
@@ -1061,6 +1062,7 @@ type
     function EventByName(const EventName: string): TSEvent; virtual;
     function FlushTables(const Tables: TList): Boolean; virtual;
     function FunctionByName(const FunctionName: string): TSFunction; virtual;
+    procedure Invalidate(); override;
     function OptimizeTables(const Tables: TList): Boolean; virtual;
     procedure PushBuildEvents(); virtual;
     function ProcedureByName(const ProcedureName: string): TSProcedure;
@@ -7843,6 +7845,24 @@ begin
   end;
 end;
 
+procedure TSDatabase.Invalidate();
+begin
+  inherited;
+
+  Tables.Invalidate();
+  if (Assigned(Routines)) then
+    Routines.Invalidate();
+  if (Assigned(Triggers)) then
+    Triggers.Invalidate();
+  if (Assigned(Events)) then
+    Events.Invalidate();
+end;
+
+procedure TSDatabase.InvalidateSource();
+begin
+  inherited Invalidate();
+end;
+
 function TSDatabase.OptimizeTables(const Tables: TList): Boolean;
 var
   I: Integer;
@@ -11694,9 +11714,6 @@ begin
         else
           break;
 
-      // Debug 2016-12-05
-      if (not Assigned(Account)) then
-        raise ERangeError.Create(SRangeError);
       if (Copy(ManualURL, 1, 7) = 'http://') then
         Account.ManualURL := Copy(ManualURL, 1, Equal);
     end;
@@ -11714,13 +11731,13 @@ begin
   Result := FUser.Build(DataSet);
   FUser.FOriginalName := FUser.Name;
 
-  if (not Users.InsertIndex(FUser.Name, Index)) then
+  if (Users.InsertIndex(FUser.Name, Index)) then
+    Users.Add(FUser)
+  else if (Index >= 0) then
   begin
     Users[Index].Free();
     Users.Items[Index] := FUser;
-  end
-  else
-    Users.Add(FUser);
+  end;
 end;
 
 procedure TSSession.ConnectChange(Sender: TObject; Connecting: Boolean);
@@ -12454,7 +12471,7 @@ begin
                 Databases.Add(TSDatabase.Create(Databases, DDLStmt.ObjectName), True)
               else
               begin
-                Database.Invalidate();
+                Database.InvalidateSource();
                 if (DDLStmt.NewDatabaseName <> '') then
                   Database.Name := DDLStmt.NewDatabaseName;
               end;

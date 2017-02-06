@@ -112,6 +112,7 @@ MAINICON ICON "{BuildImagesPath}\\MAINICON.ico"
 10105 ICON "{BuildImagesPath}\\arrow_transfer.ico"
 10106 ICON "{BuildImagesPath}\\view_field.ico"
 10107 ICON "{BuildImagesPath}\\PureFlat\\sql_check.ico"
+10108 ICON "{BuildImagesPath}\\translation.ico"
 
 STRINGTABLE
 BEGIN

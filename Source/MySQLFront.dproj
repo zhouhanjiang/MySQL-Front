@@ -107,6 +107,10 @@
         <DCCReference Include="uDKey.pas">
             <Form>DIndex</Form>
         </DCCReference>
+        <DCCReference Include="uDLanguage.pas">
+            <Form>DLanguage</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
         <DCCReference Include="uDLogin.pas">
             <Form>DDBLogin</Form>
         </DCCReference>
@@ -139,9 +143,6 @@
         </DCCReference>
         <DCCReference Include="uDServer.pas">
             <Form>DServer</Form>
-        </DCCReference>
-        <DCCReference Include="uDSQLHelp.pas">
-            <Form>DSQLHelp</Form>
         </DCCReference>
         <DCCReference Include="uDStatement.pas">
             <Form>DStatement</Form>
@@ -182,6 +183,9 @@
         </DCCReference>
         <DCCReference Include="uPObjectSearch.pas">
             <Form>PObjectSearch</Form>
+        </DCCReference>
+        <DCCReference Include="uWSQLHelp.pas">
+            <Form>WSQLHelp</Form>
         </DCCReference>
         <DCCReference Include="uWWindow.pas">
             <Form>WWindow</Form>

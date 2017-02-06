@@ -92,6 +92,7 @@ type
     FUDOffset: TUpDown;
     ghmCopy: TMenuItem;
     ghmGoto: TMenuItem;
+    ghmSelectAll: TMenuItem;
     gmDDeleteRecord: TMenuItem;
     gmDEditRecord: TMenuItem;
     gmDInsertRecord: TMenuItem;
@@ -362,6 +363,7 @@ type
     tmEPaste: TMenuItem;
     tmESelectAll: TMenuItem;
     ToolBar: TToolBar;
+    N5: TMenuItem;
     procedure aDCreateDatabaseExecute(Sender: TObject);
     procedure aDCreateEventExecute(Sender: TObject);
     procedure aDCreateExecute(Sender: TObject);
@@ -521,6 +523,7 @@ type
       Shift: TShiftState; X, Y: Integer);
     procedure ghmCopyClick(Sender: TObject);
     procedure ghmGotoClick(Sender: TObject);
+    procedure ghmSelectAllClick(Sender: TObject);
     procedure ListViewAdvancedCustomDrawItem(Sender: TCustomListView;
       Item: TListItem; State: TCustomDrawState; Stage: TCustomDrawStage;
       var DefaultDraw: Boolean);
@@ -917,7 +920,6 @@ type
     SQLEditor: TSQLEditor;
     SQLEditor2: TSQLEditor;
     SQLEditor3: TSQLEditor;
-    SQueryBuilderSynMemoMoved: Boolean;
     SynMemoBeforeDrag: record
       SelLength: Integer;
       SelStart: Integer;
@@ -994,6 +996,8 @@ type
     function Desktop(const Trigger: TSTrigger): TTriggerDesktop; overload; inline;
     function Desktop(const View: TSView): TViewDesktop; overload; inline;
     function Dragging(const Sender: TObject): Boolean;
+    function EditDrop(const Edit: TEdit; const dataObj: IDataObject;
+      grfKeyState: Longint; pt: TPoint; var dwEffect: Longint): HResult;
     procedure EndEditLabel(Sender: TObject);
     procedure FavoritesAdd(const Objects: TList);
     procedure FavoritesEvent(const Favorites: TPAccount.TFavorites);
@@ -1152,7 +1156,7 @@ uses
 uProfiling,
   uDeveloper,
   uDField, uDKey, uDTable, uDTables, uDVariable, uDDatabase, uDForeignKey,
-  uDUser, uDQuickFilter, uDSQLHelp, uDTransfer, uDSearch, uDServer,
+  uDUser, uDQuickFilter, uWSQLHelp, uDTransfer, uDSearch, uDServer,
   uURI, uDView, uDRoutine, uDTrigger, uDStatement, uDEvent, uDPaste, uDSegment,
   uDConnecting, uPDataBrowserDummy, uDExecutingSQL;
 
@@ -1208,7 +1212,6 @@ const
   QuickAccessListEscaper = 'QuickAccessEscaper';
 
 var
-  SBlobDebug: Pointer; // Debug 2016-12-28
   ListViewUpdateCount: Integer; // Debug 2017-02-04
 
 // Debug 2016-12-07
@@ -4348,16 +4351,16 @@ procedure TFSession.aHSQLExecute(Sender: TObject);
 begin
   if (Assigned(ActiveSynMemo) and (Window.ActiveControl = ActiveSynMemo)) then
     if (ActiveSynMemo.SelText <> '') then
-      DSQLHelp.Keyword := ActiveSynMemo.SelText
+      WSQLHelp.Keyword := ActiveSynMemo.SelText
     else if (ActiveSynMemo.WordAtCursor <> '') then
-      DSQLHelp.Keyword := ActiveSynMemo.WordAtCursor
+      WSQLHelp.Keyword := ActiveSynMemo.WordAtCursor
     else
-      DSQLHelp.Keyword := ''
+      WSQLHelp.Keyword := ''
   else
-    DSQLHelp.Keyword := '';
+    WSQLHelp.Keyword := '';
 
-  DSQLHelp.Session := Session;
-  DSQLHelp.Execute();
+  WSQLHelp.Session := Session;
+  WSQLHelp.Execute();
 end;
 
 procedure TFSession.aPCollapseExecute(Sender: TObject);
@@ -5092,7 +5095,6 @@ begin
   FNavigatorNodeAfterActivate := nil;
   FNavigatorNodeToExpand := nil;
   PanelMouseDownPoint := Point(-1, -1);
-  SQueryBuilderSynMemoMoved := False;
   SynCompletionPending.Active := False;
 
   TimeMonitor := TMySQLMonitor.Create(nil);
@@ -5341,9 +5343,6 @@ begin
   if (SystemParametersInfo(SPI_GETNONCLIENTMETRICS, SizeOf(NonClientMetrics), @NonClientMetrics, 0)) then
     Window.ApplyWinAPIUpdates(Self, NonClientMetrics.lfStatusFont);
 
-
-  // Debug 2016-12-28
-  SBlobDebug := SBlob;
 
   // Debug 2017-02-02
   if (FObjectSearchStart.Enabled) then
@@ -6195,16 +6194,24 @@ begin
     if (Column.Alignment = taRightJustify) then
       TextRect.Left := Max(TextRect.Left, TextRect.Right - DBGrid.Canvas.Textwidth(Text));
 
-    if (DBGrid.SelectedRows.CurrentRowSelected and ((DBGrid.SelectedFields.Count = 0) or (DBGrid.SelectedFields.IndexOf(Column.Field) >= 0))) then
+    if ((DBGrid.SelectedRows.CurrentRowSelected or (DBGrid.SelectedRows.Count = 0) and (DBGrid.SelectedFields.IndexOf(Column.Field) >= 0))
+      and ((DBGrid.SelectedFields.Count = 0) or (DBGrid.SelectedFields.IndexOf(Column.Field) >= 0))) then
     begin // Cell is selected
       DBGrid.Canvas.Font.Color := clHighlightText;
       DBGrid.Canvas.Brush.Color := clHighlight;
     end
-    else if (gdFocused in State) then
-    begin // Cell is focused
-      DBGrid.Canvas.Font.Color := clHighlightText;
-      DBGrid.Canvas.Brush.Color := clHighlight;
-    end
+    else if ((gdFocused in State)
+      or (gdSelected in State)) then
+      if (DBGrid.Focused) then
+      begin // Cell is focused, Grid is focused
+        DBGrid.Canvas.Font.Color := clHighlightText;
+        DBGrid.Canvas.Brush.Color := clHighlight;
+      end
+      else
+      begin // Cell is focused, Grid is NOT focused
+        DBGrid.Canvas.Font.Color := clBtnText;
+        DBGrid.Canvas.Brush.Color := clBtnFace;
+      end
     else if ((DBGrid.Parent <> PObjectIDE) and Preferences.GridCurrRowBGColorEnabled and DBGrid.CurrentRow) then
     begin // Row is focused
       DBGrid.Canvas.Font.Color := clWindowText;
@@ -6945,20 +6952,15 @@ function TFSession.DragOver(grfKeyState: Longint; pt: TPoint;
   var dwEffect: Longint): HResult;
 var
   ClientCoord: TPoint;
-  Control: TWinControl;
+  Control: TControl;
   DBGrid: TMySQLDBGrid;
   GridCoord: TGridCoord;
   SynMemo: TSynMemo;
 begin
-  Control := FindVCLWindow(pt);
+  Control := FindDragTarget(pt, False);
   ClientCoord := Control.ScreenToClient(Point(pt.X, pt.Y));
 
-  if (Control = FFilter) then
-  begin
-    dwEffect := DROPEFFECT_COPY;
-    Result := S_OK;
-  end
-  else if (Control is TSynMemo) then
+  if (Control is TSynMemo) then
   begin
     SynMemo := TSynMemo(Control);
 
@@ -6990,6 +6992,13 @@ begin
       dwEffect := DROPEFFECT_NONE;
     Result := S_OK;
   end
+  else if ((Control = FFilter)
+    or (Control = FObjectSearch)
+    or (Control = FQuickSearch)) then
+  begin
+    dwEffect := DROPEFFECT_COPY;
+    Result := S_OK;
+  end
   else
   begin
     dwEffect := DROPEFFECT_NONE;
@@ -7002,18 +7011,54 @@ function TFSession.Drop(const dataObj: IDataObject;
 var
   Control: TControl;
 begin
-  Control := FindVCLWindow(pt);
+  Control := FindDragTarget(pt, False);
 
-  if (Control = FFilter) then
-    FFilterDrop(dataObj, grfKeyState, pt, dwEffect)
-  else if (Control is TSynMemo) then
+  if (Control is TSynMemo) then
     SynMemoDrop(TSynMemo(Control), dataObj, grfKeyState, pt, dwEffect)
   else if (Control is TMySQLDBGrid) then
     DBGridDrop(TMySQLDBGrid(Control), dataObj, grfKeyState, pt, dwEffect)
+  else if (Control = FFilter) then
+    FFilterDrop(dataObj, grfKeyState, pt, dwEffect)
+  else if (Control is TEdit) then
+    EditDrop(TEdit(Control), dataObj, grfKeyState, pt, dwEffect)
   else
     dwEffect := DROPEFFECT_NONE;
 
   Result := DragLeave();
+end;
+
+function TFSession.EditDrop(const Edit: TEdit; const dataObj: IDataObject;
+  grfKeyState: Longint; pt: TPoint; var dwEffect: Longint): HResult;
+var
+  Format: FORMATETC;
+  Medium: STGMEDIUM;
+  Text: string;
+begin
+  if (dwEffect <> DROPEFFECT_COPY) then
+    Result := E_INVALIDARG
+  else
+  begin
+    Text := '';
+
+    Format.cfFormat := CF_UNICODETEXT;
+    Format.ptd := nil;
+    Format.dwAspect := DVASPECT_CONTENT;
+    Format.lindex := -1;
+    Format.tymed := TYMED_HGLOBAL;
+
+    Result := dataObj.QueryGetData(Format);
+    if (Result = S_OK) then
+    begin
+      OleCheck(dataObj.GetData(Format, Medium));
+      SetString(Text, PChar(GlobalLock(Medium.hGlobal)), GlobalSize(Medium.hGlobal) div SizeOf(Text[1]));
+      Edit.Text := Text;
+    end;
+
+    if (not Assigned(Medium.unkForRelease)) then
+      ReleaseStgMedium(Medium)
+    else
+      IUnknown(Medium.unkForRelease)._Release();
+  end;
 end;
 
 procedure TFSession.EndEditLabel(Sender: TObject);
@@ -7519,6 +7564,13 @@ begin
 
   if ((URI.Param['view'] = Null) and (URI.Table <> '') and (URI.Param['objecttype'] <> 'trigger')) then
     URI.Param['view'] := ViewToParam(LastTableView);
+
+  // Debug 2017-02-04
+  Assert((ParamToView(URI.Param['view']) <> vObjectSearch) or (URI.Param['text'] <> Null),
+    'URI.Address: ' + URI.Address + #13#10
+    + 'ImageIndex: ' + IntToStr(Node.ImageIndex) + #13#10
+    + 'Text: ' + Node.Text + #13#10
+    + 'ClassType: ' + TObject(Node.Data).ClassName);
 
   LockWindowUpdate(FNavigator.Handle);
   ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);
@@ -8222,6 +8274,8 @@ begin
 end;
 
 procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
+var
+  LastChild: TTreeNode;
 
   procedure SetNodeBoldState(Node: TTreeNode; Value: Boolean);
   var
@@ -8257,10 +8311,9 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
         + 'Item2.Text: ' + Item2.Text);
   end;
 
-  procedure InsertOrUpdateChild(const Parent: TTreeNode; const Data: TObject);
+  function InsertOrUpdateChild(const Parent: TTreeNode; const Data: TObject): TTreeNode;
   var
     Added: Boolean;
-    Child: TTreeNode;
     Node: TTreeNode;
     Text: string;
   begin
@@ -8271,27 +8324,22 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
     Node.ImageIndex := ImageIndexByData(Data);
     Node.Text := TSItem(Data).Caption;
 
-    ProfilingPoint(4);
-
-    Child := Parent.getFirstChild();
-    while (Assigned(Child)) do
+    if (Assigned(LastChild) and Assigned(LastChild.GetNextSibling()) and (Compare(LastChild.GetNextSibling(), Node) = 0)) then
+      Result := LastChild.GetNextSibling()
+    else
     begin
-    ProfilingPoint(5);
+      ProfilingPoint(6);
 
-      if (Compare(Child, Node) >= 0) then
-        break;
-    ProfilingPoint(6);
-      Child := Child.getNextSibling();
+      Result := Parent.getFirstChild();
+      while (Assigned(Result)) do
+      begin
+        if (Compare(Result, Node) >= 0) then
+          break;
+        Result := Result.getNextSibling();
+      end;
 
-    // 1.0 seconds for 550 items
-    // 1.5 seconds for 215 items
-    // 7.5 seconds for 51 items
-    // 1.4 seconds for 757 items
-
-    ProfilingPoint(10);
+      ProfilingPoint(10);
     end;
-
-    ProfilingPoint(11);
 
     Node.Free();
 
@@ -8306,37 +8354,32 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
     else
       raise ERangeError.Create(SRangeError);
 
-    ProfilingPoint(12);
-
-    if (not Assigned(Child)) then
+    if (not Assigned(Result)) then
     begin
-      Child := FNavigator.Items.AddChild(Parent, Text);
+      Result := FNavigator.Items.AddChild(Parent, Text);
       Added := True;
     end
-    else if (Child.Data <> Data) then
+    else if (Result.Data <> Data) then
     begin
-      Child := FNavigator.Items.Insert(Child, Text);
+      Result := FNavigator.Items.Insert(Result, Text);
       Added := True;
     end
     else
       Added := False;
-    Child.Data := Data;
-    Child.ImageIndex := ImageIndexByData(Data);
-    Child.Text := Text;
-    if (Added and (Child.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView])) then
-      Child.HasChildren := True;
+    Result.Data := Data;
+    Result.ImageIndex := ImageIndexByData(Data);
+    Result.Text := Text;
+    if (Added and (Result.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView])) then
+      Result.HasChildren := True;
 
-    ProfilingPoint(13);
-
-    if (Assigned(Child)) then
-      SetNodeBoldState(Child, (Child.ImageIndex = iiKey) and TSKey(Child.Data).PrimaryKey or (Child.ImageIndex in [iiBaseField, iiVirtualField]) and TSTableField(Child.Data).InPrimaryKey);
+    if (Assigned(Result)) then
+      SetNodeBoldState(Result, (Result.ImageIndex = iiKey) and TSKey(Result.Data).PrimaryKey or (Result.ImageIndex in [iiBaseField, iiVirtualField]) and TSTableField(Result.Data).InPrimaryKey);
 
     ProfilingPoint(14);
   end;
 
-  procedure AddChild(const Parent: TTreeNode; const Data: TObject);
+  function AddChild(const Parent: TTreeNode; const Data: TObject): TTreeNode;
   var
-    Child: TTreeNode;
     Text: string;
   begin
     if (TObject(Data) is TSItem) then
@@ -8352,20 +8395,20 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
 
     ProfilingPoint(15);
 
-    Child := FNavigator.Items.AddChild(Parent, Text);
+    Result := FNavigator.Items.AddChild(Parent, Text);
 
     ProfilingPoint(16);
 
-    Child.Data := Data;
-    Child.ImageIndex := ImageIndexByData(Data);
-    Child.Text := Text;
-    if (Child.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView]) then
-      Child.HasChildren := True;
+    Result.Data := Data;
+    Result.ImageIndex := ImageIndexByData(Data);
+    Result.Text := Text;
+    if (Result.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView]) then
+      Result.HasChildren := True;
 
     ProfilingPoint(17);
 
-    if (Assigned(Child)) then
-      SetNodeBoldState(Child, (Child.ImageIndex = iiKey) and TSKey(Child.Data).PrimaryKey or (Child.ImageIndex in [iiBaseField, iiVirtualField]) and TSTableField(Child.Data).InPrimaryKey);
+    if (Assigned(Result)) then
+      SetNodeBoldState(Result, (Result.ImageIndex = iiKey) and TSKey(Result.Data).PrimaryKey or (Result.ImageIndex in [iiBaseField, iiVirtualField]) and TSTableField(Result.Data).InPrimaryKey);
 
     ProfilingPoint(18);
   end;
@@ -8394,6 +8437,8 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
     Node: TTreeNode;
     I: Integer;
   begin
+    LastChild := nil;
+
     case (Event.EventType) of
       etItemsValid:
         begin
@@ -8424,9 +8469,9 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
                   + 'ClassType: ' + Event.Items.ClassName);
 
               if (not Add) then
-                InsertOrUpdateChild(Parent, Items[I])
+                LastChild := InsertOrUpdateChild(Parent, Items[I])
               else
-                AddChild(Parent, Items[I]);
+                LastChild := AddChild(Parent, Items[I]);
             end;
 
           ProfilingPoint(21);
@@ -8474,11 +8519,16 @@ procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
               else
                 Node := Node.Parent;
 
-            Node := Child.getNextSibling();
-            if (not Assigned(Node)) then
-              Node := Child.getPrevSibling();
-            if (not Assigned(Node) or (Node.ImageIndex in [iiKey, iiBaseField, iiSystemViewField, iiVirtualField, iiViewField, iiSystemViewField, iiForeignKey])) then
-              Node := Child.Parent;
+            if (Child <> FNavigator.Selected) then
+              Node := nil
+            else
+            begin
+              Node := Child.getNextSibling();
+              if (not Assigned(Node)) then
+                Node := Child.getPrevSibling();
+              if (not Assigned(Node) or (Node.ImageIndex in [iiKey, iiBaseField, iiSystemViewField, iiVirtualField, iiViewField, iiSystemViewField, iiForeignKey])) then
+                Node := Child.Parent;
+            end;
 
             DeleteChild(Child);
 
@@ -8938,6 +8988,9 @@ var
   Frequency: Int64;
   S: string;
 begin
+  // Debug 2017-02-05
+  Assert(Assigned(SBlob));
+
   if (not QueryPerformanceCounter(Start)) then Start := 0;
 
   if (not (csDestroying in ComponentState)) then
@@ -8973,6 +9026,10 @@ begin
       S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000) + ' s';
       TimeMonitor.Append(S, ttDebug);
     end;
+
+  // Debug 2017-02-05
+  Assert(Assigned(SBlob),
+    'EventType: ' + IntToStr(Ord(Event.EventType)));
 end;
 
 procedure TFSession.FormResize(Sender: TObject);
@@ -10068,24 +10125,20 @@ procedure TFSession.ghmCopyClick(Sender: TObject);
 var
   ClipboardData: HGLOBAL;
   Content: string;
-  FieldInfo: TFieldInfo;
   Len: Integer;
 begin
-  if (GetFieldInfo(MGridHeaderColumn.Field.Origin, FieldInfo) and OpenClipboard(Handle)) then
-  begin
-    try
-      EmptyClipboard();
+  try
+    EmptyClipboard();
 
-      Content := Session.Connection.EscapeIdentifier(FieldInfo.OriginalFieldName);
+    Content := Session.Connection.EscapeIdentifier(MGridHeaderColumn.DisplayName);
 
-      Len := Length(Content);
-      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Len + 1) * SizeOf(Content[1]));
-      Move(PChar(Content)^, GlobalLock(ClipboardData)^, (Len + 1) * SizeOf(Content[1]));
-      SetClipboardData(CF_UNICODETEXT, ClipboardData);
-      GlobalUnlock(ClipboardData);
-    finally
-      CloseClipboard();
-    end;
+    Len := Length(Content);
+    ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Len + 1) * SizeOf(Content[1]));
+    Move(PChar(Content)^, GlobalLock(ClipboardData)^, (Len + 1) * SizeOf(Content[1]));
+    SetClipboardData(CF_UNICODETEXT, ClipboardData);
+    GlobalUnlock(ClipboardData);
+  finally
+    CloseClipboard();
   end;
 end;
 
@@ -10099,6 +10152,15 @@ begin
 
     ActiveDBGrid.SelectedIndex := Item.Parent.IndexOf(Item);
   end;
+end;
+
+procedure TFSession.ghmSelectAllClick(Sender: TObject);
+begin
+  if (ActiveDBGrid.SelectedFields.IndexOf(MGridHeaderColumn.Field) < 0) then
+    ActiveDBGrid.SelectedFields.Add(MGridHeaderColumn.Field)
+  else
+    ActiveDBGrid.SelectedFields.Delete(ActiveDBGrid.SelectedFields.IndexOf(MGridHeaderColumn.Field));
+  ActiveDBGrid.Invalidate();
 end;
 
 function TFSession.GiveFeedback(dwEffect: Longint): HResult;
@@ -11288,6 +11350,8 @@ end;
 
 procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView: TListView; const Data: TCustomData = nil);
 var
+  Changes: Integer; // Debug 2017-02-04
+  LastItem: TListItem;
   ReorderGroupIndex: Integer;
 
   function Compare(const Kind: TPAccount.TDesktop.TListViewKind; const Item1, Item2: TListItem): Integer;
@@ -11701,11 +11765,14 @@ var
     // 11.7 seconds for 7 items
     // 3.5 seconds for 70 items
 
+    // Event.Items.ClassType ???
+
     ProfilingPoint(19);
 
     Item.SubItems.EndUpdate();
 
     ProfilingPoint(20);
+    Inc(Changes);
   end;
 
   function InsertOrUpdateItem(const Kind: TPAccount.TDesktop.TListViewKind; GroupID: Integer; const Data: TObject): TListItem;
@@ -11721,19 +11788,24 @@ var
     ProfilingPoint(7);
 
     Count := ListView.Items.Count; // Cache for speeding
-    Index := -1;
-    for I := 0 to Count - 1 do
-      if (ListView.Items[I].Data = Data) then
-      begin
-        Index := I;
-        break;
-      end;
+    if (Assigned(LastItem) and (LastItem.Index + 1 < Count - 1) and (ListView.Items[LastItem.Index + 1].Data = Data))  then
+      Index := LastItem.Index + 1
+    else
+    begin
+      ProfilingPoint(8);
 
-    // 3.8 seconds for 1545 items
-    // 2.0 seconds for 740 items
-    // 1.7 seconds for 738 items
-    // 1.3 seconds for 232 items
-    ProfilingPoint(8);
+      Index := -1;
+      for I := 0 to Count - 1 do
+        if (ListView.Items[I].Data = Data) then
+        begin
+          Index := I;
+          break;
+        end;
+
+      ProfilingPoint(9);
+    end;
+
+    ProfilingPoint(10);
 
     if ((Count > 0) and (Index < 0)) then
     begin
@@ -11756,7 +11828,7 @@ var
       Item.Free();
     end;
 
-    ProfilingPoint(9);
+    ProfilingPoint(11);
 
     if (Index < 0) then
     begin
@@ -11781,17 +11853,15 @@ var
         else
           ReorderGroupIndex := Min(ReorderGroupIndex, Index);
     end;
-    ProfilingPoint(10);
+    ProfilingPoint(12);
 
     UpdateItem(Result, GroupID, Data);
   end;
 
   function AddItem(const GroupID: Integer; const Data: TObject): TListItem;
   begin
-    ProfilingPoint(11);
-    Result := ListView.Items.Add();
-
     ProfilingPoint(12);
+    Result := ListView.Items.Add();
 
     Result.Data := Data;
 
@@ -11908,9 +11978,9 @@ var
           for I := 0 to SItems.Count - 1 do
             if (not (SItems is TSTriggers) or (TSTriggers(SItems)[I].Table = TObject(ListView.Tag))) then
               if (not Add) then
-                InsertOrUpdateItem(Kind, GroupID, SItems[I])
+                LastItem := InsertOrUpdateItem(Kind, GroupID, SItems[I])
               else
-                AddItem(GroupID, SItems[I]);
+                LastItem := AddItem(GroupID, SItems[I]);
 
           for I := 0 to ListView.Columns.Count - 1 do
             if ((Kind = lkProcesses) and (I = 5)) then
@@ -11981,6 +12051,7 @@ var
               ProfilingPoint(22);
               ListView.Items.Delete(I);
               ProfilingPoint(23);
+              Inc(Changes);
             end;
 
           ProfilingPoint(24);
@@ -12166,6 +12237,9 @@ begin
     if (not QueryPerformanceCounter(Start)) then Start := 0;
     ProfilingReset();
 
+    LastItem := nil;
+    Changes := 0;
+
     ChangingEvent := ListView.OnChanging;
     ListView.OnChanging := nil;
 
@@ -12245,39 +12319,34 @@ begin
       UpdateObjectSearchGroupHeaders();
     end;
 
-    ProfilingPoint(28);
-
     if ((Window.ActiveControl = ListView) and Assigned(ListView.OnSelectItem)) then
       ListView.OnSelectItem(nil, ListView.Selected, Assigned(ListView.Selected));
 
-    ProfilingPoint(29);
-
     ListView.EnableAlign();
-    ProfilingPoint(30);
     ListView.Items.EndUpdate();
-    ProfilingPoint(31);
+
+    ProfilingPoint(28);
+
     ListView.Columns.EndUpdate();
 
     // 5 seconds
-    // 1 seconds, EventType: 1, FieldCount: 36
-    // 19 seconds, EventType: 0, Count: 66
-    // 2.7 seconds, EventType: 0, Count: 0
-    // 0.9 seconds, EventType: 0, Count: 39
-    // 0.4 seconds, EventType: 0, Count: 740
-    // 2.7 seconds, EventType: 0, Count: 36
-    // 5.4 seconds, EventType: 0, Count: 46
-    // 4.4 seconds, EventType: 0, Count: 0
-    // 2.0 seconds, EventType: 0, Count: 38
-    // 2.7 seconds, EventType: 0, Count: 3
-    // 6.7 seconds, EventType: 0, Count: 0
+    // 1 seconds, EventType: 1, Items: 36
+    // 19 seconds, EventType: 0, Items: 66
+    // 2.7 seconds, EventType: 0, Items: 0
+    // 0.9 seconds, EventType: 0, Items: 39
+    // 0.4 seconds, EventType: 0, Items: 740
+    // 2.7 seconds, EventType: 0, Items: 36
+    // 5.4 seconds, EventType: 0, Items: 46
+    // 4.4 seconds, EventType: 0, Items: 0
+    // 2.0 seconds, EventType: 0, Items: 38
+    // 2.7 seconds, EventType: 0, Items: 3
+    // 6.7 seconds, EventType: 0, Items: 0
+
+    ProfilingPoint(29);
 
     ListView.OnChanging := ChangingEvent;
 
-    ProfilingPoint(32);
-
     ListViewHeaderUpdate(ListView);
-
-    ProfilingPoint(34);
 
     if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
       if ((Finish - Start) div Frequency > 1) then
@@ -12291,6 +12360,7 @@ begin
         if (Event.Item is TSTable) then
           S := S
             + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
+        S := S + 'Changes: ' + IntToStr(Changes) + ', ';
         S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s' + #13#10;
         S := S + ProfilingReport() + #13#10;
         TimeMonitor.Append(S, ttDebug);
@@ -13850,15 +13920,14 @@ begin
     // Debug 2016-12-27
     if (not Assigned(SBlob)) then
       raise ERangeError.Create('Destroying: ' + BoolToStr(csDestroying in ComponentState, True) + #13#10
-        + 'Assigned(SBlobDebug): ' + BoolToStr(Assigned(SBlobDebug), True) + #13#10
-        + 'SBlob = SBlobDebug: ' + BoolToStr(SBlob = SBlobDebug, True) + #13#10
         + 'Assigned(PBlob): ' + BoolToStr(Assigned(PBlob), True));
-      // 2017-01-04: SBlob <> SBlobDebug ... DROP TABLE was the last stmt
-      // 2017-01-10: SBlob <> SBlobDebug ... even, SBlob was moved in the TFSession declaration, DROP TABLE (generated by MF) was the last stmt
-      // 2017-01-10: SBlob <> SBlobDebug ... DROP TABLE (generated by MF) was the last stmt
-      // 2017-01-11: SBlob <> SBlobDebug ... DROP TABLE (generated by MF) was the last stmt
-      // 2017-01-26: SBlob <> SBlobDebug ... DROP TABLE (generated by MF) was the last stmt
-      // 2017-01-26: SBlob <> SBlobDebug ... DROP DATABASE was in the log, but not the last stmt
+      // 2017-01-04: DROP TABLE was the last stmt
+      // 2017-01-10: DROP TABLE (generated by MF) was the last stmt
+      // 2017-01-10: DROP TABLE (generated by MF) was the last stmt
+      // 2017-01-11: DROP TABLE (generated by MF) was the last stmt
+      // 2017-01-26: DROP TABLE (generated by MF) was the last stmt
+      // 2017-01-26: DROP DATABASE was in the log, but not the last stmt
+      // 2017-02-04: DROP TABLE (generated by MF) was the last stmt
 
     SBlob.Align := alNone;
     PBlob.Align := alNone;
@@ -15267,9 +15336,6 @@ begin
     else if ((NewSize > MaxHeight) and (MaxHeight > 0)) then
       NewSize := MaxHeight;
   end;
-
-  if (Sender = SQueryBuilderSynMemo) then
-    SQueryBuilderSynMemoMoved := True;
 end;
 
 procedure TFSession.SQLError(DataSet: TDataSet; E: EDatabaseError; var Action: TDataAction);
@@ -16366,8 +16432,9 @@ begin
   gmFExport.Caption := Preferences.LoadStr(200);
   gmFilter.Caption := Preferences.LoadStr(209);
 
-  ghmCopy.Caption := Preferences.LoadStr(64);
   ghmGoto.Caption := Preferences.LoadStr(676);
+  ghmCopy.Caption := Preferences.LoadStr(64);
+  ghmSelectAll.Caption := Preferences.LoadStr(572);
 
   mtObjects.Caption := tbObjects.Caption;
   mtBrowser.Caption := tbBrowser.Caption;
