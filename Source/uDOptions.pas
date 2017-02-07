@@ -306,20 +306,22 @@ var
   CheckOnlineVersionThread: TCheckOnlineVersionThread;
   I: Integer;
 begin
-  if (OnlineVersion < 0)  then
+  if ((Preferences.ObsoleteVersion <= 0) and (OnlineVersion < 0)) then
   begin
     CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
     CheckOnlineVersionThread.Execute();
     CheckOnlineVersionThread.Free();
   end;
 
-  if (OnlineVersion < 0) then
-    MsgBox('Can''t check, if you are using the latest update. Maybe an update of ' + LoadStr(1000) + ' is available.', Preferences.LoadStr(47), MB_OK + MB_ICONWARNING)
-  else if (OnlineVersion > Preferences.Version) then
+  if ((Preferences.ObsoleteVersion > 0) or (OnlineVersion > Preferences.Version)) then
   begin
     MsgBox('An update of ' + LoadStr(1000) + ' is available. Please install that update first.', Preferences.LoadStr(45), MB_OK or MB_ICONERROR);
+    PostMessage(Application.MainForm.Handle, UM_ONLINE_UPDATE_FOUND, 0, 0);
     exit;
-  end;
+  end
+  else if (OnlineVersion < 0) then
+    MsgBox('Can''t check, if you are using the latest update. Maybe an update of ' + LoadStr(1000) + ' is available...', Preferences.LoadStr(47), MB_OK + MB_ICONWARNING);
+
 
   DLanguage.Filename := '';
   for I := 0 to Length(Languages) - 1 do

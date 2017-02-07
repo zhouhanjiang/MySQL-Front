@@ -113,6 +113,7 @@ MAINICON ICON "{BuildImagesPath}\\MAINICON.ico"
 10106 ICON "{BuildImagesPath}\\view_field.ico"
 10107 ICON "{BuildImagesPath}\\PureFlat\\sql_check.ico"
 10108 ICON "{BuildImagesPath}\\translation.ico"
+10109 ICON "{BuildImagesPath}\\PureFlat\\mail.ico"
 
 STRINGTABLE
 BEGIN

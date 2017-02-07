@@ -402,7 +402,6 @@ type
     LogFontName: TFontName;
     LogFontSize, LogFontCharset: Integer;
     LogFontStyle: TFontStyles;
-    LogHighlighting: Boolean;
     LogResult: Boolean;
     LogSize: Integer;
     LogTime: Boolean;
@@ -1994,7 +1993,6 @@ begin
   LogFontStyle := [];
   LogFontSize := 8;
   LogFontCharset := DEFAULT_CHARSET;
-  LogHighlighting := False;
   LogTime := False;
   LogResult := False;
   LogSize := 100 * 1024;
@@ -2065,12 +2063,12 @@ begin
         ResInfo := FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON);
         ResData := LoadResource(HInstance, ResInfo);
         Resource := LockResource(ResData);
-        IconId := LookupIconIdFromDirectoryEx(Resource, TRUE, 128, 128, LR_DEFAULTCOLOR);
+        IconId := LookupIconIdFromDirectoryEx(Resource, TRUE, 64, 64, LR_DEFAULTCOLOR);
         ResInfo := FindResource(HInstance, MAKEINTRESOURCE(IconId), RT_ICON);
         ResData := LoadResource(HInstance, ResInfo);
         Icon := CreateIconFromResourceEx(
           LockResource(ResData), SizeOfResource(HInstance, ResInfo),
-          TRUE, $00030000, 128, 128, LR_DEFAULTCOLOR);
+          TRUE, $00030000, 64, 64, LR_DEFAULTCOLOR);
 
         Bitmap := Graphics.TBitmap.Create();
         Bitmap.PixelFormat := pf32bit;
@@ -2367,7 +2365,6 @@ begin
   if (Assigned(XMLNode(XML, 'log/font/name'))) then LogFontName := XMLNode(XML, 'log/font/name').Text;
   if (Assigned(XMLNode(XML, 'log/font/size'))) then TryStrToInt(XMLNode(XML, 'log/font/size').Text, LogFontSize);
   if (Assigned(XMLNode(XML, 'log/font/style'))) then LogFontStyle := StrToStyle(XMLNode(XML, 'log/font/style').Text);
-  if (Assigned(XMLNode(XML, 'log/highlighting'))) then TryStrToBool(XMLNode(XML, 'log/highlighting').Attributes['visible'], LogHighlighting);
   if (Assigned(XMLNode(XML, 'log/size')) and TryStrToInt(XMLNode(XML, 'log/size').Text, LogSize)) then LogSize := Round(LogSize * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'log/dbresult'))) then TryStrToBool(XMLNode(XML, 'log/dbresult').Attributes['visible'], LogResult);
   if (Assigned(XMLNode(XML, 'log/time'))) then TryStrToBool(XMLNode(XML, 'log/time').Attributes['visible'], LogTime);
@@ -2582,7 +2579,6 @@ begin
   XMLNode(XML, 'log/font/name').Text := LogFontName;
   XMLNode(XML, 'log/font/size').Text := IntToStr(LogFontSize);
   XMLNode(XML, 'log/font/style').Text := StyleToStr(LogFontStyle);
-  XMLNode(XML, 'log/highlighting').Attributes['visible'] := LogHighlighting;
   XMLNode(XML, 'log/size').Text := IntToStr(LogSize);
   XMLNode(XML, 'log/dbresult').Attributes['visible'] := LogResult;
   XMLNode(XML, 'log/time').Attributes['visible'] := LogTime;
@@ -3615,6 +3611,10 @@ begin
           try
             DesktopXMLDocument.SaveToFile(Filename);
           except
+            on E: Exception do
+              SendToDeveloper(E.Message);
+            on E: EOSError do
+              SendToDeveloper(E.Message);
             // Do not inform user about problems while saving file
           end;
           if (GetLastError() <> 0) then
@@ -3815,10 +3815,13 @@ begin
   if (not Assigned(FXMLDocument)) then
   begin
     if (FileExists(Filename)) then
-    begin
-      FXMLDocument := LoadXMLDocument(Filename);
-    end
-    else
+      try
+        FXMLDocument := LoadXMLDocument(Filename);
+      except
+        FXMLDocument := nil;
+      end;
+
+    if (not Assigned(FXMLDocument)) then
     begin
       FXMLDocument := NewXMLDocument();
       FXMLDocument.Encoding := 'utf-8';

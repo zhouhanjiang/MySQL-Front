@@ -564,9 +564,9 @@ begin
 
     FBCancel.Enabled := CanClose;
     if (FBCancel.Enabled) then
-      SetClassLong(Handle, GCL_STYLE, GetClassLong(Handle, GCL_STYLE) and not CS_NOCLOSE)
+      EnableMenuItem(GetSystemMenu(Handle, FALSE), SC_CLOSE, MF_BYCOMMAND or MF_ENABLED)
     else
-      SetClassLong(Handle, GCL_STYLE, GetClassLong(Handle, GCL_STYLE) or CS_NOCLOSE);
+      EnableMenuItem(GetSystemMenu(Handle, FALSE), SC_CLOSE, MF_BYCOMMAND or MF_DISABLED);
 
     Progress := Progress + 'i';
   end;
@@ -612,7 +612,7 @@ begin
   if (Assigned(FNavigator) and not Assigned(FNavigator^)
     or Visible
     or Assigned(Import)) then
-    raise EImportEx.Create('Visible' + BoolToStr(Visible, True) + #13#10
+    raise EImportEx.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
       + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
       + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
       + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
@@ -746,7 +746,7 @@ begin
   FBForward.Visible := FBBack.Visible;
 
   FBCancel.Enabled := True;
-  SetClassLong(Handle, GCL_STYLE, GetClassLong(Handle, GCL_STYLE) and not CS_NOCLOSE);
+  EnableMenuItem(GetSystemMenu(Handle, FALSE), SC_CLOSE, MF_BYCOMMAND or MF_ENABLED);
   if (FBForward.Visible and FBForward.Enabled) then
     ActiveControl := FBForward
   else
@@ -1383,7 +1383,7 @@ begin
 
   FBBack.Enabled := True;
   FBCancel.Enabled := True;
-  SetClassLong(Handle, GCL_STYLE, GetClassLong(Handle, GCL_STYLE) and not CS_NOCLOSE);
+  EnableMenuItem(GetSystemMenu(Handle, FALSE), SC_CLOSE, MF_BYCOMMAND or MF_ENABLED);
   FBCancel.Caption := Preferences.LoadStr(231);
   if (Success) then
     FBCancel.ModalResult := mrOk

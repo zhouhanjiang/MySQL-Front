@@ -594,8 +594,6 @@ type
     procedure PContentResize(Sender: TObject);
     procedure PGridResize(Sender: TObject);
     procedure PHeaderCheckElements(Sender: TObject);
-    procedure PHeaderMouseMove(Sender: TObject; Shift: TShiftState; X,
-      Y: Integer);
     procedure PHeaderPaint(Sender: TObject);
     procedure PHeaderResize(Sender: TObject);
     procedure PLogResize(Sender: TObject);
@@ -2367,10 +2365,20 @@ begin
 end;
 
 procedure TFSession.TWanted.SetAddress(const AAddress: string);
+var
+  URI: TUURI;
 begin
   if (AAddress <> FAddress) then
   begin
     Clear();
+
+    // Debug 2017-02-06
+    URI := TUURI.Create(AAddress);
+    if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
+      raise ERangeError.Create('AAddress: ' + AAddress + #13#10
+        + 'URI.Address: ' + URI.Address);
+    URI.Free();
+
     if (not FSession.Session.Connection.InUse()) then
       FSession.CurrentAddress := AAddress
     else
@@ -2596,6 +2604,9 @@ var
 begin
   Wanted.Clear();
 
+  // Debug 2017-02-06
+  Session.Connection.DebugMonitor.Append('aDDeleteExecute - start - SBlob: ' + BoolToStr(Assigned(SBlob), True), ttDebug);
+
   Items := TList.Create();
 
   if ((Window.ActiveControl = ActiveListView) and (ActiveListView.SelCount > 1)) then
@@ -2710,6 +2721,9 @@ begin
   end;
 
   Items.Free();
+
+  // Debug 2017-02-06
+  Session.Connection.DebugMonitor.Append('aDDeleteExecute - end - SBlob: ' + BoolToStr(Assigned(SBlob), True), ttDebug);
 end;
 
 procedure TFSession.aDDeleteRecordExecute(Sender: TObject);
@@ -7561,16 +7575,11 @@ begin
     URI.Param['view'] := Null;
   if ((ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and not (Node.ImageIndex in [iiServer, iiDatabase, iiSystemDatabase])) then
     URI.Param['view'] := Null;
+  if ((ParamToView(URI.Param['view']) in [vObjectSearch])) then
+    URI.Param['view'] := Null;
 
   if ((URI.Param['view'] = Null) and (URI.Table <> '') and (URI.Param['objecttype'] <> 'trigger')) then
     URI.Param['view'] := ViewToParam(LastTableView);
-
-  // Debug 2017-02-04
-  Assert((ParamToView(URI.Param['view']) <> vObjectSearch) or (URI.Param['text'] <> Null),
-    'URI.Address: ' + URI.Address + #13#10
-    + 'ImageIndex: ' + IntToStr(Node.ImageIndex) + #13#10
-    + 'Text: ' + Node.Text + #13#10
-    + 'ClassType: ' + TObject(Node.Data).ClassName);
 
   LockWindowUpdate(FNavigator.Handle);
   ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);
@@ -13404,32 +13413,19 @@ end;
 procedure TFSession.PanelMouseUp(Sender: TObject;
   Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
-  Panel: TPanel_Ext;
   Rect: TRect;
 begin
-  if ((Button = mbLeft) and (Sender is TPanel_Ext) and Assigned(CloseButtonNormal)) then
+  if ((Button = mbLeft)
+    and (Sender is TPanel_Ext) and (Sender <> PHeader)
+    and Assigned(CloseButtonNormal)) then
   begin
-    Panel := TPanel_Ext(Sender);
-
-    if (Sender = PHeader) then
-    begin
-      Rect.Left := Panel.ClientWidth - GetSystemMetrics(SM_CXEDGE) - (GetSystemMetrics(SM_CXSIZE) - 2 *GetSystemMetrics(SM_CXEDGE));
-      Rect.Top := GetSystemMetrics(SM_CYEDGE);
-      Rect.Width := GetSystemMetrics(SM_CXSIZE) - 2 * GetSystemMetrics(SM_CXEDGE);
-      Rect.Height := GetSystemMetrics(SM_CYSIZE) - 2 * GetSystemMetrics(SM_CYEDGE);
-    end
-    else
-    begin
-      Rect.Left := GetSystemMetrics(SM_CXEDGE);
-      Rect.Top := GetSystemMetrics(SM_CYEDGE);
-      Rect.Width := CloseButtonNormal.Width;
-      Rect.Height := CloseButtonNormal.Width;
-    end;
+    Rect.Left := GetSystemMetrics(SM_CXEDGE);
+    Rect.Top := GetSystemMetrics(SM_CYEDGE);
+    Rect.Width := CloseButtonNormal.Width;
+    Rect.Height := CloseButtonNormal.Width;
 
     if (PtInRect(Rect, Point(X, Y)) and PtInRect(Rect, PanelMouseDownPoint)) then
-      if (Sender = PHeader) then
-        PostMessage(Handle, UM_CLOSE_FRAME, 0, 0)
-      else if (Sender = PResultHeader) then
+      if (Sender = PResultHeader) then
       begin
         SResult.Visible := False;
         PResult.Visible := False;
@@ -14177,61 +14173,8 @@ begin
   end;
 end;
 
-procedure TFSession.PHeaderMouseMove(Sender: TObject; Shift: TShiftState; X,
-  Y: Integer);
-var
-  Panel: TPanel_Ext;
-  Rect: TRect;
-begin
-  if (Sender is TPanel_Ext) then
-  begin
-    Panel := TPanel_Ext(Sender);
-
-    Rect.Left := Panel.ClientWidth - GetSystemMetrics(SM_CXEDGE) - (GetSystemMetrics(SM_CXSIZE) - 2 *GetSystemMetrics(SM_CXEDGE));
-    Rect.Top := GetSystemMetrics(SM_CYEDGE);
-    Rect.Width := GetSystemMetrics(SM_CXSIZE) - 2 * GetSystemMetrics(SM_CXEDGE);
-    Rect.Height := GetSystemMetrics(SM_CYSIZE) - 2 * GetSystemMetrics(SM_CXEDGE);
-
-    if (PtInRect(Rect, Point(X, Y))) then
-    begin
-      SetCapture(Panel.Handle);
-
-      if (ssLeft in Shift) then
-        if (StyleServices.Enabled) then
-          StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonPushed), Rect)
-        else
-          DrawFrameControl(TPanel_Ext(Sender).Canvas.Handle, Rect, DFC_CAPTION, DFCS_CAPTIONCLOSE or DFCS_PUSHED)
-      else
-        if (StyleServices.Enabled) then
-          StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonHot), Rect)
-        else
-          DrawFrameControl(TPanel_Ext(Sender).Canvas.Handle, Rect, DFC_CAPTION, DFCS_CAPTIONCLOSE or DFCS_HOT)
-    end
-    else if (ReleaseCapture()) then
-      if (StyleServices.Enabled) then
-        StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonNormal), Rect)
-      else
-        DrawFrameControl(TPanel_Ext(Sender).Canvas.Handle, Rect, DFC_CAPTION, DFCS_CAPTIONCLOSE);
-  end;
-end;
-
 procedure TFSession.PHeaderPaint(Sender: TObject);
-var
-  Panel: TPanel_Ext;
-  Rect: TRect;
 begin
-  Panel := TPanel_Ext(Sender);
-
-  Rect.Left := Panel.ClientWidth - GetSystemMetrics(SM_CXEDGE) - (GetSystemMetrics(SM_CXSIZE) - 2 * GetSystemMetrics(SM_CXEDGE));
-  Rect.Top := GetSystemMetrics(SM_CYEDGE);
-  Rect.Width := GetSystemMetrics(SM_CXSIZE) - 2 * GetSystemMetrics(SM_CXEDGE);
-  Rect.Height := GetSystemMetrics(SM_CYSIZE) - 2 * GetSystemMetrics(SM_CXEDGE);
-
-  if (StyleServices.Enabled) then
-    StyleServices.DrawElement(TPanel_Ext(Sender).Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonNormal), Rect)
-  else if (Sender is TPanel_Ext) then
-    DrawFrameControl(TPanel_Ext(Sender).Canvas.Handle, Rect, DFC_CAPTION, DFCS_CAPTIONCLOSE);
-
   if (StyleServices.Enabled) then
   begin
     PHeader.Canvas.Pen.Color := SplitColor;
@@ -14242,7 +14185,7 @@ end;
 
 procedure TFSession.PHeaderResize(Sender: TObject);
 begin
-  TBObjectSearch.Left := PHeader.ClientWidth - GetSystemMetrics(SM_CXEDGE) - (GetSystemMetrics(SM_CXSIZE) - 2 * GetSystemMetrics(SM_CXEDGE)) - GetSystemMetrics(SM_CXEDGE) - TBObjectSearch.Width;
+  TBObjectSearch.Left := PHeader.ClientWidth - GetSystemMetrics(SM_CXEDGE) - TBObjectSearch.Width;
   TBObjectSearch.Top := 0;
   TBObjectSearch.Height := Toolbar.Height;
   FObjectSearch.Left := TBObjectSearch.Left - FObjectSearch.Width;
@@ -17002,6 +16945,12 @@ begin
       end;
     vBrowser:
       begin
+        // Debug 2017-02-07
+        Assert(Assigned(CurrentData),
+          'CurrentAddress: ' + CurrentAddress + #13#10
+          + 'ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
+          + 'Text: ' + FNavigator.Selected.Text);
+
         if ((TObject(CurrentData) is TSView and not TSView(CurrentData).Update())
           or (TObject(CurrentData) is TSBaseTable and not TSBaseTable(CurrentData).Update(True))) then
           Wanted.Update := UpdateAfterAddressChanged

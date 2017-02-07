@@ -327,6 +327,8 @@ type
     ToolButton5: TToolButton;
     ToolButton7: TToolButton;
     ToolButton1: TToolButton;
+    aHSupport: TAction;
+    miHSupport: TMenuItem;
     procedure aDCreateParentExecute(Sender: TObject);
     procedure aEFindExecute(Sender: TObject);
     procedure aEReplaceExecute(Sender: TObject);
@@ -369,6 +371,7 @@ type
     procedure TabControlStartDrag(Sender: TObject;
       var DragObject: TDragObject);
     procedure tbPropertiesClick(Sender: TObject);
+    procedure aHSupportExecute(Sender: TObject);
   const
     tiEmptyWorkingMem = 1;
     tiFormDeactivated = 2;
@@ -447,7 +450,7 @@ uses
   MySQLConsts, HTTPTunnel, SQLUtils,
   uTools, uURI,
   uDAccounts, uDAccount, uDOptions, uDLogin, uDStatement, uDTransfer, uDSearch,
-  uDConnecting, uDInfo, uDUpdate;
+  uDConnecting, uDInfo, uDUpdate, uDMail;
 
 { TWWindow ********************************************************************}
 
@@ -532,6 +535,29 @@ end;
 procedure TWWindow.aHInfoExecute(Sender: TObject);
 begin
   DInfo.ShowModal();
+end;
+
+procedure TWWindow.aHSupportExecute(Sender: TObject);
+var
+  CheckOnlineVersionThread: TCheckOnlineVersionThread;
+begin
+  if ((Preferences.ObsoleteVersion <= 0) and (OnlineVersion < 0)) then
+  begin
+    CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
+    CheckOnlineVersionThread.Execute();
+    CheckOnlineVersionThread.Free();
+  end;
+
+  if ((Preferences.ObsoleteVersion > 0) or (OnlineVersion > Preferences.Version)) then
+  begin
+    MsgBox('An update of ' + LoadStr(1000) + ' is available. Please install that update first.', Preferences.LoadStr(45), MB_OK or MB_ICONERROR);
+    InformOnlineUpdateFound();
+    exit;
+  end
+  else if (OnlineVersion < 0) then
+    MsgBox('Can''t check, if you are using the latest update. Maybe an update of ' + LoadStr(1000) + ' is available...', Preferences.LoadStr(47), MB_OK + MB_ICONWARNING);
+
+  DMail.Execute();
 end;
 
 procedure TWWindow.aHUpdateExecute(Sender: TObject);
@@ -974,6 +1000,7 @@ begin
   aFExportODBC.Visible := ODBCEnv <> SQL_NULL_HANDLE;
   aHIndex.Enabled := FileExists(Application.HelpFile);
   aHUpdate.Enabled := (Preferences.SetupProgram = '') and InternetGetConnectedState(nil, 0);
+  aHSupport.Enabled := (Preferences.SetupProgram = '') and InternetGetConnectedState(nil, 0);
 
   Perform(UM_UPDATETOOLBAR, 0, 0);
 
@@ -1584,6 +1611,7 @@ begin
   aHSQL.Caption := Preferences.LoadStr(883) + '...';
   aHManual.Caption := Preferences.LoadStr(573);
   aHUpdate.Caption := Preferences.LoadStr(666) + '...';
+  aHSupport.Caption := 'Support...';
   aHInfo.Caption := Preferences.LoadStr(168) + '...';
 
   for I := 0 to ActionList.ActionCount - 1 do

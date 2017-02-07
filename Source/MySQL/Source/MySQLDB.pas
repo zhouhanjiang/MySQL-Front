@@ -270,7 +270,6 @@ type
     function GetServerDateTime(): TDateTime;
     function GetHandle(): MySQLConsts.MYSQL;
     function GetInfo(): string;
-    procedure RunExecute(const SyncThread: TSyncThread);
     procedure SetDatabaseName(const ADatabaseName: string);
     procedure SetHost(const AHost: string);
     procedure SetLibraryName(const ALibraryName: string);
@@ -2893,20 +2892,6 @@ begin
     FSQLMonitors.Add(SQLMonitor);
 end;
 
-procedure TMySQLConnection.RunExecute(const SyncThread: TSyncThread);
-begin
-  case (SyncThread.State) of
-    ssConnecting,
-    ssExecutingFirst,
-    ssExecutingNext,
-    ssReceivingResult,
-    ssDisconnecting:
-      SyncThread.RunExecute.SetEvent();
-    else
-      raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
-  end;
-end;
-
 function TMySQLConnection.SendSQL(const SQL: string; const Done: TEvent): Boolean;
 begin
   Result := InternExecuteSQL(smSQL, SQL, TResultEvent(nil), Done);
@@ -3026,7 +3011,7 @@ begin
       ssConnect:
         begin
           SyncThread.State := ssConnecting;
-          RunExecute(SyncThread);
+          SyncThread.RunExecute.SetEvent();
         end;
       ssConnecting:
         SyncConnected(SyncThread);
@@ -3035,13 +3020,13 @@ begin
         begin
           SyncBeforeExecuteSQL(SyncThread);
           SyncExecute(SyncThread);
-          RunExecute(SyncThread);
+          SyncThread.RunExecute.SetEvent();
         end;
       ssFirst,
       ssNext:
         begin
           SyncExecute(SyncThread);
-          RunExecute(SyncThread);
+          SyncThread.RunExecute.SetEvent();
         end;
       ssExecutingFirst,
       ssExecutingNext:
@@ -3095,7 +3080,7 @@ begin
                 ssFirst:
                   begin
                     SyncExecute(SyncThread);
-                    RunExecute(SyncThread);
+                    SyncThread.RunExecute.SetEvent();
                   end;
                 ssReceivingResult: ;
                 {$IFNDEF Debug}
@@ -3115,7 +3100,7 @@ begin
       ssDisconnect:
         begin
           SyncThread.State := ssDisconnecting;
-          RunExecute(SyncThread);
+          SyncThread.RunExecute.SetEvent();
         end;
       ssDisconnecting:
         SyncDisconnected(SyncThread);

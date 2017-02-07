@@ -3883,12 +3883,18 @@ begin
   DataSet.QuickSearch := QuickSearch;
   DataSet.SortDef.Assign(ASortDef);
 
+  // Debug 2017-02-06
+  Assert(not DataSet.Active);
+
   Session.SendSQL(DataSet.SQLSelect(), OpenEvent);
 end;
 
 function TSTable.OpenEvent(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
   const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
 begin
+  // Debug 2017-02-06
+  Assert(not DataSet.Active);
+
   DataSet.Open(DataHandle);
 
   Result := False;

@@ -15234,7 +15234,12 @@ var
 begin
   Result := 0;
 
-  if (IsTag(kiCURRENT_USER)) then
+  if (EndOfStmt(CurrentToken)) then
+  begin
+    CompletionList.AddList(ditUser);
+    SetError(PE_IncompleteStmt);
+  end
+  else if (IsTag(kiCURRENT_USER)) then
     if (IsNextSymbol(1, ttOpenBracket) and IsNextSymbol(2, ttCloseBracket)) then
       Result := ParseDefaultFunc() // CURRENT_USER()
     else
@@ -15254,11 +15259,6 @@ begin
     end;
 
     Result := TAccount.Create(Self, Nodes);
-  end
-  else if (EndOfStmt(CurrentToken)) then
-  begin
-    CompletionList.AddList(ditUser);
-    SetError(PE_IncompleteStmt);
   end
   else
     SetError(PE_UnexpectedToken);
@@ -27100,7 +27100,9 @@ var
   TokenCount: Integer;
   FoundTokenCount: Integer;
 begin
-  Assert(not ErrorFound and ((AErrorCode <> PE_IncompleteStmt) or (Node = 0)));
+  Assert(not ErrorFound and ((AErrorCode <> PE_IncompleteStmt) or (Node = 0)),
+    'ErrorCode: ' + IntToStr(AErrorCode) + #13#10
+    + Parse.SQL);
 
   Error.Code := AErrorCode;
 

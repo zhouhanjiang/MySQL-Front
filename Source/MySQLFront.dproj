@@ -109,10 +109,13 @@
         </DCCReference>
         <DCCReference Include="uDLanguage.pas">
             <Form>DLanguage</Form>
-            <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="uDLogin.pas">
             <Form>DDBLogin</Form>
+        </DCCReference>
+        <DCCReference Include="uDMail.pas">
+            <Form>DMail</Form>
+            <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="uDODBC.pas">
             <Form>DDBODBC</Form>

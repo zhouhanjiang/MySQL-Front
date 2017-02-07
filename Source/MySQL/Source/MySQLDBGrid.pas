@@ -1487,6 +1487,12 @@ begin
   HDItem.Mask := HDI_FORMAT;
   if (DataLink.DataSet is TMySQLDataSet) then
     for I := LeftCol to LeftCol + VisibleColCount - 1 do
+    begin
+      // Debug 2017-02-06
+      Assert(I in [0 .. Columns.Count - 1],
+        'I: ' + IntToStr(I) + #13#10
+        + 'Count: ' + IntToStr(Columns.Count));
+
       if (Columns[I].Visible
         and Assigned(Columns[I].Field)
         and BOOL(SendMessage(Header, HDM_GETITEM, Index, LParam(@HDItem)))) then
@@ -1500,6 +1506,7 @@ begin
         SendMessage(Header, HDM_SETITEM, Index, LPARAM(@HDItem));
         Inc(Index);
       end;
+    end;
 end;
 
 procedure TMySQLDBGrid.TitleClick(Column: TColumn);

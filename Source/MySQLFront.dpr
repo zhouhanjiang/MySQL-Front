@@ -17,6 +17,8 @@ uses
   ShellAPI,
   SysUtils,
   Forms,
+DateUtils,
+Classes,
   HTMLHelpViewer,
   MySQLClient in 'MySQL\Source\MySQLClient.pas',
   MySQLConsts in 'MySQL\Source\MySQLConsts.pas',
@@ -54,6 +56,7 @@ uses
   uDKey in 'uDKey.pas' {DIndex},
   uDLanguage in 'uDLanguage.pas' {DLanguage},
   uDLogin in 'uDLogin.pas' {DDBLogin},
+  uDMail in 'uDMail.pas' {DMail},
   uDODBC in 'uDODBC.pas' {DDBODBC},
   uDOptions in 'uDOptions.pas' {DOptions},
   uDPartition in 'uDPartition.pas' {DPartition},
@@ -84,12 +87,25 @@ uses
 {$R *.res}
 
 var
-  SetupProgram: TFileName;
-  SetupProgramExecute: Boolean;
   ExecError: DWORD;
   ExecInfo: TShellExecuteInfo;
+  SendErrorLog: TStringList;
+  SetupProgram: TFileName;
+  SetupProgramExecute: Boolean;
 begin
   Preferences := TPPreferences.Create();
+
+  if (FileExists(Preferences.UserPath + SendErrorLogFilename)) then
+  begin
+    if (Now() < IncDay(CompileTime(), 2 + 1)) then
+    begin
+      SendErrorLog := TStringList.Create();
+      SendErrorLog.LoadFromFile(Preferences.UserPath + SendErrorLogFilename);
+      SendToDeveloper(SendErrorLog.Text);
+      SendErrorLog.Free();
+    end;
+    DeleteFile(Preferences.UserPath + SendErrorLogFilename);
+  end;
 
   if (Preferences.SetupProgramInstalled) then
   begin
@@ -110,8 +126,8 @@ begin
     Application.Initialize();
     Application.Title := LoadStr(1000);
     Application.CreateForm(TWWindow, WWindow);
-  Application.CreateForm(TPDataBrowserDummy, PDataBrowserDummy);
-  Application.MainForm.Perform(UM_CHANGEPREFERENCES, 0, 0);
+    Application.CreateForm(TPDataBrowserDummy, PDataBrowserDummy);
+    Application.MainForm.Perform(UM_CHANGEPREFERENCES, 0, 0);
     Application.Run();
     if (Application.Handle <> 0) then
       ShowOwnedPopups(Application.Handle, False);
@@ -122,7 +138,7 @@ begin
 
   SetupProgram := Preferences.SetupProgram;
   SetupProgramExecute := Preferences.SetupProgramExecute;
-  Preferences.Free();
+  Preferences.Free(); Preferences := nil;
 
   if (SetupProgramExecute) then
   begin
@@ -140,7 +156,7 @@ begin
       Preferences := TPPreferences.Create();
       Preferences.SetupProgram := '';
       Preferences.SetupProgramInstalled := False;
-      Preferences.Free();
+      Preferences.Free(); Preferences := nil;
       Windows.DeleteFile(PChar(SetupProgram));
 
       RaiseLastOSError(ExecError);

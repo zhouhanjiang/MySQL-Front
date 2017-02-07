@@ -17,6 +17,7 @@ type
     FErrorMessage: string;
     FHTTPMessage: string;
     FHTTPStatus: Integer;
+    FLogErrors: Boolean;
     FOnProgress: TProgressEvent;
     SendStream: TStream;
     Subject: string;
@@ -30,6 +31,7 @@ type
       default nil;
     property ErrorCode: Integer read FErrorCode;
     property ErrorMessage: string read FErrorMessage;
+    property LogErrors: Boolean read FLogErrors write FLogErrors;
     property HTTPMessage: string read FHTTPMessage;
     property HTTPStatus: Integer read FHTTPStatus;
   end;
@@ -47,11 +49,20 @@ function CheckOnlineVersion(const Stream: TStringStream; var VersionStr: string;
   var SetupProgramURI: string): Boolean;
 function CompileTime(): TDateTime;
 procedure SendToDeveloper(const Text: string; const Days: Integer = 2;
-  const DisableSource: Boolean = False);
+  const HideSource: Boolean = False);
 
 type
   EImportEx = class(Exception)
   end;
+
+const
+  MailPattern = '(?:[a-z0-9!#$%&''*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&''*+/=?^_`{|}~'
+    + '-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09'
+    + '\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9]('
+    + '?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3'
+    + '}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08'
+    + '\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])';
+  SendErrorLogFilename = 'SendErrors.log';
 
 var
   OnlineVersion: Integer;
@@ -62,7 +73,7 @@ implementation
 { *************************************************************** }
 
 uses
-  XMLIntf, XMLDoc, ActiveX, SyncObjs, DateUtils,
+  XMLIntf, XMLDoc, ActiveX, SyncObjs, DateUtils, IOUtils,
   Forms,
 {$IFDEF EurekaLog}
   ExceptionLog7, EExceptionManager, ECallStack, EStackTracing, EClasses,
@@ -76,6 +87,8 @@ uses
 
 var
   SendThreads: TList;
+  SendErrorLogCS: TCriticalSection;
+  UserPath: string;
 
 { ****************************************************************************** }
 
@@ -187,7 +200,7 @@ begin
 end;
 
 procedure SendToDeveloper(const Text: string; const Days: Integer = 2;
-  const DisableSource: Boolean = False);
+  const HideSource: Boolean = False);
 var
 {$IFDEF EurekaLog}
   Buffer: TEurekaDebugInfo;
@@ -209,50 +222,51 @@ begin
   begin
     Body := Text;
 
-{$IFDEF EurekaLog}
-    if (not DisableSource or (Trim(Text) = '')) then
-    begin
-      SetString(Filename, PChar(@FilenameP[0]),
-        GetModuleFileName(GetModuleHandle(nil), @FilenameP, Length(FilenameP)));
+    {$IFDEF EurekaLog}
+      if (not HideSource or (Trim(Text) = '')) then
+      begin
+        SetString(Filename, PChar(@FilenameP[0]),
+          GetModuleFileName(GetModuleHandle(nil), @FilenameP, Length(FilenameP)));
 
-      CallStack := GetCurrentCallStack();
-      Index := 0;
-      StackItem := 0;
-      Item := nil;
-      while ((Index < CallStack.Count) and (StackItem < 2)) do
-      begin
-        Item := CallStack.GetItem(1, Buffer);
-        if ((Item^.Location.DebugDetail = ddSourceCode) and
-          ((Filename = '') or (StrIComp(PChar(Item^.Location.ModuleName),
-          PChar(Filename)) = 0))) then
-          Inc(StackItem);
-        Inc(Index);
-      end;
-      if (Assigned(Item) and (StackItem = 2)) then
-      begin
-        if ((Item^.Location.ClassName <> '') and
-          (Item^.Location.ProcedureName <> '')) then
-          Source := Item^.Location.ClassName + '.' +
-            Item^.Location.ProcedureName
-        else if (Item^.Location.ClassName <> '') then
-          Source := Item^.Location.ClassName
-        else if (Item^.Location.ProcedureName <> '') then
-          Source := Item^.Location.ProcedureName
+        CallStack := GetCurrentCallStack();
+        Index := 0;
+        StackItem := 0;
+        Item := nil;
+        while ((Index < CallStack.Count) and (StackItem < 2)) do
+        begin
+          Item := CallStack.GetItem(1, Buffer);
+          if ((Item^.Location.DebugDetail = ddSourceCode) and
+            ((Filename = '') or (StrIComp(PChar(Item^.Location.ModuleName),
+            PChar(Filename)) = 0))) then
+            Inc(StackItem);
+          Inc(Index);
+        end;
+        if (Assigned(Item) and (StackItem = 2)) then
+        begin
+          if ((Item^.Location.ClassName <> '') and
+            (Item^.Location.ProcedureName <> '')) then
+            Source := Item^.Location.ClassName + '.' +
+              Item^.Location.ProcedureName
+          else if (Item^.Location.ClassName <> '') then
+            Source := Item^.Location.ClassName
+          else if (Item^.Location.ProcedureName <> '') then
+            Source := Item^.Location.ProcedureName
+          else
+            Source := '';
+          Source := ExtractFileName(Item^.Location.ModuleName) + '|' +
+            Item^.Location.UnitName + '|' + Source + '|' +
+            IntToStr(Item^.Location.LineNumber) + '[' +
+            IntToStr(Item^.Location.ProcOffsetLine) + ']' + #13#10#13#10;
+
+          Body := Source + Body;
+        end
         else
-          Source := '';
-        Source := ExtractFileName(Item^.Location.ModuleName) + '|' +
-          Item^.Location.UnitName + '|' + Source + '|' +
-          IntToStr(Item^.Location.LineNumber) + '[' +
-          IntToStr(Item^.Location.ProcOffsetLine) + ']' + #13#10#13#10;
+          Body := Source + 'StackItem: ' + IntToStr(StackItem) + ', Index:' +
+            IntToStr(Index) + ', Count: ' + IntToStr(CallStack.Count) +
+            #13#10#13#10;
+      end;
+    {$ENDIF}
 
-        Body := Source + Body;
-      end
-      else
-        Body := Source + 'StackItem: ' + IntToStr(StackItem) + ', Index:' +
-          IntToStr(Index) + ', Count: ' + IntToStr(CallStack.Count) +
-          #13#10#13#10;
-    end;
-{$ENDIF}
     Stream := TMemoryStream.Create();
 
     if (not CheckWin32Version(6)) then
@@ -282,6 +296,8 @@ begin
   SendStream := ASendStream;
   ReceiveStream := AReceiveStream;
   Subject := ASubject;
+
+  FLogErrors := False;
 end;
 
 procedure THTTPThread.Execute();
@@ -304,6 +320,7 @@ var
   QueryInfo: array [0 .. 2048] of Char;
   Request: HInternet;
   RequestTry: Integer;
+  SendErrorLog: TStringList;
   Size: Cardinal;
   Success: Boolean;
   URLComponents: TURLComponents;
@@ -324,6 +341,7 @@ begin
   try
     SetEurekaLogStateInThread(0, True);
 {$ENDIF}
+
     FErrorCode := 0;
     FErrorMessage := '';
     FHTTPStatus := HTTP_STATUS_OK;
@@ -474,6 +492,18 @@ begin
 
     if (not Terminated and Assigned(OnProgress)) then
       OnProgress(Self, ReceiveStream.Size, ReceiveStream.Size);
+
+    SendErrorLogCS.Enter();
+    if (LogErrors and ((ErrorCode <> 0) or (HTTPStatus <> HTTP_STATUS_OK))) then
+    begin
+      SendErrorLog := TStringList.Create();
+      if (FileExists(UserPath + SendErrorLogFilename)) then
+        SendErrorLog.LoadFromFile(UserPath + SendErrorLogFilename);
+      SendErrorLog.Add(Preferences.VersionStr + ' - ErrorCode: ' + IntToStr(ErrorCode) + ', HTTPStatus: ' + IntToStr(HTTPStatus) + ', Connected: ' + BoolToStr(InternetGetConnectedState(nil, 0), True));
+      SendErrorLog.SaveToFile(UserPath + SendErrorLogFilename);
+      SendErrorLog.Free();
+    end;
+    SendErrorLogCS.Leave();
 
 {$IFDEF EurekaLog}
   except
@@ -1048,8 +1078,10 @@ initialization
 
   AssertErrorProc := AssertErrorHandler;
 
-  SendThreads := TList.Create();
   OnlineVersion := -1;
+  SendThreads := TList.Create();
+  SendErrorLogCS := TCriticalSection.Create();
+  UserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(TPath.GetHomePath()) + SysUtils.LoadStr(1002));
 finalization
   while (SendThreads.Count > 0) do
   begin
@@ -1058,6 +1090,7 @@ finalization
     SendThreads.Delete(0);
   end;
   SendThreads.Free();
+  SendErrorLogCS.Free();
 
   {$IFDEF EurekaLog}
   UnRegisterEventCustomButtonClick(nil, CustomButtonClick);
