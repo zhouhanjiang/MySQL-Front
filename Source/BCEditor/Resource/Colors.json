@@ -1,15 +1,5 @@
 {
    "Colors": {
-      "Info": {
-         "General": {
-            "Version": "2.0.0",
-            "Date": "05.01.2017"
-         },
-         "Author": {
-            "Name": "Lasse Rautiainen",
-            "Mail": "lasse@bonecode.com"
-         }
-      },
       "Editor": {
          "Colors": {
             "Background": "clWindow",
@@ -34,8 +24,8 @@
             "LeftMarginActiveLineBackground": "$F4F4F4",
             "LeftMarginBackground": "$F4F4F4",
             "LeftMarginBorder": "clWindow",
-            "LeftMarginLineNumberLine": "$9999CC",
-            "LeftMarginLineNumbers": "$9999CC",
+            "LeftMarginLineNumberLine": "$999999",
+            "LeftMarginLineNumbers": "$999999",
             "LeftMarginLineStateModified": "clYellow",
             "LeftMarginLineStateNormal": "clLime",
             "LeftMarginBookmarkPanel": "clWindow",
@@ -61,113 +51,59 @@
             "SyncEditWordBorder": "$00A56D53",
             "WordWrapIndicatorArrow": "clNavy",
             "WordWrapIndicatorLines": "clBlack"
-         },
-         "Fonts": {
-            "LineNumbers": "Courier New",
-            "Text": "Courier New",
-            "Minimap": "Courier New",
-            "CodeFoldingHint": "Courier New",
-            "CompletionProposal": "Courier New"
-         },
-         "FontSizes": {
-            "LineNumbers": "8",
-            "Text": "9",
-            "Minimap": "1",
-            "CodeFoldingHint": "8",
-            "CompletionProposal": "8"
          }
       },
       "Elements": [
          {
             "Name": "Editor",
-            "Foreground": "clBlack",
-            "Background": "clWindow"
+            "Foreground": "clWindowText"
          },
          {
             "Name": "Comment",
-            "Foreground": "clGreen",
+            "Foreground": "$89AD56",
             "Style": "Italic"
          },
          {
-            "Name": "Conditional",
-            "Foreground": "clTeal"
+            "Name": "Constante",
+            "Foreground": "$996735"
          },
          {
-            "Name": "DataType",
-            "Foreground": "clMaroon",
+            "Name": "Conditional",
+            "Foreground": "$89AD56"
+         },
+         {
+            "Name": "Identifier",
+            "Foreground": "$787878"
+         },
+         {
+            "Name": "Keyword",
+            "Foreground": "$736243",
             "Style": "Bold"
          },
          {
-            "Name": "Identifier"
-         },
-         {
             "Name": "Method",
-            "Foreground": "clNavy",
+            "Foreground": "$736243",
             "Style": "Bold"
          },
          {
             "Name": "Number",
-            "Foreground": "clBlue"
-         },
-         {
-            "Name": "ReservedWord",
-            "Foreground": "clNavy",
-            "Style": "Bold"
+            "Foreground": "$996735"
          },
          {
             "Name": "String",
-            "Foreground": "clBlue"
+            "Foreground": "$996735"
          },
          {
             "Name": "Symbol"
          },
-
          {
-            "Name": "Directive",
-            "Foreground": "clTeal",
-            "Background": "clWindow"
-         },
-         {
-            "Name": "Character",
-            "Foreground": "clPurple",
-            "Background": "clWindow"
-         },
-         {
-            "Name": "HexNumber",
-            "Foreground": "clBlue",
-            "Background": "clWindow"
-         },
-         {
-            "Name": "HighlightedBlock",
-            "Foreground": "clBlack",
-            "Background": "$00EEFFFF"
-         },
-         {
-            "Name": "HighlightedBlockSymbol",
-            "Foreground": "clNavy",
-            "Background": "$00EEFFFF"
-         },
-         {
-            "Name": "AssemblerComment",
-            "Foreground": "clGreen",
-            "Background": "$00EEFFFF",
-            "Style": "Italic"
-         },
-         {
-            "Name": "AssemblerReservedWord",
-            "Foreground": "clNavy",
-            "Background": "$00EEFFFF",
+            "Name": "Type",
+            "Foreground": "$8D52AB",
             "Style": "Bold"
          },
          {
-            "Name": "Attribute",
-            "Foreground": "clMaroon",
-            "Background": "clWindow"
-         },
-         {
-            "Name": "MethodName",
-            "Foreground": "clBlack",
-            "Background": "clWindow"
+            "Name": "Variable",
+            "Foreground": "$AB528D"
          }
       ]
    }

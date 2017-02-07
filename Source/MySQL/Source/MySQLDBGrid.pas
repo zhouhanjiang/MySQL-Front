@@ -1334,7 +1334,6 @@ end;
 function TMySQLDBGrid.PasteText(const Text: string): Boolean;
 var
   Bookmarks: array of TBookmark;
-  Content: string;
   I: Integer;
   Index: Integer;
   RecNo: Integer;
@@ -1347,7 +1346,7 @@ begin
   if (Result) then
   begin
     Index := 1;
-    if (CSVSplitValues(Content, Index, #9, '"', Values) and ((Length(Values) > 1) or (Index <= Length(Content)))) then
+    if (CSVSplitValues(Text, Index, #9, '"', Values) and ((Length(Values) > 1) or (Index <= Length(Text)))) then
     begin
       if (DataLink.DataSet.State <> dsInsert) then
         DataLink.DataSet.CheckBrowseMode();
@@ -1394,7 +1393,7 @@ begin
                 Inc(Value);
               end;
 
-              if ((RecNo > 0) or (Index <= Length(Content))) then
+              if ((RecNo > 0) or (Index <= Length(Text))) then
                 try
                   DataLink.DataSet.Post();
                 except
@@ -1406,7 +1405,7 @@ begin
                 end;
               Inc(RecNo);
             end;
-          until (not CSVSplitValues(Content, Index, #9, '"', Values) or (Length(Values) = 0));
+          until (not CSVSplitValues(Text, Index, #9, '"', Values) or (Length(Values) = 0));
         finally
           SetLength(Values, 0);
         end;
@@ -1422,7 +1421,7 @@ begin
       else
       begin
         DataLink.DataSet.Edit();
-        SelectedField.AsString := Content;
+        SelectedField.AsString := Text;
       end;
     end;
   end;
@@ -1488,8 +1487,8 @@ begin
   if (DataLink.DataSet is TMySQLDataSet) then
     for I := LeftCol to LeftCol + VisibleColCount - 1 do
     begin
-      // Debug 2017-02-06
-      Assert(I in [0 .. Columns.Count - 1],
+      // Debug 2017-02-07
+      Assert((0 <= I) and (I < Columns.Count),
         'I: ' + IntToStr(I) + #13#10
         + 'Count: ' + IntToStr(Columns.Count));
 

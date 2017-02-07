@@ -22,6 +22,9 @@
 
 1 RT_MANIFEST "{BuildTempPath}\\MySQLFront.manifest"
 
+Highligther FILE "{BuildSourcePath}\\BCEditor\\Resource\\Highlighter.json"
+Colors FILE "{BuildSourcePath}\\BCEditor\\Resource\\Colors.json"
+
 MAINICON ICON "{BuildImagesPath}\\MAINICON.ico"
 10000 ICON "{BuildImagesPath}\\Blank.ico"
 10001 ICON "{BuildImagesPath}\\PureFlat\\relations.ico"

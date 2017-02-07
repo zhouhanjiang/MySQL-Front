@@ -11472,7 +11472,7 @@ begin
           Add(TSDatabase(Location).Triggers[I]);
     end
     else
-    else if ((Location is TSTable) and TSTable(Location).Database.Triggers.Valid) then
+    else if ((Location is TSTable) and Assigned(TSTable(Location).Database.Triggers) and TSTable(Location).Database.Triggers.Valid) then
     begin
       for I := 0 to TSTable(Location).Database.Triggers.Count - 1 do
         if ((TSTable(Location).Database.Triggers[I].Table = TSTable(Location))
@@ -12965,7 +12965,10 @@ begin
     and ((Finish - Start) div Frequency > 10)) then
     SendToDeveloper('EventType: ' + IntToStr(Ord(EventType)) + ', '
       + 'Sender: ' + Sender.ClassName + ', '
-      + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s');
+      + 'Items: ' + Items.ClassName + ', '
+      + 'Count: ' + IntToStr(Items.Count)
+      + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s, '
+      + 'Receiver: ' + IntToStr(Length(EventProcs)));
 end;
 
 function TSSession.SendSQL(const SQL: string; const OnResult: TMySQLConnection.TResultEvent = nil): Boolean;

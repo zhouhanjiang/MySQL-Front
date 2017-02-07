@@ -8664,11 +8664,17 @@ begin
     end;
   end;
 
+  ProfilingPoint(22);
+
   FNavigator.OnChanging := ChangingEvent;
   FNavigator.OnChange := ChangeEvent;
 
+  ProfilingPoint(23);
+
   if (FNavigator.Selected <> OldSelected) then
     SetTimer(Self.Handle, tiNavigator, 1, nil); // We're inside a Monitor call. So we can't call FNavigatorNodeChange2 directly
+
+  ProfilingPoint(24);
 
   if (Assigned(FNavigatorNodeToExpand) and (FNavigatorNodeToExpand.Count > 0)) then
   begin
@@ -8683,10 +8689,11 @@ begin
     if ((Finish - Start) div Frequency > 1) then
     begin
       S := 'FNavigatorUpdate - '
-        + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
+        + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', '
+        + 'Sender: ' + Event.Sender.ClassName + ', ';
       if (Assigned(Event.Items)) then
         S := S
-          + 'ClassType: ' + Event.Items.ClassName + ', '
+          + 'Items: ' + Event.Items.ClassName + ', '
           + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
       if (Event.Item is TSTable) then
         S := S
@@ -12252,19 +12259,9 @@ begin
     ChangingEvent := ListView.OnChanging;
     ListView.OnChanging := nil;
 
-    ProfilingPoint(1);
-
     ListView.Columns.BeginUpdate();
-
-    ProfilingPoint(2);
-
     ListView.Items.BeginUpdate();
-
-    ProfilingPoint(3);
-
     ListView.DisableAlign();
-
-    ProfilingPoint(4);
 
     Kind := ColumnWidthKindByListView(ListView);
 
@@ -12358,13 +12355,12 @@ begin
     ListViewHeaderUpdate(ListView);
 
     if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
-      if ((Finish - Start) div Frequency > 1) then
       begin
         S := 'ListViewUpdate - '
           + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
         if (Assigned(Event.Items)) then
           S := S
-            + 'ClassType: ' + Event.Items.ClassName + ', '
+            + 'Items: ' + Event.Items.ClassName + ', '
             + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
         if (Event.Item is TSTable) then
           S := S
@@ -13377,7 +13373,8 @@ begin
   if ((Button = mbLeft) and (Sender is TPanel)) then
   begin
     PanelMouseDownPoint := Point(X, Y);
-    TPanel(Sender).OnMouseMove(Sender, Shift, X, Y);
+    if (Assigned(TPanel(Sender).OnMouseMove)) then
+      TPanel(Sender).OnMouseMove(Sender, Shift, X, Y);
   end;
 end;
 
@@ -14850,7 +14847,7 @@ begin
           + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
         if (Assigned(Event.Items)) then
           S := S
-            + 'ClassType: ' + Event.Items.ClassName + ', '
+            + 'Items: ' + Event.Items.ClassName + ', '
             + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
         if (Event.Item is TSTable) then
           S := S
@@ -14957,7 +14954,7 @@ begin
           if (Assigned(Event.Items)) then
             S := S
               + 'Sender: ' + Event.Sender.ClassName + ', '
-              + 'ClassType: ' + Event.Items.ClassName + ', '
+              + 'Items: ' + Event.Items.ClassName + ', '
               + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
           if (Event.Item is TSTable) then
             S := S
@@ -15007,7 +15004,7 @@ begin
               + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
             if (Assigned(Event.Items)) then
               S := S
-                + 'ClassType: ' + Event.Items.ClassName + ', '
+                + 'Items: ' + Event.Items.ClassName + ', '
                 + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
             if (Event.Item is TSTable) then
               S := S
@@ -15053,7 +15050,7 @@ begin
         + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
       if (Assigned(Event.Items)) then
         S := S
-          + 'ClassType: ' + Event.Items.ClassName + ', '
+          + 'Items: ' + Event.Items.ClassName + ', '
           + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
       if (Event.Item is TSTable) then
         S := S
@@ -16253,6 +16250,9 @@ procedure TFSession.UMActivateDBGrid(var Msg: TMessage);
 begin
   if (TWinControl(Msg.LParam) = ActiveDBGrid) then
   begin
+    // Debug 2017-02-07
+    Assert(ActiveDBGrid.Visible);
+
     Window.ActiveControl := TWinControl(Msg.LParam);
     ActiveDBGrid.EditorMode := False;
   end;
