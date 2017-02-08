@@ -1490,7 +1490,8 @@ begin
       // Debug 2017-02-07
       Assert((0 <= I) and (I < Columns.Count),
         'I: ' + IntToStr(I) + #13#10
-        + 'Count: ' + IntToStr(Columns.Count));
+        + 'Count: ' + IntToStr(Columns.Count) + #13#10
+        + TMySQLDataSet(DataLink.DataSet).CommandText);
 
       if (Columns[I].Visible
         and Assigned(Columns[I].Field)

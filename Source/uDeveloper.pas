@@ -207,6 +207,7 @@ var
   CallStack: TEurekaBaseStackList;
   Filename: string;
   FilenameP: array [0 .. MAX_PATH] of Char;
+  I: Integer;
   Index: Integer;
   Item: PEurekaDebugInfo;
   StackItem: Integer;
@@ -261,9 +262,18 @@ begin
           Body := Source + Body;
         end
         else
-          Body := Source + 'StackItem: ' + IntToStr(StackItem) + ', Index:' +
-            IntToStr(Index) + ', Count: ' + IntToStr(CallStack.Count) +
-            #13#10#13#10;
+        begin
+          Body := Source + Body + #13#10
+            + 'StackItem: ' + IntToStr(StackItem) + ', '
+            + 'Index:' + IntToStr(Index) + ', '
+            + 'Count: ' + IntToStr(CallStack.Count) + #13#10#13#10;
+          for I := 0 to CallStack.Count - 1 do
+            Body := Body
+              + ExtractFileName(Item^.Location.ModuleName) + '|' +
+                  Item^.Location.UnitName + '|' + Source + '|' +
+                  IntToStr(Item^.Location.LineNumber) + '[' +
+                  IntToStr(Item^.Location.ProcOffsetLine) + ']' + #13#10;
+        end;
       end;
     {$ENDIF}
 

@@ -5602,7 +5602,7 @@ end;
 
 procedure TMySQLQuery.SetConnection(const AConnection: TMySQLConnection);
 begin
-  Assert(not IsCursorOpen());
+  Assert(not Assigned(AConnection) or not IsCursorOpen());
 
   if (not Assigned(FConnection) and Assigned(AConnection)) then
     AConnection.RegisterClient(Self);
@@ -7240,12 +7240,15 @@ begin
   if (ActiveBuffer() = 0) then
     raise ERangeError.Create('State: ' + IntToStr(Ord(State)) + #13#10
       + 'Count: ' + IntToStr(InternRecordBuffers.Count));
+
   // Debug 2017-02-04
   Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer),
     'Field.Name: ' + Field.DisplayName + #13#10
     + 'Field.DataType: ' + IntToStr(Ord(Field.DataType)) + #13#10
     + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)) + #13#10
     + 'State: ' + IntToStr(Ord(State)));
+  // 2017-02-08: BookmarkFlag := bfInserted, State: dsBrowse, CallStack: TMySQLDBGridInplaceEdit.CloseUp
+  // Why is dsBrowse set while CloseUp???
 
   OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
 

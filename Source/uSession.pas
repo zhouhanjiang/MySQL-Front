@@ -1579,8 +1579,7 @@ type
     UnparsableSQL: string;
     procedure MonitorLog(const Connection: TMySQLConnection; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
     procedure MonitorExecutedStmts(const Connection: TMySQLConnection; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
-    procedure SendEvent(const EventType: TSSession.TEvent.TEventType; const Sender: TObject; const Items: TSItems = nil; const Item: TSItem = nil); overload;
-    procedure SendEvent(const EventType: TSSession.TEvent.TEventType); overload;
+    procedure SendEvent(const EventType: TSSession.TEvent.TEventType; const Sender: TObject = nil; const Items: TSItems = nil; const Item: TSItem = nil); overload;
     function SessionResult(const ErrorCode: Integer; const ErrorMessage: string; const WarningCount: Integer;
       const CommandText: string; const DataHandle: TMySQLConnection.TDataHandle; const Data: Boolean): Boolean;
     property Sessions: TSSessions read FSessions;
@@ -5609,8 +5608,8 @@ begin
             if (not TryStrToInt64(DataSet.FieldByName('Data_free').AsString, TSBaseTable(Table[Index]).FUnusedSize)) then TSBaseTable(Table[Index]).FUnusedSize := 0;
             if (not TryStrToInt64(DataSet.FieldByName('Auto_increment').AsString, TSBaseTable(Table[Index]).FAutoIncrement)) then TSBaseTable(Table[Index]).FAutoIncrement := 0;
             if (not TryStrToDateTime(DataSet.FieldByName('Create_time').AsString, TSBaseTable(Table[Index]).FCreated)) then TSBaseTable(Table[Index]).FCreated := 0;
-            if (not TryStrToDateTime(DataSet.FieldByName('Update_time').AsString, TSBaseTable(Table[Index]).FChecked)) then TSBaseTable(Table[Index]).FChecked := 0;
-            if (not TryStrToDateTime(DataSet.FieldByName('Check_time').AsString, TSBaseTable(Table[Index]).FUpdated)) then TSBaseTable(Table[Index]).FUpdated := 0;
+            if (not TryStrToDateTime(DataSet.FieldByName('Update_time').AsString, TSBaseTable(Table[Index]).FUpdated)) then TSBaseTable(Table[Index]).FUpdated := 0;
+            if (not TryStrToDateTime(DataSet.FieldByName('Check_time').AsString, TSBaseTable(Table[Index]).FChecked)) then TSBaseTable(Table[Index]).FChecked := 0;
             TSBaseTable(Table[Index]).FComment := DataSet.FieldByName('Comment').AsString;
           end
           else
@@ -5625,8 +5624,8 @@ begin
             if (not TryStrToInt64(DataSet.FieldByName('DATA_FREE').AsString, TSBaseTable(Table[Index]).FUnusedSize)) then TSBaseTable(Table[Index]).FUnusedSize := 0;
             if (not TryStrToInt64(DataSet.FieldByName('AUTO_INCREMENT').AsString, TSBaseTable(Table[Index]).FAutoIncrement)) then TSBaseTable(Table[Index]).FAutoIncrement := 0;
             if (not TryStrToDateTime(DataSet.FieldByName('CREATE_TIME').AsString, TSBaseTable(Table[Index]).FCreated)) then TSBaseTable(Table[Index]).FCreated := 0;
-            if (not TryStrToDateTime(DataSet.FieldByName('UPDATE_TIME').AsString, TSBaseTable(Table[Index]).FChecked)) then TSBaseTable(Table[Index]).FChecked := 0;
-            if (not TryStrToDateTime(DataSet.FieldByName('CHECK_TIME').AsString, TSBaseTable(Table[Index]).FUpdated)) then TSBaseTable(Table[Index]).FUpdated := 0;
+            if (not TryStrToDateTime(DataSet.FieldByName('UPDATE_TIME').AsString, TSBaseTable(Table[Index]).FUpdated)) then TSBaseTable(Table[Index]).FUpdated := 0;
+            if (not TryStrToDateTime(DataSet.FieldByName('CHECK_TIME').AsString, TSBaseTable(Table[Index]).FChecked)) then TSBaseTable(Table[Index]).FChecked := 0;
             if (Assigned(DataSet.FindField('TABLE_COLLATION'))) then
               TSBaseTable(Table[Index]).FCollation := DataSet.FieldByName('TABLE_COLLATION').AsString;
             try
@@ -10677,6 +10676,12 @@ begin
       else
         raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Name']);
 
+      // Debug 2017-02-08
+      if (Name = '') then
+        SendToDeveloper('Empty User name' + #13#10
+          + DataSet.CommandText + #13#10
+          + Session.Connection.ServerVersionStr);
+
       if (InsertIndex(Name, Index)) then
         if (Index < Count) then
           Insert(Index, TSUser.Create(Self, Name))
@@ -11732,17 +11737,22 @@ var
 begin
   Assert(not Assigned(FUser));
 
-  FUser := TSUser.Create(Users);
-
-  Result := FUser.Build(DataSet);
-  FUser.FOriginalName := FUser.Name;
-
-  if (Users.InsertIndex(FUser.Name, Index)) then
-    Users.Add(FUser)
-  else if (Index >= 0) then
+  if (Connection.ErrorCode = ER_OPTION_PREVENTS_STATEMENT) then
+    Result := True
+  else
   begin
-    Users[Index].Free();
-    Users.Items[Index] := FUser;
+    FUser := TSUser.Create(Users);
+
+    Result := FUser.Build(DataSet);
+    FUser.FOriginalName := FUser.Name;
+
+    if (Users.InsertIndex(FUser.Name, Index)) then
+      Users.Add(FUser)
+    else if (Index >= 0) then
+    begin
+      Users[Index].Free();
+      Users.Items[Index] := FUser;
+    end;
   end;
 end;
 
@@ -12944,7 +12954,7 @@ begin
   end;
 end;
 
-procedure TSSession.SendEvent(const EventType: TSSession.TEvent.TEventType; const Sender: TObject; const Items: TSItems = nil; const Item: TSItem = nil);
+procedure TSSession.SendEvent(const EventType: TSSession.TEvent.TEventType; const Sender: TObject = nil; const Items: TSItems = nil; const Item: TSItem = nil);
 var
   Event: TEvent;
   Start: Int64;
@@ -12966,7 +12976,7 @@ begin
     SendToDeveloper('EventType: ' + IntToStr(Ord(EventType)) + ', '
       + 'Sender: ' + Sender.ClassName + ', '
       + 'Items: ' + Items.ClassName + ', '
-      + 'Count: ' + IntToStr(Items.Count)
+      + 'Count: ' + IntToStr(Items.Count) + ', '
       + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s, '
       + 'Receiver: ' + IntToStr(Length(EventProcs)));
 end;
@@ -13208,8 +13218,6 @@ begin
           else
             Users.Invalidate();
         end;
-        if (ErrorCode = ER_OPTION_PREVENTS_STATEMENT) then
-          Result := True;
       end
       else if (SQLParseKeyword(Parse, 'PLUGINS')) then
         Result := Plugins.Build(DataSet, False, not SQLParseEnd(Parse))
@@ -13299,16 +13307,6 @@ begin
       Databases[I].FreeDesktop();
 
   FCreateDesktop := ACreateDesktop;
-end;
-
-procedure TSSession.SendEvent(const EventType: TSSession.TEvent.TEventType);
-var
-  Event: TEvent;
-begin
-  Event := TEvent.Create(Self);
-  Event.EventType := EventType;
-  DoSendEvent(Event);
-  Event.Free();
 end;
 
 function TSSession.TableName(const Name: string): string;

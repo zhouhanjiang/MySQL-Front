@@ -550,6 +550,15 @@ begin
     end;
 
 
+    if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
+      raise EImportEx.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
+      + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
+      + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
+      + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
+      + 'Import.Terminated: ' + BoolToStr(Assigned(Import) and Import.Terminated, True) + #13#10
+      + 'Progress: ' + Progress);
+
+
     if (Assigned(Import)) then
     begin
       Progress := Progress + 'g';
@@ -567,6 +576,14 @@ begin
       EnableMenuItem(GetSystemMenu(Handle, FALSE), SC_CLOSE, MF_BYCOMMAND or MF_ENABLED)
     else
       EnableMenuItem(GetSystemMenu(Handle, FALSE), SC_CLOSE, MF_BYCOMMAND or MF_DISABLED);
+
+    if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
+      raise EImportEx.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
+      + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
+      + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
+      + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
+      + 'Import.Terminated: ' + BoolToStr(Assigned(Import) and Import.Terminated, True) + #13#10
+      + 'Progress: ' + Progress);
 
     Progress := Progress + 'i';
   end;

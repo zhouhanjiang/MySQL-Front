@@ -1,3 +1,6 @@
+#define RT_RCDATA 10
+#define RT_MANIFEST 24
+
 1 VERSIONINFO
   FILEVERSION {BuildVerMajor},{BuildVerMinor},{BuildVerPatch},{BuildVerBuild}
   PRODUCTVERSION {BuildVerMajor},{BuildVerMinor},{BuildVerPatch},{BuildVerBuild}
@@ -18,12 +21,10 @@
     END
   END
 
-#define RT_MANIFEST 24
-
 1 RT_MANIFEST "{BuildTempPath}\\MySQLFront.manifest"
 
-Highligther FILE "{BuildSourcePath}\\BCEditor\\Resource\\Highlighter.json"
-Colors FILE "{BuildSourcePath}\\BCEditor\\Resource\\Colors.json"
+Highlighter RT_RCDATA "{BuildSourcePath}\\BCEditor\\Resource\\Highlighter.json"
+Colors RT_RCDATA "{BuildSourcePath}\\BCEditor\\Resource\\Colors.json"
 
 MAINICON ICON "{BuildImagesPath}\\MAINICON.ico"
 10000 ICON "{BuildImagesPath}\\Blank.ico"

@@ -2683,8 +2683,11 @@ begin
           // Debug 2016-12-19
           if (not Assigned(NewTable.KeyByName(TSKey(Items[I]).Name))) then
             raise ERangeError.Create('Key "' + TSKey(Items[I]).Name + '" not found!' + #13#10
-              + 'Table SQL:' + #13#10
+              + 'Count: ' + IntToStr(Items.Count) + #13#10
+              + 'Table.Source:' + #13#10
               + Table.Source);
+          // 2017-02-08 occurred with "" key name - but inside the CREATE TABLE, there was a primary key. :-/
+
 
           NewTable.Keys.Delete(NewTable.KeyByName(TSKey(Items[I]).Name));
           Items[I] := nil;
@@ -7581,6 +7584,11 @@ begin
   if ((URI.Param['view'] = Null) and (URI.Table <> '') and (URI.Param['objecttype'] <> 'trigger')) then
     URI.Param['view'] := ViewToParam(LastTableView);
 
+  // Debug 2017-02-08
+  Assert(URI.Param['view'] <> 'objectsearch',
+    'Address: ' + URI.Address + #13#10
+    + 'LastTableView: ' + IntToStr(Ord(LastTableView)));
+
   LockWindowUpdate(FNavigator.Handle);
   ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);
   ScrollPos.Vert := GetScrollPos(FNavigator.Handle, SB_VERT);
@@ -10592,10 +10600,18 @@ begin
       lkTable:
         case (SortRec^.ColumnIndex) of
           0:
-            if (SortRec^.Order = 0) then
-              Compare := Sign(TSItem(Item1.Data).Index - TSItem(Item2.Data).Index)
-            else
-              Compare := lstrcmpi(PChar(TSItem(Item1.Data).Caption), PChar(TSItem(Item2.Data).Caption));
+            begin
+              // Debug 2017-02-08
+              Assert(TObject(Item1.Data) is TSItem,
+                'ClassType: ' + TObject(Item1.Data).ClassName);
+              Assert(TObject(Item2.Data) is TSItem,
+                'ClassType: ' + TObject(Item2.Data).ClassName);
+
+              if (SortRec^.Order = 0) then
+                Compare := Sign(TSItem(Item1.Data).Index - TSItem(Item2.Data).Index)
+              else
+                Compare := lstrcmpi(PChar(TSItem(Item1.Data).Caption), PChar(TSItem(Item2.Data).Caption));
+            end;
           1:
             Compare := lstrcmpi(PChar(Item1.SubItems[0]), PChar(Item2.SubItems[0]));
           2:
@@ -12068,6 +12084,7 @@ var
               ListView.Items.Delete(I);
               ProfilingPoint(23);
               Inc(Changes);
+              break;
             end;
 
           ProfilingPoint(24);
@@ -12125,10 +12142,7 @@ var
               Count := 0;
               for I := 0 to TSTriggers(SItems).Count - 1 do
                 if (TSTriggers(SItems)[I].Table = TObject(ListView.Tag)) then
-                begin
-                  InsertOrUpdateItem(Kind, GroupID, TSTriggers(SItems)[I]);
                   Inc(Count);
-                end;
               SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(797) + ' (' + IntToStr(Count) + ')');
             end;
           giProcesses:
@@ -12233,7 +12247,10 @@ var
       etItemDeleted:
         for I := ListView.Items.Count - 1 downto 0 do
           if (ListView.Items[I].Data = Event.Item) then
+          begin
             ListView.Items.Delete(I);
+            break;
+          end;
     end;
   end;
 
@@ -12355,6 +12372,7 @@ begin
     ListViewHeaderUpdate(ListView);
 
     if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
+      if ((Finish - Start) div Frequency > 1) then
       begin
         S := 'ListViewUpdate - '
           + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
@@ -14777,10 +14795,14 @@ var
   Table: TSTable;
   TempActiveControl: TWinControl;
   URI: TUURI;
+  Start3: Int64;
+  Finish3: Int64;
 begin
   LeftMousePressed := False;
 
   TempActiveControl := Window.ActiveControl;
+
+  if (not QueryPerformanceCounter(Start3)) then Start3 := 0;
 
   if (Assigned(Event)) then
   begin
@@ -15060,6 +15082,22 @@ begin
       TimeMonitor.Append(S, ttDebug);
     end;
   ProfilingReset();
+
+  if ((Start3 > 0) and QueryPerformanceCounter(Finish3) and QueryPerformanceFrequency(Frequency)) then
+    if ((Finish3 - Start3) div Frequency > 1) then
+    begin
+      S := 'SessionUpdate3 - '
+        + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
+      if (Assigned(Event.Items)) then
+        S := S
+          + 'Items: ' + Event.Items.ClassName + ', '
+          + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
+      if (Event.Item is TSTable) then
+        S := S
+          + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
+      S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s' + #13#10;
+      TimeMonitor.Append(S, ttDebug);
+    end;
 end;
 
 procedure TFSession.SetCurrentAddress(const AAddress: string);
@@ -16248,12 +16286,9 @@ end;
 
 procedure TFSession.UMActivateDBGrid(var Msg: TMessage);
 begin
-  if (TWinControl(Msg.LParam) = ActiveDBGrid) then
+  if ((TWinControl(Msg.LParam) = ActiveDBGrid) and ActiveDBGrid.Visible) then
   begin
-    // Debug 2017-02-07
-    Assert(ActiveDBGrid.Visible);
-
-    Window.ActiveControl := TWinControl(Msg.LParam);
+    Window.ActiveControl := ActiveDBGrid;
     ActiveDBGrid.EditorMode := False;
   end;
 end;

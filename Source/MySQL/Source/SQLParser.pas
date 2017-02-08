@@ -7216,6 +7216,7 @@ implementation {***************************************************************}
 uses
   Windows,
   Classes, SysUtils, StrUtils, SysConst, Math,
+uDeveloper,
   SQLUtils;
 
 resourcestring
@@ -19032,7 +19033,9 @@ begin
     else
       IdentList := 0;
 
-    if (not ErrorFound and (adsCondition in AllowedDeclareStmts) and IsTag(kiCONDITION, kiFOR)) then
+    if (ErrorFound) then
+      Result := 0
+    else if ((adsCondition in AllowedDeclareStmts) and IsTag(kiCONDITION, kiFOR)) then
       Result := ParseDeclareConditionStmt(StmtTag, IdentList)
     else if (not ErrorFound and (adsCursor in AllowedDeclareStmts) and IsTag(kiCURSOR, kiFOR)) then
       Result := ParseDeclareCursorStmt(StmtTag, IdentList)
@@ -24050,6 +24053,10 @@ begin
 end;
 
 function TSQLParser.ParseSQL(const SQL: PChar; const Length: Integer; const UseCompletionList: Boolean = False): Boolean;
+var
+  Start: Int64;
+  Finish: Int64;
+  Frequency: Int64;
 begin
   Clear();
 
@@ -24057,7 +24064,13 @@ begin
   CompletionList.SetActive(UseCompletionList);
 
   try
+    if (not QueryPerformanceCounter(Start)) then Start := 0;
+
     FRoot := ParseRoot();
+
+    if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
+      if ((Finish - Start) div Frequency > 1) then
+        SendToDeveloper(Parse.SQL);
   except
     on E: Exception do
       raise Exception.Create(E.Message + #13#10

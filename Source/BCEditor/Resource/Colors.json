@@ -3,7 +3,6 @@
       "Editor": {
          "Colors": {
             "Background": "clWindow",
-            "ActiveLineBackground": "$C0FFFF",
             "CodeFoldingActiveLineBackground": "$C0FFFF",
             "CodeFoldingBackground": "clWindow",
             "CodeFoldingCollapsedLine": "$00CC9999",
@@ -21,11 +20,11 @@
             "CompletionProposalForeground": "clBlack",
             "CompletionProposalSelectedBackground": "clHighlight",
             "CompletionProposalSelectedText": "clHighlightText",
-            "LeftMarginActiveLineBackground": "$F4F4F4",
-            "LeftMarginBackground": "$F4F4F4",
+            "LeftMarginActiveLineBackground": "$F8F8F8",
+            "LeftMarginBackground": "$F8F8F8",
             "LeftMarginBorder": "clWindow",
-            "LeftMarginLineNumberLine": "$999999",
-            "LeftMarginLineNumbers": "$999999",
+            "LeftMarginLineNumberLine": "$EAD9BD",
+            "LeftMarginLineNumbers": "$E6C08D",
             "LeftMarginLineStateModified": "clYellow",
             "LeftMarginLineStateNormal": "clLime",
             "LeftMarginBookmarkPanel": "clWindow",
@@ -73,7 +72,7 @@
          },
          {
             "Name": "Identifier",
-            "Foreground": "$787878"
+            "Foreground": "$736243"
          },
          {
             "Name": "Keyword",
