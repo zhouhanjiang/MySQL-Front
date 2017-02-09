@@ -912,6 +912,7 @@ type
     PResultHeight: Integer;
     ProcessesListView: TListView;
     QuickAccessListView: TListView;
+    SBlobDebug: TSplitter;
     ServerListView: TListView;
     ShellLink: TJamShellLink;
     SplitColor: TColor;
@@ -2377,6 +2378,9 @@ begin
     if ((URI.Param['view'] = 'browser') and (URI.Table = '')) then
       raise ERangeError.Create('AAddress: ' + AAddress + #13#10
         + 'URI.Address: ' + URI.Address);
+    if ((URI.Param['view'] = 'objectsearch') and (URI.Param['text'] = Null)) then
+      raise ERangeError.Create('AAddress: ' + AAddress + #13#10
+        + 'URI.Address: ' + URI.Address);
     URI.Free();
 
     if (not FSession.Session.Connection.InUse()) then
@@ -2683,10 +2687,12 @@ begin
           // Debug 2016-12-19
           if (not Assigned(NewTable.KeyByName(TSKey(Items[I]).Name))) then
             raise ERangeError.Create('Key "' + TSKey(Items[I]).Name + '" not found!' + #13#10
+              + 'I: ' + IntToStr(I) + #13#10
               + 'Count: ' + IntToStr(Items.Count) + #13#10
-              + 'Table.Source:' + #13#10
               + Table.Source);
           // 2017-02-08 occurred with "" key name - but inside the CREATE TABLE, there was a primary key. :-/
+          // 2017-02-08 occurred with "ProdiDiktiID" key name - but inside the CREATE TABLE, there was this key. :-/
+          //   Count: 53 ... did the user try to all fields and keys?
 
 
           NewTable.Keys.Delete(NewTable.KeyByName(TSKey(Items[I]).Name));
@@ -2951,7 +2957,7 @@ begin
     end;
 
     LastFNavigatorSelected := FNavigator.Selected;
-    if (CurrentClassIndex in [ciBaseTable, ciView, ciSystemView]) then
+    if ((CurrentClassIndex in [ciBaseTable, ciView, ciSystemView]) and (View in [vObjects, vBrowser])) then
       LastTableView := View;
     URI := TUURI.Create(CurrentAddress);
     if (URI.Database <> '') then
@@ -5093,6 +5099,7 @@ begin
   ObjectSearchListView := nil;
   ProcessesListView := nil;
   QuickAccessListView := nil;
+  SBlobDebug := SBlob;
   ServerListView := nil;
   UsersListView := nil;
   VariablesListView := nil;
@@ -6660,10 +6667,8 @@ end;
 procedure TFSession.DBGridMouseMove(Sender: TObject; Shift: TShiftState; X,
   Y: Integer);
 var
-  ColumnX: Integer;
   DBGrid: TMySQLDBGrid;
   GridCoord: TGridCoord;
-  I: Integer;
 begin
   inherited;
 
@@ -6678,23 +6683,14 @@ begin
 
     if ((GridCoord.X >= 0) and (GridCoord.Y = 0)) then
     begin
-      MGridHeaderColumn := nil;
-      ColumnX := 0;
-      for I := DBGrid.LeftCol to DBGrid.Columns.Count - 1 do
-      begin
-        if ((ColumnX <= X) and (X <= ColumnX + DBGrid.Columns[I].Width)) then
-          MGridHeaderColumn := DBGrid.Columns[I];
-
-        Inc(ColumnX, DBGrid.Columns[I].Width);
-        if (dgRowLines in DBGrid.Options) then
-          Inc(ColumnX, DBGrid.GridLineWidth);
-      end;
-
-
+      MGridHeaderColumn := DBGrid.Columns[GridCoord.X];
       DBGrid.PopupMenu := MGridHeader;
     end
     else
+    begin
+      MGridHeaderColumn := nil;
       DBGrid.PopupMenu := MGrid;
+    end;
   end;
 end;
 
@@ -7584,11 +7580,6 @@ begin
   if ((URI.Param['view'] = Null) and (URI.Table <> '') and (URI.Param['objecttype'] <> 'trigger')) then
     URI.Param['view'] := ViewToParam(LastTableView);
 
-  // Debug 2017-02-08
-  Assert(URI.Param['view'] <> 'objectsearch',
-    'Address: ' + URI.Address + #13#10
-    + 'LastTableView: ' + IntToStr(Ord(LastTableView)));
-
   LockWindowUpdate(FNavigator.Handle);
   ScrollPos.Horz := GetScrollPos(FNavigator.Handle, SB_HORZ);
   ScrollPos.Vert := GetScrollPos(FNavigator.Handle, SB_VERT);
@@ -8061,7 +8052,6 @@ begin
 end;
 
 procedure TFSession.FNavigatorKeyDown(Sender: TObject; var Key: Word;
-
   Shift: TShiftState);
 begin
   if (not TTreeView(Sender).IsEditing()) then
@@ -8076,7 +8066,7 @@ begin
       if (not CheckWin32Version(6, 1)) then
         NavigatorElapse := 500
       else
-        FNavigatorIgnoreChange := True;
+        FNavigatorIgnoreChange := not (Key in [VK_SHIFT, VK_CONTROL, VK_MENU]);
   end;
 
   FNavigatorKeyDownNode := FNavigator.Selected;
@@ -9013,7 +9003,13 @@ var
   S: string;
 begin
   // Debug 2017-02-05
-  Assert(Assigned(SBlob));
+  Assert(Assigned(SBlob),
+    'SBlob = SBlobDebug: ' + BoolToStr(SBlob = SBlobDebug, True));
+  // 2017-02-08:
+  // aDDeleteExecute - start - SBlob: True
+  // # 2017-02-08 15:39:58
+  // DROP TABLE `mixer`.`extranet`;
+  // aDDeleteExecute - end - SBlob: True
 
   if (not QueryPerformanceCounter(Start)) then Start := 0;
 
@@ -10151,19 +10147,20 @@ var
   Content: string;
   Len: Integer;
 begin
-  try
-    EmptyClipboard();
+  if (OpenClipboard(Handle)) then
+    try
+      EmptyClipboard();
 
-    Content := Session.Connection.EscapeIdentifier(MGridHeaderColumn.DisplayName);
+      Content := Session.Connection.EscapeIdentifier(MGridHeaderColumn.DisplayName);
 
-    Len := Length(Content);
-    ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Len + 1) * SizeOf(Content[1]));
-    Move(PChar(Content)^, GlobalLock(ClipboardData)^, (Len + 1) * SizeOf(Content[1]));
-    SetClipboardData(CF_UNICODETEXT, ClipboardData);
-    GlobalUnlock(ClipboardData);
-  finally
-    CloseClipboard();
-  end;
+      Len := Length(Content);
+      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Len + 1) * SizeOf(Content[1]));
+      Move(PChar(Content)^, GlobalLock(ClipboardData)^, (Len + 1) * SizeOf(Content[1]));
+      SetClipboardData(CF_UNICODETEXT, ClipboardData);
+      GlobalUnlock(ClipboardData);
+    finally
+      CloseClipboard();
+    end;
 end;
 
 procedure TFSession.ghmGotoClick(Sender: TObject);
@@ -13931,6 +13928,7 @@ begin
     // Debug 2016-12-27
     if (not Assigned(SBlob)) then
       raise ERangeError.Create('Destroying: ' + BoolToStr(csDestroying in ComponentState, True) + #13#10
+        + 'SBlob = SBlobDebug: ' + BoolToStr(SBlob = SBlobDebug, True) + #13#10
         + 'Assigned(PBlob): ' + BoolToStr(Assigned(PBlob), True));
       // 2017-01-04: DROP TABLE was the last stmt
       // 2017-01-10: DROP TABLE (generated by MF) was the last stmt
@@ -14865,7 +14863,7 @@ begin
     if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
       if ((Finish - Start) div Frequency > 1) then
       begin
-        S := 'SessionUpdate0 - '
+        S := 'SessionUpdate1 - '
           + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
         if (Assigned(Event.Items)) then
           S := S
@@ -14881,9 +14879,51 @@ begin
     ProfilingReset();
 
     if (Event.Items is TSItemSearch) then
-      ListViewUpdate(Event, ObjectSearchListView)
+    begin
+      if (not QueryPerformanceCounter(Start)) then Start := 0;
+
+      ListViewUpdate(Event, ObjectSearchListView);
+
+      if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
+        if ((Finish - Start) div Frequency > 1) then
+        begin
+          S := 'SessionUpdate2 - '
+            + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
+          if (Assigned(Event.Items)) then
+            S := S
+              + 'Sender: ' + Event.Sender.ClassName + ', '
+              + 'ClassType: ' + Event.Items.ClassName + ', '
+              + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
+          if (Event.Item is TSTable) then
+            S := S
+              + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
+          S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s' + #13#10;
+          TimeMonitor.Append(S, ttDebug);
+        end;
+    end
     else if (Event.Items is TSQuickAccess) then
-      ListViewUpdate(Event, QuickAccessListView)
+    begin
+      if (not QueryPerformanceCounter(Start)) then Start := 0;
+
+      ListViewUpdate(Event, QuickAccessListView);
+
+      if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
+        if ((Finish - Start) div Frequency > 1) then
+        begin
+          S := 'SessionUpdate3 - '
+            + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
+          if (Assigned(Event.Items)) then
+            S := S
+              + 'Sender: ' + Event.Sender.ClassName + ', '
+              + 'ClassType: ' + Event.Items.ClassName + ', '
+              + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
+          if (Event.Item is TSTable) then
+            S := S
+              + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
+          S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s' + #13#10;
+          TimeMonitor.Append(S, ttDebug);
+        end;
+    end
     else
     begin
       if (not QueryPerformanceCounter(Start)) then Start := 0;
@@ -14894,7 +14934,7 @@ begin
       if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
         if ((Finish - Start) div Frequency > 1) then
         begin
-          S := 'SessionUpdateA - '
+          S := 'SessionUpdate4 - '
             + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
           if (Assigned(Event.Items)) then
             S := S
@@ -14970,7 +15010,7 @@ begin
       if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
         if ((Finish - Start) div Frequency > 1) then
         begin
-          S := 'SessionUpdateB - '
+          S := 'SessionUpdate5 - '
             + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', '
             + 'ListViewUpdateCount: ' + IntToStr(ListViewUpdateCount) + ', ';
           if (Assigned(Event.Items)) then
@@ -15022,7 +15062,7 @@ begin
         if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
           if ((Finish - Start) div Frequency > 1) then
           begin
-            S := 'SessionUpdate - '
+            S := 'SessionUpdate6 - '
               + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
             if (Assigned(Event.Items)) then
               S := S
@@ -15068,7 +15108,7 @@ begin
   if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
     if ((Finish - Start) div Frequency > 1) then
     begin
-      S := 'SessionUpdate2 - '
+      S := 'SessionUpdate7 - '
         + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
       if (Assigned(Event.Items)) then
         S := S
@@ -15086,7 +15126,7 @@ begin
   if ((Start3 > 0) and QueryPerformanceCounter(Finish3) and QueryPerformanceFrequency(Frequency)) then
     if ((Finish3 - Start3) div Frequency > 1) then
     begin
-      S := 'SessionUpdate3 - '
+      S := 'SessionUpdate - '
         + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
       if (Assigned(Event.Items)) then
         S := S
@@ -16288,6 +16328,9 @@ procedure TFSession.UMActivateDBGrid(var Msg: TMessage);
 begin
   if ((TWinControl(Msg.LParam) = ActiveDBGrid) and ActiveDBGrid.Visible) then
   begin
+    // Debug 2017-02-08
+    Assert(ActiveDBGrid.Enabled);
+
     Window.ActiveControl := ActiveDBGrid;
     ActiveDBGrid.EditorMode := False;
   end;
@@ -16597,14 +16640,15 @@ begin
       if (Assigned(SQLEditors[View]) and SQLEditors[View].SynMemo.Modified and (SQLEditors[View].Filename <> '')) then
       begin
         // Debug 2016-12-06
-        if (not (View in [vEditor, vEditor2, vEditor3])) then
-          raise ERangeError.Create(SRangeError);
+        Assert(View in [vEditor, vEditor2, vEditor3]);
 
         Self.View := View;
 
         // Debug 2017-01-15
-        if (not (Self.View in [vEditor, vEditor2, vEditor3])) then
-          raise ERangeError.Create(SRangeError);
+        Assert(Self.View in [vEditor, vEditor2, vEditor3],
+          'View: ' + IntToStr(Ord(View)) + #13#10
+            + 'Self.View: ' + IntToStr(Ord(Self.View)) + #13#10
+            + 'CurrentAddress: ' + CurrentAddress);
 
         Window.ActiveControl := ActiveSynMemo;
         case (MsgBox(Preferences.LoadStr(584, ExtractFileName(SQLEditors[View].Filename)), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of

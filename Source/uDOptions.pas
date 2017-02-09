@@ -306,14 +306,14 @@ var
   CheckOnlineVersionThread: TCheckOnlineVersionThread;
   I: Integer;
 begin
-  if ((Preferences.ObsoleteVersion <= 0) and (OnlineVersion < 0)) then
+  if ((ObsoleteVersion < 0) and (OnlineVersion < 0)) then
   begin
     CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
     CheckOnlineVersionThread.Execute();
     CheckOnlineVersionThread.Free();
   end;
 
-  if ((Preferences.ObsoleteVersion > 0) or (OnlineVersion > Preferences.Version)) then
+  if ((ObsoleteVersion > 0) or (OnlineVersion > ProgramVersion)) then
   begin
     MsgBox('An update of ' + LoadStr(1000) + ' is available. Please install that update first.', Preferences.LoadStr(45), MB_OK or MB_ICONERROR);
     PostMessage(Application.MainForm.Handle, UM_ONLINE_UPDATE_FOUND, 0, 0);

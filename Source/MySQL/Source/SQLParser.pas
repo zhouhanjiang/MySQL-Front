@@ -6684,7 +6684,6 @@ type
     kiYEAR_MONTH,
     kiZEROFILL: Integer;
 
-    AllowedDeclareStmts: set of (adsVariable, adsCondition, adsCursor, adsHandler);
     AllowedMySQLVersion: Integer;
     CharsetList: TWordList;
     Commands: TFormatBuffer;
@@ -6762,7 +6761,6 @@ type
     procedure FormatCreateTableStmtField(const Nodes: TCreateTableStmt.TField.TNodes);
     procedure FormatCreateTableStmtKey(const Nodes: TCreateTableStmt.TKey.TNodes);
     procedure FormatCreateTableStmtKeyColumn(const Nodes: TCreateTableStmt.TKeyColumn.TNodes);
-    procedure FormatCreateTableStmtPartition(const Nodes: TCreateTableStmt.TPartition.TNodes);
     procedure FormatCreateTableStmtPartitionOptions(const Nodes: TCreateTableStmt.TPartitionOptions.TNodes);
     procedure FormatCreateTableStmtReference(const Nodes: TCreateTableStmt.TReference.TNodes);
     procedure FormatCreateTriggerStmt(const Nodes: TCreateTriggerStmt.TNodes);
@@ -6994,6 +6992,7 @@ type
     function ParseLockStmtItem(): TOffset;
     function ParseLoopStmt(const BeginLabel: TOffset): TOffset;
     function ParseMatchFunc(): TOffset;
+    function ParseMaxValue(): TOffset;
     function ParseOpenStmt(): TOffset;
     function ParseOptimizeTableStmt(): TOffset;
     function ParsePartitionIdent(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
@@ -12638,24 +12637,6 @@ begin
   FormatNode(Nodes.SortTag, stSpaceBefore);
 end;
 
-procedure TSQLParser.FormatCreateTableStmtPartition(const Nodes: TCreateTableStmt.TPartition.TNodes);
-begin
-  FormatNode(Nodes.AddTag, stSpaceAfter);
-  FormatNode(Nodes.PartitionTag);
-  FormatNode(Nodes.NameIdent, stSpaceBefore);
-  Commands.IncreaseIndent();
-  FormatNode(Nodes.Values.Tag, stReturnBefore);
-  FormatNode(Nodes.Values.Value, stSpaceBefore);
-  FormatNode(Nodes.EngineValue, stReturnBefore);
-  FormatNode(Nodes.CommentValue, stReturnBefore);
-  FormatNode(Nodes.DataDirectoryValue, stReturnBefore);
-  FormatNode(Nodes.IndexDirectoryValue, stReturnBefore);
-  FormatNode(Nodes.MaxRowsValue, stReturnBefore);
-  FormatNode(Nodes.MinRowsValue, stReturnBefore);
-  FormatNode(Nodes.SubPartitionList, stReturnBefore);
-  Commands.DecreaseIndent();
-end;
-
 procedure TSQLParser.FormatCreateTableStmtPartitionOptions(const Nodes: TCreateTableStmt.TPartitionOptions.TNodes);
 begin
   Commands.IncreaseIndent();
@@ -13517,7 +13498,7 @@ begin
       ntCreateTableStmtForeignKey: DefaultFormatNode(@TCreateTableStmt.PForeignKey(Node)^.Nodes, SizeOf(TCreateTableStmt.TForeignKey.TNodes));
       ntCreateTableStmtKey: FormatCreateTableStmtKey(TCreateTableStmt.PKey(Node)^.Nodes);
       ntCreateTableStmtKeyColumn: FormatCreateTableStmtKeyColumn(TCreateTableStmt.PKeyColumn(Node)^.Nodes);
-      ntCreateTableStmtPartition: FormatCreateTableStmtPartition(TCreateTableStmt.PPartition(Node)^.Nodes);
+      ntCreateTableStmtPartition: DefaultFormatNode(@TCreateTableStmt.PPartition(Node)^.Nodes, SizeOf(TCreateTableStmt.TPartition.TNodes));
       ntCreateTableStmtPartitionOptions: FormatCreateTableStmtPartitionOptions(TCreateTableStmt.PPartitionOptions(Node)^.Nodes);
       ntCreateTableStmtReference: FormatCreateTableStmtReference(TCreateTableStmt.PReference(Node)^.Nodes);
       ntCreateTriggerStmt: FormatCreateTriggerStmt(PCreateTriggerStmt(Node)^.Nodes);
@@ -16679,12 +16660,8 @@ begin
     Nodes.BeginTag := ParseTag(kiBEGIN);
 
   if (not ErrorFound) then
-  begin
-    AllowedDeclareStmts := [adsVariable, adsCondition, adsCursor, adsHandler];
-
     if (not IsTag(kiEND)) then
       Nodes.StmtList := ParseList(False, ParsePL_SQLStmt, ttSemicolon);
-  end;
 
   if (not ErrorFound) then
     Nodes.EndTag := ParseTag(kiEND);
@@ -16703,8 +16680,8 @@ begin
 
   if (IsStmt(Result)) then
   begin
-
     // Change ditUnknown in ditCompoundVariable and set DefinerToken
+
     CompoundVariableToken := StmtPtr(Result)^.FirstToken;
     while (Assigned(CompoundVariableToken)) do
     begin
@@ -16739,6 +16716,7 @@ begin
 
 
     // Change ditUnknown to ditCursor and set DefinerToken
+
     CursorToken := StmtPtr(Result)^.FirstToken;
     while (Assigned(CursorToken)) do
     begin
@@ -17073,6 +17051,8 @@ begin
 
   if (IsStmt(Result)) then
   begin
+    // Change ditUnknown in ditRoutineParam and set DefinerToken
+
     ParamToken := StmtPtr(Result)^.FirstToken;
     while (Assigned(ParamToken)) do
     begin
@@ -18004,7 +17984,10 @@ begin
         begin
           FillChar(ValueNodes, SizeOf(ValueNodes), 0);
           ValueNodes.Ident := ParseTag(kiLESS, kiTHAN);
-          ValueNodes.Expr := ParseList(True, ParseExpr);
+          if (IsSymbol(ttOpenBracket) and IsNextTag(1, kiMAXVALUE)) then
+            ValueNodes.Expr := ParseSubArea(ParseMaxValue)
+          else
+            ValueNodes.Expr := ParseList(True, ParseExpr);
           Nodes.Values.Value := TValue.Create(Self, ValueNodes);
         end
         else if (IsTag(kiIN)) then
@@ -18917,9 +18900,6 @@ function TSQLParser.ParseDeclareCursorStmt(const StmtTag: TOffset; const IdentLi
 var
   Nodes: TDeclareCursorStmt.TNodes;
 begin
-  Exclude(AllowedDeclareStmts, adsVariable);
-  Exclude(AllowedDeclareStmts, adsCondition);
-
   FillChar(Nodes, SizeOf(Nodes), 0);
 
   Nodes.StmtTag := StmtTag;
@@ -18948,10 +18928,6 @@ function TSQLParser.ParseDeclareHandlerStmt(): TOffset;
 var
   Nodes: TDeclareHandlerStmt.TNodes;
 begin
-  Exclude(AllowedDeclareStmts, adsVariable);
-  Exclude(AllowedDeclareStmts, adsCondition);
-  Exclude(AllowedDeclareStmts, adsCursor);
-
   FillChar(Nodes, SizeOf(Nodes), 0);
 
   Nodes.StmtTag := ParseTag(kiDECLARE);
@@ -19019,10 +18995,9 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  if ((adsHandler in AllowedDeclareStmts)
-    and (IsTag(kiDECLARE, kiCONTINUE, kiHANDLER)
-      or IsTag(kiDECLARE, kiEXIT, kiHANDLER)
-      or IsTag(kiDECLARE, kiUNDO, kiHANDLER))) then
+  if (IsTag(kiDECLARE, kiCONTINUE, kiHANDLER)
+    or IsTag(kiDECLARE, kiEXIT, kiHANDLER)
+    or IsTag(kiDECLARE, kiUNDO, kiHANDLER)) then
     Result := ParseDeclareHandlerStmt()
   else
   begin
@@ -19035,11 +19010,11 @@ begin
 
     if (ErrorFound) then
       Result := 0
-    else if ((adsCondition in AllowedDeclareStmts) and IsTag(kiCONDITION, kiFOR)) then
+    else if (IsTag(kiCONDITION, kiFOR)) then
       Result := ParseDeclareConditionStmt(StmtTag, IdentList)
-    else if (not ErrorFound and (adsCursor in AllowedDeclareStmts) and IsTag(kiCURSOR, kiFOR)) then
+    else if (not ErrorFound and IsTag(kiCURSOR, kiFOR)) then
       Result := ParseDeclareCursorStmt(StmtTag, IdentList)
-    else if (adsVariable in AllowedDeclareStmts) then
+    else
     begin
       Nodes.StmtTag := StmtTag;
 
@@ -19056,6 +19031,7 @@ begin
 
 
       // change FDbIdentType to ditCompoundVariabel for IdentList elements
+
       if (IsRange(IdentList)) then
       begin
         Token := RangePtr(IdentList)^.FirstToken;
@@ -19071,9 +19047,7 @@ begin
             Token := Token^.NextToken;
         end;
       end;
-    end
-    else
-      Result := SetError(PE_UnexpectedStmt, StmtTag);
+    end;
   end;
 end;
 
@@ -21533,6 +21507,11 @@ begin
   Result := ParseDbIdent(ditProcedure);
 end;
 
+function TSQLParser.ParseMaxValue(): TOffset;
+begin
+  Result := ParseTag(kiMAXVALUE);
+end;
+
 function TSQLParser.ParseOpenStmt(): TOffset;
 var
   Nodes: TOpenStmt.TNodes;
@@ -22016,6 +21995,9 @@ function TSQLParser.ParseRoot(): TOffset;
 var
   FirstTokenAll: TOffset;
   StmtList: TOffset;
+  Start: Int64;
+  Finish: Int64;
+  Frequency: Int64;
 begin
   if (not AnsiQuotes) then
   begin
@@ -22039,7 +22021,13 @@ begin
 
   CurrentToken := GetToken(0); // Cache for speeding
 
+  if (not QueryPerformanceCounter(Start)) then Start := 0;
+
   StmtList := ParseList(False, ParseStmt, ttSemicolon, True, True);
+
+  if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
+    if ((Finish - Start) div Frequency > 1) then
+      SendToDeveloper(Parse.SQL);
 
   Result := TRoot.Create(Self, FirstTokenAll, StmtList);
 
@@ -24053,10 +24041,6 @@ begin
 end;
 
 function TSQLParser.ParseSQL(const SQL: PChar; const Length: Integer; const UseCompletionList: Boolean = False): Boolean;
-var
-  Start: Int64;
-  Finish: Int64;
-  Frequency: Int64;
 begin
   Clear();
 
@@ -24064,13 +24048,7 @@ begin
   CompletionList.SetActive(UseCompletionList);
 
   try
-    if (not QueryPerformanceCounter(Start)) then Start := 0;
-
     FRoot := ParseRoot();
-
-    if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
-      if ((Finish - Start) div Frequency > 1) then
-        SendToDeveloper(Parse.SQL);
   except
     on E: Exception do
       raise Exception.Create(E.Message + #13#10
@@ -24150,349 +24128,344 @@ begin
   else
     BeginLabel := ParseBeginLabel();
 
-  if (InCompound and IsTag(kiDECLARE)) then
-    Result := ParseDeclareStmt()
+  if (IsTag(kiBEGIN)) then
+    if (not InPL_SQL) then
+      Result := SetError(PE_UnexpectedStmt)
+    else
+      Result := ParseCompoundStmt(BeginLabel)
+  else if (IsTag(kiLOOP)) then
+    if (not InPL_SQL) then
+      Result := SetError(PE_UnexpectedStmt)
+    else
+      Result := ParseLoopStmt(BeginLabel)
+  else if (IsTag(kiREPEAT)) then
+    if (not InPL_SQL) then
+      Result := SetError(PE_UnexpectedStmt)
+    else
+      Result := ParseRepeatStmt(BeginLabel)
+  else if (IsTag(kiWHILE)) then
+    if (not InPL_SQL) then
+      Result := SetError(PE_UnexpectedStmt)
+    else
+      Result := ParseWhileStmt(BeginLabel)
+  else if (BeginLabel > 0) then
+    if (EndOfStmt(CurrentToken)) then
+      Result := SetError(PE_IncompleteStmt)
+    else
+      Result := SetError(PE_UnexpectedToken)
+
+  else if (IsTag(kiALTER)) then
+    Result := ParseAlterStmt()
+  else if (IsTag(kiANALYZE, kiTABLE)) then
+    Result := ParseAnalyzeTableStmt()
+  else if (IsTag(kiBEGIN)) then
+    if (not InPL_SQL) then
+      Result := ParseBeginStmt()
+    else
+      Result := ParseCompoundStmt(0)
+  else if (IsTag(kiCALL)) then
+    Result := ParseCallStmt()
+  else if (IsTag(kiCASE)) then
+    if (not InPL_SQL) then
+      Result := SetError(PE_UnexpectedStmt)
+    else
+      Result := ParseCaseStmt()
+  else if (IsTag(kiCHANGE)) then
+    Result := ParseChangeMasterStmt()
+  else if (IsTag(kiCHECK, kiTABLE)) then
+    Result := ParseCheckTableStmt()
+  else if (IsTag(kiCHECKSUM, kiTABLE)) then
+    Result := ParseChecksumTableStmt()
+  else if (IsTag(kiCLOSE)) then
+    if (not InPL_SQL) then
+      Result := SetError(PE_UnexpectedStmt)
+    else
+      Result := ParseCloseStmt()
+  else if (IsTag(kiCOMMIT)) then
+    Result := ParseCommitStmt()
+  else if (IsTag(kiCREATE)) then
+    Result := ParseCreateStmt()
+  else if (IsTag(kiDEALLOCATE)) then
+    Result := ParseDeallocatePrepareStmt()
+  else if (IsTag(kiDECLARE)) then
+    if (not InCompound) then
+      SetError(PE_UnexpectedStmt)
+    else
+      Result := ParseDeclareStmt()
+  else if (IsTag(kiDELETE)) then
+    Result := ParseDeleteStmt()
+  else if (IsTag(kiDESC)) then
+    Result := ParseExplainStmt()
+  else if (IsTag(kiDESCRIBE)) then
+    Result := ParseExplainStmt()
+  else if (IsTag(kiDO)) then
+    Result := ParseDoStmt()
+  else if (IsTag(kiDROP, kiDATABASE)) then
+    Result := ParseDropDatabaseStmt()
+  else if (IsTag(kiDROP, kiEVENT)) then
+    Result := ParseDropEventStmt()
+  else if (IsTag(kiDROP, kiFUNCTION)) then
+    Result := ParseDropRoutineStmt(rtFunction)
+  else if (IsTag(kiDROP, kiINDEX)) then
+    Result := ParseDropIndexStmt()
+  else if (IsTag(kiDROP, kiPREPARE)) then
+    Result := ParseDeallocatePrepareStmt()
+  else if (IsTag(kiDROP, kiPROCEDURE)) then
+    Result := ParseDropRoutineStmt(rtProcedure)
+  else if (IsTag(kiDROP, kiSCHEMA)) then
+    Result := ParseDropDatabaseStmt()
+  else if (IsTag(kiDROP, kiSERVER)) then
+    Result := ParseDropServerStmt()
+  else if (IsTag(kiDROP, kiTEMPORARY, kiTABLE)
+    or IsTag(kiDROP, kiTABLE)) then
+    Result := ParseDropTableStmt()
+  else if (IsTag(kiDROP, kiTABLESPACE)) then
+    Result := ParseDropTablespaceStmt()
+  else if (IsTag(kiDROP, kiTRIGGER)) then
+    Result := ParseDropTriggerStmt()
+  else if (IsTag(kiDROP, kiUSER)) then
+    Result := ParseDropUserStmt()
+  else if (IsTag(kiDROP, kiVIEW)) then
+    Result := ParseDropViewStmt()
+  else if (IsTag(kiEXECUTE)) then
+    Result := ParseExecuteStmt()
+  else if (IsTag(kiEXPLAIN)) then
+    Result := ParseExplainStmt()
+  else if (IsTag(kiFETCH)) then
+    if (not InPL_SQL) then
+      Result := SetError(PE_UnexpectedStmt)
+    else
+      Result := ParseFetchStmt()
+  else if (IsTag(kiFLUSH)) then
+    Result := ParseFlushStmt()
+  else if (IsTag(kiGET, kiCURRENT, kiDIAGNOSTICS)
+    or IsTag(kiGET, kiSTACKED, kiDIAGNOSTICS)
+    or IsTag(kiGET, kiDIAGNOSTICS)) then
+    Result := ParseGetDiagnosticsStmt()
+  else if (IsTag(kiGRANT)) then
+    Result := ParseGrantStmt()
+  else if (IsTag(kiHELP)) then
+    Result := ParseHelpStmt()
+  else if (IsTag(kiIF)) then
+    if (not InPL_SQL) then
+      Result := SetError(PE_UnexpectedStmt)
+    else
+      Result := ParseIfStmt()
+  else if (IsTag(kiINSERT)) then
+    Result := ParseInsertStmt()
+  else if (IsTag(kiINSTALL, kiPLUGIN)) then
+    Result := ParseInstallPluginStmt()
+  else if (IsTag(kiITERATE)) then
+    if (not InPL_SQL) then
+      Result := SetError(PE_UnexpectedStmt)
+    else
+      Result := ParseIterateStmt()
+  else if (IsTag(kiKILL)) then
+    Result := ParseKillStmt()
+  else if (IsTag(kiLEAVE)) then
+    if (not InPL_SQL) then
+      Result := SetError(PE_UnexpectedStmt)
+    else
+      Result := ParseLeaveStmt()
+  else if (IsTag(kiLOAD)) then
+    Result := ParseLoadStmt()
+  else if (IsTag(kiLOCK, kiTABLES)) then
+    Result := ParseLockTableStmt()
+  else if (IsTag(kiPREPARE)) then
+    Result := ParsePrepareStmt()
+  else if (IsTag(kiPURGE)) then
+    Result := ParsePurgeStmt()
+  else if (IsTag(kiOPEN)) then
+    if (not InPL_SQL) then
+      Result := SetError(PE_UnexpectedStmt)
+    else
+      Result := ParseOpenStmt()
+  else if (IsTag(kiOPTIMIZE, kiNO_WRITE_TO_BINLOG, kiTABLE)
+    or IsTag(kiOPTIMIZE, kiLOCAL, kiTABLE)
+    or IsTag(kiOPTIMIZE, kiTABLE)) then
+    Result := ParseOptimizeTableStmt()
+  else if (IsTag(kiRENAME)) then
+    Result := ParseRenameStmt()
+  else if (IsTag(kiREPAIR, kiTABLE)) then
+    Result := ParseRepairTableStmt()
+  else if (IsTag(kiRELEASE)) then
+    Result := ParseReleaseStmt()
+  else if (IsTag(kiREPLACE)) then
+    Result := ParseInsertStmt()
+  else if (IsTag(kiRESET)) then
+    Result := ParseResetStmt()
+  else if (IsTag(kiRESIGNAL)) then
+    Result := ParseSignalStmt()
+  else if (IsTag(kiRETURN)) then
+    if (not InPL_SQL
+      or not Parse.InCreateFunctionStmt) then
+      Result := SetError(PE_UnexpectedStmt)
+    else
+      Result := ParseReturnStmt()
+  else if (IsTag(kiREVOKE)) then
+    Result := ParseRevokeStmt()
+  else if (IsTag(kiROLLBACK)) then
+    Result := ParseRollbackStmt()
+  else if (IsTag(kiSAVEPOINT)) then
+    Result := ParseSavepointStmt()
+  else if (IsTag(kiSELECT)) then
+    Result := ParseSelectStmt(False)
+  else if (IsTag(kiSET, kiNAMES)) then
+    Result := ParseSetNamesStmt()
+  else if (IsTag(kiSET, kiCHARACTER)
+    or IsTag(kiSET, kiCHARSET)) then
+    Result := ParseSetNamesStmt()
+  else if (IsTag(kiSET, kiPASSWORD)) then
+    Result := ParseSetPasswordStmt()
+  else if (IsTag(kiSET, kiGLOBAL, kiTRANSACTION)
+    or IsTag(kiSET, kiSESSION, kiTRANSACTION)
+    or IsTag(kiSET, kiTRANSACTION)) then
+    Result := ParseSetTransactionStmt()
+  else if (IsTag(kiSET)) then
+    Result := ParseSetStmt()
   else
-  begin
-    Exclude(AllowedDeclareStmts, adsVariable);
-    Exclude(AllowedDeclareStmts, adsCondition);
-    Exclude(AllowedDeclareStmts, adsCursor);
-    Exclude(AllowedDeclareStmts, adsHandler);
-
-    if (IsTag(kiBEGIN)) then
-      if (not InPL_SQL) then
-        Result := SetError(PE_UnexpectedStmt)
-      else
-        Result := ParseCompoundStmt(BeginLabel)
-    else if (IsTag(kiLOOP)) then
-      if (not InPL_SQL) then
-        Result := SetError(PE_UnexpectedStmt)
-      else
-        Result := ParseLoopStmt(BeginLabel)
-    else if (IsTag(kiREPEAT)) then
-      if (not InPL_SQL) then
-        Result := SetError(PE_UnexpectedStmt)
-      else
-        Result := ParseRepeatStmt(BeginLabel)
-    else if (IsTag(kiWHILE)) then
-      if (not InPL_SQL) then
-        Result := SetError(PE_UnexpectedStmt)
-      else
-        Result := ParseWhileStmt(BeginLabel)
-    else if (BeginLabel > 0) then
-      if (EndOfStmt(CurrentToken)) then
-        Result := SetError(PE_IncompleteStmt)
-      else
-        Result := SetError(PE_UnexpectedToken)
-
-    else if (IsTag(kiALTER)) then
-      Result := ParseAlterStmt()
-    else if (IsTag(kiANALYZE, kiTABLE)) then
-      Result := ParseAnalyzeTableStmt()
-    else if (IsTag(kiBEGIN)) then
-      if (not InPL_SQL) then
-        Result := ParseBeginStmt()
-      else
-        Result := ParseCompoundStmt(0)
-    else if (IsTag(kiCALL)) then
-      Result := ParseCallStmt()
-    else if (IsTag(kiCASE)) then
-      if (not InPL_SQL) then
-        Result := SetError(PE_UnexpectedStmt)
-      else
-        Result := ParseCaseStmt()
-    else if (IsTag(kiCHANGE)) then
-      Result := ParseChangeMasterStmt()
-    else if (IsTag(kiCHECK, kiTABLE)) then
-      Result := ParseCheckTableStmt()
-    else if (IsTag(kiCHECKSUM, kiTABLE)) then
-      Result := ParseChecksumTableStmt()
-    else if (IsTag(kiCLOSE)) then
-      if (not InPL_SQL) then
-        Result := SetError(PE_UnexpectedStmt)
-      else
-        Result := ParseCloseStmt()
-    else if (IsTag(kiCOMMIT)) then
-      Result := ParseCommitStmt()
-    else if (IsTag(kiCREATE)) then
-      Result := ParseCreateStmt()
-    else if (IsTag(kiDEALLOCATE)) then
-      Result := ParseDeallocatePrepareStmt()
-    else if (IsTag(kiDELETE)) then
-      Result := ParseDeleteStmt()
-    else if (IsTag(kiDESC)) then
-      Result := ParseExplainStmt()
-    else if (IsTag(kiDESCRIBE)) then
-      Result := ParseExplainStmt()
-    else if (IsTag(kiDO)) then
-      Result := ParseDoStmt()
-    else if (IsTag(kiDROP, kiDATABASE)) then
-      Result := ParseDropDatabaseStmt()
-    else if (IsTag(kiDROP, kiEVENT)) then
-      Result := ParseDropEventStmt()
-    else if (IsTag(kiDROP, kiFUNCTION)) then
-      Result := ParseDropRoutineStmt(rtFunction)
-    else if (IsTag(kiDROP, kiINDEX)) then
-      Result := ParseDropIndexStmt()
-    else if (IsTag(kiDROP, kiPREPARE)) then
-      Result := ParseDeallocatePrepareStmt()
-    else if (IsTag(kiDROP, kiPROCEDURE)) then
-      Result := ParseDropRoutineStmt(rtProcedure)
-    else if (IsTag(kiDROP, kiSCHEMA)) then
-      Result := ParseDropDatabaseStmt()
-    else if (IsTag(kiDROP, kiSERVER)) then
-      Result := ParseDropServerStmt()
-    else if (IsTag(kiDROP, kiTEMPORARY, kiTABLE)
-      or IsTag(kiDROP, kiTABLE)) then
-      Result := ParseDropTableStmt()
-    else if (IsTag(kiDROP, kiTABLESPACE)) then
-      Result := ParseDropTablespaceStmt()
-    else if (IsTag(kiDROP, kiTRIGGER)) then
-      Result := ParseDropTriggerStmt()
-    else if (IsTag(kiDROP, kiUSER)) then
-      Result := ParseDropUserStmt()
-    else if (IsTag(kiDROP, kiVIEW)) then
-      Result := ParseDropViewStmt()
-    else if (IsTag(kiEXECUTE)) then
-      Result := ParseExecuteStmt()
-    else if (IsTag(kiEXPLAIN)) then
-      Result := ParseExplainStmt()
-    else if (IsTag(kiFETCH)) then
-      if (not InPL_SQL) then
-        Result := SetError(PE_UnexpectedStmt)
-      else
-        Result := ParseFetchStmt()
-    else if (IsTag(kiFLUSH)) then
-      Result := ParseFlushStmt()
-    else if (IsTag(kiGET, kiCURRENT, kiDIAGNOSTICS)
-      or IsTag(kiGET, kiSTACKED, kiDIAGNOSTICS)
-      or IsTag(kiGET, kiDIAGNOSTICS)) then
-      Result := ParseGetDiagnosticsStmt()
-    else if (IsTag(kiGRANT)) then
-      Result := ParseGrantStmt()
-    else if (IsTag(kiHELP)) then
-      Result := ParseHelpStmt()
-    else if (IsTag(kiIF)) then
-      if (not InPL_SQL) then
-        Result := SetError(PE_UnexpectedStmt)
-      else
-        Result := ParseIfStmt()
-    else if (IsTag(kiINSERT)) then
-      Result := ParseInsertStmt()
-    else if (IsTag(kiINSTALL, kiPLUGIN)) then
-      Result := ParseInstallPluginStmt()
-    else if (IsTag(kiITERATE)) then
-      if (not InPL_SQL) then
-        Result := SetError(PE_UnexpectedStmt)
-      else
-        Result := ParseIterateStmt()
-    else if (IsTag(kiKILL)) then
-      Result := ParseKillStmt()
-    else if (IsTag(kiLEAVE)) then
-      if (not InPL_SQL) then
-        Result := SetError(PE_UnexpectedStmt)
-      else
-        Result := ParseLeaveStmt()
-    else if (IsTag(kiLOAD)) then
-      Result := ParseLoadStmt()
-    else if (IsTag(kiLOCK, kiTABLES)) then
-      Result := ParseLockTableStmt()
-    else if (IsTag(kiPREPARE)) then
-      Result := ParsePrepareStmt()
-    else if (IsTag(kiPURGE)) then
-      Result := ParsePurgeStmt()
-    else if (IsTag(kiOPEN)) then
-      if (not InPL_SQL) then
-        Result := SetError(PE_UnexpectedStmt)
-      else
-        Result := ParseOpenStmt()
-    else if (IsTag(kiOPTIMIZE, kiNO_WRITE_TO_BINLOG, kiTABLE)
-      or IsTag(kiOPTIMIZE, kiLOCAL, kiTABLE)
-      or IsTag(kiOPTIMIZE, kiTABLE)) then
-      Result := ParseOptimizeTableStmt()
-    else if (IsTag(kiRENAME)) then
-      Result := ParseRenameStmt()
-    else if (IsTag(kiREPAIR, kiTABLE)) then
-      Result := ParseRepairTableStmt()
-    else if (IsTag(kiRELEASE)) then
-      Result := ParseReleaseStmt()
-    else if (IsTag(kiREPLACE)) then
-      Result := ParseInsertStmt()
-    else if (IsTag(kiRESET)) then
-      Result := ParseResetStmt()
-    else if (IsTag(kiRESIGNAL)) then
-      Result := ParseSignalStmt()
-    else if (IsTag(kiRETURN)) then
-      if (not InPL_SQL
-        or not Parse.InCreateFunctionStmt) then
-        Result := SetError(PE_UnexpectedStmt)
-      else
-        Result := ParseReturnStmt()
-    else if (IsTag(kiREVOKE)) then
-      Result := ParseRevokeStmt()
-    else if (IsTag(kiROLLBACK)) then
-      Result := ParseRollbackStmt()
-    else if (IsTag(kiSAVEPOINT)) then
-      Result := ParseSavepointStmt()
-    else if (IsTag(kiSELECT)) then
-      Result := ParseSelectStmt(False)
-    else if (IsTag(kiSET, kiNAMES)) then
-      Result := ParseSetNamesStmt()
-    else if (IsTag(kiSET, kiCHARACTER)
-      or IsTag(kiSET, kiCHARSET)) then
-      Result := ParseSetNamesStmt()
-    else if (IsTag(kiSET, kiPASSWORD)) then
-      Result := ParseSetPasswordStmt()
-    else if (IsTag(kiSET, kiGLOBAL, kiTRANSACTION)
-      or IsTag(kiSET, kiSESSION, kiTRANSACTION)
-      or IsTag(kiSET, kiTRANSACTION)) then
-      Result := ParseSetTransactionStmt()
-    else if (IsTag(kiSET)) then
-      Result := ParseSetStmt()
-    else
-    {$IFDEF Debug}
-      Continue := True; // This "Hack" is needed to use <Ctrl+LeftClick>
-    if (Continue) then  // the Delphi XE4 IDE. But why???
-    {$ENDIF}
-    if (IsTag(kiSHOW, kiBINARY, kiLOGS)) then
-      Result := ParseShowBinaryLogsStmt()
-    else if (IsTag(kiSHOW, kiMASTER, kiLOGS)) then
-      Result := ParseShowBinaryLogsStmt()
-    else if (IsTag(kiSHOW, kiBINLOG, kiEVENTS)) then
-      Result := ParseShowBinlogEventsStmt()
-    else if (IsTag(kiSHOW, kiCHARACTER, kiSET)) then
-      Result := ParseShowCharacterSetStmt()
-    else if (IsTag(kiSHOW, kiCOLLATION)) then
-      Result := ParseShowCollationStmt()
-    else if (IsTag(kiSHOW, kiCOLUMNS)) then
-      Result := ParseShowColumnsStmt()
-    else if (IsTag(kiSHOW) and not EndOfStmt(NextToken[1]) and (StrLIComp(PChar(TokenPtr(NextToken[1])^.Text), 'COUNT', 5) = 0)) then
-      Result := ParseShowCountStmt()
-    else if (IsTag(kiSHOW, kiFIELDS)) then
-      Result := ParseShowColumnsStmt()
-    else if (IsTag(kiSHOW, kiCREATE, kiDATABASE)) then
-      Result := ParseShowCreateDatabaseStmt()
-    else if (IsTag(kiSHOW, kiCREATE, kiEVENT)) then
-      Result := ParseShowCreateEventStmt()
-    else if (IsTag(kiSHOW, kiCREATE, kiFUNCTION)) then
-      Result := ParseShowCreateFunctionStmt()
-    else if (IsTag(kiSHOW, kiCREATE, kiPROCEDURE)) then
-      Result := ParseShowCreateProcedureStmt()
-    else if (IsTag(kiSHOW, kiCREATE, kiSCHEMA)) then
-      Result := ParseShowCreateDatabaseStmt()
-    else if (IsTag(kiSHOW, kiCREATE, kiPROCEDURE)) then
-      Result := ParseShowCreateProcedureStmt()
-    else if (IsTag(kiSHOW, kiCREATE, kiTABLE)) then
-      Result := ParseShowCreateTableStmt()
-    else if (IsTag(kiSHOW, kiCREATE, kiTRIGGER)) then
-      Result := ParseShowCreateTriggerStmt()
-    else if (IsTag(kiSHOW, kiCREATE, kiUSER)) then
-      Result := ParseShowCreateUserStmt()
-    else if (IsTag(kiSHOW, kiCREATE, kiVIEW)) then
-      Result := ParseShowCreateViewStmt()
-    else if (IsTag(kiSHOW, kiDATABASES)) then
-      Result := ParseShowDatabasesStmt()
-    else if (IsTag(kiSHOW, kiENGINE)) then
-      Result := ParseShowEngineStmt()
-    else if (IsTag(kiSHOW, kiENGINES)) then
-      Result := ParseShowEnginesStmt()
-    else if (IsTag(kiSHOW, kiERRORS)) then
-      Result := ParseShowErrorsStmt()
-    else if (IsTag(kiSHOW, kiEVENTS)) then
-      Result := ParseShowEventsStmt()
-    else if (IsTag(kiSHOW, kiFULL, kiCOLUMNS)) then
-      Result := ParseShowColumnsStmt()
-    else if (IsTag(kiSHOW, kiFULL, kiFIELDS)) then
-      Result := ParseShowColumnsStmt()
-    else if (IsTag(kiSHOW, kiFULL, kiTABLES)) then
-      Result := ParseShowTablesStmt()
-    else if (IsTag(kiSHOW, kiFULL, kiPROCESSLIST)) then
-      Result := ParseShowProcessListStmt()
-    else if (IsTag(kiSHOW, kiFUNCTION, kiCODE)) then
-      Result := ParseShowRoutineCodeStmt()
-    else if (IsTag(kiSHOW, kiFUNCTION, kiSTATUS)) then
-      Result := ParseShowFunctionStatusStmt()
-    else if (IsTag(kiSHOW, kiGRANTS)) then
-      Result := ParseShowGrantsStmt()
-    else if (IsTag(kiSHOW, kiINDEX)) then
-      Result := ParseShowIndexStmt()
-    else if (IsTag(kiSHOW, kiINDEXES)) then
-      Result := ParseShowIndexStmt()
-    else if (IsTag(kiSHOW, kiKEYS)) then
-      Result := ParseShowIndexStmt()
-    else if (IsTag(kiSHOW, kiMASTER, kiSTATUS)) then
-      Result := ParseShowMasterStatusStmt()
-    else if (IsTag(kiSHOW, kiOPEN, kiTABLES)) then
-      Result := ParseShowOpenTablesStmt()
-    else if (IsTag(kiSHOW, kiPLUGINS)) then
-      Result := ParseShowPluginsStmt()
-    else if (IsTag(kiSHOW, kiPRIVILEGES)) then
-      Result := ParseShowPrivilegesStmt()
-    else if (IsTag(kiSHOW, kiPROCEDURE, kiCODE)) then
-      Result := ParseShowRoutineCodeStmt()
-    else if (IsTag(kiSHOW, kiPROCEDURE, kiSTATUS)) then
-      Result := ParseShowProcedureStatusStmt()
-    else if (IsTag(kiSHOW, kiPROCESSLIST)) then
-      Result := ParseShowProcessListStmt()
-    else if (IsTag(kiSHOW, kiPROFILE)) then
-      Result := ParseShowProfileStmt()
-    else if (IsTag(kiSHOW, kiPROFILES)) then
-      Result := ParseShowProfilesStmt()
-    else if (IsTag(kiSHOW, kiRELAYLOG, kiEVENTS)) then
-      Result := ParseShowRelaylogEventsStmt()
-    else if (IsTag(kiSHOW, kiSCHEMA)) then
-      Result := ParseShowDatabasesStmt()
-    else if (IsTag(kiSHOW, kiSLAVE, kiHOSTS)) then
-      Result := ParseShowSlaveHostsStmt()
-    else if (IsTag(kiSHOW, kiSLAVE, kiSTATUS)) then
-      Result := ParseShowSlaveStatusStmt()
-    else if (IsTag(kiSHOW, kiGLOBAL, kiSTATUS)
-      or IsTag(kiSHOW, kiSESSION, kiSTATUS)
-      or IsTag(kiSHOW, kiSTATUS)) then
-      Result := ParseShowStatusStmt()
-    else if (IsTag(kiSHOW, kiTABLE, kiSTATUS)) then
-      Result := ParseShowTableStatusStmt()
-    else if (IsTag(kiSHOW, kiTABLES)) then
-      Result := ParseShowTablesStmt()
-    else if (IsTag(kiSHOW, kiTRIGGERS)) then
-      Result := ParseShowTriggersStmt()
-    else if (IsTag(kiSHOW, kiGLOBAL, kiVARIABLES)
-      or IsTag(kiSHOW, kiSESSION, kiVARIABLES)
-      or IsTag(kiSHOW, kiVARIABLES)) then
-      Result := ParseShowVariablesStmt()
-    else if (IsTag(kiSHOW, kiWARNINGS)) then
-      Result := ParseShowWarningsStmt()
-    else if (IsTag(kiSHOW, kiSTORAGE, kiENGINES)) then
-      Result := ParseShowEnginesStmt()
-    else if (IsTag(kiSHUTDOWN)) then
-      Result := ParseShutdownStmt()
-    else if (IsTag(kiSIGNAL)) then
-      Result := ParseSignalStmt()
-    else if (IsTag(kiSTART, kiSLAVE)) then
-      Result := ParseStartSlaveStmt()
-    else if (IsTag(kiSTART, kiTRANSACTION)) then
-      Result := ParseStartTransactionStmt()
-    else if (IsTag(kiSTOP, kiSLAVE)) then
-      Result := ParseStopSlaveStmt()
-    else if (IsTag(kiTRUNCATE)) then
-      Result := ParseTruncateTableStmt()
-    else if (IsTag(kiUNINSTALL, kiPLUGIN)) then
-      Result := ParseUninstallPluginStmt()
-    else if (IsTag(kiUNLOCK, kiTABLES)) then
-      Result := ParseUnlockTablesStmt()
-    else if (IsTag(kiUPDATE)) then
-      Result := ParseUpdateStmt()
-    else if (IsTag(kiUSE)) then
-      Result := ParseUseStmt()
-    else if (IsTag(kiXA)) then
-      Result := ParseXAStmt()
-    else if (IsSymbol(ttOpenBracket) and IsNextTag(1, kiSELECT)) then
-      Result := ParseSelectStmt(False)
-    else if (EndOfStmt(CurrentToken)) then
-      Result := 0
-    else
-      Result := SetError(PE_UnexpectedToken);
-  end;
+  {$IFDEF Debug}
+    Continue := True; // This "Hack" is needed to use <Ctrl+LeftClick>
+  if (Continue) then  // the Delphi XE4 IDE. But why???
+  {$ENDIF}
+  if (IsTag(kiSHOW, kiBINARY, kiLOGS)) then
+    Result := ParseShowBinaryLogsStmt()
+  else if (IsTag(kiSHOW, kiMASTER, kiLOGS)) then
+    Result := ParseShowBinaryLogsStmt()
+  else if (IsTag(kiSHOW, kiBINLOG, kiEVENTS)) then
+    Result := ParseShowBinlogEventsStmt()
+  else if (IsTag(kiSHOW, kiCHARACTER, kiSET)) then
+    Result := ParseShowCharacterSetStmt()
+  else if (IsTag(kiSHOW, kiCOLLATION)) then
+    Result := ParseShowCollationStmt()
+  else if (IsTag(kiSHOW, kiCOLUMNS)) then
+    Result := ParseShowColumnsStmt()
+  else if (IsTag(kiSHOW) and not EndOfStmt(NextToken[1]) and (StrLIComp(PChar(TokenPtr(NextToken[1])^.Text), 'COUNT', 5) = 0)) then
+    Result := ParseShowCountStmt()
+  else if (IsTag(kiSHOW, kiFIELDS)) then
+    Result := ParseShowColumnsStmt()
+  else if (IsTag(kiSHOW, kiCREATE, kiDATABASE)) then
+    Result := ParseShowCreateDatabaseStmt()
+  else if (IsTag(kiSHOW, kiCREATE, kiEVENT)) then
+    Result := ParseShowCreateEventStmt()
+  else if (IsTag(kiSHOW, kiCREATE, kiFUNCTION)) then
+    Result := ParseShowCreateFunctionStmt()
+  else if (IsTag(kiSHOW, kiCREATE, kiPROCEDURE)) then
+    Result := ParseShowCreateProcedureStmt()
+  else if (IsTag(kiSHOW, kiCREATE, kiSCHEMA)) then
+    Result := ParseShowCreateDatabaseStmt()
+  else if (IsTag(kiSHOW, kiCREATE, kiPROCEDURE)) then
+    Result := ParseShowCreateProcedureStmt()
+  else if (IsTag(kiSHOW, kiCREATE, kiTABLE)) then
+    Result := ParseShowCreateTableStmt()
+  else if (IsTag(kiSHOW, kiCREATE, kiTRIGGER)) then
+    Result := ParseShowCreateTriggerStmt()
+  else if (IsTag(kiSHOW, kiCREATE, kiUSER)) then
+    Result := ParseShowCreateUserStmt()
+  else if (IsTag(kiSHOW, kiCREATE, kiVIEW)) then
+    Result := ParseShowCreateViewStmt()
+  else if (IsTag(kiSHOW, kiDATABASES)) then
+    Result := ParseShowDatabasesStmt()
+  else if (IsTag(kiSHOW, kiENGINE)) then
+    Result := ParseShowEngineStmt()
+  else if (IsTag(kiSHOW, kiENGINES)) then
+    Result := ParseShowEnginesStmt()
+  else if (IsTag(kiSHOW, kiERRORS)) then
+    Result := ParseShowErrorsStmt()
+  else if (IsTag(kiSHOW, kiEVENTS)) then
+    Result := ParseShowEventsStmt()
+  else if (IsTag(kiSHOW, kiFULL, kiCOLUMNS)) then
+    Result := ParseShowColumnsStmt()
+  else if (IsTag(kiSHOW, kiFULL, kiFIELDS)) then
+    Result := ParseShowColumnsStmt()
+  else if (IsTag(kiSHOW, kiFULL, kiTABLES)) then
+    Result := ParseShowTablesStmt()
+  else if (IsTag(kiSHOW, kiFULL, kiPROCESSLIST)) then
+    Result := ParseShowProcessListStmt()
+  else if (IsTag(kiSHOW, kiFUNCTION, kiCODE)) then
+    Result := ParseShowRoutineCodeStmt()
+  else if (IsTag(kiSHOW, kiFUNCTION, kiSTATUS)) then
+    Result := ParseShowFunctionStatusStmt()
+  else if (IsTag(kiSHOW, kiGRANTS)) then
+    Result := ParseShowGrantsStmt()
+  else if (IsTag(kiSHOW, kiINDEX)) then
+    Result := ParseShowIndexStmt()
+  else if (IsTag(kiSHOW, kiINDEXES)) then
+    Result := ParseShowIndexStmt()
+  else if (IsTag(kiSHOW, kiKEYS)) then
+    Result := ParseShowIndexStmt()
+  else if (IsTag(kiSHOW, kiMASTER, kiSTATUS)) then
+    Result := ParseShowMasterStatusStmt()
+  else if (IsTag(kiSHOW, kiOPEN, kiTABLES)) then
+    Result := ParseShowOpenTablesStmt()
+  else if (IsTag(kiSHOW, kiPLUGINS)) then
+    Result := ParseShowPluginsStmt()
+  else if (IsTag(kiSHOW, kiPRIVILEGES)) then
+    Result := ParseShowPrivilegesStmt()
+  else if (IsTag(kiSHOW, kiPROCEDURE, kiCODE)) then
+    Result := ParseShowRoutineCodeStmt()
+  else if (IsTag(kiSHOW, kiPROCEDURE, kiSTATUS)) then
+    Result := ParseShowProcedureStatusStmt()
+  else if (IsTag(kiSHOW, kiPROCESSLIST)) then
+    Result := ParseShowProcessListStmt()
+  else if (IsTag(kiSHOW, kiPROFILE)) then
+    Result := ParseShowProfileStmt()
+  else if (IsTag(kiSHOW, kiPROFILES)) then
+    Result := ParseShowProfilesStmt()
+  else if (IsTag(kiSHOW, kiRELAYLOG, kiEVENTS)) then
+    Result := ParseShowRelaylogEventsStmt()
+  else if (IsTag(kiSHOW, kiSCHEMA)) then
+    Result := ParseShowDatabasesStmt()
+  else if (IsTag(kiSHOW, kiSLAVE, kiHOSTS)) then
+    Result := ParseShowSlaveHostsStmt()
+  else if (IsTag(kiSHOW, kiSLAVE, kiSTATUS)) then
+    Result := ParseShowSlaveStatusStmt()
+  else if (IsTag(kiSHOW, kiGLOBAL, kiSTATUS)
+    or IsTag(kiSHOW, kiSESSION, kiSTATUS)
+    or IsTag(kiSHOW, kiSTATUS)) then
+    Result := ParseShowStatusStmt()
+  else if (IsTag(kiSHOW, kiTABLE, kiSTATUS)) then
+    Result := ParseShowTableStatusStmt()
+  else if (IsTag(kiSHOW, kiTABLES)) then
+    Result := ParseShowTablesStmt()
+  else if (IsTag(kiSHOW, kiTRIGGERS)) then
+    Result := ParseShowTriggersStmt()
+  else if (IsTag(kiSHOW, kiGLOBAL, kiVARIABLES)
+    or IsTag(kiSHOW, kiSESSION, kiVARIABLES)
+    or IsTag(kiSHOW, kiVARIABLES)) then
+    Result := ParseShowVariablesStmt()
+  else if (IsTag(kiSHOW, kiWARNINGS)) then
+    Result := ParseShowWarningsStmt()
+  else if (IsTag(kiSHOW, kiSTORAGE, kiENGINES)) then
+    Result := ParseShowEnginesStmt()
+  else if (IsTag(kiSHUTDOWN)) then
+    Result := ParseShutdownStmt()
+  else if (IsTag(kiSIGNAL)) then
+    Result := ParseSignalStmt()
+  else if (IsTag(kiSTART, kiSLAVE)) then
+    Result := ParseStartSlaveStmt()
+  else if (IsTag(kiSTART, kiTRANSACTION)) then
+    Result := ParseStartTransactionStmt()
+  else if (IsTag(kiSTOP, kiSLAVE)) then
+    Result := ParseStopSlaveStmt()
+  else if (IsTag(kiTRUNCATE)) then
+    Result := ParseTruncateTableStmt()
+  else if (IsTag(kiUNINSTALL, kiPLUGIN)) then
+    Result := ParseUninstallPluginStmt()
+  else if (IsTag(kiUNLOCK, kiTABLES)) then
+    Result := ParseUnlockTablesStmt()
+  else if (IsTag(kiUPDATE)) then
+    Result := ParseUpdateStmt()
+  else if (IsTag(kiUSE)) then
+    Result := ParseUseStmt()
+  else if (IsTag(kiXA)) then
+    Result := ParseXAStmt()
+  else if (IsSymbol(ttOpenBracket) and IsNextTag(1, kiSELECT)) then
+    Result := ParseSelectStmt(False)
+  else if (EndOfStmt(CurrentToken)) then
+    Result := 0
+  else
+    Result := SetError(PE_UnexpectedToken);
 
   if ((Result = 0) and not EndOfStmt(FirstToken)) then
     Result := ParseUnknownStmt(FirstToken);

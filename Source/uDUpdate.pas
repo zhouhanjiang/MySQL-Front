@@ -194,8 +194,6 @@ procedure TDUpdate.UMPADFileReceived(var Msg: TMessage);
 var
   VersionStr: string;
 begin
-  Preferences.UpdateChecked := Now();
-
   if (not CheckOnlineVersion(PADFileStream, VersionStr, SetupProgramURI)) then
   begin
     FVersionInfo.Caption := Preferences.LoadStr(663) + ': ' + Preferences.LoadStr(384);
@@ -206,7 +204,7 @@ begin
   begin
     FVersionInfo.Caption := Preferences.LoadStr(663) + ': ' + VersionStr;
 
-    if (OnlineVersion <= Preferences.Version) then
+    if (OnlineVersion <= ProgramVersion) then
     begin
       MsgBox(Preferences.LoadStr(507), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
       FBCancel.Click();
@@ -274,7 +272,5 @@ begin
 end;
 
 initialization
-  OnlineVersion := -1;
-  OnlineRecommendedVersion := -1;
   FDUpdate := nil;
 end.

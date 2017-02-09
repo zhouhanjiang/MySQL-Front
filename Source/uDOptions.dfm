@@ -52,6 +52,10 @@ object DOptions: TDOptions
     object TSView: TTabSheet
       Caption = 'TSView'
       OnResize = TSViewResize
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GProgram: TGroupBox_Ext
         Left = 4
         Top = 4

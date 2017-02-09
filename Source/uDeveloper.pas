@@ -17,7 +17,6 @@ type
     FErrorMessage: string;
     FHTTPMessage: string;
     FHTTPStatus: Integer;
-    FLogErrors: Boolean;
     FOnProgress: TProgressEvent;
     SendStream: TStream;
     Subject: string;
@@ -31,7 +30,6 @@ type
       default nil;
     property ErrorCode: Integer read FErrorCode;
     property ErrorMessage: string read FErrorMessage;
-    property LogErrors: Boolean read FLogErrors write FLogErrors;
     property HTTPMessage: string read FHTTPMessage;
     property HTTPStatus: Integer read FHTTPStatus;
   end;
@@ -48,6 +46,7 @@ type
 function CheckOnlineVersion(const Stream: TStringStream; var VersionStr: string;
   var SetupProgramURI: string): Boolean;
 function CompileTime(): TDateTime;
+function EncodeVersion(const AMajor, AMinor, APatch, ABuild: Integer): Integer;
 procedure SendToDeveloper(const Text: string; const Days: Integer = 2;
   const HideSource: Boolean = False);
 
@@ -65,27 +64,37 @@ const
   SendErrorLogFilename = 'SendErrors.log';
 
 var
+  LastUpdateCheck: TDateTime;
+  ObsoleteVersion: Integer;
   OnlineVersion: Integer;
   OnlineRecommendedVersion: Integer;
+  ProgramVersion: Integer;
+  ProgramVersionBuild: Integer;
+  ProgramVersionMajor: Integer;
+  ProgramVersionMinor: Integer;
+  ProgramVersionPatch: Integer;
+  ProgramVersionStr: string;
 
 implementation
 
 { *************************************************************** }
 
 uses
-  XMLIntf, XMLDoc, ActiveX, SyncObjs, DateUtils, IOUtils,
-  Forms,
+  XMLIntf, XMLDoc, ActiveX, SyncObjs, DateUtils, IOUtils, Registry
 {$IFDEF EurekaLog}
+  , Forms,
   ExceptionLog7, EExceptionManager, ECallStack, EStackTracing, EClasses,
   ETypes, EException, ESysInfo, EInfoFormat, EThreadsManager, EConsts,
   EEvents, ELogBuilder, EFreeze,
-  // EFreeze,
+  uSession,
+  uBase,
+  MySQLDB
 {$ENDIF}
-  MySQLDB,
-  uPreferences, uSession,
-  uBase;
+  ;
 
 var
+  InternetAgent: string;
+  ModuleFileName: string;
   SendThreads: TList;
   SendErrorLogCS: TCriticalSection;
   UserPath: string;
@@ -190,13 +199,18 @@ begin
     end;
   end;
 
-  Result := (OnlineVersion >= 0) and (SetupProgramURI <> '');
+  Result := (OnlineVersion > 0) and (SetupProgramURI <> '');
 end;
 
 function CompileTime(): TDateTime;
 begin
   Result := PImageNtHeaders(HInstance
     + Cardinal(PImageDosHeader(HInstance)^._lfanew))^.FileHeader.TimeDateStamp / SecsPerDay + UnixDateDelta;
+end;
+
+function EncodeVersion(const AMajor, AMinor, APatch, ABuild: Integer): Integer;
+begin
+  Result := AMajor * 100000000 + AMinor * 1000000 + APatch * 10000 + ABuild;
 end;
 
 procedure SendToDeveloper(const Text: string; const Days: Integer = 2;
@@ -206,7 +220,6 @@ var
   Buffer: TEurekaDebugInfo;
   CallStack: TEurekaBaseStackList;
   Filename: string;
-  FilenameP: array [0 .. MAX_PATH] of Char;
   I: Integer;
   Index: Integer;
   Item: PEurekaDebugInfo;
@@ -226,9 +239,6 @@ begin
     {$IFDEF EurekaLog}
       if (not HideSource or (Trim(Text) = '')) then
       begin
-        SetString(Filename, PChar(@FilenameP[0]),
-          GetModuleFileName(GetModuleHandle(nil), @FilenameP, Length(FilenameP)));
-
         CallStack := GetCurrentCallStack();
         Index := 0;
         StackItem := 0;
@@ -237,8 +247,7 @@ begin
         begin
           Item := CallStack.GetItem(1, Buffer);
           if ((Item^.Location.DebugDetail = ddSourceCode) and
-            ((Filename = '') or (StrIComp(PChar(Item^.Location.ModuleName),
-            PChar(Filename)) = 0))) then
+            ((ModuleFileName = '') or (StrIComp(PChar(Item^.Location.ModuleName), PChar(ModuleFileName)) = 0))) then
             Inc(StackItem);
           Inc(Index);
         end;
@@ -306,8 +315,6 @@ begin
   SendStream := ASendStream;
   ReceiveStream := AReceiveStream;
   Subject := ASubject;
-
-  FLogErrors := False;
 end;
 
 procedure THTTPThread.Execute();
@@ -376,8 +383,7 @@ begin
     then
       Internet := nil
     else
-      Internet := InternetOpen(PChar(Preferences.InternetAgent),
-        INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);
+      Internet := InternetOpen(PChar(InternetAgent), INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);
 
     if (not Assigned(Internet)) then
       FErrorCode := GetLastError()
@@ -407,7 +413,7 @@ begin
           Method := POST;
           Headers := 'Content-Type: text/plain; charset=UTF-8' + #10
             + 'Content-Transfer-Encoding: binary' + #10
-            + 'Program-Version: ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor) + '.' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + #10;
+            + 'Program-Version: ' + IntToStr(ProgramVersionMajor) + '.' + IntToStr(ProgramVersionMinor) + '.' + IntToStr(ProgramVersionPatch) + '.' + IntToStr(ProgramVersionBuild) + #10;
           if (Subject <> '') then
             Headers := Headers
               + 'Subject: ' + Subject + #10;
@@ -504,12 +510,14 @@ begin
       OnProgress(Self, ReceiveStream.Size, ReceiveStream.Size);
 
     SendErrorLogCS.Enter();
-    if (LogErrors and ((ErrorCode <> 0) or (HTTPStatus <> HTTP_STATUS_OK))) then
+    if (Assigned(SendStream) and ((ErrorCode <> 0) or (HTTPStatus <> HTTP_STATUS_OK))) then
     begin
       SendErrorLog := TStringList.Create();
       if (FileExists(UserPath + SendErrorLogFilename)) then
         SendErrorLog.LoadFromFile(UserPath + SendErrorLogFilename);
-      SendErrorLog.Add(Preferences.VersionStr + ' - ErrorCode: ' + IntToStr(ErrorCode) + ', HTTPStatus: ' + IntToStr(HTTPStatus) + ', Connected: ' + BoolToStr(InternetGetConnectedState(nil, 0), True));
+      SendErrorLog.Add(ProgramVersionStr + ' - ErrorCode: ' + IntToStr(ErrorCode) + ', '
+        + 'HTTPStatus: ' + IntToStr(HTTPStatus) + ', '
+        + 'Connected: ' + BoolToStr(InternetGetConnectedState(nil, 0), True));
       SendErrorLog.SaveToFile(UserPath + SendErrorLogFilename);
       SendErrorLog.Free();
     end;
@@ -548,10 +556,9 @@ begin
 
   if (HTTPStatus = HTTP_STATUS_OK) then
   begin
-    Preferences.UpdateChecked := Now();
-
     CoInitialize(nil);
-    CheckOnlineVersion(PADFileStream, VersionStr, SetupProgramURI);
+    if (CheckOnlineVersion(PADFileStream, VersionStr, SetupProgramURI)) then
+      LastUpdateCheck := Now();
     CoUninitialize();
   end;
 end;
@@ -993,7 +1000,7 @@ var
   ClipboardData: HGLOBAL;
   S: string;
 begin
-  if (not OpenClipboard(Application.Handle)) then
+  if (not OpenClipboard(0)) then
     MessageBox(0, PChar(SysErrorMessage(GetLastError())), 'Error', MB_OK)
   else
   begin
@@ -1027,8 +1034,8 @@ begin
     FreeAndNil(CheckOnlineVersionThread);
   end;
 
-  if (Preferences.ObsoleteVersion < Preferences.Version) then
-    Preferences.ObsoleteVersion := OnlineVersion;
+  if (ObsoleteVersion < ProgramVersion) then
+    ObsoleteVersion := OnlineVersion;
 
   if (GetCurrentThreadId() = MainThreadId) then
     SendMessage(Application.MainFormHandle, UM_CRASH_RESCUE, 0, 0)
@@ -1043,34 +1050,43 @@ begin
   end
   else
   begin
-    ShowDialog := (Preferences.Version >= OnlineVersion);
+    ShowDialog := (ProgramVersion >= OnlineVersion);
 
     if (not ShowDialog) then
     begin
       MessageBox(0, PChar('Internal Program Error:' + #10 +
-        ExceptionInfo.ExceptionMessage), PChar(Preferences.LoadStr(45)),
+        ExceptionInfo.ExceptionMessage), 'Error',
         MB_OK + MB_ICONERROR);
 
-      if ((OnlineVersion > Preferences.Version) and
-        (OnlineVersion > Preferences.ObsoleteVersion)) then
+      if ((OnlineVersion > ProgramVersion) and
+        (OnlineVersion > ObsoleteVersion)) then
         PostMessage(Application.MainFormHandle, UM_ONLINE_UPDATE_FOUND, 0, 0);
-      if (Preferences.ObsoleteVersion < Preferences.Version) then
-        Preferences.ObsoleteVersion := Preferences.Version;
+      if (ObsoleteVersion < ProgramVersion) then
+        ObsoleteVersion := ProgramVersion;
     end
     else
     begin
       SendToDeveloper(BuildBugReport(ExceptionInfo), 0, True);
 
       ExceptionInfo.Options.EMailSubject := SysUtils.LoadStr(1000) + ' ' +
-        IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor) +
-        ' (Build: ' + IntToStr(Preferences.VerPatch) + '.' +
-        IntToStr(Preferences.VerBuild) + ')' + ' - Error Report';
+        IntToStr(ProgramVersionMajor) + '.' + IntToStr(ProgramVersionMinor) +
+        ' (Build: ' + IntToStr(ProgramVersionPatch) + '.' +
+        IntToStr(ProgramVersionBuild) + ')' + ' - Error Report';
     end;
   end;
 end;
 {$ENDIF}
 
+var
+  Buffer: PChar;
+  BufferSize: Cardinal;
+  FileInfo: ^VS_FIXEDFILEINFO;
+  FileInfoSize: UINT;
+  Handle: Cardinal;
+  Reg: TRegistry;
 initialization
+  AssertErrorProc := AssertErrorHandler;
+
   {$IFDEF EurekaLog}
   LogBuilderClass := TLogBuilder;
 
@@ -1086,13 +1102,47 @@ initialization
   end;
   {$ENDIF}
 
-  AssertErrorProc := AssertErrorHandler;
-
+  InternetAgent := SysUtils.LoadStr(1000) + '/' + IntToStr(ProgramVersionMajor) + '.' + IntToStr(ProgramVersionMinor);
+  LastUpdateCheck := 0;
+  SetLength(ModuleFilename, MAX_PATH + 1);
+  SetLength(ModuleFilename, GetModuleFileName(0, PChar(ModuleFileName), Length(ModuleFileName)));
+  ObsoleteVersion := -1;
   OnlineVersion := -1;
   SendThreads := TList.Create();
   SendErrorLogCS := TCriticalSection.Create();
   UserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(TPath.GetHomePath()) + SysUtils.LoadStr(1002));
+
+  BufferSize := GetFileVersionInfoSize(PChar(ModuleFileName), Handle);
+  if (BufferSize > 0) then
+  begin
+    GetMem(Buffer, BufferSize);
+    if (GetFileVersionInfo(PChar(ModuleFileName), 0, BufferSize, Buffer)
+      and (VerQueryValue(Buffer, '\', Pointer(FileInfo), FileInfoSize))
+      and (FileInfoSize >= SizeOf(FileInfo^))) then
+    begin
+      ProgramVersionMajor := FileInfo.dwFileVersionMS shr 16;
+      ProgramVersionMinor := FileInfo.dwFileVersionMS and $FFFF;
+      ProgramVersionPatch := FileInfo.dwFileVersionLS shr 16;
+      ProgramVersionBuild := FileInfo.dwFileVersionLS and $FFFF;
+      ProgramVersionStr := IntToStr(ProgramVersionMajor) + '.' + IntToStr(ProgramVersionMinor) + '  (Build ' + IntToStr(ProgramVersionPatch) + '.' + IntToStr(ProgramVersionBuild) + ')';
+    end;
+    FreeMem(Buffer);
+  end;
+
+  Reg := TRegistry.Create();
+  Reg.RootKey := HKEY_CURRENT_USER;
+  if (Reg.OpenKeyReadOnly(SysUtils.LoadStr(1003))) then
+  begin
+    if (Reg.ValueExists('LastUpdateCheck')) then
+      LastUpdateCheck := Reg.ReadDateTime('LastUpdateCheck');
+    if (Reg.ValueExists('ObsoleteVersion')) then
+      ObsoleteVersion := Reg.ReadInteger('ObsoleteVersion');
+    Reg.CloseKey();
+  end;
+  Reg.Free();
+
 finalization
+
   while (SendThreads.Count > 0) do
   begin
     TThread(SendThreads[0]).WaitFor();
@@ -1101,6 +1151,22 @@ finalization
   end;
   SendThreads.Free();
   SendErrorLogCS.Free();
+
+  Reg := TRegistry.Create();
+  Reg.RootKey := HKEY_CURRENT_USER;
+  if (Reg.OpenKey(SysUtils.LoadStr(1003), True)) then
+  begin
+    if (LastUpdateCheck > 0) then
+      Reg.WriteDateTime('LastUpdateCheck', LastUpdateCheck)
+    else if (Reg.ValueExists('LastUpdateCheck')) then
+      Reg.DeleteValue('LastUpdateCheck');
+    if (ObsoleteVersion > 0) then
+      Reg.WriteInteger('ObsoleteVersion', ObsoleteVersion)
+    else if (Reg.ValueExists('ObsoleteVersion')) then
+      Reg.DeleteValue('ObsoleteVersion');
+    Reg.CloseKey();
+  end;
+  Reg.Free();
 
   {$IFDEF EurekaLog}
   UnRegisterEventCustomButtonClick(nil, CustomButtonClick);

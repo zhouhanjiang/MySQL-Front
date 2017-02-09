@@ -6,6 +6,7 @@ uses
   Windows, Messages, Classes, SysUtils,
   ExtCtrls, Controls, StdCtrls, Graphics, Forms,
   ExtCtrls_Ext, Forms_Ext,
+  uPreferences,
   uBase;
 
 type
@@ -36,7 +37,7 @@ implementation {***************************************************************}
 
 uses
   ShellAPI, GDIPObj, GDIPAPI,
-  uPreferences;
+  uDeveloper;
 
 var
   FDInfo: TDInfo;
@@ -122,8 +123,8 @@ begin
   Caption := Preferences.LoadStr(367) + ' ' + LoadStr(1000);
 
   FName.Caption := SysUtils.LoadStr(1000);
-  FVersion.Caption := Preferences.LoadStr(169) + ' ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor);
-  FBuild.Caption := '(' + Preferences.LoadStr(737) + ': ' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + ')';
+  FVersion.Caption := Preferences.LoadStr(169) + ' ' + IntToStr(ProgramVersionMajor) + '.' + IntToStr(ProgramVersionMinor);
+  FBuild.Caption := '(' + Preferences.LoadStr(737) + ': ' + IntToStr(ProgramVersionPatch) + '.' + IntToStr(ProgramVersionBuild) + ')';
 
   FURI.Caption := SysUtils.LoadStr(1004);
 

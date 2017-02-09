@@ -168,11 +168,14 @@ end;
 procedure TForm_Ext.MouseMove(Shift: TShiftState; X, Y: Integer);
 var
   Hour: Word;
+  Msg: TMsg;
   Min: Word;
   MSec: Word;
   Sec: Word;
 begin
-  if ((BorderStyle = bsSizeable) and (MouseDownPoint.X < 0)) then
+  if (PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (KeysToShiftState(Msg.wParam) = Shift)) then
+    // Handle this Message within the next equal message
+  else if ((BorderStyle = bsSizeable) and (MouseDownPoint.X < 0)) then
   begin
     if (PtInRect(Rect(ClientWidth - GetSystemMetrics(SM_CXVSCROLL), ClientHeight - GetSystemMetrics(SM_CYHSCROLL), ClientWidth, ClientHeight), Point(X, Y)) and not Assigned(ControlAtPos(Point(X, Y), True, True))) then
     begin

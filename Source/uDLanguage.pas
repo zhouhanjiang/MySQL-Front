@@ -335,7 +335,7 @@ end;
 procedure TDLanguage.StringGridSelectCell(Sender: TObject; ACol, ARow: Integer;
   var CanSelect: Boolean);
 begin
-  CanSelect := ACol = 2;
+  CanSelect := (ACol = 2) and (StringGrid.Rows[ARow][0] <> '');
 end;
 
 procedure TDLanguage.UMChangePreferences(var Message: TMessage);

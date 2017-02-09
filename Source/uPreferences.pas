@@ -350,20 +350,16 @@ type
     FImages: TImageList;
     FInternetAgent: string;
     FLanguage: TLanguage;
+    FOnlineVersion: Integer;
     FUserPath: TFileName;
-    FVerMajor, FVerMinor, FVerPatch, FVerBuild: Integer;
     FXMLDocument: IXMLDocument;
     OldAssociateSQL: Boolean;
     procedure LoadFromRegistry();
     function GetFilename(): TFileName;
     function GetLanguage(): TLanguage;
     function GetLanguagePath(): TFileName;
-    function GetVersion(var VerMajor, VerMinor, VerPatch, VerBuild: Integer): Boolean;
-    function GetVersionInfo(): Integer;
-    function GetVersionStr(): string;
     function GetXMLDocument(): IXMLDocument;
   protected
-    KeyBase: string;
     procedure LoadFromXML(const XML: IXMLNode);
     procedure SaveToRegistry(); virtual;
     procedure SaveToXML(const XML: IXMLNode);
@@ -405,7 +401,6 @@ type
     LogResult: Boolean;
     LogSize: Integer;
     LogTime: Boolean;
-    ObsoleteVersion: Integer;
     ODBC: TODBC;
     Paste: TPaste;
     Path: TFileName;
@@ -436,7 +431,6 @@ type
     Width: Integer;
     WindowState: TWindowState;
     UpdateCheck: TUpdateCheckType;
-    UpdateChecked: TDateTime;
     constructor Create();
     destructor Destroy(); override;
     function LoadStr(const Index: Integer; const Param1: string = ''; const Param2: string = ''; const Param3: string = ''): string; overload;
@@ -448,12 +442,6 @@ type
     property Language: TLanguage read GetLanguage;
     property LanguagePath: TFileName read GetLanguagePath;
     property UserPath: TFileName read FUserPath;
-    property VerMajor: Integer read FVerMajor;
-    property VerMinor: Integer read FVerMinor;
-    property VerPatch: Integer read FVerPatch;
-    property VerBuild: Integer read FVerBuild;
-    property Version: Integer read GetVersionInfo;
-    property VersionStr: string read GetVersionStr;
   end;
 
   TPAccount = class
@@ -689,7 +677,6 @@ type
     property Filename: TFileName read GetFilename;
   end;
 
-function EncodeVersion(const AMajor, AMinor, APatch, ABuild: Integer): Integer;
 function XMLNode(const XML: IXMLNode; const Path: string; const NodeAutoCreate: Boolean = False): IXMLNode; overload;
 
 function VersionStrToVersion(VersionStr: string): Integer;
@@ -903,11 +890,6 @@ begin
     5: Result := 'Compact';
     else Result := '';
   end;
-end;
-
-function EncodeVersion(const AMajor, AMinor, APatch, ABuild: Integer): Integer;
-begin
-  Result := AMajor * 100000000 + AMinor * 1000000 + APatch * 10000 + ABuild;
 end;
 
 function StrToReplaceOptions(const Str: string): TPPreferences.TReplace.TOptions;
@@ -1948,6 +1930,7 @@ var
 begin
   inherited Create(KEY_ALL_ACCESS);
 
+  FOnlineVersion := 0;
   FXMLDocument := nil;
 
   NonClientMetrics.cbSize := SizeOf(NonClientMetrics);
@@ -1979,7 +1962,6 @@ begin
   GridNullText := True;
   GridMemoContent := False;
   GridDefaultSorting := True;
-  ObsoleteVersion := 0;
   QuickAccessVisible := True;
   SetupProgramExecute := False;
   SetupProgramInstalled := False;
@@ -2000,12 +1982,8 @@ begin
   TabsVisible := False;
   ToolbarTabs := [ttObjects, ttBrowser, ttEditor, ttObjectSearch];
   UpdateCheck := utNever;
-  UpdateChecked := 0;
 
 
-  KeyBase := SysUtils.LoadStr(1003);
-  GetVersion(FVerMajor, FVerMinor, FVerPatch, FVerBuild);
-  FInternetAgent := SysUtils.LoadStr(1000) + '/' + IntToStr(VerMajor) + '.' + IntToStr(VerMinor);
   SHGetFolderPath(0, CSIDL_PERSONAL, 0, 0, @Foldername);
   Path := IncludeTrailingPathDelimiter(PChar(@Foldername));
   if (SysUtils.LoadStr(1002) = '') then
@@ -2185,66 +2163,6 @@ begin
   {$ENDIF}
 end;
 
-function TPPreferences.GetVersion(var VerMajor, VerMinor, VerPatch, VerBuild: Integer): Boolean;
-var
-  Buffer: PChar;
-  BufferSize: Cardinal;
-  FileInfo: ^VS_FIXEDFILEINFO;
-  FileInfoSize: UINT;
-  Filename: array [0 .. MAX_PATH] of Char;
-  Handle: Cardinal;
-begin
-  Result := False;
-  VerMajor := -1; VerMinor := -1; VerPatch := -1; VerBuild := -1;
-
-
-  if (GetModuleFileName(0, @Filename, Length(Filename)) = 0) then
-    RaiseLastOSError();
-
-  BufferSize := GetFileVersionInfoSize(@Filename, Handle);
-  if (BufferSize > 0) then
-  begin
-    GetMem(Buffer, BufferSize);
-    if (GetFileVersionInfo(@Filename, 0, BufferSize, Buffer)
-      and (VerQueryValue(Buffer, '\', Pointer(FileInfo), FileInfoSize))
-      and (FileInfoSize >= SizeOf(FileInfo^))) then
-    begin
-      VerMajor := FileInfo.dwFileVersionMS shr 16;
-      VerMinor := FileInfo.dwFileVersionMS and $FFFF;
-      VerPatch := FileInfo.dwFileVersionLS shr 16;
-      VerBuild := FileInfo.dwFileVersionLS and $FFFF;
-      Result := (VerMajor > 0) and (VerMinor >= 0) and (VerPatch >= 0) and (VerBuild >= 0);
-    end;
-    FreeMem(Buffer);
-  end;
-end;
-
-function TPPreferences.GetVersionInfo(): Integer;
-var
-  VerBuild: Integer;
-  VerMajor: Integer;
-  VerMinor: Integer;
-  VerPatch: Integer;
-begin
-  if (not GetVersion(VerMajor, VerMinor, VerPatch, VerBuild)) then
-    Result := -1
-  else
-    Result := EncodeVersion(VerMajor, VerMinor, VerPatch, VerBuild);
-end;
-
-function TPPreferences.GetVersionStr(): string;
-var
-  VerBuild: Integer;
-  VerMajor: Integer;
-  VerMinor: Integer;
-  VerPatch: Integer;
-begin
-  if (not GetVersion(VerMajor, VerMinor, VerPatch, VerBuild)) then
-    Result := '???'
-  else
-    Result := IntToStr(VerMajor) + '.' + IntToStr(VerMinor) + '  (Build ' + IntToStr(VerPatch) + '.' + IntToStr(VerBuild) + ')';
-end;
-
 function TPPreferences.GetXMLDocument(): IXMLDocument;
 begin
   if (not Assigned(FXMLDocument)) then
@@ -2322,7 +2240,7 @@ begin
 
   RootKey := HKEY_CURRENT_USER;
 
-  if (OpenKeyReadOnly(KeyBase)) then
+  if (OpenKeyReadOnly(SysUtils.LoadStr(1003))) then
   begin
     if (ValueExists('LanguageFile')) then LanguageFilename := ExtractFileName(ReadString('LanguageFile'));
     if (ValueExists('Path') and DirectoryExists(ReadString('Path'))) then Path := IncludeTrailingPathDelimiter(ReadString('Path'));
@@ -2428,8 +2346,6 @@ begin
     if (Visible) then ToolbarTabs := ToolbarTabs + [ttObjectSearch] else ToolbarTabs := ToolbarTabs - [ttObjectSearch];
   if (Assigned(XMLNode(XML, 'top')) and TryStrToInt(XMLNode(XML, 'top').Text, Top)) then Top := Round(Top * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'updates/check'))) then TryStrToUpdateCheck(XMLNode(XML, 'updates/check').Text, UpdateCheck);
-  if (Assigned(XMLNode(XML, 'updates/lastcheck'))) then TryStrToDate(XMLNode(XML, 'updates/lastcheck').Text, UpdateChecked, FileFormatSettings);
-  if (not Assigned(XMLNode(XML, 'updates/obsolete')) or not TryStrToInt(XMLNode(XML, 'updates/obsolete').Text, ObsoleteVersion)) then ObsoleteVersion := 0;
   if (Assigned(XMLNode(XML, 'width')) and TryStrToInt(XMLNode(XML, 'width').Text, Width)) then Width := Round(Width * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'windowstate'))) then TryStrToWindowState(XMLNode(XML, 'windowstate').Text, WindowState);
 
@@ -2533,7 +2449,7 @@ begin
 
   RootKey := HKEY_CURRENT_USER;
 
-  if (OpenKey(KeyBase, False) or (UserPath <> ExtractFilePath(Application.ExeName)) and OpenKey(KeyBase, True)) then
+  if (OpenKey(SysUtils.LoadStr(1003), False) or (UserPath <> ExtractFilePath(Application.ExeName)) and OpenKey(SysUtils.LoadStr(1003), True)) then
   begin
     if (SetupProgram <> '') then
       WriteString('SetupProgram', SetupProgram)
@@ -2635,11 +2551,6 @@ begin
   XMLNode(XML, 'toolbar/objectsearch').Attributes['visible'] := ttObjectSearch in ToolbarTabs;
   XMLNode(XML, 'top').Text := IntToStr(Top);
   XMLNode(XML, 'updates/check').Text := UpdateCheckToStr(UpdateCheck);
-  XMLNode(XML, 'updates/lastcheck').Text := SysUtils.DateToStr(UpdateChecked, FileFormatSettings);
-  if (ObsoleteVersion > 0) then
-    XMLNode(XML, 'updates/obsolete').Text := SysUtils.IntToStr(ObsoleteVersion)
-  else if (Assigned(XMLNode(XML, 'updates/obsolete'))) then
-    XMLNode(XML, 'updates').ChildNodes.Remove(XMLNode(XML, 'updates/obsolete'));
 
   XMLNode(XML, 'width').Text := IntToStr(Width);
 
@@ -4026,5 +3937,4 @@ initialization
 finalization
   CoUninitialize();
 end.
-
 

@@ -6142,7 +6142,15 @@ begin
         end;
       Field.FieldName := Parameter[I].Name;
       FieldName := ReplaceStr(ReplaceStr(ReplaceStr(Parameter[I].Name, ' ', '_'), '.', '_'), '$', '_');
-      Field.Name := FieldName;
+      try
+        // Debug 2017-02-09
+        // There was a problem: ''@search'' is not a valid component name
+        Field.Name := FieldName;
+      except
+        on E: Exception do
+          raise EAssertionFailed.Create(E.Message + #13#10
+            + Source);
+      end;
       Field.DataSet := FInputDataSet;
     end;
 
@@ -11114,6 +11122,10 @@ begin
 
   if (ErrorCode = 0) then
   begin
+    // Debug 2017-02-09
+    Assert(Assigned(Session));
+    Assert(Assigned(Session.Connection));
+
     DataSet := TMySQLQuery.Create(nil);
     DataSet.Open(DataHandle);
 

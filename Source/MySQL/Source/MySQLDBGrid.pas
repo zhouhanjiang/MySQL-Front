@@ -142,6 +142,7 @@ type
     property Row;
     property RowCount;
     property TopRow;
+    property VisibleColCount;
   published
     property OnCanEditShow: TNotifyEvent read FOnCanEditShow write FOnCanEditShow;
     property OnSelect: TNotifyEvent read FOnSelect write FOnSelect;
@@ -1188,6 +1189,7 @@ var
   Cell: TGridCoord;
   Delay: Integer;
   Distance: Integer;
+  Msg: TMsg;
   UseTimer: Boolean;
 begin
   KillTimer(Handle, tiMouseMove);
@@ -1212,6 +1214,8 @@ begin
         SetTimer(Handle, tiShowHint, Application.HintPause, nil);
       end;
   end
+  else if (PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (KeysToShiftState(Msg.wParam) = Shift)) then
+    // Do nothing - handle this message within the next equal message
   else
   begin
     UseTimer := False;
@@ -1490,6 +1494,8 @@ begin
       // Debug 2017-02-07
       Assert((0 <= I) and (I < Columns.Count),
         'I: ' + IntToStr(I) + #13#10
+        + 'LeftCol: ' + IntToStr(LeftCol) + #13#10
+        + 'VisibleColCount: ' + IntToStr(VisibleColCount) + #13#10
         + 'Count: ' + IntToStr(Columns.Count) + #13#10
         + TMySQLDataSet(DataLink.DataSet).CommandText);
 

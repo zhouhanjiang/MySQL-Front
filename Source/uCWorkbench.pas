@@ -2185,9 +2185,10 @@ begin
   Result.MoveTo(Sender, [], APosition);
   Result.Selected := Point.Selected;
 
-  // Debug 2017-01-17
+  // Debug 2017-02-08
   // Check, if Link is complete
-  LastPoint.Link;
+  if (not (LastPoint.Link is TWLink)) then
+    raise ERangeError.Create('ClassType: ' + LastPoint.Link.ClassName);
 end;
 
 destructor TWLink.Destroy();
@@ -2270,8 +2271,9 @@ begin
   // Debug 2017-01-07
   if (not Assigned(TempPoint.Link)) then
     raise ERangeError.Create('TempPoint is not a part of a Link');
-  // Debug 2017-01-17
-  TempPoint.Link;
+  // Debug 2017-02-08
+  if (not (TempPoint.Link is TWLink)) then
+    raise ERangeError.Create('ClassType: ' + TempPoint.Link.ClassName);
 
   // Debug 2017-01-07
   TempPoint := TempPoint.Link;
@@ -3340,6 +3342,9 @@ var
   ParentTable: TWTable;
   Table: TWTable;
 begin
+  // Debug 2017-02-08
+  Assert(ABaseTable.Database = Database);
+
   Table := TWTable.Create(Tables, Position(X, Y), ABaseTable);
   if (Assigned(OnValidateControl) and OnValidateControl(Self, Table)
     and Assigned(Table.BaseTable.ForeignKeys)) then
@@ -3815,9 +3820,10 @@ begin
     end
     else if (CreatedLink is TWForeignKey) then
     begin
-      // Debug 2017-01-17
+      // Debug 2017-02-08
       // Check, if Link was created completely
-      CreatedLink.LastPoint.Link;
+      if (not (CreatedLink.LastPoint.Link is TWLink)) then
+        raise ERangeError.Create('ClassType: ' + CreatedLink.LastPoint.Link.ClassName);
 
       for J := 0 to BaseTable.ForeignKeys.Count - 1 do
         if (not Assigned(LinkByCaption(BaseTable.ForeignKeys[J].Name))) then

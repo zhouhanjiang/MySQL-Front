@@ -158,6 +158,7 @@ Progress: string; // Debug 2017-01-27
     ProgressInfos: TTool.TProgressInfos;
     Space: Integer;
     TableNames: TTableNames;
+    TerminateTime: TDateTime;
     Wanted: record
       Page: TTabSheet;
     end;
@@ -563,6 +564,7 @@ begin
     begin
       Progress := Progress + 'g';
       Import.Terminate();
+      TerminateTime := Now();
       CanClose := False;
     end
     else
@@ -634,7 +636,8 @@ begin
       + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
       + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
       + 'Import.Terminated: ' + BoolToStr(Assigned(Import) and Import.Terminated, True) + #13#10
-      + 'Progress: ' + Progress);
+      + 'Progress: ' + Progress + #13#10
+      + 'TimeToHide: ' + DateTimeToStr(Now() - TerminateTime));
 
   Session.UnRegisterEventProc(FormSessionEvent);
 
@@ -724,6 +727,7 @@ begin
   ModalResult := mrNone;
 
   Wanted.Page := nil;
+  TerminateTime := 0;
 
   if (ExtractFileName(Filename) = '') then
     Caption := Preferences.LoadStr(386)

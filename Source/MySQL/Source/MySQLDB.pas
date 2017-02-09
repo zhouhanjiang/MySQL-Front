@@ -525,6 +525,7 @@ type
       CriticalSection: TCriticalSection;
       FilteredRecordCount: Integer;
       Index: Integer;
+      function Add(Item: Pointer): Integer;
       procedure Clear(); override;
       constructor Create(const ADataSet: TMySQLDataSet);
       procedure Delete(Index: Integer);
@@ -915,6 +916,7 @@ uses
   ExceptionLog7, EExceptionManager,
   {$ENDIF}
   MySQLClient,
+uDeveloper,
   SQLUtils, CSVUtils, HTTPTunnel;
 
 resourcestring
@@ -2549,6 +2551,7 @@ function TMySQLConnection.InternExecuteSQL(const Mode: TSyncThread.TMode;
   const SQL: string; const OnResult: TResultEvent = nil; const Done: TEvent = nil): Boolean;
 var
   CLStmt: TSQLCLStmt;
+  P: PChar;
   SetNames: Boolean;
   SQLIndex: Integer;
   SQLLength: Integer;
@@ -2606,7 +2609,8 @@ begin
   StmtLength := 1; // To make sure, the first SQLStmtLength will be executed
   while ((SQLIndex < SQLLength) and (StmtLength > 0)) do
   begin
-    StmtLength := SQLStmtLength(PChar(@SyncThread.SQL[SQLIndex]), SQLLength - (SQLIndex - 1));
+    P := PChar(@SyncThread.SQL[SQLIndex]);
+    StmtLength := SQLStmtLength(P, SQLLength - (SQLIndex - 1));
     if (StmtLength > 0) then
     begin
       SyncThread.StmtLengths.Add(Pointer(StmtLength));
@@ -3916,7 +3920,12 @@ end;
 procedure TMySQLConnection.WriteMonitor(const Text: PChar; const Length: Integer; const TraceType: TMySQLMonitor.TTraceType);
 var
   I: Integer;
+  Start: Int64;
+  Finish: Int64;
+  Frequency: Int64;
 begin
+  if (not QueryPerformanceCounter(Start)) then Start := 0;
+
   InMonitor := True;
   try
     for I := 0 to FSQLMonitors.Count - 1 do
@@ -3925,6 +3934,10 @@ begin
   finally
     InMonitor := False;
   end;
+
+  if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
+    if ((Finish - Start) div Frequency > 1) then
+      SendToDeveloper('Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000) + ' s');
 end;
 
 { TMySQLBitField **************************************************************}
@@ -5602,7 +5615,9 @@ end;
 
 procedure TMySQLQuery.SetConnection(const AConnection: TMySQLConnection);
 begin
-  Assert(not Assigned(AConnection) or not IsCursorOpen());
+  Assert(not Assigned(AConnection) or not IsCursorOpen(),
+    'Active: ' + BoolToStr(Active, True) + #13#10
+    + 'CommandText: ' + CommandText);
 
   if (not Assigned(FConnection) and Assigned(AConnection)) then
     AConnection.RegisterClient(Self);
@@ -5725,6 +5740,13 @@ end;
 
 { TMySQLDataSet.TInternRecordBuffers ******************************************}
 
+function TMySQLDataSet.TInternRecordBuffers.Add(Item: Pointer): Integer;
+begin
+  Assert(Assigned(TMySQLDataSet.PExternRecordBuffer(Item)^.InternRecordBuffer^.OldData));
+
+  Result := inherited;
+end;
+
 procedure TMySQLDataSet.TInternRecordBuffers.Clear();
 var
   I: Integer;
@@ -5843,6 +5865,9 @@ procedure TMySQLDataSet.TInternRecordBuffers.Insert(Index: Integer; Item: Pointe
 var
   I: Integer;
 begin
+  // Debug 2017-02-09
+  Assert(Assigned(TMySQLDataSet.PExternRecordBuffer(Item)^.InternRecordBuffer^.OldData));
+
   inherited;
 
   for I := 0 to DataSet.BufferCount - 1 do
@@ -6432,7 +6457,8 @@ begin
   // 2017-01-31 was in the log:
   // DELETE FROM `bcbsgame_gamedata`.`users` WHERE `id` IS NULL;
   // DELETE FROM `bcbsgame_gamedata`.`users` WHERE `id` IS NULL;
-
+  // 2017-02-09 was in the log:
+  // SELECT * FROM `db_database28`.`tb_gysinfo` ORDER BY `name` LIMIT 100;
 
   inherited;
 end;

@@ -724,12 +724,11 @@ implementation {***************************************************************}
 uses
   ActiveX, SysConst, Shlwapi, UITypes, Types,
   RegularExpressionsCore, Math, Variants,
-  Forms, DBConsts, Registry, DBCommon, StrUtils
-  {$IFNDEF EurekaLog}
-  ;
-  {$ELSE}
-  , ExceptionLog7, EExceptionManager;
+  Forms, DBConsts, Registry, DBCommon, StrUtils,
+  {$IFDEF EurekaLog}
+  ExceptionLog7, EExceptionManager,
   {$ENDIF}
+  uDeveloper;
 
 resourcestring
   SSourceParseError = 'Source code of "%s" cannot be analyzed (%d):' + #10#10 + '%s';
@@ -4565,7 +4564,7 @@ begin
 
   Content := Content + '# Host: ' + Session.Caption + '  (Version ' + Session.Connection.ServerVersionStr + ')' + #13#10;
   Content := Content + '# Date: ' + MySQLDB.DateTimeToStr(Now(), Session.Connection.FormatSettings) + #13#10;
-  Content := Content + '# Generator: ' + LoadStr(1000) + ' ' + Preferences.VersionStr + #13#10;
+  Content := Content + '# Generator: ' + LoadStr(1000) + ' ' + ProgramVersionStr + #13#10;
   Content := Content + #13#10;
 
   if ((CodePage <> CP_UNICODE) and (Session.Connection.CodePageToCharset(CodePage) <> '') and (Session.Connection.MySQLVersion >= 40101)) then
@@ -5303,7 +5302,7 @@ begin
   Content := Content + #9 + '<title>' + HTMLEscape(Title) + '</title>' + #13#10;
   Content := Content + #9 + '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">' + #13#10;
   Content := Content + #9 + '<meta name="date" content="' + GetUTCDateTime(Now()) + '">' + #13#10;
-  Content := Content + #9 + '<meta name="generator" content="' + LoadStr(1000) + ' ' + Preferences.VersionStr + '">' + #13#10;
+  Content := Content + #9 + '<meta name="generator" content="' + LoadStr(1000) + ' ' + ProgramVersionStr + '">' + #13#10;
   Content := Content + #9 + '<style type="text/css"><!--' + #13#10;
   Content := Content + #9#9 + 'body {font-family: Arial,Helvetica,sans-serif; font-size: ' + IntToStr(-Font.Height) + 'px;}' + #13#10;
   Content := Content + #9#9 + 'h1 {font-size: ' + IntToStr(-Font.Height + 6) + 'px; text-decoration: bold;}' + #13#10;

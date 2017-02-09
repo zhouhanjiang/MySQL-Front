@@ -450,6 +450,7 @@ begin
 
   TSFOptions.Enabled := SearchOnly;
   TSROptions.Enabled := not SearchOnly;
+  TSExecute.Enabled := False;
 
   for I := 0 to PageControl.PageCount - 1 do
     if (not Assigned(PageControl.ActivePage) and PageControl.Pages[I].Enabled) then
