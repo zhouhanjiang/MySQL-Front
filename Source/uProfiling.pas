@@ -8,6 +8,7 @@ uses
 type
   TProfile = record
     CriticalSection: TCriticalSection;
+    DisableFreezeDetection: Boolean;
     LastCount: Int64;
     Points: array of record
       Disabled: Integer;
@@ -24,7 +25,7 @@ procedure ProfilingReset(); overload;
 function ProfilingTime(): Int64; overload;
 
 procedure CloseProfile(var Profile: TProfile);
-procedure CreateProfile(out Profile: TProfile);
+procedure CreateProfile(out Profile: TProfile; const DisableFreezeDetection: Boolean = True);
 procedure ProfilingDisablePoint(var Profile: TProfile; const Index: Integer); overload;
 procedure ProfilingEnablePoint(var Profile: TProfile; const Index: Integer); overload;
 procedure ProfilingPoint(var Profile: TProfile; const Index: Integer); overload;
@@ -35,7 +36,10 @@ function ProfilingTime(const Profile: TProfile): Int64; overload;
 implementation {***************************************************************}
 
 uses
-  Windows, SysUtils;
+  Windows, SysUtils
+  {$IFDEF EurekaLog}
+  , EFreeze
+  {$ENDIF};
 
 var
   FormatSettings: TFormatSettings;
@@ -74,14 +78,25 @@ end;
 
 procedure CloseProfile(var Profile: TProfile);
 begin
+  {$IFDEF EurekaLog}
+  if (Profile.DisableFreezeDetection) then
+    ResumeFreezeCheck();
+  {$ENDIF}
+
   SetLength(Profile.Points, 0);
   Profile.CriticalSection.Free();
 end;
 
-procedure CreateProfile(out Profile: TProfile);
+procedure CreateProfile(out Profile: TProfile; const DisableFreezeDetection: Boolean = True);
 begin
   Profile.CriticalSection := TCriticalSection.Create();
+  Profile.DisableFreezeDetection := DisableFreezeDetection;
   SetLength(Profile.Points, 0);
+
+  {$IFDEF EurekaLog}
+  if (Profile.DisableFreezeDetection) then
+    PauseFreezeCheck();
+  {$ENDIF}
 end;
 
 procedure ProfilingDisablePoint(var Profile: TProfile; const Index: Integer);
@@ -198,7 +213,7 @@ end;
 initialization
   FormatSettings := TFormatSettings.Create(LOCALE_USER_DEFAULT);
   if (not QueryPerformanceFrequency(Frequency)) then Frequency := 0;
-  CreateProfile(Profile);
+  CreateProfile(Profile, False);
 finalization
   CloseProfile(Profile);
 end.

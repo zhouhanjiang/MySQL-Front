@@ -173,7 +173,7 @@ var
   MSec: Word;
   Sec: Word;
 begin
-  if (PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (KeysToShiftState(Msg.wParam) = Shift)) then
+  if (PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (Msg.hwnd = Handle) and (KeysToShiftState(Msg.wParam) = Shift)) then
     // Handle this Message within the next equal message
   else if ((BorderStyle = bsSizeable) and (MouseDownPoint.X < 0)) then
   begin

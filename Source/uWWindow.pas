@@ -449,6 +449,7 @@ uses
   acQBLocalizer,
   MySQLConsts, HTTPTunnel, SQLUtils,
   uTools, uURI,
+uProfiling,
   uDAccounts, uDAccount, uDOptions, uDLogin, uDStatement, uDTransfer, uDSearch,
   uDConnecting, uDInfo, uDUpdate, uDMail;
 
@@ -834,8 +835,16 @@ begin
 end;
 
 procedure TWWindow.CMSysFontChanged(var Message: TMessage);
+var
+  Profile: TProfile;
 begin
+  CreateProfile(Profile);
+
   inherited;
+
+  if (ProfilingTime(Profile) > 200) then
+    SendToDeveloper(ProfilingReport(Profile));
+  CloseProfile(Profile);
 
   if (StyleServices.Enabled or not CheckWin32Version(6)) then
     ToolBar.BorderWidth := 0

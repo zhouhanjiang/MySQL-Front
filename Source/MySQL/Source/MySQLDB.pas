@@ -1697,7 +1697,7 @@ var
   MoveLen: Integer;
   Pos: Integer;
 begin
-  ProfilingPoint(MonitorProfile, 1);
+  ProfilingPoint(MonitorProfile, 4);
 
   Assert(GetCurrentThreadId() = MainThreadId);
 
@@ -1777,12 +1777,12 @@ begin
     end;
   end;
 
-  ProfilingPoint(MonitorProfile, 2);
+  ProfilingPoint(MonitorProfile, 5);
 
   if (Enabled and Assigned(OnMonitor) and Assigned(Connection)) then
     OnMonitor(Connection, Text, Length, ATraceType);
 
-  ProfilingPoint(MonitorProfile, 6);
+  ProfilingPoint(MonitorProfile, 9);
 end;
 
 procedure TMySQLMonitor.Append(const Text: string; const ATraceType: TTraceType);
@@ -3931,14 +3931,26 @@ var
 begin
   ProfilingReset(MonitorProfile);
 
+  ProfilingPoint(MonitorProfile, 1);
+
   InMonitor := True;
   try
+    ProfilingPoint(MonitorProfile, 2);
+
     for I := 0 to FSQLMonitors.Count - 1 do
       if (TraceType in TMySQLMonitor(FSQLMonitors[I]).TraceTypes) then
+      begin
+        ProfilingPoint(MonitorProfile, 3);
         TMySQLMonitor(FSQLMonitors[I]).Append(Text, Length, TraceType);
+        ProfilingPoint(MonitorProfile, 10);
+      end;
+
+    ProfilingPoint(MonitorProfile, 11);
   finally
     InMonitor := False;
   end;
+
+  ProfilingPoint(MonitorProfile, 12);
 
   if (ProfilingTime(MonitorProfile) > 1000) then
     SendToDeveloper('Count: ' + IntToStr(FSQLMonitors.Count) + #13#10

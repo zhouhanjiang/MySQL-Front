@@ -347,6 +347,7 @@ type
         ntStartTransactionStmt,
         ntStopSlaveStmt,
         ntSubArea,
+        ntSubAreaStmt,
         ntSubPartition,
         ntSubquery,
         ntSubstringFunc,
@@ -497,6 +498,7 @@ type
         stStartSlave,
         stStartTransaction,
         stStopSlave,
+        stSubArea,
         stTruncate,
         stUninstallPlugin,
         stUnknown,
@@ -862,6 +864,7 @@ type
         'ntStartTransactionStmt',
         'ntStopSlaveStmt',
         'ntSubArea',
+        'ntSubAreaStmt',
         'ntSubPartition',
         'ntSubquery',
         'ntSubstringFunc',
@@ -1012,6 +1015,7 @@ type
         'stStartSlave',
         'stStartTransaction',
         'stStopSlave',
+        'stSubArea',
         'stTruncate',
         'stUninstallPlugin',
         'stUnknown',
@@ -1300,6 +1304,7 @@ type
         ntStartSlaveStmt,
         ntStartTransactionStmt,
         ntStopSlaveStmt,
+        ntSubAreaStmt,
         ntTruncateStmt,
         ntUninstallPluginStmt,
         ntUnknownStmt,
@@ -1521,6 +1526,7 @@ type
         ntStartSlaveStmt,
         ntStartTransactionStmt,
         ntStopSlaveStmt,
+        ntSubAreaStmt,
         ntTruncateStmt,
         ntUninstallPluginStmt,
         ntUnknownStmt,
@@ -5688,6 +5694,21 @@ type
         property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
+      PSubAreaStmt = ^TSubAreaStmt;
+      TSubAreaStmt = packed record
+      private type
+        TNodes = packed record
+          SubArea: TOffset;
+        end;
+      private
+        Heritage: TStmt;
+      private
+        Nodes: TNodes;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
+      public
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+      end;
+
       PSubPartition = ^TSubPartition;
       TSubPartition = packed record
       private type
@@ -7085,6 +7106,7 @@ type
     function ParseStopSlaveStmt(): TOffset;
     function ParseString(): TOffset;
     function ParseSubArea(const ParseArea: TParseFunction): TOffset;
+    function ParseSubAreaStmt(const ParseStmt: TParseFunction): TOffset;
     function ParseSubPartition(): TOffset;
     function ParseSubSelectStmt(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseSubquery(): TOffset;
@@ -11638,6 +11660,20 @@ begin
   end;
 end;
 
+{ TSQLParser.TSubAreaSelectStmt ***********************************************}
+
+class function TSQLParser.TSubAreaStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
+begin
+  Result := TStmt.Create(AParser, stSubArea);
+
+  with PSubAreaStmt(AParser.NodePtr(Result))^ do
+  begin
+    Nodes := ANodes;
+
+    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
+  end;
+end;
+
 { TSQLParser.TSubPartition ****************************************************}
 
 class function TSQLParser.TSubPartition.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
@@ -13675,6 +13711,7 @@ begin
       ntStartTransactionStmt: DefaultFormatNode(@PStartTransactionStmt(Node)^.Nodes, SizeOf(TStartTransactionStmt.TNodes));
       ntStopSlaveStmt: DefaultFormatNode(@PStopSlaveStmt(Node)^.Nodes, SizeOf(TSignalStmt.TNodes));
       ntSubArea: FormatSubArea(PSubArea(Node)^.Nodes);
+      ntSubAreaStmt: DefaultFormatNode(@PSubAreaStmt(Node)^.Nodes, SizeOf(TSubAreaStmt.TNodes));
       ntSubPartition: FormatSubPartition(PSubPartition(Node)^.Nodes);
       ntSubquery: FormatSubquery(PSubquery(Node)^.Nodes);
       ntSubstringFunc: FormatSubstringFunc(PSubstringFunc(Node)^.Nodes);
@@ -15158,6 +15195,7 @@ begin
     ntStartTransactionStmt: Result := SizeOf(TStartTransactionStmt);
     ntStopSlaveStmt: Result := SizeOf(TStopSlaveStmt);
     ntSubArea: Result := SizeOf(TSubArea);
+    ntSubAreaStmt: Result := SizeOf(TSubAreaStmt);
     ntSubPartition: Result := SizeOf(TSubPartition);
     ntSubquery: Result := SizeOf(TSubquery);
     ntSubstringFunc: Result := SizeOf(TSubstringFunc);
@@ -19922,7 +19960,7 @@ begin
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if (NodeIndex + 1 = Nodes.Count) then
                 SetError(PE_IncompleteStmt)
-              else if ((NodePtr(Nodes[NodeIndex + 1])^.NodeType <> ntSelectStmt)
+              else if ((NodePtr(Nodes[NodeIndex + 1])^.NodeType <> ntSubAreaStmt)
                 and (NodePtr(Nodes[NodeIndex + 1])^.NodeType <> ntList)) then
                 SetError(PE_UnexpectedToken, NodePtr(Nodes[NodeIndex + 1])^.FirstToken^.Offset)
               else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)) then
@@ -21999,7 +22037,7 @@ begin
   StmtList := ParseList(False, ParseStmt, ttSemicolon, True, True);
 
   if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
-    if ((Finish - Start) div Frequency > 1) then
+    if ((Finish - Start) * 1000 div Frequency > 1000) then
       SendToDeveloper(Parse.SQL);
 
   Result := TRoot.Create(Self, FirstTokenAll, StmtList);
@@ -22194,8 +22232,8 @@ var
   TableAliasToken: PToken;
   Token: PToken;
 begin
-  if (not UnionSelect and IsSymbol(ttOpenBracket)) then
-    Result := ParseSubArea(ParseSelectStmt)
+  if (IsSymbol(ttOpenBracket)) then
+    Result := ParseSubAreaStmt(ParseSelectStmt)
   else
   begin
     FillChar(Nodes, SizeOf(Nodes), 0);
@@ -24247,8 +24285,11 @@ begin
     Result := ParseSetStmt()
   else
   {$IFDEF Debug}
+  begin
     Continue := True; // This "Hack" is needed to use <Ctrl+LeftClick>
-  if (Continue) then  // the Delphi XE4 IDE. But why???
+    Result := 0;      // the Delphi XE4 IDE. But why???
+  end;
+  if (Continue) then
   {$ENDIF}
   if (IsTag(kiSHOW, kiBINARY, kiLOGS)) then
     Result := ParseShowBinaryLogsStmt()
@@ -24455,6 +24496,17 @@ begin
     Nodes.CloseBracket := ParseSymbol(ttCloseBracket);
 
   Result := TSubArea.Create(Self, Nodes);
+end;
+
+function TSQLParser.ParseSubAreaStmt(const ParseStmt: TParseFunction): TOffset;
+var
+  Nodes: TSubAreaStmt.TNodes;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
+  Nodes.SubArea := ParseSubArea(ParseStmt);
+
+  Result := TSubAreaStmt.Create(Self, Nodes);
 end;
 
 function TSQLParser.ParseSubPartition(): TOffset;

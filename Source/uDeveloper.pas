@@ -62,7 +62,6 @@ const
     + '?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3'
     + '}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08'
     + '\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])';
-  SendErrorLogFilename = 'SendErrors.log';
 
 var
   LastUpdateCheck: TDateTime;
@@ -97,7 +96,6 @@ var
   InternetAgent: string;
   ModuleFileName: string;
   SendThreads: TList;
-  SendErrorLogCS: TCriticalSection;
   UserPath: string;
 
 { ****************************************************************************** }
@@ -242,6 +240,7 @@ var
   Size: Integer;
   Stream: TMemoryStream;
 begin
+  {$IFNDEF Debug}
   if ((Days = 0) or (GetUTCTime() < IncDay(GetCompileTime(), Days))) then
   begin
     Body := Text;
@@ -312,6 +311,7 @@ begin
     SendThreads.Add(Thread);
     Thread.Start();
   end;
+  {$ENDIF}
 end;
 
 { THTTPThread ***************************************************************** }
@@ -347,7 +347,6 @@ var
   QueryInfo: array [0 .. 2048] of Char;
   Request: HInternet;
   RequestTry: Integer;
-  SendErrorLog: TStringList;
   Size: Cardinal;
   Success: Boolean;
   URLComponents: TURLComponents;
@@ -518,20 +517,6 @@ begin
 
     if (not Terminated and Assigned(OnProgress)) then
       OnProgress(Self, ReceiveStream.Size, ReceiveStream.Size);
-
-    SendErrorLogCS.Enter();
-    if (Assigned(SendStream) and ((ErrorCode <> 0) or (HTTPStatus <> HTTP_STATUS_OK))) then
-    begin
-      SendErrorLog := TStringList.Create();
-      if (FileExists(UserPath + SendErrorLogFilename)) then
-        SendErrorLog.LoadFromFile(UserPath + SendErrorLogFilename);
-      SendErrorLog.Add(ProgramVersionStr + ' - ErrorCode: ' + IntToStr(ErrorCode) + ', '
-        + 'HTTPStatus: ' + IntToStr(HTTPStatus) + ', '
-        + 'Connected: ' + BoolToStr(InternetGetConnectedState(nil, 0), True));
-      SendErrorLog.SaveToFile(UserPath + SendErrorLogFilename);
-      SendErrorLog.Free();
-    end;
-    SendErrorLogCS.Leave();
 
 {$IFDEF EurekaLog}
   except
@@ -1119,7 +1104,6 @@ initialization
   ObsoleteVersion := -1;
   OnlineVersion := -1;
   SendThreads := TList.Create();
-  SendErrorLogCS := TCriticalSection.Create();
   UserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(TPath.GetHomePath()) + SysUtils.LoadStr(1002));
 
   BufferSize := GetFileVersionInfoSize(PChar(ModuleFileName), Handle);
@@ -1160,7 +1144,6 @@ finalization
     SendThreads.Delete(0);
   end;
   SendThreads.Free();
-  SendErrorLogCS.Free();
 
   Reg := TRegistry.Create();
   Reg.RootKey := HKEY_CURRENT_USER;

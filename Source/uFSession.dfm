@@ -454,7 +454,7 @@ object FSession: TFSession
         Constraints.MinHeight = 50
         ParentBackground = False
         TabOrder = 1
-        OnResize = PGridResize
+        OnResize = PDBGridResize
       end
     end
     object PQueryBuilder: TPanel_Ext
@@ -1271,7 +1271,7 @@ object FSession: TFSession
       end
     end
     object FObjectSearch: TEdit
-      Left = 50528
+      Left = 40682
       Top = 0
       Width = 140
       Height = 22
@@ -1286,7 +1286,7 @@ object FSession: TFSession
       ExplicitLeft = 32752
     end
     object TBObjectSearch: TToolBar
-      Left = 50495
+      Left = 40667
       Top = 0
       Width = 23
       Height = 22
