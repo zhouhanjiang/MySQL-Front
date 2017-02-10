@@ -7,6 +7,7 @@ uses
   DB,
   acMYSQLSynProvider, acQBEventMetaProvider,
   SQLUtils, MySQLDB, MySQLConsts, SQLParser,
+uProfiling,
   uPreferences;
 
 type
@@ -12973,6 +12974,8 @@ var
   Finish: Int64;
   Frequency: Int64;
 begin
+  ProfilingPoint(MonitorProfile, 6);
+
   if (not QueryPerformanceCounter(Start)) then Start := 0;
 
   Event := TEvent.Create(Self);
@@ -12983,14 +12986,15 @@ begin
   DoSendEvent(Event);
   Event.Free();
 
+  ProfilingPoint(MonitorProfile, 13);
+
   if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)
     and ((Finish - Start) div Frequency > 10)) then
     SendToDeveloper('EventType: ' + IntToStr(Ord(EventType)) + ', '
-      + 'Sender: ' + Sender.ClassName + ', '
-      + 'Items: ' + Items.ClassName + ', '
-      + 'Count: ' + IntToStr(Items.Count) + ', '
       + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s, '
       + 'Receiver: ' + IntToStr(Length(EventProcs)));
+
+  ProfilingPoint(MonitorProfile, 14);
 end;
 
 function TSSession.SendSQL(const SQL: string; const OnResult: TMySQLConnection.TResultEvent = nil): Boolean;

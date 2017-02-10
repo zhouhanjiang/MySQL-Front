@@ -7592,15 +7592,15 @@ procedure TFSession.FLogUpdate();
 begin
   if (MainAction('aVSQLLog').Checked) then
   begin
-    ProfilingPoint(MonitorProfile, 6);
+    ProfilingPoint(MonitorProfile, 8);
 
     FLog.Text := Session.SQLMonitor.CacheText;
 
-    ProfilingPoint(MonitorProfile, 7);
+    ProfilingPoint(MonitorProfile, 9);
 
     PLogResize(nil);
 
-    ProfilingPoint(MonitorProfile, 8);
+    ProfilingPoint(MonitorProfile, 10);
   end;
 end;
 
@@ -9095,11 +9095,6 @@ begin
 end;
 
 procedure TFSession.FormSessionEvent(const Event: TSSession.TEvent);
-var
-  Start: Int64;
-  Finish: Int64;
-  Frequency: Int64;
-  S: string;
 begin
   // Debug 2017-02-05
   Assert(Assigned(SBlob),
@@ -9110,7 +9105,7 @@ begin
   // DROP TABLE `mixer`.`extranet`;
   // aDDeleteExecute - end - SBlob: True
 
-  if (not QueryPerformanceCounter(Start)) then Start := 0;
+  ProfilingPoint(MonitorProfile, 7);
 
   if (not (csDestroying in ComponentState)) then
     case (Event.EventType) of
@@ -9130,25 +9125,13 @@ begin
         Wanted.Clear();
     end;
 
-  if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
-    if ((Finish - Start) div Frequency > 1) then
-    begin
-      S := 'FormSessionEvent - '
-        + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
-      if (Assigned(Event.Items)) then
-        S := S
-          + 'ClassType: ' + Event.Items.ClassName + ', '
-          + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
-      if (Event.Item is TSTable) then
-        S := S
-          + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
-      S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000) + ' s';
-      TimeMonitor.Append(S, ttDebug);
-    end;
+  ProfilingPoint(MonitorProfile, 11);
 
   // Debug 2017-02-05
   Assert(Assigned(SBlob),
     'EventType: ' + IntToStr(Ord(Event.EventType)));
+
+  ProfilingPoint(MonitorProfile, 12);
 end;
 
 procedure TFSession.FormResize(Sender: TObject);

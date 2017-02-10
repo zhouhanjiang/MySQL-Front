@@ -129,7 +129,7 @@ begin
 
   if (Profile.Points[Index].Disabled = 0) then
   begin
-    QueryPerformanceCounter(Count);
+    if (not QueryPerformanceCounter(Count)) then Count := 0;
     Inc(Profile.Points[Index].Sum, Count - Profile.LastCount);
     Profile.LastCount := Count;
   end;
@@ -155,32 +155,35 @@ begin
 
   Result := '';
 
-  QueryPerformanceFrequency(Frequency);
-
-  Sum := 0;
-  for Index := 1 to Length(Profile.Points) - 1 do
-    Inc(Sum, Profile.Points[Index].Sum);
-
-  for Index := 1 to Length(Profile.Points) - 1 do
-    Result := Result + Format('%2d:  %7s %s  %3d %s' + #13#10, [Index, FormatFloat('#,##0.000', Profile.Points[Index].Sum * 1000 div Frequency / 1000, FormatSettings), 's', Profile.Points[Index].Sum * 100 div Sum, '%']);
-
-  Result := Result + Format('----------------------' + #13#10, []);
-  Result := Result + Format('     %7s %s  %3d %s' + #13#10, [FormatFloat('#,##0.000', Sum * 1000 div Frequency / 1000, FormatSettings), 's', 100, '%']);
-
-  if (Filename <> '') then
+  if (not QueryPerformanceFrequency(Frequency)) then
+    Result := 'QueryPerformanceFrequency failed'
+  else
   begin
-    Handle := CreateFile(PChar(Filename),
-                         GENERIC_WRITE,
-                         FILE_SHARE_READ,
-                         nil,
-                         CREATE_ALWAYS, 0, 0);
-    if (Handle = INVALID_HANDLE_VALUE) then
-      RaiseLastOSError()
-    else
+    Sum := 0;
+    for Index := 1 to Length(Profile.Points) - 1 do
+      Inc(Sum, Profile.Points[Index].Sum);
+
+    for Index := 1 to Length(Profile.Points) - 1 do
+      Result := Result + Format('%2d:  %7s %s  %3d %s' + #13#10, [Index, FormatFloat('#,##0.000', Profile.Points[Index].Sum * 1000 div Frequency / 1000, FormatSettings), 's', Profile.Points[Index].Sum * 100 div Sum, '%']);
+
+    Result := Result + Format('----------------------' + #13#10, []);
+    Result := Result + Format('     %7s %s  %3d %s' + #13#10, [FormatFloat('#,##0.000', Sum * 1000 div Frequency / 1000, FormatSettings), 's', 100, '%']);
+
+    if (Filename <> '') then
     begin
-      WriteFile(Handle, BOM^, Length(BOM), BytesWritten, nil);
-      WriteFile(Handle, Result[1], Length(Result) * SizeOf(Result[1]), BytesWritten, nil);
-      CloseHandle(Handle);
+      Handle := CreateFile(PChar(Filename),
+                           GENERIC_WRITE,
+                           FILE_SHARE_READ,
+                           nil,
+                           CREATE_ALWAYS, 0, 0);
+      if (Handle = INVALID_HANDLE_VALUE) then
+        RaiseLastOSError()
+      else
+      begin
+        WriteFile(Handle, BOM^, Length(BOM), BytesWritten, nil);
+        WriteFile(Handle, Result[1], Length(Result) * SizeOf(Result[1]), BytesWritten, nil);
+        CloseHandle(Handle);
+      end;
     end;
   end;
 
@@ -195,7 +198,8 @@ begin
   Profile.Points[0].Disabled := 0;
   Profile.Points[0].Sum := 0;
 
-  if (not QueryPerformanceCounter(Profile.Start)) then Profile.Start := 0;
+  if (not QueryPerformanceCounter(Profile.LastCount)) then Profile.LastCount := 0;
+  Profile.Start := Profile.LastCount;
 
   Profile.CriticalSection.Leave();
 end;

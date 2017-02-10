@@ -224,8 +224,8 @@ end;
 
 procedure SendToDeveloper(const Text: string; const Days: Integer = 2;
   const HideSource: Boolean = False);
-var
 {$IFDEF EurekaLog}
+var
   Buffer: TEurekaDebugInfo;
   CallStack: TEurekaBaseStackList;
   I: Integer;
@@ -234,11 +234,14 @@ var
   StackItem: Integer;
   Source: string;
 {$ENDIF}
+{$IFNDEF Debug}
+var
   Body: String;
   Flags: DWORD;
   Thread: THTTPThread;
   Size: Integer;
   Stream: TMemoryStream;
+{$ENDIF}
 begin
   {$IFNDEF Debug}
   if ((Days = 0) or (GetUTCTime() < IncDay(GetCompileTime(), Days))) then

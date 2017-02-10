@@ -1782,7 +1782,7 @@ begin
   if (Enabled and Assigned(OnMonitor) and Assigned(Connection)) then
     OnMonitor(Connection, Text, Length, ATraceType);
 
-  ProfilingPoint(MonitorProfile, 9);
+  ProfilingPoint(MonitorProfile, 15);
 end;
 
 procedure TMySQLMonitor.Append(const Text: string; const ATraceType: TTraceType);
@@ -3931,8 +3931,6 @@ var
 begin
   ProfilingReset(MonitorProfile);
 
-  ProfilingPoint(MonitorProfile, 1);
-
   InMonitor := True;
   try
     ProfilingPoint(MonitorProfile, 2);
@@ -3942,15 +3940,13 @@ begin
       begin
         ProfilingPoint(MonitorProfile, 3);
         TMySQLMonitor(FSQLMonitors[I]).Append(Text, Length, TraceType);
-        ProfilingPoint(MonitorProfile, 10);
+        ProfilingPoint(MonitorProfile, 16);
       end;
 
-    ProfilingPoint(MonitorProfile, 11);
+    ProfilingPoint(MonitorProfile, 17);
   finally
     InMonitor := False;
   end;
-
-  ProfilingPoint(MonitorProfile, 12);
 
   if (ProfilingTime(MonitorProfile) > 1000) then
     SendToDeveloper('Count: ' + IntToStr(FSQLMonitors.Count) + #13#10
