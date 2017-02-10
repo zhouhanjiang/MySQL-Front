@@ -92,6 +92,7 @@ begin
   Profile.CriticalSection := TCriticalSection.Create();
   Profile.DisableFreezeDetection := DisableFreezeDetection;
   SetLength(Profile.Points, 0);
+  ProfilingReset(Profile);
 
   {$IFDEF EurekaLog}
   if (Profile.DisableFreezeDetection) then
