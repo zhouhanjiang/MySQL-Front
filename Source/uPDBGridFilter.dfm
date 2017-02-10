@@ -14,7 +14,6 @@ object PDBGridFilter: TPDBGridFilter
   OldCreateOrder = False
   Position = poDesigned
   OnCreate = FormCreate
-  OnDeactivate = FormDeactivate
   OnHide = FormHide
   OnShow = FormShow
   PixelsPerInch = 106

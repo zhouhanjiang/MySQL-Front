@@ -14,7 +14,6 @@ type
     FNull: TComboBox;
     FExtender: TButton;
     FText: TEdit;
-    procedure FormDeactivate(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure FormHide(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -91,11 +90,6 @@ begin
   FExtender.Width := FExtender.Height;
 end;
 
-procedure TPDBGridFilter.FormDeactivate(Sender: TObject);
-begin
-  Hide();
-end;
-
 procedure TPDBGridFilter.FormHide(Sender: TObject);
 begin
   FOperator.Items.BeginUpdate();
@@ -140,6 +134,9 @@ begin
     SendMessage(PopupParent.Handle, WM_NCACTIVATE, WPARAM(TRUE), 0);
 
   inherited;
+
+  if (Msg.Active = WA_INACTIVE) then
+    Hide();
 end;
 
 end.

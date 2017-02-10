@@ -842,7 +842,7 @@ begin
 
   inherited;
 
-  if (ProfilingTime(Profile) > 200) then
+  if (ProfilingTime(Profile) > 1000) then
     SendToDeveloper(ProfilingReport(Profile));
   CloseProfile(Profile);
 
