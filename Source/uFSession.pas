@@ -1157,7 +1157,7 @@ uProfiling,
   uDField, uDKey, uDTable, uDTables, uDVariable, uDDatabase, uDForeignKey,
   uDUser, uDQuickFilter, uWSQLHelp, uDTransfer, uDSearch, uDServer,
   uURI, uDView, uDRoutine, uDTrigger, uDStatement, uDEvent, uDPaste, uDSegment,
-  uDConnecting, uPDataBrowserDummy, uDExecutingSQL;
+  uDConnecting, uDExecutingSQL;
 
 const
   nlHost = 0;
@@ -5122,7 +5122,7 @@ begin
   SynCompletionPending.Active := False;
 
   TimeMonitor := TMySQLMonitor.Create(nil);
-  TimeMonitor.CacheSize := 2000;
+  TimeMonitor.CacheSize := 10000;
 
 
   TBSideBar.Images := Preferences.Images;
@@ -6226,7 +6226,12 @@ begin
     end
     else if ((gdFocused in State)
       or (gdSelected in State)) then
-      if (DBGrid.Focused) then
+      if (DBGrid.Parent = PObjectIDE) then
+      begin // Cell is focused, Grid is PObjectIDE child
+        DBGrid.Canvas.Font.Color := clWindowText;
+        DBGrid.Canvas.Brush.Color := clWindow;
+      end
+      else if (DBGrid.Focused) then
       begin // Cell is focused, Grid is focused
         DBGrid.Canvas.Font.Color := clHighlightText;
         DBGrid.Canvas.Brush.Color := clHighlight;
@@ -7499,9 +7504,15 @@ procedure TFSession.FLogUpdate();
 begin
   if (MainAction('aVSQLLog').Checked) then
   begin
+    ProfilingPoint(MonitorProfile, 3);
+
     FLog.Text := Session.SQLMonitor.CacheText;
 
+    ProfilingPoint(MonitorProfile, 4);
+
     PLogResize(nil);
+
+    ProfilingPoint(MonitorProfile, 5);
   end;
 end;
 
@@ -8066,7 +8077,7 @@ begin
       if (not CheckWin32Version(6, 1)) then
         NavigatorElapse := 500
       else
-        FNavigatorIgnoreChange := not (Key in [VK_SHIFT, VK_CONTROL, VK_MENU]);
+        FNavigatorIgnoreChange := not (Key in [VK_SHIFT, VK_CONTROL, VK_MENU ]);
   end;
 
   FNavigatorKeyDownNode := FNavigator.Selected;
@@ -14135,33 +14146,32 @@ var
   I: Integer;
 begin
   // With higher DPI system, the width of the following components are not
-  // applyed in a "frame" (Delphi XE4). So there is the PDataBrowserDummy as
-  // a "form" to get the correct values...
+  // applyed in a "frame" (Delphi XE4). So we calculate them...
 
   for I := 0 to PDataBrowser.ControlCount - 1 do
     if (PDataBrowser.Controls[I] <> PDataBrowserSpacer) then
       PDataBrowser.Controls[I].Height := PDataBrowser.ClientHeight - PDataBrowserSpacer.Height;
 
-  FOffset.Left := PDataBrowserDummy.FOffset.Left;
-  FOffset.Width := PDataBrowserDummy.FOffset.Width;
+  FOffset.Left := 0;
+  FOffset.Width := 40 * Screen.PixelsPerInch div USER_DEFAULT_SCREEN_DPI;
   FUDOffset.Left := FOffset.Left + FOffset.Width;
-  FUDOffset.Width := PDataBrowserDummy.FUDOffset.Width;
-  FLimit.Left := FUDOffset.Left + FUDOffset.Width;
-  FLimit.Width := PDataBrowserDummy.FLimit.Width;
+  FUDOffset.Width := 14 * Screen.PixelsPerInch div USER_DEFAULT_SCREEN_DPI;
+  FLimit.Left := 55 * Screen.PixelsPerInch div USER_DEFAULT_SCREEN_DPI;
+  FLimit.Width := 33 * Screen.PixelsPerInch div USER_DEFAULT_SCREEN_DPI;
   FUDLimit.Left := FLimit.Left + FLimit.Width;
-  FUDLimit.Width := PDataBrowserDummy.FUDLimit.Width;
+  FUDLimit.Width := 14 * Screen.PixelsPerInch div USER_DEFAULT_SCREEN_DPI;
   TBLimitEnabled.Left := FUDLimit.Left + FUDLimit.Width;
-  TBLimitEnabled.Width := TBLimitEnabled.Height;
+  TBLimitEnabled.Width := 31 * Screen.PixelsPerInch div USER_DEFAULT_SCREEN_DPI;
 
-  TBQuickSearchEnabled.Left := PDataBrowser.ClientWidth - PDataBrowserDummy.TBQuickSearchEnabled.Width - GetSystemMetrics(SM_CXVSCROLL);
-  TBQuickSearchEnabled.Width := PDataBrowserDummy.TBQuickSearchEnabled.Width;
+  TBQuickSearchEnabled.Width := 31 * Screen.PixelsPerInch div USER_DEFAULT_SCREEN_DPI;
+  TBQuickSearchEnabled.Left := PDataBrowser.ClientWidth - TBQuickSearchEnabled.Width - GetSystemMetrics(SM_CXVSCROLL);
   TBFilterEnabled.Width := TBFilterEnabled.Height;
-  FQuickSearch.Left := TBQuickSearchEnabled.Left - PDataBrowserDummy.FQuickSearch.Width;
-  FQuickSearch.Width := PDataBrowserDummy.FQuickSearch.Width;
+  FQuickSearch.Width := 130 * Screen.PixelsPerInch div USER_DEFAULT_SCREEN_DPI;
+  FQuickSearch.Left := TBQuickSearchEnabled.Left - FQuickSearch.Width;
 
-  TBFilterEnabled.Left := FQuickSearch.Left - PDataBrowserDummy.TBFilterEnabled.Width;
-  TBFilterEnabled.Width := PDataBrowserDummy.TBFilterEnabled.Width;
-  FFilter.Left := PDataBrowserDummy.FFilter.Left;
+  TBFilterEnabled.Width := 31 * Screen.PixelsPerInch div USER_DEFAULT_SCREEN_DPI;
+  TBFilterEnabled.Left := FQuickSearch.Left - TBFilterEnabled.Width;
+  FFilter.Left := TBLimitEnabled.Left + TBLimitEnabled.Width;
   FFilter.Width := TBFilterEnabled.Left - FFilter.Left;
 end;
 
@@ -14783,29 +14793,26 @@ var
   ClassIndex: TClassIndex;
   Control: TWinControl;
   Database: TSDatabase;
-  Finish: Int64;
-  Frequency: Int64;
   I: Integer;
   S: string;
   S1: string;
   S2: string;
-  Start: Int64;
   Table: TSTable;
   TempActiveControl: TWinControl;
   URI: TUURI;
-  Start3: Int64;
-  Finish3: Int64;
+  Profile: TProfile;
 begin
   LeftMousePressed := False;
 
   TempActiveControl := Window.ActiveControl;
 
-  if (not QueryPerformanceCounter(Start3)) then Start3 := 0;
+  CreateProfile(Profile);
 
   if (Assigned(Event)) then
   begin
+    ProfilingPoint(Profile, 1);
+
     ProfilingReset();
-    if (not QueryPerformanceCounter(Start)) then Start := 0;
 
     if (Event.EventType = etItemDeleted) then
     begin
@@ -14814,6 +14821,8 @@ begin
       if (Assigned(FNavigatorNodeToExpand) and (Event.Item = TObject(FNavigatorNodeToExpand.Data))) then
         FNavigatorNodeToExpand := nil;
     end;
+
+    ProfilingPoint(Profile, 2);
 
     if (Event.EventType in [etItemDeleted, etItemRenamed]) then
     begin
@@ -14860,96 +14869,33 @@ begin
       end;
     end;
 
-    if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
-      if ((Finish - Start) div Frequency > 1) then
-      begin
-        S := 'SessionUpdate1 - '
-          + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
-        if (Assigned(Event.Items)) then
-          S := S
-            + 'Items: ' + Event.Items.ClassName + ', '
-            + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
-        if (Event.Item is TSTable) then
-          S := S
-            + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
-        S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s' + #13#10;
-        S := S + ProfilingReport() + #13#10;
-        TimeMonitor.Append(S, ttDebug);
-      end;
-    ProfilingReset();
+    ProfilingPoint(Profile, 3);
 
     if (Event.Items is TSItemSearch) then
     begin
-      if (not QueryPerformanceCounter(Start)) then Start := 0;
+      ProfilingPoint(Profile, 4);
 
       ListViewUpdate(Event, ObjectSearchListView);
 
-      if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
-        if ((Finish - Start) div Frequency > 1) then
-        begin
-          S := 'SessionUpdate2 - '
-            + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
-          if (Assigned(Event.Items)) then
-            S := S
-              + 'Sender: ' + Event.Sender.ClassName + ', '
-              + 'ClassType: ' + Event.Items.ClassName + ', '
-              + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
-          if (Event.Item is TSTable) then
-            S := S
-              + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
-          S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s' + #13#10;
-          TimeMonitor.Append(S, ttDebug);
-        end;
+      ProfilingPoint(Profile, 5);
     end
     else if (Event.Items is TSQuickAccess) then
     begin
-      if (not QueryPerformanceCounter(Start)) then Start := 0;
+      ProfilingPoint(Profile, 6);
 
       ListViewUpdate(Event, QuickAccessListView);
 
-      if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
-        if ((Finish - Start) div Frequency > 1) then
-        begin
-          S := 'SessionUpdate3 - '
-            + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
-          if (Assigned(Event.Items)) then
-            S := S
-              + 'Sender: ' + Event.Sender.ClassName + ', '
-              + 'ClassType: ' + Event.Items.ClassName + ', '
-              + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
-          if (Event.Item is TSTable) then
-            S := S
-              + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
-          S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s' + #13#10;
-          TimeMonitor.Append(S, ttDebug);
-        end;
+      ProfilingPoint(Profile, 7);
     end
     else
     begin
-      if (not QueryPerformanceCounter(Start)) then Start := 0;
+      ProfilingPoint(Profile, 8);
 
       if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemRenamed, etItemDeleted]) then
         FNavigatorUpdate(Event);
 
-      if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
-        if ((Finish - Start) div Frequency > 1) then
-        begin
-          S := 'SessionUpdate4 - '
-            + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
-          if (Assigned(Event.Items)) then
-            S := S
-              + 'Sender: ' + Event.Sender.ClassName + ', '
-              + 'ClassType: ' + Event.Items.ClassName + ', '
-              + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
-          if (Event.Item is TSTable) then
-            S := S
-              + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
-          S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s' + #13#10;
-          TimeMonitor.Append(S, ttDebug);
-        end;
+      ProfilingPoint(Profile, 9);
 
-
-      if (not QueryPerformanceCounter(Start)) then Start := 0;
       ListViewUpdateCount := 0;
 
       if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemRenamed, etItemDeleted]) then
@@ -15007,28 +14953,11 @@ begin
           ListViewUpdate(Event, ObjectSearchListView);
       end;
 
-      if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
-        if ((Finish - Start) div Frequency > 1) then
-        begin
-          S := 'SessionUpdate5 - '
-            + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', '
-            + 'ListViewUpdateCount: ' + IntToStr(ListViewUpdateCount) + ', ';
-          if (Assigned(Event.Items)) then
-            S := S
-              + 'Sender: ' + Event.Sender.ClassName + ', '
-              + 'Items: ' + Event.Items.ClassName + ', '
-              + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
-          if (Event.Item is TSTable) then
-            S := S
-              + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
-          S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s' + #13#10;
-          TimeMonitor.Append(S, ttDebug);
-        end;
+      ProfilingPoint(Profile, 10);
 
       if ((Event.EventType = etItemValid)) then
       begin
-        ProfilingReset();
-        if (not QueryPerformanceCounter(Start)) then Start := 0;
+        ProfilingPoint(Profile, 11);
 
         if ((Event.Item is TSView) and Assigned(Desktop(TSView(Event.Item)).SynMemo)) then
           Desktop(TSView(Event.Item)).SynMemo.Text := TSView(Event.Item).Stmt + #13#10
@@ -15049,39 +14978,24 @@ begin
           PContentChange(nil);
         end;
 
-        ProfilingPoint(1);
+        ProfilingPoint(Profile, 12);
 
         if ((View = vBrowser) and (Event.Item = CurrentData)) then
           Wanted.Update := UpdateAfterAddressChanged;
 
-        ProfilingPoint(2);
+        ProfilingPoint(Profile, 13);
 
         if ((View = vIDE) and ((Event.Item is TSView) or (Event.Item is TSFunction))) then
           PContentChange(nil);
 
-        if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
-          if ((Finish - Start) div Frequency > 1) then
-          begin
-            S := 'SessionUpdate6 - '
-              + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
-            if (Assigned(Event.Items)) then
-              S := S
-                + 'Items: ' + Event.Items.ClassName + ', '
-                + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
-            if (Event.Item is TSTable) then
-              S := S
-                + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
-            S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s' + #13#10;
-            S := S + ProfilingReport() + #13#10;
-            TimeMonitor.Append(S, ttDebug);
-          end;
-        ProfilingReset();
+        ProfilingPoint(Profile, 14);
       end;
     end;
+
+    ProfilingPoint(Profile, 15);
   end;
 
-  ProfilingReset();
-  if (not QueryPerformanceCounter(Start)) then Start := 0;
+  ProfilingPoint(Profile, 16);
 
   if (PContent.Visible and Assigned(TempActiveControl) and TempActiveControl.Visible) then
   begin
@@ -15091,12 +15005,12 @@ begin
       Window.ActiveControl := TempActiveControl;
   end;
 
-  ProfilingPoint(1);
+  ProfilingPoint(Profile, 17);
 
   // StatusBar should be refreshed, after all events applied.
   PostMessage(Handle, UM_STATUS_BAR_REFRESH, 0, 0);
 
-  ProfilingPoint(2);
+  ProfilingPoint(Profile, 18);
 
   if (Assigned(Event)
     and ((Event.EventType in [etItemCreated, etItemRenamed])
@@ -15105,39 +15019,23 @@ begin
     and Wanted.Nothing) then
     Wanted.Update := Session.Update;
 
-  if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
-    if ((Finish - Start) div Frequency > 1) then
-    begin
-      S := 'SessionUpdate7 - '
-        + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
-      if (Assigned(Event.Items)) then
-        S := S
-          + 'Items: ' + Event.Items.ClassName + ', '
-          + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
-      if (Event.Item is TSTable) then
-        S := S
-          + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
-      S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s' + #13#10;
-      S := S + ProfilingReport() + #13#10;
-      TimeMonitor.Append(S, ttDebug);
-    end;
-  ProfilingReset();
+  ProfilingPoint(Profile, 19);
 
-  if ((Start3 > 0) and QueryPerformanceCounter(Finish3) and QueryPerformanceFrequency(Frequency)) then
-    if ((Finish3 - Start3) div Frequency > 1) then
-    begin
-      S := 'SessionUpdate - '
-        + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
-      if (Assigned(Event.Items)) then
-        S := S
-          + 'Items: ' + Event.Items.ClassName + ', '
-          + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
-      if (Event.Item is TSTable) then
-        S := S
-          + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
-      S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s' + #13#10;
-      TimeMonitor.Append(S, ttDebug);
-    end;
+  if (ProfilingTime(Profile) > 1000) then
+  begin
+    S := 'SessionUpdate - '
+      + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
+    if (Assigned(Event.Items)) then
+      S := S
+        + 'Items: ' + Event.Items.ClassName + ', '
+        + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
+    if (Event.Item is TSTable) then
+      S := S
+        + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
+    S := S + ProfilingReport(Profile);
+    TimeMonitor.Append(S, ttDebug);
+  end;
+  CloseProfile(Profile);
 end;
 
 procedure TFSession.SetCurrentAddress(const AAddress: string);
@@ -15830,24 +15728,30 @@ procedure TFSession.SynMemoApplyPreferences(const SynMemo: TSynMemo);
 begin
   if (SynMemo <> FSQLEditorSynMemo) then
   begin
-    SynMemo.ActiveLineColor := FSQLEditorSynMemo.ActiveLineColor;
-    SynMemo.Font.Name := FSQLEditorSynMemo.Font.Name;
-    SynMemo.Font.Style := FSQLEditorSynMemo.Font.Style;
-    SynMemo.Font.Color := FSQLEditorSynMemo.Font.Color;
-    SynMemo.Font.Size := FSQLEditorSynMemo.Font.Size;
-    SynMemo.Font.Charset := FSQLEditorSynMemo.Font.Charset;
-    SynMemo.Gutter.Font.Name := FSQLEditorSynMemo.Gutter.Font.Name;
-    SynMemo.Gutter.Font.Style := FSQLEditorSynMemo.Gutter.Font.Style;
-    SynMemo.Gutter.Font.Color := FSQLEditorSynMemo.Gutter.Font.Color;
-    SynMemo.Gutter.Font.Size := FSQLEditorSynMemo.Gutter.Font.Size;
-    SynMemo.Gutter.Font.Charset := FSQLEditorSynMemo.Gutter.Font.Charset;
+    if (not Preferences.Editor.CurrRowBGColorEnabled) then
+      SynMemo.ActiveLineColor := clNone
+    else
+      SynMemo.ActiveLineColor := Preferences.Editor.CurrRowBGColor;
+    SynMemo.Font.Name := Preferences.SQLFontName;
+    SynMemo.Font.Color := Preferences.SQLFontColor;
+    SynMemo.Font.Size := Preferences.SQLFontSize;
+    SynMemo.Font.Charset := Preferences.SQLFontCharset;
+    SynMemo.Gutter.Font.Name := SynMemo.Font.Name;
+    SynMemo.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
+    SynMemo.Gutter.Font.Color := SynMemo.Font.Color;
+    SynMemo.Gutter.Font.Size := SynMemo.Font.Size;
+    SynMemo.Gutter.Font.Charset := SynMemo.Font.Charset;
     SynMemo.Gutter.Visible := FSQLEditorSynMemo.Gutter.Visible;
+    if (Preferences.Editor.LineNumbersBackground = clNone) then
+      SynMemo.Gutter.Color := clBtnFace
+    else
+      SynMemo.Gutter.Color := Preferences.Editor.LineNumbersBackground;
     SynMemo.Highlighter := FSQLEditorSynMemo.Highlighter;
     SynMemo.Options := FSQLEditorSynMemo.Options;
     SynMemo.RightEdge := FSQLEditorSynMemo.RightEdge;
     SynMemo.TabWidth := FSQLEditorSynMemo.TabWidth;
     SynMemo.WantTabs := FSQLEditorSynMemo.WantTabs;
-    SynMemo.WordWrap := FSQLEditorSynMemo.WordWrap;
+    SynMemo.WordWrap := Preferences.Editor.WordWrap;
   end;
 end;
 

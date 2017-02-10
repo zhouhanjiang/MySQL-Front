@@ -79,7 +79,6 @@ Classes,
   uDView in 'uDView.pas' {DView},
   uCWorkbench in 'uCWorkbench.pas',
   uFSession in 'uFSession.pas' {FSession},
-  uPDataBrowserDummy in 'uPDataBrowserDummy.pas' {PDataBrowserDummy},
   uPObjectSearch in 'uPObjectSearch.pas' {PObjectSearch},
   uWSQLHelp in 'uWSQLHelp.pas' {WSQLHelp},
   uWWindow in 'uWWindow.pas' {WWindow};
@@ -97,7 +96,7 @@ begin
 
   if (FileExists(Preferences.UserPath + SendErrorLogFilename)) then
   begin
-    if (Now() < IncDay(CompileTime(), 2 + 1)) then
+    if (Now() < IncDay(GetCompileTime(), 2 + 1)) then
     begin
       SendErrorLog := TStringList.Create();
       SendErrorLog.LoadFromFile(Preferences.UserPath + SendErrorLogFilename);
@@ -126,7 +125,6 @@ begin
     Application.Initialize();
     Application.Title := LoadStr(1000);
     Application.CreateForm(TWWindow, WWindow);
-    Application.CreateForm(TPDataBrowserDummy, PDataBrowserDummy);
     Application.MainForm.Perform(UM_CHANGEPREFERENCES, 0, 0);
     Application.Run();
     if (Application.Handle <> 0) then

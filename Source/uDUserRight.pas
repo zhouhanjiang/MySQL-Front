@@ -405,6 +405,9 @@ end;
 
 procedure TDUserRight.FormShow(Sender: TObject);
 begin
+  // Debug 2017-02-09
+  Assert(Assigned(User));
+
   if (not Assigned(UserRight)) then
     Caption := Preferences.LoadStr(298)
   else

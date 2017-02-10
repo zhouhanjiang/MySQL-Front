@@ -45,7 +45,8 @@ type
 
 function CheckOnlineVersion(const Stream: TStringStream; var VersionStr: string;
   var SetupProgramURI: string): Boolean;
-function CompileTime(): TDateTime;
+function GetCompileTime(): TDateTime;
+function GetUTCTime(): TDateTime;
 function EncodeVersion(const AMajor, AMinor, APatch, ABuild: Integer): Integer;
 procedure SendToDeveloper(const Text: string; const Days: Integer = 2;
   const HideSource: Boolean = False);
@@ -202,15 +203,25 @@ begin
   Result := (OnlineVersion > 0) and (SetupProgramURI <> '');
 end;
 
-function CompileTime(): TDateTime;
+function EncodeVersion(const AMajor, AMinor, APatch, ABuild: Integer): Integer;
+begin
+  Result := AMajor * 100000000 + AMinor * 1000000 + APatch * 10000 + ABuild;
+end;
+
+function GetCompileTime(): TDateTime;
 begin
   Result := PImageNtHeaders(HInstance
     + Cardinal(PImageDosHeader(HInstance)^._lfanew))^.FileHeader.TimeDateStamp / SecsPerDay + UnixDateDelta;
 end;
 
-function EncodeVersion(const AMajor, AMinor, APatch, ABuild: Integer): Integer;
+function GetUTCTime(): TDateTime;
+var
+  SystemTime: TSystemTime;
 begin
-  Result := AMajor * 100000000 + AMinor * 1000000 + APatch * 10000 + ABuild;
+  GetSystemTime(SystemTime);
+  with SystemTime do
+    Result := EncodeDate(wYear, wMonth, wDay) +
+      EncodeTime(wHour, wMinute, wSecond, wMilliseconds);
 end;
 
 procedure SendToDeveloper(const Text: string; const Days: Integer = 2;
@@ -219,7 +230,6 @@ var
 {$IFDEF EurekaLog}
   Buffer: TEurekaDebugInfo;
   CallStack: TEurekaBaseStackList;
-  Filename: string;
   I: Integer;
   Index: Integer;
   Item: PEurekaDebugInfo;
@@ -232,7 +242,7 @@ var
   Size: Integer;
   Stream: TMemoryStream;
 begin
-  if ((Days = 0) or (Now() < IncDay(CompileTime(), Days + 1))) then
+  if ((Days = 0) or (GetUTCTime() < IncDay(GetCompileTime(), Days))) then
   begin
     Body := Text;
 
@@ -1093,10 +1103,10 @@ initialization
   RegisterEventExceptionNotify(nil, ExceptionNotify);
   RegisterEventCustomButtonClick(nil, CustomButtonClick);
 
-  if (Now() < IncHour(CompileTime(), 6 + 1)) then
+  if (GetUTCTime() < IncHour(GetCompileTime(), 12)) then
   begin
     FreezeThreadClass := TMainThreadFreezeDetectionThread;
-    CurrentEurekaLogOptions().FreezeTimeout := 15; { seconds }
+    CurrentEurekaLogOptions().FreezeTimeout := 10; { seconds }
     CurrentEurekaLogOptions().FreezeActivate := True;
     InitCheckFreeze();
   end;

@@ -18,7 +18,6 @@ type
 
   TDOptions = class (TForm_Ext)
     ColorDialog: TColorDialog;
-    FAssociateSQL: TCheckBox;
     FBackground: TCheckBox;
     FBBackground: TButton;
     FBCancel: TButton;
@@ -33,6 +32,7 @@ type
     FEditorCompletionTime: TEdit;
     FEditorCurrRowBGColorEnabled: TCheckBox;
     FEditorFont: TEdit;
+    FEditorWordWrap: TCheckBox;
     FForeground: TCheckBox;
     FGridCurrRowBGColorEnabled: TCheckBox;
     FGridFont: TEdit;
@@ -41,11 +41,11 @@ type
     FItalic: TCheckBox;
     FL2LogSize: TLabel;
     FLanguage: TComboBox_Ext;
-    FLAssociate: TLabel;
     FLEditorCompletion: TLabel;
     FLEditorCompletionTime: TLabel;
     FLEditorCurrRowBGColor: TLabel;
     FLEditorFont: TLabel;
+    FLEditorWordWrap: TLabel;
     FLGridCurrRowBGColor: TLabel;
     FLGridFont: TLabel;
     FLGridNullValues: TLabel;
@@ -73,7 +73,6 @@ type
     FUnderline: TCheckBox;
     FUpdateCheckDaily: TRadioButton;
     FUpdateCheckNever: TRadioButton;
-    GAssociate: TGroupBox_Ext;
     GColors: TGroupBox_Ext;
     GEditor: TGroupBox_Ext;
     GGrid: TGroupBox_Ext;
@@ -94,7 +93,6 @@ type
     Sizer: TCheckBox;
     TSBrowser: TTabSheet;
     TSEditor: TTabSheet;
-    TSExtras: TTabSheet;
     TSHighlighter: TTabSheet;
     TSLog: TTabSheet;
     TSUpdates: TTabSheet;
@@ -480,6 +478,7 @@ begin
     Preferences.Editor.CurrRowBGColorEnabled := FEditorCurrRowBGColorEnabled.Checked;
     Preferences.Editor.CurrRowBGColor := PEditorCurrRowBGColor.Color;
     Preferences.Editor.CodeCompletion := FEditorCompletionEnabled.Checked;
+    Preferences.Editor.WordWrap := FEditorWordWrap.Checked;
     TryStrToInt(FEditorCompletionTime.Text, Preferences.Editor.CodeCompletionTime);
 
     Preferences.LogFontName := PLogFont.Font.Name;
@@ -494,8 +493,6 @@ begin
     Preferences.GridMaxColumnWidth := FUDMaxColumnWidth.Position;
 
     Preferences.GridMemoContent := FGridShowMemoContent.Checked;
-
-    Preferences.AssociateSQL := FAssociateSQL.Checked;
 
     Preferences.Editor.ConditionalCommentForeground := Highlighter.ConditionalCommentAttri.Foreground;
     Preferences.Editor.ConditionalCommentBackground := Highlighter.ConditionalCommentAttri.Background;
@@ -598,6 +595,7 @@ begin
   PEditorCurrRowBGColor.Color := Preferences.Editor.CurrRowBGColor;
   FEditorCompletionEnabled.Checked := Preferences.Editor.CodeCompletion;
   FUDEditorCompletionTime.Position := Preferences.Editor.CodeCompletionTime;
+  FEditorWordWrap.Checked := Preferences.Editor.WordWrap;
 
   FLogFont.Text := Preferences.LogFontName;
   PLogFont.Font.Name := Preferences.LogFontName;
@@ -608,8 +606,6 @@ begin
   FLogTime.Checked := Preferences.LogTime;
   FLogResult.Checked := Preferences.LogResult;
   FUDLogSize.Position := Preferences.LogSize div 1024;
-
-  FAssociateSQL.Checked := Preferences.AssociateSQL;
 
   Highlighter.ConditionalCommentAttri.Foreground := Preferences.Editor.ConditionalCommentForeground;
   Highlighter.ConditionalCommentAttri.Background := Preferences.Editor.ConditionalCommentBackground;
@@ -790,11 +786,6 @@ begin
   FLQuickAccessVisible.Caption := Preferences.LoadStr(527) + ':';
   FQuickAccessVisible.Caption := Preferences.LoadStr(939);
 
-  TSExtras.Caption := Preferences.LoadStr(73);
-  GAssociate.Caption := Preferences.LoadStr(108);
-  FLAssociate.Caption := Preferences.LoadStr(566) + ':';
-  FAssociateSQL.Caption := '.sql';
-
   TSBrowser.Caption := Preferences.LoadStr(739);
   GGrid.Caption := Preferences.LoadStr(17);
   FLGridFont.Caption := Preferences.LoadStr(430) + ':';
@@ -816,6 +807,8 @@ begin
   FEditorCompletionEnabled.Width := FEditorCurrRowBGColorEnabled.Width + Canvas.TextWidth(FEditorCompletionEnabled.Caption);
   FLEditorCompletionTime.Caption := Preferences.LoadStr(843);
   FLEditorCompletionTime.Left := FUDEditorCompletionTime.Left + FUDEditorCompletionTime.Width + Canvas.TextWidth('  ');
+  FLEditorWordWrap.Caption := Preferences.LoadStr(891) + ':';
+  FEditorWordWrap.Caption := Preferences.LoadStr(892);
 
   TSHighlighter.Caption := Preferences.LoadStr(528);
   GColors.Caption := Preferences.LoadStr(474);

@@ -45,17 +45,13 @@ object DOptions: TDOptions
     Top = 8
     Width = 362
     Height = 345
-    ActivePage = TSView
+    ActivePage = TSEditor
     HotTrack = True
     MultiLine = True
     TabOrder = 0
     object TSView: TTabSheet
       Caption = 'TSView'
       OnResize = TSViewResize
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GProgram: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -146,10 +142,6 @@ object DOptions: TDOptions
     object TSBrowser: TTabSheet
       Caption = 'TSBrowser'
       OnResize = TSBrowserResize
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GGrid: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -309,15 +301,11 @@ object DOptions: TDOptions
     object TSEditor: TTabSheet
       Caption = 'TSEditor'
       OnResize = TSEditorResize
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GEditor: TGroupBox_Ext
         Left = 4
         Top = 4
         Width = 345
-        Height = 115
+        Height = 140
         Caption = 'GEditor'
         TabOrder = 0
         object FLEditorFont: TLabel
@@ -342,6 +330,7 @@ object DOptions: TDOptions
           Width = 119
           Height = 13
           Caption = 'FLEditorCurrRowBGColor'
+          FocusControl = FEditorCurrRowBGColorEnabled
         end
         object FLEditorCompletionTime: TLabel
           Left = 224
@@ -349,6 +338,14 @@ object DOptions: TDOptions
           Width = 114
           Height = 13
           Caption = 'FLEditorCompletionTime'
+        end
+        object FLEditorWordWrap: TLabel
+          Left = 9
+          Top = 114
+          Width = 91
+          Height = 13
+          Caption = 'FLEditorWordWrap'
+          FocusControl = FEditorWordWrap
         end
         object FEditorCurrRowBGColorEnabled: TCheckBox
           Left = 144
@@ -402,7 +399,15 @@ object DOptions: TDOptions
           Width = 41
           Height = 21
           TabOrder = 6
-          Text = '1000'
+          Text = '1.000'
+        end
+        object FEditorWordWrap: TCheckBox
+          Left = 144
+          Top = 113
+          Width = 198
+          Height = 17
+          Caption = 'FEditorWordWrap'
+          TabOrder = 8
         end
         object FBEditorFont: TButton
           Left = 265
@@ -430,10 +435,6 @@ object DOptions: TDOptions
     object TSLog: TTabSheet
       Caption = 'TSLog'
       OnResize = TSLogResize
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GLog: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -543,10 +544,6 @@ object DOptions: TDOptions
     object TSHighlighter: TTabSheet
       Caption = 'TSHighlighter'
       OnShow = TSHighlighterShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GColors: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -697,42 +694,8 @@ object DOptions: TDOptions
         end
       end
     end
-    object TSExtras: TTabSheet
-      Caption = 'TSExtras'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
-      object GAssociate: TGroupBox_Ext
-        Left = 4
-        Top = 4
-        Width = 345
-        Height = 45
-        Caption = 'GAssociate'
-        TabOrder = 0
-        object FLAssociate: TLabel
-          Left = 8
-          Top = 17
-          Width = 58
-          Height = 13
-          Caption = 'FLAssociate'
-        end
-        object FAssociateSQL: TCheckBox
-          Left = 144
-          Top = 16
-          Width = 193
-          Height = 17
-          Caption = 'FAssociateSQL'
-          TabOrder = 0
-        end
-      end
-    end
     object TSUpdates: TTabSheet
       Caption = 'TSUpdates'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GUpdates: TGroupBox_Ext
         Left = 4
         Top = 4

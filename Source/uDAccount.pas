@@ -78,7 +78,7 @@ uses
   WinINet, UITypes, IOUtils, Shlwapi,
   StrUtils, RegularExpressions,
   MySQLConsts, MySQLDB,
-  uDDatabases;
+  uDDatabases, uDConnecting;
 
 var
   FDAccount: TDAccount;
@@ -186,18 +186,22 @@ begin
       end;
 
       Session.Connection.BeginSilent();
-      Session.Connection.BeginSynchron();
-      Session.Connection.Connect(LibraryType, LibraryName, FHost.Text, FUser.Text, FPassword.Text, '', FUDPort.Position, True);
-      Session.Connection.EndSynchron();
-      if (Session.Connection.ErrorCode <> 0) then
-        Session.Connection.OnSQLError(Session.Connection, Session.Connection.ErrorCode, Session.Connection.ErrorMessage)
-      else if (Session.Connection.Connected) then
+      DConnecting.LibraryType := LibraryType;
+      DConnecting.LibraryName := LibraryName;
+      DConnecting.Host := Trim(FHost.Text);
+      DConnecting.User := Trim(FUser.Text);
+      DConnecting.Password := Trim(FPassword.Text);
+      DConnecting.Port := FUDPort.Position;
+      DConnecting.Session := Session;
+      if (DConnecting.Execute()) then
       begin
         DDatabases.Session := Session;
         DDatabases.SelectedDatabases := FDatabase.Text;
         if (DDatabases.Execute()) then
           FDatabase.Text := DDatabases.SelectedDatabases;
-      end;
+      end
+      else if (Session.Connection.ErrorCode > 0) then
+        Session.Connection.OnSQLError(Session.Connection, Session.Connection.ErrorCode, Session.Connection.ErrorMessage);
       Session.Connection.EndSilent();
 
       Session.Free();

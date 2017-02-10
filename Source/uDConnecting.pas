@@ -6,7 +6,8 @@ uses
   Messages, Classes,
   Forms, Controls,StdCtrls,
   Forms_Ext,
-  uSession, uBase;
+  uSession, uBase,
+  MySQLDB;
 
 type
   TDConnecting = class (TForm_Ext)
@@ -19,7 +20,14 @@ type
   private
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
+    Database: string;
+    Host: string;
+    LibraryName: string;
+    LibraryType: TMySQLLibrary.TLibraryType;
+    Password: string;
+    Port: Integer;
     Session: TSSession;
+    User: string;
     function Execute(): Boolean;
   end;
 
@@ -31,7 +39,7 @@ implementation {***************************************************************}
 
 uses
   Windows, SysUtils, 
-  MySQLDB, MySQLConsts,
+  MySQLConsts,
   uPreferences, uDAccount;
 
 var
@@ -78,11 +86,21 @@ end;
 
 procedure TDConnecting.FormShow(Sender: TObject);
 begin
-  Caption := Session.Account.Name;
+  if (Assigned(Session.Account)) then
+    Caption := Session.Account.Name
+  else
+  begin
+    Caption := Host;
+    if (Port <> MYSQL_PORT) then
+      Caption := Caption + ':' + IntToStr(Port);
+  end;
 
   Session.Connection.AfterConnect := AfterConnect;
 
-  Session.Connection.Connect();
+  if (Assigned(Session.Account)) then
+    Session.Connection.Connect()
+  else
+    Session.Connection.Connect(LibraryType, LibraryName, Host, User, Password, Database, Port, True);
 end;
 
 procedure TDConnecting.UMChangePreferences(var Message: TMessage);

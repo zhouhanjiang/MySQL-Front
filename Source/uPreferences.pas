@@ -118,6 +118,7 @@ type
       SymbolStyle: TFontStyles;
       VariableForeground, VariableBackground: TColor;
       VariableStyle: TFontStyles;
+      WordWrap: Boolean;
       constructor Create(); virtual;
     end;
 
@@ -353,7 +354,6 @@ type
     FOnlineVersion: Integer;
     FUserPath: TFileName;
     FXMLDocument: IXMLDocument;
-    OldAssociateSQL: Boolean;
     procedure LoadFromRegistry();
     function GetFilename(): TFileName;
     function GetLanguage(): TLanguage;
@@ -367,7 +367,6 @@ type
   public
     Account: TAccount;
     Accounts: TAccounts;
-    AssociateSQL: Boolean;
     Database: TDatabase;
     Databases: TDatabases;
     Editor: TEditor;
@@ -1375,6 +1374,7 @@ begin
   StringForeground := clBlue; StringBackground := clNone; StringStyle := [];
   SymbolForeground := clNone; SymbolBackground := clNone; SymbolStyle := [];
   VariableForeground := clGreen; VariableBackground := clNone; VariableStyle := [];
+  WordWrap := False;
 end;
 
 procedure TPPreferences.TEditor.LoadFromXML(const XML: IXMLNode);
@@ -1383,6 +1383,7 @@ begin
   if (Assigned(XMLNode(XML, 'autocompletion/time'))) then TryStrToInt(XMLNode(XML, 'autocompletion/time').Text, CodeCompletionTime);
   if (Assigned(XMLNode(XML, 'currentrow/background'))) then TryStrToBool(XMLNode(XML, 'currentrow/background').Attributes['visible'], CurrRowBGColorEnabled);
   if (Assigned(XMLNode(XML, 'currentrow/background/color'))) then CurrRowBGColor := StringToColor(XMLNode(XML, 'currentrow/background/color').Text);
+  if (Assigned(XMLNode(XML, 'wordwrap'))) then TryStrToBool(XMLNode(XML, 'wordwrap').Text, WordWrap);
 end;
 
 procedure TPPreferences.TEditor.SaveToXML(const XML: IXMLNode);
@@ -1391,6 +1392,7 @@ begin
   XMLNode(XML, 'autocompletion/time').Text := IntToStr(CodeCompletionTime);
   XMLNode(XML, 'currentrow/background').Attributes['visible'] := CurrRowBGColorEnabled;
   XMLNode(XML, 'currentrow/background/color').Text := ColorToString(CurrRowBGColor);
+  XMLNode(XML, 'wordwrap').Text := BoolToStr(WordWrap, True);
 end;
 
 { TPPreferences.TExport *******************************************************}
@@ -2219,25 +2221,7 @@ begin
 end;
 
 procedure TPPreferences.LoadFromRegistry();
-var
-  KeyName: string;
 begin
-  RootKey := HKEY_CLASSES_ROOT;
-
-  AssociateSQL := False;
-  if (OpenKeyReadOnly('.sql')) then
-  begin
-    if (ValueExists('')) then KeyName := ReadString('');
-    CloseKey();
-
-    if (OpenKeyReadOnly(KeyName + '\shell\open\command')) then
-    begin
-      AssociateSQL := Pos(UpperCase(Application.ExeName), UpperCase(ReadString(''))) > 0;
-      CloseKey();
-    end;
-  end;
-  OldAssociateSQL := AssociateSQL;
-
   RootKey := HKEY_CURRENT_USER;
 
   if (OpenKeyReadOnly(SysUtils.LoadStr(1003))) then
@@ -2405,47 +2389,8 @@ begin
 end;
 
 procedure TPPreferences.SaveToRegistry();
-var
-  KeyName: string;
 begin
   Access := KEY_ALL_ACCESS;
-
-  if (AssociateSQL <> OldAssociateSQL) then
-  begin
-    RootKey := HKEY_CLASSES_ROOT;
-
-    if (OpenKey('.sql', True)) then
-    begin
-      if (not ValueExists('')) then WriteString('', 'SQLFile');
-      KeyName := ReadString('');
-      CloseKey();
-    end;
-
-    if (not AssociateSQL) then
-    begin
-      if (OpenKey(KeyName + '\DefaultIcon', False)) then
-      begin
-        if (ValueExists('')) then
-          DeleteValue('');
-        CloseKey();
-      end;
-      if (OpenKey(KeyName + '\shell\open\command', False)) then
-      begin
-        if (ValueExists('')) then
-          DeleteValue('');
-        CloseKey();
-      end;
-    end
-    else
-    begin
-      if (OpenKey(KeyName + '\DefaultIcon', True)) then
-        begin WriteString('', Application.ExeName + ',0'); CloseKey(); end;
-      if (OpenKey(KeyName + '\shell\open\command', True)) then
-        begin WriteString('', '"' + Application.ExeName + '" "%0"'); CloseKey(); end;
-    end;
-
-    RootKey := HKEY_CURRENT_USER;
-  end;
 
   RootKey := HKEY_CURRENT_USER;
 
@@ -3587,6 +3532,99 @@ end;
 
 { TAAccounts ******************************************************************}
 
+function TPAccounts.AccountByName(const AccountName: string): TPAccount;
+var
+  I: Integer;
+begin
+  Result := nil;
+
+  for I:=0 to Count - 1 do
+    if (Account[I].Name = AccountName) then
+      Result := Account[I];
+end;
+
+function TPAccounts.AccountByURI(const AURI: string; const DefaultAccount: TPAccount = nil): TPAccount;
+var
+  Found: Integer;
+  Host: string;
+  I: Integer;
+  Name: string;
+  NewAccount: TPAccount;
+  NewAccountName: string;
+  URI: TUURI;
+  URLComponents: TURLComponents;
+begin
+  Result := nil;
+
+  URI := nil;
+  if (LowerCase(Copy(AURI, 1, 8)) = 'mysql://') then
+    try
+      URI := TUURI.Create(AURI);
+    except
+      URI := nil;
+    end;
+
+  if (Assigned(URI)) then
+  begin
+    Found := 0;
+    for I := 0 to Count - 1 do
+    begin
+      ZeroMemory(@URLComponents, SizeOf(URLComponents));
+      URLComponents.dwStructSize := SizeOf(URLComponents);
+      if ((Account[I].Connection.LibraryType <> ltHTTP) or (lstrcmpi(PChar(Account[I].Connection.Host), LOCAL_HOST) <> 0)) then
+        Host := LowerCase(Account[I].Connection.Host)
+      else if (InternetCrackUrl(PChar(Account[I].Connection.HTTPTunnelURI), Length(Account[I].Connection.HTTPTunnelURI), 0, URLComponents)) then
+      begin
+        Inc(URLComponents.dwHostNameLength);
+        GetMem(URLComponents.lpszHostName, URLComponents.dwHostNameLength * SizeOf(URLComponents.lpszHostName[0]));
+        InternetCrackUrl(PChar(Account[I].Connection.HTTPTunnelURI), Length(Account[I].Connection.HTTPTunnelURI), 0, URLComponents);
+        SetString(Host, URLComponents.lpszHostName, URLComponents.dwHostNameLength);
+        FreeMem(URLComponents.lpszHostName);
+      end
+      else
+        Host := LOCAL_HOST;
+      if ((lstrcmpi(PChar(Host), PChar(URI.Host)) = 0) and (URI.Port = Account[I].Connection.Port)
+        and ((URI.Username = '') or (lstrcmpi(PChar(URI.Username), PChar(Account[I].Connection.Username)) = 0))) then
+      begin
+        Result := Account[I];
+        Inc(Found);
+        if ((Result = DefaultAccount) or (Result.TabCount > 0)) then
+          break;
+      end;
+    end;
+
+    if (Found = 0) then
+    begin
+      NewAccountName := URI.Host;
+      if (URI.Username <> '') then
+        NewAccountName := NewAccountName + ' (' + URI.Username + ')';
+      Name := NewAccountName;
+      I := 1;
+      while (Assigned(AccountByName(Name))) do
+      begin
+        Inc(I);
+        Name := NewAccountName + ' (' + IntToStr(I) + ')';
+      end;
+
+      NewAccount := TPAccount.Create(Self);
+      NewAccount.Name := Name;
+      NewAccount.Connection.Host := URI.Host;
+      NewAccount.Connection.Port := URI.Port;
+      NewAccount.Connection.Username := URI.Username;
+      NewAccount.Connection.Password := URI.Password;
+      NewAccount.Connection.Database := URI.Database;
+      AddAccount(NewAccount);
+      NewAccount.Free();
+
+      Result := AccountByName(NewAccountName);
+
+      Save();
+    end;
+
+    URI.Free();
+  end;
+end;
+
 procedure TPAccounts.AddAccount(const NewAccount: TPAccount);
 var
   XML: IXMLNode;
@@ -3797,99 +3835,6 @@ begin
   except
     on E: EOSError do
       MessageBox(Application.MainFormHandle, PChar(E.Message), 'Error', MB_OK or MB_ICONERROR);
-  end;
-end;
-
-function TPAccounts.AccountByName(const AccountName: string): TPAccount;
-var
-  I: Integer;
-begin
-  Result := nil;
-
-  for I:=0 to Count - 1 do
-    if (Account[I].Name = AccountName) then
-      Result := Account[I];
-end;
-
-function TPAccounts.AccountByURI(const AURI: string; const DefaultAccount: TPAccount = nil): TPAccount;
-var
-  Found: Integer;
-  Host: string;
-  I: Integer;
-  Name: string;
-  NewAccount: TPAccount;
-  NewAccountName: string;
-  URI: TUURI;
-  URLComponents: TURLComponents;
-begin
-  Result := nil;
-
-  URI := nil;
-  if (LowerCase(Copy(AURI, 1, 8)) = 'mysql://') then
-    try
-      URI := TUURI.Create(AURI);
-    except
-      URI := nil;
-    end;
-
-  if (Assigned(URI)) then
-  begin
-    Found := 0;
-    for I := 0 to Count - 1 do
-    begin
-      ZeroMemory(@URLComponents, SizeOf(URLComponents));
-      URLComponents.dwStructSize := SizeOf(URLComponents);
-      if ((Account[I].Connection.LibraryType <> ltHTTP) or (lstrcmpi(PChar(Account[I].Connection.Host), LOCAL_HOST) <> 0)) then
-        Host := LowerCase(Account[I].Connection.Host)
-      else if (InternetCrackUrl(PChar(Account[I].Connection.HTTPTunnelURI), Length(Account[I].Connection.HTTPTunnelURI), 0, URLComponents)) then
-      begin
-        Inc(URLComponents.dwHostNameLength);
-        GetMem(URLComponents.lpszHostName, URLComponents.dwHostNameLength * SizeOf(URLComponents.lpszHostName[0]));
-        InternetCrackUrl(PChar(Account[I].Connection.HTTPTunnelURI), Length(Account[I].Connection.HTTPTunnelURI), 0, URLComponents);
-        SetString(Host, URLComponents.lpszHostName, URLComponents.dwHostNameLength);
-        FreeMem(URLComponents.lpszHostName);
-      end
-      else
-        Host := LOCAL_HOST;
-      if ((lstrcmpi(PChar(Host), PChar(URI.Host)) = 0) and (URI.Port = Account[I].Connection.Port)
-        and ((URI.Username = '') or (lstrcmpi(PChar(URI.Username), PChar(Account[I].Connection.Username)) = 0))) then
-      begin
-        Result := Account[I];
-        Inc(Found);
-        if ((Result = DefaultAccount) or (Result.TabCount > 0)) then
-          break;
-      end;
-    end;
-
-    if (Found = 0) then
-    begin
-      NewAccountName := URI.Host;
-      if (URI.Username <> '') then
-        NewAccountName := NewAccountName + ' (' + URI.Username + ')';
-      Name := NewAccountName;
-      I := 1;
-      while (Assigned(AccountByName(Name))) do
-      begin
-        Inc(I);
-        Name := NewAccountName + ' (' + IntToStr(I) + ')';
-      end;
-
-      NewAccount := TPAccount.Create(Self);
-      NewAccount.Name := Name;
-      NewAccount.Connection.Host := URI.Host;
-      NewAccount.Connection.Port := URI.Port;
-      NewAccount.Connection.Username := URI.Username;
-      NewAccount.Connection.Password := URI.Password;
-      NewAccount.Connection.Database := URI.Database;
-      AddAccount(NewAccount);
-      NewAccount.Free();
-
-      Result := AccountByName(NewAccountName);
-
-      Save();
-    end;
-
-    URI.Free();
   end;
 end;
 

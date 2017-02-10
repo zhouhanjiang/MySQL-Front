@@ -34,7 +34,6 @@ type
     procedure SetLocation(ALocation: TObject);
     procedure UMChangePreferences(var Msg: TMessage); message UM_CHANGEPREFERENCES;
     procedure WMActivate(var Msg: TWMActivate); message WM_ACTIVATE;
-//    procedure WMNCActivate(var Msg:TWMNCActivate); message WM_NCActivate;
   protected
     procedure CreateParams(var Params: TCreateParams); override;
   public
@@ -73,7 +72,10 @@ begin
     if (not Showing) then
       SetWindowPos(Handle, 0, 0, 0, 0, 0, SWP_HIDEWINDOW or SWP_NOSIZE or SWP_NOMOVE or SWP_NOZORDER or SWP_NOACTIVATE)
     else if (SystemParametersInfo(SPI_GETCLIENTAREAANIMATION, 0, @Animation, 0) and Animation) then
-      AnimateWindow(Handle, 150, AW_VER_POSITIVE or AW_SLIDE)
+    begin
+      AnimateWindow(Handle, 150, AW_VER_POSITIVE or AW_SLIDE);
+      DoubleBuffered := True;
+    end
     else
       SetWindowPos(Handle, 0, 0, 0, 0, 0, SWP_SHOWWINDOW or SWP_NOSIZE or SWP_NOMOVE or SWP_NOZORDER or SWP_NOACTIVATE);
   finally
@@ -172,16 +174,11 @@ end;
 
 procedure TPObjectSearch.WMActivate(var Msg: TWMActivate);
 begin
-  if (Msg.Active <> WA_INACTIVE) then
+  if ((Msg.Active <> WA_INACTIVE) and Assigned(PopupParent)) then
     SendMessage(PopupParent.Handle, WM_NCACTIVATE, WPARAM(TRUE), 0);
 
   inherited;
 end;
-
-//procedure TPObjectSearch.WMNCActivate(var Msg: TWMNCActivate);
-//begin
-//  Msg.Result := LRESULT(FALSE);
-//end;
 
 end.
 

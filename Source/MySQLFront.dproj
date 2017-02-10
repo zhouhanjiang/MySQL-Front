@@ -181,9 +181,6 @@
         <DCCReference Include="uFSession.pas">
             <Form>FSession</Form>
         </DCCReference>
-        <DCCReference Include="uPDataBrowserDummy.pas">
-            <Form>PDataBrowserDummy</Form>
-        </DCCReference>
         <DCCReference Include="uPObjectSearch.pas">
             <Form>PObjectSearch</Form>
         </DCCReference>
@@ -233,9 +230,7 @@
                 </Source>
             </Delphi.Personality>
             <Platforms>
-                <Platform value="OSX32">False</Platform>
                 <Platform value="Win32">True</Platform>
-                <Platform value="Win64">False</Platform>
             </Platforms>
         </BorlandProject>
         <ProjectFileVersion>12</ProjectFileVersion>

@@ -5,6 +5,7 @@ interface {********************************************************************}
 uses
   Classes, SysUtils, Windows, SyncObjs,
   DB, DBCommon, SqlTimSt,
+uProfiling,
   SQLParser, MySQLConsts;
 
 const
@@ -267,7 +268,7 @@ type
     SynchronCount: Integer;
     SyncThreadExecuted: TEvent;
     function GetNextCommandText(): string;
-    function GetServerDateTime(): TDateTime;
+    function GetServerTime(): TDateTime;
     function GetHandle(): MySQLConsts.MYSQL;
     function GetInfo(): string;
     procedure SetDatabaseName(const ADatabaseName: string);
@@ -300,8 +301,8 @@ type
     procedure DoVariableChange(const Name, NewValue: string); virtual;
     function GetErrorMessage(const AHandle: MySQLConsts.MYSQL): string; virtual;
     function GetConnected(): Boolean; override;
-    function GetInsertId(): my_ulonglong; virtual;
     function GetDataFileAllowed(): Boolean; virtual;
+    function GetInsertId(): my_ulonglong; virtual;
     function GetMaxAllowedServerPacket(): Integer; virtual;
     function InternExecuteSQL(const Mode: TSyncThread.TMode; const SQL: string;
       const OnResult: TResultEvent = nil; const Done: TEvent = nil): Boolean; overload; virtual;
@@ -386,7 +387,7 @@ type
     property MultiStatements: Boolean read FMultiStatements;
     property NextCommandText: string read GetNextCommandText;
     property RowsAffected: Int64 read FRowsAffected;
-    property ServerDateTime: TDateTime read GetServerDateTime;
+    property ServerDateTime: TDateTime read GetServerTime;
     property ServerVersionStr: string read FServerVersionStr;
     property SQLParser: TSQLParser read FSQLParser;
     property SuccessfullExecutedSQLLength: Integer read FSuccessfullExecutedSQLLength;
@@ -906,6 +907,7 @@ const
 var
   LocaleFormatSettings: TFormatSettings;
   MySQLConnectionOnSynchronize: TMySQLConnection.TSynchronizeEvent;
+  MonitorProfile: TProfile;
 
 implementation {***************************************************************}
 
@@ -1695,6 +1697,8 @@ var
   MoveLen: Integer;
   Pos: Integer;
 begin
+  ProfilingPoint(MonitorProfile, 1);
+
   Assert(GetCurrentThreadId() = MainThreadId);
 
   if ((Cache.MemLen > 0) and (Length > 0)) then
@@ -1773,8 +1777,12 @@ begin
     end;
   end;
 
+  ProfilingPoint(MonitorProfile, 2);
+
   if (Enabled and Assigned(OnMonitor) and Assigned(Connection)) then
     OnMonitor(Connection, Text, Length, ATraceType);
+
+  ProfilingPoint(MonitorProfile, 6);
 end;
 
 procedure TMySQLMonitor.Append(const Text: string; const ATraceType: TTraceType);
@@ -2542,7 +2550,7 @@ begin
     Result := SyncThread.NextCommandText;
 end;
 
-function TMySQLConnection.GetServerDateTime(): TDateTime;
+function TMySQLConnection.GetServerTime(): TDateTime;
 begin
   Result := Now() + TimeDiff;
 end;
@@ -3383,7 +3391,7 @@ begin
   Assert(SyncThread.State in [ssFirst, ssNext]);
 
   if (SyncThread.State = ssFirst) then
-    WriteMonitor('# ' + SysUtils.DateTimeToStr(Now() + TimeDiff, FormatSettings), ttTime);
+    WriteMonitor('# ' + SysUtils.DateTimeToStr(GetServerTime(), FormatSettings), ttTime);
 
   if (SyncThread.StmtIndex < SyncThread.StmtLengths.Count) then
   begin
@@ -3920,11 +3928,8 @@ end;
 procedure TMySQLConnection.WriteMonitor(const Text: PChar; const Length: Integer; const TraceType: TMySQLMonitor.TTraceType);
 var
   I: Integer;
-  Start: Int64;
-  Finish: Int64;
-  Frequency: Int64;
 begin
-  if (not QueryPerformanceCounter(Start)) then Start := 0;
+  ProfilingReset(MonitorProfile);
 
   InMonitor := True;
   try
@@ -3935,9 +3940,9 @@ begin
     InMonitor := False;
   end;
 
-  if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
-    if ((Finish - Start) div Frequency > 1) then
-      SendToDeveloper('Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000) + ' s');
+  if (ProfilingTime(MonitorProfile) > 1000) then
+    SendToDeveloper('Count: ' + IntToStr(FSQLMonitors.Count) + #13#10
+      + ProfilingReport(MonitorProfile));
 end;
 
 { TMySQLBitField **************************************************************}
@@ -5742,7 +5747,8 @@ end;
 
 function TMySQLDataSet.TInternRecordBuffers.Add(Item: Pointer): Integer;
 begin
-  Assert(Assigned(TMySQLDataSet.PExternRecordBuffer(Item)^.InternRecordBuffer^.OldData));
+  Assert(not Assigned(TMySQLDataSet.PExternRecordBuffer(Item)^.InternRecordBuffer)
+    or Assigned(TMySQLDataSet.PExternRecordBuffer(Item)^.InternRecordBuffer^.OldData));
 
   Result := inherited;
 end;
@@ -8444,7 +8450,11 @@ initialization
   SetLength(MySQLLibraries, 0);
 
   MySQLSyncThreads := TMySQLSyncThreads.Create();
+
+  CreateProfile(MonitorProfile);
 finalization
+  CloseProfile(MonitorProfile);
+
   MySQLSyncThreads.Free();
 
   FreeMySQLLibraries();

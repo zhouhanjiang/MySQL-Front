@@ -1930,9 +1930,20 @@ begin
 end;
 
 procedure TWWindow.WMWindowPosChanging(var Message: TWMWindowPosChanging);
+var
+  I: Integer;
+  PopupChildVisible: Boolean;
 begin
   if (Message.WindowPos^.flags and SWP_NOMOVE = 0) then
-    HidePopupChildren();
+    HidePopupChildren()
+  else if (Message.WindowPos^.flags and SWP_NOZORDER = 0) then
+  begin
+    PopupChildVisible := False;
+    for I := 0 to PopupChildren.Count - 1 do
+      PopupChildVisible := PopupChildVisible or TCustomForm(PopupChildren[I]).Visible;
+    if (PopupChildVisible) then
+      Message.WindowPos^.flags := Message.WindowPos^.flags or SWP_NOZORDER;
+  end;
 
   inherited;
 end;

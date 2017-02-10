@@ -2115,7 +2115,7 @@ begin
 
   Result := False;
 
-  if ((Now() <= IncDay(CompileTime(), 7)) and (SQL <> '')) then
+  if ((GetUTCTime() <= IncDay(GetCompileTime(), 7)) and (SQL <> '')) then
   begin
     if (not Session.SQLParser.ParseSQL(SQL)) then
       Session.UnparsableSQL := Session.UnparsableSQL
@@ -12445,7 +12445,7 @@ S: string; // Debug 2017-01-06
   User: TSUser;
   Variable: TSVariable;
 begin
-  if (Now() <= IncDay(CompileTime(), 7)) then
+  if (GetUTCTime() <= IncDay(GetCompileTime(), 7)) then
   begin
     SQL := SQLTrimStmt(Text, Len);
     if ((Length(SQL) > 0) and (SQL[1] <> ';')) then
