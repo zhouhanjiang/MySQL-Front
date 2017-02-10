@@ -79,6 +79,7 @@ Classes,
   uDView in 'uDView.pas' {DView},
   uCWorkbench in 'uCWorkbench.pas',
   uFSession in 'uFSession.pas' {FSession},
+  uPDBGridFilter in 'uPDBGridFilter.pas' {PDBGridFilter},
   uPObjectSearch in 'uPObjectSearch.pas' {PObjectSearch},
   uWSQLHelp in 'uWSQLHelp.pas' {WSQLHelp},
   uWWindow in 'uWWindow.pas' {WWindow};
@@ -88,23 +89,10 @@ Classes,
 var
   ExecError: DWORD;
   ExecInfo: TShellExecuteInfo;
-  SendErrorLog: TStringList;
   SetupProgram: TFileName;
   SetupProgramExecute: Boolean;
 begin
   Preferences := TPPreferences.Create();
-
-  if (FileExists(Preferences.UserPath + SendErrorLogFilename)) then
-  begin
-    if (Now() < IncDay(GetCompileTime(), 2 + 1)) then
-    begin
-      SendErrorLog := TStringList.Create();
-      SendErrorLog.LoadFromFile(Preferences.UserPath + SendErrorLogFilename);
-      SendToDeveloper(SendErrorLog.Text);
-      SendErrorLog.Free();
-    end;
-    DeleteFile(Preferences.UserPath + SendErrorLogFilename);
-  end;
 
   if (Preferences.SetupProgramInstalled) then
   begin

@@ -15,7 +15,7 @@ uses
   ComCtrls_Ext, StdCtrls_Ext, Dialogs_Ext, Forms_Ext, ExtCtrls_Ext,
   MySQLDB, MySQLDBGrid, SQLParser,
   uSession, uPreferences, uTools,
-  uBase, uDExport, uDImport, uCWorkbench, uPObjectSearch;
+  uBase, uDExport, uDImport, uCWorkbench, uPObjectSearch, uPDBGridFilter;
 
 const
   UM_ACTIVATE_DBGRID = WM_USER + 500;
@@ -426,6 +426,9 @@ type
     procedure DBGridEmptyExecute(Sender: TObject);
     procedure DBGridEnter(Sender: TObject);
     procedure DBGridExit(Sender: TObject);
+    procedure DBGridHeaderMouseMove(Sender: TObject; Shift: TShiftState; X,
+      Y: Integer);
+    procedure DBGridHeaderSplitButton(DBGrid: TMySQLDBGrid; Column: TColumn; Shift: TShiftState);
     procedure DBGridKeyDown(Sender: TObject; var Key: Word;
       Shift: TShiftState);
     procedure DBGridKeyUp(Sender: TObject; var Key: Word;
@@ -592,7 +595,7 @@ type
     procedure PanelPaint(Sender: TObject);
     procedure PanelResize(Sender: TObject);
     procedure PContentResize(Sender: TObject);
-    procedure PGridResize(Sender: TObject);
+    procedure PDBGridResize(Sender: TObject);
     procedure PHeaderCheckElements(Sender: TObject);
     procedure PHeaderPaint(Sender: TObject);
     procedure PHeaderResize(Sender: TObject);
@@ -907,6 +910,7 @@ type
     PanelMouseDownPoint: TPoint;
     Param: string;
     PasteMode: Boolean;
+    PDBGridFilter: TPDBGridFilter;
     PNGImage: TPNGImage;
     PObjectSearch: TPObjectSearch;
     PResultHeight: Integer;
@@ -5701,6 +5705,7 @@ begin
   Result.OnDragOver := DBGridDragOver;
   Result.OnEnter := DBGridEnter;
   Result.OnExit := DBGridExit;
+  Result.OnHeaderSplitButton := DBGridHeaderSplitButton;
   Result.OnKeyDown := DBGridKeyDown;
   Result.OnMouseMove := DBGridMouseMove;
   Result.OnTitleClick := DBGridTitleClick;
@@ -5708,6 +5713,7 @@ begin
   Result.DataSource := DataSource;
 
   Result.Parent := PDBGrid;
+  Result.Header.OnMouseMove := DBGridHeaderMouseMove;
 
   Result.Constraints.MinHeight := 3 * Result.Canvas.TextHeight('I');
 
@@ -6577,6 +6583,102 @@ begin
   end;
 end;
 
+procedure TFSession.DBGridHeaderMouseMove(Sender: TObject; Shift: TShiftState; X,
+  Y: Integer);
+{$IFDEF Debug}
+var
+  DBGrid: TMySQLDBGrid;
+  GridCoord: TGridCoord;
+  HDItem: THDItem;
+  Msg: TMsg;
+{$ENDIF}
+begin
+  {$IFDEF Debug}
+  if ((Sender is THeaderControl) and (THeaderControl(Sender).Parent is TMySQLDBGrid)) then
+  begin
+    DBGrid := TMySQLDBGrid(THeaderControl(Sender).Parent);
+
+    if ((X < 0) or (Y < 0)) then
+    begin
+      GridCoord.X := -1;
+      GridCoord.Y := -1;
+    end
+    else
+      GridCoord := DBGrid.MouseCoord(X, Y);
+
+    HDItem.Mask := HDI_FORMAT;
+
+    if (Assigned(MGridHeaderColumn) and ((GridCoord.X < 0) or (GridCoord.Y <> 0) or (MGridHeaderColumn <> DBGrid.Columns[GridCoord.X]))
+      and BOOL(SendMessage(DBGrid.Header.Handle, HDM_GETITEM, MGridHeaderColumn.Index - DBGrid.LeftCol, LParam(@HDItem)))) then
+    begin
+      HDItem.fmt := HDItem.fmt and not HDF_SPLITBUTTON;
+      SendMessage(DBGrid.Header.Handle, HDM_SETITEM, MGridHeaderColumn.Index - DBGrid.LeftCol, LParam(@HDItem));
+      ReleaseCapture();
+    end;
+
+    if ((GridCoord.X >= 0) and (GridCoord.Y = 0)
+      and not (DBGrid.Columns[GridCoord.X].Field.DataType in BinaryDataTypes)) then
+    begin
+      MGridHeaderColumn := DBGrid.Columns[GridCoord.X];
+      DBGrid.PopupMenu := MGridHeader;
+      if (BOOL(SendMessage(DBGrid.Header.Handle, HDM_GETITEM, MGridHeaderColumn.Index - DBGrid.LeftCol, LParam(@HDItem)))
+        and (HDItem.fmt and HDF_SPLITBUTTON = 0)) then
+      begin
+        HDItem.fmt := HDItem.fmt or HDF_SPLITBUTTON;
+        SendMessage(DBGrid.Header.Handle, HDM_SETITEM, MGridHeaderColumn.Index - DBGrid.LeftCol, LParam(@HDItem));
+      end;
+      if not (PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (Msg.hwnd = DBGrid.Header.Handle) and (KeysToShiftState(Msg.wParam) = Shift)) then
+        SetCapture(DBGrid.Header.Handle);
+    end
+    else
+    begin
+      if (Assigned(MGridHeaderColumn) and ((GridCoord.X < 0) or (GridCoord.Y <> 0) or (MGridHeaderColumn <> DBGrid.Columns[GridCoord.X]))
+        and BOOL(SendMessage(DBGrid.Header.Handle, HDM_GETITEM, MGridHeaderColumn.Index - DBGrid.LeftCol, LParam(@HDItem)))) then
+        ReleaseCapture();
+
+      MGridHeaderColumn := nil;
+      DBGrid.PopupMenu := MGrid;
+    end;
+
+    inherited;
+  end;
+  {$ENDIF}
+end;
+
+procedure TFSession.DBGridHeaderSplitButton(DBGrid: TMySQLDBGrid; Column: TColumn; Shift: TShiftState);
+var
+  Rect: TRect;
+begin
+  if (Shift = [ssLeft]) then
+  begin
+    if (not Assigned(PDBGridFilter)) then
+    begin
+      PDBGridFilter := TPDBGridFilter.Create(nil);
+      PDBGridFilter.Color := DBGrid.Color;
+      PDBGridFilter.Perform(CM_SYSFONTCHANGED, 0, 0);
+      PDBGridFilter.Perform(UM_CHANGEPREFERENCES, 0, 0);
+      PDBGridFilter.PopupParent := Window;
+    end;
+
+    if (Assigned(PDBGridFilter)) then
+      if (PDBGridFilter.Visible and (PDBGridFilter.Column = Column)) then
+        PDBGridFilter.Hide()
+      else if (Header_GetItemDropDownRect(DBGrid.Header.Handle, Column.Index - DBGrid.LeftCol, Rect)) then
+      begin
+        if (PDBGridFilter.Visible) then
+          PDBGridFilter.Hide();
+
+        PDBGridFilter.Column := Column;
+        PDBGridFilter.Left := DBGrid.ClientToScreen(Point(Rect.Left, 0)).X;
+        PDBGridFilter.Top := DBGrid.ClientToScreen(Point(0, DBGrid.DefaultRowHeight)).Y;
+        if (PDBGridFilter.Left + PDBGridFilter.Width > Screen.Width) then
+          PDBGridFilter.Left := Screen.Width - PDBGridFilter.Width;
+        PDBGridFilter.Visible := True;
+        Header_SetFocusedItem(DBGrid.Header.Handle, Column.Index - DBGrid.LeftCol);
+      end;
+  end;
+end;
+
 procedure TFSession.DBGridInitialize(const DBGrid: TMySQLDBGrid);
 var
   I: Integer;
@@ -6673,7 +6775,6 @@ procedure TFSession.DBGridMouseMove(Sender: TObject; Shift: TShiftState; X,
   Y: Integer);
 var
   DBGrid: TMySQLDBGrid;
-  GridCoord: TGridCoord;
 begin
   inherited;
 
@@ -6683,19 +6784,6 @@ begin
 
     if (not (ssLeft in Shift) and DBGrid.Dragging()) then
       DBGrid.EndDrag(False);
-
-    GridCoord := DBGrid.MouseCoord(X, Y);
-
-    if ((GridCoord.X >= 0) and (GridCoord.Y = 0)) then
-    begin
-      MGridHeaderColumn := DBGrid.Columns[GridCoord.X];
-      DBGrid.PopupMenu := MGridHeader;
-    end
-    else
-    begin
-      MGridHeaderColumn := nil;
-      DBGrid.PopupMenu := MGrid;
-    end;
   end;
 end;
 
@@ -6833,8 +6921,8 @@ begin
 
   FNavigatorChanging(nil, nil, TempB);
 
-  if (Assigned(PObjectSearch)) then
-    PObjectSearch.Free();
+  if (Assigned(PObjectSearch)) then PObjectSearch.Free();
+  if (Assigned(PDBGridFilter)) then PDBGridFilter.Free();
 
   Window.ActiveControl := nil;
   OnResize := nil;
@@ -7504,15 +7592,15 @@ procedure TFSession.FLogUpdate();
 begin
   if (MainAction('aVSQLLog').Checked) then
   begin
-    ProfilingPoint(MonitorProfile, 3);
+    ProfilingPoint(MonitorProfile, 6);
 
     FLog.Text := Session.SQLMonitor.CacheText;
 
-    ProfilingPoint(MonitorProfile, 4);
+    ProfilingPoint(MonitorProfile, 7);
 
     PLogResize(nil);
 
-    ProfilingPoint(MonitorProfile, 5);
+    ProfilingPoint(MonitorProfile, 8);
   end;
 end;
 
@@ -11804,6 +11892,7 @@ var
     // 1.4 seconds for 17 items
     // 11.7 seconds for 7 items
     // 3.5 seconds for 70 items
+    // 1.4 seconds for 61 items, TSTables
 
     // Event.Items.ClassType ???
 
@@ -14175,10 +14264,12 @@ begin
   FFilter.Width := TBFilterEnabled.Left - FFilter.Left;
 end;
 
-procedure TFSession.PGridResize(Sender: TObject);
+procedure TFSession.PDBGridResize(Sender: TObject);
 begin
   if (Assigned(ActiveDBGrid)) then
     ActiveDBGrid.Invalidate();
+  if (Assigned(PDBGridFilter)) then
+    PDBGridFilter.Hide();
 end;
 
 procedure TFSession.PHeaderCheckElements(Sender: TObject);

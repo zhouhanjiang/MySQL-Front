@@ -3,8 +3,8 @@ unit uPObjectSearch;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, Classes, Dialogs,
-  Controls, Forms, StdCtrls,
+  Messages, Classes,
+  Controls, StdCtrls, Forms,
   uBase, uSession;
 
 type
@@ -52,6 +52,7 @@ type
 implementation {***************************************************************}
 
 uses
+  Windows,
   uPreferences;
 
 {$R *.dfm}
@@ -65,19 +66,20 @@ begin
   Include(FFormState, fsShowing);
   try
     try
-      DoShow();
+      if (Showing) then
+        DoShow()
+      else
+        DoHide();
     except
       Application.HandleException(Self);
     end;
     if (not Showing) then
       SetWindowPos(Handle, 0, 0, 0, 0, 0, SWP_HIDEWINDOW or SWP_NOSIZE or SWP_NOMOVE or SWP_NOZORDER or SWP_NOACTIVATE)
     else if (SystemParametersInfo(SPI_GETCLIENTAREAANIMATION, 0, @Animation, 0) and Animation) then
-    begin
-      AnimateWindow(Handle, 150, AW_VER_POSITIVE or AW_SLIDE);
-      DoubleBuffered := True;
-    end
+      AnimateWindow(Handle, 150, AW_VER_POSITIVE or AW_SLIDE)
     else
       SetWindowPos(Handle, 0, 0, 0, 0, 0, SWP_SHOWWINDOW or SWP_NOSIZE or SWP_NOMOVE or SWP_NOZORDER or SWP_NOACTIVATE);
+    DoubleBuffered := Visible;
   finally
     Exclude(FFormState, fsShowing);
   end;

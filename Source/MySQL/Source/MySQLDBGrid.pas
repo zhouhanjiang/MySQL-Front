@@ -11,6 +11,8 @@ type
   TMySQLDBGrid = class(TDBGrid)
   type
 
+    THeaderSplitBottonEvent = procedure(DBGrid: TMySQLDBGrid; Column: TColumn; Shift: TShiftState) of object;
+
     TDBMySQLGridColumns = class(TDBGridColumns)
     protected
       procedure Update(Item: TCollectionItem); override;
@@ -48,6 +50,7 @@ type
       Col: Longint;
     end;
     FHeaderControl: THeaderControl;
+    FHeaderSplitButton: THeaderSplitBottonEvent;
     FHintWindow: THintWindow;
     FIgnoreKeyPress: Boolean;
     FListView: HWND;
@@ -81,7 +84,7 @@ type
     function EditCutExecute(): Boolean;
     function EditDeleteExecute(): Boolean;
     function GetCurrentRow(): Boolean;
-    function GetHeader(): HWND;
+    function GetHeaderControl(): THeaderControl;
     function GetSelSQLData: string;
     procedure HeaderMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
     procedure HeaderSectionClick(HeaderControl: THeaderControl; Section: THeaderSection);
@@ -130,8 +133,9 @@ type
     function UpdateAction(Action: TBasicAction): Boolean; override;
     procedure UpdateHeader(); virtual;
     property CurrentRow: Boolean read GetCurrentRow;
-    property Header: HWND read GetHeader;
+    property Header: THeaderControl read GetHeaderControl;
     property MouseDownShiftState: TShiftState read LeftClickAnchor.Shift;
+    property OnHeaderSplitButton: THeaderSplitBottonEvent read FHeaderSplitButton write FHeaderSplitButton;
     property SelectedFields: TMySQLDBGridFieldList read FSelectedFields;
     property SelSQLData: string read GetSelSQLData;
     property SelText: string read GetSelText;
@@ -580,6 +584,7 @@ constructor TMySQLDBGrid.Create(AOwner: TComponent);
 begin
   AltDownAnchor.Col := -1;
   FHeaderControl := nil;
+  FHeaderSplitButton := nil;
   FIgnoreKeyPress := False;
   FListView := 0;
   FOnCanEditShowExecuted := False;
@@ -803,15 +808,12 @@ begin
     end;
 end;
 
-function TMySQLDBGrid.GetHeader(): HWND;
+function TMySQLDBGrid.GetHeaderControl(): THeaderControl;
 begin
   if (not Assigned(FHeaderControl)) then
     HandleNeeded();
 
-  if (not Assigned(FHeaderControl)) then
-    Result := 0
-  else
-    Result := FHeaderControl.Handle;
+  Result := FHeaderControl;
 end;
 
 function TMySQLDBGrid.GetSelText(): string;
@@ -820,7 +822,7 @@ var
 begin
   FormatSettings := TFormatSettings.Create(LOCALE_USER_DEFAULT);
 
-  if (SelectedRows.Count = 0) then
+  if ((SelectedRows.Count = 0) and (SelectedFields.Count = 0)) then
     Result := SelectedField.AsString
   else
   begin
@@ -1214,7 +1216,7 @@ begin
         SetTimer(Handle, tiShowHint, Application.HintPause, nil);
       end;
   end
-  else if (PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (KeysToShiftState(Msg.wParam) = Shift)) then
+  else if (PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (Msg.hwnd = Handle) and (KeysToShiftState(Msg.wParam) = Shift)) then
     // Do nothing - handle this message within the next equal message
   else
   begin
@@ -1489,7 +1491,7 @@ begin
   Index := 0;
   HDItem.Mask := HDI_FORMAT;
   if (DataLink.DataSet is TMySQLDataSet) then
-    for I := LeftCol to LeftCol + VisibleColCount - 1 do
+    for I := LeftCol to Min(LeftCol + VisibleColCount, Columns.Count) - 1 do
     begin
       // Debug 2017-02-07
       Assert((0 <= I) and (I < Columns.Count),
@@ -1501,7 +1503,7 @@ begin
 
       if (Columns[I].Visible
         and Assigned(Columns[I].Field)
-        and BOOL(SendMessage(Header, HDM_GETITEM, Index, LParam(@HDItem)))) then
+        and BOOL(SendMessage(Header.Handle, HDM_GETITEM, Index, LParam(@HDItem)))) then
       begin
         if (Columns[I].Field.Tag and ftAscSortedField <> 0) then
           HDItem.fmt := HDItem.fmt and not HDF_SORTDOWN or HDF_SORTUP
@@ -1509,7 +1511,7 @@ begin
           HDItem.fmt := HDItem.fmt and not HDF_SORTUP or HDF_SORTDOWN
         else
           HDItem.fmt := HDItem.fmt and not HDF_SORTUP and not HDF_SORTDOWN;
-        SendMessage(Header, HDM_SETITEM, Index, LPARAM(@HDItem));
+        SendMessage(Header.Handle, HDM_SETITEM, Index, LPARAM(@HDItem));
         Inc(Index);
       end;
     end;
@@ -1572,6 +1574,7 @@ var
   HDCustomDraw: PNMCustomDraw;
   LogFont: TLogFont;
   NewWidth: Integer;
+  Shift: TShiftState;
 begin
   HDNotify := PHDNotify(Msg.NMHdr);
 
@@ -1600,7 +1603,7 @@ begin
           if ((DataLink.DataSet is TMySQLDataSet) and not (Column.Field is TBlobField)) then
           begin
             HDItem.Mask := HDI_WIDTH;
-            if (BOOL(SendMessage(Header, HDM_GETITEM, HDNotify^.Item, LPARAM(@HDItem)))) then
+            if (BOOL(SendMessage(Header.Handle, HDM_GETITEM, HDNotify^.Item, LPARAM(@HDItem)))) then
             begin
               Canvas.Font := Column.Font;
               NewWidth := TMySQLDataSet(DataLink.DataSet).GetMaxTextWidth(Column.Field, CanvasTextWidth) + 4 + GridLineWidth;
@@ -1651,6 +1654,20 @@ begin
             else
               inherited;
           end;
+        end;
+      HDN_DROPDOWN:
+        if (Assigned(FHeaderSplitButton)) then
+        begin
+          case (HDNotify^.Button) of
+            0: Shift := [ssLeft];
+            1: Shift := [ssRight];
+            2: Shift := [ssMiddle];
+            else Shift := [];
+          end;
+          if (GetKeyState(VK_SHIFT) < 0) then Shift := Shift + [ssShift];
+          if (GetKeyState(VK_CONTROL) < 0) then Shift := Shift + [ssCtrl];
+          if (GetKeyState(VK_MENU) < 0) then Shift := Shift + [ssAlt];
+          FHeaderSplitButton(Self, Columns[LeftCol + HDNotify^.Item], Shift);
         end;
       else
         inherited;

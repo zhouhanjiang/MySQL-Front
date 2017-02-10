@@ -181,6 +181,9 @@
         <DCCReference Include="uFSession.pas">
             <Form>FSession</Form>
         </DCCReference>
+        <DCCReference Include="uPDBGridFilter.pas">
+            <Form>PDBGridFilter</Form>
+        </DCCReference>
         <DCCReference Include="uPObjectSearch.pas">
             <Form>PObjectSearch</Form>
         </DCCReference>
