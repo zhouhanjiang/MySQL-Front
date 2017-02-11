@@ -446,6 +446,9 @@ uses
   ShellApi, ShlObj, DBConsts, CommCtrl, StrUtils, ShLwApi, IniFiles, Themes,
   Variants, WinINet, SysConst, Math, Zip,
   ODBCAPI,
+  {$IFDEF EurekaLog}
+  ESysInfo,
+  {$ENDIF}
   acQBLocalizer,
   MySQLConsts, HTTPTunnel, SQLUtils,
   uTools, uURI,
@@ -837,13 +840,21 @@ end;
 procedure TWWindow.CMSysFontChanged(var Message: TMessage);
 var
   Profile: TProfile;
+  S: string;
 begin
   CreateProfile(Profile);
 
   inherited;
 
   if (ProfilingTime(Profile) > 1000) then
+  begin
+    S := ProfilingReport(Profile);
+    {$IFDEF EurekaLog}
+    S := S + TimeToStr(Now() - GetStartingDate(), FileFormatSettings) + #13#10;
+    {$ENDIF}
+    S := S + TOSVersion.ToString();
     SendToDeveloper(ProfilingReport(Profile));
+  end;
   CloseProfile(Profile);
 
   if (StyleServices.Enabled or not CheckWin32Version(6)) then

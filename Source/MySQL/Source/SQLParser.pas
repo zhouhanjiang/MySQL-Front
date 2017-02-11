@@ -347,7 +347,6 @@ type
         ntStartTransactionStmt,
         ntStopSlaveStmt,
         ntSubArea,
-        ntSubAreaStmt,
         ntSubPartition,
         ntSubquery,
         ntSubstringFunc,
@@ -498,7 +497,6 @@ type
         stStartSlave,
         stStartTransaction,
         stStopSlave,
-        stSubArea,
         stTruncate,
         stUninstallPlugin,
         stUnknown,
@@ -864,7 +862,6 @@ type
         'ntStartTransactionStmt',
         'ntStopSlaveStmt',
         'ntSubArea',
-        'ntSubAreaStmt',
         'ntSubPartition',
         'ntSubquery',
         'ntSubstringFunc',
@@ -1015,7 +1012,6 @@ type
         'stStartSlave',
         'stStartTransaction',
         'stStopSlave',
-        'stSubArea',
         'stTruncate',
         'stUninstallPlugin',
         'stUnknown',
@@ -1304,7 +1300,6 @@ type
         ntStartSlaveStmt,
         ntStartTransactionStmt,
         ntStopSlaveStmt,
-        ntSubAreaStmt,
         ntTruncateStmt,
         ntUninstallPluginStmt,
         ntUnknownStmt,
@@ -1526,7 +1521,6 @@ type
         ntStartSlaveStmt,
         ntStartTransactionStmt,
         ntStopSlaveStmt,
-        ntSubAreaStmt,
         ntTruncateStmt,
         ntUninstallPluginStmt,
         ntUnknownStmt,
@@ -5694,21 +5688,6 @@ type
         property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
-      PSubAreaStmt = ^TSubAreaStmt;
-      TSubAreaStmt = packed record
-      private type
-        TNodes = packed record
-          SubArea: TOffset;
-        end;
-      private
-        Heritage: TStmt;
-      private
-        Nodes: TNodes;
-        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
-      public
-        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
-      end;
-
       PSubPartition = ^TSubPartition;
       TSubPartition = packed record
       private type
@@ -6905,7 +6884,7 @@ type
     function ParseCollateIdent(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseColumnAliasIdent(): TOffset;
     function ParseCommitStmt(): TOffset;
-    function ParseCompoundStmt(const BeginLabel: TOffset): TOffset;
+    function ParseCompoundStmt(const BeginLabel: TOffset = 0): TOffset;
     function ParseConstIdent(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseConvertFunc(): TOffset;
     function ParseCountFunc(): TOffset;
@@ -7010,7 +6989,7 @@ type
     function ParseLoadXMLStmt(): TOffset;
     function ParseLockTableStmt(): TOffset;
     function ParseLockStmtItem(): TOffset;
-    function ParseLoopStmt(const BeginLabel: TOffset): TOffset;
+    function ParseLoopStmt(const BeginLabel: TOffset = 0): TOffset;
     function ParseMatchFunc(): TOffset;
     function ParseMaxValue(): TOffset;
     function ParseOpenStmt(): TOffset;
@@ -7027,7 +7006,7 @@ type
     function ParseRenameStmtTablePair(): TOffset;
     function ParseRenameStmtUserPair(): TOffset;
     function ParseRepairTableStmt(): TOffset;
-    function ParseRepeatStmt(const BeginLabel: TOffset): TOffset;
+    function ParseRepeatStmt(const BeginLabel: TOffset = 0): TOffset;
     function ParseResetStmt(): TOffset;
     function ParseReturnStmt(): TOffset;
     function ParseResetStmtOption(): TOffset;
@@ -7038,7 +7017,6 @@ type
     function ParseSavepointStmt(): TOffset;
     function ParseSchedule(): TOffset;
     function ParseSecretIdent(): TOffset;
-    function ParseSelectStmt(): TOffset; overload;
     function ParseSelectStmt(const SubSelect: Boolean; const UnionSelect: Boolean = False): TOffset; overload;
     function ParseSelectStmtColumn(): TOffset;
     function ParseSelectStmtGroup(): TOffset;
@@ -7106,7 +7084,6 @@ type
     function ParseStopSlaveStmt(): TOffset;
     function ParseString(): TOffset;
     function ParseSubArea(const ParseArea: TParseFunction): TOffset;
-    function ParseSubAreaStmt(const ParseStmt: TParseFunction): TOffset;
     function ParseSubPartition(): TOffset;
     function ParseSubSelectStmt(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseSubquery(): TOffset;
@@ -7139,7 +7116,7 @@ type
     function ParseVariableIdent(): TOffset;
     function ParseWeightStringFunc(): TOffset;
     function ParseWeightStringFuncLevel(): TOffset;
-    function ParseWhileStmt(const BeginLabel: TOffset): TOffset;
+    function ParseWhileStmt(const BeginLabel: TOffset = 0): TOffset;
     function ParseXAStmt(): TOffset;
     procedure SaveToDebugHTMLFile(const Filename: string);
     procedure SaveToFormatedSQLFile(const Filename: string);
@@ -11660,20 +11637,6 @@ begin
   end;
 end;
 
-{ TSQLParser.TSubAreaSelectStmt ***********************************************}
-
-class function TSQLParser.TSubAreaStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
-begin
-  Result := TStmt.Create(AParser, stSubArea);
-
-  with PSubAreaStmt(AParser.NodePtr(Result))^ do
-  begin
-    Nodes := ANodes;
-
-    Heritage.Heritage.AddChildren(SizeOf(Nodes) div SizeOf(TOffset), @Nodes);
-  end;
-end;
-
 { TSQLParser.TSubPartition ****************************************************}
 
 class function TSQLParser.TSubPartition.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
@@ -13711,7 +13674,6 @@ begin
       ntStartTransactionStmt: DefaultFormatNode(@PStartTransactionStmt(Node)^.Nodes, SizeOf(TStartTransactionStmt.TNodes));
       ntStopSlaveStmt: DefaultFormatNode(@PStopSlaveStmt(Node)^.Nodes, SizeOf(TSignalStmt.TNodes));
       ntSubArea: FormatSubArea(PSubArea(Node)^.Nodes);
-      ntSubAreaStmt: DefaultFormatNode(@PSubAreaStmt(Node)^.Nodes, SizeOf(TSubAreaStmt.TNodes));
       ntSubPartition: FormatSubPartition(PSubPartition(Node)^.Nodes);
       ntSubquery: FormatSubquery(PSubquery(Node)^.Nodes);
       ntSubstringFunc: FormatSubstringFunc(PSubstringFunc(Node)^.Nodes);
@@ -15195,7 +15157,6 @@ begin
     ntStartTransactionStmt: Result := SizeOf(TStartTransactionStmt);
     ntStopSlaveStmt: Result := SizeOf(TStopSlaveStmt);
     ntSubArea: Result := SizeOf(TSubArea);
-    ntSubAreaStmt: Result := SizeOf(TSubAreaStmt);
     ntSubPartition: Result := SizeOf(TSubPartition);
     ntSubquery: Result := SizeOf(TSubquery);
     ntSubstringFunc: Result := SizeOf(TSubstringFunc);
@@ -16655,7 +16616,7 @@ begin
   Result := TCommitStmt.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseCompoundStmt(const BeginLabel: TOffset): TOffset;
+function TSQLParser.ParseCompoundStmt(const BeginLabel: TOffset = 0): TOffset;
 var
   Nodes: TCompoundStmt.TNodes;
   CompoundVariableToken: PToken;
@@ -19960,7 +19921,7 @@ begin
                 SetError(PE_UnexpectedToken, Nodes[NodeIndex])
               else if (NodeIndex + 1 = Nodes.Count) then
                 SetError(PE_IncompleteStmt)
-              else if ((NodePtr(Nodes[NodeIndex + 1])^.NodeType <> ntSubAreaStmt)
+              else if ((NodePtr(Nodes[NodeIndex + 1])^.NodeType <> ntSelectStmt)
                 and (NodePtr(Nodes[NodeIndex + 1])^.NodeType <> ntList)) then
                 SetError(PE_UnexpectedToken, NodePtr(Nodes[NodeIndex + 1])^.FirstToken^.Offset)
               else if (IsToken(Nodes[NodeIndex - 1]) and (TokenPtr(Nodes[NodeIndex - 1])^.OperatorType = otNot)) then
@@ -21450,7 +21411,7 @@ begin
   Result := TLockTablesStmt.TItem.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseLoopStmt(const BeginLabel: TOffset): TOffset;
+function TSQLParser.ParseLoopStmt(const BeginLabel: TOffset = 0): TOffset;
 var
   Nodes: TLoopStmt.TNodes;
 begin
@@ -21786,7 +21747,7 @@ begin
   Result := TRepairTableStmt.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseRepeatStmt(const BeginLabel: TOffset): TOffset;
+function TSQLParser.ParseRepeatStmt(const BeginLabel: TOffset = 0): TOffset;
 var
   Nodes: TRepeatStmt.TNodes;
 begin
@@ -22038,7 +21999,8 @@ begin
 
   if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
     if ((Finish - Start) * 1000 div Frequency > 1000) then
-      SendToDeveloper(Parse.SQL);
+      SendToDeveloper('Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000) + ' s' + #13#10
+        + Parse.SQL);
 
   Result := TRoot.Create(Self, FirstTokenAll, StmtList);
 
@@ -22123,11 +22085,6 @@ begin
       Nodes.CloseAngleBracket := ApplyCurrentToken(utSymbol);
 
   Result := TSecretIdent.Create(Self, Nodes);
-end;
-
-function TSQLParser.ParseSelectStmt(): TOffset;
-begin
-  Result := ParseSelectStmt(False);
 end;
 
 function TSQLParser.ParseSelectStmt(const SubSelect: Boolean; const UnionSelect: Boolean = False): TOffset;
@@ -22229,11 +22186,27 @@ var
   Found: Boolean;
   ListNodes: TList.TNodes;
   Nodes: TSelectStmt.TNodes;
+  SubAreaNodes: TSubArea.TNodes;
   TableAliasToken: PToken;
   Token: PToken;
+  UnionAllowed: Boolean;
 begin
+  UnionAllowed := True;
+
   if (IsSymbol(ttOpenBracket)) then
-    Result := ParseSubAreaStmt(ParseSelectStmt)
+  begin
+    FillChar(SubAreaNodes, SizeOf(SubAreaNodes), 0);
+
+    SubAreaNodes.OpenBracket := ParseSymbol(ttOpenBracket);
+
+    if (not ErrorFound) then
+      SubAreaNodes.AreaNode := ParseSelectStmt(SubSelect, UnionSelect);
+
+    if (not ErrorFound) then
+      SubAreaNodes.CloseBracket := ParseSymbol(ttCloseBracket);
+
+    Result := TSubArea.Create(Self, SubAreaNodes);
+  end
   else
   begin
     FillChar(Nodes, SizeOf(Nodes), 0);
@@ -22291,7 +22264,10 @@ begin
 
     if (not ErrorFound and not SubSelect) then
       if (IsTag(kiINTO)) then
+      begin
+        UnionAllowed := False;
         Nodes.Into1 := ParseInto();
+      end;
 
     if (not ErrorFound) then
       if (IsTag(kiFROM)) then
@@ -22365,7 +22341,10 @@ begin
             if (Nodes.Into1.Tag > 0) then
               SetError(PE_UnexpectedToken)
             else
+            begin
+              UnionAllowed := False;
               Nodes.Into2 := ParseInto();
+            end;
 
         if (not ErrorFound and (Nodes.From.Tag > 0)) then
           if (IsTag(kiFOR, kiUPDATE)) then
@@ -22409,39 +22388,39 @@ begin
           TableAliasToken := TableAliasToken^.NextToken;
       end;
     end;
+  end;
 
-    if (not ErrorFound
-      and (Nodes.Into1.Tag = 0) and (Nodes.Into2.Tag = 0)
-      and not UnionSelect
-      and IsTag(kiUNION)) then
-    begin
-      Elements.Init();
+  if (not ErrorFound
+    and not UnionSelect
+    and UnionAllowed
+    and IsTag(kiUNION)) then
+  begin
+    Elements.Init();
 
-      Elements.Add(Result);
+    Elements.Add(Result);
 
-      repeat
-        if (IsTag(kiUNION, kiALL)) then
-          Elements.Add(ParseTag(kiUNION, kiALL))
-        else if (IsTag(kiUNION, kiDISTINCT)) then
-          Elements.Add(ParseTag(kiUNION, kiDISTINCT))
-        else
-          Elements.Add(ParseTag(kiUNION));
-
-        if (not ErrorFound) then
-          Elements.Add(ParseSelectStmt(SubSelect, True));
-      until (ErrorFound or not IsTag(kiUNION));
+    repeat
+      if (IsTag(kiUNION, kiALL)) then
+        Elements.Add(ParseTag(kiUNION, kiALL))
+      else if (IsTag(kiUNION, kiDISTINCT)) then
+        Elements.Add(ParseTag(kiUNION, kiDISTINCT))
+      else
+        Elements.Add(ParseTag(kiUNION));
 
       if (not ErrorFound) then
-        if (IsTag(kiORDER, kiBY)) then
-          Elements.Add(ParseSelectStmtOrderBy());
+        Elements.Add(ParseSelectStmt(SubSelect, True));
+    until (ErrorFound or not IsTag(kiUNION));
 
-      if (not ErrorFound) then
-        if (IsTag(kiLIMIT)) then
-          Elements.Add(ParseSelectStmtLimit());
+    if (not ErrorFound) then
+      if (IsTag(kiORDER, kiBY)) then
+        Elements.Add(ParseSelectStmtOrderBy());
 
-      FillChar(ListNodes, SizeOf(ListNodes), 0);
-      Result := TList.Create(Self, ListNodes, ttUnknown, @Elements);
-    end;
+    if (not ErrorFound) then
+      if (IsTag(kiLIMIT)) then
+        Elements.Add(ParseSelectStmtLimit());
+
+    FillChar(ListNodes, SizeOf(ListNodes), 0);
+    Result := TList.Create(Self, ListNodes, ttUnknown, @Elements);
   end;
 end;
 
@@ -24083,37 +24062,20 @@ begin
 
   FirstToken := CurrentToken;
 
-  if (not InPL_SQL or EndOfStmt(CurrentToken) or (TokenPtr(CurrentToken)^.TokenType <> ttIdent) or not IsNextSymbol(1, ttColon)) then
-    BeginLabel := 0
-  else
+  if (InPL_SQL and EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType = ttIdent) and IsNextSymbol(1, ttColon)) then
+  begin
     BeginLabel := ParseBeginLabel();
-
-  if (IsTag(kiBEGIN)) then
-    if (not InPL_SQL) then
-      Result := SetError(PE_UnexpectedStmt)
-    else
+    if (IsTag(kiBEGIN)) then
       Result := ParseCompoundStmt(BeginLabel)
-  else if (IsTag(kiLOOP)) then
-    if (not InPL_SQL) then
-      Result := SetError(PE_UnexpectedStmt)
-    else
+    else if (IsTag(kiLOOP)) then
       Result := ParseLoopStmt(BeginLabel)
-  else if (IsTag(kiREPEAT)) then
-    if (not InPL_SQL) then
-      Result := SetError(PE_UnexpectedStmt)
-    else
+    else if (IsTag(kiREPEAT)) then
       Result := ParseRepeatStmt(BeginLabel)
-  else if (IsTag(kiWHILE)) then
-    if (not InPL_SQL) then
-      Result := SetError(PE_UnexpectedStmt)
-    else
+    else if (IsTag(kiWHILE)) then
       Result := ParseWhileStmt(BeginLabel)
-  else if (BeginLabel > 0) then
-    if (EndOfStmt(CurrentToken)) then
-      Result := SetError(PE_IncompleteStmt)
     else
       Result := SetError(PE_UnexpectedToken)
-
+  end
   else if (IsTag(kiALTER)) then
     Result := ParseAlterStmt()
   else if (IsTag(kiANALYZE, kiTABLE)) then
@@ -24122,7 +24084,7 @@ begin
     if (not InPL_SQL) then
       Result := ParseBeginStmt()
     else
-      Result := ParseCompoundStmt(0)
+      Result := ParseCompoundStmt()
   else if (IsTag(kiCALL)) then
     Result := ParseCallStmt()
   else if (IsTag(kiCASE)) then
@@ -24231,6 +24193,11 @@ begin
     Result := ParseLoadStmt()
   else if (IsTag(kiLOCK, kiTABLES)) then
     Result := ParseLockTableStmt()
+  else if (IsTag(kiLOOP)) then
+    if (not InPL_SQL) then
+      Result := SetError(PE_UnexpectedStmt)
+    else
+      Result := ParseLoopStmt()
   else if (IsTag(kiPREPARE)) then
     Result := ParsePrepareStmt()
   else if (IsTag(kiPURGE)) then
@@ -24250,6 +24217,11 @@ begin
     Result := ParseRepairTableStmt()
   else if (IsTag(kiRELEASE)) then
     Result := ParseReleaseStmt()
+  else if (IsTag(kiREPEAT)) then
+    if (not InPL_SQL) then
+      Result := SetError(PE_UnexpectedStmt)
+    else
+      Result := ParseRepeatStmt()
   else if (IsTag(kiREPLACE)) then
     Result := ParseInsertStmt()
   else if (IsTag(kiRESET)) then
@@ -24283,15 +24255,12 @@ begin
     Result := ParseSetTransactionStmt()
   else if (IsTag(kiSET)) then
     Result := ParseSetStmt()
-  else
   {$IFDEF Debug}
-  begin
+  else
     Continue := True; // This "Hack" is needed to use <Ctrl+LeftClick>
-    Result := 0;      // the Delphi XE4 IDE. But why???
-  end;
-  if (Continue) then
+  if (not Continue) then  // the Delphi XE4 IDE. But why???
   {$ENDIF}
-  if (IsTag(kiSHOW, kiBINARY, kiLOGS)) then
+  else if (IsTag(kiSHOW, kiBINARY, kiLOGS)) then
     Result := ParseShowBinaryLogsStmt()
   else if (IsTag(kiSHOW, kiMASTER, kiLOGS)) then
     Result := ParseShowBinaryLogsStmt()
@@ -24421,6 +24390,11 @@ begin
     Result := ParseUpdateStmt()
   else if (IsTag(kiUSE)) then
     Result := ParseUseStmt()
+  else if (IsTag(kiWHILE)) then
+    if (not InPL_SQL) then
+      Result := SetError(PE_UnexpectedStmt)
+    else
+      Result := ParseWhileStmt()
   else if (IsTag(kiXA)) then
     Result := ParseXAStmt()
   else if (EndOfStmt(CurrentToken)) then
@@ -24496,17 +24470,6 @@ begin
     Nodes.CloseBracket := ParseSymbol(ttCloseBracket);
 
   Result := TSubArea.Create(Self, Nodes);
-end;
-
-function TSQLParser.ParseSubAreaStmt(const ParseStmt: TParseFunction): TOffset;
-var
-  Nodes: TSubAreaStmt.TNodes;
-begin
-  FillChar(Nodes, SizeOf(Nodes), 0);
-
-  Nodes.SubArea := ParseSubArea(ParseStmt);
-
-  Result := TSubAreaStmt.Create(Self, Nodes);
 end;
 
 function TSQLParser.ParseSubPartition(): TOffset;

@@ -9105,8 +9105,6 @@ begin
   // DROP TABLE `mixer`.`extranet`;
   // aDDeleteExecute - end - SBlob: True
 
-  ProfilingPoint(MonitorProfile, 7);
-
   if (not (csDestroying in ComponentState)) then
     case (Event.EventType) of
       etItemsValid,
@@ -9116,7 +9114,11 @@ begin
       etItemDeleted:
         SessionUpdate(Event);
       etMonitor:
-        FLogUpdate();
+        begin
+          ProfilingPoint(MonitorProfile, 7);
+          FLogUpdate();
+          ProfilingPoint(MonitorProfile, 11);
+        end;
       etBeforeExecuteSQL:
         BeforeExecuteSQL(Event);
       etAfterExecuteSQL:
@@ -9125,13 +9127,9 @@ begin
         Wanted.Clear();
     end;
 
-  ProfilingPoint(MonitorProfile, 11);
-
   // Debug 2017-02-05
   Assert(Assigned(SBlob),
     'EventType: ' + IntToStr(Ord(Event.EventType)));
-
-  ProfilingPoint(MonitorProfile, 12);
 end;
 
 procedure TFSession.FormResize(Sender: TObject);
@@ -11914,6 +11912,8 @@ var
           break;
         end;
 
+      // 0.8 seconds, 483 items
+
       ProfilingPoint(9);
     end;
 
@@ -12444,6 +12444,8 @@ begin
     // 2.0 seconds, EventType: 0, Items: 38
     // 2.7 seconds, EventType: 0, Items: 3
     // 6.7 seconds, EventType: 0, Items: 0
+    // 3.0 seconds, EventType: 0, Items: 10, TSBaseTableFields
+    // 0.7 seconds, EventType: 0, Items: 483, TSBaseTableFields
 
     ProfilingPoint(29);
 
@@ -14880,6 +14882,7 @@ begin
 
   TempActiveControl := Window.ActiveControl;
 
+  ListViewUpdateCount := 0;
   CreateProfile(Profile);
 
   if (Assigned(Event)) then
@@ -14969,8 +14972,6 @@ begin
         FNavigatorUpdate(Event);
 
       ProfilingPoint(Profile, 9);
-
-      ListViewUpdateCount := 0;
 
       if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemRenamed, etItemDeleted]) then
       begin
@@ -15098,15 +15099,17 @@ begin
   if (ProfilingTime(Profile) > 1000) then
   begin
     S := 'SessionUpdate - '
-      + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
+      + 'EventType: ' + IntToStr(Ord(Event.EventType));
     if (Assigned(Event.Items)) then
       S := S
-        + 'Items: ' + Event.Items.ClassName + ', '
-        + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
+        + ', Items: ' + Event.Items.ClassName
+        + ', Count: ' + IntToStr(Event.Items.Count);
     if (Event.Item is TSTable) then
       S := S
-        + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
-    S := S + ProfilingReport(Profile);
+        + ', FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count);
+    S := S + #13#10
+      + ', ListViewUpdateCount: ' + IntToStr(ListViewUpdateCount) + #13#10
+      + ProfilingReport(Profile);
     TimeMonitor.Append(S, ttDebug);
   end;
   CloseProfile(Profile);

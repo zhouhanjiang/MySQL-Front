@@ -1121,6 +1121,7 @@ initialization
       ProgramVersionMinor := FileInfo.dwFileVersionMS and $FFFF;
       ProgramVersionPatch := FileInfo.dwFileVersionLS shr 16;
       ProgramVersionBuild := FileInfo.dwFileVersionLS and $FFFF;
+      ProgramVersion := EncodeVersion(ProgramVersionMajor, ProgramVersionMinor, ProgramVersionPatch, ProgramVersionBuild);
       ProgramVersionStr := IntToStr(ProgramVersionMajor) + '.' + IntToStr(ProgramVersionMinor) + '  (Build ' + IntToStr(ProgramVersionPatch) + '.' + IntToStr(ProgramVersionBuild) + ')';
     end;
     FreeMem(Buffer);

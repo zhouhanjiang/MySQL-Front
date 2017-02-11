@@ -26,7 +26,7 @@ type
   TSForeignKey = class;
   TSForeignKeys = class;
   TSTable = class;
-  TSBaseTableFields = class;
+  TSBaseFields = class;
   TSBaseTable = class;
   TSView = class;
   TSTables = class;
@@ -451,7 +451,7 @@ type
     property Valid: Boolean read FValid;
   end;
 
-  TSBaseTableFields = class(TSTableFields)
+  TSBaseFields = class(TSTableFields)
   private
     function GetField(Index: Integer): TSBaseField; inline;
   public
@@ -631,7 +631,7 @@ type
     FCharset: string;
     FDelayKeyWrite: Boolean;
     FEngine: TSEngine;
-    FFields: TSBaseTableFields;
+    FFields: TSBaseFields;
     FForeignKeys: TSForeignKeys;
     FIndexSize: Int64;
     FInsertMethod: TInsertMethod;
@@ -648,7 +648,7 @@ type
     FUnusedSize: Int64;
     FUpdated: TDateTime;
     function GetAutoIncrementField(): TSBaseField;
-    function GetBaseTableFields(): TSBaseTableFields; inline;
+    function GetBaseTableFields(): TSBaseFields; inline;
     function GetPrimaryKey(): TSKey;
     function GetTriggers(Index: Integer): TSTrigger;
     function GetTriggerCount(): Integer;
@@ -694,7 +694,7 @@ type
     property Charset: string read FCharset write FCharset;
     property DelayKeyWrite: Boolean read FDelayKeyWrite write FDelayKeyWrite;
     property Engine: TSEngine read FEngine write FEngine;
-    property Fields: TSBaseTableFields read GetBaseTableFields;
+    property Fields: TSBaseFields read GetBaseTableFields;
     property IndexSize: Int64 read FIndexSize;
     property InsertMethod: TInsertMethod read FInsertMethod write FInsertMethod;
     property ForeignKeys: TSForeignKeys read FForeignKeys;
@@ -3342,7 +3342,7 @@ begin
 
   if (NewField is TSBaseField) then
   begin
-    Insert(Index, TSBaseField.Create(TSBaseTableFields(Self)));
+    Insert(Index, TSBaseField.Create(TSBaseFields(Self)));
     TSBaseField(Field[Index]).FOriginalName := '';
   end
   else if (NewField is TSViewField) then
@@ -3459,12 +3459,12 @@ end;
 
 { TSBaseTableFields ***********************************************************}
 
-function TSBaseTableFields.GetField(Index: Integer): TSBaseField;
+function TSBaseFields.GetField(Index: Integer): TSBaseField;
 begin
   Result := TSBaseField(Items[Index]);
 end;
 
-procedure TSBaseTableFields.MoveField(const AField: TSTableField; const NewFieldBefore: TSTableField);
+procedure TSBaseFields.MoveField(const AField: TSTableField; const NewFieldBefore: TSTableField);
 var
   I: Integer;
   Index: Integer;
@@ -4224,7 +4224,7 @@ begin
     FCharset := '';
   FDelayKeyWrite := False;
   FEngine := nil;
-  FFields := TSBaseTableFields.Create(Self);
+  FFields := TSBaseFields.Create(Self);
   FIndexSize := -1;
   FInsertMethod := imNo;
   FMaxDataSize := -1;
@@ -4328,9 +4328,9 @@ begin
       Result := TSBaseField(Fields[I]);
 end;
 
-function TSBaseTable.GetBaseTableFields(): TSBaseTableFields;
+function TSBaseTable.GetBaseTableFields(): TSBaseFields;
 begin
-  Result := TSBaseTableFields(GetFields());
+  Result := TSBaseFields(GetFields());
 end;
 
 function TSBaseTable.GetPrimaryKey(): TSKey;
@@ -4576,13 +4576,13 @@ begin
       and not SQLParseKeyword(Parse, 'CONSTRAINT', False)
       and not SQLParseKeyword(Parse, 'FOREIGN KEY', False)) do
     begin
-      Assert(FFields is TSBaseTableFields);
+      Assert(FFields is TSBaseFields);
 
       NewName := SQLParseValue(Parse);
 
       Moved := False;
       if (Index = FFields.Count) then
-        Index := FFields.Add(TSBaseField.Create(TSBaseTableFields(FFields), NewName))
+        Index := FFields.Add(TSBaseField.Create(TSBaseFields(FFields), NewName))
       else if (Index < FFields.IndexByName(NewName)) then
       begin
         FFields.Move(FFields.IndexByName(NewName), Index);
@@ -4592,7 +4592,7 @@ begin
         Moved := True;
       end
       else if (Fields.NameCmp(NewName, FFields[Index].Name) <> 0) then
-        FFields.Insert(Index, TSBaseField.Create(TSBaseTableFields(FFields), NewName))
+        FFields.Insert(Index, TSBaseField.Create(TSBaseFields(FFields), NewName))
       else
       begin
         DeleteList.Delete(DeleteList.IndexOf(FFields[Index]));
@@ -11757,6 +11757,14 @@ begin
     FUser := TSUser.Create(Users);
 
     Result := FUser.Build(DataSet);
+
+    // Debug 2017-02-11
+    if (FUser.Name = '') then
+      SendToDeveloper('Query: ' + #13#10
+        + DataSet.CommandText + #13#10#13#10
+        + 'Source: ' + #13#10
+        + FUser.Source);
+
     FUser.FOriginalName := FUser.Name;
 
     if (Users.InsertIndex(FUser.Name, Index)) then
@@ -12419,7 +12427,11 @@ end;
 
 procedure TSSession.MonitorLog(const Connection: TMySQLConnection; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
 begin
+  ProfilingPoint(MonitorProfile, 15);
+
   SendEvent(etMonitor);
+
+  ProfilingPoint(MonitorProfile, 14);
 end;
 
 procedure TSSession.MonitorExecutedStmts(const Connection: TMySQLConnection;

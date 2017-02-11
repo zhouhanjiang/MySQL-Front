@@ -781,7 +781,7 @@ begin
         else
         begin
           NewTable.Fields[Field.Index].Assign(NewField);
-          TSBaseTableFields(NewTable.Fields).MoveField(NewTable.Fields[Field.Index], NewField.FieldBefore);
+          TSBaseFields(NewTable.Fields).MoveField(NewTable.Fields[Field.Index], NewField.FieldBefore);
         end;
 
         if (NewField.AutoIncrement and Assigned(Table) and not Assigned(Table.PrimaryKey)) then

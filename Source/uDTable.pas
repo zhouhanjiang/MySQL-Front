@@ -399,7 +399,7 @@ begin
     begin
       OldListItem := FFields.Items[Fields[Index].Index];
 
-      TSBaseTableFields(NewTable.Fields).MoveField(Fields[Index], Fields[Index]);
+      TSBaseFields(NewTable.Fields).MoveField(Fields[Index], Fields[Index]);
 
       NewListItem := FFields.Items.Insert(Fields[Index].Index + 1);
       NewListItem.Caption := OldListItem.Caption;
@@ -522,7 +522,7 @@ begin
     begin
       OldListItem := FFields.Items[Fields[Index].Index];
 
-      TSBaseTableFields(NewTable.Fields).MoveField(Fields[Index], Fields[Index].FieldBefore.FieldBefore);
+      TSBaseFields(NewTable.Fields).MoveField(Fields[Index], Fields[Index].FieldBefore.FieldBefore);
 
       NewListItem := FFields.Items.Insert(Fields[Index].Index);
       NewListItem.Caption := OldListItem.Caption;

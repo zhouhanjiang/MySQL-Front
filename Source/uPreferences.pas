@@ -696,7 +696,8 @@ uses
   Variants, Math, SysConst, ActiveX, RTLConsts, GDIPAPI, GDIPObj, IOUtils,
   MySQLConsts,
   CSVUtils,
-uDeveloper, // Debug 2017-01-11
+uDeveloper,
+uProfiling,
   uURI;
 
 const
@@ -3816,6 +3817,7 @@ end;
 procedure TPAccounts.Save();
 var
   I: Integer;
+  Profile: TProfile;
 begin
   XMLDocument.Options := XMLDocument.Options + [doNodeAutoCreate];
 
@@ -3831,7 +3833,13 @@ begin
   try
     if (XMLDocument.Modified) then
       if (ForceDirectories(ExtractFilePath(Filename))) then
+      begin
+        CreateProfile(Profile);
         XMLDocument.SaveToFile(Filename);
+        if (ProfilingTime() > 200) then
+          SendToDeveloper('Time: ' + IntToStr(ProfilingTime()) + ' ms');
+        CloseProfile(Profile);
+      end;
   except
     on E: EOSError do
       MessageBox(Application.MainFormHandle, PChar(E.Message), 'Error', MB_OK or MB_ICONERROR);
