@@ -3836,8 +3836,8 @@ begin
       begin
         CreateProfile(Profile);
         XMLDocument.SaveToFile(Filename);
-        if (ProfilingTime() > 200) then
-          SendToDeveloper('Time: ' + IntToStr(ProfilingTime()) + ' ms');
+        if (ProfilingTime(Profile) > 200) then
+          SendToDeveloper('Time: ' + IntToStr(ProfilingTime(Profile)) + ' ms');
         CloseProfile(Profile);
       end;
   except

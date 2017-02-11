@@ -12431,7 +12431,7 @@ begin
 
   SendEvent(etMonitor);
 
-  ProfilingPoint(MonitorProfile, 14);
+  ProfilingPoint(MonitorProfile, 16);
 end;
 
 procedure TSSession.MonitorExecutedStmts(const Connection: TMySQLConnection;

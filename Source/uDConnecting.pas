@@ -62,7 +62,8 @@ procedure TDConnecting.AfterConnect(Sender: TObject);
 begin
   if (Session.Connection.Connected) then
     ModalResult := mrOk
-  else if (((Session.Connection.ErrorCode = ER_ACCESS_DENIED_ERROR) or (Session.Connection.ErrorCode = ER_DBACCESS_DENIED_ERROR)) and Accounts.DBLogin(Session.Account)) then
+  else if (((Session.Connection.ErrorCode = ER_ACCESS_DENIED_ERROR) or (Session.Connection.ErrorCode = ER_DBACCESS_DENIED_ERROR))
+    and Assigned(Session.Account) and Accounts.DBLogin(Session.Account)) then
     PostMessage(Handle, UM_POST_SHOW, 0, 0)
   else
     ModalResult := mrCancel;

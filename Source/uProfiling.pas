@@ -22,7 +22,6 @@ procedure ProfilingEnablePoint(const Index: Integer); overload;
 procedure ProfilingPoint(const Index: Integer); overload;
 function ProfilingReport(const Filename: string = ''): string; overload;
 procedure ProfilingReset(); overload;
-function ProfilingTime(): Int64; overload;
 
 procedure CloseProfile(var Profile: TProfile);
 procedure CreateProfile(out Profile: TProfile; const DisableFreezeDetection: Boolean = True);
@@ -69,11 +68,6 @@ end;
 procedure ProfilingReset();
 begin
   ProfilingReset(Profile);
-end;
-
-function ProfilingTime(): Int64;
-begin
-  Result := ProfilingTime(Profile);
 end;
 
 procedure CloseProfile(var Profile: TProfile);
@@ -209,7 +203,7 @@ var
   Finish: Int64;
 begin
   if (not QueryPerformanceCounter(Finish)) then Finish := 0;
-  if ((Profile.Start = 0) or (Finish = 0)) then
+  if ((Profile.Start = 0) or (Finish = 0) or (Frequency = 0)) then
     Result := 0
   else
     Result := (Finish - Profile.Start) * 1000 div Frequency;

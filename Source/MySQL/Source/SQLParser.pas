@@ -24111,7 +24111,7 @@ begin
     Result := ParseDeallocatePrepareStmt()
   else if (IsTag(kiDECLARE)) then
     if (not InCompound) then
-      SetError(PE_UnexpectedStmt)
+      Result := SetError(PE_UnexpectedStmt)
     else
       Result := ParseDeclareStmt()
   else if (IsTag(kiDELETE)) then
@@ -24257,7 +24257,7 @@ begin
     Result := ParseSetStmt()
   {$IFDEF Debug}
   else
-    Continue := True; // This "Hack" is needed to use <Ctrl+LeftClick>
+    Continue := True;     // This "Hack" is needed to use <Ctrl+LeftClick>
   if (not Continue) then  // the Delphi XE4 IDE. But why???
   {$ENDIF}
   else if (IsTag(kiSHOW, kiBINARY, kiLOGS)) then
@@ -27835,9 +27835,9 @@ begin
   if (Assigned(Stmt)
     and (Stmt^.StmtType = stSelect)
     and (TSQLParser.PSelectStmt(Stmt)^.Nodes.OrderBy > 0)
-    and (TSQLParser.TSelectStmt.POrderBy(TSQLParser.PSelectStmt(Stmt)^.Nodes.OrderBy)^.Nodes.List > 0)) then
+    and (TSQLParser.TSelectStmt.POrderBy(Stmt^.Parser.NodePtr(TSQLParser.PSelectStmt(Stmt)^.Nodes.OrderBy))^.Nodes.List > 0)) then
   begin
-    List := TSQLParser.PList(Stmt^.Parser.NodePtr(TSQLParser.TSelectStmt.POrderBy(TSQLParser.PSelectStmt(Stmt)^.Nodes.OrderBy)^.Nodes.List));
+    List := TSQLParser.PList(Stmt^.Parser.NodePtr(TSQLParser.TSelectStmt.POrderBy(Stmt^.Parser.NodePtr(TSQLParser.PSelectStmt(Stmt)^.Nodes.OrderBy))^.Nodes.List));
 
     Column := List^.FirstElement;
     while (Assigned(Column)) do
