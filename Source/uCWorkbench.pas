@@ -2338,8 +2338,13 @@ begin
         raise Exception.Create('LastPoint not assigned')
       else
         Result := LastPoint.TableB;
-    else raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Index']);
+    else raise ERangeError.Create('Index: ' + IntToStr(Index));
   end;
+
+  // Debug 2017-02-12
+  Assert(Assigned(Result),
+    'Index: ' + IntToStr(Index) + #13#10
+    + 'ClassType: ' + ClassName);
 end;
 
 procedure TWLink.LoadFromXML(const XML: IXMLNode);

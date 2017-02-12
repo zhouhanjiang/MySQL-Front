@@ -848,12 +848,13 @@ begin
 
   if (ProfilingTime(Profile) > 1000) then
   begin
-    S := ProfilingReport(Profile);
+    S := '';
     {$IFDEF EurekaLog}
     S := S + TimeToStr(Now() - GetStartingDate(), FileFormatSettings) + #13#10;
     {$ENDIF}
     S := S + TOSVersion.ToString();
-    SendToDeveloper(ProfilingReport(Profile));
+    S := S + ProfilingReport(Profile);
+    SendToDeveloper(S);
   end;
   CloseProfile(Profile);
 

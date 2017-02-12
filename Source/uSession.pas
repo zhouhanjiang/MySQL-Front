@@ -1976,7 +1976,8 @@ begin
   begin
     // Debug 2017-01-03
     SendToDeveloper('Empty name for class: ' + ClassName + #13#10
-      + 'Version: ' + Session.Connection.ServerVersionStr);
+      + 'Version: ' + Session.Connection.ServerVersionStr + #13#10
+      + Session.Connection.DebugMonitor.CacheText);
 
     Result := False;
   end
@@ -11125,7 +11126,9 @@ begin
   begin
     // Debug 2017-02-09
     Assert(Assigned(Session));
+    Assert(TObject(Session) is TSSession);
     Assert(Assigned(Session.Connection));
+    Assert(TObject(Session.Connection) is TMySQLConnection);
 
     DataSet := TMySQLQuery.Create(nil);
     DataSet.Open(DataHandle);
@@ -11760,10 +11763,12 @@ begin
 
     // Debug 2017-02-11
     if (FUser.Name = '') then
-      SendToDeveloper('Query: ' + #13#10
+      SendToDeveloper('Version: ' + Connection.ServerVersionStr + #13#10
+        + 'Query: ' + #13#10
         + DataSet.CommandText + #13#10#13#10
         + 'Source: ' + #13#10
-        + FUser.Source);
+        + FUser.Source + #13#10#13#10
+        + Connection.DebugMonitor.CacheText);
 
     FUser.FOriginalName := FUser.Name;
 

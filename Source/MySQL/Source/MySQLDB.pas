@@ -526,7 +526,6 @@ type
       CriticalSection: TCriticalSection;
       FilteredRecordCount: Integer;
       Index: Integer;
-      function Add(Item: Pointer): Integer;
       procedure Clear(); override;
       constructor Create(const ADataSet: TMySQLDataSet);
       procedure Delete(Index: Integer);
@@ -5753,14 +5752,6 @@ end;
 
 { TMySQLDataSet.TInternRecordBuffers ******************************************}
 
-function TMySQLDataSet.TInternRecordBuffers.Add(Item: Pointer): Integer;
-begin
-  Assert(not Assigned(TMySQLDataSet.PExternRecordBuffer(Item)^.InternRecordBuffer)
-    or Assigned(TMySQLDataSet.PExternRecordBuffer(Item)^.InternRecordBuffer^.OldData));
-
-  Result := inherited;
-end;
-
 procedure TMySQLDataSet.TInternRecordBuffers.Clear();
 var
   I: Integer;
@@ -5879,9 +5870,6 @@ procedure TMySQLDataSet.TInternRecordBuffers.Insert(Index: Integer; Item: Pointe
 var
   I: Integer;
 begin
-  // Debug 2017-02-09
-  Assert(Assigned(TMySQLDataSet.PExternRecordBuffer(Item)^.InternRecordBuffer^.OldData));
-
   inherited;
 
   for I := 0 to DataSet.BufferCount - 1 do

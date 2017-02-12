@@ -10147,7 +10147,8 @@ begin
           + 'Text: ' + TTreeView(Window.ActiveControl).Selected.Text)
       else if ((Window.ActiveControl is TListView) and Assigned(TListView(Window.ActiveControl).Selected)) then
         raise ERangeError.Create('ImageIndex: ' + IntToStr(TListView(Window.ActiveControl).Selected.ImageIndex) + #13#10
-          + 'Text: ' + TListView(Window.ActiveControl).Selected.Caption)
+          + 'Text: ' + TListView(Window.ActiveControl).Selected.Caption + #13#10
+          + 'Assigned(Data): ' + BoolToStr(Assigned(TListView(Window.ActiveControl).Selected.Data), True))
       else
         raise ERangeError.Create('ActiveControl.ClassType: ' + Window.ActiveControl.ClassName);
   end;
@@ -11361,43 +11362,20 @@ end;
 
 procedure TFSession.ListViewExit(Sender: TObject);
 var
-  Column: TListColumn;
+  Count: Integer;
   I: Integer;
-  ListViewKind: TPAccount.TDesktop.TListViewKind; // Debug 2016-12-01
-  Width: Integer; // Debug 2016-12-01
+  Width: Integer;
 begin
   if (Sender is TListView) then
   begin
-    // Debug 2016-12-20
-    // Somewhere, Session demagged, but why and where???
-    if (not Assigned(Session.Account)) then // Why looses Session the Account value???
-      raise ERangeError.Create(SRangeError);
-
+    Count := TListView(Sender).Items.Count;
     for I := 0 to TListView(Sender).Columns.Count - 1 do
     begin
-      // Debug 2016-12-02
-      if (not Assigned(Session)) then
-        raise ERangeError.Create(SRangeError);
-      if (not (TObject(Session) is TSSession)) then
-        try
-          raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Session).ClassName);
-        except
-          raise ERangeError.Create(SRangeError);
-        end;
-      if (not Assigned(Session.Account)) then
-        raise ERangeError.Create(SRangeError);
-      if (not (TObject(Session.Account) is TPAccount)) then
-        try
-          raise ERangeError.Create(SRangeError + ' ClassType: ' + TObject(Session.Account).ClassName);
-        except
-          raise ERangeError.Create(SRangeError);
-        end;
-      if (not Assigned(Session.Account.Desktop)) then
-        raise ERangeError.Create(SRangeError);
-      Column := TListView(Sender).Columns[I];
-      Width := Column.Width;
-      ListViewKind := ColumnWidthKindByListView(TListView(Sender));
-      Session.Account.Desktop.ColumnWidths[ListViewKind, I] := Width;
+      if (Count = 0) then
+        Width := TListView(Sender).Column[I].Width
+      else
+        Width := ListView_GetColumnWidth(TListView(Sender).Handle, I);
+      Session.Account.Desktop.ColumnWidths[ColumnWidthKindByListView(TListView(Sender)), I] := Width;
     end;
   end;
 
@@ -12076,9 +12054,13 @@ var
     case (Event.EventType) of
       etItemsValid:
         begin
+          Count := ListView.Items.Count;
           for I := 0 to ListView.Columns.Count - 1 do
           begin
-            ColumnWidths[I] := ListView.Columns[I].Width;
+            if (Count = 0) then
+              ColumnWidths[I] := ListView.Columns[I].Width
+            else
+              ColumnWidths[I] := ListView_GetColumnWidth(ListView.Handle, I);
             ListView.Columns[I].Width := 50; // Make soure no auto column width will be calculated for each item
           end;
 
@@ -12431,21 +12413,6 @@ begin
     ProfilingPoint(28);
 
     ListView.Columns.EndUpdate();
-
-    // 5 seconds
-    // 1 seconds, EventType: 1, Items: 36
-    // 19 seconds, EventType: 0, Items: 66
-    // 2.7 seconds, EventType: 0, Items: 0
-    // 0.9 seconds, EventType: 0, Items: 39
-    // 0.4 seconds, EventType: 0, Items: 740
-    // 2.7 seconds, EventType: 0, Items: 36
-    // 5.4 seconds, EventType: 0, Items: 46
-    // 4.4 seconds, EventType: 0, Items: 0
-    // 2.0 seconds, EventType: 0, Items: 38
-    // 2.7 seconds, EventType: 0, Items: 3
-    // 6.7 seconds, EventType: 0, Items: 0
-    // 3.0 seconds, EventType: 0, Items: 10, TSBaseTableFields
-    // 0.7 seconds, EventType: 0, Items: 483, TSBaseTableFields
 
     ProfilingPoint(29);
 
@@ -15383,10 +15350,13 @@ end;
 
 procedure TFSession.StatusBarRefresh(const Immediately: Boolean = False);
 var
+  Control: TWinControl; // Debug 2017-02-12
   Count: Integer;
   QueryBuilderWorkArea: TacQueryBuilderWorkArea;
   SelCount: Integer;
 begin
+  Control := Window.ActiveControl;
+
   if (Assigned(StatusBar) and (Immediately or (fsActive in FrameState)) and not (csDestroying in ComponentState) and Assigned(Window)) then
   begin
     if (not Assigned(Window.ActiveControl)) then
@@ -15395,6 +15365,11 @@ begin
       StatusBar.Panels[sbNavigation].Text := IntToStr(ActiveSynMemo.CaretXY.Line) + ':' + IntToStr(ActiveSynMemo.CaretXY.Char)
     else if (Window.ActiveControl = ActiveListView) then
     begin
+      // Debug 2017-02-12
+      Assert(Window.ActiveControl = Control);
+      Assert(Assigned(ActiveListView.Selected), 
+        'Count: ' + IntToStr(ActiveListView.Items.Count));
+    
       if (Assigned(ActiveListView.Selected) and (TObject(ActiveListView.Selected.Data) is TSKey)) then
         StatusBar.Panels[sbNavigation].Text := Preferences.LoadStr(377) + ': ' + IntToStr(TSKey(ActiveListView.Selected.Data).Index + 1)
       else if (Assigned(ActiveListView.Selected) and (TObject(ActiveListView.Selected.Data) is TSTableField)) then
@@ -16306,11 +16281,21 @@ begin
 end;
 
 procedure TFSession.UMActivateDBGrid(var Msg: TMessage);
+var
+  Control: TControl;
 begin
   if ((TWinControl(Msg.LParam) = ActiveDBGrid) and ActiveDBGrid.Visible) then
   begin
     // Debug 2017-02-08
     Assert(ActiveDBGrid.Enabled);
+
+    // Debug 2017-02-12
+    Control := ActiveDBGrid;
+    while (Control.Visible and (Control.Parent <> Window)) do
+      Control := Control.Parent;
+    Assert(Assigned(Control));
+    Assert(Control.Visible, 
+      'ClassType: ' + Control.ClassName);
 
     Window.ActiveControl := ActiveDBGrid;
     ActiveDBGrid.EditorMode := False;
