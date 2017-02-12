@@ -15367,7 +15367,7 @@ begin
     begin
       // Debug 2017-02-12
       Assert(Window.ActiveControl = Control);
-      Assert(Assigned(ActiveListView.Selected), 
+      Assert(not Assigned(ActiveListView.Selected) or Assigned(ActiveListView.Selected.Data),
         'Count: ' + IntToStr(ActiveListView.Items.Count));
     
       if (Assigned(ActiveListView.Selected) and (TObject(ActiveListView.Selected.Data) is TSKey)) then
