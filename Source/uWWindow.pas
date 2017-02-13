@@ -852,7 +852,7 @@ begin
     {$IFDEF EurekaLog}
     S := S + TimeToStr(Now() - GetStartingDate(), FileFormatSettings) + #13#10;
     {$ENDIF}
-    S := S + TOSVersion.ToString();
+    S := S + TOSVersion.ToString() + #13#10;
     S := S + ProfilingReport(Profile);
     SendToDeveloper(S);
   end;

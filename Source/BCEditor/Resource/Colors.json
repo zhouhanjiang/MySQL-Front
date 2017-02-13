@@ -3,6 +3,7 @@
       "Editor": {
          "Colors": {
             "Background": "clWindow",
+            "ActiveLineBackground": "$C0FFFF",
             "CodeFoldingActiveLineBackground": "$C0FFFF",
             "CodeFoldingBackground": "clWindow",
             "CodeFoldingCollapsedLine": "$00CC9999",

@@ -224,6 +224,7 @@ end;
 
 procedure SendToDeveloper(const Text: string; const Days: Integer = 2;
   const HideSource: Boolean = False);
+{$IFNDEF Debug}
 {$IFDEF EurekaLog}
 var
   Buffer: TEurekaDebugInfo;
@@ -234,7 +235,6 @@ var
   StackItem: Integer;
   Source: string;
 {$ENDIF}
-{$IFNDEF Debug}
 var
   Body: String;
   Flags: DWORD;

@@ -2341,10 +2341,7 @@ begin
     else raise ERangeError.Create('Index: ' + IntToStr(Index));
   end;
 
-  // Debug 2017-02-12
-  Assert(Assigned(Result),
-    'Index: ' + IntToStr(Index) + #13#10
-    + 'ClassType: ' + ClassName);
+  // Result can be nil while TWLink.LoadFromXML
 end;
 
 procedure TWLink.LoadFromXML(const XML: IXMLNode);
@@ -2526,6 +2523,9 @@ end;
 
 procedure TWLink.SetTable(Index: Integer; ATable: TWTable);
 begin
+  // Debug 2017-02-12
+  Assert(Assigned(ATable));
+
   Workbench.State := wsAutoCreate;
 
   case (Index) of

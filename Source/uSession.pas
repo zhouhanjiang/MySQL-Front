@@ -11339,7 +11339,7 @@ begin
       SQL := SQL
         + ' ORDER BY ' + Session.Connection.EscapeIdentifier('EVENT_NAME') + ',' + Session.Connection.EscapeIdentifier('EVENT_SCHEMA') + ';' + #13#10;
     end;
-  if (((Location is TSSession) or (Location is TSDatabase)) and (Fields or Triggers and (Session.Connection.MySQLVersion >= 50010))) then
+  if (((Location is TSSession) or (Location is TSDatabase) or (Location is TSTable)) and (Fields or Triggers and (Session.Connection.MySQLVersion >= 50010))) then
   begin
     SQL := SQL + 'SELECT ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + ',' + Session.Connection.EscapeIdentifier('TABLE_NAME')
       + ' FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('TABLES')
@@ -11514,6 +11514,9 @@ begin
       SQL := SQL
         + ' ORDER BY ' + Session.Connection.EscapeIdentifier('TRIGGER_NAME') + ',' + Session.Connection.EscapeIdentifier('TRIGGER_SCHEMA') + ';' + #13#10;
     end;
+
+  if (Count > 0) then
+    Session.SendEvent(etItemsValid, Self, Self);
 
   Result := (SQL = '') or Session.SendSQL(SQL, SearchResult);
 end;
@@ -12432,7 +12435,7 @@ end;
 
 procedure TSSession.MonitorLog(const Connection: TMySQLConnection; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
 begin
-  ProfilingPoint(MonitorProfile, 15);
+  ProfilingPoint(MonitorProfile, 7);
 
   SendEvent(etMonitor);
 
@@ -12991,7 +12994,7 @@ var
   Finish: Int64;
   Frequency: Int64;
 begin
-  ProfilingPoint(MonitorProfile, 6);
+  ProfilingPoint(MonitorProfile, 8);
 
   if (not QueryPerformanceCounter(Start)) then Start := 0;
 
@@ -13003,7 +13006,7 @@ begin
   DoSendEvent(Event);
   Event.Free();
 
-  ProfilingPoint(MonitorProfile, 13);
+  ProfilingPoint(MonitorProfile, 14);
 
   if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)
     and ((Finish - Start) div Frequency > 10)) then
@@ -13011,7 +13014,7 @@ begin
       + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s, '
       + 'Receiver: ' + IntToStr(Length(EventProcs)));
 
-  ProfilingPoint(MonitorProfile, 14);
+  ProfilingPoint(MonitorProfile, 15);
 end;
 
 function TSSession.SendSQL(const SQL: string; const OnResult: TMySQLConnection.TResultEvent = nil): Boolean;

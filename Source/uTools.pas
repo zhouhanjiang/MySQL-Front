@@ -6685,6 +6685,7 @@ begin
         SQL := SQL + 'NUMBER'
     else
     case (Fields[I].DataType) of
+      ftUnknown,
       ftString:
         SQL := SQL + 'TEXT';
       ftShortInt,

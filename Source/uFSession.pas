@@ -37,8 +37,6 @@ type
     ActionList: TActionList;
     aDCreate: TAction;
     aDDelete: TAction;
-    aDDeleteRecord: TDataSetDelete;
-    aDInsertRecord: TDataSetInsert;
     aDNext: TAction;
     aDPrev: TAction;
     aEClearAll: TAction;
@@ -2749,7 +2747,7 @@ begin
   if (MsgBox(Preferences.LoadStr(176), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = ID_YES) then
   begin
     if (ActiveDBGrid.SelectedRows.Count = 0) then
-      aDDeleteRecord.Execute()
+      MainAction('aDDeleteRecord').Execute()
     else if (ActiveDBGrid.DataSource.DataSet is TMySQLDataSet) then
     begin
       SetLength(Bookmarks, ActiveDBGrid.SelectedRows.Count);
@@ -3182,7 +3180,7 @@ procedure TFSession.aDInsertRecordExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  aDInsertRecord.Execute();
+  MainAction('aDInsertRecord').Execute();
 end;
 
 procedure TFSession.aDNextExecute(Sender: TObject);
@@ -6058,8 +6056,8 @@ begin
 
     aDPrev.Enabled := not DataSet.Bof and not InputDataSet;
     aDNext.Enabled := not DataSet.Eof and not InputDataSet;
-    MainAction('aDInsertRecord').Enabled := (Window.ActiveControl = ActiveDBGrid) and aDInsertRecord.Enabled and (DataSet.State in [dsBrowse, dsEdit]) and (DataSet.FieldCount > 0) and Assigned(ActiveDBGrid) and (ActiveDBGrid.SelectedRows.Count < 1) and not InputDataSet;
-    MainAction('aDDeleteRecord').Enabled := (Window.ActiveControl = ActiveDBGrid) and aDDeleteRecord.Enabled and (DataSet.State in [dsBrowse, dsEdit]) and not DataSet.IsEmpty() and not InputDataSet;
+    MainAction('aDInsertRecord').Enabled := (Window.ActiveControl = ActiveDBGrid) and ActiveDBGrid.DataSource.DataSet.CanModify and (DataSet.State in [dsBrowse, dsEdit]) and (DataSet.FieldCount > 0) and Assigned(ActiveDBGrid) and (ActiveDBGrid.SelectedRows.Count < 1) and not InputDataSet;
+    MainAction('aDDeleteRecord').Enabled := (Window.ActiveControl = ActiveDBGrid) and ActiveDBGrid.DataSource.DataSet.CanModify and (DataSet.State in [dsBrowse, dsEdit]) and not DataSet.IsEmpty() and not InputDataSet;
 
     // <Ctrl+Down> marks the new row as selected, but the OnAfterScroll event
     // will be executed BEFORE mark the row as selected.
@@ -6159,7 +6157,7 @@ begin
     MainAction('aECopyToFile').Enabled := Assigned(DBGrid.SelectedField) and (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) and (not DBGrid.SelectedField.IsNull) and (DBGrid.SelectedRows.Count <= 1);
     MainAction('aEPasteFromFile').Enabled := Assigned(DBGrid.SelectedField) and (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) and not DBGrid.SelectedField.ReadOnly and (DBGrid.SelectedRows.Count <= 1);
     MainAction('aDCreateField').Enabled := Assigned(DBGrid.SelectedField) and (View = vBrowser);
-    MainAction('aDEditRecord').Enabled := Assigned(DBGrid.SelectedField) and (View <> vIDE);
+    MainAction('aDEditRecord').Enabled := Assigned(DBGrid.SelectedField) and DBGrid.DataSource.DataSet.CanModify and (View <> vIDE);
     MainAction('aDEmpty').Enabled := (DBGrid.DataSource.DataSet.CanModify and Assigned(DBGrid.SelectedField) and not DBGrid.SelectedField.IsNull and not DBGrid.SelectedField.Required and (DBGrid.SelectedRows.Count <= 1));
   end;
 
@@ -7592,15 +7590,15 @@ procedure TFSession.FLogUpdate();
 begin
   if (MainAction('aVSQLLog').Checked) then
   begin
-    ProfilingPoint(MonitorProfile, 8);
+    ProfilingPoint(MonitorProfile, 10);
 
     FLog.Text := Session.SQLMonitor.CacheText;
 
-    ProfilingPoint(MonitorProfile, 9);
+    ProfilingPoint(MonitorProfile, 11);
 
     PLogResize(nil);
 
-    ProfilingPoint(MonitorProfile, 10);
+    ProfilingPoint(MonitorProfile, 12);
   end;
 end;
 
@@ -8834,6 +8832,10 @@ begin
       raise ERangeError.Create('Table: ' + Node.Text);
     if (not Assigned(TSBaseTable(Node.Data).Database)) then
       raise ERangeError.Create('Table: ' + Node.Text);
+    if (Session.Databases.IndexOf(TSBaseTable(Node.Data).Database) < 0) then
+      raise ERangeError.Create('Table: ' + Node.Text);
+    if (TSBaseTable(Node.Data).Database.Tables.IndexOf(TSBaseTable(Node.Data)) < 0) then
+      raise ERangeError.Create('Table: ' + Node.Text);
   end;
 
   MainAction('aDCreateTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable) and Assigned(TSBaseTable(Node.Data).Database.Triggers);
@@ -9115,9 +9117,9 @@ begin
         SessionUpdate(Event);
       etMonitor:
         begin
-          ProfilingPoint(MonitorProfile, 7);
+          ProfilingPoint(MonitorProfile, 9);
           FLogUpdate();
-          ProfilingPoint(MonitorProfile, 11);
+          ProfilingPoint(MonitorProfile, 13);
         end;
       etBeforeExecuteSQL:
         BeforeExecuteSQL(Event);
@@ -9864,8 +9866,6 @@ begin
     if (not Assigned(TUnprotectedDBGrid(Result).DataLink)) then
       raise ERangeError.Create(SRangeError);
 
-    aDDeleteRecord.DataSource := Result.DataSource;
-    aDInsertRecord.DataSource := Result.DataSource;
     Result.DataSource.OnDataChange := DBGridDataSourceDataChange;
 
     for I := 0 to PResult.ControlCount - 1 do
@@ -12787,6 +12787,9 @@ var
   I: Integer;
   Item: TMenuItem;
 begin
+  // Debug 2017-02-12
+  Assert(Assigned(MGridHeaderColumn));
+
   ghmGoto.Clear();
   for I := 0 to ActiveDBGrid.Columns.Count - 1 do
   begin
@@ -16294,7 +16297,9 @@ begin
     while (Control.Visible and (Control.Parent <> Window)) do
       Control := Control.Parent;
     Assert(Assigned(Control));
-    Assert(Control.Visible, 
+    if (not Control.Visible and (Control is TPanel)) then
+      raise EAssertionFailed.Create(Control.Name);
+    Assert(Control.Visible,
       'ClassType: ' + Control.ClassName);
 
     Window.ActiveControl := ActiveDBGrid;
@@ -16989,19 +16994,11 @@ begin
           QuickAccessStep1();
       end;
     vBrowser:
-      begin
-        // Debug 2017-02-07
-        Assert(Assigned(CurrentData),
-          'CurrentAddress: ' + CurrentAddress + #13#10
-          + 'ImageIndex: ' + IntToStr(FNavigator.Selected.ImageIndex) + #13#10
-          + 'Text: ' + FNavigator.Selected.Text);
-
-        if ((TObject(CurrentData) is TSView and not TSView(CurrentData).Update())
-          or (TObject(CurrentData) is TSBaseTable and not TSBaseTable(CurrentData).Update(True))) then
-          Wanted.Update := UpdateAfterAddressChanged
-        else if (not TSTable(CurrentData).DataSet.Active) then
-          TableOpen(nil);
-      end;
+      if ((TObject(CurrentData) is TSView and not TSView(CurrentData).Update())
+        or (TObject(CurrentData) is TSBaseTable and not TSBaseTable(CurrentData).Update(True))) then
+        Wanted.Update := UpdateAfterAddressChanged
+      else if ((TObject(CurrentData) is TSTable) and not TSTable(CurrentData).DataSet.Active) then
+        TableOpen(nil);
     vIDE:
       TSDBObject(CurrentData).Update();
     vDiagram:

@@ -1779,9 +1779,13 @@ begin
   ProfilingPoint(MonitorProfile, 5);
 
   if (Enabled and Assigned(OnMonitor) and Assigned(Connection)) then
+  begin
+    ProfilingPoint(MonitorProfile, 6);
     OnMonitor(Connection, Text, Length, ATraceType);
+    ProfilingPoint(MonitorProfile, 17);
+  end;
 
-  ProfilingPoint(MonitorProfile, 17);
+  ProfilingPoint(MonitorProfile, 18);
 end;
 
 procedure TMySQLMonitor.Append(const Text: string; const ATraceType: TTraceType);
@@ -3892,6 +3896,8 @@ begin
   TerminatedThreads.Add(SyncThread);
 
   FSyncThread := nil;
+
+  SyncThreadExecuted.SetEvent();
 end;
 
 procedure TMySQLConnection.Terminate();
@@ -3928,6 +3934,7 @@ procedure TMySQLConnection.WriteMonitor(const Text: PChar; const Length: Integer
 var
   I: Integer;
 begin
+  CreateProfile(MonitorProfile);
   ProfilingReset(MonitorProfile);
 
   InMonitor := True;
@@ -3939,10 +3946,10 @@ begin
       begin
         ProfilingPoint(MonitorProfile, 3);
         TMySQLMonitor(FSQLMonitors[I]).Append(Text, Length, TraceType);
-        ProfilingPoint(MonitorProfile, 18);
+        ProfilingPoint(MonitorProfile, 19);
       end;
 
-    ProfilingPoint(MonitorProfile, 19);
+    ProfilingPoint(MonitorProfile, 20);
   finally
     InMonitor := False;
   end;
@@ -3950,6 +3957,7 @@ begin
   if (ProfilingTime(MonitorProfile) > 1000) then
     SendToDeveloper('Count: ' + IntToStr(FSQLMonitors.Count) + #13#10
       + ProfilingReport(MonitorProfile));
+  CloseProfile(MonitorProfile);
 end;
 
 { TMySQLBitField **************************************************************}
@@ -5499,6 +5507,10 @@ var
 begin
   Field := CompareDefs[FieldIndex].Field;
 
+  // Debug 2017-02-13
+  Assert(Assigned(A));
+  Assert(Assigned(B));
+
   if (A = B) then
     Result := 0
   else if (not Assigned(A^.LibRow[Field.FieldNo - 1]) and Assigned(B^.LibRow[Field.FieldNo - 1])) then
@@ -6461,6 +6473,8 @@ begin
   // DELETE FROM `bcbsgame_gamedata`.`users` WHERE `id` IS NULL;
   // 2017-02-09 was in the log:
   // SELECT * FROM `db_database28`.`tb_gysinfo` ORDER BY `name` LIMIT 100;
+  // 2017-02-13
+  // INSERT INTO
 
   inherited;
 end;
@@ -6889,6 +6903,9 @@ begin
         if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData) then
           FreeMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData);
         PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
+
+        // Debug 2017-02-13
+        Assert(Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData));
       end;
     end
     else if ((ErrorCode = 0) and SQLParseKeyword(Parse, 'SELECT')) then
@@ -7275,8 +7292,10 @@ begin
     + 'Field.DataType: ' + IntToStr(Ord(Field.DataType)) + #13#10
     + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)) + #13#10
     + 'State: ' + IntToStr(Ord(State)));
-  // 2017-02-08: BookmarkFlag := bfInserted, State: dsBrowse, CallStack: TMySQLDBGridInplaceEdit.CloseUp
+  // 2017-02-08: BookmarkFlag = bfInserted, State: dsBrowse, CallStack: TMySQLDBGridInplaceEdit.CloseUp
   // Why is dsBrowse set while CloseUp???
+  // 2017-02-13: BookmarkFlag = bfInserted, State: dsBrowse, CallStack: TMySQLDBGridInplaceEdit.CloseUp
+  // Last SQL: SELECT
 
   OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
 
@@ -8446,11 +8465,7 @@ initialization
   SetLength(MySQLLibraries, 0);
 
   MySQLSyncThreads := TMySQLSyncThreads.Create();
-
-  CreateProfile(MonitorProfile);
 finalization
-  CloseProfile(MonitorProfile);
-
   MySQLSyncThreads.Free();
 
   FreeMySQLLibraries();
