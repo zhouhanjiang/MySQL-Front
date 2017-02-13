@@ -3934,7 +3934,6 @@ procedure TMySQLConnection.WriteMonitor(const Text: PChar; const Length: Integer
 var
   I: Integer;
 begin
-  CreateProfile(MonitorProfile);
   ProfilingReset(MonitorProfile);
 
   InMonitor := True;
@@ -3957,7 +3956,6 @@ begin
   if (ProfilingTime(MonitorProfile) > 1000) then
     SendToDeveloper('Count: ' + IntToStr(FSQLMonitors.Count) + #13#10
       + ProfilingReport(MonitorProfile));
-  CloseProfile(MonitorProfile);
 end;
 
 { TMySQLBitField **************************************************************}
@@ -8465,7 +8463,11 @@ initialization
   SetLength(MySQLLibraries, 0);
 
   MySQLSyncThreads := TMySQLSyncThreads.Create();
+
+  CreateProfile(MonitorProfile);
 finalization
+  CloseProfile(MonitorProfile);
+
   MySQLSyncThreads.Free();
 
   FreeMySQLLibraries();
