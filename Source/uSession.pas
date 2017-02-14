@@ -5569,7 +5569,12 @@ begin
         if (not UseInformationSchema) then
           Name := DataSet.FieldByName('Name').AsString
         else
-          Name := DataSet.FieldByName('TABLE_NAME').AsString;
+          try
+            Name := DataSet.FieldByName('TABLE_NAME').AsString;
+          except
+            raise ERangeError.Create(DataSet.Fields[0].DisplayName + #13#10
+              + DataSet.CommandText);
+          end;
 
         if (InsertIndex(Name, Index)) then
         begin
@@ -11764,15 +11769,6 @@ begin
 
     Result := FUser.Build(DataSet);
 
-    // Debug 2017-02-11
-    if (FUser.Name = '') then
-      SendToDeveloper('Version: ' + Connection.ServerVersionStr + #13#10
-        + 'Query: ' + #13#10
-        + DataSet.CommandText + #13#10#13#10
-        + 'Source: ' + #13#10
-        + FUser.Source + #13#10#13#10
-        + Connection.DebugMonitor.CacheText);
-
     FUser.FOriginalName := FUser.Name;
 
     if (Users.InsertIndex(FUser.Name, Index)) then
@@ -13009,7 +13005,7 @@ begin
   ProfilingPoint(MonitorProfile, 14);
 
   if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)
-    and ((Finish - Start) div Frequency > 10)) then
+    and ((Finish - Start) div Frequency > 1)) then
     SendToDeveloper('EventType: ' + IntToStr(Ord(EventType)) + ', '
       + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s, '
       + 'Receiver: ' + IntToStr(Length(EventProcs)));
@@ -13242,7 +13238,10 @@ begin
       end
       else if (SQLParseKeyword(Parse, 'GRANTS FOR')) then
       begin
-        if (SQLParseKeyword(Parse, 'CURRENT_USER')) then
+        if (not DataSet.Active) then
+          SendToDeveloper('ErrorCode: ' + IntToStr(ErrorCode) + #13#10
+            + 'ErrorMessage: ' + ErrorMessage, 7)
+        else if (SQLParseKeyword(Parse, 'CURRENT_USER')) then
           Result := BuildUser(DataSet)
         else
         begin

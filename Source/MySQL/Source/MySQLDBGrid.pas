@@ -72,6 +72,7 @@ type
       Y: Integer;
     end;
     ShiftDownAnchor: record
+      Col: Longint;
       Rec: Integer;
     end;
     TitleBoldFont: TFont;
@@ -593,6 +594,7 @@ begin
   LeftClickAnchor.Col := -1;
   LeftClickAnchor.Shift := [];
   LeftClickAnchor.Rec := -1;
+  ShiftDownAnchor.Col := -1;
   ShiftDownAnchor.Rec := -1;
   TitleBoldFont := nil;
 
@@ -900,6 +902,7 @@ end;
 
 procedure TMySQLDBGrid.KeyDown(var Key: Word; Shift: TShiftState);
 var
+  I: Integer;
   OldCol: Longint;
   OldRecNo: Integer;
 begin
@@ -907,7 +910,10 @@ begin
     FreeAndNil(FHintWindow);
 
   if ((Key = VK_SHIFT) and (ShiftDownAnchor.Rec < 0)) then
+  begin
+    ShiftDownAnchor.Col := Col;
     ShiftDownAnchor.Rec := DataLink.ActiveRecord;
+  end;
   if ((Key = VK_SHIFT) and (AltDownAnchor.Col < 0)) then
   begin
     AltDownAnchor.Col := Col;
@@ -958,6 +964,34 @@ begin
     end;
     SelectedRows.Clear();
     inherited;
+  end
+  else if ((Key = VK_LEFT) and (ssShift in Shift)) then
+  begin
+    if (Col > 0) then
+    begin
+      if (Col > ShiftDownAnchor.Col) then
+        InvalidateCol(Col);
+      Col := Col - 1;
+      SelectedFields.Clear();
+      for I := Min(Col, ShiftDownAnchor.Col) to Max(Col, ShiftDownAnchor.Col) do
+        SelectedFields.Add(Columns[I].Field);
+      if (Col < ShiftDownAnchor.Col) then
+        InvalidateCol(Col);
+    end;
+  end
+  else if ((Key = VK_RIGHT) and (ssShift in Shift)) then
+  begin
+    if (Col < Columns.Count - 2) then
+    begin
+      if (Col < ShiftDownAnchor.Col) then
+        InvalidateCol(Col);
+      Col := Col + 1;
+      SelectedFields.Clear();
+      for I := Min(Col, ShiftDownAnchor.Col) to Max(Col, ShiftDownAnchor.Col) do
+        SelectedFields.Add(Columns[I].Field);
+      if (Col > ShiftDownAnchor.Col) then
+        InvalidateCol(Col);
+    end;
   end
   else if ((Key = VK_LEFT) and (ssCtrl in Shift)) then
   begin

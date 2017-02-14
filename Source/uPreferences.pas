@@ -3442,8 +3442,6 @@ begin
 end;
 
 procedure TPAccount.Save();
-var
-  Filename: TFileName;
 begin
   if (Assigned(XML)) then
   begin
@@ -3462,11 +3460,8 @@ begin
     begin
       if (DesktopXMLDocument.Modified) then
         if (ForceDirectories(ExtractFilePath(DesktopFilename))) then
-        begin
-          Filename := DesktopFilename;
-          SetLastError(0); // Debug 2017-01-20
           try
-            DesktopXMLDocument.SaveToFile(Filename);
+            DesktopXMLDocument.SaveToFile(DesktopFilename);
           except
             on E: Exception do
               SendToDeveloper(E.Message);
@@ -3474,9 +3469,6 @@ begin
               SendToDeveloper(E.Message);
             // Do not inform user about problems while saving file
           end;
-          if (GetLastError() <> 0) then
-            SendToDeveloper('Error: ' + IntToStr(GetLastError()));
-        end;
         if (Assigned(HistoryXMLDocument) and HistoryXMLDocument.Modified) then
           if (ForceDirectories(ExtractFilePath(HistoryFilename))) then
             HistoryXMLDocument.SaveToFile(HistoryFilename);
@@ -3817,7 +3809,6 @@ end;
 procedure TPAccounts.Save();
 var
   I: Integer;
-  Profile: TProfile;
 begin
   XMLDocument.Options := XMLDocument.Options + [doNodeAutoCreate];
 
@@ -3833,13 +3824,7 @@ begin
   try
     if (XMLDocument.Modified) then
       if (ForceDirectories(ExtractFilePath(Filename))) then
-      begin
-        CreateProfile(Profile);
         XMLDocument.SaveToFile(Filename);
-        if (ProfilingTime(Profile) > 200) then
-          SendToDeveloper('Time: ' + IntToStr(ProfilingTime(Profile)) + ' ms');
-        CloseProfile(Profile);
-      end;
   except
     on E: EOSError do
       MessageBox(Application.MainFormHandle, PChar(E.Message), 'Error', MB_OK or MB_ICONERROR);

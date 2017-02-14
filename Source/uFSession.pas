@@ -2747,7 +2747,7 @@ begin
   if (MsgBox(Preferences.LoadStr(176), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = ID_YES) then
   begin
     if (ActiveDBGrid.SelectedRows.Count = 0) then
-      MainAction('aDDeleteRecord').Execute()
+      ActiveDBGrid.DataSource.DataSet.Delete()
     else if (ActiveDBGrid.DataSource.DataSet is TMySQLDataSet) then
     begin
       SetLength(Bookmarks, ActiveDBGrid.SelectedRows.Count);
@@ -3180,7 +3180,7 @@ procedure TFSession.aDInsertRecordExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  MainAction('aDInsertRecord').Execute();
+  ActiveDBGrid.DataSource.DataSet.Insert();
 end;
 
 procedure TFSession.aDNextExecute(Sender: TObject);
@@ -3311,7 +3311,7 @@ begin
     end
     else if (SItem is TSProcess) then
     begin
-      Process := Session.ProcessByThreadId(SysUtils.StrToInt(ActiveListView.Selected.Caption));
+      Process := Session.ProcessByThreadId(SysUtils.StrToInt64(ActiveListView.Selected.Caption));
 
       DStatement.DatabaseName := Process.DatabaseName;
       DStatement.DateTime := Session.Connection.ServerDateTime - Process.Time;
@@ -6617,15 +6617,15 @@ begin
     if ((GridCoord.X >= 0) and (GridCoord.Y = 0)
       and not (DBGrid.Columns[GridCoord.X].Field.DataType in BinaryDataTypes)) then
     begin
-      MGridHeaderColumn := DBGrid.Columns[GridCoord.X];
       DBGrid.PopupMenu := MGridHeader;
+      MGridHeaderColumn := DBGrid.Columns[GridCoord.X];
       if (BOOL(SendMessage(DBGrid.Header.Handle, HDM_GETITEM, MGridHeaderColumn.Index - DBGrid.LeftCol, LParam(@HDItem)))
         and (HDItem.fmt and HDF_SPLITBUTTON = 0)) then
       begin
         HDItem.fmt := HDItem.fmt or HDF_SPLITBUTTON;
         SendMessage(DBGrid.Header.Handle, HDM_SETITEM, MGridHeaderColumn.Index - DBGrid.LeftCol, LParam(@HDItem));
       end;
-      if not (PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (Msg.hwnd = DBGrid.Header.Handle) and (KeysToShiftState(Msg.wParam) = Shift)) then
+      if (not (PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (Msg.hwnd = DBGrid.Header.Handle) and (KeysToShiftState(Msg.wParam) = Shift))) then
         SetCapture(DBGrid.Header.Handle);
     end
     else
@@ -6634,8 +6634,8 @@ begin
         and BOOL(SendMessage(DBGrid.Header.Handle, HDM_GETITEM, MGridHeaderColumn.Index - DBGrid.LeftCol, LParam(@HDItem)))) then
         ReleaseCapture();
 
-      MGridHeaderColumn := nil;
       DBGrid.PopupMenu := MGrid;
+      MGridHeaderColumn := nil;
     end;
 
     inherited;
@@ -10135,12 +10135,6 @@ begin
   // Debug 2016-12-19
   if (Assigned(Result)) then
   begin
-    try
-      if (Result is TObject) then
-        Write;
-    except
-      raise ERangeError.Create('ActiveControl: ' + Window.ActiveControl.ClassName);
-    end;
     if (not (TObject(Result) is TSItem)) then
       if ((Window.ActiveControl is TTreeView) and Assigned(TTreeView(Window.ActiveControl).Selected)) then
         raise ERangeError.Create('ImageIndex: ' + IntToStr(TTreeView(Window.ActiveControl).Selected.ImageIndex) + #13#10
@@ -10148,7 +10142,8 @@ begin
       else if ((Window.ActiveControl is TListView) and Assigned(TListView(Window.ActiveControl).Selected)) then
         raise ERangeError.Create('ImageIndex: ' + IntToStr(TListView(Window.ActiveControl).Selected.ImageIndex) + #13#10
           + 'Text: ' + TListView(Window.ActiveControl).Selected.Caption + #13#10
-          + 'Assigned(Data): ' + BoolToStr(Assigned(TListView(Window.ActiveControl).Selected.Data), True))
+          + 'Assigned(Data): ' + BoolToStr(Assigned(TListView(Window.ActiveControl).Selected.Data), True) + #13#10
+          + 'Is User: ' + BoolToStr(Assigned(TListView(Window.ActiveControl).Selected.Data) and (Session.Users.IndexOf(TListView(Window.ActiveControl).Selected.Data) >= 0), True))
       else
         raise ERangeError.Create('ActiveControl.ClassType: ' + Window.ActiveControl.ClassName);
   end;
@@ -11865,8 +11860,6 @@ var
 
   function InsertOrUpdateItem(const Kind: TPAccount.TDesktop.TListViewKind; GroupID: Integer; const Data: TObject): TListItem;
   var
-    Count: Integer; // Cache for speeding
-    I: Integer;
     Item: TListItem;
     Index: Integer;
     Left: Integer;
@@ -11875,34 +11868,15 @@ var
   begin
     ProfilingPoint(7);
 
-    Count := ListView.Items.Count; // Cache for speeding
-    if (Assigned(LastItem) and (LastItem.Index + 1 < Count - 1) and (ListView.Items[LastItem.Index + 1].Data = Data))  then
+    if (Assigned(LastItem) and (LastItem.Index + 1 < ListView.Items.Count - 1) and (ListView.Items[LastItem.Index + 1].Data = Data))  then
       Index := LastItem.Index + 1
     else
-    begin
-      ProfilingPoint(8);
-
-      Index := -1;
-      for I := 0 to Count - 1 do
-        if (ListView.Items[I].Data = Data) then
-        begin
-          Index := I;
-          break;
-        end;
-
-      // 0.8 seconds, 483 items
-
-      ProfilingPoint(9);
-    end;
-
-    ProfilingPoint(10);
-
-    if ((Count > 0) and (Index < 0)) then
     begin
       Item := TListItem.Create(ListView.Items);
       Item.Data := Data;
       UpdateItem(Item, GroupID, Data);
 
+      Index := -1;
       Left := 0;
       Right := ListView.Items.Count - 1;
       while (Left <= Right) do
@@ -11910,7 +11884,7 @@ var
         Mid := (Right - Left) div 2 + Left;
         case (Compare(Kind, ListView.Items[Mid], Item)) of
           -1: begin Left := Mid + 1; Index := Mid; end;
-          0: raise ERangeError.CreateFmt('%s = %s', [ListView.Items[Mid].Caption, Item.Caption]);
+          0: begin Index := Mid; break; end;
           1: begin Right := Mid - 1; Index := Mid - 1; end;
         end;
       end;
@@ -12035,7 +12009,6 @@ var
 
   var
     Add: Boolean;
-    ColumnWidths: array [0..7] of Integer;
     Count: Integer;
     Data: TCustomData;
     Header: string;
@@ -12056,13 +12029,10 @@ var
         begin
           Count := ListView.Items.Count;
           for I := 0 to ListView.Columns.Count - 1 do
-          begin
             if (Count = 0) then
-              ColumnWidths[I] := ListView.Columns[I].Width
-            else
-              ColumnWidths[I] := ListView_GetColumnWidth(ListView.Handle, I);
-            ListView.Columns[I].Width := 50; // Make soure no auto column width will be calculated for each item
-          end;
+              ListView.Columns[I].Width := 50
+            else if (ListView.Columns[I].WidthType < 0) then
+              ListView.Columns[I].Width := ListView_GetColumnWidth(ListView.Handle, I);
 
           for I := ListView.Items.Count - 1 downto 0 do
             if ((ListView.Items[I].GroupID = GroupID) and (SItems.IndexOf(ListView.Items[I].Data) < 0)) then
@@ -12079,8 +12049,8 @@ var
           for I := 0 to ListView.Columns.Count - 1 do
             if ((Kind = lkProcesses) and (I = 5)) then
               ListView.Columns[I].Width := Preferences.GridMaxColumnWidth
-            else
-              ListView.Columns[I].Width := ColumnWidths[I];
+            else if (Count = 0) then
+              ListView.Columns[I].Width := Session.Account.Desktop.ColumnWidths[Kind, I];
         end;
       etItemValid:
         if (GroupID = GroupIDByImageIndex(ImageIndexByData(Event.Item))) then
@@ -12338,7 +12308,6 @@ begin
     ChangingEvent := ListView.OnChanging;
     ListView.OnChanging := nil;
 
-    ListView.Columns.BeginUpdate();
     ListView.Items.BeginUpdate();
     ListView.DisableAlign();
 
@@ -12411,10 +12380,6 @@ begin
     ListView.Items.EndUpdate();
 
     ProfilingPoint(28);
-
-    ListView.Columns.EndUpdate();
-
-    ProfilingPoint(29);
 
     ListView.OnChanging := ChangingEvent;
 
@@ -12787,9 +12752,6 @@ var
   I: Integer;
   Item: TMenuItem;
 begin
-  // Debug 2017-02-12
-  Assert(Assigned(MGridHeaderColumn));
-
   ghmGoto.Clear();
   for I := 0 to ActiveDBGrid.Columns.Count - 1 do
   begin
@@ -15077,7 +15039,7 @@ begin
     if (Event.Item is TSTable) then
       S := S
         + ', FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count);
-    S := S + #13#10
+    S := S
       + ', ListViewUpdateCount: ' + IntToStr(ListViewUpdateCount) + #13#10
       + ProfilingReport(Profile);
     TimeMonitor.Append(S, ttDebug);
@@ -16284,24 +16246,9 @@ begin
 end;
 
 procedure TFSession.UMActivateDBGrid(var Msg: TMessage);
-var
-  Control: TControl;
 begin
-  if ((TWinControl(Msg.LParam) = ActiveDBGrid) and ActiveDBGrid.Visible) then
+  if (PResult.Visible and (TWinControl(Msg.LParam) = ActiveDBGrid) and ActiveDBGrid.Visible) then
   begin
-    // Debug 2017-02-08
-    Assert(ActiveDBGrid.Enabled);
-
-    // Debug 2017-02-12
-    Control := ActiveDBGrid;
-    while (Control.Visible and (Control.Parent <> Window)) do
-      Control := Control.Parent;
-    Assert(Assigned(Control));
-    if (not Control.Visible and (Control is TPanel)) then
-      raise EAssertionFailed.Create(Control.Name);
-    Assert(Control.Visible,
-      'ClassType: ' + Control.ClassName);
-
     Window.ActiveControl := ActiveDBGrid;
     ActiveDBGrid.EditorMode := False;
   end;
@@ -16572,6 +16519,7 @@ var
   CanClose: Boolean;
   I: Integer;
   J: Integer;
+  Profile: TProfile;
   SObject: TSObject;
   SynMemo: TSynMemo;
   View: TView;
@@ -16580,6 +16528,8 @@ begin
 
   if (CanClose and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then
     ActiveDBGrid.DataSource.DataSet.CheckBrowseMode();
+
+  CreateProfile(Profile);
 
   for I := 0 to PSynMemo.ControlCount - 1 do
     if (CanClose) then
@@ -16605,6 +16555,10 @@ begin
               end;
         end;
       end;
+
+  if (ProfilingTime(Profile) > 200) then
+    SendToDeveloper(ProfilingReport(Profile));
+  CloseProfile(Profile);
 
   if (CanClose) then
     for View in [vEditor, vEditor2, vEditor3] do
@@ -16983,7 +16937,12 @@ begin
         ciBaseTable,
         ciView,
         ciSystemView:
-          TSTable(CurrentData).Update();
+          begin
+            // Debug 2017-02-13
+            Assert(Assigned(CurrentData),
+              'CurrentAddress: ' + CurrentAddress);
+            TSTable(CurrentData).Update();
+          end;
         ciProcesses:
           Session.Processes.Update();
         ciUsers:
@@ -17123,9 +17082,15 @@ begin
     GridPoint := ActiveDBGrid.Parent.ScreenToClient(ScreenPoint);
     GridCoord := ActiveDBGrid.MouseCoord(GridPoint.X, GridPoint.Y);
     if ((GridCoord.X >= 0) and (GridCoord.Y = 0)) then
-      ActiveDBGrid.PopupMenu := MGridHeader
+    begin
+      ActiveDBGrid.PopupMenu := MGridHeader;
+      MGridHeaderColumn := ActiveDBGrid.Columns[GridCoord.X];
+    end
     else
+    begin
       ActiveDBGrid.PopupMenu := MGrid;
+      MGridHeaderColumn := nil;
+    end;
   end;
 
   inherited;

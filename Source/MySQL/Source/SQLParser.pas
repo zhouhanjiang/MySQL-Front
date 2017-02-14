@@ -13903,7 +13903,7 @@ begin
     Spacer := sReturn;
   end;
 
-
+  FormatList(Nodes.OpenBrackets, sNone);
   FormatNode(Nodes.SelectTag);
   Commands.IncreaseIndent();
   FormatNode(Nodes.DistinctTag, stSpaceBefore);
@@ -13980,6 +13980,13 @@ begin
   FormatInto(Nodes.Into2);
   FormatNode(Nodes.ForUpdatesTag, Separator);
   FormatNode(Nodes.LockInShareMode, Separator);
+  FormatList(Nodes.CloseBrackets1, sNone);
+  if (Nodes.UnionList > 0) then
+  begin
+    Commands.WriteReturn();
+    FormatList(Nodes.UnionList, sReturn);
+  end;
+  FormatList(Nodes.CloseBrackets2, sNone);
 end;
 
 procedure TSQLParser.FormatSelectStmtColumn(const Nodes: TSelectStmt.TColumn.TNodes);
@@ -22415,7 +22422,7 @@ begin
         Elements.Add(ParseTag(kiUNION));
 
       if (not ErrorFound) then
-        Elements.Add(ParseSelectStmt(SubSelect, True));
+        Elements.Add(ParseSelectStmt(SubSelect, not IsSymbol(ttOpenBracket)));
     until (ErrorFound or not IsTag(kiUNION));
 
     if (not ErrorFound) then

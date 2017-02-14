@@ -2563,9 +2563,9 @@ function TMySQLConnection.InternExecuteSQL(const Mode: TSyncThread.TMode;
 var
   CLStmt: TSQLCLStmt;
   P: PChar;
+  S: string; // Debug 2017-02-14
   SetNames: Boolean;
   SQLIndex: Integer;
-  SQLLength: Integer;
   StmtIndex: Integer;
   StmtLength: Integer;
 begin
@@ -2615,13 +2615,19 @@ begin
   Assert(Assigned(SyncThread.StmtLengths) and (TObject(SyncThread.StmtLengths) is TList));
 
   SQLIndex := 1;
-  SQLLength := Length(SyncThread.SQL);
-
-  StmtLength := 1; // To make sure, the first SQLStmtLength will be executed
-  while ((SQLIndex < SQLLength) and (StmtLength > 0)) do
+  StmtLength := 1; // ... to make sure, the first SQLStmtLength will be executed
+  while ((SQLIndex < Length(SyncThread.SQL)) and (StmtLength > 0)) do
   begin
     P := PChar(@SyncThread.SQL[SQLIndex]);
-    StmtLength := SQLStmtLength(P, SQLLength - (SQLIndex - 1));
+    StmtLength := SQLStmtLength(P, Length(SyncThread.SQL) - (SQLIndex - 1));
+
+    // Debug 2017-02-14
+    if (StmtLength < 0) then
+    begin
+      SetString(S, P, Length(SyncThread.SQL) - (SQLIndex - 1));
+      raise EAssertionFailed.Create(S);
+    end;
+
     if (StmtLength > 0) then
     begin
       SyncThread.StmtLengths.Add(Pointer(StmtLength));
@@ -2634,7 +2640,7 @@ begin
     // The MySQL server answers sometimes about a problem "near ''", if a
     // statement is not terminated by ";". A ";" attached to the last statement
     // avoids this...
-    if (SQLIndex < SQLLength) then
+    if (SQLIndex < Length(SyncThread.SQL)) then
       SyncThread.SQL[SQLIndex] := ';'
     else
       SyncThread.SQL := SyncThread.SQL + ';';
@@ -3074,7 +3080,9 @@ begin
               end
               else
               begin
-                Assert(SynchronCount > 0);
+                Assert(SynchronCount > 0,
+                  'ErrorCode: ' + IntToStr(SyncThread.ErrorCode) + #13#10
+                  + 'ErrorMessage: ' + SyncThread.ErrorMessage);
                 SyncThreadExecuted.SetEvent();
               end;
           end;
@@ -3156,7 +3164,9 @@ procedure TMySQLConnection.SyncBindDataSet(const DataSet: TMySQLQuery);
 begin
   // Debug 2017-01-15
   if (SyncThread.State <> ssResult) then
-    raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)));
+    raise EAssertionFailed.Create('State: ' + IntToStr(Ord(SyncThread.State)) + #13#10
+      + 'SyncThread.ErrorCode: ' + IntToStr(SyncThread.ErrorCode) + #13#10
+      + 'ErrorCode: ' + IntToStr(ErrorCode));
 
   Assert(Assigned(SyncThread));
   Assert(SyncThread.State = ssResult);
@@ -3436,21 +3446,12 @@ begin
 
   if (SyncThread.ErrorCode > 0) then
     WriteMonitor('--> Error #' + IntToStr(SyncThread.ErrorCode) + ': ' + SyncThread.ErrorMessage, ttInfo)
-  else
+  else if (Assigned(SyncThread.LibHandle)) then
   begin
     Inc(FExecutedStmts);
 
     if (SyncThread.WarningCount > 0) then
       WriteMonitor('--> Warnings: ' + IntToStr(SyncThread.WarningCount), ttInfo);
-
-    // Debug 2017-01-15
-    if (not Assigned(SyncThread.LibHandle)) then
-      raise ERangeError.Create('State: ' + IntToStr(Ord(SyncThread.State)) + #13#10
-        + 'Mode: ' + IntToStr(Ord(SyncThread.Mode)) + #13#10
-        + 'Terminated: ' + BoolToStr(SyncThread.Terminated, True) + #13#10
-        + 'SyncThread.ThreadID: ' + IntToStr(SyncThread.ThreadID) + #13#10
-        + 'ThreadID: ' + IntToStr(GetCurrentThreadId()) + #13#10
-        + 'Self.SyncThread.ThreadID: ' + IntToStr(Self.SyncThread.ThreadID));
 
     if (Assigned(Lib.mysql_session_track_get_first) and Assigned(Lib.mysql_session_track_get_next)) then
       if (Lib.mysql_session_track_get_first(SyncThread.LibHandle, SESSION_TRACK_SYSTEM_VARIABLES, Data, Size) = 0) then
@@ -6460,9 +6461,8 @@ end;
 procedure TMySQLDataSet.InternalEdit();
 begin
   // Debug 2017-01-24
-  if (not CachedUpdates
-    and not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData)) then
-    raise ERangeError.Create('Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
+  Assert(CachedUpdates or Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData),
+    'Index: ' + IntToStr(PExternRecordBuffer(ActiveBuffer())^.Index) + #13#10
       + 'BookmarkFlag: ' + IntToStr(Ord(PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag)) + #13#10
       + 'State: ' + IntToStr(Ord(State)));
 
@@ -7292,8 +7292,8 @@ begin
     + 'State: ' + IntToStr(Ord(State)));
   // 2017-02-08: BookmarkFlag = bfInserted, State: dsBrowse, CallStack: TMySQLDBGridInplaceEdit.CloseUp
   // Why is dsBrowse set while CloseUp???
-  // 2017-02-13: BookmarkFlag = bfInserted, State: dsBrowse, CallStack: TMySQLDBGridInplaceEdit.CloseUp
-  // Last SQL: SELECT
+  // 2017-02-13: BookmarkFlag = bfInserted, State: dsBrowse, CallStack: TMySQLDBGridInplaceEdit.CloseUp, Last SQL: SELECT
+  // 2017-02-14: BookmarkFlag = bfInserted, State: dsBrowse, CallStack: TMySQLDBGridInplaceEdit.CloseUp, Last SQL: SELECT
 
   OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
 

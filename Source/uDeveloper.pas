@@ -257,7 +257,7 @@ begin
         Item := nil;
         while ((Index < CallStack.Count) and (StackItem < 2)) do
         begin
-          Item := CallStack.GetItem(1, Buffer);
+          Item := CallStack.GetItem(Index, Buffer);
           if ((Item^.Location.DebugDetail = ddSourceCode) and
             ((ModuleFileName = '') or (StrIComp(PChar(Item^.Location.ModuleName), PChar(ModuleFileName)) = 0))) then
             Inc(StackItem);
@@ -289,11 +289,14 @@ begin
             + 'Index:' + IntToStr(Index) + ', '
             + 'Count: ' + IntToStr(CallStack.Count) + #13#10#13#10;
           for I := 0 to CallStack.Count - 1 do
+          begin
+            Item := CallStack.GetItem(I, Buffer);
             Body := Body
               + ExtractFileName(Item^.Location.ModuleName) + '|' +
                   Item^.Location.UnitName + '|' + Source + '|' +
                   IntToStr(Item^.Location.LineNumber) + '[' +
                   IntToStr(Item^.Location.ProcOffsetLine) + ']' + #13#10;
+          end;
         end;
       end;
     {$ENDIF}

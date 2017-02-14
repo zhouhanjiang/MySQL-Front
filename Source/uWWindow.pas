@@ -840,22 +840,13 @@ end;
 procedure TWWindow.CMSysFontChanged(var Message: TMessage);
 var
   Profile: TProfile;
-  S: string;
 begin
   CreateProfile(Profile);
 
   inherited;
 
-  if (ProfilingTime(Profile) > 1000) then
-  begin
-    S := '';
-    {$IFDEF EurekaLog}
-    S := S + TimeToStr(Now() - GetStartingDate(), FileFormatSettings) + #13#10;
-    {$ENDIF}
-    S := S + TOSVersion.ToString() + #13#10;
-    S := S + ProfilingReport(Profile);
-    SendToDeveloper(S);
-  end;
+  if (ProfilingTime(Profile) > 4000) then
+    SendToDeveloper(ProfilingReport(Profile));
   CloseProfile(Profile);
 
   if (StyleServices.Enabled or not CheckWin32Version(6)) then
