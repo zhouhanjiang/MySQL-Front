@@ -7357,6 +7357,7 @@ begin
   begin
     // Debug 2017-01-23
     SendToDeveloper('FieldCount: ' + IntToStr(DataSet.FieldCount) + #13#10
+      + 'Field: ' + DataSet.Fields[0].DisplayName + #13#10
       + 'MySQL: ' + Session.Connection.ServerVersionStr);
 
     Result := False;

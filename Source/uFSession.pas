@@ -11876,16 +11876,16 @@ var
       Item.Data := Data;
       UpdateItem(Item, GroupID, Data);
 
-      Index := -1;
+      Index := ListView.Items.Count;
       Left := 0;
       Right := ListView.Items.Count - 1;
       while (Left <= Right) do
       begin
         Mid := (Right - Left) div 2 + Left;
         case (Compare(Kind, ListView.Items[Mid], Item)) of
-          -1: begin Left := Mid + 1; Index := Mid; end;
+          -1: begin Left := Mid + 1; Index := Mid + 1; end;
           0: begin Index := Mid; break; end;
-          1: begin Right := Mid - 1; Index := Mid - 1; end;
+          1: begin Right := Mid - 1; Index := Mid; end;
         end;
       end;
 
@@ -11894,14 +11894,14 @@ var
 
     ProfilingPoint(11);
 
-    if (Index < 0) then
+    if (Index = ListView.Items.Count) then
     begin
       Result := ListView.Items.Add();
       Result.Data := Data;
     end
     else if (ListView.Items[Index].Data <> Data) then
     begin
-      Result := ListView.Items.Insert(Index + 1);
+      Result := ListView.Items.Insert(Index);
       Result.Data := Data;
       if (ReorderGroupIndex < 0) then
         ReorderGroupIndex := Index + 1

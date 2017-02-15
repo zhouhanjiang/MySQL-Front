@@ -2678,7 +2678,7 @@ begin
       if ((Mode = smSQL) or (SyncThread.State <> ssReceivingResult)) then
         SyncThreadExecuted.WaitFor(INFINITE);
     until (not Assigned(SyncThread) or (SyncThread.State in [ssClose, ssResult, ssReady]) or (Mode = smDataSet) and (SyncThread.State = ssReceivingResult));
-    Result := SyncThread.ErrorCode = 0;
+    Result := Assigned(SyncThread) and (SyncThread.ErrorCode = 0);
   end
   else
   begin
