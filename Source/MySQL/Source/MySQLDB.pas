@@ -5,7 +5,6 @@ interface {********************************************************************}
 uses
   Classes, SysUtils, Windows, SyncObjs,
   DB, DBCommon, SqlTimSt,
-uProfiling,
   SQLParser, MySQLConsts;
 
 const
@@ -271,6 +270,10 @@ type
     function GetServerTime(): TDateTime;
     function GetHandle(): MySQLConsts.MYSQL;
     function GetInfo(): string;
+    function LibDecode(const Text: my_char; const Length: my_int = -1): string; virtual;
+    function LibEncode(const Value: string): RawByteString; virtual;
+    function LibPack(const Value: string): RawByteString; virtual;
+    function LibUnpack(const Data: my_char; const Length: my_int = -1): string; virtual;
     procedure SetDatabaseName(const ADatabaseName: string);
     procedure SetHost(const AHost: string);
     procedure SetLibraryName(const ALibraryName: string);
@@ -306,10 +309,6 @@ type
     function GetMaxAllowedServerPacket(): Integer; virtual;
     function InternExecuteSQL(const Mode: TSyncThread.TMode; const SQL: string;
       const OnResult: TResultEvent = nil; const Done: TEvent = nil): Boolean; overload; virtual;
-    function LibDecode(const Text: my_char; const Length: my_int = -1): string; virtual;
-    function LibEncode(const Value: string): RawByteString; virtual;
-    function LibPack(const Value: string): RawByteString; virtual;
-    function LibUnpack(const Data: my_char; const Length: my_int = -1): string; virtual;
     procedure local_infile_end(const local_infile: Plocal_infile); virtual;
     function local_infile_error(const local_infile: Plocal_infile; const error_msg: my_char; const error_msg_len: my_uint): my_int; virtual;
     function local_infile_init(out local_infile: Plocal_infile; const filename: my_char): my_int; virtual;
@@ -906,7 +905,6 @@ const
 var
   LocaleFormatSettings: TFormatSettings;
   MySQLConnectionOnSynchronize: TMySQLConnection.TSynchronizeEvent;
-  MonitorProfile: TProfile;
 
 implementation {***************************************************************}
 
@@ -1696,8 +1694,6 @@ var
   MoveLen: Integer;
   Pos: Integer;
 begin
-  ProfilingPoint(MonitorProfile, 4);
-
   Assert(GetCurrentThreadId() = MainThreadId);
 
   if ((Cache.MemLen > 0) and (Length > 0)) then
@@ -1776,16 +1772,8 @@ begin
     end;
   end;
 
-  ProfilingPoint(MonitorProfile, 5);
-
   if (Enabled and Assigned(OnMonitor) and Assigned(Connection)) then
-  begin
-    ProfilingPoint(MonitorProfile, 6);
     OnMonitor(Connection, Text, Length, ATraceType);
-    ProfilingPoint(MonitorProfile, 17);
-  end;
-
-  ProfilingPoint(MonitorProfile, 18);
 end;
 
 procedure TMySQLMonitor.Append(const Text: string; const ATraceType: TTraceType);
@@ -3567,6 +3555,7 @@ begin
             Log := Log + 'Statement #' + IntToStr(I + 1) + ' Length: ' + IntToStr(Integer(SyncThread.StmtLengths[I])) + #13#10;
           Log := Log + 'Statement #' + IntToStr(SyncThread.StmtIndex) + ' CommandText:' + #13#10
             + SyncThread.CommandText + #13#10;
+          Log := Log + 'State: ' + IntToStr(Ord(SyncThread.State)) + #13#10;
           Log := Log + 'ErrorCode: ' + IntToStr(SyncThread.ErrorCode) + #13#10;
           Log := Log + 'SQL:' + #13#10
             + SQLEscapeBin(SyncThread.SQL, True) + #13#10;
@@ -3935,28 +3924,14 @@ procedure TMySQLConnection.WriteMonitor(const Text: PChar; const Length: Integer
 var
   I: Integer;
 begin
-  ProfilingReset(MonitorProfile);
-
   InMonitor := True;
   try
-    ProfilingPoint(MonitorProfile, 2);
-
     for I := 0 to FSQLMonitors.Count - 1 do
       if (TraceType in TMySQLMonitor(FSQLMonitors[I]).TraceTypes) then
-      begin
-        ProfilingPoint(MonitorProfile, 3);
         TMySQLMonitor(FSQLMonitors[I]).Append(Text, Length, TraceType);
-        ProfilingPoint(MonitorProfile, 19);
-      end;
-
-    ProfilingPoint(MonitorProfile, 20);
   finally
     InMonitor := False;
   end;
-
-  if (ProfilingTime(MonitorProfile) > 1000) then
-    SendToDeveloper('Count: ' + IntToStr(FSQLMonitors.Count) + #13#10
-      + ProfilingReport(MonitorProfile));
 end;
 
 { TMySQLBitField **************************************************************}
@@ -5124,13 +5099,15 @@ begin
           begin
             Binary := LibField.charsetnr = 63;
             Len := LibField.length;
-            if (not Binary and (Connection.MySQLVersion > 40109)) then // In 40109 this is needed. In 40122 and higher the problem is fixed. What is the exact ServerVersion?
+            if (not Binary and (Connection.MySQLVersion > 40109)) then // In 40109 this is needed. In 40122 and higher the problem is fixed.
               for I := 0 to Length(MySQL_Collations) - 1 do
                 if (MySQL_Collations[I].CharsetNr = LibField.charsetnr) then
+                begin
                   if (MySQL_Collations[I].MaxLen = 0) then
                     raise ERangeError.CreateFmt(SPropertyOutOfRange + ' - CharsetNr: %d', ['MaxLen', MySQL_Collations[I].CharsetNr])
                   else
                     Len := LibField.length div MySQL_Collations[I].MaxLen;
+                end;
           end;
           Binary := Binary or (LibField.field_type = MYSQL_TYPE_IPV6);
           Len := Len and $7FFFFFFF;
@@ -5272,8 +5249,7 @@ begin
 
           // Debug 2017-01-23
           if (Field.FieldName = '') then
-            raise ERangeError.Create('LibField.name: ' + string(AnsiStrings.StrPas(LibField.name)) + #13#10
-              + CommandText);
+            Field.FieldName := 'Field_' + IntToStr(Fields.Count);
 
           if (Assigned(FindField(Field.FieldName))) then
           begin
@@ -5421,8 +5397,11 @@ begin
         FDatabaseName := DName;
 
       // Debug 2016-12-12
-      if (my_uint(FieldCount) <> Connection.Lib.mysql_num_fields(Handle)) then
-        raise ERangeError.Create(SRangeError + ' ' + IntToStr(Connection.Lib.mysql_num_fields(Handle)) + '/ ' + IntToStr(FieldDefs.Count) + ' / ' + IntToStr(FieldCount));
+      Assert(my_uint(FieldCount) = Connection.Lib.mysql_num_fields(Handle),
+        'mysql_num_fields: ' + IntToStr(Connection.Lib.mysql_num_fields(Handle)) + #13#10
+        + 'FieldDefs.Count: ' + IntToStr(FieldDefs.Count) + #13#10
+        + 'FieldCount: ' + IntToStr(FieldCount)
+        + 'mysql_fetch_field_direct: ' + BoolToStr(Assigned(Connection.Lib.mysql_fetch_field_direct(Handle, FieldCount - 1))));
     end;
   end;
 end;
@@ -7009,7 +6988,9 @@ begin
     Connection.BeginSynchron();
     Success := Connection.InternExecuteSQL(smDataSet, SQL);
     Connection.EndSynchron();
-    if (Success) then
+    if (not Success) then
+      Close()
+    else
       Connection.SyncBindDataSet(Self);
   end;
 end;
@@ -8463,11 +8444,7 @@ initialization
   SetLength(MySQLLibraries, 0);
 
   MySQLSyncThreads := TMySQLSyncThreads.Create();
-
-  CreateProfile(MonitorProfile);
 finalization
-  CloseProfile(MonitorProfile);
-
   MySQLSyncThreads.Free();
 
   FreeMySQLLibraries();

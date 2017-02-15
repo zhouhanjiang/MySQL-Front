@@ -1681,6 +1681,7 @@ const
 
 var
   Sessions: TSSessions;
+  SessionProfile: TProfile;
 
 implementation {***************************************************************}
 
@@ -5569,12 +5570,12 @@ begin
         if (not UseInformationSchema) then
           Name := DataSet.FieldByName('Name').AsString
         else
-          try
-            Name := DataSet.FieldByName('TABLE_NAME').AsString;
-          except
-            raise ERangeError.Create(DataSet.Fields[0].DisplayName + #13#10
-              + DataSet.CommandText);
-          end;
+        begin
+          // Debug 2017-02-15
+          Assert(Assigned(DataSet.FindField('TABLE_NAME')),
+            DataSet.Fields[0].DisplayName);
+          Name := DataSet.FieldByName('TABLE_NAME').AsString;
+        end;
 
         if (InsertIndex(Name, Index)) then
         begin
@@ -12180,8 +12181,12 @@ procedure TSSession.DoSendEvent(const AEvent: TSSession.TEvent);
 var
   I: Integer;
 begin
+  ProfilingPoint(SessionProfile, 1);
+
   for I := 0 to Length(EventProcs) - 1 do
     EventProcs[I](AEvent);
+
+  ProfilingPoint(SessionProfile, 6);
 end;
 
 procedure TSSession.EmptyDatabases(const Databases: TList);
@@ -12432,11 +12437,7 @@ end;
 
 procedure TSSession.MonitorLog(const Connection: TMySQLConnection; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
 begin
-  ProfilingPoint(MonitorProfile, 7);
-
   SendEvent(etMonitor);
-
-  ProfilingPoint(MonitorProfile, 16);
 end;
 
 procedure TSSession.MonitorExecutedStmts(const Connection: TMySQLConnection;
@@ -12455,14 +12456,17 @@ var
   OldObjectName: string;
   Parse: TSQLParse;
   Process: TSProcess;
+  Profile: TProfile;
   Routine: TSRoutine;
-S: string; // Debug 2017-01-06
+  S: string;
   SQL: string;
   Table: TSTable;
   Trigger: TSTrigger;
   User: TSUser;
   Variable: TSVariable;
 begin
+  CreateProfile(Profile);
+
   if (GetUTCTime() <= IncDay(GetCompileTime(), 7)) then
   begin
     SQL := SQLTrimStmt(Text, Len);
@@ -12935,6 +12939,15 @@ begin
       if (Assigned(Process)) then
         Processes.Delete(Process);
     end;
+
+  if (ProfilingTime(Profile) > 1000) then
+  begin
+    SetString(S, Text, Len);
+    SendToDeveloper(ProfilingReport(Profile) + #13#10
+      + S);
+  end;
+
+  CloseProfile(Profile);
 end;
 
 function TSSession.PluginByName(const PluginName: string): TSPlugin;
@@ -12987,13 +13000,8 @@ end;
 procedure TSSession.SendEvent(const EventType: TSSession.TEvent.TEventType; const Sender: TObject = nil; const Items: TSItems = nil; const Item: TSItem = nil);
 var
   Event: TEvent;
-  Start: Int64;
-  Finish: Int64;
-  Frequency: Int64;
 begin
-  ProfilingPoint(MonitorProfile, 8);
-
-  if (not QueryPerformanceCounter(Start)) then Start := 0;
+  ProfilingReset(SessionProfile);
 
   Event := TEvent.Create(Self);
   Event.EventType := EventType;
@@ -13003,15 +13011,10 @@ begin
   DoSendEvent(Event);
   Event.Free();
 
-  ProfilingPoint(MonitorProfile, 14);
-
-  if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)
-    and ((Finish - Start) div Frequency > 1)) then
+  if (ProfilingTime(SessionProfile) > 1000) then
     SendToDeveloper('EventType: ' + IntToStr(Ord(EventType)) + ', '
-      + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s, '
-      + 'Receiver: ' + IntToStr(Length(EventProcs)));
-
-  ProfilingPoint(MonitorProfile, 15);
+      + 'Receiver: ' + IntToStr(Length(EventProcs)) + #13#10
+      + ProfilingReport(SessionProfile));
 end;
 
 function TSSession.SendSQL(const SQL: string; const OnResult: TMySQLConnection.TResultEvent = nil): Boolean;
@@ -13240,8 +13243,7 @@ begin
       else if (SQLParseKeyword(Parse, 'GRANTS FOR')) then
       begin
         if (not DataSet.Active) then
-          SendToDeveloper('ErrorCode: ' + IntToStr(ErrorCode) + #13#10
-            + 'ErrorMessage: ' + ErrorMessage, 7)
+          Result := ErrorCode = ER_OPTION_PREVENTS_STATEMENT // The MySQL server is running with the --skip-grant-tables option
         else if (SQLParseKeyword(Parse, 'CURRENT_USER')) then
           Result := BuildUser(DataSet)
         else
@@ -13971,7 +13973,11 @@ end;
 
 initialization
   Sessions := TSSessions.Create();
+
+  CreateProfile(SessionProfile);
 finalization
+  CloseProfile(SessionProfile);
+
   Sessions.Free();
 end.
 

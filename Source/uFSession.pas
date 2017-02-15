@@ -42,7 +42,6 @@ type
     aEClearAll: TAction;
     aPCollapse: TAction;
     aPExpand: TAction;
-    aPObjectBrowserTable: TAction;
     aPResult: TAction;
     aSynCompletionExecute: TAction;
     aTBFilter: TAction;
@@ -400,7 +399,6 @@ type
     procedure aHRunExecute(Sender: TObject);
     procedure aPCollapseExecute(Sender: TObject);
     procedure aPExpandExecute(Sender: TObject);
-    procedure aPObjectBrowserTableExecute(Sender: TObject);
     procedure aPResultExecute(Sender: TObject);
     procedure aSSearchFindNotFound(Sender: TObject);
     procedure aSynCompletionExecuteExecute(Sender: TObject);
@@ -4404,13 +4402,6 @@ begin
     FSQLHistoryMenuNode.Expand(False);
 end;
 
-procedure TFSession.aPObjectBrowserTableExecute(Sender: TObject);
-begin
-  Wanted.Clear();
-
-  CurrentAddress := LastSelectedTable;
-end;
-
 procedure TFSession.aPResultExecute(Sender: TObject);
 begin
   Wanted.Clear();
@@ -7587,18 +7578,27 @@ begin
 end;
 
 procedure TFSession.FLogUpdate();
+var
+  Profile: TProfile;
+  Text: string;
 begin
   if (MainAction('aVSQLLog').Checked) then
   begin
-    ProfilingPoint(MonitorProfile, 10);
+    CreateProfile(Profile);
 
-    FLog.Text := Session.SQLMonitor.CacheText;
+    Text := Session.SQLMonitor.CacheText;
 
-    ProfilingPoint(MonitorProfile, 11);
+    ProfilingPoint(Profile, 1);
+
+    FLog.Text := Text;
+
+    ProfilingPoint(Profile, 2);
 
     PLogResize(nil);
 
-    ProfilingPoint(MonitorProfile, 12);
+    if (ProfilingTime(Profile) > 200) then
+      SendToDeveloper(ProfilingReport(Profile));
+    CloseProfile(Profile);
   end;
 end;
 
@@ -8802,108 +8802,97 @@ end;
 
 procedure TFSession.FNavigatorChanged(Sender: TObject; const Node: TTreeNode);
 begin
-  MainAction('aFImportSQL').Enabled := Assigned(Node) and (((Node.ImageIndex = iiServer) and (not Assigned(Session.UserRights) or Session.UserRights.RInsert)) or (Node.ImageIndex = iiDatabase));
-  MainAction('aFImportText').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
-  MainAction('aFImportExcel').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
-  MainAction('aFImportAccess').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
-  MainAction('aFImportODBC').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
-  MainAction('aFExportSQL').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-  MainAction('aFExportText').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseTable, iiView]);
-  MainAction('aFExportExcel').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView]);
-  MainAction('aFExportAccess').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
-  MainAction('aFExportODBC').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
-  MainAction('aFExportXML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView]);
-  MainAction('aFExportHTML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-  MainAction('aFExportPDF').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-  MainAction('aECopy').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiBaseField, iiSystemViewField, iiVirtualField, iiViewField, iiSystemViewField]);
-  MainAction('aEPaste').Enabled := Assigned(Node) and ((Node.ImageIndex = iiServer) and IsClipboardFormatAvailable(CF_MYSQLSERVER) or (Node.ImageIndex = iiDatabase) and IsClipboardFormatAvailable(CF_MYSQLDATABASE) or (Node.ImageIndex = iiBaseTable) and IsClipboardFormatAvailable(CF_MYSQLTABLE) or (Node.ImageIndex = iiUsers) and IsClipboardFormatAvailable(CF_MYSQLUSERS));
-  MainAction('aERename').Enabled := Assigned(Node) and ((Node.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013) or (Node.ImageIndex in [iiBaseTable, iiView, iiEvent, iiTrigger, iiBaseField, iiVirtualField]));
-  MainAction('aDCreateDatabase').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer]) and (not Assigned(Session.UserRights) or Session.UserRights.RCreate);
-  MainAction('aDCreateTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
-  MainAction('aDCreateView').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and (Session.Connection.MySQLVersion >= 50001);
-  MainAction('aDCreateProcedure').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and Assigned(TSDatabase(Node.Data).Routines);
-  MainAction('aDCreateFunction').Enabled := MainAction('aDCreateProcedure').Enabled;
-  MainAction('aDCreateEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and Assigned(TSDatabase(Node.Data).Events);
-
-  // Debug 2017-01-02
-  if (Assigned(Node) and (Node.ImageIndex = iiBaseTable)) then
+  if (not Assigned(Node) or not (TObject(Node.Data) is TPAccount.TFavorite)) then
   begin
-    if (not Assigned(Node.Data)) then
-      raise ERangeError.Create('Table: ' + Node.Text);
-    if (not Assigned(TSBaseTable(Node.Data).Database)) then
-      raise ERangeError.Create('Table: ' + Node.Text);
-    if (Session.Databases.IndexOf(TSBaseTable(Node.Data).Database) < 0) then
-      raise ERangeError.Create('Table: ' + Node.Text);
-    if (TSBaseTable(Node.Data).Database.Tables.IndexOf(TSBaseTable(Node.Data)) < 0) then
-      raise ERangeError.Create('Table: ' + Node.Text);
+    MainAction('aFImportSQL').Enabled := Assigned(Node) and (((Node.ImageIndex = iiServer) and (not Assigned(Session.UserRights) or Session.UserRights.RInsert)) or (Node.ImageIndex = iiDatabase));
+    MainAction('aFImportText').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
+    MainAction('aFImportExcel').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
+    MainAction('aFImportAccess').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
+    MainAction('aFImportODBC').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
+    MainAction('aFExportSQL').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
+    MainAction('aFExportText').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseTable, iiView]);
+    MainAction('aFExportExcel').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView]);
+    MainAction('aFExportAccess').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
+    MainAction('aFExportODBC').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
+    MainAction('aFExportXML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView]);
+    MainAction('aFExportHTML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
+    MainAction('aFExportPDF').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
+    MainAction('aECopy').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiBaseField, iiSystemViewField, iiVirtualField, iiViewField, iiSystemViewField]);
+    MainAction('aEPaste').Enabled := Assigned(Node) and ((Node.ImageIndex = iiServer) and IsClipboardFormatAvailable(CF_MYSQLSERVER) or (Node.ImageIndex = iiDatabase) and IsClipboardFormatAvailable(CF_MYSQLDATABASE) or (Node.ImageIndex = iiBaseTable) and IsClipboardFormatAvailable(CF_MYSQLTABLE) or (Node.ImageIndex = iiUsers) and IsClipboardFormatAvailable(CF_MYSQLUSERS));
+    MainAction('aERename').Enabled := Assigned(Node) and ((Node.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013) or (Node.ImageIndex in [iiBaseTable, iiView, iiEvent, iiTrigger, iiBaseField, iiVirtualField]));
+    MainAction('aDCreateDatabase').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer]) and (not Assigned(Session.UserRights) or Session.UserRights.RCreate);
+    MainAction('aDCreateTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
+    MainAction('aDCreateView').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and (Session.Connection.MySQLVersion >= 50001);
+    MainAction('aDCreateProcedure').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and Assigned(TSDatabase(Node.Data).Routines);
+    MainAction('aDCreateFunction').Enabled := MainAction('aDCreateProcedure').Enabled;
+    MainAction('aDCreateEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and Assigned(TSDatabase(Node.Data).Events);
+    MainAction('aDCreateTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable) and Assigned(TSBaseTable(Node.Data).Database.Triggers);
+    MainAction('aDCreateKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
+    MainAction('aDCreateField').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
+    MainAction('aDCreateForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseTable]);
+    MainAction('aDCreateUser').Enabled := Assigned(Node) and (Node.ImageIndex = iiUsers);
+    MainAction('aDDeleteDatabase').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
+    MainAction('aDDeleteTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
+    MainAction('aDDeleteView').Enabled := Assigned(Node) and (Node.ImageIndex = iiView);
+    MainAction('aDDeleteRoutine').Enabled := Assigned(Node) and (Node.ImageIndex in [iiProcedure, iiFunction]);
+    MainAction('aDDeleteEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiEvent);
+    MainAction('aDDeleteKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiKey);
+    MainAction('aDDeleteField').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseField, iiVirtualField]) and (TObject(Node.Data) is TSTableField) and (TSTableField(Node.Data).Fields.Count > 1);
+    MainAction('aDDeleteForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013);
+    MainAction('aDDeleteTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiTrigger);
+    MainAction('aDDeleteProcess').Enabled := False;
+    MainAction('aDEditServer').Enabled := Assigned(Node) and (Node.ImageIndex = iiServer);
+    MainAction('aDEditDatabase').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
+    MainAction('aDEditTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
+    MainAction('aDEditView').Enabled := Assigned(Node) and (Node.ImageIndex = iiView);
+    MainAction('aDEditRoutine').Enabled := Assigned(Node) and (Node.ImageIndex in [iiProcedure, iiFunction]);
+    MainAction('aDEditEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiEvent);
+    MainAction('aDEditKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiKey);
+    MainAction('aDEditField').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseField, iiVirtualField]);
+    MainAction('aDEditForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiForeignKey);
+    MainAction('aDEditTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiTrigger);
+    MainAction('aDEmpty').Enabled := Assigned(Node) and ((Node.ImageIndex = iiDatabase) or (Node.ImageIndex = iiBaseTable) or ((Node.ImageIndex in [iiBaseField]) and TSTableField(Node.Data).NullAllowed));
+
+    miNExpand.Default := aPExpand.Enabled;
+    miNCollapse.Default := aPCollapse.Enabled;
+    aDDelete.Enabled := MainAction('aDDeleteDatabase').Enabled
+      or MainAction('aDDeleteTable').Enabled
+      or MainAction('aDDeleteView').Enabled
+      or MainAction('aDDeleteRoutine').Enabled
+      or MainAction('aDDeleteEvent').Enabled
+      or MainAction('aDDeleteKey').Enabled
+      or MainAction('aDDeleteField').Enabled
+      or MainAction('aDDeleteForeignKey').Enabled
+      or MainAction('aDDeleteTrigger').Enabled;
+    if (not Assigned(Node)) then
+      miNProperties.Action := nil
+    else
+      case (Node.ImageIndex) of
+        iiServer: miNProperties.Action := MainAction('aDEditServer');
+        iiDatabase: miNProperties.Action := MainAction('aDEditDatabase');
+        iiBaseTable: miNProperties.Action := MainAction('aDEditTable');
+        iiView: miNProperties.Action := MainAction('aDEditView');
+        iiProcedure,
+        iiFunction: miNProperties.Action := MainAction('aDEditRoutine');
+        iiEvent: miNProperties.Action := MainAction('aDEditEvent');
+        iiTrigger: miNProperties.Action := MainAction('aDEditTrigger');
+        iiKey: miNProperties.Action := MainAction('aDEditKey');
+        iiBaseField,
+        iiVirtualField: miNProperties.Action := MainAction('aDEditField');
+        iiForeignKey: miNProperties.Action := MainAction('aDEditForeignKey');
+        iiProcess: miNProperties.Action := MainAction('aDEditProcess');
+        iiVariable: miNProperties.Action := MainAction('aDEditVariable');
+        else miNProperties.Action := nil;
+      end;
+    miNProperties.Enabled := Assigned(miNProperties.Action) and (miNProperties.Action is TAction) and TAction(miNProperties.Action).Enabled;
+    miNProperties.Caption := Preferences.LoadStr(97) + '...';
+    miNProperties.ShortCut := ShortCut(VK_RETURN, [ssAlt]);
+
+    ToolBarData.tbPropertiesAction := miNProperties.Action;
+    Window.Perform(UM_UPDATETOOLBAR, 0, LPARAM(Self));
+
+    FNavigator.ReadOnly := not MainAction('aERename').Enabled;
   end;
-
-  MainAction('aDCreateTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable) and Assigned(TSBaseTable(Node.Data).Database.Triggers);
-  MainAction('aDCreateKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
-  MainAction('aDCreateField').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
-  MainAction('aDCreateForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseTable]);
-  MainAction('aDCreateUser').Enabled := Assigned(Node) and (Node.ImageIndex = iiUsers);
-  MainAction('aDDeleteDatabase').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
-  MainAction('aDDeleteTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
-  MainAction('aDDeleteView').Enabled := Assigned(Node) and (Node.ImageIndex = iiView);
-  MainAction('aDDeleteRoutine').Enabled := Assigned(Node) and (Node.ImageIndex in [iiProcedure, iiFunction]);
-  MainAction('aDDeleteEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiEvent);
-  MainAction('aDDeleteKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiKey);
-  MainAction('aDDeleteField').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseField, iiVirtualField]) and (TObject(Node.Data) is TSTableField) and (TSTableField(Node.Data).Fields.Count > 1);
-  MainAction('aDDeleteForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiForeignKey) and (Session.Connection.MySQLVersion >= 40013);
-  MainAction('aDDeleteTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiTrigger);
-  MainAction('aDDeleteProcess').Enabled := False;
-  MainAction('aDEditServer').Enabled := Assigned(Node) and (Node.ImageIndex = iiServer);
-  MainAction('aDEditDatabase').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
-  MainAction('aDEditTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
-  MainAction('aDEditView').Enabled := Assigned(Node) and (Node.ImageIndex = iiView);
-  MainAction('aDEditRoutine').Enabled := Assigned(Node) and (Node.ImageIndex in [iiProcedure, iiFunction]);
-  MainAction('aDEditEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiEvent);
-  MainAction('aDEditKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiKey);
-  MainAction('aDEditField').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseField, iiVirtualField]);
-  MainAction('aDEditForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiForeignKey);
-  MainAction('aDEditTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiTrigger);
-  MainAction('aDEmpty').Enabled := Assigned(Node) and ((Node.ImageIndex = iiDatabase) or (Node.ImageIndex = iiBaseTable) or ((Node.ImageIndex in [iiBaseField]) and TSTableField(Node.Data).NullAllowed));
-
-  miNExpand.Default := aPExpand.Enabled;
-  miNCollapse.Default := aPCollapse.Enabled;
-  aDDelete.Enabled := MainAction('aDDeleteDatabase').Enabled
-    or MainAction('aDDeleteTable').Enabled
-    or MainAction('aDDeleteView').Enabled
-    or MainAction('aDDeleteRoutine').Enabled
-    or MainAction('aDDeleteEvent').Enabled
-    or MainAction('aDDeleteKey').Enabled
-    or MainAction('aDDeleteField').Enabled
-    or MainAction('aDDeleteForeignKey').Enabled
-    or MainAction('aDDeleteTrigger').Enabled;
-  if (not Assigned(Node)) then
-    miNProperties.Action := nil
-  else
-    case (Node.ImageIndex) of
-      iiServer: miNProperties.Action := MainAction('aDEditServer');
-      iiDatabase: miNProperties.Action := MainAction('aDEditDatabase');
-      iiBaseTable: miNProperties.Action := MainAction('aDEditTable');
-      iiView: miNProperties.Action := MainAction('aDEditView');
-      iiProcedure,
-      iiFunction: miNProperties.Action := MainAction('aDEditRoutine');
-      iiEvent: miNProperties.Action := MainAction('aDEditEvent');
-      iiTrigger: miNProperties.Action := MainAction('aDEditTrigger');
-      iiKey: miNProperties.Action := MainAction('aDEditKey');
-      iiBaseField,
-      iiVirtualField: miNProperties.Action := MainAction('aDEditField');
-      iiForeignKey: miNProperties.Action := MainAction('aDEditForeignKey');
-      iiProcess: miNProperties.Action := MainAction('aDEditProcess');
-      iiVariable: miNProperties.Action := MainAction('aDEditVariable');
-      else miNProperties.Action := nil;
-    end;
-  miNProperties.Enabled := Assigned(miNProperties.Action) and (miNProperties.Action is TAction) and TAction(miNProperties.Action).Enabled;
-  miNProperties.Caption := Preferences.LoadStr(97) + '...';
-  miNProperties.ShortCut := ShortCut(VK_RETURN, [ssAlt]);
-
-  ToolBarData.tbPropertiesAction := miNProperties.Action;
-  Window.Perform(UM_UPDATETOOLBAR, 0, LPARAM(Self));
-
-  FNavigator.ReadOnly := not MainAction('aERename').Enabled;
 end;
 
 procedure TFSession.FObjectSearchChange(Sender: TObject);
@@ -9107,6 +9096,8 @@ begin
   // DROP TABLE `mixer`.`extranet`;
   // aDDeleteExecute - end - SBlob: True
 
+  ProfilingPoint(SessionProfile, 2);
+
   if (not (csDestroying in ComponentState)) then
     case (Event.EventType) of
       etItemsValid,
@@ -9116,11 +9107,7 @@ begin
       etItemDeleted:
         SessionUpdate(Event);
       etMonitor:
-        begin
-          ProfilingPoint(MonitorProfile, 9);
-          FLogUpdate();
-          ProfilingPoint(MonitorProfile, 13);
-        end;
+        FLogUpdate();
       etBeforeExecuteSQL:
         BeforeExecuteSQL(Event);
       etAfterExecuteSQL:
@@ -9132,6 +9119,8 @@ begin
   // Debug 2017-02-05
   Assert(Assigned(SBlob),
     'EventType: ' + IntToStr(Ord(Event.EventType)));
+
+  ProfilingPoint(SessionProfile, 5);
 end;
 
 procedure TFSession.FormResize(Sender: TObject);
@@ -11635,7 +11624,9 @@ var
         end;
         Item.SubItems.Add(S);
         if (Data is TSBaseTable) then
-          Item.SubItems.Add(TSBaseTable(Data).Comment);
+          Item.SubItems.Add(TSBaseTable(Data).Comment)
+        else
+          Item.SubItems.Add('');
       end
       else if (Data is TSRoutine) then
       begin
@@ -14814,6 +14805,8 @@ begin
 
   TempActiveControl := Window.ActiveControl;
 
+  ProfilingPoint(SessionProfile, 3);
+
   ListViewUpdateCount := 0;
   CreateProfile(Profile);
 
@@ -15045,6 +15038,8 @@ begin
     TimeMonitor.Append(S, ttDebug);
   end;
   CloseProfile(Profile);
+
+  ProfilingPoint(SessionProfile, 4);
 end;
 
 procedure TFSession.SetCurrentAddress(const AAddress: string);
@@ -16519,7 +16514,6 @@ var
   CanClose: Boolean;
   I: Integer;
   J: Integer;
-  Profile: TProfile;
   SObject: TSObject;
   SynMemo: TSynMemo;
   View: TView;
@@ -16528,8 +16522,6 @@ begin
 
   if (CanClose and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then
     ActiveDBGrid.DataSource.DataSet.CheckBrowseMode();
-
-  CreateProfile(Profile);
 
   for I := 0 to PSynMemo.ControlCount - 1 do
     if (CanClose) then
@@ -16556,25 +16548,10 @@ begin
         end;
       end;
 
-  if (ProfilingTime(Profile) > 200) then
-    SendToDeveloper(ProfilingReport(Profile));
-  CloseProfile(Profile);
-
   if (CanClose) then
     for View in [vEditor, vEditor2, vEditor3] do
       if (Assigned(SQLEditors[View]) and SQLEditors[View].SynMemo.Modified and (SQLEditors[View].Filename <> '')) then
       begin
-        // Debug 2016-12-06
-        Assert(View in [vEditor, vEditor2, vEditor3]);
-
-        Self.View := View;
-
-        // Debug 2017-01-15
-        Assert(Self.View in [vEditor, vEditor2, vEditor3],
-          'View: ' + IntToStr(Ord(View)) + #13#10
-            + 'Self.View: ' + IntToStr(Ord(Self.View)) + #13#10
-            + 'CurrentAddress: ' + CurrentAddress);
-
         Window.ActiveControl := ActiveSynMemo;
         case (MsgBox(Preferences.LoadStr(584, ExtractFileName(SQLEditors[View].Filename)), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
           IDYES: SaveSQLFile(MainAction('aFSave'));

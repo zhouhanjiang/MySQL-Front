@@ -838,17 +838,7 @@ begin
 end;
 
 procedure TWWindow.CMSysFontChanged(var Message: TMessage);
-var
-  Profile: TProfile;
 begin
-  CreateProfile(Profile);
-
-  inherited;
-
-  if (ProfilingTime(Profile) > 4000) then
-    SendToDeveloper(ProfilingReport(Profile));
-  CloseProfile(Profile);
-
   if (StyleServices.Enabled or not CheckWin32Version(6)) then
     ToolBar.BorderWidth := 0
   else
@@ -1490,8 +1480,6 @@ begin
   ToolBar.Images := Preferences.Images;
   TabControl.Images := Preferences.Images;
   TBTabControl.Images := Preferences.Images;
-
-  Perform(CM_SYSFONTCHANGED, 0, 0);
 
   TabControl.Canvas.Font := Font;
 
