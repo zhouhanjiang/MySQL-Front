@@ -537,7 +537,7 @@ begin
     Progress := Progress + 'f';
 
     if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-      raise EImportEx.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
+      raise EAssertionFailed.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
       + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
       + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
       + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
@@ -552,7 +552,7 @@ begin
 
 
     if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-      raise EImportEx.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
+      raise EAssertionFailed.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
       + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
       + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
       + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
@@ -580,7 +580,7 @@ begin
       EnableMenuItem(GetSystemMenu(Handle, FALSE), SC_CLOSE, MF_BYCOMMAND or MF_DISABLED);
 
     if (Assigned(FNavigator) and not Assigned(FNavigator^)) then
-      raise EImportEx.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
+      raise EAssertionFailed.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
       + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
       + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
       + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10
@@ -626,12 +626,23 @@ end;
 
 procedure TDImport.FormHide(Sender: TObject);
 begin
+  if (Assigned(Import)) then
+  begin
+    SendToDeveloper('Import: True');
+
+    Import.WaitFor();
+    Import.Free();
+    Import := nil;
+
+    SendToDeveloper('Import: False');
+  end;
+
   Progress := Progress + 'j';
 
   if (Assigned(FNavigator) and not Assigned(FNavigator^)
     or Visible
     or Assigned(Import)) then
-    raise EImportEx.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
+    raise EAssertionFailed.Create('Visible: ' + BoolToStr(Visible, True) + #13#10
       + 'ModalResult: ' + IntToStr(Ord(ModalResult)) + #13#10
       + 'Assigned(FNavigator): ' + BoolToStr(Assigned(FNavigator^), True) + #13#10
       + 'Assigned(Import): ' + BoolToStr(Assigned(Import), True) + #13#10

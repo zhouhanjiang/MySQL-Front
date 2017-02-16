@@ -5,7 +5,11 @@ interface
 { ******************************************************************** }
 
 uses
-  Windows, Classes, SysUtils, WinInet;
+  Windows, Classes, SysUtils, WinInet
+  {$IFDEF EurekaLog}
+  , EClasses
+  {$ENDIF}
+  ;
 
 type
   THTTPThread = class(TThread)
@@ -47,13 +51,12 @@ function CheckOnlineVersion(const Stream: TStringStream; var VersionStr: string;
   var SetupProgramURI: string): Boolean;
 function GetCompileTime(): TDateTime;
 function GetUTCTime(): TDateTime;
-function EncodeVersion(const AMajor, AMinor, APatch, ABuild: Integer): Integer;
-procedure SendToDeveloper(const Text: string; const Days: Integer = 2;
+{$IFDEF EurekaLog}
+function LocationToStr(Location: TELLocationInfo): string;
+{$ENDIF}
+function ProcAddrToStr(const Proc: Pointer): string;
+procedure SendToDeveloper(const Text: string; const Days: Integer = 1;
   const HideSource: Boolean = False);
-
-type
-  EImportEx = class(Exception)
-  end;
 
 const
   MailPattern = '(?:[a-z0-9!#$%&''*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&''*+/=?^_`{|}~'
@@ -67,13 +70,14 @@ var
   LastUpdateCheck: TDateTime;
   ObsoleteVersion: Integer;
   OnlineVersion: Integer;
-  OnlineRecommendedVersion: Integer;
   ProgramVersion: Integer;
   ProgramVersionBuild: Integer;
   ProgramVersionMajor: Integer;
   ProgramVersionMinor: Integer;
   ProgramVersionPatch: Integer;
   ProgramVersionStr: string;
+  RecommendedUpdateAvailable: Boolean;
+  UpdateAvailable: Boolean;
 
 implementation
 
@@ -83,9 +87,9 @@ uses
   XMLIntf, XMLDoc, ActiveX, SyncObjs, DateUtils, IOUtils, Registry
 {$IFDEF EurekaLog}
   , Forms,
-  ExceptionLog7, EExceptionManager, ECallStack, EStackTracing, EClasses,
+  ExceptionLog7, EExceptionManager, ECallStack, EStackTracing,
   ETypes, EException, ESysInfo, EInfoFormat, EThreadsManager, EConsts,
-  EEvents, ELogBuilder, EFreeze,
+  EEvents, ELogBuilder, EFreeze, EDebugInfo,
   uSession,
   uBase,
   MySQLDB
@@ -107,6 +111,11 @@ begin
     raise EAssertionFailed.Create(Message) at ErrorAddr
   else
     raise EAssertionFailed.Create('Assertion failed') at ErrorAddr;
+end;
+
+function EncodeVersion(const AMajor, AMinor, APatch, ABuild: Integer): Integer;
+begin
+  Result := AMajor * 100000000 + AMinor * 1000000 + APatch * 10000 + ABuild;
 end;
 
 function CheckOnlineVersion(const Stream: TStringStream; var VersionStr: string;
@@ -156,7 +165,7 @@ begin
       end;
       if ((Major >= 0) and (Minor >= 0) and (Patch >= 0) and (Build >= 0)) then
       begin
-        OnlineVersion := EncodeVersion(Major, Minor, Patch, Build);
+        UpdateAvailable := EncodeVersion(Major, Minor, Patch, Build) > ProgramVersion;
         VersionStr := IntToStr(Major) + '.' + IntToStr(Minor) + '  (Build ' +
           IntToStr(Patch) + '.' + IntToStr(Build) + ')';
       end;
@@ -182,7 +191,10 @@ begin
           Build := StrToInt(Node.GetText());
       end;
       if ((Major >= 0) and (Minor >= 0) and (Patch >= 0) and (Build >= 0)) then
-        OnlineRecommendedVersion := EncodeVersion(Major, Minor, Patch, Build);
+      begin
+        OnlineVersion := EncodeVersion(Major, Minor, Patch, Build);
+        RecommendedUpdateAvailable := OnlineVersion > ProgramVersion;
+      end;
 
       Infos := PAD.ChildNodes.FindNode('Web_Info');
       if (Assigned(Node)) then
@@ -198,12 +210,7 @@ begin
     end;
   end;
 
-  Result := (OnlineVersion > 0) and (SetupProgramURI <> '');
-end;
-
-function EncodeVersion(const AMajor, AMinor, APatch, ABuild: Integer): Integer;
-begin
-  Result := AMajor * 100000000 + AMinor * 1000000 + APatch * 10000 + ABuild;
+  Result := (VersionStr <> '') and (SetupProgramURI <> '');
 end;
 
 function GetCompileTime(): TDateTime;
@@ -222,7 +229,43 @@ begin
       EncodeTime(wHour, wMinute, wSecond, wMilliseconds);
 end;
 
-procedure SendToDeveloper(const Text: string; const Days: Integer = 2;
+{$IFDEF EurekaLog}
+function LocationToStr(Location: TELLocationInfo): string;
+begin
+  if ((Location.ClassName <> '') and
+    (Location.ProcedureName <> '')) then
+    Result := Location.ClassName + '.' +
+      Location.ProcedureName
+  else if (Location.ClassName <> '') then
+    Result := Location.ClassName
+  else if (Location.ProcedureName <> '') then
+    Result := Location.ProcedureName
+  else
+    Result := '';
+  Result := ExtractFileName(Location.ModuleName) + '|' +
+    Location.UnitName + '|' + Result + '|' +
+    IntToStr(Location.LineNumber) + '[' +
+    IntToStr(Location.ProcOffsetLine) + ']';
+end;
+{$ENDIF}
+
+function ProcAddrToStr(const Proc: Pointer): string;
+{$IFDEF EurekaLog}
+var
+  DebugInfo: TEurekaDebugInfo;
+{$ENDIF}
+begin
+  {$IFNDEF EurekaLog}
+    Result := '';
+  {$ELSE}
+    if (not GetSourceInfoByAddr(Proc, DebugInfo)) then
+      Result := ''
+    else
+      Result := LocationToStr(DebugInfo.Location);
+  {$ENDIF}
+end;
+
+procedure SendToDeveloper(const Text: string; const Days: Integer = 1;
   const HideSource: Boolean = False);
 {$IFNDEF Debug}
 {$IFDEF EurekaLog}
@@ -264,24 +307,7 @@ begin
           Inc(Index);
         end;
         if (Assigned(Item) and (StackItem = 2)) then
-        begin
-          if ((Item^.Location.ClassName <> '') and
-            (Item^.Location.ProcedureName <> '')) then
-            Source := Item^.Location.ClassName + '.' +
-              Item^.Location.ProcedureName
-          else if (Item^.Location.ClassName <> '') then
-            Source := Item^.Location.ClassName
-          else if (Item^.Location.ProcedureName <> '') then
-            Source := Item^.Location.ProcedureName
-          else
-            Source := '';
-          Source := ExtractFileName(Item^.Location.ModuleName) + '|' +
-            Item^.Location.UnitName + '|' + Source + '|' +
-            IntToStr(Item^.Location.LineNumber) + '[' +
-            IntToStr(Item^.Location.ProcOffsetLine) + ']' + #13#10#13#10;
-
-          Body := Source + Body;
-        end
+          Body := Source + LocationToStr(Item^.Location) + #13#10#13#10 + Body
         else
         begin
           Body := Source + Body + #13#10
@@ -289,14 +315,7 @@ begin
             + 'Index:' + IntToStr(Index) + ', '
             + 'Count: ' + IntToStr(CallStack.Count) + #13#10#13#10;
           for I := 0 to CallStack.Count - 1 do
-          begin
-            Item := CallStack.GetItem(I, Buffer);
-            Body := Body
-              + ExtractFileName(Item^.Location.ModuleName) + '|' +
-                  Item^.Location.UnitName + '|' + Source + '|' +
-                  IntToStr(Item^.Location.LineNumber) + '[' +
-                  IntToStr(Item^.Location.ProcOffsetLine) + ']' + #13#10;
-          end;
+            Body := Body + LocationToStr(CallStack.GetItem(I, Buffer)^.Location) + #13#10;
         end;
       end;
     {$ENDIF}
@@ -1051,7 +1070,7 @@ begin
   end
   else
   begin
-    ShowDialog := (ProgramVersion >= OnlineVersion);
+    ShowDialog := not UpdateAvailable;
 
     if (not ShowDialog) then
     begin
@@ -1059,7 +1078,7 @@ begin
         ExceptionInfo.ExceptionMessage), 'Error',
         MB_OK + MB_ICONERROR);
 
-      if ((OnlineVersion > ProgramVersion) and
+      if (UpdateAvailable and
         (OnlineVersion > ObsoleteVersion)) then
         PostMessage(Application.MainFormHandle, UM_ONLINE_UPDATE_FOUND, 0, 0);
       if (ObsoleteVersion < ProgramVersion) then
@@ -1110,6 +1129,8 @@ initialization
   ObsoleteVersion := -1;
   OnlineVersion := -1;
   SendThreads := TList.Create();
+  RecommendedUpdateAvailable := False;
+  UpdateAvailable := False;
   UserPath := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(TPath.GetHomePath()) + SysUtils.LoadStr(1002));
 
   BufferSize := GetFileVersionInfoSize(PChar(ModuleFileName), Handle);
@@ -1136,12 +1157,13 @@ initialization
   begin
     if (Reg.ValueExists('LastUpdateCheck')) then
       LastUpdateCheck := Reg.ReadDateTime('LastUpdateCheck');
-    if (Reg.ValueExists('ObsoleteVersion')) then
+    if (Reg.ValueExists('ObsoleteVersion') and (Reg.ReadInteger('ObsoleteVersion') >= ProgramVersion)) then
       ObsoleteVersion := Reg.ReadInteger('ObsoleteVersion');
+    if (Reg.ValueExists('UpdateAvailable')) then
+      UpdateAvailable := Reg.ReadBool('UpdateAvailable');
     Reg.CloseKey();
   end;
   Reg.Free();
-
 finalization
 
   while (SendThreads.Count > 0) do
@@ -1164,6 +1186,10 @@ finalization
       Reg.WriteInteger('ObsoleteVersion', ObsoleteVersion)
     else if (Reg.ValueExists('ObsoleteVersion')) then
       Reg.DeleteValue('ObsoleteVersion');
+    if (UpdateAvailable) then
+      Reg.WriteBool('UpdateAvailable', UpdateAvailable)
+    else if (Reg.ValueExists('UpdateAvailable')) then
+      Reg.DeleteValue('UpdateAvailable');
     Reg.CloseKey();
   end;
   Reg.Free();

@@ -206,6 +206,7 @@ type
       constructor Create(const AConnection: TMySQLConnection);
       destructor Destroy(); override;
       property Connection: TMySQLConnection read FConnection;
+      property DebugState: TState read State; // Debug 2017-02-016
     end;
 
     TTerminatedThreads = class(TList)
@@ -2618,6 +2619,10 @@ begin
 
     if (StmtLength > 0) then
     begin
+	  // Debug 2017-02-16
+      Assert(Assigned(SyncThread));
+      Assert(Assigned(SyncThread.StmtLengths));
+
       SyncThread.StmtLengths.Add(Pointer(StmtLength));
       Inc(SQLIndex, StmtLength);
     end;
@@ -3411,6 +3416,7 @@ procedure TMySQLConnection.SyncExecuted(const SyncThread: TSyncThread);
 var
   CLStmt: TSQLCLStmt;
   Data: my_char;
+  DataSet: TMySQLQuery; // Debug 2017-02-16
   DataHandle: TDataHandle;
   Info: my_char;
   Len: Integer;
@@ -3500,7 +3506,6 @@ begin
     end;
   end;
 
-
   if (not Assigned(SyncThread.OnResult) or (KillThreadId > 0) and (SyncThread.Mode <> smResultHandle)) then
   begin
     if (KillThreadId > 0) then
@@ -3550,14 +3555,26 @@ begin
           raise Exception.Create('Query has not been handled: ' + SyncThread.CommandText)
         else
         begin
+          if (SyncThread.ErrorCode <> 0) then
+            DataSet := nil
+          else
+          begin
+            DataSet := TMySQLQuery.Create(nil);
+            DataSet.Open(DataHandle);
+          end;
+
           Log := 'Statement #' + IntToStr(SyncThread.StmtIndex + 1) + ' of ' + IntToStr(SyncThread.StmtLengths.Count) + ' has not been handled' + #13#10;
           for I := 0 to SyncThread.StmtLengths.Count - 1 do
             Log := Log + 'Statement #' + IntToStr(I + 1) + ' Length: ' + IntToStr(Integer(SyncThread.StmtLengths[I])) + #13#10;
           Log := Log + 'Statement #' + IntToStr(SyncThread.StmtIndex) + ' CommandText:' + #13#10
             + SyncThread.CommandText + #13#10;
-          Log := Log + 'State: ' + IntToStr(Ord(SyncThread.State)) + #13#10;
           Log := Log + 'ErrorCode: ' + IntToStr(SyncThread.ErrorCode) + #13#10;
-          Log := Log + 'SQL:' + #13#10
+          if (Assigned(DataSet) and DataSet.Active) then
+            Log := Log + 'FieldCount: ' + IntToStr(DataSet.FieldCount) + #13#10
+              + 'Field[0]: ' + DataSet.Fields[0].DisplayName;
+          Log := Log
+            + 'Proc: ' + ProcAddrToStr(@SyncThread.OnResult) + #13#10
+            + 'SQL:' + #13#10
             + SQLEscapeBin(SyncThread.SQL, True) + #13#10;
           raise Exception.Create(Log);
 
@@ -6985,12 +7002,12 @@ begin
 
   if (SQL <> '') then
   begin
+    ClearBuffers();
+    DataEvent(deDataSetChange, 0);
     Connection.BeginSynchron();
     Success := Connection.InternExecuteSQL(smDataSet, SQL);
     Connection.EndSynchron();
-    if (not Success) then
-      Close()
-    else
+    if (Success) then
       Connection.SyncBindDataSet(Self);
   end;
 end;

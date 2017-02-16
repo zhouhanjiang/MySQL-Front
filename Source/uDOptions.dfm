@@ -45,7 +45,7 @@ object DOptions: TDOptions
     Top = 8
     Width = 362
     Height = 345
-    ActivePage = TSHighlighter
+    ActivePage = TSView
     HotTrack = True
     MultiLine = True
     TabOrder = 0
@@ -142,6 +142,10 @@ object DOptions: TDOptions
     object TSBrowser: TTabSheet
       Caption = 'TSBrowser'
       OnResize = TSBrowserResize
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GGrid: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -301,6 +305,10 @@ object DOptions: TDOptions
     object TSEditor: TTabSheet
       Caption = 'TSEditor'
       OnResize = TSEditorResize
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GEditor: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -399,7 +407,7 @@ object DOptions: TDOptions
           Width = 41
           Height = 21
           TabOrder = 6
-          Text = '1.000'
+          Text = '1000'
         end
         object FEditorWordWrap: TCheckBox
           Left = 144
@@ -435,6 +443,10 @@ object DOptions: TDOptions
     object TSLog: TTabSheet
       Caption = 'TSLog'
       OnResize = TSLogResize
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GLog: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -544,6 +556,10 @@ object DOptions: TDOptions
     object TSHighlighter: TTabSheet
       Caption = 'TSHighlighter'
       OnShow = TSHighlighterShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GColors: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -691,40 +707,6 @@ object DOptions: TDOptions
           Height = 17
           TabOrder = 9
           Visible = False
-        end
-      end
-    end
-    object TSUpdates: TTabSheet
-      Caption = 'TSUpdates'
-      object GUpdates: TGroupBox_Ext
-        Left = 4
-        Top = 4
-        Width = 345
-        Height = 62
-        Caption = 'GUpdates'
-        TabOrder = 0
-        object FLUpdateCheck: TLabel
-          Left = 8
-          Top = 17
-          Width = 78
-          Height = 13
-          Caption = 'FLUpdateCheck'
-        end
-        object FUpdateCheckNever: TRadioButton
-          Left = 144
-          Top = 16
-          Width = 193
-          Height = 17
-          Caption = 'FUpdateCheckNever'
-          TabOrder = 0
-        end
-        object FUpdateCheckDaily: TRadioButton
-          Left = 144
-          Top = 36
-          Width = 193
-          Height = 17
-          Caption = 'FUpdateCheckDaily'
-          TabOrder = 1
         end
       end
     end

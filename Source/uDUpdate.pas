@@ -204,7 +204,7 @@ begin
   begin
     FVersionInfo.Caption := Preferences.LoadStr(663) + ': ' + VersionStr;
 
-    if (OnlineVersion <= ProgramVersion) then
+    if (not UpdateAvailable) then
     begin
       MsgBox(Preferences.LoadStr(507), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
       FBCancel.Click();

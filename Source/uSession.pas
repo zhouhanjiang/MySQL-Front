@@ -1681,7 +1681,6 @@ const
 
 var
   Sessions: TSSessions;
-  SessionProfile: TProfile;
 
 implementation {***************************************************************}
 
@@ -5516,6 +5515,12 @@ begin
 
   if (DataSet.FieldCount <= 2) then // SHOW [FULL] TABLES
   begin
+    // Debug 2017-02-16
+    Assert((Session.Connection.MySQLVersion < 50002) or Assigned(DataSet.FieldByName('Table_Type')),
+      'Field[0]:' + DataSet.Fields[0].DisplayName + #13#10
+      + 'SQL: ' + DataSet.CommandText + #13#10
+      + 'FieldCount: ' + IntToStr(DataSet.FieldCount));
+
     DeleteList := TList.Create();
     DeleteList.Assign(Self);
 
@@ -6478,6 +6483,11 @@ begin
   DeleteList.Assign(Self);
 
   if (not DataSet.IsEmpty()) then
+  begin
+    // Debug 2017-02-16
+    Assert(not UseInformationSchema or Assigned(DataSet.FieldByName('ROUTINE_SCHEMA')),
+      DataSet.Fields[0].DisplayName);
+
     repeat
       RoutineType := rtUnknown;
       if (not UseInformationSchema) then
@@ -6536,6 +6546,7 @@ begin
       // But in MySQL 5.7.14 the ROUTINE_DEFINITION does not escape strings
       // correctly like "'\\'". It will be shown as "'\'" ... and is not usable.
     until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('ROUTINE_SCHEMA').AsString, Database.Name) <> 0));
+  end;
 
   if (not Filtered) then
     while (DeleteList.Count > 0) do
@@ -12180,13 +12191,20 @@ end;
 procedure TSSession.DoSendEvent(const AEvent: TSSession.TEvent);
 var
   I: Integer;
+  Profile: TProfile;
 begin
-  ProfilingPoint(SessionProfile, 1);
+  CreateProfile(Profile);
 
   for I := 0 to Length(EventProcs) - 1 do
+  begin
+    ProfilingReset(Profile);
     EventProcs[I](AEvent);
+    if (ProfilingTime(Profile) > 1000) then
+      SendToDeveloper('Proc: ' + ProcAddrToStr(@EventProcs[I]) + #13#10
+        + ProfilingReport(Profile));
+  end;
 
-  ProfilingPoint(SessionProfile, 6);
+  CloseProfile(Profile);
 end;
 
 procedure TSSession.EmptyDatabases(const Databases: TList);
@@ -12547,13 +12565,16 @@ begin
               case (DDLStmt.DefinitionType) of
                 dtCreate:
                   begin
+                    ProfilingPoint(Profile, 1);
                     Table := Database.TableByName(DDLStmt.ObjectName);
+                    ProfilingPoint(Profile, 2);
                     if (Assigned(Table)) then
                       Table.Invalidate()
                     else if (DDLStmt.ObjectType = otTable) then
                       Database.Tables.Add(TSBaseTable.Create(Database.Tables, DDLStmt.ObjectName), True)
                     else
                       Database.Tables.Add(TSView.Create(Database.Tables, DDLStmt.ObjectName), True);
+                    ProfilingPoint(Profile, 3);
                   end;
                 dtRename:
                   if (SQLParseKeyword(Parse, 'RENAME')
@@ -12585,17 +12606,22 @@ begin
                       Database.Tables.Add(TSBaseTable.Create(Database.Tables, DDLStmt.ObjectName))
                     else
                     begin
+                      ProfilingPoint(Profile, 4);
                       Table.Invalidate();
+                      ProfilingPoint(Profile, 5);
                       if (Table is TSBaseTable) then
                       begin
                         SetString(SQL, Text, Len);
                         TSBaseTable(Table).ParseAlterTable(SQL);
                       end;
+                      ProfilingPoint(Profile, 6);
 
                       if (DDLStmt.NewDatabaseName <> '') then
                         Table.SetDatabase(Database);
+                      ProfilingPoint(Profile, 7);
                       if (DDLStmt.NewObjectName <> '') then
                         Table.Name := DDLStmt.NewObjectName;
+                      ProfilingPoint(Profile, 8);
                     end;
                   end;
                 dtDrop:
@@ -13001,8 +13027,6 @@ procedure TSSession.SendEvent(const EventType: TSSession.TEvent.TEventType; cons
 var
   Event: TEvent;
 begin
-  ProfilingReset(SessionProfile);
-
   Event := TEvent.Create(Self);
   Event.EventType := EventType;
   Event.Sender := Sender;
@@ -13010,11 +13034,6 @@ begin
   Event.Item := Item;
   DoSendEvent(Event);
   Event.Free();
-
-  if (ProfilingTime(SessionProfile) > 1000) then
-    SendToDeveloper('EventType: ' + IntToStr(Ord(EventType)) + ', '
-      + 'Receiver: ' + IntToStr(Length(EventProcs)) + #13#10
-      + ProfilingReport(SessionProfile));
 end;
 
 function TSSession.SendSQL(const SQL: string; const OnResult: TMySQLConnection.TResultEvent = nil): Boolean;
@@ -13243,7 +13262,8 @@ begin
       else if (SQLParseKeyword(Parse, 'GRANTS FOR')) then
       begin
         if (not DataSet.Active) then
-          Result := ErrorCode = ER_OPTION_PREVENTS_STATEMENT // The MySQL server is running with the --skip-grant-tables option
+          Result := (ErrorCode = ER_NONEXISTING_GRANT) // There is no such grant defined for user
+            or (ErrorCode = ER_OPTION_PREVENTS_STATEMENT) // The MySQL server is running with the --skip-grant-tables option
         else if (SQLParseKeyword(Parse, 'CURRENT_USER')) then
           Result := BuildUser(DataSet)
         else
@@ -13973,11 +13993,7 @@ end;
 
 initialization
   Sessions := TSSessions.Create();
-
-  CreateProfile(SessionProfile);
 finalization
-  CloseProfile(SessionProfile);
-
   Sessions.Free();
 end.
 

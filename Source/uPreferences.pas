@@ -346,7 +346,6 @@ type
 
     TToolbarTab = (ttObjects, ttBrowser, ttIDE, ttBuilder, ttDiagram, ttEditor, ttEditor2, ttEditor3, ttObjectSearch);
     TToolbarTabs = set of TToolbarTab;
-    TUpdateCheckType = (utNever, utDaily);
   private
     FImages: TImageList;
     FInternetAgent: string;
@@ -429,7 +428,6 @@ type
     View: TPView;
     Width: Integer;
     WindowState: TWindowState;
-    UpdateCheck: TUpdateCheckType;
     constructor Create();
     destructor Destroy(); override;
     function LoadStr(const Index: Integer; const Param1: string = ''; const Param2: string = ''; const Param3: string = ''): string; overload;
@@ -850,22 +848,6 @@ begin
   if (foMatchCase in FindOptions) then begin if (Result <> '') then Result := Result + ','; Result := Result + 'MatchCase'; end;
   if (foWholeValue in FindOptions) then begin if (Result <> '') then Result := Result + ','; Result := Result + 'WholeValue'; end;
   if (foRegExpr in FindOptions) then begin if (Result <> '') then Result := Result + ','; Result := Result + 'RegExpr'; end;
-end;
-
-function TryStrToUpdateCheck(const Str: string; var UpdateCheckType: TPPreferences.TUpdateCheckType): Boolean;
-begin
-  Result := True;
-  if (StrIComp(PChar(Str), 'Daily') = 0) then UpdateCheckType := utDaily
-  else if (StrIComp(PChar(Str), 'Never') = 0) then UpdateCheckType := utNever
-  else Result := False;
-end;
-
-function UpdateCheckToStr(const UpdateCheck: TPPreferences.TUpdateCheckType): string;
-begin
-  case (UpdateCheck) of
-    utDaily: Result := 'Daily';
-    else Result := 'Never';
-  end;
 end;
 
 function TryStrToRowType(const Str: string; var RowType: Integer): Boolean;
@@ -1984,7 +1966,6 @@ begin
   LanguageFilename := 'English.ini';
   TabsVisible := False;
   ToolbarTabs := [ttObjects, ttBrowser, ttEditor, ttObjectSearch];
-  UpdateCheck := utNever;
 
 
   SHGetFolderPath(0, CSIDL_PERSONAL, 0, 0, @Foldername);
@@ -2330,7 +2311,6 @@ begin
   if (Assigned(XMLNode(XML, 'toolbar/objectsearch')) and TryStrToBool(XMLNode(XML, 'toolbar/objectsearch').Attributes['visible'], Visible)) then
     if (Visible) then ToolbarTabs := ToolbarTabs + [ttObjectSearch] else ToolbarTabs := ToolbarTabs - [ttObjectSearch];
   if (Assigned(XMLNode(XML, 'top')) and TryStrToInt(XMLNode(XML, 'top').Text, Top)) then Top := Round(Top * Screen.PixelsPerInch / PixelsPerInch);
-  if (Assigned(XMLNode(XML, 'updates/check'))) then TryStrToUpdateCheck(XMLNode(XML, 'updates/check').Text, UpdateCheck);
   if (Assigned(XMLNode(XML, 'width')) and TryStrToInt(XMLNode(XML, 'width').Text, Width)) then Width := Round(Width * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'windowstate'))) then TryStrToWindowState(XMLNode(XML, 'windowstate').Text, WindowState);
 
@@ -2496,7 +2476,6 @@ begin
   XMLNode(XML, 'toolbar/editor3').Attributes['visible'] := ttEditor3 in ToolbarTabs;
   XMLNode(XML, 'toolbar/objectsearch').Attributes['visible'] := ttObjectSearch in ToolbarTabs;
   XMLNode(XML, 'top').Text := IntToStr(Top);
-  XMLNode(XML, 'updates/check').Text := UpdateCheckToStr(UpdateCheck);
 
   XMLNode(XML, 'width').Text := IntToStr(Width);
 

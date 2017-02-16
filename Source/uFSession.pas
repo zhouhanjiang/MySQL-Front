@@ -1,4 +1,4 @@
-unit uFSession;
+ï»¿unit uFSession;
 
 interface {********************************************************************}
 
@@ -3446,7 +3446,7 @@ begin
     FText.Text := ''
   else if (Window.ActiveControl = ActiveSynMemo) then
   begin
-    // ClearAll kann nicht mit Undo Rückgängig gemacht werden.
+    // ClearAll kann nicht mit Undo RÃ¼ckgÃ¤ngig gemacht werden.
     ActiveSynMemo.BeginUpdate();
     ActiveSynMemo.SelectAll();
     MainAction('aEDelete').Execute();
@@ -5061,8 +5061,13 @@ constructor TFSession.Create(const AOwner: TComponent; const AParent: TWinContro
 var
   Kind: TPAccount.TDesktop.TListViewKind;
   NonClientMetrics: TNonClientMetrics;
+  Profile: TProfile;
 begin
+  CreateProfile(Profile);
+
   inherited Create(AOwner);
+
+  ProfilingPoint(Profile, 1);
 
   ASession.Account.RegisterTab(Self);
 
@@ -5353,19 +5358,22 @@ begin
 
   FOffset.Constraints.MaxWidth := FOffset.Width;
 
+  ProfilingPoint(Profile, 2);
   Perform(UM_CHANGEPREFERENCES, 0, 0);
-  Window.Perform(CM_SYSFONTCHANGED, 0, 0);
+  ProfilingPoint(Profile, 3);
+  Perform(CM_SYSFONTCHANGED, 0, 0);
+  ProfilingPoint(Profile, 4);
 
   NonClientMetrics.cbSize := SizeOf(NonClientMetrics);
   if (SystemParametersInfo(SPI_GETNONCLIENTMETRICS, SizeOf(NonClientMetrics), @NonClientMetrics, 0)) then
     Window.ApplyWinAPIUpdates(Self, NonClientMetrics.lfStatusFont);
 
 
-  // Debug 2017-02-02
-  if (FObjectSearchStart.Enabled) then
-    raise ERangeError.Create(SRangeError);
-
   PostMessage(Handle, UM_POST_SHOW, 0, 0);
+
+  if (ProfilingTime(Profile) > 200) then
+    SendToDeveloper(ProfilingReport(Profile));
+  CloseProfile(Profile);
 end;
 
 procedure TFSession.CreateParams(var Params: TCreateParams);
@@ -8380,6 +8388,7 @@ end;
 procedure TFSession.FNavigatorUpdate(const Event: TSSession.TEvent);
 var
   LastChild: TTreeNode;
+  Profile: TProfile;
 
   procedure SetNodeBoldState(Node: TTreeNode; Value: Boolean);
   var
@@ -8421,7 +8430,7 @@ var
     Node: TTreeNode;
     Text: string;
   begin
-    ProfilingPoint(3);
+    ProfilingPoint(Profile, 3);
 
     Node := TTreeNode.Create(Parent.Owner);
     Node.Data := Data;
@@ -8432,7 +8441,7 @@ var
       Result := LastChild.GetNextSibling()
     else
     begin
-      ProfilingPoint(6);
+      ProfilingPoint(Profile, 4);
 
       Result := Parent.getFirstChild();
       while (Assigned(Result)) do
@@ -8442,7 +8451,7 @@ var
         Result := Result.getNextSibling();
       end;
 
-      ProfilingPoint(10);
+      ProfilingPoint(Profile, 5);
     end;
 
     Node.Free();
@@ -8479,7 +8488,7 @@ var
     if (Assigned(Result)) then
       SetNodeBoldState(Result, (Result.ImageIndex = iiKey) and TSKey(Result.Data).PrimaryKey or (Result.ImageIndex in [iiBaseField, iiVirtualField]) and TSTableField(Result.Data).InPrimaryKey);
 
-    ProfilingPoint(14);
+    ProfilingPoint(Profile, 6);
   end;
 
   function AddChild(const Parent: TTreeNode; const Data: TObject): TTreeNode;
@@ -8497,11 +8506,10 @@ var
     else
       raise ERangeError.Create(SRangeError);
 
-    ProfilingPoint(15);
-
+    ProfilingPoint(Profile, 7);
     Result := FNavigator.Items.AddChild(Parent, Text);
 
-    ProfilingPoint(16);
+    ProfilingPoint(Profile, 8);
 
     Result.Data := Data;
     Result.ImageIndex := ImageIndexByData(Data);
@@ -8509,12 +8517,12 @@ var
     if (Result.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiView, iiSystemView]) then
       Result.HasChildren := True;
 
-    ProfilingPoint(17);
+    ProfilingPoint(Profile, 9);
 
     if (Assigned(Result)) then
       SetNodeBoldState(Result, (Result.ImageIndex = iiKey) and TSKey(Result.Data).PrimaryKey or (Result.ImageIndex in [iiBaseField, iiVirtualField]) and TSTableField(Result.Data).InPrimaryKey);
 
-    ProfilingPoint(18);
+    ProfilingPoint(Profile, 10);
   end;
 
   procedure DeleteChild(const Child: TTreeNode);
@@ -8546,7 +8554,7 @@ var
     case (Event.EventType) of
       etItemsValid:
         begin
-          ProfilingPoint(1);
+          ProfilingPoint(Profile, 1);
 
           Child := Parent.getFirstChild();
           while (Assigned(Child)) do
@@ -8561,7 +8569,7 @@ var
               DeleteChild(Node);
             end;
 
-          ProfilingPoint(2);
+          ProfilingPoint(Profile, 1);
 
           Add := not Assigned(Parent.getFirstChild());
           for I := 0 to Items.Count - 1 do
@@ -8578,7 +8586,7 @@ var
                 LastChild := AddChild(Parent, Items[I]);
             end;
 
-          ProfilingPoint(21);
+          ProfilingPoint(Profile, 11);
         end;
       etItemCreated:
         if (GroupIDByImageIndex(ImageIndexByData(Event.Item)) = GroupID) then
@@ -8651,15 +8659,10 @@ var
   ExpandingEvent: TTVExpandingEvent;
   Node: TTreeNode;
   OldSelected: TTreeNode;
-  Table: TSTable;
-  Start: Int64;
-  Finish: Int64;
-  Frequency: Int64;
   S: string;
+  Table: TSTable;
 begin
-  if (not QueryPerformanceCounter(Start)) then Start := 0;
-  ProfilingReset();
-
+  CreateProfile(Profile);
   OldSelected := FNavigator.Selected;
 
   ChangingEvent := FNavigator.OnChanging; FNavigator.OnChanging := nil;
@@ -8759,17 +8762,17 @@ begin
     end;
   end;
 
-  ProfilingPoint(22);
+  ProfilingPoint(Profile, 12);
 
   FNavigator.OnChanging := ChangingEvent;
   FNavigator.OnChange := ChangeEvent;
 
-  ProfilingPoint(23);
+  ProfilingPoint(Profile, 13);
 
   if (FNavigator.Selected <> OldSelected) then
     SetTimer(Self.Handle, tiNavigator, 1, nil); // We're inside a Monitor call. So we can't call FNavigatorNodeChange2 directly
 
-  ProfilingPoint(24);
+  ProfilingPoint(Profile, 14);
 
   if (Assigned(FNavigatorNodeToExpand) and (FNavigatorNodeToExpand.Count > 0)) then
   begin
@@ -8780,24 +8783,22 @@ begin
     FNavigator.OnExpanding := ExpandingEvent;
   end;
 
-  if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
-    if ((Finish - Start) div Frequency > 1) then
-    begin
-      S := 'FNavigatorUpdate - '
-        + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', '
-        + 'Sender: ' + Event.Sender.ClassName + ', ';
-      if (Assigned(Event.Items)) then
-        S := S
-          + 'Items: ' + Event.Items.ClassName + ', '
-          + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
-      if (Event.Item is TSTable) then
-        S := S
-          + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
-      S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s' + #13#10;
-      S := S + ProfilingReport() + #13#10;
-      TimeMonitor.Append(S, ttDebug);
-    end;
-  ProfilingReset();
+  if (ProfilingTime(Profile) > 1000) then
+  begin
+    S := 'FNavigatorUpdate - '
+      + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', '
+      + 'Sender: ' + Event.Sender.ClassName + ', ';
+    if (Assigned(Event.Items)) then
+      S := S
+        + 'Items: ' + Event.Items.ClassName + ', '
+        + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
+    if (Event.Item is TSTable) then
+      S := S
+        + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
+    S := S + ProfilingReport(Profile) + #13#10;
+    TimeMonitor.Append(S, ttDebug);
+  end;
+  CloseProfile(Profile);
 end;
 
 procedure TFSession.FNavigatorChanged(Sender: TObject; const Node: TTreeNode);
@@ -9096,8 +9097,6 @@ begin
   // DROP TABLE `mixer`.`extranet`;
   // aDDeleteExecute - end - SBlob: True
 
-  ProfilingPoint(SessionProfile, 2);
-
   if (not (csDestroying in ComponentState)) then
     case (Event.EventType) of
       etItemsValid,
@@ -9119,8 +9118,6 @@ begin
   // Debug 2017-02-05
   Assert(Assigned(SBlob),
     'EventType: ' + IntToStr(Ord(Event.EventType)));
-
-  ProfilingPoint(SessionProfile, 5);
 end;
 
 procedure TFSession.FormResize(Sender: TObject);
@@ -11423,6 +11420,7 @@ procedure TFSession.ListViewUpdate(const Event: TSSession.TEvent; const ListView
 var
   Changes: Integer; // Debug 2017-02-04
   LastItem: TListItem;
+  Profile: TProfile;
   ReorderGroupIndex: Integer;
 
   function Compare(const Kind: TPAccount.TDesktop.TListViewKind; const Item1, Item2: TListItem): Integer;
@@ -11438,23 +11436,23 @@ var
   begin
     Assert(Item.Data = Data);
 
-    ProfilingPoint(14);
+    ProfilingPoint(Profile, 9);
 
     Item.SubItems.BeginUpdate();
-    ProfilingPoint(15);
+    ProfilingPoint(Profile, 10);
     Item.SubItems.Clear();
-    ProfilingPoint(16);
+    ProfilingPoint(Profile, 11);
 
     Item.GroupID := GroupID;
 
     // 3.2 seconds for 329 items
 
-    ProfilingPoint(17);
+    ProfilingPoint(Profile, 12);
     Item.ImageIndex := ImageIndexByData(Data);
 
     // 3.8 seconds for 329 items
 
-    ProfilingPoint(18);
+    ProfilingPoint(Profile, 13);
 
     if ((TObject(ListView.Tag) is TSItemSearch)
         and not (Data is TSProcess)
@@ -11841,11 +11839,11 @@ var
 
     // Event.Items.ClassType ???
 
-    ProfilingPoint(19);
+    ProfilingPoint(Profile, 14);
 
     Item.SubItems.EndUpdate();
 
-    ProfilingPoint(20);
+    ProfilingPoint(Profile, 15);
     Inc(Changes);
   end;
 
@@ -11857,7 +11855,7 @@ var
     Mid: Integer;
     Right: Integer;
   begin
-    ProfilingPoint(7);
+    ProfilingPoint(Profile, 4);
 
     if (Assigned(LastItem) and (LastItem.Index + 1 < ListView.Items.Count - 1) and (ListView.Items[LastItem.Index + 1].Data = Data))  then
       Index := LastItem.Index + 1
@@ -11883,7 +11881,7 @@ var
       Item.Free();
     end;
 
-    ProfilingPoint(11);
+    ProfilingPoint(Profile, 5);
 
     if (Index = ListView.Items.Count) then
     begin
@@ -11895,9 +11893,9 @@ var
       Result := ListView.Items.Insert(Index);
       Result.Data := Data;
       if (ReorderGroupIndex < 0) then
-        ReorderGroupIndex := Index + 1
+        ReorderGroupIndex := Index
       else
-        ReorderGroupIndex := Min(ReorderGroupIndex, Index + 1);
+        ReorderGroupIndex := Min(ReorderGroupIndex, Index);
     end
     else
     begin
@@ -11908,19 +11906,19 @@ var
         else
           ReorderGroupIndex := Min(ReorderGroupIndex, Index);
     end;
-    ProfilingPoint(12);
+    ProfilingPoint(Profile, 6);
 
     UpdateItem(Result, GroupID, Data);
   end;
 
   function AddItem(const GroupID: Integer; const Data: TObject): TListItem;
   begin
-    ProfilingPoint(12);
+    ProfilingPoint(Profile, 7);
     Result := ListView.Items.Add();
 
     Result.Data := Data;
 
-    ProfilingPoint(13);
+    ProfilingPoint(Profile, 8);
 
     UpdateItem(Result, GroupID, Data);
   end;
@@ -12018,6 +12016,8 @@ var
     case (Event.EventType) of
       etItemsValid:
         begin
+          ProfilingPoint(Profile, 2);
+
           Count := ListView.Items.Count;
           for I := 0 to ListView.Columns.Count - 1 do
             if (Count = 0) then
@@ -12028,6 +12028,8 @@ var
           for I := ListView.Items.Count - 1 downto 0 do
             if ((ListView.Items[I].GroupID = GroupID) and (SItems.IndexOf(ListView.Items[I].Data) < 0)) then
               ListView.Items.Delete(I);
+
+          ProfilingPoint(Profile, 3);
 
           Add := (ListView.Items.Count = 0) and (ListViewSortData[Kind].ColumnIndex = 0) and (ListViewSortData[Kind].Order = 1);
           for I := 0 to SItems.Count - 1 do
@@ -12099,22 +12101,22 @@ var
       etItemDeleted:
         if (GroupID = GroupIDByImageIndex(ImageIndexByData(Event.Item))) then
         begin
-          ProfilingPoint(21);
+          ProfilingPoint(Profile, 17);
           for I := ListView.Items.Count - 1 downto 0 do
             if (ListView.Items[I].Data = Event.Item) then
             begin
-              ProfilingPoint(22);
+              ProfilingPoint(Profile, 17);
               ListView.Items.Delete(I);
-              ProfilingPoint(23);
+              ProfilingPoint(Profile, 19);
               Inc(Changes);
               break;
             end;
 
-          ProfilingPoint(24);
+          ProfilingPoint(Profile, 20);
         end;
     end;
 
-    ProfilingPoint(25);
+    ProfilingPoint(Profile, 21);
 
     if ((ReorderGroupIndex >= 0) and ListView.GroupView) then
     begin
@@ -12129,7 +12131,7 @@ var
         end;
     end;
 
-    ProfilingPoint(26);
+    ProfilingPoint(Profile, 22);
 
     if (Event.EventType in [etItemsValid, etItemCreated, etItemDeleted]) then
       if (TObject(ListView.Tag) is TSItemSearch) then
@@ -12176,7 +12178,7 @@ var
             SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(22) + ' (' + IntToStr(Session.Variables.Count) + ')');
         end;
 
-    ProfilingPoint(27);
+    ProfilingPoint(Profile, 23);
   end;
 
   procedure UpdateQuickAccess();
@@ -12282,16 +12284,12 @@ var
   Count: Integer;
   I: Integer;
   Kind: TPAccount.TDesktop.TListViewKind;
-  Start: Int64;
-  Finish: Int64;
-  Frequency: Int64;
   S: string;
 begin
   if (Assigned(ListView)
     and (Assigned(Event.Items) or (Event.Sender is TSTable) or (Event.Sender is TSItemSearch))) then
   begin
-    if (not QueryPerformanceCounter(Start)) then Start := 0;
-    ProfilingReset();
+    CreateProfile(Profile);
 
     LastItem := nil;
     Changes := 0;
@@ -12304,7 +12302,7 @@ begin
 
     Kind := ColumnWidthKindByListView(ListView);
 
-    ProfilingPoint(5);
+    ProfilingPoint(Profile, 1);
 
     if (TObject(ListView.Tag) is TSSession) then
     begin
@@ -12370,31 +12368,29 @@ begin
     ListView.EnableAlign();
     ListView.Items.EndUpdate();
 
-    ProfilingPoint(28);
+    ProfilingPoint(Profile, 24);
 
     ListView.OnChanging := ChangingEvent;
 
     ListViewHeaderUpdate(ListView);
 
-    if ((Start > 0) and QueryPerformanceCounter(Finish) and QueryPerformanceFrequency(Frequency)) then
-      if ((Finish - Start) div Frequency > 1) then
-      begin
-        S := 'ListViewUpdate - '
-          + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
-        if (Assigned(Event.Items)) then
-          S := S
-            + 'Items: ' + Event.Items.ClassName + ', '
-            + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
-        if (Event.Item is TSTable) then
-          S := S
-            + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
-        S := S + 'Changes: ' + IntToStr(Changes) + ', ';
-        S := S + 'Time: ' + FormatFloat('#,##0.000', (Finish - Start) * 1000 div Frequency / 1000, FileFormatSettings) + ' s' + #13#10;
-        S := S + ProfilingReport() + #13#10;
-        TimeMonitor.Append(S, ttDebug);
-      end;
+    if (ProfilingTime(Profile) > 1000) then
+    begin
+      S := 'ListViewUpdate - '
+        + 'EventType: ' + IntToStr(Ord(Event.EventType)) + ', ';
+      if (Assigned(Event.Items)) then
+        S := S
+          + 'Items: ' + Event.Items.ClassName + ', '
+          + 'Count: ' + IntToStr(Event.Items.Count) + ', ';
+      if (Event.Item is TSTable) then
+        S := S
+          + 'FieldCount: ' + IntToStr(TSTable(Event.Item).Fields.Count) + ', ';
+      S := S + 'Changes: ' + IntToStr(Changes) + ', ';
+      S := S + ProfilingReport(Profile) + #13#10;
+      TimeMonitor.Append(S, ttDebug);
+    end;
 
-    ProfilingReset();
+    CloseProfile(Profile);
   end;
 
   Inc(ListViewUpdateCount);
@@ -13738,7 +13734,8 @@ begin
               begin
                 SourceTable := SourceDatabase.BaseTableByName(SourceURI.Table);
 
-                DExecutingSQL.Update := SourceTable.Update;
+                if (Assigned(SourceTable)) then
+                  DExecutingSQL.Update := SourceTable.Update;
                 if (not Assigned(SourceTable) or not SourceTable.Valid and not DExecutingSQL.Execute()) then
                   MessageBeep(MB_ICONERROR)
                 else
@@ -14805,16 +14802,12 @@ begin
 
   TempActiveControl := Window.ActiveControl;
 
-  ProfilingPoint(SessionProfile, 3);
-
   ListViewUpdateCount := 0;
   CreateProfile(Profile);
 
   if (Assigned(Event)) then
   begin
     ProfilingPoint(Profile, 1);
-
-    ProfilingReset();
 
     if (Event.EventType = etItemDeleted) then
     begin
@@ -14823,8 +14816,6 @@ begin
       if (Assigned(FNavigatorNodeToExpand) and (Event.Item = TObject(FNavigatorNodeToExpand.Data))) then
         FNavigatorNodeToExpand := nil;
     end;
-
-    ProfilingPoint(Profile, 2);
 
     if (Event.EventType in [etItemDeleted, etItemRenamed]) then
     begin
@@ -14871,32 +14862,19 @@ begin
       end;
     end;
 
-    ProfilingPoint(Profile, 3);
+    ProfilingPoint(Profile, 2);
 
     if (Event.Items is TSItemSearch) then
-    begin
-      ProfilingPoint(Profile, 4);
-
-      ListViewUpdate(Event, ObjectSearchListView);
-
-      ProfilingPoint(Profile, 5);
-    end
+      ListViewUpdate(Event, ObjectSearchListView)
     else if (Event.Items is TSQuickAccess) then
-    begin
-      ProfilingPoint(Profile, 6);
-
-      ListViewUpdate(Event, QuickAccessListView);
-
-      ProfilingPoint(Profile, 7);
-    end
+      ListViewUpdate(Event, QuickAccessListView)
     else
     begin
-      ProfilingPoint(Profile, 8);
-
+      ProfilingPoint(Profile, 3);
       if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemRenamed, etItemDeleted]) then
         FNavigatorUpdate(Event);
 
-      ProfilingPoint(Profile, 9);
+      ProfilingPoint(Profile, 4);
 
       if (Event.EventType in [etItemsValid, etItemValid, etItemCreated, etItemRenamed, etItemDeleted]) then
       begin
@@ -14953,12 +14931,10 @@ begin
           ListViewUpdate(Event, ObjectSearchListView);
       end;
 
-      ProfilingPoint(Profile, 10);
+      ProfilingPoint(Profile, 5);
 
       if ((Event.EventType = etItemValid)) then
       begin
-        ProfilingPoint(Profile, 11);
-
         if ((Event.Item is TSView) and Assigned(Desktop(TSView(Event.Item)).SynMemo)) then
           Desktop(TSView(Event.Item)).SynMemo.Text := TSView(Event.Item).Stmt + #13#10
         else if ((Event.Item is TSRoutine) and Assigned(Desktop(TSRoutine(Event.Item)).CreateSynMemo())) then
@@ -14978,24 +14954,16 @@ begin
           PContentChange(nil);
         end;
 
-        ProfilingPoint(Profile, 12);
-
         if ((View = vBrowser) and (Event.Item = CurrentData)) then
           Wanted.Update := UpdateAfterAddressChanged;
 
-        ProfilingPoint(Profile, 13);
-
         if ((View = vIDE) and ((Event.Item is TSView) or (Event.Item is TSFunction))) then
           PContentChange(nil);
-
-        ProfilingPoint(Profile, 14);
       end;
     end;
 
-    ProfilingPoint(Profile, 15);
+    ProfilingPoint(Profile, 6);
   end;
-
-  ProfilingPoint(Profile, 16);
 
   if (PContent.Visible and Assigned(TempActiveControl) and TempActiveControl.Visible) then
   begin
@@ -15005,12 +14973,8 @@ begin
       Window.ActiveControl := TempActiveControl;
   end;
 
-  ProfilingPoint(Profile, 17);
-
   // StatusBar should be refreshed, after all events applied.
   PostMessage(Handle, UM_STATUS_BAR_REFRESH, 0, 0);
-
-  ProfilingPoint(Profile, 18);
 
   if (Assigned(Event)
     and ((Event.EventType in [etItemCreated, etItemRenamed])
@@ -15018,8 +14982,6 @@ begin
     and (Screen.ActiveForm = Window)
     and Wanted.Nothing) then
     Wanted.Update := Session.Update;
-
-  ProfilingPoint(Profile, 19);
 
   if (ProfilingTime(Profile) > 1000) then
   begin
@@ -15038,8 +15000,6 @@ begin
     TimeMonitor.Append(S, ttDebug);
   end;
   CloseProfile(Profile);
-
-  ProfilingPoint(SessionProfile, 4);
 end;
 
 procedure TFSession.SetCurrentAddress(const AAddress: string);
@@ -16019,56 +15979,12 @@ begin
 
   if (not Table.DataSet.Active) then
   begin
-    // Debug 2017-01-05
-    if (not (TObject(Table) is TSTable)) then
-      try
-        raise ERangeError.Create('ClassType: ' + TObject(Table).ClassName);
-      except
-        raise ERangeError.Create(SRangeError);
-      end;
-
     if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).PrimaryKey)) then
       TSBaseTable(Table).PrimaryKey.GetSortDef(SortDef);
-
-    // Debug 2017-01-05
-    if (not (TObject(Table) is TSTable)) then
-      try
-        raise ERangeError.Create('ClassType: ' + TObject(Table).ClassName);
-      except
-        raise ERangeError.Create(SRangeError);
-      end;
-
     Table.DataSet.AfterOpen := Desktop(Table).DataSetAfterOpen;
-
-    // Debug 2017-01-05
-    if (not (TObject(Table) is TSTable)) then
-      try
-        raise ERangeError.Create('ClassType: ' + TObject(Table).ClassName);
-      except
-        raise ERangeError.Create(SRangeError);
-      end;
-
     Table.DataSet.AfterRefresh := Desktop(Table).DataSetAfterRefresh;
-
-    // Debug 2017-01-05
-    if (not (TObject(Table) is TSTable)) then
-      try
-        raise ERangeError.Create('ClassType: ' + TObject(Table).ClassName);
-      except
-        raise ERangeError.Create(SRangeError);
-      end;
-
     if (Table is TSView) then
       Table.DataSet.BeforeOpen := Desktop(TSView(Table)).DataSetBeforeOpen;
-
-    // Debug 2017-01-01
-    if (not (TObject(Table) is TSTable)) then
-      try
-        raise ERangeError.Create('ClassType: ' + TObject(Table).ClassName);
-      except
-        raise ERangeError.Create(SRangeError);
-      end;
-
     Table.Open(FilterSQL, QuickSearch, SortDef, Offset, Limit);
   end
   else

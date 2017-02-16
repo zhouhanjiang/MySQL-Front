@@ -444,7 +444,7 @@ implementation {***************************************************************}
 
 uses
   ShellApi, ShlObj, DBConsts, CommCtrl, StrUtils, ShLwApi, IniFiles, Themes,
-  Variants, WinINet, SysConst, Math, Zip,
+  Variants, WinINet, SysConst, Math, Zip, DateUtils,
   ODBCAPI,
   {$IFDEF EurekaLog}
   ESysInfo,
@@ -545,20 +545,20 @@ procedure TWWindow.aHSupportExecute(Sender: TObject);
 var
   CheckOnlineVersionThread: TCheckOnlineVersionThread;
 begin
-  if ((ObsoleteVersion < 0) and (OnlineVersion < 0)) then
+  if (not UpdateAvailable and (DateOf(LastUpdateCheck) < Today())) then
   begin
     CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
     CheckOnlineVersionThread.Execute();
     CheckOnlineVersionThread.Free();
   end;
 
-  if ((ObsoleteVersion < 0) or (OnlineVersion > ProgramVersion)) then
+  if (UpdateAvailable) then
   begin
     MsgBox('An update of ' + LoadStr(1000) + ' is available. Please install that update first.', Preferences.LoadStr(45), MB_OK or MB_ICONERROR);
     InformOnlineUpdateFound();
     exit;
   end
-  else if (OnlineVersion = 0) then
+  else if (DateOf(LastUpdateCheck) < Today()) then
     MsgBox('Can''t check, if you are using the latest update. Maybe an update of ' + LoadStr(1000) + ' is available...', Preferences.LoadStr(47), MB_OK + MB_ICONWARNING);
 
   DMail.Execute();
@@ -679,7 +679,7 @@ procedure TWWindow.ApplicationException(Sender: TObject; E: Exception);
 begin
   if (E.Message <> SRecordChanged) then
   begin
-    if ((OnlineVersion = 0) and InternetGetConnectedState(nil, 0)) then
+    if (not UpdateAvailable and InternetGetConnectedState(nil, 0)) then
       if (Assigned(CheckOnlineVersionThread)) then
         CheckOnlineVersionThread.WaitFor()
       else
@@ -691,7 +691,7 @@ begin
 
     MsgBox('Internal Program Error:' + #13#10 + E.Message, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
 
-    if ((OnlineVersion > ProgramVersion) and (OnlineVersion > ObsoleteVersion)) then
+    if (UpdateAvailable) then
       InformOnlineUpdateFound();
     if (ObsoleteVersion < ProgramVersion) then
       ObsoleteVersion := ProgramVersion;
@@ -1075,7 +1075,7 @@ end;
 
 procedure TWWindow.FormShow(Sender: TObject);
 begin
-  if ((((Preferences.UpdateCheck = utDaily) and (Trunc(LastUpdateCheck) < Date())) or (ObsoleteVersion >= ProgramVersion)) and InternetGetConnectedState(nil, 0)) then
+  if ((not UpdateAvailable and (DateOf(LastUpdateCheck) < Today()) or (ObsoleteVersion >= ProgramVersion)) and InternetGetConnectedState(nil, 0)) then
   begin
     CheckOnlineVersionThread := TCheckOnlineVersionThread.Create();
     CheckOnlineVersionThread.OnTerminate := OnlineVersionChecked;
@@ -1120,7 +1120,6 @@ end;
 
 procedure TWWindow.InformOnlineUpdateFound();
 begin
-  ObsoleteVersion := -1;
   if (MsgBox(Preferences.LoadStr(506) + #10#10 + Preferences.LoadStr(845), Preferences.LoadStr(43), MB_ICONQUESTION + MB_YESNOCANCEL) = ID_YES) then
     aHUpdate.Execute();
 end;
@@ -1148,8 +1147,8 @@ end;
 procedure TWWindow.OnlineVersionChecked(Sender: TObject);
 begin
   PostMessage(Handle, UM_TERMINATE, 0, 0);
-  if ((OnlineRecommendedVersion > ProgramVersion)
-    or (ObsoleteVersion > 0) and (OnlineVersion > ObsoleteVersion)) then
+  if (RecommendedUpdateAvailable
+    or (ObsoleteVersion > 0) and UpdateAvailable) then
     PostMessage(Handle, UM_ONLINE_UPDATE_FOUND, 0, 0);
 end;
 

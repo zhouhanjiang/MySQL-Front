@@ -747,6 +747,12 @@ begin
 
   MouseCapture := False;
 
+  // Debug 2017-02-16
+  // Check, if Link is valid...
+  if (Self is TWTable) then
+    for I := 0 to TWTable(Self).LinkPointCount - 1 do
+      TWTable(Self).LinkPoints[I].Link;
+
   inherited;
 
   Workbench.CalcRange(True);

@@ -4105,7 +4105,14 @@ begin
               end;
 
               if (DataTable and (Success <> daSuccess)) then
-                Session.Connection.CancelResultHandle(ResultHandle);
+                Session.Connection.CancelResultHandle(ResultHandle)
+              else
+              begin
+                // Debug 2017-02-16
+                Assert(not DataTable
+                  or not Assigned(ResultHandle.SyncThread)
+                  or (ResultHandle.SyncThread.DebugState <> ssResult));
+              end;
             end;
           end;
 
