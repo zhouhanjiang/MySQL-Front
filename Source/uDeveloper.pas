@@ -276,7 +276,6 @@ var
   Index: Integer;
   Item: PEurekaDebugInfo;
   StackItem: Integer;
-  Source: string;
 {$ENDIF}
 var
   Body: String;
@@ -307,10 +306,10 @@ begin
           Inc(Index);
         end;
         if (Assigned(Item) and (StackItem = 2)) then
-          Body := Source + LocationToStr(Item^.Location) + #13#10#13#10 + Body
+          Body := LocationToStr(CallStack.GetItem(StackItem - 1, Buffer)^.Location) + #13#10#13#10 + Body
         else
         begin
-          Body := Source + Body + #13#10
+          Body := Body + #13#10
             + 'StackItem: ' + IntToStr(StackItem) + ', '
             + 'Index:' + IntToStr(Index) + ', '
             + 'Count: ' + IntToStr(CallStack.Count) + #13#10#13#10;

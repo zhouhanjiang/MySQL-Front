@@ -5516,7 +5516,7 @@ begin
   if (DataSet.FieldCount <= 2) then // SHOW [FULL] TABLES
   begin
     // Debug 2017-02-16
-    Assert((Session.Connection.MySQLVersion < 50002) or Assigned(DataSet.FieldByName('Table_Type')),
+    Assert((Session.Connection.MySQLVersion < 50002) or Assigned(DataSet.FindField('Table_Type')),
       'Field[0]:' + DataSet.Fields[0].DisplayName + #13#10
       + 'SQL: ' + DataSet.CommandText + #13#10
       + 'FieldCount: ' + IntToStr(DataSet.FieldCount));

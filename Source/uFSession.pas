@@ -5371,7 +5371,7 @@ begin
 
   PostMessage(Handle, UM_POST_SHOW, 0, 0);
 
-  if (ProfilingTime(Profile) > 200) then
+  if (ProfilingTime(Profile) > 1000) then
     SendToDeveloper(ProfilingReport(Profile));
   CloseProfile(Profile);
 end;
