@@ -542,6 +542,8 @@ begin
 
         MOV EBX,0                        // Result
 
+        CMP ESI,0                        // No string?
+        JE Error                         // Yes!
         CMP ECX,0                        // Empty string?
         JE Error                         // Yes!
 
@@ -594,7 +596,7 @@ begin
         POP ESI
         POP ES
   end;
-  end;
+end;
 
 function CSVUnquote(const Quoted: PChar; const QuotedLength: Integer; const Unquoted: PChar; const UnquotedLength: Integer; const Quoter: Char = '"'): Integer;
 label

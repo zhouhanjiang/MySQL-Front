@@ -45,8 +45,6 @@ type
     procedure Close(); override;
     function ExecuteCommand(const Command: enum_server_command;
       const Bin: my_char; const Size: my_int; const Retry: Boolean): my_int; override;
-    function Open(const AType: TMYSQL_IO.TType; const AHost: RawByteString;
-      const APort, ATimeout: my_uint): Boolean; override;
     function Receive(var Buffer; const BytesToRead: my_uint): Boolean; override;
     function ReceiveExitText(out Text: RawByteString): Boolean; virtual;
     function Send(const Buffer; const BytesToWrite: my_uint): Boolean; override;
@@ -55,6 +53,7 @@ type
     destructor Destroy(); override;
     function get_host_info(): my_char; override;
     function options(option: enum_mysql_option; const arg: my_char): my_int; override;
+    function real_connect(host, user, passwd, db: my_char; port: my_uint; unix_socket: my_char; client_flag: my_uint): MySQLClient.MYSQL; override;
   end;
   TMYSQL = MYSQL;
 
@@ -63,13 +62,15 @@ function mysql_init(mysql: MYSQL): MYSQL; stdcall;
 implementation {***************************************************************}
 
 uses
-  SysUtils, Forms,
+  SysUtils, Forms, StrUtils, AnsiStrings,
   SQLUtils;
 
 const
-  RequiredMFVersion = 15;
+  OldMFVersions = [0..15, 17, 23..25];
 
 const
+  PROTOCOL_VERSION      = 10;
+
   HTTPTTUNNEL_ERRORS: array [0..11] of PChar = (
     'Unknown HTTP Tunnel error (# %d)',                                      {0}
     'HTTP Tunnel script (%s) is too old - please update',                    {1}
@@ -128,15 +129,12 @@ begin
     InternetCloseHandle(Handle);
   end;
 
-  if (Assigned(SendBuffer.Mem)) then
-  begin
-    FreeMem(SendBuffer.Mem);
-    ZeroMemory(@SendBuffer, SizeOf(SendBuffer));
-  end;
-
   SID := '';
 
   inherited;
+
+  if (Assigned(SendBuffer.Mem)) then
+    FreeBuffer(SendBuffer);
 end;
 
 constructor MYSQL.Create();
@@ -215,7 +213,7 @@ begin
       else
         ObjectName := ObjectName + '&SID=' + SID;
 
-    Flags := INTERNET_FLAG_NO_AUTO_REDIRECT or INTERNET_FLAG_NO_CACHE_WRITE or INTERNET_FLAG_NO_UI or INTERNET_FLAG_KEEP_CONNECTION;
+    Flags := INTERNET_FLAG_NO_AUTO_REDIRECT or INTERNET_FLAG_RESYNCHRONIZE or INTERNET_FLAG_NO_CACHE_WRITE or INTERNET_FLAG_NO_UI or INTERNET_FLAG_KEEP_CONNECTION;
     if (SID = '') then
       Flags := Flags or INTERNET_FLAG_NO_COOKIES;
     if (URLComponents.lpszScheme = 'https') then
@@ -294,7 +292,7 @@ begin
                     if (not ReceiveExitText(RBS)) then
                       Seterror(CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR - CR_HTTPTUNNEL_UNKNOWN_ERROR], [QueryInfo])))
                     else
-                      Seterror(CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE - CR_HTTPTUNNEL_UNKNOWN_ERROR], [ObjectName, string(RBS)])));
+                      Seterror(CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE - CR_HTTPTUNNEL_UNKNOWN_ERROR], [URL, string(RBS)])));
                 end;
               else
                 begin
@@ -337,112 +335,6 @@ begin
   Result := my_char(fhost_info);
 end;
 
-function MYSQL.Open(const AType: TMYSQL_IO.TType; const AHost: RawByteString;
-  const APort, ATimeout: my_uint): Boolean;
-var
-  Buffer: array [0..127] of Char;
-  Command: AnsiChar;
-  Index: DWord;
-  L: Longint;
-  ObjectName: string;
-  QueryInfo: array [0..2048] of Char;
-  RBS: RawByteString;
-  Size: DWord;
-begin
-  Result := AType = itTCPIP;
-  if (Result) then
-  begin
-    Handle := InternetOpen(PChar(Agent), INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);
-
-    if (not Assigned(Handle)) then
-      RaiseLastOSError()
-    else
-    begin
-      InternetSetStatusCallback(Handle, @InternetStatusCallback);
-
-      // Timeout seems not to work (Windows 7)
-      L := ftimeout * 1000;
-      InternetSetOption(Handle, INTERNET_OPTION_CONNECT_TIMEOUT, @L, SizeOf(L));
-
-      L := NET_WAIT_TIMEOUT * 1000;
-      InternetSetOption(Handle, INTERNET_OPTION_RECEIVE_TIMEOUT, @L, SizeOf(L));
-      L := NET_WRITE_TIMEOUT * 1000;
-      InternetSetOption(Handle, INTERNET_OPTION_SEND_TIMEOUT, @L, SizeOf(L));
-
-      repeat
-        Seterror(0);
-        if (Assigned(Connection)) then
-          InternetCloseHandle(Connection);
-
-        URLComponents.dwSchemeLength := INTERNET_MAX_SCHEME_LENGTH;
-        URLComponents.dwHostNameLength := INTERNET_MAX_HOST_NAME_LENGTH;
-        URLComponents.dwUserNameLength := INTERNET_MAX_USER_NAME_LENGTH;
-        URLComponents.dwPasswordLength := INTERNET_MAX_PASSWORD_LENGTH;
-        URLComponents.dwUrlPathLength := INTERNET_MAX_PATH_LENGTH;
-        URLComponents.dwExtraInfoLength := 256;
-        InternetCrackUrl(PChar(URL), Length(URL), ICU_DECODE, URLComponents);
-
-        Connection := InternetConnect(Handle, URLComponents.lpszHostName, URLComponents.nPort, URLComponents.lpszUserName, URLComponents.lpszPassword, INTERNET_SERVICE_HTTP, 0, Cardinal(Self));
-        if (not Assigned(Connection)) then
-          Seterror(CR_HTTPTUNNEL_CONN_ERROR, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_CONN_ERROR - CR_HTTPTUNNEL_UNKNOWN_ERROR], [URL, 0])))
-        else
-        begin
-          Direction := idWrite;
-
-          Command := AnsiChar(COM_CONNECT);
-          WritePacket(@Command, SizeOf(Command));
-          if (lstrcmpi(URLComponents.lpszHostName, PChar(string(AHost))) = 0) then
-            WritePacket(LOCAL_HOST)
-          else
-            WritePacket(RawByteString(AHost));
-          WritePacket(RawByteString(fuser));
-          WritePacket(RawByteString(fpasswd));
-          WritePacket(RawByteString(fdb));
-          WritePacket(RawByteString(fcharacter_set_name));
-          WritePacket(fport, 2);
-          WritePacket(fclient_capabilities, 4);
-          WritePacket(ftimeout, 2);
-          FlushPacketBuffers();
-
-          if (ExecuteHTTPRequest(True)) then
-          begin
-            StrPCopy(@Buffer, 'MF-Version'); Size := SizeOf(Buffer); Index := 0;
-            if (not HttpQueryInfo(Request, HTTP_QUERY_CUSTOM, @Buffer, Size, Index)) then
-              if (not ReceiveExitText(RBS)) then
-                Seterror(CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR - CR_HTTPTUNNEL_UNKNOWN_ERROR], [QueryInfo])))
-              else
-              begin
-                ObjectName := '';
-                if (URLComponents.dwUrlPathLength > 0) then
-                  ObjectName := ObjectName + URLComponents.lpszUrlPath;
-                if (URLComponents.dwExtraInfoLength > 0) then
-                  ObjectName := ObjectName + URLComponents.lpszExtraInfo;
-                Seterror(CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE - CR_HTTPTUNNEL_UNKNOWN_ERROR], [ObjectName, string(RBS)])));
-              end
-            else if ((StrToInt(StrPas(PChar(@Buffer))) < RequiredMFVersion) or (StrToInt(Buffer) = 17)) then
-              Seterror(CR_HTTPTUNNEL_OLD, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_OLD - CR_HTTPTUNNEL_UNKNOWN_ERROR], [URL])))
-            else
-            begin
-              Size := SizeOf(Buffer); Index := 0;
-
-              StrPCopy(@Buffer, 'MF-SID'); Size := SizeOf(Buffer); Index := 0;
-              if (HttpQueryInfo(Request, HTTP_QUERY_CUSTOM, @Buffer, Size, Index)) then
-                SID := PChar(@Buffer)
-              else
-                Seterror(CR_HTTPTUNNEL_UNKNOWN_SID, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_UNKNOWN_SID - CR_HTTPTUNNEL_UNKNOWN_ERROR], [])));
-
-              Direction := idRead;
-
-              IOType := TMYSQL_IO.TType(Integer(High(TMYSQL_IO.TType)) + 1);
-            end;
-          end;
-        end;
-      until (errno() <> CR_HTTPTUNNEL_REDIRECT);
-    end;
-
-    Result := errno() = 0;
-  end;
-end;
 
 function MYSQL.options(option: enum_mysql_option; const arg: my_char): my_int;
 begin
@@ -460,7 +352,7 @@ var
   EndingCommentLength: Integer;
   Packet: my_char;
   PacketLen: Integer;
-  SQL: PChar;
+  SQL: string;
   SQLIndex: Integer;
   SQLLen: Integer;
   SQLStmtLen: Integer;
@@ -478,18 +370,16 @@ begin
     GetMem(Packet, Size);
 
     SQLLen := MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, Bin, Size, nil, 0);
-
-    GetMem(SQL, SQLLen * SizeOf(SQL[0]));
-
-    MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, Bin, Size, SQL, SQLLen);
+    SetLength(SQL, SQLLen);
+    MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, Bin, Size, PChar(SQL), Length(SQL));
 
     SQLIndex := 0;
     while (SQLIndex < SQLLen) do
     begin
-      SQLStmtLen := SQLStmtLength(@SQL[SQLIndex], SQLLen - SQLIndex);
+      SQLStmtLen := SQLStmtLength(@PChar(SQL)[SQLIndex], SQLLen - SQLIndex);
 
-      StmtLen := SQLTrimStmt(@SQL[SQLIndex], SQLStmtLen, get_server_version(), StartingCommentLength, EndingCommentLength);
-      if ((StmtLen > 0) and (SQL[SQLIndex + StartingCommentLength + StmtLen - 1] = ';')) then
+      StmtLen := SQLTrimStmt(@PChar(SQL)[SQLIndex], SQLStmtLen, StartingCommentLength, EndingCommentLength);
+      if ((StmtLen > 0) and (SQL[SQLIndex + StartingCommentLength + StmtLen - 1 - 1] = ';')) then
       begin
         Inc(EndingCommentLength);
         Dec(StmtLen);
@@ -497,7 +387,7 @@ begin
 
       if (StmtLen > 0) then
       begin
-        PacketLen := WideCharToMultiByte(CodePage, 0, PChar(@SQL[SQLIndex + StartingCommentLength]), StmtLen, Packet, Size, nil, nil);
+        PacketLen := WideCharToMultiByte(CodePage, 0, PChar(@PChar(SQL)[SQLIndex + StartingCommentLength]), StmtLen, Packet, Size, nil, nil);
 
         if (GetPacketSize() > 0) then
           SetPacketPointer(1, PACKET_CURRENT);
@@ -508,7 +398,6 @@ begin
       Inc(SQLIndex, SQLStmtLen);
     end;
 
-    FreeMem(SQL);
     FreeMem(Packet);
   end
   else
@@ -524,6 +413,261 @@ begin
       Seterror(CR_SERVER_LOST);
     Result := 1;
   end;
+end;
+
+function MYSQL.real_connect(host, user, passwd, db: my_char; port: my_uint; unix_socket: my_char; client_flag: my_uint): MySQLClient.MYSQL;
+var
+  Buffer: array [0..127] of Char;
+  CharsetNr: my_uint;
+  Command: AnsiChar;
+  ErrorMessage: string;
+  I: Integer;
+  Index: DWord;
+  L: Longint;
+  Len: Integer;
+  ObjectName: string;
+  ProtocolVersion: my_int;
+  QueryInfo: array [0..2048] of Char;
+  RBS: RawByteString;
+  S: string;
+  Salt: RawByteString;
+  Size: DWord;
+begin
+  if (IOType <> itNone) then
+    Seterror(CR_ALREADY_CONNECTED)
+  else
+  begin
+    if (host = '') then
+      fhost := LOCAL_HOST
+    else
+      fhost := host;
+    fuser := user;
+    fpasswd := passwd;
+    fdb := db;
+    if (port = 0) then
+      fport := MYSQL_PORT
+    else
+      fport := port;
+    if (AnsiStrings.StrLen(unix_socket) > 0) then
+      Seterror(CR_SOCKET_CREATE_ERROR)
+    else
+    begin
+      fpipe_name := '';
+      CAPABILITIES := client_flag or CLIENT_CAPABILITIES or CLIENT_LONG_PASSWORD;
+      if (fdb = '') then
+        CAPABILITIES := CAPABILITIES and not CLIENT_CONNECT_WITH_DB;
+
+      Handle := InternetOpen(PChar(Agent), INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);
+
+      if (not Assigned(Handle)) then
+        RaiseLastOSError()
+      else
+      begin
+        InternetSetStatusCallback(Handle, @InternetStatusCallback);
+
+        // Timeout seems not to work (Windows 7)
+        L := ftimeout * 1000;
+        InternetSetOption(Handle, INTERNET_OPTION_CONNECT_TIMEOUT, @L, SizeOf(L));
+
+        L := NET_WAIT_TIMEOUT * 1000;
+        InternetSetOption(Handle, INTERNET_OPTION_RECEIVE_TIMEOUT, @L, SizeOf(L));
+        L := NET_WRITE_TIMEOUT * 1000;
+        InternetSetOption(Handle, INTERNET_OPTION_SEND_TIMEOUT, @L, SizeOf(L));
+
+        repeat
+          Seterror(0);
+          if (Assigned(Connection)) then
+            InternetCloseHandle(Connection);
+
+          URLComponents.dwSchemeLength := INTERNET_MAX_SCHEME_LENGTH;
+          URLComponents.dwHostNameLength := INTERNET_MAX_HOST_NAME_LENGTH;
+          URLComponents.dwUserNameLength := INTERNET_MAX_USER_NAME_LENGTH;
+          URLComponents.dwPasswordLength := INTERNET_MAX_PASSWORD_LENGTH;
+          URLComponents.dwUrlPathLength := INTERNET_MAX_PATH_LENGTH;
+          URLComponents.dwExtraInfoLength := 256;
+          if (not InternetCrackUrl(PChar(URL), Length(URL), ICU_DECODE, URLComponents)) then
+          begin
+            Len := FormatMessage(FORMAT_MESSAGE_FROM_HMODULE,
+              Pointer(GetModuleHandle('Wininet.dll')), GetLastError(), 0, @Buffer, Length(Buffer), nil);
+            while (Len > 0) and (CharInSet(Buffer[Len - 1], [#0..#32])) do Dec(Len);
+            SetString(ErrorMessage, Buffer, Len);
+            raise EConvertError.Create(ErrorMessage + #10 + 'URL: ' + URL);
+          end;
+
+          Connection := InternetConnect(Handle, URLComponents.lpszHostName, URLComponents.nPort, URLComponents.lpszUserName, URLComponents.lpszPassword, INTERNET_SERVICE_HTTP, 0, Cardinal(Self));
+          if (not Assigned(Connection)) then
+            Seterror(CR_HTTPTUNNEL_CONN_ERROR, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_CONN_ERROR - CR_HTTPTUNNEL_UNKNOWN_ERROR], [URL, 0])))
+          else
+          begin
+            Direction := idWrite;
+
+            Command := AnsiChar(COM_CONNECT);
+            WritePacket(@Command, SizeOf(Command));
+            if (lstrcmpi(URLComponents.lpszHostName, PChar(DecodeString(fhost))) = 0) then
+              WritePacket(LOCAL_HOST)
+            else
+              WritePacket(RawByteString(fhost));
+            WritePacket(RawByteString(fuser));
+            WritePacket(RawByteString(fpasswd));
+            WritePacket(RawByteString(fdb));
+            WritePacket(RawByteString(fcharacter_set_name));
+            WritePacket(fport, 2);
+            WritePacket(CAPABILITIES, 4);
+            WritePacket(ftimeout, 2);
+            FlushPacketBuffers();
+
+            if (ExecuteHTTPRequest(True)) then
+            begin
+              StrPCopy(@Buffer, 'MF-Version'); Size := SizeOf(Buffer); Index := 0;
+              if (not HttpQueryInfo(Request, HTTP_QUERY_CUSTOM, @Buffer, Size, Index)) then
+                if (not ReceiveExitText(RBS)) then
+                  Seterror(CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR, my_char(RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR - CR_HTTPTUNNEL_UNKNOWN_ERROR], [QueryInfo]))))
+                else
+                begin
+                  ObjectName := '';
+                  if (URLComponents.dwUrlPathLength > 0) then
+                    ObjectName := ObjectName + URLComponents.lpszUrlPath;
+                  if (URLComponents.dwExtraInfoLength > 0) then
+                    ObjectName := ObjectName + URLComponents.lpszExtraInfo;
+                  Seterror(CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE - CR_HTTPTUNNEL_UNKNOWN_ERROR], [ObjectName, string(RBS)])));
+                end
+              else if (StrToInt(StrPas(PChar(@Buffer))) in OldMFVersions) then
+                Seterror(CR_HTTPTUNNEL_OLD, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_OLD - CR_HTTPTUNNEL_UNKNOWN_ERROR], [URL])))
+              else
+              begin
+                Size := SizeOf(Buffer); Index := 0;
+
+                StrPCopy(@Buffer, 'MF-SID'); Size := SizeOf(Buffer); Index := 0;
+                if (HttpQueryInfo(Request, HTTP_QUERY_CUSTOM, @Buffer, Size, Index)) then
+                  SID := PChar(@Buffer)
+                else
+                  Seterror(CR_HTTPTUNNEL_UNKNOWN_SID, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_UNKNOWN_SID - CR_HTTPTUNNEL_UNKNOWN_ERROR], [])));
+
+                Direction := idRead;
+
+                IOType := TMYSQL_IO.TType(Integer(High(TMYSQL_IO.TType)) + 1);
+              end;
+
+              if (SetPacketPointer(1, PACKET_CURRENT) < 0) then
+                // errno() has been set by SetFilePointer()
+              else if (ServerError()) then
+                // errno() has been set by ServerError()
+              else if (not ReadPacket(ProtocolVersion, 1)) then
+                // errno() has been set by ReadFile()
+              else if (ProtocolVersion <> PROTOCOL_VERSION) then
+                Seterror(CR_VERSION_ERROR, EncodeString(Format(CLIENT_ERRORS[CR_VERSION_ERROR - CR_MIN_ERROR], [ProtocolVersion, PROTOCOL_VERSION])))
+              else
+              begin
+                ReadPacket(fserver_info);
+                ReadPacket(fthread_id, 4);
+                ReadPacket(Salt);
+                ReadPacket(SERVER_CAPABILITIES, 2);
+                ReadPacket(CharsetNr, 1);
+                ReadPacket(SERVER_STATUS, 2);
+
+                if ((SetPacketPointer(13, FILE_CURRENT) + 1 < GetPacketSize()) and ReadPacket(RBS)) then
+                  Salt := Salt + RBS
+                else if (get_server_version() <> 40100) then
+                  SERVER_CAPABILITIES := SERVER_CAPABILITIES and not CLIENT_SECURE_CONNECTION;
+
+                if (errno() = 0) then
+                begin
+                  S := DecodeString(fserver_info);
+                  if (Pos('-', S) > 0) then
+                    S := LeftStr(S, Pos('-', S) - 1);
+                  if ((Pos('.', S) = 0) or not TryStrToInt(LeftStr(S, Pos('.', S) - 1), I)) then
+                    fserver_version := 0
+                  else
+                  begin
+                    fserver_version := I * 10000;
+                    Delete(S, 1, Pos('.', S));
+                    if ((Pos('.', S) = 0) or not TryStrToInt(LeftStr(S, Pos('.', S) - 1), I)) then
+                      fserver_version := 0
+                    else
+                    begin
+                      fserver_version := fserver_version + my_uint(I) * 100;
+                      Delete(S, 1, Pos('.', S));
+                      TryStrToInt(S, I);
+                      fserver_version := fserver_version + my_uint(I);
+                    end;
+                  end;
+
+                  CAPABILITIES := CAPABILITIES and ($FFFF2481 or ($0000DB7E and SERVER_CAPABILITIES));
+                  if (get_server_version() < 40101) then
+                    CAPABILITIES := CAPABILITIES and $FFFFF
+                  else if ((SERVER_CAPABILITIES and CLIENT_RESERVED <> 0) and (get_server_version() < 50000)) then
+                    CAPABILITIES := CAPABILITIES or CLIENT_PROTOCOL_41 or CLIENT_RESERVED; //  CLIENT_PROTOCOL_41 has in some older 4.1.xx versions the value $04000 instead of $00200
+                  CAPABILITIES := CAPABILITIES and not CLIENT_SSL;
+
+                  if (fcharacter_set_name = '') then
+                  begin
+                    if (get_server_version() < 40101) then
+                      fcharacter_set_name := MySQL_Character_Sets[CharsetNr].CharsetName
+                    else
+                      for I := 0 to Length(MySQL_Collations) - 1 do
+                        if (MySQL_Collations[I].CharsetNr = CharsetNr) then
+                          fcharacter_set_name := MySQL_Collations[I].CharsetName;
+                  end
+                  else if (CAPABILITIES and CLIENT_PROTOCOL_41 <> 0) then
+                  begin
+                    CharsetNr := 0;
+
+                    for I := 0 to Length(MySQL_Collations) - 1 do
+                      if ((AnsiStrings.StrIComp(MySQL_Collations[I].CharsetName, PAnsiChar(fcharacter_set_name)) = 0) and MySQL_Collations[I].Default) then
+                      begin
+                        CharsetNr := MySQL_Collations[I].CharsetNr;
+                        fcharacter_set_name := MySQL_Collations[I].CharsetName;
+                      end;
+                    if (CharsetNr = 0) then
+                      Seterror(CR_CANT_READ_CHARSET, EncodeString(Format(CLIENT_ERRORS[CR_CANT_READ_CHARSET - CR_MIN_ERROR], [fcharacter_set_name])));
+                  end;
+                end;
+
+                if (errno() = 0) then
+                begin
+                  Direction := idWrite;
+                  SetPacketPointer(1, PACKET_CURRENT);
+                end;
+
+                if (errno() = 0) then
+                begin
+                  Direction := idRead;
+
+                  if (SetPacketPointer(1, PACKET_CURRENT) = 0) then
+                    if (GetPacketSize() = 0) then
+                      Seterror(CR_SERVER_HANDSHAKE_ERR)
+                    else if (not ServerError()) then
+                    begin
+                      SetPacketPointer(1, FILE_CURRENT); // $00
+                      ReadPacket(faffected_rows);
+                      ReadPacket(finsert_id);
+
+                      if (CAPABILITIES and CLIENT_PROTOCOL_41 <> 0) then
+                      begin
+                        ReadPacket(SERVER_STATUS, 2);
+                        ReadPacket(fwarning_count, 2);
+                      end
+                      else if (SERVER_CAPABILITIES and CLIENT_TRANSACTIONS <> 0) then
+                      begin
+                        ReadPacket(SERVER_STATUS, 2);
+                        fwarning_count := 0;
+                      end;
+
+                      UseCompression := CAPABILITIES and CLIENT_COMPRESS <> 0;
+                    end;
+                end;
+              end;
+            end;
+          end;
+        until (errno() <> CR_HTTPTUNNEL_REDIRECT);
+      end;
+    end;
+  end;
+
+  if (errno() <> 0) then
+    Result := nil
+  else
+    Result := Self;
 end;
 
 function MYSQL.Receive(var Buffer; const BytesToRead: my_uint): Boolean;
@@ -573,8 +717,7 @@ end;
 
 function MYSQL.Send(const Buffer; const BytesToWrite: my_uint): Boolean;
 begin
-  Result := (SendBuffer.Size + BytesToWrite <= SendBuffer.MemSize)
-    or ReallocBuffer(SendBuffer, SendBuffer.Size + BytesToWrite);
+  Result := ReallocBuffer(SendBuffer, SendBuffer.Size + BytesToWrite);
 
   if (Result) then
   begin

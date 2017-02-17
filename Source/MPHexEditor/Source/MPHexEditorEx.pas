@@ -191,7 +191,7 @@ unit MPHexEditorEx;
 interface
 
 uses
-  Windows, Messages, SysUtils, Classes, Controls, Forms,
+  Windows, Messages, SysUtils, Classes, Controls, Forms, UITypes, Types,
   MPHexEditor, ActiveX, Graphics, Printers,{$IFDEF DELPHI6UP}{$IFDEF USESTDACTIONS}StdActns, Clipbrd,{$ENDIF}{$ENDIF}
   ShlObj, Menus;
 

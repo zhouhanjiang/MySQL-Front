@@ -31,7 +31,8 @@ procedure Register();
 implementation {***************************************************************}
 
 uses
-  ComCtrls, RichEdit, Windows;
+  Windows, RichEdit,
+  ComCtrls;
 
 procedure Register();
 begin

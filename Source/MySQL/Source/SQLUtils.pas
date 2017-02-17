@@ -9,7 +9,7 @@ type
   TSQLStrings = array of string;
 
   TSQLCLStmt = packed record // must be "packed", since asm code address it as packed
-    CommandType: (ctDropDatabase, ctSetNames, ctSetCharacterSet, ctSetCharset, ctUse);
+    CommandType: (ctDropDatabase, ctSetNames, ctSetCharacterSet, ctSetCharset, ctShutdown, ctUse);
     ObjectName: string;
   end;
 
@@ -49,7 +49,6 @@ function SQLEscape(const Value: PChar; const ValueLen: Integer; const Escaped: P
 function SQLEscapeBin(const Data: PAnsiChar; const Len: Integer; const Escaped: PChar; const EscapedLen: Integer; const ODBCEncoding: Boolean): Integer; overload;
 function SQLEscapeBin(const Data: PAnsiChar; const Len: Integer; const ODBCEncoding: Boolean): string; overload;
 function SQLEscapeBin(const Value: string; const ODBCEncoding: Boolean): string; overload;
-function SQLParseBracketContent(var Handle: TSQLParse): string;
 function SQLParseCallStmt(const SQL: PChar; const Len: Integer; out ProcedureName: string; const Version: Integer): Boolean;
 function SQLParseChar(var Handle: TSQLParse; const Character: Char; const IncrementIndex: Boolean = True): Boolean; overload;
 function SQLParseCLStmt(out CLStmt: TSQLCLStmt; const SQL: PChar; const Len: Integer; const Version: Integer): Boolean;
@@ -66,9 +65,10 @@ function SQLSingleStmt(const SQL: string): Boolean;
 procedure SQLSplitValues(const Text: string; out Values: TSQLStrings);
 function SQLStmtLength(const SQL: PChar; const Length: Integer; const Delimited: PBoolean = nil): Integer;
 function SQLStmtToCaption(const SQL: string; const Len: Integer = 50): string;
-function SQLTrimStmt(const SQL: string; const Version: Integer): string; overload;
-function SQLTrimStmt(const SQL: string; const Index, Length: Integer; const Version: Integer; var StartingCommentLength, EndingCommentLength: Integer): Integer; overload; inline;
-function SQLTrimStmt(const SQL: PChar; const Length: Integer; const Version: Integer; out StartingCommentLength, EndingCommentLength: Integer): Integer; overload;
+function SQLTrimStmt(const SQL: string): string; overload;
+function SQLTrimStmt(const SQL: PChar; const Length: Integer): string; overload;
+function SQLTrimStmt(const SQL: string; const Index, Length: Integer; var StartingCommentLength, EndingCommentLength: Integer): Integer; overload; inline;
+function SQLTrimStmt(const SQL: PChar; const Length: Integer; out StartingCommentLength, EndingCommentLength: Integer): Integer; overload;
 function SQLUnescape(const Value: PAnsiChar): RawByteString; overload;
 function SQLUnescape(const Value: PChar; const ValueLen: Integer; const Unescaped: PChar; const UnescapedLen: Integer): Integer; overload;
 function SQLUnescape(const Value: string): string; overload;
@@ -77,10 +77,41 @@ function StrToUInt64(const S: string): UInt64;
 function TryStrToUInt64(const S: string; out Value: UInt64): Boolean;
 function UInt64ToStr(const Value: UInt64): string;
 
+type
+  TSQLBuffer = class
+  private
+    Buffer: record
+      Mem: PChar;
+      MemSize: Integer;
+      Write: PChar;
+    end;
+    function GetData(): Pointer; inline;
+    function GetLength(): Integer; inline;
+    function GetSize(): Integer; inline;
+    function GetText(): PChar; inline;
+    procedure Reallocate(const NeededLength: Integer);
+  public
+    procedure Clear();
+    constructor Create(const InitialLength: Integer);
+    procedure Delete(const Start: Integer; const Length: Integer);
+    destructor Destroy(); override;
+    function Read(): string;
+    procedure Write(const Text: PChar; const Length: Integer); overload;
+    procedure Write(const Text: string); overload; inline;
+    procedure WriteChar(const Char: Char);
+    procedure WriteData(const Data: PAnsiChar; const Length: Integer; const Quote: Boolean = False; const Quoter: Char = ''''); overload;
+    function WriteExternal(const Length: Integer): PChar;
+    procedure WriteText(const Text: PChar; const Length: Integer);
+    property Data: Pointer read GetData;
+    property Length: Integer read GetLength;
+    property Size: Integer read GetSize;
+    property Text: PChar read GetText;
+  end;
+
 implementation {***************************************************************}
 
 uses
-  RTLConsts, Classes, SysConst;
+  RTLConsts, Classes, SysConst, AnsiStrings;
 
 resourcestring
   SInvalidSQLText = 'Invalid SQL text near "%s".';
@@ -137,9 +168,11 @@ const
   KSetCharacterSet: PChar = 'SET CHARACTER SET';
   KSetCharset: PChar = 'SET CHARSET';
   KShow: PChar = 'SHOW';
+  KShutdown: PChar = 'SHUTDOWN';
   KSQLSecurityDefiner: PChar = 'SQL SECURITY DEFINER';
   KSQLSecurityInvoker: PChar = 'SQL SECURITY INVOKER';
   KTable: PChar = 'TABLE';
+  KThen: PChar = 'THEN';
   KTemporary: PChar = 'TEMPORARY';
   KTrigger: PChar = 'TRIGGER';
   KUpdate: PChar = 'UPDATE';
@@ -156,7 +189,7 @@ procedure MoveString();
 // ECX will be decremened of the string length
 // ZF if no string copied
 label
-  Quoted, Quoted1, QuotedL, QuotedL1, QuotedL2, QuotedLE,
+  Quoted, Quoted1, QuotedL, QuotedL1, QuotedL2, QuotedLE, QuotedLE2,
   Finish;
 asm
         PUSH EAX
@@ -189,24 +222,32 @@ asm
         JE QuotedL1                      // No!
         STOSW                            // Put character
       QuotedL1:
-
+        CMP ECX,1                        // Last character in SQL?
+        JE QuotedLE2                     // Yes!
         CMP AX,'\'                       // Character = Escaper?
-        JNE QuotedL2                     // No!
-        DEC ECX                          // Escaper handled
-        JZ Finish                        // No further characters left in SQL!
-        LODSW
-        CMP EDI,0                        // Store the string somewhere?
-        JE QuotedLE                      // No!
-        STOSW                            // Put character
-        JMP QuotedLE
-
-      QuotedL2:
-        CMP AX,DX                        // End of Quoted?
         JNE QuotedLE                     // No!
-        DEC ECX                          // Ignore Quoter
-        JMP Finish
-
+        MOV AX,[ESI]                     // Character after Escape
+        CMP AX,''''                      // "'"?
+        JE QuotedL2                      // Yes!
+        CMP AX,'"'                       // '"'?
+        JE QuotedL2                      // Yes!
+        ADD ESI,2                        // Step over escaped character
+        DEC ECX                          // One character handled
+        JZ Finish                        // End of SQL!
+        JMP QuotedLE
+      QuotedL2:
+        CMP AX,DX                        // Escaped Quoter?
+        JNE QuotedLE2                    // Yes!
       QuotedLE:
+        CMP AX,DX                        // End Quoter?
+        JNE QuotedLE2                    // No!
+        DEC ECX                          // End Quoter handled
+        JZ Finish                        // End of SQL!
+        CMP [ESI],DX                     // Second Quoter?
+        JNE Finish                       // No!
+        ADD ESI,2                        // Step over second Quoter
+        DEC ECX                          // One character handled
+      QuotedLE2:
         LOOP QuotedL
 
       Finish:
@@ -506,13 +547,12 @@ procedure UnescapeString();
 // EAX Updated quoted string length
 // EBX Updated needed length of text buffer
 // EDX Updated unused length of text buffer
-// ZF if no text buffer too small or unterminated string
+// ZF if no text buffer or text buffer too small or unterminated string
 label
-  StringL, String1, String2, String3, String4, String5, StringLE, StringLE2, StringE,
-  Hex, Hex1S, Hex1E, Hex2, Hex2C, Hex2S, HexE,
+  StringL, String1, String2, String3, String4, String5, String6, String7,
+  String8, String9, String10, String11, String12, String13, String14, String15,
+  String16, StringLE, StringLE2, StringE,
   Finish;
-const
-  HexDigits: PChar = 'FEDCBA9876543210';
 var
   Quoter: Char;
 asm
@@ -540,33 +580,118 @@ asm
         JNE StringLE                     // No!
         CMP ECX,1                        // Last character?
         JE StringE                       // Yes!
-        LODSW                            // Load next character from ESI
-        DEC ECX                          // Ignore Escaper
-        CMP AX,'0'                       // '\0'?
+        MOV BX,[ESI]                     // Character after "\"
+        CMP BX,'0'                       // "\0"?
         JNE String2                      // No!
+        ADD ESI,2                        // Step over Escaper
+        DEC ECX                          // Ignore Escaper
         MOV AX,0                         // replace with #0
         JMP StringLE
       String2:
-        CMP AX,'t'                       // '\t'?
+        CMP BX,''''                      // "\'"?
         JNE String3                      // No!
-        MOV AX,9                         // replace with Tabulator
+        ADD ESI,2                        // Step over Escaper
+        DEC ECX                          // Ignore Escaper
+        MOV AX,BX                        // replace with "'"
         JMP StringLE
       String3:
-        CMP AX,'n'                       // '\n'?
+        CMP BX,'"'                       // '\"'?
         JNE String4                      // No!
-        MOV AX,10                        // replace with NewLine
+        ADD ESI,2                        // Step over Escaper
+        DEC ECX                          // Ignore Escaper
+        MOV AX,BX                        // replace with '"'
         JMP StringLE
       String4:
-        CMP AX,'r'                       // '\r'?
+        CMP BX,'B'                       // "\B"?
         JNE String5                      // No!
-        MOV AX,13                        // replace with CarriageReturn
+        ADD ESI,2                        // Step over Escaper
+        DEC ECX                          // Ignore Escaper
+        MOV AX,8                         // replace with Backspace
         JMP StringLE
       String5:
-        CMP AX,'x'                       // '\x'?
+        CMP BX,'b'                       // "\b"?
+        JNE String6                      // No!
+        ADD ESI,2                        // Step over Escaper
+        DEC ECX                          // Ignore Escaper
+        MOV AX,8                         // replace with Backspace
+        JMP StringLE
+      String6:
+        CMP BX,'N'                       // "\N"?
+        JNE String7                      // No!
+        ADD ESI,2                        // Step over Escaper
+        DEC ECX                          // Ignore Escaper
+        MOV AX,10                        // replace with NewLine
+        JMP StringLE
+      String7:
+        CMP BX,'n'                       // "\n"?
+        JNE String8                      // No!
+        ADD ESI,2                        // Step over Escaper
+        DEC ECX                          // Ignore Escaper
+        MOV AX,10                        // replace with NewLine
+        JMP StringLE
+      String8:
+        CMP BX,'R'                       // "\R"?
+        JNE String9                      // No!
+        ADD ESI,2                        // Step over Escaper
+        DEC ECX                          // Ignore Escaper
+        MOV AX,13                        // replace with CarriadeReturn
+        JMP StringLE
+      String9:
+        CMP BX,'r'                       // "\r"?
+        JNE String10                     // No!
+        ADD ESI,2                        // Step over Escaper
+        DEC ECX                          // Ignore Escaper
+        MOV AX,13                        // replace with CarriadeReturn
+        JMP StringLE
+      String10:
+        CMP BX,'T'                       // "\T"?
+        JNE String11                     // No!
+        ADD ESI,2                        // Step over Escaper
+        DEC ECX                          // Ignore Escaper
+        MOV AX,9                         // replace with Tabulator
+        JMP StringLE
+      String11:
+        CMP BX,'t'                       // "\t"?
+        JNE String12                     // No!
+        ADD ESI,2                        // Step over Escaper
+        DEC ECX                          // Ignore Escaper
+        MOV AX,9                         // replace with Tabulator
+        JMP StringLE
+      String12:
+        CMP BX,'Z'                       // "\Z"?
+        JNE String13                     // No!
+        ADD ESI,2                        // Step over Escaper
+        DEC ECX                          // Ignore Escaper
+        MOV AX,26                        // replace with EOF
+        JMP StringLE
+      String13:
+        CMP BX,'z'                       // "\Z"?
+        JNE String14                     // No!
+        ADD ESI,2                        // Step over Escaper
+        DEC ECX                          // Ignore Escaper
+        MOV AX,26                        // replace with EOF
+        JMP StringLE
+      String14:
+        CMP BX,'\'                       // "\\"?
+        JNE String15                     // No!
+        ADD ESI,2                        // Step over Escaper
+        DEC ECX                          // Ignore Escaper
+        MOV AX,BX                        // replace with "\"
+        JMP StringLE
+      String15:
+        CMP BX,'%'                       // "\%"?
+        JNE String16                     // No!
+        ADD ESI,2                        // Step over Escaper
+        DEC ECX                          // Ignore Escaper
+        MOV AX,BX                        // replace with "%"
+        JMP StringLE
+      String16:
+        CMP BX,'_'                       // "\_"?
         JNE StringLE                     // No!
-        CMP ECX,3                        // Are there three character left in SQL?
-        JB StringLE                      // No!
-        CALL Hex
+        ADD ESI,2                        // Step over Escaper
+        DEC ECX                          // Ignore Escaper
+        MOV AX,BX                        // replace with "_"
+        JMP StringLE
       StringLE:
         INC EBX                          // One character needed in text buffer
         CMP EDI,0                        // Store the string somewhere?
@@ -576,7 +701,8 @@ asm
         STOSW                            // Store character in EDI
         DEC EDX                          // One character filled to text buffer
       StringLE2:
-        LOOP StringL                     // Loop for every character in SQL
+        DEC ECX
+        JNZ StringL                      // Loop for every character in SQL
       StringE:
         CMP ECX,0                        // All characters handled?
         JE Finish                        // Yes!
@@ -586,51 +712,11 @@ asm
 
       // -------------------
 
-      Hex:
-        MOV AX,[ESI]                     // Get high digit
-        CMP AX,'A'                       // character digit?
-        JB Hex1S                         // No!
-        AND AX,not $20                   // Upcase digit
-      Hex1S:
-        PUSH ECX
-        PUSH EDI
-        MOV EDI,Pointer(HexDigits)
-        MOV ECX,16                       // Length(HexDigits)
-        REPNE SCASW                      // Scan Digit
-        MOV EBX,ECX
-        POP EDI
-        POP ECX
-        JE Hex2                          // HexDigit!
-        MOV AX,'x'                       // Restore hex initiating character
-        JMP StringLE
-      Hex2:
-        MOV AX,[ESI + 2]                 // Get low digit
-        CMP AX,'A'                       // character digit?
-        JB Hex2S                         // No!
-        AND AX,not $20                   // Upcase digit
-      Hex2S:
-        PUSH ECX
-        PUSH EDI
-        MOV EDI,Pointer(HexDigits)
-        MOV ECX,16                       // Length(HexDigits)
-        REPNE SCASW                      // Find Digit
-        MOV EAX,ECX
-        POP EDI
-        POP ECX
-        JE HexE                          // HexDigit!
-        MOV AX,'x'                       // Restore hex initiating character
-        JMP StringLE
-      HexE:
-        SHL BX,4
-        ADD AX,BX
-        ADD ESI,4                        // Step over hex digits
-        SUB ECX,2                        // Ignore hex digits
-        RET
-
-      // -------------------
-
       Finish:
         MOV EAX,ECX
+
+      // ECX will be restored by POP of the Delphi compiler, since we use
+      // a local variable. Because of this, ECX will be returned in EAX.
 end;
 
 {******************************************************************************}
@@ -856,7 +942,8 @@ end;
 function SQLEscape(const Value: PChar; const ValueLen: Integer; const Escaped: PChar; const EscapedLen: Integer; const Quoter: Char = ''''): Integer; overload;
 label
   Start, StartE,
-  ValueStart, ValueL, Value2, Value3, Value4, Value5, Value6, Value7, Value8, ValueLE, ValueFinish,
+  ValueStart, ValueL, Value2, Value3, Value4, Value5, Value6, Value7, Value8,
+  ValueLE, ValueFinish,
   Error,
   Finish;
 begin
@@ -976,7 +1063,7 @@ begin
         JMP ValueLE
 
       Value7:
-        CMP AX,'\'                       // '\' ?
+        CMP AX,'\'                       // "\" ?
         JNE Value8                       // No!
         ADD EBX,2                        // 2 characters needed in Escaped
         CMP Escaped,0                    // Calculate length only?
@@ -1175,8 +1262,8 @@ begin
 
       // -------------------
 
+        MOV EAX,0                        // Clear high word
       BinL:
-        MOV EAX,0                        // Clear EAX since AX will be loaded, but be EAX used
         LODSW                            // Read byte
         AND AX,$00FF                     // Interpret value as binary
         PUSH EAX
@@ -1197,82 +1284,6 @@ begin
         POP ESI
         POP ES
     end;
-end;
-
-function SQLParseBracketContent(var Handle: TSQLParse): string;
-label
-  StringL, String2, StringE,
-  Finish;
-var
-  Len: Integer;
-begin
-  SetLength(Result, Handle.Len);
-
-    asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-        PUSH EBX
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-        MOV EBX,Handle
-        MOV ESI,[EBX + 0]                // Position in SQL
-        MOV ECX,[EBX + 4]                // Characters left in SQL
-        MOV EDX,[EBX + 8]                // MySQL version
-
-        MOV EAX,Result                   // Copy characters to Result
-        MOV EDI,[EAX]
-
-        MOV EBX,0                        // BracketDeep = 0
-
-      StringL:
-        CMP ECX,0                        // End of SQL?
-        JE Finish                        // Yes!
-        CALL MoveString                  // String in SQL?
-        JZ StringL                       // Yes!
-        CMP WORD PTR [ESI],'('           // Open Bracket?
-        JNE String2                      // Yes!
-        INC EBX                          // Additional Bracket
-        JMP StringE
-      String2:
-        CMP WORD PTR [ESI],')'           // Closing Bracket?
-        JNE StringE                      // No!
-        DEC EBX                          // Bracket Deep - 1
-        JNZ StringE                      // BracketDeep > 0!
-        LODSW                            // Load character from SQL
-        STOSW                            // Store WideChar into Result
-        DEC ECX                          // One character handled
-        CALL Trim                        // Trim SQL
-        JMP Finish
-      StringE:
-        LODSW                            // Load character from SQL
-        STOSW                            // Store WideChar into Result
-        DEC ECX                          // One character handled
-        JMP StringL
-
-      Finish:
-        MOV EBX,Handle
-        MOV [EBX + 0],ESI                // New Position in SQL
-        MOV [EBX + 4],ECX                // Characters left in SQL
-        MOV [EBX + 8],EDX                // MySQL version
-
-        MOV EAX,Result                   // Calculate new length of Result
-        MOV EAX,[EAX]
-        SUB EDI,EAX
-        SHR EDI,1                        // 2 Bytes = 1 character
-        MOV Len,EDI
-
-        POP EBX
-        POP EDI
-        POP ESI
-        POP ES
-    end;
-
-  SetLength(Result, Len);
-  Result := SysUtils.Trim(Copy(Result, 2, Length(Result) - 2));
 end;
 
 function SQLParseCallStmt(const SQL: PChar; const Len: Integer; out ProcedureName: string; const Version: Integer): Boolean;
@@ -1384,7 +1395,7 @@ end;
 
 function SQLParseCLStmt(out CLStmt: TSQLCLStmt; const SQL: PChar; const Len: Integer; const Version: Integer): Boolean;
 label
-  Commands, DropDatabase, DropSchema, SetNames, SetCharacterSet, SetCharset, Use,
+  Commands, DropDatabase, DropSchema, SetNames, SetCharacterSet, SetCharset, Shutdown, Use,
   Found, FoundL, FoundE,
   Finish, FinishE;
 var
@@ -1449,8 +1460,15 @@ begin
       SetCharset:
         MOV EAX,[KSetCharset]
         CALL CompareKeyword              // 'SET CHARSET'?
-        JNE Use                          // No!
+        JNE Shutdown                     // No!
         MOV BYTE PTR [EBX + 0],ctSetCharset
+        JMP Found
+
+      Shutdown:
+        MOV EAX,[KShutdown]
+        CALL CompareKeyword              // 'SHUTDOWN'?
+        JNE Use                          // No!
+        MOV BYTE PTR [EBX + 0],ctShutdown
         JMP Found
 
       Use:
@@ -1804,6 +1822,7 @@ begin
     DDLStmt.NewDatabaseName := '';
     Result := SQLParseObjectName(Parse, DDLStmt.NewDatabaseName, DDLStmt.NewObjectName);
   end;
+  Result := Result and (DDLStmt.ObjectName <> '');
 end;
 
 function SQLParseDMLStmt(out DMLStmt: TSQLDMLStmt; const SQL: PChar; const Len: Integer; const Version: Integer): Boolean;
@@ -1949,7 +1968,7 @@ end;
 
 function SQLParseEnd(const Handle: TSQLParse): Boolean;
 begin
-  Result := Handle.Len = 0;
+  Result := (Handle.Len = 0) or (Handle.Pos[0] = ';');
 end;
 
 function SQLParseGetIndex(const Handle: TSQLParse): Integer;
@@ -2019,20 +2038,23 @@ end;
 function SQLParseValue(var Handle: TSQLParse; const TrimAfterValue: Boolean = True): string;
 label
   StringL,
-  Quoted,
-  Unquoted, UnquotedL, Unquoted1, Unquoted2, UnquotedTerminatorsL, UnquotedC, UnquotedLE,
+  Quoted, QuotedE,
+  Unquoted, Unquoted1, Unquoted2, UnquotedTerminatorsL, UnquotedC, UnquotedLE,
   Finish, FinishE;
 const
-  Terminators: PChar = #9#10#13#32'",.:;=`'; // Characters, terminating the value
+  Terminators: PChar = #9#10#13#32'",-.:;=`'; // Characters, terminating the value
 var
   BracketDeep: Integer;
   Len: Integer;
+  OldPos: PChar;
 begin
   Len := Handle.Len;
   SetLength(Result, Len);
 
   if (Len > 0) then
   begin
+    OldPos := Handle.Pos;
+
     asm
         PUSH ES
         PUSH ESI
@@ -2064,10 +2086,7 @@ begin
         JE Quoted                        // Yes!
 
       Unquoted:
-      UnquotedL:
         MOV AX,[ESI]                     // Character in SQL
-        CMP AX,';'                       // End of SQL statement?
-        JE Finish                        // Yes!
 
         CALL MoveString                  // If quoted string: Copy it
         JE UnquotedLE                    // Quoted string!
@@ -2084,14 +2103,20 @@ begin
       Unquoted1:
         CMP AX,')'                       // End brackets?
         JNE Unquoted2                    // No!
-        CMP BracketDeep,0                // Are we inside an open brackt?
+        CMP BracketDeep,0                // Are we inside an brackts?
         JE Finish                        // No!
         DEC BracketDeep                  // Close bracket
-        JNZ UnquotedC                    // We're still in open brackets!
+        JNZ UnquotedC                    // We're still inside brackets!
         MOVSW                            // Copy closing bracket to Result
         JMP Finish
 
       Unquoted2:
+        CMP BracketDeep,0                // Are we inside an brackts?
+        JNE UnquotedC                    // Yes!
+
+        CMP AX,';'                       // End of SQL statement?
+        JE Finish                        // Yes!
+
         MOV EBX,Handle
         CMP ECX,[EBX + 4]                // First character?
         JE UnquotedC                     // Yes!
@@ -2108,21 +2133,24 @@ begin
       UnquotedC:
         MOVSW                            // Copy character from SQL to Result
       UnquotedLE:
-        LOOP UnquotedL
+        LOOP StringL
         JMP Finish
 
       // -------------------
 
       Quoted:
-        MOV EBX,0
         CALL UnescapeString              // Unquote and unescape string
         MOV ECX,EAX
         JECXZ Finish                     // End of SQL!
         CMP WORD PTR [ESI],'@'           // '@' in SQL?
-        JNE Finish                       // No!
+        JNE QuotedE                      // No!
         MOVSW                            // Copy '@' from SQL to Result
         DEC ECX                          // '@' handled
         JMP StringL
+      QuotedE:
+        CMP BracketDeep,0                // Are we inside an brackts?
+        JNE StringL                      // Yes!
+        JMP Finish
 
       // -------------------
 
@@ -2151,6 +2179,10 @@ begin
         POP ES
     end;
 
+    if ((Handle.Pos = OldPos) and (Handle.Len > 0) and (Handle.Pos[0] <> ';')) then
+      raise ERangeError.Create('Empty Value' + #13#10
+        + StrPas(Handle.Start));
+
     if (Len <> Length(Result)) then
       SetLength(Result, Len);
   end;
@@ -2159,7 +2191,7 @@ end;
 function SQLParseValue(var Handle: TSQLParse; const Value: PChar; const TrimAfterValue: Boolean = True): Boolean;
 label
   StringL,
-  Quoted,
+  Quoted, QuotedE,
   Unquoted, UnquotedL, Unquoted1, Unquoted2, UnquotedTerminatorsL, UnquotedC, UnquotedLE,
   Compare,
   Found,
@@ -2220,8 +2252,6 @@ begin
       Unquoted:
       UnquotedL:
         MOV AX,[ESI]                     // Character in SQL
-        CMP AX,';'                       // End of SQL statement?
-        JE Compare                       // Yes!
 
         CALL MoveString                  // If quoted string: Copy it
         JE UnquotedLE                    // Quoted string!
@@ -2246,6 +2276,12 @@ begin
         JMP Compare
 
       Unquoted2:
+        CMP BracketDeep,0                // Are we inside an brackts?
+        JNE UnquotedC                    // Yes!
+
+        CMP AX,';'                       // End of SQL statement?
+        JE Compare                       // Yes!
+
         MOV EBX,Handle
         CMP ECX,[EBX + 4]                // First character?
         JE UnquotedC                     // Yes!
@@ -2268,15 +2304,18 @@ begin
       // -------------------
 
       Quoted:
-        MOV EBX,0
         CALL UnescapeString              // Unquote and unescape string
         MOV ECX,EAX
         JECXZ Compare                    // End of SQL!
         CMP WORD PTR [ESI],'@'           // '@' in SQL?
-        JNE Compare                      // No!
+        JNE QuotedE                      // No!
         MOVSW                            // Copy '@' from SQL to Result
         DEC ECX                          // '@' handled
         JMP StringL
+      QuotedE:
+        CMP BracketDeep,0                // Are we inside an brackts?
+        JNE StringL                      // Yes!
+        JMP Compare
 
       // -------------------
 
@@ -2495,11 +2534,12 @@ function SQLStmtLength(const SQL: PChar; const Length: Integer; const Delimited:
 label
   Start, StartCase, StartIf, StartLoop, StartRepeat, StartWhile, StartCompound,
   SimpelStmtL, SimpelStmtLE,
-  Body, BodyL, BodyCase, BodyIf, BodyIf2, BodyIf3, BodyLoop, BodyRepeat, BodyWhile, BodyEnd,
+  Body, BodyL, BodyCase, BodyIf, BodyIf2, BodyIf3, BodyIfFunc, BodyLoop, BodyRepeat, BodyWhile, BodyEnd,
   BodyChar, BodyCharTL, BodyCharE,
-  BodyEndCase, BodyEndIf, BodyEndLoop, BodyEndRepeat, BodyEndWhile, BodyEndCompound, BodyLE,
-  BodyBracket, BodyBracketL, BodyBracketLE,
-  Complete, Complete2, Complete3, Complete4,
+  BodyEndCase, BodyEndIf, BodyEndLoop, BodyEndRepeat, BodyEndWhile, BodyEndCompound, BodyEndCaseOp, BodyLE,
+  BodyBracket,
+  BracketArea, BracketAreaL, BracketAreaE,
+  Complete, Complete2, Complete3, Complete4, CompleteE,
   Finish;
 const
   Terminators: PChar = #9#10#13#32'"''(),.:;=`'; // Characters terminating the identifier
@@ -2509,10 +2549,11 @@ var
   CompoundDeep: Integer;
   IfDeep: Integer;
   LoopDeep: Integer;
+  Pos: PChar;
   RepeatDeep: Integer;
   WhileDeep: Integer;
 begin
-  if (Length = 0) then
+  if (not Assigned(SQL) or (Length = 0)) then
   begin
     Result := 0;
     if (Assigned(Delimited)) then
@@ -2530,8 +2571,6 @@ begin
 
         MOV ESI,SQL                      // ESI := SQL
         MOV ECX,Length
-
-        PUSH ESI
 
         MOV EDI,0                        // Don't copy inside MoveString
         MOV EDX,$7FFFFFFF                // Enclose all condional MySQL code
@@ -2552,6 +2591,7 @@ begin
         MOV RepeatDeep,0
         MOV WhileDeep,0
 
+        MOV Pos,ESI
         CALL Trim                        // Ignore empty characters
         CMP ECX,0                        // End of SQL?
         JE Finish                        // Yes!
@@ -2601,8 +2641,8 @@ begin
       // -------------------
 
       SimpelStmtL:
+        MOV Pos,ESI
         CALL Trim                        // Empty characters?
-        JE SimpelStmtLE                  // Yes!
         CMP ECX,0                        // All characters handled?
         JZ Finish                        // Yes!
         CALL MoveString                  // Quoted string?
@@ -2617,7 +2657,8 @@ begin
       // -------------------
 
       Body:
-        CALL Trim                        // Empty characters?
+        MOV Pos,ESI
+        CALL Trim                        // Step over empty characters
         CMP ECX,0                        // End of SQL?
         JE Finish                        // Yes!
         MOV EAX,[KTable]
@@ -2628,8 +2669,10 @@ begin
         JE SimpelStmtL                   // Yes!
 
       BodyL:
-        CALL Trim                        // Empty characters?
-        JE BodyLE                        // Yes!
+        MOV Pos,ESI
+        CALL Trim                        // Step over empty characters
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
         CALL MoveString                  // Quoted string?
         JE BodyLE                        // Yes!
         MOV EAX,[KBegin]
@@ -2641,9 +2684,10 @@ begin
         MOV EAX,[KCase]
         CALL CompareKeyword              // 'CASE'?
         JNE BodyIf                       // No!
-        CALL Trim                        // Empty characters?
-        CMP ECX,0                        // All characters handled?
-        JZ Finish                        // Yes!
+        MOV Pos,ESI
+        CALL Trim                        // Step over empty characters
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
         CMP WORD PTR [ESI],'('           // CASE as function?
         JE BodyLE                        // Yes!
         INC CaseDeep
@@ -2652,11 +2696,12 @@ begin
         MOV EAX,[KIf]
         CALL CompareKeyword              // 'IF'?
         JNE BodyLoop                     // No!
-        CALL Trim                        // Empty characters?
-        CMP ECX,0                        // All characters handled?
-        JZ Finish                        // Yes!
+        MOV Pos,ESI
+        CALL Trim                        // Step over empty characters
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
         CMP WORD PTR [ESI],'('           // IF as function?
-        JE BodyLE                        // Yes!
+        JE BodyIfFunc                    // Yes!
         PUSH ESI
         PUSH ECX
         MOV EAX,[KNot]
@@ -2675,6 +2720,18 @@ begin
         POP ECX
         POP ESI
         JE BodyLE
+        INC IfDeep
+        JMP BodyLE
+      BodyIfFunc:
+        LODSW                            // Character -> AX
+        CALL BracketArea
+        MOV Pos,ESI
+        CALL Trim                        // Step over empty characters
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
+        MOV EAX,[KThen]
+        CALL CompareKeyword              // 'THEN'?
+        JNE BodyLE                       // No!
         INC IfDeep
         JMP BodyLE
       BodyLoop:
@@ -2699,9 +2756,10 @@ begin
         MOV EAX,[KEnd]
         CALL CompareKeyword              // 'END'?
         JNE BodyChar                     // No!
-        CALL Trim                        // Empty characters?
-        CMP ECX,0                        // All characters handled?
-        JZ Finish                        // Yes!
+        MOV Pos,ESI
+        CALL Trim                        // Step over empty characters
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
       BodyEndCase:
         MOV EAX,[KCase]
         CALL CompareKeyword              // 'END CASE'?
@@ -2742,17 +2800,23 @@ begin
         JE BodyLE
         DEC WhileDeep
         JMP BodyLE
-      BodyEndCompound:                   // 'END'
-        CMP CompoundDeep,0
-        JE BodyLE
+      BodyEndCompound:                   // 'END'?
+        CMP CompoundDeep,0               // No!
+        JE BodyEndCaseOp
         DEC CompoundDeep
+        JMP BodyLE
+      BodyEndCaseOp:
+        CMP CaseDeep,0                   // 'END' inside a CASE Op?
+        JE BodyLE                        // No!
+        DEC CaseDeep
         JMP BodyLE
 
       BodyChar:
+        MOV Pos,ESI
+        CALL Trim                        // Empty characters?
+        JE BodyCharE                     // Yes!
         CMP ECX,0                        // All characters handled?
         JZ Finish                        // Yes!
-        CALL Trim                        // Empty characters?
-        JE BodyLE                        // Yes!
         CALL MoveString                  // Quoted string?
         JE BodyLE                        // Yes!
         LODSW                            // Character -> AX
@@ -2764,7 +2828,7 @@ begin
         CMP WORD PTR [EBX],0             // All terminators checked?
         JE BodyChar                      // Yes!
         CMP AX,[EBX]                     // Charcter in SQL = Terminator?
-        JE BodyCharE                    // Yes!
+        JE BodyCharE                     // Yes!
         ADD EBX,2                        // Next terminator
         JMP BodyCharTL
       BodyCharE:
@@ -2785,28 +2849,34 @@ begin
         JMP Complete
 
       BodyBracket:
+        CALL BracketArea
+
+      BodyLE:
+        CMP ECX,0                        // All characters handled?
+        JE Finish                        // Yes!
+        JMP BodyL
+
+      // -------------------
+
+      BracketArea:
         INC BracketDeep                  // One open bracket found
-      BodyBracketL:
+      BracketAreaL:
         CALL Trim                        // Step over empty characters
         CMP ECX,0                        // All characters handled?
         JZ BodyLE                        // Yes!
         CALL MoveString                  // Step over quoted string
         CMP ECX,0                        // All characters handled?
-        JZ BodyLE                        // Yes!
+        JZ BracketAreaE                  // Yes!
         LODSW                            // Character -> AX
         DEC ECX                          // One character handled
         CMP AX,'('                       // Another open bracket?
-        JE BodyBracket                   // Yes!
+        JE BracketArea                   // Yes!
         CMP AX,')'                       // Closing bracket?
-        JNE BodyBracketL                 // No!
+        JNE BracketAreaL                 // No!
         DEC BracketDeep                  // One bracket closed
-        CMP BracketDeep,0                // All brackets are closed?
-        JNE BodyBracketL                 // No!
-
-      BodyLE:
-        CMP ECX,0                        // All characters handled?
-        JNZ BodyL                        // No!
-        JMP Finish
+        JNZ BracketAreaL                 // Furhter brackets open!
+      BracketAreaE:
+        RET
 
       // -------------------
 
@@ -2824,30 +2894,33 @@ begin
         JNE Complete3                    // No!
         ADD ESI,4                        // Step over CarriageReturn + LineFeed
         SUB ECX,2                        // Ignore CarriageReturn + LineFeed
-        JMP Finish
+        JMP CompleteE
 
       Complete3:
         CMP ECX,1                        // Is there one characters left in SQL?
-        JL Finish                        // No!
+        JL CompleteE                     // No!
         MOV AX,[ESI]
         CMP AX,13                        // Ending CarriageReturn?
         JE Complete4                     // Yes!
         CMP AX,10                        // Ending LineFeed?
         JE Complete4                     // Yes!
-        JMP Finish
+        JMP CompleteE
 
       Complete4:
         ADD ESI,2                        // Step over CarriageReturn / LineFeed
         DEC ECX                          // Ignore CarriageReturn / LineFeed
-        JMP Finish
+        JMP CompleteE
+
+      CompleteE:
+        MOV Pos,ESI
 
       // -------------------
 
       Finish:
-        POP EBX
-        SUB ESI,EBX
-        SHR ESI,1                        // 2 bytes = 1 character
-        MOV @Result,ESI
+        MOV EAX,Pos                      // Result := (Pos - SQL) div SizeOf(Char)
+        SUB EAX,SQL
+        SHR EAX,1                        // 2 bytes = 1 character
+        MOV @Result,EAX
 
         POP EBX
         POP EDI
@@ -2863,26 +2936,37 @@ begin
     Result := copy(SQL, 1, Len) + '...';
 end;
 
-function SQLTrimStmt(const SQL: string; const Version: Integer): string;
+function SQLTrimStmt(const SQL: string): string;
 var
   EndingCommentLen: Integer;
   Len: Integer;
   StartingCommentLen: Integer;
 begin
-  Len := SQLTrimStmt(SQL, 1, Length(SQL), Version, StartingCommentLen, EndingCommentLen);
+  Len := SQLTrimStmt(SQL, 1, Length(SQL), StartingCommentLen, EndingCommentLen);
   Result := Copy(SQL, 1 + StartingCommentLen, Len);
 end;
 
-function SQLTrimStmt(const SQL: string; const Index, Length: Integer; const Version: Integer; var StartingCommentLength, EndingCommentLength: Integer): Integer;
+function SQLTrimStmt(const SQL: PChar; const Length: Integer): string;
+var
+  EndingCommentLen: Integer;
+  Len: Integer;
+  StartingCommentLen: Integer;
+begin
+  Len := SQLTrimStmt(SQL, Length, StartingCommentLen, EndingCommentLen);
+  Result := Copy(SQL, 1 + StartingCommentLen, Len);
+end;
+
+function SQLTrimStmt(const SQL: string; const Index, Length: Integer; var StartingCommentLength, EndingCommentLength: Integer): Integer;
 begin
   if ((Index < 1) or (System.Length(SQL) < Index)) then
     Result := 0
   else
-    Result := SQLTrimStmt(PChar(@SQL[Index]), Length, Version, StartingCommentLength, EndingCommentLength);
+    Result := SQLTrimStmt(PChar(@SQL[Index]), Length, StartingCommentLength, EndingCommentLength);
 end;
 
-function SQLTrimStmt(const SQL: PChar; const Length: Integer; const Version: Integer; out StartingCommentLength, EndingCommentLength: Integer): Integer; overload;
+function SQLTrimStmt(const SQL: PChar; const Length: Integer; out StartingCommentLength, EndingCommentLength: Integer): Integer; overload;
 label
+  StartL, StartL2, StartSLC, StartMLC, StartLE, StartE,
   EndL, EndLE, EndE,
   Finish;
 var
@@ -2906,33 +2990,93 @@ begin
         MOV ESI,SQL                      // Read characters from SQL
         MOV ECX,Length                   // Count of characters
         MOV EDI,0                        // Do not copy characters in Trim
-        MOV EDX,Version                  // Version of MySQL conditional Code
 
       // -------------------
 
-        CALL Trim                        // Step over empty characters
-        MOV EBX,ESI
-        SUB EBX,SQL
-        SHR EBX,1                        // 2 bytes = 1 character
-        MOV SCL,EBX                      // StartingCommentLength
+      StartL:
+        MOV AX,[ESI]                     // Character in SQL
+        CMP AX,9                         // Tabulator?
+        JE StartLE                       // Yes!
+        CMP AX,10                        // New Line?
+        JE StartLE                       // Yes!
+        CMP AX,13                        // Carrige Return?
+        JE StartLE                       // Yes!
+        CMP AX,' '                       // Space
+        JE StartLE                       // Yes!
+        CMP AX,'#'                       // "#"?
+        JE StartSLC                       // Yes!
+        CMP ECX,3                        // Three character in SQL?
+        JB StartLE                       // No!
+        MOV EAX,[ESI]                    // Two character in SQL
+        CMP EAX,$002D002D                // "--"?
+        JNE StartL2                      // No!
+        MOV AX,[ESI + 4]                 // Character after "--"
+        CMP AX,9                         // Tabulator?
+        JE StartSLC                      // Yes!
+        CMP AX,10                        // New Line?
+        JE StartSLC                      // Yes!
+        CMP AX,13                        // Carrige Return?
+        JE StartSLC                      // Yes!
+        CMP AX,' '                       // Space
+        JE StartSLC                      // Yes!
+        JMP StartLE
+      StartL2:
+        CMP EAX,$002A002F                // "/*"?
+        JNE StartE                       // No!
+        MOV AX,[ESI + 4]                 // Character after "/*"
+        CMP AX,'!'                       // "!"?
+        JE StartE                        // Yes!
+      StartMLC:
+        ADD ESI,2                        // Next character in SQL
+        DEC ECX                          // One character handled
+        JZ StartE                        // End of SQL!
+        CMP ECX,2                        // Two character left in SQL?
+        JB StartMLC                      // No!
+        MOV EAX,[ESI]                    // Two character in SQL
+        CMP EAX,$002F002A                // "*/"?
+        JNE StartMLC                     // No!
+        ADD ESI,2                        // Step over "*" in SQL
+        DEC ECX                          // One character handled
+        JNZ StartLE                      // Further character in SQL!
+        JMP StartE                       // End of SQL!
+      StartSLC:
+        ADD ESI,2                        // Next character in SQL
+        DEC ECX                          // One character handled
+        JZ StartE                        // End of SQL!
+        MOV AX,[ESI]                     // Character in SQL
+        CMP AX,10                        // New Line?
+        JE StartLE                       // Yes!
+        CMP AX,13                        // Carrige Return?
+        JE StartLE                       // Yes!
+        JMP StartSLC
+      StartLE:
+        ADD ESI,2                        // Next character in SQL
+        DEC ECX                          // One character handled
+        JNZ StartL                       // Further characters in SQL!
+        JMP StartE                       // End of SQL!
+      StartE:
+        MOV EBX,Length
+        SUB EBX,ECX
+        MOV SCL,EBX
 
-        MOV ESI,SQL                      // Read characters from SQL
-        MOV EAX,Length
+        MOV ESI,SQL                      // Go to the end of SQL:
+        MOV EAX,Length                   // ESI := SQL[Length - 1]
         DEC EAX                          // Last character in SQL
         SHL EAX,1                        // 1 character = 2 bytes
         ADD ESI,EAX
         MOV ECX,Length
         SUB ECX,EBX                      // Length of SQL - StartingCommentLength
+        JZ Finish                        // The whole Stmt is a comment!
 
       EndL:
         MOV AX,[ESI]                     // Character in SQL
-        CMP EAX,9                        // Tabulator?
+        CMP AX,9                         // Tabulator?
         JE EndLE                         // Yes!
-        CMP EAX,10                       // New Line?
+        CMP AX,10                        // New Line?
         JE EndLE                         // Yes!
-        CMP EAX,13                       // Carrige Return?
+        CMP AX,13                        // Carrige Return?
         JE EndLE                         // Yes!
-        CMP EAX,' '                      // Space
+        CMP AX,' '                       // Space
         JE EndLE                         // Yes!
         JMP Finish
       EndLE:
@@ -3057,7 +3201,14 @@ begin
     Result := ''
   else
   begin
-    Len := SQLUnescape(PChar(Value), Length(Value), nil, 0);
+    try
+      Len := SQLUnescape(PChar(Value), Length(Value), nil, 0);
+    except
+      // Debug 2017-01-04
+      on E: Exception do
+        raise ERangeError.Create('Value: ' + Value + #13#10
+          + E.Message);
+    end;
     SetLength(Result, Len);
     SQLUnescape(PChar(Value), Length(Value), PChar(Result), Length(Result));
   end;
@@ -3075,7 +3226,7 @@ var
   Len: Integer;
   StackBuffer: array[0 .. 255] of Char;
 begin
-  Len := StrLen(Value);
+  Len := AnsiStrings.StrLen(Value);
 
   if (Len = 0) then
     Result := ''
@@ -3224,7 +3375,7 @@ begin
 
     if (Len <> Length(Result)) then
       SetLength(Result, Len);
-    Result := SQLTrimStmt(Result, Version);
+    Result := SQLTrimStmt(Result);
   end;
 end;
 
@@ -3471,6 +3622,184 @@ begin
   end;
 
   Result := StrPas(P);
+end;
+
+{ TSQLBuffer ******************************************************************}
+
+procedure TSQLBuffer.Clear();
+begin
+  Buffer.Write := Buffer.Mem;
+end;
+
+constructor TSQLBuffer.Create(const InitialLength: Integer);
+begin
+  Buffer.Mem := nil;
+  Buffer.MemSize := 0;
+  Buffer.Write := nil;
+
+  Reallocate(InitialLength);
+end;
+
+procedure TSQLBuffer.Delete(const Start: Integer; const Length: Integer);
+begin
+  Move(Buffer.Mem[Start + Length], Buffer.Mem[Start], Size - Length);
+  Buffer.Write := Pointer(Integer(Buffer.Write) - Length);
+end;
+
+destructor TSQLBuffer.Destroy();
+begin
+  FreeMem(Buffer.Mem);
+
+  inherited;
+end;
+
+function TSQLBuffer.GetData(): Pointer;
+begin
+  Result := Pointer(Buffer.Mem);
+end;
+
+function TSQLBuffer.GetLength(): Integer;
+begin
+  Result := (Integer(Buffer.Write) - Integer(Buffer.Mem)) div SizeOf(Buffer.Mem[0]);
+end;
+
+function TSQLBuffer.GetSize(): Integer;
+begin
+  Result := Integer(Buffer.Write) - Integer(Buffer.Mem);
+end;
+
+function TSQLBuffer.GetText(): PChar;
+begin
+  Result := Buffer.Mem;
+end;
+
+function TSQLBuffer.Read(): string;
+begin
+  SetString(Result, PChar(Buffer.Mem), Size div SizeOf(Result[1]));
+  Clear();
+end;
+
+procedure TSQLBuffer.Reallocate(const NeededLength: Integer);
+var
+  Index: Integer;
+begin
+  if (Buffer.MemSize = 0) then
+  begin
+    Buffer.MemSize := NeededLength * SizeOf(Buffer.Write[0]);
+    GetMem(Buffer.Mem, Buffer.MemSize);
+    Buffer.Write := Buffer.Mem;
+  end
+  else if (Size + NeededLength * SizeOf(Buffer.Mem[0]) > Buffer.MemSize) then
+  begin
+    Index := Size div SizeOf(Buffer.Write[0]);
+    Inc(Buffer.MemSize, 2 * (Size + NeededLength * SizeOf(Buffer.Mem[0]) - Buffer.MemSize));
+    ReallocMem(Buffer.Mem, Buffer.MemSize);
+    Buffer.Write := @Buffer.Mem[Index];
+  end;
+end;
+
+procedure TSQLBuffer.Write(const Text: PChar; const Length: Integer);
+begin
+  if (Length > 0) then
+  begin
+    Reallocate(Length);
+
+    Move(Text^, Buffer.Write^, Length * SizeOf(Buffer.Mem[0]));
+    Buffer.Write := @Buffer.Write[Length];
+  end;
+end;
+
+procedure TSQLBuffer.Write(const Text: string);
+begin
+  Write(PChar(Text), System.Length(Text));
+end;
+
+procedure TSQLBuffer.WriteChar(const Char: Char);
+begin
+  Reallocate(1);
+  Move(Char, Buffer.Write^, SizeOf(Char));
+  Buffer.Write := @Buffer.Write[1];
+end;
+
+procedure TSQLBuffer.WriteData(const Data: PAnsiChar; const Length: Integer; const Quote: Boolean = False; const Quoter: Char = '''');
+label
+  StringL, StringLE,
+  Finish;
+var
+  Len: Integer;
+  Write: PChar;
+begin
+  if (not Quote) then
+    Len := Length
+  else
+    Len := 1 + Length + 1;
+
+  Reallocate(Len);
+
+  Write := Buffer.Write;
+  asm
+        PUSH ES
+        PUSH ESI
+        PUSH EDI
+
+        PUSH DS                          // string operations uses ES
+        POP ES
+        CLD                              // string operations uses forward direction
+
+        MOV ESI,Data                     // Copy characters from Data
+        MOV EDI,Write                    //   to Write
+        MOV ECX,Length                   // Character count
+
+        MOV EAX,0                        // Clear EAX since AL will be loaded, but be AX used
+        CMP Quote,False                  // Quote Value?
+        JE StringL                       // No!
+        MOV AX,Quoter                    // Starting quoter
+        STOSW                            //   into Write
+
+      StringL:
+        CMP ECX,0                        // All characters handled?
+        JE StringLE                      // Yes!
+        LODSB                            // Load AnisChar from Data
+        STOSW                            // Store WideChar into Buffer.Mem
+        DEC ECX
+        JMP StringL                      // Repeat for all characters
+
+      StringLE:
+        CMP Quote,False                  // Quote Value?
+        JE Finish                        // No!
+        MOV AX,Quoter                    // Ending quoter
+        STOSW                            //   into Write
+
+      Finish:
+        POP EDI
+        POP ESI
+        POP ES
+    end;
+
+  Buffer.Write := @Buffer.Write[Len];
+end;
+
+function TSQLBuffer.WriteExternal(const Length: Integer): PChar;
+begin
+  if (Length = 0) then
+    Result := nil
+  else
+  begin
+    Reallocate(Length);
+
+    Result := Buffer.Write;
+
+    Buffer.Write := @Buffer.Write[Length];
+  end;
+end;
+
+procedure TSQLBuffer.WriteText(const Text: PChar; const Length: Integer);
+var
+  Len: Integer;
+begin
+  Len := SQLEscape(Text, Length, nil, 0);
+  if (Len > 0) then
+    SQLEscape(Text, Length, WriteExternal(Len), Len);
 end;
 
 end.

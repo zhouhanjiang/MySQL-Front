@@ -15,8 +15,7 @@ unit MPHexEditorReg;
 interface
 
 uses
-  Classes, MPHexEditor, MPHexEditorEx{$IFDEF DELPHI6UP}, DesignIntf,
-    DesignEditors{$ELSE}, dsgnintf{$ENDIF};
+  Classes, MPHexEditor, MPHexEditorEx, DesignIntf, DesignEditors;
 
 type
   TBytesPerUnitProperty = class(TIntegerProperty)
